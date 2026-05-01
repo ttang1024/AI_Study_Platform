@@ -1,0 +1,115 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-studyplatform}
+      POSTGRES_USER: ${POSTGRES_USER:-studyplatform}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-studyplatform}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+
+  api:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - data_protection_keys:/root/.aspnet/DataProtection-Keys
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-studyplatform};Username=${POSTGRES_USER:-studyplatform};Password=${POSTGRES_PASSWORD}"
+      Redis__ConnectionString: "redis:6379"
+      Redis__InstanceName: ${REDIS_INSTANCE_NAME:-StudyPlatform:}
+      Cache__DashboardStatsSeconds: ${CACHE_DASHBOARD_STATS_SECONDS:-60}
+      Cache__DocumentMetadataSeconds: ${CACHE_DOCUMENT_METADATA_SECONDS:-60}
+      Cache__AnalyticsSummarySeconds: ${CACHE_ANALYTICS_SUMMARY_SECONDS:-300}
+      Cache__GeneratedResultSeconds: ${CACHE_GENERATED_RESULT_SECONDS:-3600}
+      JwtSettings__SecretKey: ${JWT_SECRET_KEY}
+      JwtSettings__Issuer: ${JWT_ISSUER:-Study Platform}
+      JwtSettings__Audience: ${JWT_AUDIENCE:-Study Platform Users}
+      JwtSettings__AccessTokenExpiryMinutes: ${JWT_ACCESS_EXPIRY_MINUTES:-15}
+      JwtSettings__RefreshTokenExpiryDays: ${JWT_REFRESH_EXPIRY_DAYS:-7}
+      EmailSettings__FromEmail: ${EMAIL_FROM}
+      EmailSettings__FromName: ${EMAIL_FROM_NAME:-Study Platform}
+      EmailSettings__SmtpHost: ${SMTP_HOST:-smtp.gmail.com}
+      EmailSettings__SmtpPort: ${SMTP_PORT:-587}
+      EmailSettings__SmtpUser: ${SMTP_USER}
+      EmailSettings__SmtpPassword: ${SMTP_PASSWORD}
+      AzureStorage__ConnectionString: ${AZURE_STORAGE_CONNECTION_STRING}
+      AzureStorage__ContainerName: ${AZURE_STORAGE_CONTAINER:-documents}
+      GoogleOAuth__ClientId: ${GOOGLE_CLIENT_ID}
+      GoogleOAuth__ClientSecret: ${GOOGLE_CLIENT_SECRET}
+      GitHubOAuth__ClientId: ${GITHUB_CLIENT_ID}
+      GitHubOAuth__ClientSecret: ${GITHUB_CLIENT_SECRET}
+      Cors__AllowedOrigins__0: ${WEB_ORIGIN:-http://localhost:3000}
+      Cors__AllowedOrigins__1: ${ADMIN_ORIGIN:-http://localhost:4200}
+      ApplicationInsights__ConnectionString: ${APPINSIGHTS_CONNECTION_STRING:-}
+      AppLimits__DocumentUploadLimit: ${DOCUMENT_UPLOAD_LIMIT:-5}
+      YouTube__SubtitleLanguages: ${YOUTUBE_SUBTITLE_LANGUAGES:-en.*,en}
+      YouTube__ProxyUrl: ${YOUTUBE_PROXY_URL:-}
+      YouTube__CookiesBase64: ${YOUTUBE_COOKIES_B64:-}
+      YouTube__HttpTimeoutSeconds: ${YOUTUBE_HTTP_TIMEOUT_SECONDS:-60}
+    ports:
+      - "${API_PORT:-5000}:5000"
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-}
+        VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+        VITE_GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      API_BACKEND_URL: http://api:5000
+    ports:
+      - "3000:80"
+
+  admin:
+    build:
+      context: ./admin
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-}
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      API_BACKEND_URL: http://api:5000
+    ports:
+      - "4200:80"
+
+volumes:
+  postgres_data:
+  data_protection_keys:
+  redis_data:

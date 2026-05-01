@@ -1,0 +1,195 @@
+import React, { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { motion, AnimatePresence } from 'motion/react';
+import { Upload, Youtube, Globe, Mic, Files, Rss } from 'lucide-react';
+import { BulkUploadSection } from '../components/common/BulkUploadSection';
+import { cn } from '../utils/cn';
+import { CoursePicker } from '../components/common/CoursePicker';
+import { DocumentTab } from '../components/summarizer/DocumentTab';
+import { YouTubeTab } from '../components/summarizer/YouTubeTab';
+import { AudioTab } from '../components/summarizer/AudioTab';
+import { PodcastTab } from '../components/summarizer/PodcastTab';
+import { WebTab } from '../components/summarizer/WebTab';
+
+type Tab = 'document' | 'youtube' | 'web' | 'audio';
+type DocSubTab = 'single' | 'bulk';
+type AudioSubTab = 'lecture' | 'podcast';
+
+export const AISummarizerPage: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState<Tab>(() => {
+    const t = searchParams.get('tab');
+    if (t === 'youtube') return 'youtube';
+    if (t === 'web') return 'web';
+    if (t === 'audio' || t === 'podcast') return 'audio';
+    return 'document';
+  });
+  const [docSubTab, setDocSubTab] = useState<DocSubTab>(() =>
+    searchParams.get('tab') === 'bulk' ? 'bulk' : 'single',
+  );
+  const [audioSubTab, setAudioSubTab] = useState<AudioSubTab>(() =>
+    searchParams.get('tab') === 'podcast' ? 'podcast' : 'lecture',
+  );
+  const [selectedCourseId, setSelectedCourseId] = useState(searchParams.get('courseId') ?? '');
+  const [courseError, setCourseError] = useState(false);
+
+  const handleTabChange = (tab: Tab) => {
+    setActiveTab(tab);
+    setCourseError(false);
+  };
+
+  return (
+    <div className="flex h-full overflow-hidden px-6">
+      <div className="w-full mx-auto flex gap-8 h-full">
+
+        {/* Left — Course Picker sidebar */}
+        <div className="w-56 shrink-0 flex flex-col h-full overflow-hidden">
+          <CoursePicker
+            selectedCourseId={selectedCourseId}
+            onSelect={(id) => { setSelectedCourseId(id); setCourseError(false); }}
+            error={courseError}
+            variant={activeTab === 'youtube' ? 'red' : 'primary'}
+          />
+        </div>
+
+        {/* Right — Header + Tabs + Form */}
+        <div className="flex-1 flex flex-col gap-5 min-w-0 overflow-y-auto">
+          <h1 className="text-3xl font-black tracking-tight text-text-main">
+            Turn anything into <span className="text-primary">study material</span>
+          </h1>
+
+          {/* Main Tabs */}
+          <div className="flex rounded-xl bg-zinc-100 p-1 gap-1">
+            <button
+              onClick={() => handleTabChange('document')}
+              className={cn(
+                'flex-1 flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-bold transition-all duration-200',
+                activeTab === 'document' ? 'bg-white text-primary shadow-sm' : 'text-zinc-500 hover:text-zinc-700',
+              )}
+            >
+              <Upload size={15} /> Document
+            </button>
+            <button
+              onClick={() => handleTabChange('youtube')}
+              className={cn(
+                'flex-1 flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-bold transition-all duration-200',
+                activeTab === 'youtube' ? 'bg-white text-red-500 shadow-sm' : 'text-zinc-500 hover:text-zinc-700',
+              )}
+            >
+              <Youtube size={15} /> YouTube
+            </button>
+            <button
+              onClick={() => handleTabChange('web')}
+              className={cn(
+                'flex-1 flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-bold transition-all duration-200',
+                activeTab === 'web' ? 'bg-white text-primary shadow-sm' : 'text-zinc-500 hover:text-zinc-700',
+              )}
+            >
+              <Globe size={15} /> Web Article
+            </button>
+            <button
+              onClick={() => handleTabChange('audio')}
+              className={cn(
+                'flex-1 flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-bold transition-all duration-200',
+                activeTab === 'audio'
+                  ? audioSubTab === 'podcast' ? 'bg-white text-amber-500 shadow-sm' : 'bg-white text-primary shadow-sm'
+                  : 'text-zinc-500 hover:text-zinc-700',
+              )}
+            >
+              {activeTab === 'audio' && audioSubTab === 'podcast' ? <Rss size={15} /> : <Mic size={15} />}
+              Audio
+            </button>
+          </div>
+
+          {/* Tab content */}
+          <AnimatePresence mode="wait">
+            {activeTab === 'document' && (
+              <motion.div key="document" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.15 }} className="flex flex-col gap-4">
+                <div className="flex rounded-lg bg-zinc-50 border border-zinc-200 p-0.5 gap-0.5 self-start">
+                  <button
+                    onClick={() => setDocSubTab('single')}
+                    className={cn(
+                      'flex items-center gap-1.5 rounded-md px-4 py-1.5 text-xs font-bold transition-all duration-200',
+                      docSubTab === 'single' ? 'bg-white text-primary shadow-sm' : 'text-zinc-500 hover:text-zinc-700',
+                    )}
+                  >
+                    <Upload size={12} /> Upload
+                  </button>
+                  <button
+                    onClick={() => setDocSubTab('bulk')}
+                    className={cn(
+                      'flex items-center gap-1.5 rounded-md px-4 py-1.5 text-xs font-bold transition-all duration-200',
+                      docSubTab === 'bulk' ? 'bg-white text-primary shadow-sm' : 'text-zinc-500 hover:text-zinc-700',
+                    )}
+                  >
+                    <Files size={12} /> Batch Upload
+                  </button>
+                </div>
+                <AnimatePresence mode="wait">
+                  {docSubTab === 'single' ? (
+                    <motion.div key="single" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.12 }}>
+                      <DocumentTab selectedCourseId={selectedCourseId} onCourseError={setCourseError} />
+                    </motion.div>
+                  ) : (
+                    <motion.div key="bulk" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.12 }}>
+                      <BulkUploadSection selectedCourseId={selectedCourseId} onCourseError={setCourseError} />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            )}
+
+            {activeTab === 'youtube' && (
+              <motion.div key="youtube" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.15 }}>
+                <YouTubeTab selectedCourseId={selectedCourseId} onCourseError={setCourseError} />
+              </motion.div>
+            )}
+
+            {activeTab === 'web' && (
+              <motion.div key="web" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.15 }}>
+                <WebTab selectedCourseId={selectedCourseId} onCourseError={setCourseError} />
+              </motion.div>
+            )}
+
+            {activeTab === 'audio' && (
+              <motion.div key="audio" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.15 }} className="flex flex-col gap-4">
+                <div className="flex rounded-lg bg-zinc-50 border border-zinc-200 p-0.5 gap-0.5 self-start">
+                  <button
+                    onClick={() => setAudioSubTab('lecture')}
+                    className={cn(
+                      'flex items-center gap-1.5 rounded-md px-4 py-1.5 text-xs font-bold transition-all duration-200',
+                      audioSubTab === 'lecture' ? 'bg-white text-primary shadow-sm' : 'text-zinc-500 hover:text-zinc-700',
+                    )}
+                  >
+                    <Mic size={12} /> Audio Lecture
+                  </button>
+                  <button
+                    onClick={() => setAudioSubTab('podcast')}
+                    className={cn(
+                      'flex items-center gap-1.5 rounded-md px-4 py-1.5 text-xs font-bold transition-all duration-200',
+                      audioSubTab === 'podcast' ? 'bg-white text-amber-500 shadow-sm' : 'text-zinc-500 hover:text-zinc-700',
+                    )}
+                  >
+                    <Rss size={12} /> Podcast
+                  </button>
+                </div>
+                <AnimatePresence mode="wait">
+                  {audioSubTab === 'lecture' ? (
+                    <motion.div key="lecture" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.12 }}>
+                      <AudioTab selectedCourseId={selectedCourseId} onCourseError={setCourseError} />
+                    </motion.div>
+                  ) : (
+                    <motion.div key="podcast" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.12 }}>
+                      <PodcastTab selectedCourseId={selectedCourseId} onCourseError={setCourseError} />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+      </div>
+    </div>
+  );
+};

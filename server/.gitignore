@@ -1,0 +1,29 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.swp
+
+## User secrets
+**/secrets.json
+appsettings.local.json
+appsettings.*.local.json
+
+## Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+
+## NuGet
+*.nupkg
+.nuget/
+
+## Test results
+TestResults/
+*.trx
+
+## Publish
+publish/

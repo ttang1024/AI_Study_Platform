@@ -1,0 +1,94 @@
+# ==================== .NET Related Ignore Rules ====================
+# Compilation output directories
+bin/
+obj/
+# .NET Core publish directory
+publish/
+# Log files
+*.log
+# Temporary files
+*.tmp
+*.temp
+# Visual Studio related files
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+# Automatically generated files by Visual Studio
+Generated\ Files/
+# Test results
+TestResults/
+# Local configuration files that override user settings
+appsettings.Local.json
+launchSettings.json
+# Code analysis reports
+StyleCopReport.xml
+# NuGet package cache
+.nuget/packages/*
+!*.nuget/packages/*.targets
+# Project-level NuGet cache
+project.lock.json
+project.fragment.lock.json
+artifacts/
+# DotCover coverage reports
+*.dotCover
+
+# ==================== React/Frontend Related Ignore Rules ====================
+# Dependency directories
+node_modules/
+# Build output directories
+build/
+dist/
+out/
+# Environment variable files (contains sensitive information)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+# npm logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+# Editor/IDE temporary files
+.DS_Store
+Thumbs.db
+.claude
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+.idea/
+# Cache files
+*.swp
+*.swo
+# TypeScript compilation output
+*.tsbuildinfo
+# Packaged/compressed files
+*.zip
+*.tar.gz
+# Coverage reports
+coverage/
+# pnpm cache
+pnpm-lock.yaml
+# yarn cache
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+appsettings.json
+appsettings.Development.json
+cookies.txt
+
+__azurite_db_blob__.json
+__azurite_db_blob_extent__.json
+__blobstorage__
+AzuriteConfig
+.azure_env_variables
+report
+cookies.txt
+skills.md

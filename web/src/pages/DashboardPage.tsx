@@ -1,0 +1,242 @@
+import React, { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { motion, useInView, animate } from 'motion/react';
+import {
+  NotebookPen, ArrowRight, BrainCircuit, BookOpen, Award,
+  Youtube, Globe, BookMarked, Play, Plus, Rss, ChevronRight,
+} from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { useStudy } from '../context/StudyContext';
+import { StudyCalendar } from '../components/common/StudyCalendar';
+
+const container = {
+  hidden: { opacity: 0 },
+  show: { opacity: 1, transition: { staggerChildren: 0.07 } },
+};
+const item = {
+  hidden: { opacity: 0, y: 16 },
+  show: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 320, damping: 30 } },
+};
+const cardItem = {
+  hidden: { opacity: 0, y: 12 },
+  show: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 360, damping: 28 } },
+};
+
+const CARD_SHADOW = '0 1px 3px rgba(0,0,0,0.06), 0 6px 20px rgba(0,0,0,0.05)';
+const CARD_SHADOW_HOVER = '0 2px 8px rgba(0,0,0,0.08), 0 12px 28px rgba(0,0,0,0.08)';
+
+// ─── Animated number ──────────────────────────────────────────────────────────
+const AnimatedCount: React.FC<{ value: number; className?: string }> = ({ value, className }) => {
+  const [display, setDisplay] = useState(0);
+  const ref = useRef<HTMLSpanElement>(null);
+  const inView = useInView(ref, { once: true });
+  useEffect(() => {
+    if (!inView) return;
+    const ctrl = animate(0, value, { duration: 1.2, ease: [0.16, 1, 0.3, 1], onUpdate: v => setDisplay(Math.round(v)) });
+    return ctrl.stop;
+  }, [inView, value]);
+  return <span ref={ref} className={className}>{display}</span>;
+};
+
+// ─── Section label ────────────────────────────────────────────────────────────
+const SectionLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <p className="text-[11px] font-semibold uppercase tracking-wider text-text-muted mb-3 px-0.5">{children}</p>
+);
+
+// ─── Content library card ─────────────────────────────────────────────────────
+interface ContentCardProps {
+  label: string;
+  value: number;
+  icon: React.ElementType;
+  link: string;
+  summarizerTab: string;
+}
+
+const ContentCard: React.FC<ContentCardProps> = ({ label, value, icon: Icon, link, summarizerTab }) => {
+  const isEmpty = value === 0;
+  const destination = isEmpty ? `/summarizer${summarizerTab ? `?tab=${summarizerTab}` : ''}` : link;
+
+  return (
+    <motion.div variants={cardItem} whileTap={{ scale: 0.98 }}>
+      <Link
+        to={destination}
+        className="group relative flex flex-col h-full bg-white rounded-2xl p-5 overflow-hidden transition-all duration-200 hover:-translate-y-px"
+        style={{ boxShadow: CARD_SHADOW }}
+        onMouseEnter={e => (e.currentTarget.style.boxShadow = CARD_SHADOW_HOVER)}
+        onMouseLeave={e => (e.currentTarget.style.boxShadow = CARD_SHADOW)}
+      >
+        {/* Large background icon */}
+        <div className="pointer-events-none absolute -top-2 -right-4 text-[var(--primary)] opacity-[0.07] group-hover:opacity-[0.18] transition-opacity duration-300">
+          <Icon size={100} strokeWidth={1.2} />
+        </div>
+
+
+        {isEmpty ? (
+          <div className="flex-1 mt-1">
+            <p className="text-sm font-semibold text-text-main leading-snug">Nothing yet</p>
+            <p className="text-[11px] text-text-muted mt-0.5 leading-relaxed">Add your first {label.toLowerCase()}</p>
+          </div>
+        ) : (
+          <div className="flex-1 mt-1">
+            <AnimatedCount value={value} className="text-[40px] font-bold leading-none tabular-nums text-text-main tracking-tight" />
+          </div>
+        )}
+
+        <div className="mt-4 pt-3 border-t border-black/[0.05] flex items-center justify-between">
+          <span className="text-[14px] font-bold text-text-muted">{label}</span>
+          <span className="text-[11px] font-medium text-[var(--primary)]">{isEmpty ? 'Add now' : 'View all'}</span>
+        </div>
+      </Link>
+    </motion.div>
+  );
+};
+
+// ─── Study tool card ──────────────────────────────────────────────────────────
+interface ToolCardProps {
+  label: string;
+  value: number | null;
+  icon: React.ElementType;
+  link: string;
+}
+
+const ToolCard: React.FC<ToolCardProps> = ({ label, value, icon: Icon, link }) => (
+  <motion.div variants={cardItem} whileTap={{ scale: 0.98 }}>
+    <Link
+      to={link}
+      className="group flex items-center bg-white rounded-2xl px-5 py-4 overflow-hidden transition-all duration-200 hover:-translate-y-px"
+      style={{ boxShadow: CARD_SHADOW }}
+      onMouseEnter={e => (e.currentTarget.style.boxShadow = CARD_SHADOW_HOVER)}
+      onMouseLeave={e => (e.currentTarget.style.boxShadow = CARD_SHADOW)}
+    >
+      <div className="flex items-center gap-4 w-full transition-transform duration-300 ease-out group-hover:scale-[1.03] origin-left">
+        <div className="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'rgba(13,148,136,0.08)' }}>
+          <Icon size={18} className="text-[var(--primary)]" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[11px] font-semibold text-text-muted mb-0.5">{label}</p>
+          <p className="text-[26px] font-bold leading-none tabular-nums text-text-main tracking-tight">
+            {value !== null ? <AnimatedCount value={value} /> : '—'}
+          </p>
+        </div>
+        <ArrowRight size={14} className="text-text-muted opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all duration-150 shrink-0" />
+      </div>
+    </Link>
+  </motion.div>
+);
+
+// ─── Course card ──────────────────────────────────────────────────────────────
+const CourseCard: React.FC<{ course: any; i: number; docCount: number; videoCount: number }> = ({ course, i, docCount, videoCount }) => {
+  const total = docCount + videoCount;
+  const isEmpty = total === 0;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: 16 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay: i * 0.05, type: 'spring' as const, stiffness: 320, damping: 28 }}
+      whileTap={{ scale: 0.97 }}
+    >
+      <Link
+        to={isEmpty ? `/summarizer?courseId=${course.id}` : `/courses/${course.id}/study`}
+        className="group relative flex flex-col shrink-0 w-44 rounded-2xl bg-white p-4 overflow-hidden shadow-sm transition-all duration-200 hover:-translate-y-px hover:shadow-lg"
+        style={{
+          borderTop: `3px solid ${course.color}`,
+        }}
+      >
+        <div className="relative z-10 flex flex-col flex-1 transition-transform duration-300 ease-out group-hover:scale-[1.04] origin-left">
+          <p className="font-semibold text-[13px] leading-snug truncate text-text-main">
+            {course.name}
+          </p>
+          <p className="text-[11px] mt-1 text-text-muted">
+            {isEmpty ? 'No materials yet' : `${total} material${total !== 1 ? 's' : ''}`}
+          </p>
+          <div className="flex items-center gap-1 text-[11px] font-medium mt-3 text-text-muted">
+            <span className="flex items-center gap-1 min-w-0">
+              {isEmpty
+                ? <><Plus size={10} /> Add first</>
+                : <><Play size={10} /> Study now</>}
+            </span>
+            <ArrowRight size={11} className="opacity-0 -translate-x-1 transition-all duration-200 group-hover:opacity-100 group-hover:translate-x-0 shrink-0" />
+          </div>
+        </div>
+      </Link>
+    </motion.div>
+  );
+};
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+export const DashboardPage: React.FC = () => {
+  const { user } = useAuth();
+  const {
+    totalDocuments, totalArticles, totalAudio, totalNotes,
+    totalFlashcards, totalGlossaryTerms, totalQuizSubmissions, totalVideos,
+    courses, documents, courseMaterialCounts,
+  } = useStudy();
+
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+
+  return (
+    <motion.div variants={container} initial="hidden" animate="show" className="space-y-8">
+
+      {/* Greeting */}
+      <motion.div variants={item}>
+        <h1 className="text-[26px] font-semibold tracking-tight text-text-main leading-tight">
+          {greeting}, {user?.name}
+        </h1>
+      </motion.div>
+
+      {/* ── Content Library ──────────────────────────────────────────────── */}
+      <motion.div variants={item}>
+        <SectionLabel>Content Library</SectionLabel>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {[
+            { label: 'Documents', value: totalDocuments, icon: BookOpen, link: '/library?type=documents', summarizerTab: '' },
+            { label: 'Videos', value: totalVideos, icon: Youtube, link: '/library?type=videos', summarizerTab: 'youtube' },
+            { label: 'Articles', value: totalArticles, icon: Globe, link: '/library?type=articles', summarizerTab: 'web' },
+            { label: 'Audio', value: totalAudio, icon: Rss, link: '/library?type=audio', summarizerTab: 'audio' },
+          ].map(card => (
+            <ContentCard key={card.label} {...card} />
+          ))}
+        </div>
+      </motion.div>
+
+      {/* ── Study Tools ──────────────────────────────────────────────────── */}
+      <motion.div variants={item}>
+        <SectionLabel>Study Tools</SectionLabel>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {([
+            { label: 'Flashcards', value: totalFlashcards, icon: BrainCircuit, link: '/flashcards' },
+            { label: 'Quizzes', value: totalQuizSubmissions, icon: Award, link: '/quizzes' },
+            { label: 'Notes', value: totalNotes, icon: NotebookPen, link: '/notes' },
+            { label: 'Glossary', value: totalGlossaryTerms, icon: BookMarked, link: '/glossary' },
+          ] as ToolCardProps[]).map(tool => (
+            <ToolCard key={tool.label} {...tool} />
+          ))}
+        </div>
+      </motion.div>
+
+      {/* ── Courses ──────────────────────────────────────────────────────── */}
+      {courses.length > 0 && (
+        <motion.div variants={item} className="space-y-3">
+          <SectionLabel>Your Courses</SectionLabel>
+          <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
+            {courses.map((course, i) => {
+              const counts = courseMaterialCounts.find(c => c.courseId === course.id);
+              const docCount = (counts?.documents ?? 0) + (counts?.articles ?? 0) + (counts?.audio ?? 0);
+              const videoCount = counts?.videos ?? 0;
+              return <CourseCard key={course.id} course={course} i={i} docCount={docCount} videoCount={videoCount} />;
+            })}
+          </div>
+        </motion.div>
+      )}
+
+      {/* ── Study Calendar ────────────────────────────────────────────────── */}
+      <motion.div variants={item} className="space-y-3">
+        <SectionLabel>Study Calendar</SectionLabel>
+        <StudyCalendar />
+      </motion.div>
+
+    </motion.div>
+  );
+};

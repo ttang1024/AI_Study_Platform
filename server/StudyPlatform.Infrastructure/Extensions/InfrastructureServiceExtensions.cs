@@ -1,0 +1,96 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using StudyPlatform.Application.Services;
+using StudyPlatform.Domain.Interfaces;
+using StudyPlatform.Infrastructure.Data;
+using StudyPlatform.Infrastructure.Repositories;
+using StudyPlatform.Infrastructure.Services;
+
+namespace StudyPlatform.Infrastructure.Extensions;
+
+public static class InfrastructureServiceExtensions
+{
+    public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
+    {
+        // Database
+        services.AddDbContext<AppDbContext>(options =>
+        {
+            var connectionString = configuration.GetConnectionString("DefaultConnection")
+                ?? throw new InvalidOperationException("Database connection string 'DefaultConnection' is not configured.");
+            options.UseNpgsql(connectionString, npgsqlOptions =>
+            {
+                npgsqlOptions.EnableRetryOnFailure(
+                    maxRetryCount: 5,
+                    maxRetryDelay: TimeSpan.FromSeconds(30),
+                    errorCodesToAdd: null);
+            });
+        });
+
+        // Unit of Work
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+        // Services
+        services.AddScoped<ITokenService, TokenService>();
+        services.AddScoped<IEmailService, EmailService>();
+        services.AddScoped<IBlobStorageService, BlobStorageService>();
+        services.AddScoped<IDocumentTextExtractor, DocumentTextExtractorService>();
+        services.AddScoped<IPasswordHasher, PasswordHasher>();
+        services.AddSingleton<IAppCache, DistributedAppCache>();
+
+        // HTTP context accessor (used by AiService to read request headers)
+        services.AddHttpContextAccessor();
+
+        // Whisper (singleton — model is loaded once and reused across requests)
+        services.AddSingleton<ITranscriptionService, WhisperTranscriptionService>();
+
+        // AI HTTP Client
+        services.AddHttpClient<IAiService, AiService>(client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(120);
+        });
+
+        // YouTube Transcript — HttpClient is used only to fetch subtitle CDN URLs after
+        // yt-dlp resolves them. Proxy is handled by yt-dlp's --proxy flag, not here.
+        services.AddHttpClient<IYouTubeTranscriptService, YouTubeTranscriptService>(client =>
+        {
+            client.Timeout = GetConfiguredTimeout(configuration, "YouTube:HttpTimeoutSeconds", 60);
+        });
+
+        // OAuth Service
+        services.AddHttpClient<IOAuthService, OAuthService>(client =>
+        {
+            client.DefaultRequestHeaders.Add("User-Agent", "StudyPlatform");
+            client.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+        });
+
+        // Apple Podcast Service
+        services.AddHttpClient<IApplePodcastService, ApplePodcastService>(client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(30);
+            client.DefaultRequestHeaders.Add("User-Agent", "StudyPlatform/1.0");
+        });
+
+        // Web Clipper
+        services.AddHttpClient("WebClipper", client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(30);
+            client.DefaultRequestHeaders.Add("User-Agent",
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+        })
+        .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+        {
+            AutomaticDecompression = System.Net.DecompressionMethods.All
+        });
+
+        return services;
+    }
+
+    private static TimeSpan GetConfiguredTimeout(IConfiguration configuration, string key, int defaultSeconds)
+    {
+        if (!int.TryParse(configuration[key], out var seconds) || seconds <= 0)
+            return TimeSpan.FromSeconds(defaultSeconds);
+
+        return TimeSpan.FromSeconds(seconds);
+    }
+}

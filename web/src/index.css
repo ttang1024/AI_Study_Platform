@@ -1,0 +1,169 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Bangers&family=Quicksand:wght@400;600;700&family=Orbitron:wght@400;700&family=Cinzel:wght@400;700&display=swap');
+@import 'tailwindcss';
+
+@theme {
+	--font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+	--font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+	--font-comic: 'Bangers', system-ui;
+	--font-playful: 'Quicksand', sans-serif;
+	--font-sci-fi: 'Orbitron', sans-serif;
+	--font-luxury: 'Cinzel', serif;
+
+	--color-primary: var(--primary);
+	--color-primary-foreground: var(--primary-foreground);
+	--radius-theme: var(--radius);
+
+	--color-text-main: var(--text-primary);
+	--color-text-muted: var(--text-secondary);
+}
+
+:root {
+	--primary: #059669;
+	--primary-foreground: #ffffff;
+	--radius: 0.625rem;
+	--bg-app: #f5f5f7;
+	--bg-sidebar: #ffffff;
+	--border-color: #d2d2d7;
+	--text-primary: #1d1d1f;
+	--text-secondary: #6e6e73;
+	--transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+	--glass-bg: rgba(255, 255, 255, 0.8);
+	--glass-border: rgba(210, 210, 215, 0.5);
+}
+
+.glass {
+	background: var(--glass-bg);
+	backdrop-filter: blur(12px);
+	-webkit-backdrop-filter: blur(12px);
+	border: 1px solid var(--glass-border);
+}
+
+.bg-grid {
+	background-image: radial-gradient(circle at 1px 1px, var(--border-color) 1px, transparent 0);
+	background-size: 24px 24px;
+}
+
+.bg-mesh {
+	background-color: var(--bg-app);
+}
+
+.card-hover {
+	transition:
+		transform 0.3s ease,
+		box-shadow 0.3s ease;
+}
+
+.card-hover:hover {
+	transform: translateY(-4px);
+	box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.1);
+}
+
+@layer base {
+	body {
+		@apply font-sans antialiased;
+		background-color: var(--bg-app);
+		color: var(--text-primary);
+		transition: var(--transition);
+	}
+
+	* {
+		transition:
+			background-color 0.3s ease,
+			border-color 0.3s ease,
+			color 0.3s ease,
+			box-shadow 0.3s ease,
+			border-radius 0.3s ease;
+	}
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+	width: 6px;
+	height: 6px;
+}
+
+::-webkit-scrollbar-track {
+	@apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+	@apply rounded-full bg-zinc-200 hover:bg-zinc-300 transition-colors;
+}
+
+/* Prose overrides for document view */
+.prose {
+	@apply max-w-none;
+}
+
+.prose pre {
+	@apply bg-zinc-50 text-zinc-800 border border-zinc-100;
+}
+
+.react-flow__panel.react-flow__attribution.bottom.right {
+	display: none;
+}
+
+/* Summary panel */
+.summary-content {
+	@apply px-4 py-4 space-y-4;
+}
+
+.summary-h1 {
+	@apply text-[11px] font-bold uppercase tracking-widest text-[var(--primary)] mb-2;
+}
+
+.summary-h2 {
+	@apply text-[13px] font-bold text-text-main mt-5 mb-2 pb-1 border-b border-[var(--primary)]/20;
+}
+
+.summary-h3 {
+	@apply text-[11px] font-semibold text-text-muted mt-3 mb-1;
+}
+
+.summary-p {
+	@apply text-[14px] leading-[1.75] text-text-main/90;
+}
+
+.summary-ul {
+	@apply space-y-1.5 pl-0 mt-2;
+}
+
+.summary-li {
+	@apply block text-[14px] leading-[1.65] text-text-main/85;
+}
+
+/* .summary-li::before {
+	content: '›';
+	margin-right: 4px;
+	font-weight: bold;
+	@apply text-[var(--primary)] font-bold shrink-0 mt-px;
+} */
+
+.summary-strong {
+	@apply font-semibold text-text-main;
+}
+
+/* 3D Card Flip Utilities */
+.perspective-1000 {
+	perspective: 1000px;
+}
+
+.preserve-3d {
+	transform-style: preserve-3d;
+}
+
+.backface-hidden {
+	backface-visibility: hidden;
+}
+
+.rotate-y-180 {
+	transform: rotateY(180deg);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+	display: none;
+}
+.no-scrollbar {
+	-ms-overflow-style: none;
+	scrollbar-width: none;
+}
