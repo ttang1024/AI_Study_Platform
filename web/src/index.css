@@ -143,6 +143,13 @@
 	@apply font-semibold text-text-main;
 }
 
+/* Keep display equations usable inside narrow chat bubbles. */
+.katex-display {
+	overflow-x: auto;
+	overflow-y: hidden;
+	padding-bottom: 0.125rem;
+}
+
 /* 3D Card Flip Utilities */
 .perspective-1000 {
 	perspective: 1000px;

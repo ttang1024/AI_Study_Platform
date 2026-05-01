@@ -62,41 +62,72 @@ public class AiController : ControllerBase
         }
         catch (Exception ex)
         {
+            if (AiErrorMapper.TryGetAiError(ex.Message, out var statusCode, out var errorCode))
+                return StatusCode(statusCode, BaseResponse<string>.Fail(ex.Message, errorCode));
+
             return BadRequest(BaseResponse<string>.Fail(ex.Message));
         }
     }
 
     /// <summary>Streaming general AI study tutor chat (SSE).</summary>
     [HttpPost("chat/stream")]
-    public async Task StreamChat([FromBody] GeneralChatRequest request, CancellationToken cancellationToken)
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status429TooManyRequests)]
+    [ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status502BadGateway)]
+    public async Task<IActionResult> StreamChat([FromBody] GeneralChatRequest request, CancellationToken cancellationToken)
     {
+        if (string.IsNullOrWhiteSpace(request.Message))
+            return BadRequest(BaseResponse<string>.Fail("message is required.", "MISSING_MESSAGE"));
+
+        var history = (request.History ?? []).Select(h => (h.Role, h.Content));
+        var stream = _aiService.StreamGeneralChatAsync(history, request.Message, cancellationToken);
+        await using var enumerator = stream.GetAsyncEnumerator(cancellationToken);
+
+        string? firstChunk;
+        try
+        {
+            if (!await enumerator.MoveNextAsync())
+                return NoContent();
+
+            firstChunk = enumerator.Current;
+        }
+        catch (OperationCanceledException)
+        {
+            return new EmptyResult();
+        }
+        catch (Exception ex)
+        {
+            return AiErrorMapper.ToObjectResult(this, ex.Message);
+        }
+
         Response.ContentType = "text/event-stream";
         Response.Headers["Cache-Control"] = "no-cache";
         Response.Headers["X-Accel-Buffering"] = "no";
 
-        if (string.IsNullOrWhiteSpace(request.Message))
-        {
-            Response.StatusCode = 400;
-            return;
-        }
-
-        var history = (request.History ?? []).Select(h => (h.Role, h.Content));
         try
         {
-            await foreach (var chunk in _aiService.StreamGeneralChatAsync(history, request.Message, cancellationToken))
+            await WriteSseDataAsync(firstChunk, cancellationToken);
+
+            while (await enumerator.MoveNextAsync())
             {
-                await Response.WriteAsync($"data: {JsonSerializer.Serialize(chunk)}\n\n", cancellationToken);
-                await Response.Body.FlushAsync(cancellationToken);
+                await WriteSseDataAsync(enumerator.Current, cancellationToken);
             }
         }
-        catch (OperationCanceledException) { return; }
+        catch (OperationCanceledException) { return new EmptyResult(); }
         catch (Exception ex)
         {
-            await Response.WriteAsync($"data: {JsonSerializer.Serialize("[ERROR] " + ex.Message)}\n\n", cancellationToken);
-            await Response.Body.FlushAsync(cancellationToken);
+            await WriteSseDataAsync("[ERROR] " + ex.Message, cancellationToken);
         }
 
         await Response.WriteAsync("data: [DONE]\n\n", cancellationToken);
+        await Response.Body.FlushAsync(cancellationToken);
+        return new EmptyResult();
+    }
+
+    private async Task WriteSseDataAsync(string data, CancellationToken cancellationToken)
+    {
+        await Response.WriteAsync($"data: {JsonSerializer.Serialize(data)}\n\n", cancellationToken);
         await Response.Body.FlushAsync(cancellationToken);
     }
 }

@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { ChevronLeft, ChevronRight, RotateCcw, Brain, HelpCircle, Loader2, Sparkles, AlertCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, RotateCcw, Brain, HelpCircle, Loader2, BrainCircuit } from 'lucide-react';
 import { useStudy } from '../../context/StudyContext';
 import { Button } from '../common/Button';
 import { documentService } from '../../services/documentService';
+import { getApiErrorCode } from '../../utils/apiError';
+import { EmptyGenerationState, GenerationFailedState } from '../common/GenerationStates';
 
 interface SimpleCard {
   id: string;
@@ -34,6 +36,7 @@ export const Flashcards: React.FC<FlashcardsProps> = ({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [isGeneratingLocal, setIsGeneratingLocal] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
 
   const isExternal = externalCards !== undefined || onExternalGenerate !== undefined;
 
@@ -47,6 +50,7 @@ export const Flashcards: React.FC<FlashcardsProps> = ({
     : flashcards.filter(f => f.documentId === (effectiveDoc?.id));
 
   const isGenerating = isExternal ? (isExternalGenerating ?? false) : isGeneratingLocal;
+  const activeError = isExternal ? externalError : localError;
 
   // Load existing flashcards from DB on mount / document change (internal mode only)
   useEffect(() => {
@@ -77,6 +81,7 @@ export const Flashcards: React.FC<FlashcardsProps> = ({
     }
     if (!effectiveDoc) return;
     setIsGeneratingLocal(true);
+    setLocalError(null);
     try {
       const cards = await documentService.generateFlashcards(
         effectiveDoc.courseId || '',
@@ -89,6 +94,7 @@ export const Flashcards: React.FC<FlashcardsProps> = ({
       });
     } catch (error) {
       console.error('Flashcard generation error:', error);
+      setLocalError(getApiErrorCode(error));
     } finally {
       setIsGeneratingLocal(false);
     }
@@ -103,45 +109,21 @@ export const Flashcards: React.FC<FlashcardsProps> = ({
     );
   }
 
-  if (isExternal && externalError) {
+  if (activeError && docFlashcards.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-full py-20 text-center gap-5 px-6">
-        <div className="rounded-2xl bg-red-500/10 p-4 text-red-500">
-          <AlertCircle size={28} />
-        </div>
-        <div>
-          <h3 className="text-sm font-bold text-text-main">Generation Failed</h3>
-          <p className="mt-1 text-[11px] text-zinc-400 max-w-[220px]">{externalError}</p>
-        </div>
-        <button
-          onClick={handleGenerate}
-          className="flex items-center gap-2 rounded-xl bg-[var(--primary)] px-5 py-2.5 text-xs font-bold text-white shadow-lg hover:opacity-90 transition-opacity"
-        >
-          <RotateCcw size={13} />
-          Retry
-        </button>
-      </div>
+      <GenerationFailedState message={activeError} onRetry={handleGenerate} />
     );
   }
 
   if (docFlashcards.length === 0) {
     return (
-      <div className="flex flex-col items-center h-full py-20 text-center gap-6 px-6">
-        <div className="rounded-2xl bg-[var(--primary)]/10 p-5 text-[var(--primary)]">
-          <Brain size={32} />
-        </div>
-        <div>
-          <h3 className="text-base font-bold text-text-main">No Flashcards Yet</h3>
-          <p className="mt-1 text-sm text-zinc-500">Generate AI-powered flashcards.</p>
-        </div>
-        <button
-          onClick={handleGenerate}
-          className="flex items-center gap-2 rounded-xl bg-[var(--primary)] px-6 py-3 text-sm font-bold text-white shadow-lg hover:opacity-90 transition-opacity"
-        >
-          <Sparkles size={16} />
-          Generate Flashcards
-        </button>
-      </div>
+      <EmptyGenerationState
+        icon={BrainCircuit}
+        title="No Flashcards Yet"
+        description="Generate AI-powered flashcards."
+        actionLabel="Generate Flashcards"
+        onAction={handleGenerate}
+      />
     );
   }
 

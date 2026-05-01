@@ -599,7 +599,7 @@ Return a JSON array of suggested links only, no markdown, no code blocks:
         var requestBody = new
         {
             contents = new[] { new { parts = new object[] { new { inlineData = new { mimeType, data = base64Data } }, new { text = Prompts.MindMap } } } },
-            generationConfig = new { temperature = 0.3, maxOutputTokens = 2048 }
+            generationConfig = new { temperature = 0.35, maxOutputTokens = 4096 }
         };
         await foreach (var chunk in StreamFileRequestAsync(requestBody, cancellationToken))
             yield return chunk;
@@ -608,14 +608,14 @@ Return a JSON array of suggested links only, no markdown, no code blocks:
     public async IAsyncEnumerable<string> StreamMindMapAsync(string textContent, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         var prompt = $"{Prompts.MindMap}\n\nDocument content:\n{TruncateContent(textContent)}";
-        await foreach (var chunk in StreamTextAsync(null, [("user", prompt)], 0.3, 2048, cancellationToken))
+        await foreach (var chunk in StreamTextAsync(null, [("user", prompt)], 0.35, 4096, cancellationToken))
             yield return chunk;
     }
 
     public async IAsyncEnumerable<string> StreamMindMapFromYouTubeAsync(string transcriptText, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         var prompt = $"{Prompts.YouTubeMindMap}\n\nVideo transcript:\n{TruncateContent(transcriptText)}";
-        await foreach (var chunk in StreamTextAsync(null, [("user", prompt)], 0.3, 2048, cancellationToken))
+        await foreach (var chunk in StreamTextAsync(null, [("user", prompt)], 0.35, 4096, cancellationToken))
             yield return chunk;
     }
 
@@ -728,28 +728,42 @@ Provide a helpful, accurate, and complete answer. Use the document for context w
     private static class Prompts
     {
         public const string MindMap =
-            @"Create a hierarchical mind map in XMindMark format.
+            @"Create a detailed hierarchical study mind map in XMindMark format.
 STRICT RULES:
 Output ONLY the mind map text. No explanations, no JSON, no code fences.
 First line MUST be the single root topic.
 Use -  with exactly 4 spaces indentation per level.
 Maximum 4 levels: Root → Main → Sub → Detail.
-Each node MUST be 1-10 words (keywords only, no sentences).
-Remove filler words (e.g., the, is , and ).
-Avoid repetition and redundancy.
-Prefer nouns over verbs.
-Limit each branch to 2-8 children.
+Make the map comprehensive enough for exam revision, not just a table of contents.
+Use 5-9 main branches covering all major themes, arguments, processes, definitions, examples, and conclusions.
+Each main branch should usually have 3-6 sub-branches.
+Each sub-branch should usually have 2-4 detail nodes with specific facts, mechanisms, formulas, examples, causes, effects, limitations, or comparisons from the source.
+Main and sub-branch nodes should be concise labels, usually 2-8 words.
+Detail nodes may be short phrases up to 18 words when needed to preserve meaning.
+Include named entities, key numbers, dates, formulas, assumptions, and concrete examples when present.
+Avoid generic nodes such as Overview, Important Points, Key Ideas, or Conclusion unless the source uses them as real section topics.
+Avoid repetition; merge duplicates and keep each branch conceptually distinct.
+Do not invent details not supported by the source.
 Example:
 Main Topic
--Key Concept 1
-    - Detail A
-    - Detail B
-- Key Concept 2
-    - Detail C";
+- Core Concept
+    - Definition
+        - Precise meaning from source
+        - Related term or contrast
+    - Why It Matters
+        - Practical consequence
+        - Common misconception
+- Process or Framework
+    - Step One
+        - Trigger or input
+        - Important constraint";
 
         public const string Quiz =
             @"Generate 5 to 10 multiple-choice questions from this document.
-Return a JSON array only, no markdown, no code blocks: [{""question"": ""..."", ""options"": [""A)..."",""B)..."",""C)..."",""D)...""], ""correctAnswer"": ""A"", ""explanation"": ""...""}]";
+Each question must have exactly 4 options. Each option must start with ""A) "", ""B) "", ""C) "", ""D) "" respectively.
+correctAnswer MUST be only the matching letter: ""A"", ""B"", ""C"", or ""D"". Do not put the answer text in correctAnswer.
+Return a JSON array only, no markdown, no code blocks:
+[{""question"": ""..."", ""options"": [""A) ..."",""B) ..."",""C) ..."",""D) ...""], ""correctAnswer"": ""A"", ""explanation"": ""...""}]";
 
         public const string Flashcards =
             @"Generate 15 flashcards from this document for spaced repetition learning.
@@ -767,28 +781,41 @@ Return a JSON array only, no markdown, no code blocks: [{""term"": ""..."", ""de
             "Analyze this video transcript and write a summary in Markdown. Start with a concise overview (1-3 short paragraph) covering the main topic and conclusions. Follow with a '## Key Concepts' section explaining the most important ideas in detail. Then add a '## Key Takeaways' bullet list of 8-12 specific, informative points using '- '.";
 
         public const string YouTubeMindMap =
-            @"Generate a concise mind map for this YouTube video transcript in XMindMark format.
+            @"Generate a detailed study mind map for this YouTube video transcript in XMindMark format.
 STRICT RULES:
 Output ONLY the mind map text. No explanations, no JSON, no code fences.
 First line MUST be the single root topic.
 Use -  with exactly 4 spaces indentation per level.
 Maximum 4 levels: Root → Main → Sub → Detail.
-Each node MUST be 1-10 words (keywords only, no sentences).
-Remove filler words (e.g., the, is , and ).
-Avoid repetition and redundancy.
-Prefer nouns over verbs.
-Limit each branch to 2-8 children.
+Make the map comprehensive enough for exam revision, not just a video outline.
+Use 5-9 main branches covering all major themes, arguments, processes, definitions, examples, demonstrations, and conclusions.
+Each main branch should usually have 3-6 sub-branches.
+Each sub-branch should usually have 2-4 detail nodes with specific facts, mechanisms, formulas, examples, causes, effects, limitations, or comparisons from the transcript.
+Main and sub-branch nodes should be concise labels, usually 2-8 words.
+Detail nodes may be short phrases up to 18 words when needed to preserve meaning.
+Include named entities, key numbers, dates, formulas, assumptions, and concrete examples when present.
+Preserve important sequence or cause-effect relationships from the video.
+Avoid generic nodes such as Overview, Important Points, Key Ideas, or Conclusion unless the transcript uses them as real section topics.
+Avoid repetition; merge duplicates and keep each branch conceptually distinct.
+Do not invent details not supported by the transcript.
 Example:
 Main Topic
--Key Concept 1
-    - Detail A
-    - Detail B
-- Key Concept 2
-    - Detail C";
+- Core Concept
+    - Definition
+        - Precise meaning from transcript
+        - Related term or contrast
+    - Example
+        - Specific example from speaker
+        - Why example matters
+- Demonstration or Process
+    - Step One
+        - Trigger or input
+        - Important constraint";
 
         public const string YouTubeQuiz =
             @"Generate 5 to 10 multiple-choice quiz questions based on this YouTube video transcript.
 Each question must have exactly 4 options. Each option must start with ""A. "", ""B. "", ""C. "", ""D. "" respectively.
+correctAnswer MUST be only the matching letter: ""A"", ""B"", ""C"", or ""D"". Do not put the answer text in correctAnswer.
 Return a JSON array only, no markdown, no code blocks:
 [{""question"":""..."",""options"":[""A. ..."",""B. ..."",""C. ..."",""D. ...""],""correctAnswer"":""A"",""explanation"":""...""}]";
 

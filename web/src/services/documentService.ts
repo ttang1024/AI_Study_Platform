@@ -155,19 +155,31 @@ export interface PagedDocuments {
 	totalPages: number
 }
 
+const inflightDocumentListRequests = new Map<string, Promise<PagedDocuments>>()
+
 export const documentService = {
 	async getAllDocuments(page = 1, pageSize = 3, courseId?: string): Promise<PagedDocuments> {
 		const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) })
 		if (courseId) params.set('courseId', courseId)
-		const response = await apiClient.get(`/api/documents?${params}`)
-		const data = response.data.data
-		return {
-			items: (data.items as BackendDocument[]).map(mapDocument),
-			totalCount: data.totalCount,
-			page: data.page,
-			pageSize: data.pageSize,
-			totalPages: data.totalPages,
-		}
+		const url = `/api/documents?${params}`
+		const pending = inflightDocumentListRequests.get(url)
+		if (pending) return pending
+
+		const request = apiClient.get(url)
+			.then(response => {
+				const data = response.data.data
+				return {
+					items: (data.items as BackendDocument[]).map(mapDocument),
+					totalCount: data.totalCount,
+					page: data.page,
+					pageSize: data.pageSize,
+					totalPages: data.totalPages,
+				}
+			})
+			.finally(() => inflightDocumentListRequests.delete(url))
+
+		inflightDocumentListRequests.set(url, request)
+		return request
 	},
 
 	async getDocuments(courseId: string): Promise<Document[]> {
@@ -396,6 +408,7 @@ export interface QuizSubmissionCoverage {
 const inflightQuizSubmissionListRequests = new Map<string, Promise<PagedQuizSubmissions>>()
 const quizSubmissionListCache = new Map<string, { value: PagedQuizSubmissions; expiresAt: number }>()
 const QUIZ_SUBMISSION_LIST_CACHE_MS = 2000
+const inflightQuizMaterialRequests = new Map<string, Promise<unknown>>()
 
 export const quizSubmissionService = {
 	async getAllSubmissions(page = 1, pageSize = 20): Promise<PagedQuizSubmissions> {
@@ -430,16 +443,47 @@ export const quizSubmissionService = {
 	},
 
 	async getCoverage(): Promise<QuizSubmissionCoverage> {
-		const response = await apiClient.get('/api/quiz-submissions/coverage')
-		const d = response.data.data
-		return {
-			documentIds: d.documentIds ?? [],
-			youTubeVideoIds: d.youTubeVideoIds ?? [],
-		}
+		const url = '/api/quiz-submissions/coverage'
+		const pending = inflightQuizMaterialRequests.get(url) as Promise<QuizSubmissionCoverage> | undefined
+		if (pending) return pending
+
+		const request = apiClient.get(url)
+			.then(response => {
+				const d = response.data.data
+				return {
+					documentIds: d.documentIds ?? [],
+					youTubeVideoIds: d.youTubeVideoIds ?? [],
+				}
+			})
+			.finally(() => inflightQuizMaterialRequests.delete(url))
+
+		inflightQuizMaterialRequests.set(url, request)
+		return request
 	},
 
 	async getPendingMaterials(): Promise<PendingMaterial[]> {
-		const response = await apiClient.get('/api/quiz-submissions/pending-materials')
-		return response.data.data ?? []
+		const url = '/api/quiz-submissions/pending-materials'
+		const pending = inflightQuizMaterialRequests.get(url) as Promise<PendingMaterial[]> | undefined
+		if (pending) return pending
+
+		const request = apiClient.get(url)
+			.then(response => response.data.data ?? [])
+			.finally(() => inflightQuizMaterialRequests.delete(url))
+
+		inflightQuizMaterialRequests.set(url, request)
+		return request
+	},
+
+	async getGeneratedMaterials(): Promise<PendingMaterial[]> {
+		const url = '/api/quiz-submissions/generated-materials'
+		const pending = inflightQuizMaterialRequests.get(url) as Promise<PendingMaterial[]> | undefined
+		if (pending) return pending
+
+		const request = apiClient.get(url)
+			.then(response => response.data.data ?? [])
+			.finally(() => inflightQuizMaterialRequests.delete(url))
+
+		inflightQuizMaterialRequests.set(url, request)
+		return request
 	},
 }

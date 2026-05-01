@@ -14,6 +14,7 @@ import { MindMapViewer } from '../components/mindmap/MindMapViewer';
 import { Flashcards } from '../components/study/Flashcards';
 import { DocumentQuiz } from '../components/quiz/DocumentQuiz';
 import { QuizModal } from '../components/quiz/QuizModal';
+import { WorkedProblemsPanel } from '../components/WorkedProblemsPanel';
 import { TextSelectionToolbar } from '../components/document/TextSelectionToolbar';
 import { VideoNoteEditor, VideoNoteEditorRef } from '../components/youtube/VideoNoteEditor';
 import { SummaryPanel } from '../components/study/SummaryPanel';
@@ -23,7 +24,7 @@ import { cn } from '../utils/cn';
 import { getDocDisplayName } from '../utils/docName';
 import { ShareModal } from '../components/common/ShareModal';
 import { Document } from '../types';
-import { apiClient } from '../services/apiClient';
+import { getApiErrorCode } from '../utils/apiError';
 
 // ─── Article Reader ───────────────────────────────────────────────────────────
 
@@ -180,12 +181,13 @@ export const ArticlePage: React.FC<{ embedded?: boolean; id?: string }> = ({ emb
   const { isLoading, documents, currentDocument, setCurrentDocument, chatMessages, updateDocumentInList } = useStudy();
 
   const initialTab = (location.state as any)?.activeTab ?? 'summary';
-  const [activeTab, setActiveTab] = useState<'summary' | 'mindmap' | 'notes' | 'flashcards' | 'quiz' | 'chat'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'summary' | 'mindmap' | 'notes' | 'flashcards' | 'quiz' | 'problems' | 'chat'>(initialTab);
   const [activeView, setActiveView] = useState<'study' | 'article'>('article');
 
   const [summary, setSummary] = useState<string | null>(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [summaryStreamText, setSummaryStreamText] = useState('');
+  const [summaryError, setSummaryError] = useState<string | null>(null);
 
   const [noteContent, setNoteContent] = useState('');
   const [noteId, setNoteId] = useState<string | null>(null);
@@ -198,7 +200,7 @@ export const ArticlePage: React.FC<{ embedded?: boolean; id?: string }> = ({ emb
   const chatPanelRef = useRef<ChatPanelRef>(null);
   const summaryRef = useRef<HTMLDivElement>(null);
 
-  const [docChatMessages, setDocChatMessages] = useState<Array<{ id: string; role: 'user' | 'model'; content: string }>>([]);
+  const [docChatMessages, setDocChatMessages] = useState<Array<{ id: string; role: 'user' | 'model'; content: string; isError?: boolean }>>([]);
 
   // ── Load document ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -252,6 +254,7 @@ export const ArticlePage: React.FC<{ embedded?: boolean; id?: string }> = ({ emb
   // ── Seed summary from saved data ───────────────────────────────────────────
   useEffect(() => {
     if (!currentDocument) return;
+    setSummaryError(null);
     if (currentDocument.summary) {
       try {
         const parsed = JSON.parse(currentDocument.summary);
@@ -284,6 +287,7 @@ export const ArticlePage: React.FC<{ embedded?: boolean; id?: string }> = ({ emb
     if (!currentDocument) return;
     setIsSummarizing(true);
     setSummaryStreamText('');
+    setSummaryError(null);
     try {
       let accumulated = '';
       await documentService.streamSummary(
@@ -296,8 +300,9 @@ export const ArticlePage: React.FC<{ embedded?: boolean; id?: string }> = ({ emb
       const updated = { ...currentDocument, summary: accumulated };
       setCurrentDocument(updated);
       updateDocumentInList(updated);
-    } catch {
-      setSummary('Failed to generate summary. Please try again.');
+    } catch (err) {
+      setSummary(null);
+      setSummaryError(getApiErrorCode(err));
       setSummaryStreamText('');
     } finally {
       setIsSummarizing(false);
@@ -421,6 +426,8 @@ export const ArticlePage: React.FC<{ embedded?: boolean; id?: string }> = ({ emb
                     onGenerate={generateSummary}
                     loadingText="AI is reading your article…"
                     emptyText="Generate an AI summary of this article."
+                    error={summaryError}
+                    onRetry={generateSummary}
                     streamingText={summaryStreamText}
                     summaryRef={summaryRef}
                     onMouseUp={handleSummaryMouseUp}
@@ -443,6 +450,11 @@ export const ArticlePage: React.FC<{ embedded?: boolean; id?: string }> = ({ emb
                 <div className={cn('h-full', activeTab !== 'quiz' && 'hidden')}>
                   <DocumentQuiz />
                 </div>
+                <div className={cn('h-full overflow-y-auto no-scrollbar', activeTab !== 'problems' && 'hidden')}>
+                  {currentDocument.courseId && (
+                    <WorkedProblemsPanel documentId={currentDocument.id} />
+                  )}
+                </div>
               </div>
 
               <div className={cn('flex-1 overflow-hidden', activeTab !== 'chat' && 'hidden')}>
@@ -454,13 +466,18 @@ export const ArticlePage: React.FC<{ embedded?: boolean; id?: string }> = ({ emb
                     const userMsg = { id: Date.now().toString(), role: 'user' as const, content: message };
                     setDocChatMessages(prev => [...prev, userMsg]);
                     let accumulated = '';
-                    await documentService.streamChat(
-                      currentDocument.courseId || '',
-                      currentDocument.id,
-                      message,
-                      (chunk) => { accumulated += chunk; onChunk(chunk); },
-                    );
-                    setDocChatMessages(prev => [...prev, { id: String(Date.now() + 1), role: 'model', content: accumulated }]);
+                    try {
+                      await documentService.streamChat(
+                        currentDocument.courseId || '',
+                        currentDocument.id,
+                        message,
+                        (chunk) => { accumulated += chunk; onChunk(chunk); },
+                      );
+                      setDocChatMessages(prev => [...prev, { id: String(Date.now() + 1), role: 'model', content: accumulated }]);
+                    } catch (err) {
+                      setDocChatMessages(prev => [...prev, { id: String(Date.now() + 1), role: 'model', content: getApiErrorCode(err), isError: true }]);
+                      throw err;
+                    }
                   }}
                   onExternalAddToNote={(html) => {
                     noteEditorRef.current?.appendContent(html);

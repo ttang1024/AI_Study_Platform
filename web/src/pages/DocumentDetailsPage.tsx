@@ -19,6 +19,7 @@ import { ShareableQuiz, ShareableCard } from '../services/shareContentService';
 import { TABS } from '../constants/tab';
 import { cn } from '../utils/cn';
 import { Document } from '../types';
+import { getApiErrorCode } from '../utils/apiError';
 
 export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; initialDoc?: Document }> = ({ embedded, id: propId, initialDoc }) => {
   const { id: paramId } = useParams();
@@ -31,6 +32,7 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
   const [summary, setSummary] = useState<string | null>(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [summaryStreamText, setSummaryStreamText] = useState('');
+  const [summaryError, setSummaryError] = useState<string | null>(null);
   const [docChatMessages, setDocChatMessages] = useState<Array<{ id: string; role: 'user' | 'model'; content: string; isError?: boolean }>>([]);
   const [noteContent, setNoteContent] = useState('');
   const [noteId, setNoteId] = useState<string | null>(null);
@@ -104,6 +106,7 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
   useEffect(() => {
     if (!currentDocument) return;
 
+    setSummaryError(null);
     if (currentDocument.summary) {
       try {
         const parsed = JSON.parse(currentDocument.summary);
@@ -138,6 +141,7 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
     if (!currentDocument) return;
     setIsSummarizing(true);
     setSummaryStreamText('');
+    setSummaryError(null);
     try {
       let accumulated = '';
       await documentService.streamSummary(
@@ -158,7 +162,8 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
       }
     } catch (error) {
       console.error('Summary error:', error);
-      setSummary('Failed to generate summary. Please try again.');
+      setSummary(null);
+      setSummaryError(getApiErrorCode(error));
       setSummaryStreamText('');
     } finally {
       setIsSummarizing(false);
@@ -311,6 +316,8 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
                     onGenerate={generateSummary}
                     loadingText="AI is analyzing your document..."
                     emptyText="Generate an AI summary."
+                    error={summaryError}
+                    onRetry={generateSummary}
                     streamingText={summaryStreamText}
                     summaryRef={summaryRef}
                     onMouseUp={handleSummaryMouseUp}
@@ -356,13 +363,18 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
                     const userMsg = { id: Date.now().toString(), role: 'user' as const, content: message };
                     setDocChatMessages(prev => [...prev, userMsg]);
                     let accumulated = '';
-                    await documentService.streamChat(
-                      currentDocument.courseId || '',
-                      currentDocument.id,
-                      message,
-                      (chunk) => { accumulated += chunk; onChunk(chunk); },
-                    );
-                    setDocChatMessages(prev => [...prev, { id: String(Date.now() + 1), role: 'model', content: accumulated }]);
+                    try {
+                      await documentService.streamChat(
+                        currentDocument.courseId || '',
+                        currentDocument.id,
+                        message,
+                        (chunk) => { accumulated += chunk; onChunk(chunk); },
+                      );
+                      setDocChatMessages(prev => [...prev, { id: String(Date.now() + 1), role: 'model', content: accumulated }]);
+                    } catch (err) {
+                      setDocChatMessages(prev => [...prev, { id: String(Date.now() + 1), role: 'model', content: getApiErrorCode(err), isError: true }]);
+                      throw err;
+                    }
                   }}
                   onExternalAddToNote={(html) => {
                     noteEditorRef.current?.appendContent(html);

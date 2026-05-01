@@ -161,42 +161,76 @@ public class YouTubeController : ControllerBase
     }
 
     [HttpPost("mindmap/stream")]
-    public async Task StreamMindMap([FromBody] YouTubeUrlRequest request, CancellationToken cancellationToken)
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status429TooManyRequests)]
+    [ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status502BadGateway)]
+    public async Task<IActionResult> StreamMindMap([FromBody] YouTubeUrlRequest request, CancellationToken cancellationToken)
     {
+        if (string.IsNullOrWhiteSpace(request.VideoUrl))
+            return BadRequest(BaseResponse<string>.Fail("videoUrl is required.", "MISSING_VIDEO_URL"));
+
+        var videoId = ExtractVideoId(request.VideoUrl);
+        if (videoId == null)
+            return BadRequest(BaseResponse<string>.Fail("Invalid YouTube URL.", "INVALID_VIDEO_URL"));
+
+        var transcript = await GetTranscriptTextAsync(videoId, cancellationToken);
+        if (transcript == null)
+            return BadRequest(BaseResponse<string>.Fail("No subtitles available for this video.", "NO_TRANSCRIPT"));
+
+        var stream = _aiService.StreamMindMapFromYouTubeAsync(transcript, cancellationToken);
+        await using var enumerator = stream.GetAsyncEnumerator(cancellationToken);
+
+        string? firstChunk;
+        try
+        {
+            if (!await enumerator.MoveNextAsync())
+                return NoContent();
+
+            firstChunk = enumerator.Current;
+        }
+        catch (OperationCanceledException)
+        {
+            return new EmptyResult();
+        }
+        catch (Exception ex)
+        {
+            return AiStreamError(ex);
+        }
+
         Response.ContentType = "text/event-stream";
         Response.Headers["Cache-Control"] = "no-cache";
         Response.Headers["X-Accel-Buffering"] = "no";
 
-        if (string.IsNullOrWhiteSpace(request.VideoUrl)) { Response.StatusCode = 400; return; }
-
-        var videoId = ExtractVideoId(request.VideoUrl);
-        if (videoId == null) { Response.StatusCode = 400; return; }
-        var transcript = await GetTranscriptTextAsync(videoId, cancellationToken);
-        if (transcript == null)
-        {
-            await Response.WriteAsync($"data: {JsonSerializer.Serialize("[ERROR] No subtitles available for this video.")}\n\n", cancellationToken);
-            await Response.WriteAsync("data: [DONE]\n\n", cancellationToken);
-            await Response.Body.FlushAsync(cancellationToken);
-            return;
-        }
-
         try
         {
-            await foreach (var chunk in _aiService.StreamMindMapFromYouTubeAsync(transcript, cancellationToken))
+            await WriteSseDataAsync(firstChunk, cancellationToken);
+
+            while (await enumerator.MoveNextAsync())
             {
-                await Response.WriteAsync($"data: {JsonSerializer.Serialize(chunk)}\n\n", cancellationToken);
-                await Response.Body.FlushAsync(cancellationToken);
+                await WriteSseDataAsync(enumerator.Current, cancellationToken);
             }
         }
-        catch (OperationCanceledException) { return; }
+        catch (OperationCanceledException) { return new EmptyResult(); }
         catch (Exception ex)
         {
-            await Response.WriteAsync($"data: {JsonSerializer.Serialize("[ERROR] " + ex.Message)}\n\n", cancellationToken);
-            await Response.Body.FlushAsync(cancellationToken);
+            await WriteSseDataAsync("[ERROR] " + ex.Message, cancellationToken);
         }
 
         await Response.WriteAsync("data: [DONE]\n\n", cancellationToken);
         await Response.Body.FlushAsync(cancellationToken);
+        return new EmptyResult();
+    }
+
+    private async Task WriteSseDataAsync(string data, CancellationToken cancellationToken)
+    {
+        await Response.WriteAsync($"data: {JsonSerializer.Serialize(data)}\n\n", cancellationToken);
+        await Response.Body.FlushAsync(cancellationToken);
+    }
+
+    private ObjectResult AiStreamError(Exception ex)
+    {
+        return AiErrorMapper.ToObjectResult(this, ex.Message);
     }
 
     [HttpPost("quiz")]
@@ -475,6 +509,9 @@ public class YouTubeController : ControllerBase
         }
         catch (Exception ex)
         {
+            if (AiErrorMapper.TryGetAiError(ex.Message, out _, out _))
+                return AiErrorMapper.ToObjectResult<IEnumerable<GlossaryTermDto>>(this, ex.Message);
+
             return BadRequest(BaseResponse<IEnumerable<GlossaryTermDto>>.Fail(
                 $"Failed to generate glossary: {ex.Message}", "GENERATION_FAILED"));
         }
@@ -586,61 +623,106 @@ public class YouTubeController : ControllerBase
     // ── Streaming endpoints ───────────────────────────────────────────────
 
     [HttpPost("summary/stream")]
-    public async Task StreamSummary([FromBody] YouTubeUrlRequest request, CancellationToken cancellationToken)
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status429TooManyRequests)]
+    [ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status502BadGateway)]
+    public async Task<IActionResult> StreamSummary([FromBody] YouTubeUrlRequest request, CancellationToken cancellationToken)
     {
+        if (string.IsNullOrWhiteSpace(request.VideoUrl))
+            return BadRequest(BaseResponse<string>.Fail("videoUrl is required.", "MISSING_VIDEO_URL"));
+
+        var videoId = ExtractVideoId(request.VideoUrl);
+        if (videoId == null)
+            return BadRequest(BaseResponse<string>.Fail("Invalid YouTube URL.", "INVALID_VIDEO_URL"));
+
+        var transcript = await GetTranscriptTextAsync(videoId, cancellationToken);
+        if (transcript == null)
+            return BadRequest(BaseResponse<string>.Fail("No subtitles available for this video.", "NO_TRANSCRIPT"));
+
+        var stream = _aiService.StreamSummaryFromYouTubeAsync(transcript, cancellationToken);
+        await using var enumerator = stream.GetAsyncEnumerator(cancellationToken);
+
+        string? firstChunk;
+        try
+        {
+            if (!await enumerator.MoveNextAsync())
+                return NoContent();
+
+            firstChunk = enumerator.Current;
+        }
+        catch (OperationCanceledException)
+        {
+            return new EmptyResult();
+        }
+        catch (Exception ex)
+        {
+            return AiStreamError(ex);
+        }
+
         Response.ContentType = "text/event-stream";
         Response.Headers["Cache-Control"] = "no-cache";
         Response.Headers["X-Accel-Buffering"] = "no";
 
-        if (string.IsNullOrWhiteSpace(request.VideoUrl)) { Response.StatusCode = 400; return; }
-
-        var videoId = ExtractVideoId(request.VideoUrl);
-        if (videoId == null) { Response.StatusCode = 400; return; }
-        var transcript = await GetTranscriptTextAsync(videoId, cancellationToken);
-        if (transcript == null)
-        {
-            await Response.WriteAsync($"data: {JsonSerializer.Serialize("[ERROR] No subtitles available for this video.")}\n\n", cancellationToken);
-            await Response.WriteAsync("data: [DONE]\n\n", cancellationToken);
-            await Response.Body.FlushAsync(cancellationToken);
-            return;
-        }
-
         try
         {
-            await foreach (var chunk in _aiService.StreamSummaryFromYouTubeAsync(transcript, cancellationToken))
+            await WriteSseDataAsync(firstChunk, cancellationToken);
+
+            while (await enumerator.MoveNextAsync())
             {
-                await Response.WriteAsync($"data: {JsonSerializer.Serialize(chunk)}\n\n", cancellationToken);
-                await Response.Body.FlushAsync(cancellationToken);
+                await WriteSseDataAsync(enumerator.Current, cancellationToken);
             }
         }
-        catch (OperationCanceledException) { return; }
+        catch (OperationCanceledException) { return new EmptyResult(); }
         catch (Exception ex)
         {
-            await Response.WriteAsync($"data: {JsonSerializer.Serialize("[ERROR] " + ex.Message)}\n\n", cancellationToken);
-            await Response.Body.FlushAsync(cancellationToken);
+            await WriteSseDataAsync("[ERROR] " + ex.Message, cancellationToken);
         }
 
         await Response.WriteAsync("data: [DONE]\n\n", cancellationToken);
         await Response.Body.FlushAsync(cancellationToken);
+        return new EmptyResult();
     }
 
     [HttpPost("videos/{id:guid}/chat/stream")]
-    public async Task StreamVideoChat(Guid id, [FromBody] AIChatRequest request, CancellationToken cancellationToken)
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status429TooManyRequests)]
+    [ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status502BadGateway)]
+    public async Task<IActionResult> StreamVideoChat(Guid id, [FromBody] AIChatRequest request, CancellationToken cancellationToken)
     {
-        Response.ContentType = "text/event-stream";
-        Response.Headers["Cache-Control"] = "no-cache";
-        Response.Headers["X-Accel-Buffering"] = "no";
+        if (string.IsNullOrWhiteSpace(request.Message))
+            return BadRequest(BaseResponse<string>.Fail("message is required.", "MISSING_MESSAGE"));
 
         var userId = User.GetUserId();
         var video = await GetVideoWithAccessCheckAsync(id, userId, cancellationToken);
         if (video is null)
-        {
-            Response.StatusCode = 404;
-            return;
-        }
+            return NotFound(BaseResponse<string>.Fail("Video not found.", "VIDEO_NOT_FOUND"));
 
         var history = await _unitOfWork.ChatMessages.GetByYouTubeVideoIdAsync(id, userId, cancellationToken);
         var historyTuples = history.Select(m => (m.Role, m.Content)).ToList();
+        var videoTranscript = await GetTranscriptTextAsync(video.VideoId, cancellationToken) ?? string.Empty;
+
+        var stream = _aiService.StreamChatWithYouTubeAsync(videoTranscript, historyTuples, request.Message, cancellationToken);
+        await using var enumerator = stream.GetAsyncEnumerator(cancellationToken);
+
+        string? firstChunk;
+        try
+        {
+            if (!await enumerator.MoveNextAsync())
+                return NoContent();
+
+            firstChunk = enumerator.Current;
+        }
+        catch (OperationCanceledException)
+        {
+            return new EmptyResult();
+        }
+        catch (Exception ex)
+        {
+            return AiStreamError(ex);
+        }
 
         // Save user message
         var userMsg = new ChatMessage
@@ -656,16 +738,21 @@ public class YouTubeController : ControllerBase
         await _unitOfWork.ChatMessages.AddAsync(userMsg, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        var videoTranscript = await GetTranscriptTextAsync(video.VideoId, cancellationToken) ?? string.Empty;
+        Response.ContentType = "text/event-stream";
+        Response.Headers["Cache-Control"] = "no-cache";
+        Response.Headers["X-Accel-Buffering"] = "no";
 
         var fullResponse = new StringBuilder();
         try
         {
-            await foreach (var chunk in _aiService.StreamChatWithYouTubeAsync(videoTranscript, historyTuples, request.Message, cancellationToken))
+            fullResponse.Append(firstChunk);
+            await WriteSseDataAsync(firstChunk, cancellationToken);
+
+            while (await enumerator.MoveNextAsync())
             {
+                var chunk = enumerator.Current;
                 fullResponse.Append(chunk);
-                await Response.WriteAsync($"data: {JsonSerializer.Serialize(chunk)}\n\n", cancellationToken);
-                await Response.Body.FlushAsync(cancellationToken);
+                await WriteSseDataAsync(chunk, cancellationToken);
             }
 
             if (fullResponse.Length > 0)
@@ -684,15 +771,15 @@ public class YouTubeController : ControllerBase
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
             }
         }
-        catch (OperationCanceledException) { return; }
+        catch (OperationCanceledException) { return new EmptyResult(); }
         catch (Exception ex)
         {
-            await Response.WriteAsync($"data: {JsonSerializer.Serialize("[ERROR] " + ex.Message)}\n\n", cancellationToken);
-            await Response.Body.FlushAsync(cancellationToken);
+            await WriteSseDataAsync("[ERROR] " + ex.Message, cancellationToken);
         }
 
         await Response.WriteAsync("data: [DONE]\n\n", cancellationToken);
         await Response.Body.FlushAsync(cancellationToken);
+        return new EmptyResult();
     }
 
     // ── Worked Problems ───────────────────────────────────────────────────────
@@ -717,7 +804,11 @@ public class YouTubeController : ControllerBase
 
         var result = await _mediator.Send(new GenerateWorkedProblemsCommand(userId, null, id, request.Difficulty, request.Count), cancellationToken);
         if (!result.IsSuccess)
+        {
+            if (AiErrorMapper.TryGetAiError(result.Message, out _, out _))
+                return AiErrorMapper.ToObjectResult<IEnumerable<WorkedProblemDto>>(this, result.Message);
             return BadRequest(BaseResponse<IEnumerable<WorkedProblemDto>>.Fail(result.Message, result.ErrorCode));
+        }
         return Ok(BaseResponse<IEnumerable<WorkedProblemDto>>.Ok(result.Data!));
     }
 

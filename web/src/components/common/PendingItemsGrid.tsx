@@ -216,123 +216,123 @@ export const PendingItemsGrid: React.FC<PendingItemsGridProps> = ({
         </div>
 
         {items.length === 0 ? null : (
-        <div className="flex flex-col divide-y divide-[var(--border-color)] rounded-2xl border border-[var(--border-color)] bg-[var(--bg-sidebar)] overflow-hidden">
-          {pagedItems.map((item, rowIdx) => {
-            const { id, name, Icon, typeLabel, emoji, accentColor, courseName, to } = getItemMeta(item, courses);
-            const hash = hashCode(id);
-            const doodle = DOODLES[hash % DOODLES.length];
-            const pattern = PATTERNS[hash % PATTERNS.length];
-            const isGenerating = generatingId === id;
-            const hasError = errorId === id;
+          <div className="flex flex-col divide-y divide-[var(--border-color)] rounded-2xl border border-[var(--border-color)] bg-[var(--bg-sidebar)] overflow-hidden">
+            {pagedItems.map((item, rowIdx) => {
+              const { id, name, Icon, typeLabel, emoji, accentColor, courseName, to } = getItemMeta(item, courses);
+              const hash = hashCode(id);
+              const doodle = DOODLES[hash % DOODLES.length];
+              const pattern = PATTERNS[hash % PATTERNS.length];
+              const isGenerating = generatingId === id;
+              const hasError = errorId === id;
 
-            return (
-              <motion.div
-                key={`${item.kind}-${id}`}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: rowIdx * 0.04, type: 'spring', stiffness: 340, damping: 28 }}
-                whileHover={{ x: 3, backgroundColor: 'var(--bg-sidebar)' }}
-                className="group relative flex items-center gap-3 px-4 py-3 transition-colors duration-150 hover:bg-[var(--border-color)]/30"
-              >
-                {/* Left accent line */}
-                <div
-                  className="absolute left-0 top-0 bottom-0 w-[3px] opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-r-full"
-                  style={{ backgroundColor: accentColor }}
-                />
-
-                {/* Thumbnail / Icon */}
-                <div className="shrink-0">
-                  {item.kind === 'video' ? (
-                    <div className="relative w-14 h-10 rounded-lg overflow-hidden bg-zinc-100">
-                      <img
-                        src={item.video.thumbnailUrl}
-                        alt={item.video.title}
-                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                        onError={e => { (e.target as HTMLImageElement).src = `https://img.youtube.com/vi/${item.video.videoId}/mqdefault.jpg`; }}
-                      />
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition-colors duration-200 flex items-center justify-center">
-                        <Youtube size={12} className="text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow" />
-                      </div>
-                    </div>
-                  ) : (
-                    <div
-                      className="relative w-10 h-10 rounded-lg overflow-hidden flex items-center justify-center shrink-0"
-                      style={{ backgroundColor: accentColor, backgroundImage: pattern }}
-                    >
-                      <span className="absolute -top-1 -right-1 text-xl opacity-20 select-none" aria-hidden>{doodle}</span>
-                      <Icon size={16} className="text-white drop-shadow relative z-10" />
-                    </div>
-                  )}
-                </div>
-
-                {/* Text — clickable area */}
-                <Link
-                  to={to}
-                  state={{ activeTab }}
-                  className="flex-1 min-w-0 flex flex-col gap-0.5"
-                  onClick={e => { if (isGenerating) e.preventDefault(); }}
+              return (
+                <motion.div
+                  key={`${item.kind}-${id}`}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: rowIdx * 0.04, type: 'spring', stiffness: 340, damping: 28 }}
+                  whileHover={{ x: 3, backgroundColor: 'var(--bg-sidebar)' }}
+                  className="group relative flex items-center gap-3 px-4 py-3 transition-colors duration-150 hover:bg-[var(--border-color)]/30"
                 >
-                  <p className="text-sm font-semibold text-text-main truncate leading-snug group-hover:text-primary transition-colors duration-150">{name}</p>
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: accentColor }}>
-                      {emoji} {typeLabel}
-                    </span>
-                    {courseName ? (
-                      <>
-                        <span className="text-[10px] text-text-muted">·</span>
-                        <span className="text-[10px] font-semibold text-text-muted truncate">{courseName}</span>
-                      </>
+                  {/* Left accent line */}
+                  <div
+                    className="absolute left-0 top-0 bottom-0 w-[3px] opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-r-full"
+                    style={{ backgroundColor: accentColor }}
+                  />
+
+                  {/* Thumbnail / Icon */}
+                  <div className="shrink-0">
+                    {item.kind === 'video' ? (
+                      <div className="relative w-14 h-10 rounded-lg overflow-hidden bg-zinc-100">
+                        <img
+                          src={item.video.thumbnailUrl}
+                          alt={item.video.title}
+                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                          onError={e => { (e.target as HTMLImageElement).src = `https://img.youtube.com/vi/${item.video.videoId}/mqdefault.jpg`; }}
+                        />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition-colors duration-200 flex items-center justify-center">
+                          <Youtube size={12} className="text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow" />
+                        </div>
+                      </div>
                     ) : (
-                      <>
-                        <span className="text-[10px] text-text-muted">·</span>
-                        <span className="text-[10px] text-text-muted">Uncategorized</span>
-                      </>
+                      <div
+                        className="relative w-10 h-10 rounded-lg overflow-hidden flex items-center justify-center shrink-0"
+                        style={{ backgroundColor: accentColor, backgroundImage: pattern }}
+                      >
+                        <span className="absolute -top-1 -right-1 text-xl opacity-20 select-none" aria-hidden>{doodle}</span>
+                        <Icon size={16} className="text-white drop-shadow relative z-10" />
+                      </div>
                     )}
                   </div>
-                </Link>
 
-                {/* Actions */}
-                <div className="shrink-0 flex items-center gap-2">
+                  {/* Text — clickable area */}
                   <Link
                     to={to}
                     state={{ activeTab }}
-                    className="flex items-center gap-1 text-[10px] font-bold text-text-muted hover:text-text-main transition-colors opacity-0 group-hover:opacity-100"
-                    onClick={e => e.stopPropagation()}
+                    className="flex-1 min-w-0 flex flex-col gap-0.5"
+                    onClick={e => { if (isGenerating) e.preventDefault(); }}
                   >
-                    <ExternalLink size={11} />
-                    Open
+                    <p className="text-sm font-semibold text-text-main truncate leading-snug group-hover:text-primary transition-colors duration-150">{name}</p>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: accentColor }}>
+                        {emoji} {typeLabel}
+                      </span>
+                      {courseName ? (
+                        <>
+                          <span className="text-[10px] text-text-muted">·</span>
+                          <span className="text-[10px] font-semibold text-text-muted truncate">{courseName}</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-[10px] text-text-muted">·</span>
+                          <span className="text-[10px] text-text-muted">Uncategorized</span>
+                        </>
+                      )}
+                    </div>
                   </Link>
 
-                  <button
-                    onClick={e => handleGenerate(e, item)}
-                    disabled={isGenerating}
-                    className={cn(
-                      'flex items-center gap-1 text-[10px] font-black uppercase tracking-wide rounded-lg px-2 py-1 transition-all duration-200',
-                      hasError
-                        ? 'text-red-500 cursor-not-allowed'
-                        : isGenerating
-                          ? 'text-text-muted opacity-70 cursor-not-allowed'
-                          : 'hover:-translate-y-0.5 hover:shadow-sm active:scale-95',
-                    )}
-                    style={{
-                      color: hasError ? undefined : accentColor,
-                      ...((!hasError && !isGenerating) && { ['--hover-bg' as string]: accentColor + '18' }),
-                    }}
-                    onMouseEnter={e => { if (!hasError && !isGenerating) (e.currentTarget as HTMLElement).style.backgroundColor = accentColor + '18'; }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.backgroundColor = ''; }}
-                  >
-                    {isGenerating
-                      ? <><Loader2 size={9} className="animate-spin" /> Generating…</>
-                      : hasError
-                        ? 'Failed'
-                        : <><Sparkles size={9} /> {ctaText}</>
-                    }
-                  </button>
-                </div>
-              </motion.div>
-            );
-          })}
-        </div>
+                  {/* Actions */}
+                  <div className="shrink-0 flex items-center gap-2">
+                    <Link
+                      to={to}
+                      state={{ activeTab }}
+                      className="flex items-center gap-1 text-[10px] font-bold text-text-muted hover:text-text-main transition-colors opacity-0 group-hover:opacity-100"
+                      onClick={e => e.stopPropagation()}
+                    >
+                      <ExternalLink size={11} />
+                      Open
+                    </Link>
+
+                    <button
+                      onClick={e => handleGenerate(e, item)}
+                      disabled={isGenerating}
+                      className={cn(
+                        'flex items-center gap-1 text-[10px] font-black uppercase tracking-wide rounded-lg px-2 py-1 transition-all duration-200',
+                        hasError
+                          ? 'text-red-500 cursor-not-allowed'
+                          : isGenerating
+                            ? 'text-text-muted opacity-70 cursor-not-allowed'
+                            : 'hover:-translate-y-0.5 hover:shadow-sm active:scale-95',
+                      )}
+                      style={{
+                        color: hasError ? undefined : accentColor,
+                        ...((!hasError && !isGenerating) && { ['--hover-bg' as string]: accentColor + '18' }),
+                      }}
+                      onMouseEnter={e => { if (!hasError && !isGenerating) (e.currentTarget as HTMLElement).style.backgroundColor = accentColor + '18'; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.backgroundColor = ''; }}
+                    >
+                      {isGenerating
+                        ? <><Loader2 size={9} className="animate-spin" /> Generating…</>
+                        : hasError
+                          ? 'Failed'
+                          : <><Sparkles size={9} /> {ctaText}</>
+                      }
+                    </button>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
         )}
 
         <Pagination
@@ -347,7 +347,7 @@ export const PendingItemsGrid: React.FC<PendingItemsGridProps> = ({
       {/* ── Generation result modal ── */}
       <AnimatePresence>
         {modal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6">
             {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -361,20 +361,20 @@ export const PendingItemsGrid: React.FC<PendingItemsGridProps> = ({
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 16 }}
               transition={{ type: 'spring', stiffness: 340, damping: 26 }}
-              className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]"
+              className="relative flex h-[60vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
             >
               {/* Modal header */}
-              <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100 shrink-0">
-                <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between px-5 py-4 sm:px-7 border-b border-zinc-100 shrink-0">
+                <div className="flex min-w-0 items-center gap-2">
                   <Sparkles size={15} className="text-amber-400" />
-                  <h3 className="font-bold text-sm text-zinc-900">
+                  <h3 className="shrink-0 font-bold text-sm text-zinc-900">
                     {modal.kind === 'flashcards'
                       ? `${modal.cards.length} Flashcard${modal.cards.length !== 1 ? 's' : ''} Generated`
                       : modal.phase === 'submitted'
                         ? 'Quiz Results'
                         : `${modal.questions.length} Question${modal.questions.length !== 1 ? 's' : ''}`}
                   </h3>
-                  <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-semibold text-zinc-500 truncate max-w-[140px]">{modal.name}</span>
+                  <span className="truncate rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-semibold text-zinc-500 max-w-[220px] sm:max-w-md">{modal.name}</span>
                 </div>
                 <button onClick={closeModal} className="rounded-full p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 transition-colors">
                   <X size={16} />
@@ -393,7 +393,7 @@ export const PendingItemsGrid: React.FC<PendingItemsGridProps> = ({
                   </div>
 
                   {/* Flip card */}
-                  <div className="flex-1 overflow-hidden flex flex-col px-5 py-4 gap-4">
+                  <div className="flex-1 overflow-hidden flex flex-col px-5 py-5 sm:px-8 sm:py-6 gap-5">
                     {/* Card */}
                     <div
                       className="flex-1 min-h-0 cursor-pointer select-none"
@@ -448,7 +448,7 @@ export const PendingItemsGrid: React.FC<PendingItemsGridProps> = ({
                   </div>
 
                   {/* Footer */}
-                  <div className="px-5 py-3 border-t border-zinc-100 flex items-center justify-between shrink-0">
+                  <div className="px-5 py-3 sm:px-7 border-t border-zinc-100 flex items-center justify-between shrink-0">
                     <button onClick={closeModal} className="rounded-lg border border-zinc-200 px-4 py-1.5 text-xs font-semibold text-zinc-600 hover:bg-zinc-50 transition-all">
                       Done
                     </button>
@@ -473,7 +473,7 @@ export const PendingItemsGrid: React.FC<PendingItemsGridProps> = ({
                   </div>
 
                   {/* Question */}
-                  <div className="flex-1 overflow-y-auto px-5 py-5 flex flex-col gap-4">
+                  <div className="flex-1 overflow-y-auto px-5 py-5 sm:px-8 sm:py-6 flex flex-col gap-5">
                     {(() => {
                       const q = modal.questions[modal.currentQ];
                       const selectedLetter = modal.selected[q.id];
@@ -512,7 +512,7 @@ export const PendingItemsGrid: React.FC<PendingItemsGridProps> = ({
                   </div>
 
                   {/* Footer */}
-                  <div className="px-5 py-3 border-t border-zinc-100 flex items-center justify-between shrink-0">
+                  <div className="px-5 py-3 sm:px-7 border-t border-zinc-100 flex items-center justify-between shrink-0">
                     <button
                       onClick={() => setModal(m => m?.kind === 'quiz' ? { ...m, currentQ: Math.max(0, m.currentQ - 1) } : m)}
                       disabled={modal.currentQ === 0}
@@ -542,7 +542,7 @@ export const PendingItemsGrid: React.FC<PendingItemsGridProps> = ({
               ) : (
                 <>
                   {/* Results */}
-                  <div className="flex-1 overflow-y-auto px-5 py-5 flex flex-col gap-4">
+                  <div className="flex-1 overflow-y-auto px-5 py-5 sm:px-8 sm:py-6 flex flex-col gap-5">
                     {/* Score banner */}
                     {(() => {
                       const score = modal.score ?? 0;
@@ -602,7 +602,7 @@ export const PendingItemsGrid: React.FC<PendingItemsGridProps> = ({
                   </div>
 
                   {/* Footer */}
-                  <div className="px-5 py-3 border-t border-zinc-100 flex items-center justify-between shrink-0">
+                  <div className="px-5 py-3 sm:px-7 border-t border-zinc-100 flex items-center justify-between shrink-0">
                     <button onClick={closeModal} className="rounded-lg border border-zinc-200 px-4 py-1.5 text-xs font-semibold text-zinc-600 hover:bg-zinc-50 transition-all">
                       Close
                     </button>

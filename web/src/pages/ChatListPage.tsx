@@ -9,6 +9,7 @@ import { chatStorage, type Conversation } from '../services/chatStorage';
 import { aiService, type ChatSessionSummary } from '../services/aiService';
 import { documentService } from '../services/documentService';
 import { youtubeService } from '../services/youtubeService';
+import { STREAM_ERROR_MESSAGE } from '../services/streamSse';
 import { cn } from '../utils/cn';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -190,6 +191,7 @@ export const ChatListPage: React.FC = () => {
       ]);
 
       let accumulated = '';
+      let completed = false;
 
       try {
         if (activeItem.kind === 'local') {
@@ -213,6 +215,7 @@ export const ChatListPage: React.FC = () => {
             accumulated += chunk;
             onChunk(chunk);
           });
+          completed = true;
 
           if (accumulated) chatStorage.addMessage(activeItem.id, 'model', accumulated);
           setLocalConvs(chatStorage.getConversations());
@@ -222,6 +225,7 @@ export const ChatListPage: React.FC = () => {
             accumulated += chunk;
             onChunk(chunk);
           });
+          completed = true;
 
           setBackendSessions(prev =>
             prev.map(s =>
@@ -236,6 +240,7 @@ export const ChatListPage: React.FC = () => {
             accumulated += chunk;
             onChunk(chunk);
           });
+          completed = true;
 
           setBackendSessions(prev =>
             prev.map(s =>
@@ -246,9 +251,13 @@ export const ChatListPage: React.FC = () => {
           );
         }
       } catch (err) {
+        setPanelMessages(prev => [
+          ...prev,
+          { id: crypto.randomUUID(), role: 'model', content: STREAM_ERROR_MESSAGE, isError: true },
+        ]);
         throw err;
       } finally {
-        if (accumulated) {
+        if (completed && accumulated) {
           setPanelMessages(prev => [
             ...prev,
             { id: crypto.randomUUID(), role: 'model', content: accumulated },

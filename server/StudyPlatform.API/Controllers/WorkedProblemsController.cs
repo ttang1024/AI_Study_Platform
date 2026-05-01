@@ -52,6 +52,8 @@ public class WorkedProblemsController : ControllerBase
         {
             if (result.ErrorCode == "DOCUMENT_NOT_FOUND")
                 return NotFound(BaseResponse<IEnumerable<WorkedProblemDto>>.Fail(result.Message, result.ErrorCode));
+            if (AiErrorMapper.TryGetAiError(result.Message, out _, out _))
+                return AiErrorMapper.ToObjectResult<IEnumerable<WorkedProblemDto>>(this, result.Message);
             return BadRequest(BaseResponse<IEnumerable<WorkedProblemDto>>.Fail(result.Message, result.ErrorCode));
         }
         return Ok(BaseResponse<IEnumerable<WorkedProblemDto>>.Ok(result.Data!));

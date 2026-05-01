@@ -51,6 +51,8 @@ public record GetQuizSubmissionCoverageQuery(Guid UserId) : IRequest<Result<Quiz
 
 public record GetPendingQuizMaterialsQuery(Guid UserId) : IRequest<Result<IEnumerable<PendingMaterialDto>>>;
 
+public record GetGeneratedQuizMaterialsQuery(Guid UserId) : IRequest<Result<IEnumerable<PendingMaterialDto>>>;
+
 public class GetAllQuizSubmissionsPagedQueryHandler : IRequestHandler<GetAllQuizSubmissionsPagedQuery, Result<PaginatedList<QuizSubmissionDto>>>
 {
     private readonly IUnitOfWork _unitOfWork;
@@ -155,6 +157,87 @@ public class GetPendingQuizMaterialsQueryHandler : IRequestHandler<GetPendingQui
 
         var videos = (await _unitOfWork.YouTubeVideos.FindAsync(
                 v => v.UserId == request.UserId && !videoIdSet.Contains(v.YouTubeVideoId),
+                cancellationToken))
+            .Select(v =>
+            {
+                courseMap.TryGetValue(v.CourseId, out var course);
+                return new PendingMaterialDto(
+                    "video",
+                    v.YouTubeVideoId,
+                    v.CourseId,
+                    course?.CourseName ?? string.Empty,
+                    course?.CourseColor ?? "#a1a1aa",
+                    v.Title,
+                    null,
+                    null,
+                    null,
+                    v.VideoId,
+                    v.VideoUrl,
+                    v.ThumbnailUrl,
+                    v.CreatedAt);
+            });
+
+        return Result<IEnumerable<PendingMaterialDto>>.Success(
+            documents.Concat(videos).OrderByDescending(m => m.CreatedAt));
+    }
+}
+
+public class GetGeneratedQuizMaterialsQueryHandler : IRequestHandler<GetGeneratedQuizMaterialsQuery, Result<IEnumerable<PendingMaterialDto>>>
+{
+    private readonly IUnitOfWork _unitOfWork;
+
+    public GetGeneratedQuizMaterialsQueryHandler(IUnitOfWork unitOfWork)
+    {
+        _unitOfWork = unitOfWork;
+    }
+
+    public async Task<Result<IEnumerable<PendingMaterialDto>>> Handle(GetGeneratedQuizMaterialsQuery request, CancellationToken cancellationToken)
+    {
+        var generatedQuizzes = await _unitOfWork.Quizzes.FindAsync(q => q.UserId == request.UserId, cancellationToken);
+        var generatedDocumentIds = generatedQuizzes
+            .Where(q => q.DocumentId.HasValue && q.SourceType != "video")
+            .Select(q => q.DocumentId!.Value)
+            .Distinct()
+            .ToHashSet();
+        var generatedVideoIds = generatedQuizzes
+            .Where(q => q.YouTubeVideoId.HasValue || q.SourceType == "video")
+            .Select(q => q.YouTubeVideoId)
+            .Where(id => id.HasValue)
+            .Select(id => id!.Value)
+            .Distinct()
+            .ToHashSet();
+
+        var (documentIdsWithSubmissions, videoIdsWithSubmissions) = await _unitOfWork.QuizSubmissions.GetCoverageByUserAsync(request.UserId, cancellationToken);
+        generatedDocumentIds.ExceptWith(documentIdsWithSubmissions);
+        generatedVideoIds.ExceptWith(videoIdsWithSubmissions);
+
+        var courseMap = (await _unitOfWork.Courses.FindAsync(c => c.UserId == request.UserId, cancellationToken))
+            .ToDictionary(c => c.CourseId);
+
+        var documents = (await _unitOfWork.Documents.FindAsync(
+                d => d.UserId == request.UserId && generatedDocumentIds.Contains(d.DocumentId),
+                cancellationToken))
+            .Select(d =>
+            {
+                courseMap.TryGetValue(d.CourseId, out var course);
+                return new PendingMaterialDto(
+                    "document",
+                    d.DocumentId,
+                    d.CourseId,
+                    course?.CourseName ?? string.Empty,
+                    course?.CourseColor ?? "#a1a1aa",
+                    d.FileName,
+                    d.ContentType,
+                    d.BlobUrl,
+                    d.OriginalUrl,
+                    null,
+                    null,
+                    null,
+                    d.CreatedAt);
+            });
+
+        var videos = (await _unitOfWork.YouTubeVideos.FindAsync(
+                v => v.UserId == request.UserId && generatedVideoIds.Contains(v.YouTubeVideoId),
                 cancellationToken))
             .Select(v =>
             {

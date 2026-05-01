@@ -56,4 +56,16 @@ public class QuizSubmissionsController : ControllerBase
         var result = await _mediator.Send(new GetPendingQuizMaterialsQuery(userId));
         return Ok(BaseResponse<IEnumerable<PendingMaterialDto>>.Ok(result.Data!));
     }
+
+    /// <summary>
+    /// Get materials that already have generated quiz questions but no submitted result yet.
+    /// </summary>
+    [HttpGet("generated-materials")]
+    [ProducesResponseType(typeof(BaseResponse<IEnumerable<PendingMaterialDto>>), 200)]
+    public async Task<IActionResult> GetGeneratedMaterials()
+    {
+        var userId = User.GetUserId();
+        var result = await _mediator.Send(new GetGeneratedQuizMaterialsQuery(userId));
+        return Ok(BaseResponse<IEnumerable<PendingMaterialDto>>.Ok(result.Data!));
+    }
 }

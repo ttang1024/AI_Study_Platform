@@ -12,8 +12,9 @@ import { documentService, quizSubmissionService } from '../services/documentServ
 import { TimedExamModal } from '../components/quiz/TimedExamModal';
 import { QuizItemRow, QuizItemType } from '../components/quiz/QuizItemRow';
 import { QuizQuestion, Document } from '../types';
-import { pendingMaterialToItem } from '../services/pendingMaterialService';
+import { PendingMaterial, pendingMaterialToItem } from '../services/pendingMaterialService';
 import { Pagination } from '../components/common/Pagination';
+import { useRefreshOnVisible } from '../hooks/useRefreshOnVisible';
 
 const PAGE_SIZE = 5;
 
@@ -49,12 +50,13 @@ type VideoQuizItem = {
   score?: number;
   total?: number;
   date?: string;
+  pending?: boolean;
 };
 
 type UnifiedQuizItem = DocQuizItem | VideoQuizItem;
 
 export const QuizManagementPage: React.FC = () => {
-  const { documents, courses, quizSubmissions, totalMaterials, totalQuizSubmissions, achievementStats, isLoading: contextLoading, refreshQuizSubmissions } = useStudy();
+  const { documents, courses, quizSubmissions, totalMaterials, totalQuizSubmissions, achievementStats, isLoading: contextLoading, refreshQuizSubmissions, refreshStats, refreshDocuments } = useStudy();
   const navigate = useNavigate();
 
   const [sourceType, setSourceType] = useState<SourceType>('all');
@@ -72,7 +74,7 @@ export const QuizManagementPage: React.FC = () => {
   const [timedExamDocName, setTimedExamDocName] = useState('');
   const [timedExamQuestions, setTimedExamQuestions] = useState<QuizQuestion[]>([]);
   const [loadingTimedExam, setLoadingTimedExam] = useState<string | null>(null);
-  const [generatedPending, setGeneratedPending] = useState<DocQuizItem[]>([]);
+  const [generatedPending, setGeneratedPending] = useState<UnifiedQuizItem[]>([]);
   const [coverageLoading, setCoverageLoading] = useState(true);
   const [coverage, setCoverage] = useState({ documentIds: [] as string[], youTubeVideoIds: [] as string[] });
   const [pendingLoading, setPendingLoading] = useState(true);
@@ -81,14 +83,56 @@ export const QuizManagementPage: React.FC = () => {
   // Remove pending entries once a real submission arrives for the same doc
   useEffect(() => {
     const submittedDocIds = new Set(quizSubmissions.map(s => s.documentId).filter(Boolean));
-    setGeneratedPending(prev => prev.filter(p => p.docId && !submittedDocIds.has(p.docId)));
+    const submittedVideoIds = new Set(quizSubmissions.map(s => s.youTubeVideoId).filter(Boolean));
+    setGeneratedPending(prev => prev.filter(p => p.type === 'video' ? !submittedVideoIds.has(p.id) : p.docId && !submittedDocIds.has(p.docId)));
   }, [quizSubmissions]);
 
-  useEffect(() => {
-    youtubeService.getVideos({ page: 1, pageSize: 10 })
+  const refreshVideos = React.useCallback(() => {
+    return youtubeService.getVideos({ page: 1, pageSize: 10 })
       .then(data => setVideoList(data.items))
       .catch(() => { });
   }, []);
+
+  useEffect(() => {
+    void refreshQuizSubmissions();
+    void refreshStats();
+    void refreshDocuments();
+    void refreshVideos();
+  }, [refreshQuizSubmissions, refreshStats, refreshDocuments, refreshVideos]);
+
+  const generatedMaterialToQuizItem = React.useCallback((material: PendingMaterial): UnifiedQuizItem => {
+    if (material.kind === 'video') {
+      return {
+        type: 'video',
+        id: material.id,
+        name: material.name,
+        courseId: material.courseId,
+        courseColor: material.courseColor,
+        courseName: material.courseName,
+        pending: true,
+      };
+    }
+
+    const doc = pendingMaterialToItem(material).doc;
+    return {
+      type: docToQuizType(doc),
+      id: `generated-${material.id}`,
+      name: getDocDisplayName(doc),
+      courseId: material.courseId,
+      courseColor: material.courseColor,
+      courseName: material.courseName,
+      docId: material.id,
+      pending: true,
+    };
+  }, []);
+
+  const refreshGeneratedMaterials = React.useCallback(() => {
+    return quizSubmissionService.getGeneratedMaterials()
+      .then(items => setGeneratedPending(items.map(generatedMaterialToQuizItem)))
+      .catch(() => setGeneratedPending([]));
+  }, [generatedMaterialToQuizItem]);
+
+  useEffect(() => { void refreshGeneratedMaterials(); }, [refreshGeneratedMaterials]);
 
   const refreshCoverage = React.useCallback(() => {
     setCoverageLoading(true);
@@ -109,6 +153,26 @@ export const QuizManagementPage: React.FC = () => {
   }, []);
 
   useEffect(() => { void refreshPendingItems(); }, [refreshPendingItems]);
+
+  useRefreshOnVisible(React.useCallback(async () => {
+    await Promise.all([
+      refreshQuizSubmissions(),
+      refreshStats(),
+      refreshDocuments(),
+      refreshGeneratedMaterials(),
+      refreshCoverage(),
+      refreshPendingItems(),
+      refreshVideos(),
+    ]);
+  }, [
+    refreshQuizSubmissions,
+    refreshStats,
+    refreshDocuments,
+    refreshGeneratedMaterials,
+    refreshCoverage,
+    refreshPendingItems,
+    refreshVideos,
+  ]));
 
   // ─── Handlers ────────────────────────────────────────────────────────────────
 
@@ -219,7 +283,8 @@ export const QuizManagementPage: React.FC = () => {
 
   const allItems = useMemo<UnifiedQuizItem[]>(() => {
     const submittedDocIds = new Set(docQuizItems.map(i => i.docId).filter(Boolean));
-    const filteredPending = generatedPending.filter(p => p.docId && !submittedDocIds.has(p.docId));
+    const submittedVideoIds = new Set(videoQuizItems.map(i => i.id));
+    const filteredPending = generatedPending.filter(p => p.type === 'video' ? !submittedVideoIds.has(p.id) : p.docId && !submittedDocIds.has(p.docId));
     return [...docQuizItems, ...filteredPending, ...videoQuizItems];
   }, [docQuizItems, videoQuizItems, generatedPending]);
 
@@ -253,8 +318,9 @@ export const QuizManagementPage: React.FC = () => {
   );
 
   const visiblePendingItems = useMemo(() => {
-    const generatedDocIds = new Set(generatedPending.map(p => p.docId).filter(Boolean));
-    return pendingItems.filter(item => item.kind === 'video' || !generatedDocIds.has(item.doc.id));
+    const generatedDocIds = new Set(generatedPending.filter(p => p.type !== 'video').map(p => p.docId).filter(Boolean));
+    const generatedVideoIds = new Set(generatedPending.filter(p => p.type === 'video').map(p => p.id));
+    return pendingItems.filter(item => item.kind === 'video' ? !generatedVideoIds.has(item.video.id) : !generatedDocIds.has(item.doc.id));
   }, [generatedPending, pendingItems]);
 
   const docStats = {
@@ -349,6 +415,7 @@ export const QuizManagementPage: React.FC = () => {
                     date={item.date}
                     courseName={item.courseName || undefined}
                     courseColor={item.courseColor || undefined}
+                    pending={item.pending}
                     examKey={item.id}
                     loadingTimedExam={loadingTimedExam}
                     onShare={() => handleShareVideoQuiz(item.id, item.name)}
@@ -415,6 +482,8 @@ export const QuizManagementPage: React.FC = () => {
               ]);
             }
             refreshQuizSubmissions();
+            void refreshStats();
+            void refreshGeneratedMaterials();
             void refreshCoverage();
             void refreshPendingItems();
           }}

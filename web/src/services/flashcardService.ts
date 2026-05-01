@@ -37,31 +37,61 @@ export interface FlashcardCoverage {
   youTubeVideoIds: string[]
 }
 
+const inflightRequests = new Map<string, Promise<unknown>>();
+
 export const flashcardService = {
   async getAllFlashcards(page = 1, pageSize = 20): Promise<PagedFlashcards> {
-    const response = await apiClient.get(`/api/flashcards?page=${page}&pageSize=${pageSize}`)
-    const d = response.data.data
-    return {
-      items: (d.items as BackendFlashcard[]).map(mapFlashcard),
-      totalCount: d.totalCount,
-      page: d.page,
-      pageSize: d.pageSize,
-      totalPages: d.totalPages,
-    }
+    const url = `/api/flashcards?page=${page}&pageSize=${pageSize}`;
+    const pending = inflightRequests.get(url) as Promise<PagedFlashcards> | undefined;
+    if (pending) return pending;
+
+    const request = apiClient.get(url)
+      .then(response => {
+        const d = response.data.data
+        return {
+          items: (d.items as BackendFlashcard[]).map(mapFlashcard),
+          totalCount: d.totalCount,
+          page: d.page,
+          pageSize: d.pageSize,
+          totalPages: d.totalPages,
+        }
+      })
+      .finally(() => inflightRequests.delete(url));
+
+    inflightRequests.set(url, request);
+    return request;
   },
 
   async getCoverage(): Promise<FlashcardCoverage> {
-    const response = await apiClient.get('/api/flashcards/coverage');
-    const d = response.data.data;
-    return {
-      documentIds: d.documentIds ?? [],
-      youTubeVideoIds: d.youTubeVideoIds ?? [],
-    };
+    const url = '/api/flashcards/coverage';
+    const pending = inflightRequests.get(url) as Promise<FlashcardCoverage> | undefined;
+    if (pending) return pending;
+
+    const request = apiClient.get(url)
+      .then(response => {
+        const d = response.data.data;
+        return {
+          documentIds: d.documentIds ?? [],
+          youTubeVideoIds: d.youTubeVideoIds ?? [],
+        };
+      })
+      .finally(() => inflightRequests.delete(url));
+
+    inflightRequests.set(url, request);
+    return request;
   },
 
   async getPendingMaterials(): Promise<PendingMaterial[]> {
-    const response = await apiClient.get('/api/flashcards/pending-materials');
-    return response.data.data ?? [];
+    const url = '/api/flashcards/pending-materials';
+    const pending = inflightRequests.get(url) as Promise<PendingMaterial[]> | undefined;
+    if (pending) return pending;
+
+    const request = apiClient.get(url)
+      .then(response => response.data.data ?? [])
+      .finally(() => inflightRequests.delete(url));
+
+    inflightRequests.set(url, request);
+    return request;
   },
 
   async createFlashcard(data: { front: string; back: string; documentId?: string }): Promise<Flashcard> {

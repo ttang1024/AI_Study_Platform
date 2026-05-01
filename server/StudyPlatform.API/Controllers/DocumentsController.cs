@@ -181,33 +181,69 @@ public class DocumentsController : ControllerBase
     /// Stream mind map for a document (SSE), saves result to DB on completion
     /// </summary>
     [HttpPost("{documentId:guid}/mindmap/stream")]
-    public async Task StreamMindMap(Guid courseId, Guid documentId, CancellationToken cancellationToken)
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status429TooManyRequests)]
+    [ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status502BadGateway)]
+    public async Task<IActionResult> StreamMindMap(Guid courseId, Guid documentId, CancellationToken cancellationToken)
     {
+        var userId = User.GetUserId();
+        var document = await _unitOfWork.Documents.GetByIdAsync(documentId, cancellationToken);
+        if (document == null || document.UserId != userId)
+            return NotFound(BaseResponse<string>.Fail("Document not found.", "DOCUMENT_NOT_FOUND"));
+
+        var fullText = new StringBuilder();
+        IAsyncEnumerable<string> stream;
+
+        try
+        {
+            var (bytes, text) = await GetDocumentContentAsync(document, cancellationToken);
+            stream = bytes != null
+                ? _aiService.StreamMindMapAsync(bytes, document.ContentType, cancellationToken)
+                : _aiService.StreamMindMapAsync(text!, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            return new EmptyResult();
+        }
+        catch (Exception ex)
+        {
+            return AiStreamError(ex);
+        }
+
+        await using var enumerator = stream.GetAsyncEnumerator(cancellationToken);
+
+        string? firstChunk;
+        try
+        {
+            if (!await enumerator.MoveNextAsync())
+                return NoContent();
+
+            firstChunk = enumerator.Current;
+        }
+        catch (OperationCanceledException)
+        {
+            return new EmptyResult();
+        }
+        catch (Exception ex)
+        {
+            return AiStreamError(ex);
+        }
+
         Response.ContentType = "text/event-stream";
         Response.Headers["Cache-Control"] = "no-cache";
         Response.Headers["X-Accel-Buffering"] = "no";
 
-        var userId = User.GetUserId();
-        var document = await _unitOfWork.Documents.GetByIdAsync(documentId, cancellationToken);
-        if (document == null || document.UserId != userId)
-        {
-            Response.StatusCode = 404;
-            return;
-        }
-
-        var fullText = new StringBuilder();
         try
         {
-            var (bytes, text) = await GetDocumentContentAsync(document, cancellationToken);
-            var stream = bytes != null
-                ? _aiService.StreamMindMapAsync(bytes, document.ContentType, cancellationToken)
-                : _aiService.StreamMindMapAsync(text!, cancellationToken);
+            fullText.Append(firstChunk);
+            await WriteSseDataAsync(firstChunk, cancellationToken);
 
-            await foreach (var chunk in stream)
+            while (await enumerator.MoveNextAsync())
             {
+                var chunk = enumerator.Current;
                 fullText.Append(chunk);
-                await Response.WriteAsync($"data: {JsonSerializer.Serialize(chunk)}\n\n", cancellationToken);
-                await Response.Body.FlushAsync(cancellationToken);
+                await WriteSseDataAsync(chunk, cancellationToken);
             }
 
             if (fullText.Length > 0)
@@ -218,15 +254,26 @@ public class DocumentsController : ControllerBase
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
             }
         }
-        catch (OperationCanceledException) { return; }
+        catch (OperationCanceledException) { return new EmptyResult(); }
         catch (Exception ex)
         {
-            await Response.WriteAsync($"data: {JsonSerializer.Serialize("[ERROR] " + ex.Message)}\n\n", cancellationToken);
-            await Response.Body.FlushAsync(cancellationToken);
+            await WriteSseDataAsync("[ERROR] " + ex.Message, cancellationToken);
         }
 
         await Response.WriteAsync("data: [DONE]\n\n", cancellationToken);
         await Response.Body.FlushAsync(cancellationToken);
+        return new EmptyResult();
+    }
+
+    private async Task WriteSseDataAsync(string data, CancellationToken cancellationToken)
+    {
+        await Response.WriteAsync($"data: {JsonSerializer.Serialize(data)}\n\n", cancellationToken);
+        await Response.Body.FlushAsync(cancellationToken);
+    }
+
+    private ObjectResult AiStreamError(Exception ex)
+    {
+        return AiErrorMapper.ToObjectResult(this, ex.Message);
     }
 
     /// <summary>
@@ -243,6 +290,8 @@ public class DocumentsController : ControllerBase
         {
             if (result.ErrorCode == "DOCUMENT_NOT_FOUND")
                 return NotFound(BaseResponse<IEnumerable<QuizDto>>.Fail(result.Message, result.ErrorCode));
+            if (AiErrorMapper.TryGetAiError(result.Message, out _, out _))
+                return AiErrorMapper.ToObjectResult<IEnumerable<QuizDto>>(this, result.Message);
             return BadRequest(BaseResponse<IEnumerable<QuizDto>>.Fail(result.Message, result.ErrorCode));
         }
 
@@ -278,6 +327,8 @@ public class DocumentsController : ControllerBase
         {
             if (result.ErrorCode == "DOCUMENT_NOT_FOUND")
                 return NotFound(BaseResponse<IEnumerable<FlashcardDto>>.Fail(result.Message, result.ErrorCode));
+            if (AiErrorMapper.TryGetAiError(result.Message, out _, out _))
+                return AiErrorMapper.ToObjectResult<IEnumerable<FlashcardDto>>(this, result.Message);
             return BadRequest(BaseResponse<IEnumerable<FlashcardDto>>.Fail(result.Message, result.ErrorCode));
         }
 
@@ -439,6 +490,8 @@ public class DocumentsController : ControllerBase
         {
             if (result.ErrorCode == "DOCUMENT_NOT_FOUND")
                 return NotFound(BaseResponse<IEnumerable<GlossaryTermDto>>.Fail(result.Message, result.ErrorCode));
+            if (AiErrorMapper.TryGetAiError(result.Message, out _, out _))
+                return AiErrorMapper.ToObjectResult<IEnumerable<GlossaryTermDto>>(this, result.Message);
             return BadRequest(BaseResponse<IEnumerable<GlossaryTermDto>>.Fail(result.Message, result.ErrorCode));
         }
 
@@ -461,33 +514,69 @@ public class DocumentsController : ControllerBase
     /// Stream AI summary for a document (SSE), saves result to DB on completion
     /// </summary>
     [HttpPost("{documentId:guid}/summary/stream")]
-    public async Task StreamSummary(Guid courseId, Guid documentId, CancellationToken cancellationToken)
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status429TooManyRequests)]
+    [ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status502BadGateway)]
+    public async Task<IActionResult> StreamSummary(Guid courseId, Guid documentId, CancellationToken cancellationToken)
     {
+        var userId = User.GetUserId();
+        var document = await _unitOfWork.Documents.GetByIdAsync(documentId, cancellationToken);
+        if (document == null || document.UserId != userId)
+            return NotFound(BaseResponse<string>.Fail("Document not found.", "DOCUMENT_NOT_FOUND"));
+
+        var fullText = new StringBuilder();
+        IAsyncEnumerable<string> stream;
+
+        try
+        {
+            var (bytes, text) = await GetDocumentContentAsync(document, cancellationToken);
+            stream = bytes != null
+                ? _aiService.StreamSummaryAsync(bytes, document.ContentType, cancellationToken)
+                : _aiService.StreamSummaryAsync(text!, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            return new EmptyResult();
+        }
+        catch (Exception ex)
+        {
+            return AiStreamError(ex);
+        }
+
+        await using var enumerator = stream.GetAsyncEnumerator(cancellationToken);
+
+        string? firstChunk;
+        try
+        {
+            if (!await enumerator.MoveNextAsync())
+                return NoContent();
+
+            firstChunk = enumerator.Current;
+        }
+        catch (OperationCanceledException)
+        {
+            return new EmptyResult();
+        }
+        catch (Exception ex)
+        {
+            return AiStreamError(ex);
+        }
+
         Response.ContentType = "text/event-stream";
         Response.Headers["Cache-Control"] = "no-cache";
         Response.Headers["X-Accel-Buffering"] = "no";
 
-        var userId = User.GetUserId();
-        var document = await _unitOfWork.Documents.GetByIdAsync(documentId, cancellationToken);
-        if (document == null || document.UserId != userId)
-        {
-            Response.StatusCode = 404;
-            return;
-        }
-
-        var fullText = new StringBuilder();
         try
         {
-            var (bytes, text) = await GetDocumentContentAsync(document, cancellationToken);
-            var stream = bytes != null
-                ? _aiService.StreamSummaryAsync(bytes, document.ContentType, cancellationToken)
-                : _aiService.StreamSummaryAsync(text!, cancellationToken);
+            fullText.Append(firstChunk);
+            await WriteSseDataAsync(firstChunk, cancellationToken);
 
-            await foreach (var chunk in stream)
+            while (await enumerator.MoveNextAsync())
             {
+                var chunk = enumerator.Current;
                 fullText.Append(chunk);
-                await Response.WriteAsync($"data: {JsonSerializer.Serialize(chunk)}\n\n", cancellationToken);
-                await Response.Body.FlushAsync(cancellationToken);
+                await WriteSseDataAsync(chunk, cancellationToken);
             }
 
             // Persist the streamed summary
@@ -499,42 +588,75 @@ public class DocumentsController : ControllerBase
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
             }
         }
-        catch (OperationCanceledException) { return; }
+        catch (OperationCanceledException) { return new EmptyResult(); }
         catch (Exception ex)
         {
-            await Response.WriteAsync($"data: {JsonSerializer.Serialize("[ERROR] " + ex.Message)}\n\n", cancellationToken);
-            await Response.Body.FlushAsync(cancellationToken);
+            await WriteSseDataAsync("[ERROR] " + ex.Message, cancellationToken);
         }
 
         await Response.WriteAsync("data: [DONE]\n\n", cancellationToken);
         await Response.Body.FlushAsync(cancellationToken);
+        return new EmptyResult();
     }
 
     /// <summary>
     /// Stream AI chat for a document (SSE), saves messages to DB on completion
     /// </summary>
     [HttpPost("{documentId:guid}/chat/stream")]
-    public async Task StreamChat(Guid courseId, Guid documentId, [FromBody] AIChatRequest request, CancellationToken cancellationToken)
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status429TooManyRequests)]
+    [ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status502BadGateway)]
+    public async Task<IActionResult> StreamChat(Guid courseId, Guid documentId, [FromBody] AIChatRequest request, CancellationToken cancellationToken)
     {
-        Response.ContentType = "text/event-stream";
-        Response.Headers["Cache-Control"] = "no-cache";
-        Response.Headers["X-Accel-Buffering"] = "no";
+        if (string.IsNullOrWhiteSpace(request.Message))
+            return BadRequest(BaseResponse<string>.Fail("message is required.", "MISSING_MESSAGE"));
 
         var userId = User.GetUserId();
         var document = await _unitOfWork.Documents.GetByIdAsync(documentId, cancellationToken);
         if (document == null || document.UserId != userId)
-        {
-            Response.StatusCode = 404;
-            return;
-        }
+            return NotFound(BaseResponse<string>.Fail("Document not found.", "DOCUMENT_NOT_FOUND"));
 
         var history = await _unitOfWork.ChatMessages.GetByDocumentIdAsync(documentId, userId, cancellationToken);
         var historyTuples = history.Select(m => (m.Role, m.Content)).ToList();
-        var (_, content) = await GetDocumentContentAsync(document, cancellationToken);
-        content ??= string.Empty;
+        string content;
 
-        // Save user message
-        var userMsg = new ChatMessage
+        try
+        {
+            var (_, extractedContent) = await GetDocumentContentAsync(document, cancellationToken);
+            content = extractedContent ?? string.Empty;
+        }
+        catch (OperationCanceledException)
+        {
+            return new EmptyResult();
+        }
+        catch (Exception ex)
+        {
+            return AiStreamError(ex);
+        }
+
+        var stream = _aiService.StreamChatAsync(content, request.Message, historyTuples, cancellationToken);
+        await using var enumerator = stream.GetAsyncEnumerator(cancellationToken);
+
+        string? firstChunk;
+        try
+        {
+            if (!await enumerator.MoveNextAsync())
+                return NoContent();
+
+            firstChunk = enumerator.Current;
+        }
+        catch (OperationCanceledException)
+        {
+            return new EmptyResult();
+        }
+        catch (Exception ex)
+        {
+            return AiStreamError(ex);
+        }
+
+        await _unitOfWork.ChatMessages.AddAsync(new ChatMessage
         {
             MessageId = Guid.NewGuid(),
             DocumentId = documentId,
@@ -543,18 +665,24 @@ public class DocumentsController : ControllerBase
             Role = "user",
             Content = request.Message,
             CreatedAt = DateTime.UtcNow
-        };
-        await _unitOfWork.ChatMessages.AddAsync(userMsg, cancellationToken);
+        }, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        Response.ContentType = "text/event-stream";
+        Response.Headers["Cache-Control"] = "no-cache";
+        Response.Headers["X-Accel-Buffering"] = "no";
 
         var fullResponse = new StringBuilder();
         try
         {
-            await foreach (var chunk in _aiService.StreamChatAsync(content, request.Message, historyTuples, cancellationToken))
+            fullResponse.Append(firstChunk);
+            await WriteSseDataAsync(firstChunk, cancellationToken);
+
+            while (await enumerator.MoveNextAsync())
             {
+                var chunk = enumerator.Current;
                 fullResponse.Append(chunk);
-                await Response.WriteAsync($"data: {JsonSerializer.Serialize(chunk)}\n\n", cancellationToken);
-                await Response.Body.FlushAsync(cancellationToken);
+                await WriteSseDataAsync(chunk, cancellationToken);
             }
 
             // Save model message
@@ -574,15 +702,15 @@ public class DocumentsController : ControllerBase
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
             }
         }
-        catch (OperationCanceledException) { return; }
+        catch (OperationCanceledException) { return new EmptyResult(); }
         catch (Exception ex)
         {
-            await Response.WriteAsync($"data: {JsonSerializer.Serialize("[ERROR] " + ex.Message)}\n\n", cancellationToken);
-            await Response.Body.FlushAsync(cancellationToken);
+            await WriteSseDataAsync("[ERROR] " + ex.Message, cancellationToken);
         }
 
         await Response.WriteAsync("data: [DONE]\n\n", cancellationToken);
         await Response.Body.FlushAsync(cancellationToken);
+        return new EmptyResult();
     }
 }
 

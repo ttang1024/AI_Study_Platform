@@ -413,7 +413,7 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           const errorMessage: ChatMessage = {
             id: `error-${Date.now()}`,
             role: 'model',
-            content: "I'm sorry, I encountered an error. Please try again.",
+            content: error instanceof Error ? error.message : 'An unknown error occurred.',
             timestamp: new Date().toISOString(),
           };
           setChatMessages((prev) => [...prev, errorMessage]);

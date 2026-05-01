@@ -5,6 +5,7 @@ import { QuizQuestion } from '../../types';
 import { documentService } from '../../services/documentService';
 import { useStudy } from '../../context/StudyContext';
 import { CheckCircle2, XCircle, ChevronRight, Loader2 } from 'lucide-react';
+import { isQuizOptionCorrect } from '../../utils/quizAnswers';
 
 export const QuizModal: React.FC = () => {
   const { currentDocument, updateProgress } = useStudy();
@@ -50,7 +51,7 @@ export const QuizModal: React.FC = () => {
   const handleSubmit = () => {
     if (!selectedAnswer) return;
     setIsSubmitted(true);
-    if (selectedAnswer === questions[currentIndex].answer) {
+    if (isQuizOptionCorrect(selectedAnswer, questions[currentIndex].answer)) {
       setScore(prev => prev + 1);
     }
   };
@@ -67,7 +68,7 @@ export const QuizModal: React.FC = () => {
           completionPercentage: 100, // Mark as completed for now
           quizScores: [{
             quizId: Math.random().toString(36).substr(2, 9),
-            score: score + (selectedAnswer === questions[currentIndex].answer ? 1 : 0),
+            score,
             total: questions.length,
             date: new Date().toISOString()
           }]
@@ -117,19 +118,19 @@ export const QuizModal: React.FC = () => {
                     className={`w-full flex items-center justify-between rounded-xl border p-4 text-left transition-all ${selectedAnswer === option
                       ? 'border-primary bg-primary/10 text-primary'
                       : 'border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50'
-                      } ${isSubmitted && option === currentQuestion.answer
+                      } ${isSubmitted && isQuizOptionCorrect(option, currentQuestion.answer)
                         ? 'border-emerald-500 bg-emerald-50 text-emerald-900'
                         : ''
-                      } ${isSubmitted && selectedAnswer === option && option !== currentQuestion.answer
+                      } ${isSubmitted && selectedAnswer === option && !isQuizOptionCorrect(option, currentQuestion.answer)
                         ? 'border-red-500 bg-red-50 text-red-900'
                         : ''
                       }`}
                   >
                     <span>{option}</span>
-                    {isSubmitted && option === currentQuestion.answer && (
+                    {isSubmitted && isQuizOptionCorrect(option, currentQuestion.answer) && (
                       <CheckCircle2 size={20} className="text-emerald-500" />
                     )}
-                    {isSubmitted && selectedAnswer === option && option !== currentQuestion.answer && (
+                    {isSubmitted && selectedAnswer === option && !isQuizOptionCorrect(option, currentQuestion.answer) && (
                       <XCircle size={20} className="text-red-500" />
                     )}
                   </button>

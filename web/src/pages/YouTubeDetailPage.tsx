@@ -17,6 +17,7 @@ import { TABS } from '../constants/tab';
 import { QuizQuestion } from '../types';
 import { ShareModal } from '../components/common/ShareModal';
 import { ShareableQuiz, ShareableCard } from '../services/shareContentService';
+import { getApiErrorCode } from '../utils/apiError';
 
 function parseVideoId(url: string): string | null {
 	const patterns = [
@@ -337,7 +338,7 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 		} catch (err: any) {
 			setSummary(null);
 			setSummaryStreamText('');
-			setSummaryError(err?.message ?? 'Failed to generate summary. Please try again.');
+			setSummaryError(getApiErrorCode(err));
 		} finally {
 			setIsLoadingSummary(false);
 		}
@@ -369,7 +370,7 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 			}
 		} catch (err: any) {
 			setMindMapStreamingText(null);
-			setMindMapError(err?.message ?? 'Failed to generate mind map. Please try again.');
+			setMindMapError(getApiErrorCode(err));
 		} finally {
 			setIsLoadingMindMap(false);
 		}
@@ -383,7 +384,7 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 			const cards = await youtubeService.generateFlashcards(id, videoUrl);
 			setFlashcards(cards.map((c, i) => ({ id: `fc-${i}`, front: c.front, back: c.back })));
 		} catch (err: any) {
-			setFlashcardsError(err?.message ?? 'Failed to generate flashcards. Please try again.');
+			setFlashcardsError(getApiErrorCode(err));
 		} finally {
 			setIsLoadingFlashcards(false);
 		}
@@ -407,7 +408,7 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 				explanation: q.explanation,
 			} as QuizQuestion)));
 		} catch (err: any) {
-			setQuizError(err?.message ?? 'Failed to generate quiz. Please try again.');
+			setQuizError(getApiErrorCode(err));
 		} finally {
 			setIsLoadingQuiz(false);
 		}
@@ -586,11 +587,16 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 							const userMsg: ChatMsg = { id: Date.now().toString(), role: 'user', content: message };
 							setChatMessages(prev => [...prev, userMsg]);
 							let accumulated = '';
-							await youtubeService.streamChat(id, message, (chunk) => {
-								accumulated += chunk;
-								onChunk(chunk);
-							});
-							setChatMessages(prev => [...prev, { id: String(Date.now() + 1), role: 'model', content: accumulated }]);
+							try {
+								await youtubeService.streamChat(id, message, (chunk) => {
+									accumulated += chunk;
+									onChunk(chunk);
+								});
+								setChatMessages(prev => [...prev, { id: String(Date.now() + 1), role: 'model', content: accumulated }]);
+							} catch (err) {
+								setChatMessages(prev => [...prev, { id: String(Date.now() + 1), role: 'model', content: getApiErrorCode(err), isError: true }]);
+								throw err;
+							}
 						}}
 						onExternalAddToNote={(html) => {
 							noteEditorRef.current?.appendContent(html);

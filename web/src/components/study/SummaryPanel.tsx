@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, AlertCircle, RotateCcw, Loader2, Volume2, VolumeX } from 'lucide-react';
+import { Sparkles, Loader2, Volume2, VolumeX } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
@@ -7,6 +7,7 @@ import 'katex/dist/katex.min.css';
 import { useTts } from '../../hooks/useTts';
 import { TtsPlayer } from '../common/TtsPlayer';
 import { TtsKeyPrompt } from '../common/TtsKeyPrompt';
+import { EmptyGenerationState, GenerationFailedState } from '../common/GenerationStates';
 
 interface SummaryPanelProps {
 	summary: string | null;
@@ -80,26 +81,7 @@ export const SummaryPanel: React.FC<SummaryPanelProps> = ({
 	}
 
 	if (error) {
-		return (
-			<div className="flex flex-col items-center justify-center py-12 text-center gap-5 px-6">
-				<div className="rounded-2xl bg-red-500/10 p-4 text-red-500">
-					<AlertCircle size={28} />
-				</div>
-				<div>
-					<h3 className="text-sm font-bold text-text-main">Generation Failed</h3>
-					<p className="mt-1 text-[11px] text-zinc-400 max-w-[220px]">{error}</p>
-				</div>
-				{onRetry && (
-					<button
-						onClick={onRetry}
-						className="flex items-center gap-2 rounded-xl bg-[var(--primary)] px-5 py-2.5 text-xs font-bold text-white shadow-lg hover:opacity-90 transition-opacity"
-					>
-						<RotateCcw size={13} />
-						Retry
-					</button>
-				)}
-			</div>
-		);
+		return <GenerationFailedState message={error} onRetry={onRetry} />;
 	}
 
 	if (summary) {
@@ -153,21 +135,12 @@ export const SummaryPanel: React.FC<SummaryPanelProps> = ({
 	}
 
 	return (
-		<div className="flex flex-col items-center justify-center py-12 text-center gap-5 px-6">
-			<div className="rounded-2xl bg-[var(--primary)]/10 p-4 text-[var(--primary)]">
-				<Sparkles size={28} />
-			</div>
-			<div>
-				<h3 className="text-sm font-bold text-text-main">No Summary Yet</h3>
-				<p className="mt-1 text-sm text-zinc-500">{emptyText}</p>
-			</div>
-			<button
-				onClick={onGenerate}
-				className="flex items-center gap-2 rounded-xl bg-[var(--primary)] px-5 py-2.5 text-xs font-bold text-white shadow-lg hover:opacity-90 transition-opacity"
-			>
-				<Sparkles size={13} />
-				Generate Summary
-			</button>
-		</div>
+		<EmptyGenerationState
+			icon={Sparkles}
+			title="No Summary Yet"
+			description={emptyText}
+			actionLabel="Generate Summary"
+			onAction={onGenerate}
+		/>
 	);
 };

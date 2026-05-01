@@ -1,6 +1,9 @@
 import React, { useState, useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
 import { Send, Sparkles, User, Copy, Plus, Check, AlertCircle } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
 import { useStudy } from '../../context/StudyContext';
 import { cn } from '../../utils/cn';
 
@@ -119,13 +122,13 @@ export const ChatPanel = forwardRef<ChatPanelRef, ChatPanelProps>(({
       }
     } catch (error) {
       console.error('Chat error:', error);
+      setStreamingContent('');
       if (onExternalStreamSend && !externalMessages) {
         setLocalMessages(prev => [
           ...prev,
           { id: `u-${Date.now()}`, role: 'user', content: msg },
-          { id: `e-${Date.now()}`, role: 'model', content: "I'm sorry, I encountered an error. Please try again.", isError: true },
+          { id: `e-${Date.now()}`, role: 'model', content: error instanceof Error ? error.message : 'An unknown error occurred.', isError: true },
         ]);
-        setStreamingContent('');
       }
     } finally {
       setIsLoading(false);
@@ -181,6 +184,8 @@ export const ChatPanel = forwardRef<ChatPanelRef, ChatPanelProps>(({
               )}>
                 {msg.role === 'model' ? (
                   <ReactMarkdown
+                    remarkPlugins={[remarkMath]}
+                    rehypePlugins={[rehypeKatex]}
                     components={{
                       p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
                       strong: ({ children }) => <strong className="font-bold text-text-main">{children}</strong>,
@@ -248,6 +253,8 @@ export const ChatPanel = forwardRef<ChatPanelRef, ChatPanelProps>(({
             </div>
             <div className="rounded-[var(--radius)] rounded-tl-none bg-[var(--primary)]/10 px-4 py-2 text-sm leading-relaxed text-text-main border border-[var(--primary)]/20 max-w-[85%]">
               <ReactMarkdown
+                remarkPlugins={[remarkMath]}
+                rehypePlugins={[rehypeKatex]}
                 components={{
                   p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
                   strong: ({ children }) => <strong className="font-bold text-text-main">{children}</strong>,

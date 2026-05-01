@@ -29,22 +29,31 @@ export interface AchievementStats {
   flashcardsMastered: number
 }
 
+let inflightUserStatsRequest: Promise<UserStats> | null = null
+
 export const statsService = {
   async getUserStats(): Promise<UserStats> {
-    const response = await apiClient.get('/api/stats')
-    const d = response.data.data
-    return {
-      totalDocuments: d.totalDocuments,
-      totalArticles: d.totalArticles,
-      totalAudio: d.totalAudio,
-      totalMaterials: d.totalMaterials,
-      totalNotes: d.totalNotes,
-      totalFlashcards: d.totalFlashcards,
-      totalGlossaryTerms: d.totalGlossaryTerms ?? 0,
-      totalQuizSubmissions: d.totalQuizSubmissions,
-      totalVideos: d.totalVideos,
-      courseMaterialCounts: d.courseMaterialCounts ?? [],
-      achievements: d.achievements ?? { perfectQuizzes: 0, averageQuizScore: 0, flashcardsMastered: 0 },
-    }
+    if (inflightUserStatsRequest) return inflightUserStatsRequest
+
+    inflightUserStatsRequest = apiClient.get('/api/stats')
+      .then(response => {
+        const d = response.data.data
+        return {
+          totalDocuments: d.totalDocuments,
+          totalArticles: d.totalArticles,
+          totalAudio: d.totalAudio,
+          totalMaterials: d.totalMaterials,
+          totalNotes: d.totalNotes,
+          totalFlashcards: d.totalFlashcards,
+          totalGlossaryTerms: d.totalGlossaryTerms ?? 0,
+          totalQuizSubmissions: d.totalQuizSubmissions,
+          totalVideos: d.totalVideos,
+          courseMaterialCounts: d.courseMaterialCounts ?? [],
+          achievements: d.achievements ?? { perfectQuizzes: 0, averageQuizScore: 0, flashcardsMastered: 0 },
+        }
+      })
+      .finally(() => { inflightUserStatsRequest = null })
+
+    return inflightUserStatsRequest
   },
 }

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using MediatR;
 using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Documents.DTOs;
@@ -90,7 +91,7 @@ public class GenerateQuizCommandHandler : IRequestHandler<GenerateQuizCommand, R
             UserId = request.UserId,
             Question = q.Question,
             OptionsJson = JsonSerializer.Serialize(q.Options),
-            CorrectAnswer = q.CorrectAnswer,
+            CorrectAnswer = NormalizeCorrectAnswer(q.Options, q.CorrectAnswer),
             Explanation = q.Explanation,
             CreatedAt = DateTime.UtcNow
         }).ToList();
@@ -110,6 +111,43 @@ public class GenerateQuizCommandHandler : IRequestHandler<GenerateQuizCommand, R
             q.CreatedAt));
 
         return Result<IEnumerable<QuizDto>>.Success(dtos, "Quiz generated successfully.");
+    }
+
+    private static string NormalizeCorrectAnswer(string[] options, string correctAnswer)
+    {
+        var trimmed = correctAnswer.Trim();
+        if (Regex.IsMatch(trimmed, "^[A-D]$", RegexOptions.IgnoreCase))
+            return trimmed.ToUpperInvariant();
+
+        for (var i = 0; i < options.Length && i < 4; i++)
+        {
+            if (AnswersMatch(options[i], trimmed))
+                return ((char)('A' + i)).ToString();
+        }
+
+        return trimmed;
+    }
+
+    private static bool AnswersMatch(string option, string answer)
+    {
+        if (string.Equals(NormalizeText(option), NormalizeText(answer), StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return string.Equals(NormalizeMeaning(option), NormalizeMeaning(answer), StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string StripOptionPrefix(string value)
+        => Regex.Replace(value.Trim(), "^[A-D][).:\\s]+", string.Empty, RegexOptions.IgnoreCase).Trim();
+
+    private static string NormalizeText(string value)
+        => Regex.Replace(StripOptionPrefix(value), "\\s+", " ").Trim().ToLowerInvariant();
+
+    private static string NormalizeMeaning(string value)
+    {
+        var stripped = StripOptionPrefix(value).ToLowerInvariant().Replace("&", " and ");
+        var withoutAnd = Regex.Replace(stripped, "\\band\\b", " ");
+        var alphanumeric = Regex.Replace(withoutAnd, "[^a-z0-9]+", " ");
+        return Regex.Replace(alphanumeric, "\\s+", " ").Trim();
     }
 
     private record AiQuizItem(string Question, string[] Options, string CorrectAnswer, string Explanation);

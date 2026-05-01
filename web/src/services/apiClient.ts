@@ -1,10 +1,47 @@
 /// <reference types="vite/client" />
-import axios from 'axios';
+import axios, { AxiosRequestConfig } from 'axios';
 import { aiSettingsService } from './aiSettingsService';
 
 const API_URL = import.meta.env.VITE_API_URL ?? '';
 
 export const apiClient = axios.create({ baseURL: API_URL });
+
+const inflightGetRequests = new Map<string, Promise<any>>();
+
+const normalizeParams = (params: AxiosRequestConfig['params']): string => {
+  if (!params) return '';
+  if (params instanceof URLSearchParams) return params.toString();
+  try {
+    return JSON.stringify(params, Object.keys(params).sort());
+  } catch {
+    return String(params);
+  }
+};
+
+const getDedupeKey = (url: string, config?: AxiosRequestConfig): string => {
+  const token = localStorage.getItem('sp_access_token') ?? '';
+  return [
+    url,
+    normalizeParams(config?.params),
+    config?.responseType ?? '',
+    token,
+  ].join('|');
+};
+
+const rawGet = apiClient.get.bind(apiClient);
+apiClient.get = ((url: string, config?: AxiosRequestConfig) => {
+  if (config?.signal?.aborted) return rawGet(url, config);
+
+  const key = getDedupeKey(url, config);
+  const pending = inflightGetRequests.get(key);
+  if (pending) return pending;
+
+  const request = rawGet(url, config).finally(() => {
+    inflightGetRequests.delete(key);
+  });
+  inflightGetRequests.set(key, request);
+  return request;
+}) as typeof apiClient.get;
 
 // Request interceptor: attach Bearer token and AI service headers
 apiClient.interceptors.request.use((config) => {

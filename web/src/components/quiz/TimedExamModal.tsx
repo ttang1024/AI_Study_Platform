@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Clock, X, Trophy, CheckCircle2, XCircle, ChevronRight, RotateCcw, AlertTriangle } from 'lucide-react';
 import { QuizQuestion } from '../../types';
 import { cn } from '../../utils/cn';
+import { getCorrectQuizOptionText, isQuizOptionCorrect } from '../../utils/quizAnswers';
 
 interface TimedExamModalProps {
   isOpen: boolean;
@@ -18,12 +19,6 @@ interface Answer {
   questionId: string;
   selected: string;
   correct: boolean;
-}
-
-function isOptionCorrect(option: string, answer: string): boolean {
-  if (option.trim().toLowerCase() === answer.trim().toLowerCase()) return true;
-  const letter = option.match(/^([A-D])[).:\s]/i)?.[1]?.toUpperCase();
-  return letter !== undefined && letter === answer.trim().toUpperCase();
 }
 
 function shuffle<T>(arr: T[]): T[] {
@@ -94,7 +89,7 @@ export const TimedExamModal: React.FC<TimedExamModalProps> = ({
     const newAnswers = [...answers, {
       questionId: q.id,
       selected,
-      correct: isOptionCorrect(selected, q.answer),
+      correct: isQuizOptionCorrect(selected, q.answer),
     }];
     setAnswers(newAnswers);
     setSelected(null);
@@ -264,7 +259,7 @@ export const TimedExamModal: React.FC<TimedExamModalProps> = ({
                             {!ans?.correct && (
                               <>
                                 <p className="text-[10px] mt-0.5"><span className="text-text-muted">Your: </span><span className="text-red-600 font-bold">{ans?.selected || '—'}</span></p>
-                                <p className="text-[10px]"><span className="text-text-muted">Correct: </span><span className="text-emerald-600 font-bold">{q.answer}</span></p>
+                                <p className="text-[10px]"><span className="text-text-muted">Correct: </span><span className="text-emerald-600 font-bold">{getCorrectQuizOptionText(q.options, q.answer)}</span></p>
                               </>
                             )}
                             {q.explanation && <p className="text-[10px] text-text-muted mt-0.5 italic">{q.explanation}</p>}

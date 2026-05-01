@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using FluentValidation;
+using StudyPlatform.API.Extensions;
 using StudyPlatform.Application.Services;
 
 namespace StudyPlatform.API.Middleware;
@@ -50,6 +51,12 @@ public class GlobalExceptionHandlerMiddleware
         catch (InvalidOperationException ex)
         {
             _logger.LogError(ex, "Invalid operation");
+            if (AiErrorMapper.TryGetAiError(ex.Message, out var statusCode, out var errorCode))
+            {
+                await HandleExceptionAsync(context, (HttpStatusCode)statusCode, ex.Message, errorCode, Array.Empty<string>());
+                return;
+            }
+
             await HandleExceptionAsync(context, HttpStatusCode.BadRequest, ex.Message, "INVALID_OPERATION", Array.Empty<string>());
         }
         catch (Exception ex)

@@ -16,6 +16,7 @@ import { PendingItemsGrid, PendingItem } from '../components/common/PendingItems
 import { Pagination } from '../components/common/Pagination';
 import { ShareModal } from '../components/common/ShareModal';
 import { pendingMaterialToItem } from '../services/pendingMaterialService';
+import { useRefreshOnVisible } from '../hooks/useRefreshOnVisible';
 
 type VideoRecord = Pick<VideoListItem, 'id' | 'title' | 'thumbnailUrl' | 'courseId' | 'courseName' | 'courseColor'>;
 
@@ -41,7 +42,7 @@ const cardVariants = {
 };
 
 export const FlashcardsPage: React.FC = () => {
-  const { documents, courses, flashcards, totalMaterials, isLoading: contextLoading, refreshFlashcards } = useStudy();
+  const { documents, courses, flashcards, totalMaterials, isLoading: contextLoading, refreshFlashcards, refreshStats, refreshDocuments } = useStudy();
   const navigate = useNavigate();
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
 
@@ -67,12 +68,15 @@ export const FlashcardsPage: React.FC = () => {
     originalArticleUrl?: string | null;
   } | null>(null);
 
-  useEffect(() => {
-    youtubeService.getVideos({ page: 1, pageSize: 500 })
+  const refreshVideos = React.useCallback(() => {
+    setVideosLoading(true);
+    return youtubeService.getVideos({ page: 1, pageSize: 500 })
       .then(data => setVideoList(data.items))
       .catch(() => { })
       .finally(() => setVideosLoading(false));
   }, []);
+
+  useEffect(() => { void refreshVideos(); }, [refreshVideos]);
 
   const refreshCoverage = React.useCallback(() => {
     setCoverageLoading(true);
@@ -93,6 +97,24 @@ export const FlashcardsPage: React.FC = () => {
   }, []);
 
   useEffect(() => { void refreshPendingItems(); }, [refreshPendingItems]);
+
+  useRefreshOnVisible(React.useCallback(async () => {
+    await Promise.all([
+      refreshFlashcards(),
+      refreshStats(),
+      refreshDocuments(),
+      refreshCoverage(),
+      refreshPendingItems(),
+      refreshVideos(),
+    ]);
+  }, [
+    refreshFlashcards,
+    refreshStats,
+    refreshDocuments,
+    refreshCoverage,
+    refreshPendingItems,
+    refreshVideos,
+  ]));
 
   // Group video flashcards (from context) by youTubeVideoId
   const videoSets = useMemo(() => {

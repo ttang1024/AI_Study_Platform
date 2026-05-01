@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ChevronDown, ChevronUp, Loader2, Sparkles, Eye, EyeOff, CheckCircle2, XCircle, Send } from 'lucide-react';
+import { ChevronDown, ChevronUp, Loader2, Sparkles, Eye, EyeOff, CheckCircle2, XCircle, Send, AlertCircle, RotateCcw } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { workedProblemsService, WorkedProblem, ProblemAttempt } from '../services/workedProblemsService';
 import { cn } from '../utils/cn';
+import { getApiErrorCode } from '../utils/apiError';
 
 const DIFFICULTIES = ['easy', 'medium', 'hard'] as const;
 const COUNTS = [3, 5, 10] as const;
@@ -196,7 +197,7 @@ export const WorkedProblemsPanel: React.FC<WorkedProblemsPanelProps> = ({ docume
       : workedProblemsService.getProblems(documentId!);
     fetch
       .then(setProblems)
-      .catch(() => setError('Failed to load problems.'))
+      .catch(err => setError(getApiErrorCode(err)))
       .finally(() => setIsLoading(false));
   }, [documentId, videoId]);
 
@@ -208,8 +209,8 @@ export const WorkedProblemsPanel: React.FC<WorkedProblemsPanelProps> = ({ docume
         ? await workedProblemsService.generateVideoProblems(videoId, difficulty, count)
         : await workedProblemsService.generateProblems(documentId!, difficulty, count);
       setProblems(generated);
-    } catch {
-      setError('Failed to generate problems. Please try again.');
+    } catch (err) {
+      setError(getApiErrorCode(err));
     } finally {
       setIsGenerating(false);
     }
@@ -250,12 +251,17 @@ export const WorkedProblemsPanel: React.FC<WorkedProblemsPanelProps> = ({ docume
           disabled={isGenerating}
           className="flex items-center gap-1.5 rounded-lg bg-primary px-4 py-1.5 text-xs font-bold text-white hover:opacity-90 disabled:opacity-50 transition-all"
         >
-          {isGenerating ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
-          {problems.length > 0 ? 'Regenerate' : 'Generate Problems'}
+          {isGenerating ? <Loader2 size={12} className="animate-spin" /> : error ? <RotateCcw size={12} /> : <Sparkles size={12} />}
+          {error ? 'Retry' : problems.length > 0 ? 'Regenerate' : 'Generate Problems'}
         </button>
       </div>
 
-      {error && <p className="text-xs text-red-500 font-medium">{error}</p>}
+      {error && (
+        <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-600">
+          <AlertCircle size={14} />
+          <span>{error}</span>
+        </div>
+      )}
 
       {/* Problems list */}
       {problems.length === 0 && !isGenerating && (

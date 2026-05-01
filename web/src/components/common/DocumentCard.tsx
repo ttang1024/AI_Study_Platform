@@ -1,11 +1,10 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { FileText, FileType, FileCode, Globe, Clock, Trash2, Sparkles, Mic, Rss, FolderInput, AlertTriangle, Loader2 } from 'lucide-react';
 import { Document, Course } from '../../types';
 import { cn } from '../../utils/cn';
 import { getDocDisplayName } from '../../utils/docName';
-import { apiClient } from '../../services/apiClient';
 import { documentService } from '../../services/documentService';
 import { useStudy } from '../../context/StudyContext';
 import { MoveToCourseModal } from './MoveToCourseModal';
@@ -68,39 +67,6 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({ doc, course, to, com
       transcriptText = doc.transcript;
     }
   }
-
-  const [fileText, setFileText] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (summaryText || !doc.courseId || doc.type === 'audio' || doc.type === 'podcast') return;
-    let cancelled = false;
-    const fileUrl = `/api/courses/${doc.courseId}/documents/${doc.id}/file`;
-
-    if (doc.type === 'txt' || doc.type === 'md') {
-      apiClient.get<string>(fileUrl, { responseType: 'text' })
-        .then(r => { if (!cancelled) setFileText(r.data.trim()); })
-        .catch(() => { });
-    } else if (doc.type === 'pdf') {
-      apiClient.get<ArrayBuffer>(fileUrl, { responseType: 'arraybuffer' })
-        .then(async r => {
-          const { pdfjs } = await import('react-pdf');
-          if (!pdfjs.GlobalWorkerOptions.workerSrc) {
-            pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
-          }
-          const pdf = await pdfjs.getDocument({ data: r.data }).promise;
-          const page = await pdf.getPage(1);
-          const content = await page.getTextContent();
-          const text = content.items
-            .map((item: any) => ('str' in item ? item.str : ''))
-            .join(' ')
-            .trim();
-          if (!cancelled) setFileText(text);
-        })
-        .catch(() => { });
-    }
-
-    return () => { cancelled = true; };
-  }, [doc.id, doc.courseId, doc.type, summaryText]);
 
   const hash = useMemo(() => hashCode(doc.id), [doc.id]);
   const fileMeta = doc.originalUrl ? FILE_META.web : (FILE_META[doc.type] ?? FILE_META.pdf);
@@ -176,17 +142,15 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({ doc, course, to, com
                 </p>
               ) : transcriptText ? (
                 <p className={cn('text-[11px] leading-relaxed relative z-10 text-text-muted', compact ? 'line-clamp-2' : 'line-clamp-6')}>{transcriptText}</p>
-              ) : fileText ? (
-                <p className={cn('text-[11px] leading-relaxed relative z-10 text-text-muted', compact ? 'line-clamp-2' : 'line-clamp-6')}>{fileText}</p>
               ) : (
                 <div className="flex flex-col gap-1.5 w-full relative z-10">
-                  <div className="h-2.5 w-full rounded-full animate-pulse" style={{ backgroundColor: `${accent}30` }} />
-                  <div className="h-2.5 w-full rounded-full animate-pulse" style={{ backgroundColor: `${accent}30` }} />
-                  <div className="h-2.5 w-full rounded-full animate-pulse" style={{ backgroundColor: `${accent}30` }} />
+                  <div className="h-2.5 w-full rounded-full" style={{ backgroundColor: `${accent}22` }} />
+                  <div className="h-2.5 w-5/6 rounded-full" style={{ backgroundColor: `${accent}22` }} />
+                  <div className="h-2.5 w-3/4 rounded-full" style={{ backgroundColor: `${accent}22` }} />
                   {!compact && <>
-                    <div className="h-2.5 w-full rounded-full animate-pulse" style={{ backgroundColor: `${accent}30` }} />
-                    <div className="h-2.5 w-full rounded-full animate-pulse" style={{ backgroundColor: `${accent}30` }} />
-                    <div className="h-2.5 w-full rounded-full animate-pulse" style={{ backgroundColor: `${accent}30` }} />
+                    <div className="h-2.5 w-11/12 rounded-full" style={{ backgroundColor: `${accent}22` }} />
+                    <div className="h-2.5 w-2/3 rounded-full" style={{ backgroundColor: `${accent}22` }} />
+                    <div className="h-2.5 w-4/5 rounded-full" style={{ backgroundColor: `${accent}22` }} />
                   </>}
                 </div>
               )}

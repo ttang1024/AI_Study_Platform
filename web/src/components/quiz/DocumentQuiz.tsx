@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Sparkles, CheckCircle2, XCircle, Loader2, Award, RotateCcw, AlertCircle, RefreshCw } from 'lucide-react';
+import { BookOpenCheck, CheckCircle2, XCircle, Loader2, Award, RotateCcw, AlertCircle } from 'lucide-react';
 import { Button } from '../common/Button';
 import { QuizQuestion } from '../../types';
 import { documentService } from '../../services/documentService';
@@ -7,14 +7,9 @@ import { adaptiveQuizService } from '../../services/adaptiveQuizService';
 import { useStudy } from '../../context/StudyContext';
 import { useAuth } from '../../context/AuthContext';
 import { cn } from '../../utils/cn';
-
-// Gemini returns correctAnswer as a bare letter ("A") while options are "A) ..."
-// This helper checks if an option matches the stored answer in either format.
-const isOptionCorrect = (option: string, answer: string): boolean => {
-  if (option === answer) return true;
-  const letter = option.match(/^([A-D])[).:\s]/i)?.[1]?.toUpperCase();
-  return letter !== undefined && letter === answer.trim().toUpperCase();
-};
+import { isQuizOptionCorrect } from '../../utils/quizAnswers';
+import { getApiErrorCode } from '../../utils/apiError';
+import { EmptyGenerationState, GenerationFailedState } from '../common/GenerationStates';
 
 interface DocumentQuizProps {
   /** External questions (bypasses StudyContext/API when set) */
@@ -57,6 +52,7 @@ export const DocumentQuiz: React.FC<DocumentQuizProps> = ({
   const [userAnswers, setUserAnswers] = useState<Record<string, string>>({});
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [score, setScore] = useState(0);
+  const [localError, setLocalError] = useState<string | null>(null);
 
   // Load previously generated quiz and any saved submission when the document opens (internal mode only)
   useEffect(() => {
@@ -66,6 +62,7 @@ export const DocumentQuiz: React.FC<DocumentQuizProps> = ({
     setUserAnswers({});
     setIsSubmitted(false);
     setScore(0);
+    setLocalError(null);
     setIsLoading(true);
 
     Promise.all([
@@ -95,6 +92,7 @@ export const DocumentQuiz: React.FC<DocumentQuizProps> = ({
     setScore(0);
     setIsSubmitted(false);
     setUserAnswers({});
+    setLocalError(null);
 
     try {
       const data = await documentService.generateQuiz(
@@ -104,6 +102,7 @@ export const DocumentQuiz: React.FC<DocumentQuizProps> = ({
       setQuestions(data);
     } catch (error) {
       console.error('Quiz generation error:', error);
+      setLocalError(getApiErrorCode(error));
     } finally {
       setIsLoading(false);
     }
@@ -130,7 +129,7 @@ export const DocumentQuiz: React.FC<DocumentQuizProps> = ({
 
     let finalScore = 0;
     questions.forEach(q => {
-      if (userAnswers[q.id] && isOptionCorrect(userAnswers[q.id], q.answer)) {
+      if (userAnswers[q.id] && isQuizOptionCorrect(userAnswers[q.id], q.answer)) {
         finalScore++;
       }
     });
@@ -163,6 +162,7 @@ export const DocumentQuiz: React.FC<DocumentQuizProps> = ({
   const activeSubmitted = isExternal ? (externalSubmitted ?? false) : isSubmitted;
   const activeScore = isExternal ? (externalScore ?? 0) : score;
   const activeLoading = isExternal ? (isExternalLoading ?? false) : isLoading;
+  const activeError = isExternal ? externalError : localError;
 
   if (activeLoading) {
     return (
@@ -173,42 +173,21 @@ export const DocumentQuiz: React.FC<DocumentQuizProps> = ({
     );
   }
 
-  if (isExternal && externalError) {
+  if (activeError && activeQuestions.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-center gap-5 px-6">
-        <div className="rounded-2xl bg-red-500/10 p-4 text-red-500">
-          <AlertCircle size={28} />
-        </div>
-        <div>
-          <h3 className="text-sm font-bold text-text-main">Generation Failed</h3>
-          <p className="mt-1 text-[11px] text-zinc-400 max-w-[220px]">{externalError}</p>
-        </div>
-        <button
-          onClick={generateQuiz}
-          className="flex items-center gap-2 rounded-xl bg-[var(--primary)] px-5 py-2.5 text-xs font-bold text-white shadow-lg hover:opacity-90 transition-opacity"
-        >
-          <RotateCcw size={13} />
-          Retry
-        </button>
-      </div>
+      <GenerationFailedState message={activeError} onRetry={generateQuiz} />
     );
   }
 
   if (activeQuestions.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-center px-6">
-        <div className="h-16 w-16 rounded-full bg-[var(--primary)]/10 flex items-center justify-center text-[var(--primary)] mb-6">
-          <Sparkles size={32} />
-        </div>
-        <h3 className="text-lg font-bold text-text-main mb-2">Knowledge Check</h3>
-        <p className="text-sm text-text-muted mb-8 max-w-xs">
-          Ready to test what you've learned? Generate a custom quiz.
-        </p>
-        <Button onClick={generateQuiz} className="flex items-center gap-2 rounded-xl bg-[var(--primary)] px-6 py-3 text-sm font-bold text-white shadow-lg hover:opacity-90 transition-opacity">
-          <Sparkles size={18} className="mr-2" />
-          Generate Quiz
-        </Button>
-      </div>
+      <EmptyGenerationState
+        icon={BookOpenCheck}
+        title="No Quiz Yet"
+        description="Ready to test what you've learned?"
+        actionLabel="Generate Quiz"
+        onAction={generateQuiz}
+      />
     );
   }
 
@@ -249,7 +228,7 @@ export const DocumentQuiz: React.FC<DocumentQuizProps> = ({
             <div className="grid grid-cols-1 gap-2 pl-9">
               {q.options?.map((option) => {
                 const isSelected = activeAnswers[q.id] === option;
-                const isCorrect = isOptionCorrect(option, q.answer);
+                const isCorrect = isQuizOptionCorrect(option, q.answer);
                 const showResult = activeSubmitted;
 
                 return (

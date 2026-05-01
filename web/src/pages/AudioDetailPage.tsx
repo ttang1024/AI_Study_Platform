@@ -14,14 +14,17 @@ import { Flashcards } from '../components/study/Flashcards';
 import { DocumentQuiz } from '../components/quiz/DocumentQuiz';
 import { ChatPanel, ChatPanelRef } from '../components/ai/ChatPanel';
 import { SummaryPanel } from '../components/study/SummaryPanel';
+import { WorkedProblemsPanel } from '../components/WorkedProblemsPanel';
 import { cn } from '../utils/cn';
 import { TABS } from '../constants/tab';
 import { QuizQuestion } from '../types';
 import { useStudy } from '../context/StudyContext';
+import { getApiErrorCode } from '../utils/apiError';
 
 interface SimpleCard { id: string; front: string; back: string; }
 interface ChatMsg { id: string; role: 'user' | 'model'; content: string; isError?: boolean; }
 interface TranscriptSegment { start: number; end: number; text: string; }
+type AudioStudyTab = 'summary' | 'mindmap' | 'notes' | 'flashcards' | 'quiz' | 'problems' | 'chat';
 
 function parseTranscript(raw: string | null): TranscriptSegment[] | null {
   if (!raw) return null;
@@ -61,7 +64,13 @@ const SegmentedTranscript: React.FC<SegmentedTranscriptProps> = ({
     );
   }
 
-  const activeIdx = segments.findLastIndex(s => currentTime >= s.start);
+  let activeIdx = -1;
+  for (let i = segments.length - 1; i >= 0; i--) {
+    if (currentTime >= segments[i].start) {
+      activeIdx = i;
+      break;
+    }
+  }
 
   return (
     <div className="flex flex-col divide-y divide-[var(--border-color)]">
@@ -137,7 +146,7 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
 
   // Layout
   const initialTab = (location.state as any)?.activeTab ?? 'summary';
-  const [activeTab, setActiveTab] = useState<'summary' | 'mindmap' | 'notes' | 'flashcards' | 'quiz' | 'chat'>(initialTab);
+  const [activeTab, setActiveTab] = useState<AudioStudyTab>(initialTab);
   const [activeView, setActiveView] = useState<'study' | 'audio'>('audio');
 
   // Summary
@@ -343,7 +352,9 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
       setSummary(accumulated || null);
       setSummaryStreamText('');
     } catch (err: any) {
-      setSummaryError(err?.message ?? 'Failed to generate summary.');
+      setSummaryStreamText('');
+      setSummary(null);
+      setSummaryError(getApiErrorCode(err));
     } finally {
       setIsLoadingSummary(false);
     }
@@ -366,7 +377,7 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
       setMindMapStreamingText(null);
     } catch (err: any) {
       setMindMapStreamingText(null);
-      setMindMapError(err?.message ?? 'Failed to generate mind map.');
+      setMindMapError(getApiErrorCode(err));
     } finally {
       setIsLoadingMindMap(false);
     }
@@ -382,7 +393,7 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
       const cards = await documentService.generateFlashcards(courseId, id);
       setFlashcards(cards.map((c, i) => ({ id: `fc-${i}`, front: c.front, back: c.back })));
     } catch (err: any) {
-      setFlashcardsError(err?.message ?? 'Failed to generate flashcards.');
+      setFlashcardsError(getApiErrorCode(err));
     } finally {
       setIsLoadingFlashcards(false);
     }
@@ -402,7 +413,7 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
       const questions = await documentService.generateQuiz(courseId, id);
       setQuizQuestions(questions);
     } catch (err: any) {
-      setQuizError(err?.message ?? 'Failed to generate quiz.');
+      setQuizError(getApiErrorCode(err));
     } finally {
       setIsLoadingQuiz(false);
     }
@@ -530,28 +541,39 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
             />
           </div>
 
-          <div className={cn('flex-1 overflow-hidden', activeTab !== 'chat' && 'hidden')}>
-            <ChatPanel
-              ref={chatPanelRef}
-              externalMessages={chatMessages}
-              onExternalStreamSend={async (message, onChunk) => {
-                if (!id || !courseId) return;
-                const userMsg: ChatMsg = { id: Date.now().toString(), role: 'user', content: message };
-                setChatMessages(prev => [...prev, userMsg]);
-                let accumulated = '';
+          <div className={cn('h-full overflow-y-auto', activeTab !== 'problems' && 'hidden')}>
+            {id && activeTab === 'problems' && (
+              <WorkedProblemsPanel documentId={id} />
+            )}
+          </div>
+        </div>
+
+        <div className={cn('flex-1 overflow-hidden', activeTab !== 'chat' && 'hidden')}>
+          <ChatPanel
+            ref={chatPanelRef}
+            externalMessages={chatMessages}
+            onExternalStreamSend={async (message, onChunk) => {
+              if (!id || !courseId) return;
+              const userMsg: ChatMsg = { id: Date.now().toString(), role: 'user', content: message };
+              setChatMessages(prev => [...prev, userMsg]);
+              let accumulated = '';
+              try {
                 await documentService.streamChat(courseId, id, message, (chunk) => {
                   accumulated += chunk;
                   onChunk(chunk);
                 });
                 setChatMessages(prev => [...prev, { id: String(Date.now() + 1), role: 'model', content: accumulated }]);
-              }}
-              onExternalAddToNote={(html) => {
-                noteEditorRef.current?.appendContent(html);
-                setActiveTab('notes');
-              }}
-              placeholder="Ask anything about the lecture…"
-            />
-          </div>
+              } catch (err) {
+                setChatMessages(prev => [...prev, { id: String(Date.now() + 1), role: 'model', content: getApiErrorCode(err), isError: true }]);
+                throw err;
+              }
+            }}
+            onExternalAddToNote={(html) => {
+              noteEditorRef.current?.appendContent(html);
+              setActiveTab('notes');
+            }}
+            placeholder="Ask anything about the lecture…"
+          />
         </div>
       </div>
     </div>

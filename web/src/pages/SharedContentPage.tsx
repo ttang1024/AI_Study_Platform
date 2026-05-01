@@ -20,6 +20,7 @@ import { Transformer } from 'markmap-lib';
 import { Markmap } from 'markmap-view';
 import { getShare, SharedContent, ShareableQuiz, ShareableCard } from '../services/shareContentService';
 import { cn } from '../utils/cn';
+import { getCorrectQuizOptionText, isQuizOptionCorrect } from '../utils/quizAnswers';
 
 // ─── Markmap renderer (no StudyContext dependency) ────────────────────────────
 
@@ -93,32 +94,6 @@ type Tab = 'summary' | 'mindmap' | 'notes' | 'flashcards' | 'quiz' | 'glossary';
 
 // ─── Quiz sub-component ───────────────────────────────────────────────────────
 
-// correctAnswer is stored as a bare letter ("A") while options are "A) full text..."
-const isOptionCorrect = (option: string, answer: string): boolean => {
-  if (!option || !answer) return false;
-  // Direct full-text match
-  if (option.trim().toLowerCase() === answer.trim().toLowerCase()) return true;
-  // answer is a bare letter: check option's leading letter
-  const answerTrimmed = answer.trim().toUpperCase();
-  if (/^[A-D]$/.test(answerTrimmed)) {
-    const optionLetter = option.trim().toUpperCase().charAt(0);
-    if (/^[A-D]$/.test(optionLetter)) {
-      const separator = option.trim().charAt(1);
-      if (separator === ')' || separator === '.' || separator === ':' || separator === ' ') {
-        return optionLetter === answerTrimmed;
-      }
-    }
-  }
-  // answer is full text: strip leading "A) " prefix from both and compare body
-  const stripPrefix = (s: string) => s.trim().replace(/^[A-D][).:\s]+/i, '').trim().toLowerCase();
-  const optBody = stripPrefix(option);
-  const ansBody = stripPrefix(answer);
-  return optBody.length > 0 && optBody === ansBody;
-};
-
-const getCorrectOptionText = (options: string[], answer: string): string =>
-  options.find(o => isOptionCorrect(o, answer)) ?? answer;
-
 type QuizPhase = 'intro' | 'quiz' | 'results';
 interface Answer { idx: number; selected: string; correct: boolean; }
 
@@ -142,7 +117,7 @@ const SharedQuiz: React.FC<{ questions: ShareableQuiz[]; title: string }> = ({ q
   const handleNext = useCallback(() => {
     if (selected === null) return;
     const q = questions[current];
-    const newAnswer: Answer = { idx: current, selected, correct: isOptionCorrect(selected, q.correctAnswer) };
+    const newAnswer: Answer = { idx: current, selected, correct: isQuizOptionCorrect(selected, q.correctAnswer) };
     const newAnswers = [...answers, newAnswer];
     setAnswers(newAnswers);
     setSelected(null);
@@ -187,7 +162,7 @@ const SharedQuiz: React.FC<{ questions: ShareableQuiz[]; title: string }> = ({ q
             <div className="space-y-2">
               {questions[current].options.map((opt, i) => {
                 const isSelected = selected === opt;
-                const isCorrect = selected !== null && isOptionCorrect(opt, questions[current].correctAnswer);
+                const isCorrect = selected !== null && isQuizOptionCorrect(opt, questions[current].correctAnswer);
                 const isWrong = selected !== null && isSelected && !isCorrect;
                 return (
                   <button key={i} onClick={() => { if (selected === null) setSelected(opt); }}
@@ -246,7 +221,7 @@ const SharedQuiz: React.FC<{ questions: ShareableQuiz[]; title: string }> = ({ q
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-text-main">{q.question}</p>
                       <p className="text-xs mt-1 text-text-muted">Your answer: <span className={ans?.correct ? 'text-emerald-600 font-bold' : 'text-red-600 font-bold'}>{ans?.selected ?? '—'}</span></p>
-                      {!ans?.correct && <p className="text-xs mt-0.5 text-text-muted">Correct: <span className="text-emerald-600 font-bold">{getCorrectOptionText(q.options, q.correctAnswer)}</span></p>}
+                      {!ans?.correct && <p className="text-xs mt-0.5 text-text-muted">Correct: <span className="text-emerald-600 font-bold">{getCorrectQuizOptionText(q.options, q.correctAnswer)}</span></p>}
                       {q.explanation && <p className="text-xs text-text-muted mt-1">{q.explanation}</p>}
                     </div>
                   </div>

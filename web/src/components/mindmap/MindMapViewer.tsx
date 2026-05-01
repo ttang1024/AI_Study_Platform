@@ -2,9 +2,10 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Transformer } from 'markmap-lib';
 import { Markmap } from 'markmap-view';
 import {
-  Maximize2, Minimize2, RotateCcw, Sparkles, Loader2,
-  Download, Image, FileDown, FileText, AlertCircle,
+  Maximize2, Minimize2, RotateCcw, Loader2,
+  Download, Image, FileDown, FileText,
   ZoomIn, ZoomOut,
+  Brain,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toPng } from 'html-to-image';
@@ -12,6 +13,8 @@ import jsPDF from 'jspdf';
 import { cn } from '../../utils/cn';
 import { useStudy } from '../../context/StudyContext';
 import { documentService } from '../../services/documentService';
+import { getApiErrorCode } from '../../utils/apiError';
+import { EmptyGenerationState, GenerationFailedState } from '../common/GenerationStates';
 
 // ─── Conversion: XMindMark text → Markdown ───────────────────────────────────
 
@@ -202,6 +205,7 @@ export const MindMapViewer: React.FC<MindMapViewerProps> = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [localMindMarkText, setLocalMindMarkText] = useState<string | null>(null);
   const [localStreamingText, setLocalStreamingText] = useState<string | null>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
   const [showDownloadMenu, setShowDownloadMenu] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const mmRef = useRef<Markmap | null>(null);
@@ -223,6 +227,7 @@ export const MindMapViewer: React.FC<MindMapViewerProps> = ({
     || (isExternal ? propMindMapText ?? null : localMindMarkText || currentDocument?.mindMapText || null);
 
   const isGenerating = isExternal ? (propIsGenerating ?? false) : isGeneratingLocal;
+  const activeError = isExternal ? externalError : localError;
   const downloadName = propTitle ?? currentDocument?.name ?? 'mindmap';
 
   const handleGenerate = async () => {
@@ -232,6 +237,7 @@ export const MindMapViewer: React.FC<MindMapViewerProps> = ({
     }
     if (!currentDocument) return;
     setIsGeneratingLocal(true);
+    setLocalError(null);
     streamingAccumRef.current = '';
     setLocalStreamingText('');
     try {
@@ -255,6 +261,7 @@ export const MindMapViewer: React.FC<MindMapViewerProps> = ({
       }
     } catch (err) {
       console.error('Mind map generation error:', err);
+      setLocalError(getApiErrorCode(err));
     } finally {
       setIsGeneratingLocal(false);
       setLocalStreamingText(null);
@@ -361,50 +368,28 @@ export const MindMapViewer: React.FC<MindMapViewerProps> = ({
 
   if (isGenerating && !activeMindMarkText) {
     return (
-      <div className="flex flex-col items-center justify-center h-full py-20 text-center gap-4">
+      <div className="flex flex-col items-center justify-center h-full py-12 text-center gap-4">
         <Loader2 className="h-10 w-10 animate-spin text-[var(--primary)]" />
         <p className="text-sm text-zinc-500">Generating mind map...</p>
       </div>
     );
   }
 
-  if (isExternal && externalError) {
+  if (activeError && !activeMindMarkText) {
     return (
-      <div className="flex flex-col items-center justify-center h-full py-20 text-center gap-5 px-6">
-        <div className="rounded-2xl bg-red-500/10 p-4 text-red-500">
-          <AlertCircle size={28} />
-        </div>
-        <div>
-          <h3 className="text-sm font-bold text-text-main">Generation Failed</h3>
-          <p className="mt-1 text-[11px] text-zinc-400 max-w-[220px]">{externalError}</p>
-        </div>
-        <button
-          onClick={handleGenerate}
-          className="flex items-center gap-2 rounded-xl bg-[var(--primary)] px-5 py-2.5 text-xs font-bold text-white shadow-lg hover:opacity-90 transition-opacity"
-        >
-          <RotateCcw size={13} /> Retry
-        </button>
-      </div>
+      <GenerationFailedState message={activeError} onRetry={handleGenerate} />
     );
   }
 
   if (!activeMindMarkText) {
     return (
-      <div className="flex flex-col items-center justify-center h-full py-20 text-center gap-6 px-6">
-        <div className="rounded-2xl bg-[var(--primary)]/10 p-5 text-[var(--primary)]">
-          <Sparkles size={32} />
-        </div>
-        <div>
-          <h3 className="text-base font-bold text-text-main">No Mind Map Yet</h3>
-          <p className="mt-1 text-sm text-zinc-500">Generate a visual mind map.</p>
-        </div>
-        <button
-          onClick={handleGenerate}
-          className="flex items-center gap-2 rounded-xl bg-[var(--primary)] px-6 py-3 text-sm font-bold text-white shadow-lg hover:opacity-90 transition-opacity"
-        >
-          <Sparkles size={16} /> Generate Mind Map
-        </button>
-      </div>
+      <EmptyGenerationState
+        icon={Brain}
+        title="No Mind Map Yet"
+        description="Generate a visual mind map."
+        actionLabel="Generate Mind Map"
+        onAction={handleGenerate}
+      />
     );
   }
 
