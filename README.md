@@ -17,15 +17,17 @@ Upload documents, YouTube videos, podcasts, and web articles — let AI generate
 
 ---
 
+![Study Platform demo](demos/StudyPlatformDemo.gif)
+
+---
+
 ## Features
 
 |     | Category            | What you get                                                                                                       |
 | --- | ------------------- | ------------------------------------------------------------------------------------------------------------------ |
 | 📄  | **Content Sources** | PDF / DOCX upload, YouTube videos, web article clipping, audio files, Apple Podcasts                               |
-| 🤖  | **AI Generation**   | Summaries, flashcards, quizzes, glossaries, mind maps — Gemini, OpenAI, Claude, DeepSeek, Grok, Qwen, Wenxin Yiyan |
+| 🤖  | **AI Generation**   | Summaries, flashcards, quizzes, glossaries, mind maps — Gemini, OpenAI, Claude, Grok, DeepSeek, Qwen, Wenxin Yiyan |
 | 🎯  | **Study Tools**     | rich-text notes, AI tutor chat, scored quizzes                                                                     |
-| 🧪  | **Problems**        | Step-by-step solving — AI breaks down problems, hints each stage, explains solutions                               |
-| 🎙️  | **Audio**           | Offline transcription via Whisper.net, text-to-speech playback                                                     |
 | 👥  | **Study Groups**    | Create/join groups, share documents, quizzes, and flashcard sets                                                   |
 | 🔐  | **Auth**            | Email + OTP, Google OAuth, GitHub OAuth, JWT sessions                                                              |
 
@@ -186,91 +188,9 @@ docker compose exec api dotnet ef database update \
 
 > `VITE_*` variables are baked in at build time — rebuild frontend images after changing them.
 
-### Azure Free Credit Deployment
+### Azure Deployment
 
-`deploy.sh` is the first-time Azure deployment script for a Free/$200 credit account. It keeps only the API in Azure Container Apps, scales it to zero when idle, and hosts `web` and `admin` as Azure Storage static websites instead of frontend containers.
-
-```bash
-# Set required env vars
-export DB_PASS=...
-export JWT_SECRET=...
-export GOOGLE_CLIENT_ID=...
-export GOOGLE_CLIENT_SECRET=...
-export GITHUB_CLIENT_ID=...
-export GITHUB_CLIENT_SECRET=...
-export SMTP_USER=...
-export SMTP_PASSWORD=...
-
-bash deploy.sh
-```
-
-The script creates the Azure Storage connection string automatically. Set `AZURE_STORAGE_CONNECTION_STRING` only if you want to use an existing storage account for uploaded documents.
-
-Resources created:
-
-| Resource                   | Details                                   |
-| -------------------------- | ----------------------------------------- |
-| Azure Container Registry   | stores the `api` image only               |
-| Container Apps environment | hosts the API container app               |
-| Container App              | `api`, external ingress, min replicas `0` |
-| Storage account            | uploaded documents, container `documents` |
-| Storage static website     | public `web` frontend                     |
-| Storage static website     | public `admin` frontend                   |
-| PostgreSQL Flexible Server | v17, Standard_B1ms, 32 GB                 |
-
-Generated Azure resource names include a suffix from the current subscription ID. Override it when needed:
-
-```bash
-export AZURE_NAME_SUFFIX=myuniquesuffix
-```
-
-Azure Free subscriptions can be limited to one Container Apps environment per region. If one already exists in `LOCATION`, `deploy.sh` reuses it automatically instead of creating another one.
-
-PostgreSQL availability is also subscription- and region-dependent. The script keeps the app resources in `LOCATION` and creates PostgreSQL in `DB_LOCATION`, which defaults to `westus3` because `eastus` and `eastus2` can be restricted for Flexible Server on some free subscriptions.
-
-```bash
-export DB_LOCATION=centralus
-bash deploy.sh
-```
-
-You can also point the deployment at a known existing environment explicitly:
-
-```bash
-export ENVIRONMENT=smart-cv-app-env
-bash deploy.sh
-```
-
-Cost controls:
-
-| Area      | Control                                                |
-| --------- | ------------------------------------------------------ |
-| API       | Container App uses `--min-replicas 0 --max-replicas 1` |
-| Frontends | Static website hosting instead of two containers       |
-| Uploads   | Production document uploads default to 5 per account   |
-| Storage   | Standard_LRS storage accounts                          |
-
-PostgreSQL Flexible Server still consumes Azure credit while it exists. For a short-lived demo on a Free/$200 account, delete the resource group when finished or stop the PostgreSQL server from the Azure portal when you are not testing.
-
-If you previously deployed the old three-Container-App layout, delete the old `web` and `admin` Container Apps after the static websites are working so they do not keep using credit.
-
-For later code changes, use the smaller deploy scripts instead of reprovisioning everything.
-
-**Deploy frontends only**
-
-Use this after changes under `web/` or `admin/`.
-
-```bash
-export GOOGLE_CLIENT_ID=...
-export GITHUB_CLIENT_ID=...
-
-./deploy-web.sh
-```
-
-This rebuilds both Vite apps with `VITE_API_URL` set to the deployed API URL, then uploads `web/dist` and `admin/dist` to their static website storage accounts.
-
-**Deploy backend API only**
-
-Use this after changes under `server/`.
+Use `deploy.sh` for the first Azure deployment. It provisions the API, PostgreSQL, storage, and static `web`/`admin` frontends.
 
 ```bash
 export DB_PASS=...
@@ -282,10 +202,8 @@ export GITHUB_CLIENT_SECRET=...
 export SMTP_USER=...
 export SMTP_PASSWORD=...
 
-./deploy-backend.sh
+bash deploy.sh
 ```
-
-This rebuilds and pushes the `api` image, updates the API Container App, keeps scale-to-zero enabled, and refreshes the production backend environment variables.
 
 ### 🎬 Production YouTube Subtitle Fetching
 
