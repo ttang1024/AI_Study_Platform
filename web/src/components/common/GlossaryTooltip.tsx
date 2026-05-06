@@ -73,9 +73,9 @@ export const GlossaryTooltip: React.FC<GlossaryTooltipProps> = ({ term, children
             </button>
           </div>
           <p className="text-xs text-text-muted leading-relaxed">{term.definition}</p>
-          {term.documentName && (
+          {term.sourceName && (
             <p className="text-[10px] text-text-muted mt-2 pt-2 border-t border-[var(--border-color)]">
-              Source: {term.documentName}
+              Source: {term.sourceName}
             </p>
           )}
         </div>,

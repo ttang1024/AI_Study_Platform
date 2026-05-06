@@ -4,6 +4,7 @@ import { Upload, X, CheckCircle2, Loader2, AlertCircle, Files, Plus, CircleFadin
 import { useNavigate } from 'react-router-dom';
 import { useStudy } from '../../context/StudyContext';
 import { cn } from '../../utils/cn';
+import { usePrompt } from './PromptBox';
 
 function getDocRoute(fileName: string, docId: string): string {
   return fileName.toLowerCase().endsWith('.md') ? `/articles/${docId}` : `/documents/${docId}`;
@@ -38,6 +39,7 @@ interface BulkUploadSectionProps {
 
 export const BulkUploadSection: React.FC<BulkUploadSectionProps> = ({ selectedCourseId, onCourseError }) => {
   const { addDocument } = useStudy();
+  const { showPrompt } = usePrompt();
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
   const [files, setFiles] = useState<FileEntry[]>([]);
@@ -48,7 +50,7 @@ export const BulkUploadSection: React.FC<BulkUploadSectionProps> = ({ selectedCo
     const valid = newFiles.filter(isValidFile);
     const tooLarge = newFiles.filter(f => f.size > 50 * 1024 * 1024);
     if (tooLarge.length > 0) {
-      alert(`${tooLarge.length} file(s) exceed the 50MB limit and were skipped.`);
+      showPrompt(`${tooLarge.length} file(s) exceed the 50MB limit and were skipped.`);
     }
     const entries: FileEntry[] = valid
       .filter(f => f.size <= 50 * 1024 * 1024)

@@ -25,6 +25,7 @@ import { getDocDisplayName } from '../utils/docName';
 import { ShareModal } from '../components/common/ShareModal';
 import { Document } from '../types';
 import { getApiErrorCode } from '../utils/apiError';
+import { getApiUrl } from '../utils/env';
 
 // ─── Article Reader ───────────────────────────────────────────────────────────
 
@@ -80,7 +81,7 @@ const ArticleReader: React.FC<ArticleReaderProps> = React.memo(({ document, onTe
   const [error, setError] = useState<string | null>(null);
   const readerRef = useRef<HTMLDivElement>(null);
 
-  const API_URL = import.meta.env.VITE_API_URL ?? '';
+  const API_URL = getApiUrl();
 
   useEffect(() => {
     if (!document.courseId || !document.id) return;

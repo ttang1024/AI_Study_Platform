@@ -10,6 +10,7 @@ import { cn } from '../../utils/cn';
 import { isQuizOptionCorrect } from '../../utils/quizAnswers';
 import { getApiErrorCode } from '../../utils/apiError';
 import { EmptyGenerationState, GenerationFailedState } from '../common/GenerationStates';
+import { usePrompt } from '../common/PromptBox';
 
 interface DocumentQuizProps {
   /** External questions (bypasses StudyContext/API when set) */
@@ -45,6 +46,7 @@ export const DocumentQuiz: React.FC<DocumentQuizProps> = ({
 }) => {
   const { currentDocument } = useStudy();
   const { user } = useAuth();
+  const { showPrompt } = usePrompt();
   const isExternal = onExternalGenerate !== undefined;
 
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
@@ -123,7 +125,7 @@ export const DocumentQuiz: React.FC<DocumentQuizProps> = ({
       return;
     }
     if (Object.keys(userAnswers).length < questions.length) {
-      alert('Please answer all questions before submitting.');
+      showPrompt('Please answer all questions before submitting.');
       return;
     }
 

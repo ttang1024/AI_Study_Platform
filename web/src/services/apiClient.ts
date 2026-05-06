@@ -1,8 +1,9 @@
 /// <reference types="vite/client" />
 import axios, { AxiosRequestConfig } from 'axios';
 import { aiSettingsService } from './aiSettingsService';
+import { getApiUrl } from '../utils/env';
 
-const API_URL = import.meta.env.VITE_API_URL ?? '';
+const API_URL = getApiUrl();
 
 export const apiClient = axios.create({ baseURL: API_URL });
 
@@ -19,6 +20,7 @@ const normalizeParams = (params: AxiosRequestConfig['params']): string => {
 };
 
 const getDedupeKey = (url: string, config?: AxiosRequestConfig): string => {
+  if (typeof window === 'undefined') return [url, normalizeParams(config?.params), config?.responseType ?? ''].join('|');
   const token = localStorage.getItem('sp_access_token') ?? '';
   return [
     url,
@@ -45,6 +47,7 @@ apiClient.get = ((url: string, config?: AxiosRequestConfig) => {
 
 // Request interceptor: attach Bearer token and AI service headers
 apiClient.interceptors.request.use((config) => {
+  if (typeof window === 'undefined') return config;
   const token = localStorage.getItem('sp_access_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -88,6 +91,7 @@ apiClient.interceptors.response.use(
     const isLoginRequest = originalRequest.url?.includes('/api/auth/login');
 
     if (error.response?.status === 401 && !originalRequest._retry && !isLoginRequest) {
+      if (typeof window === 'undefined') return Promise.reject(error);
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });

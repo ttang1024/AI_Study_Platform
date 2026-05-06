@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Share2, AlertCircle, FileText, Map, MessageSquare,
@@ -8,19 +7,19 @@ import {
   Check, Copy, User, Calendar, Youtube, Mic, Rss, ExternalLink, Loader2, BookMarked,
 } from 'lucide-react';
 
-const API_URL = import.meta.env.VITE_API_URL ?? '';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { renderAsync } from 'docx-preview';
 import { Document as PdfDocument, Page as PdfPage, pdfjs } from 'react-pdf';
-import 'react-pdf/dist/Page/AnnotationLayer.css';
-import 'react-pdf/dist/Page/TextLayer.css';
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 import { Transformer } from 'markmap-lib';
 import { Markmap } from 'markmap-view';
 import { getShare, SharedContent, ShareableQuiz, ShareableCard } from '../services/shareContentService';
 import { cn } from '../utils/cn';
 import { getCorrectQuizOptionText, isQuizOptionCorrect } from '../utils/quizAnswers';
+import { getApiUrl } from '../utils/env';
+
+const API_URL = getApiUrl();
 
 // ─── Markmap renderer (no StudyContext dependency) ────────────────────────────
 
@@ -483,8 +482,13 @@ const SharedDocumentViewer: React.FC<{ token: string; fileType: string }> = ({ t
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
-export const SharedContentPage: React.FC = () => {
-  const { token } = useParams<{ token: string }>();
+const getTokenFromPath = () => {
+  if (typeof window === 'undefined') return '';
+  return window.location.pathname.match(/\/share\/([^/?#]+)/)?.[1] ?? '';
+};
+
+export const SharedContentPage: React.FC<{ token?: string }> = ({ token: tokenProp }) => {
+  const token = tokenProp ?? getTokenFromPath();
   const [content, setContent] = useState<SharedContent | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -540,9 +544,9 @@ export const SharedContentPage: React.FC = () => {
           <div className="rounded-2xl bg-red-50 p-5 text-red-500 w-fit mx-auto"><AlertCircle size={32} /></div>
           <h1 className="text-xl font-bold text-text-main">Content Not Found</h1>
           <p className="text-text-muted">{error}</p>
-          <Link to="/" className="inline-block rounded-xl bg-primary px-6 py-3 text-sm font-bold text-white hover:opacity-90 transition-opacity">
+          <a href="/" className="inline-block rounded-xl bg-primary px-6 py-3 text-sm font-bold text-white hover:opacity-90 transition-opacity">
             Go to Study Platform
-          </Link>
+          </a>
         </div>
       </div>
     );
@@ -834,9 +838,9 @@ export const SharedContentPage: React.FC = () => {
           <Award size={22} className="mx-auto text-primary mb-3" />
           <p className="font-bold text-text-main mb-1">Want to create your own study materials?</p>
           <p className="text-sm text-text-muted mb-4">Upload documents or YouTube videos and get AI-generated summaries, mind maps, quizzes and flashcards.</p>
-          <Link to="/" className="inline-block rounded-xl bg-primary px-6 py-2.5 text-sm font-bold text-white hover:opacity-90 transition-opacity">
+          <a href="/" className="inline-block rounded-xl bg-primary px-6 py-2.5 text-sm font-bold text-white hover:opacity-90 transition-opacity">
             Try Easy Study →
-          </Link>
+          </a>
         </div>
 
       </div>

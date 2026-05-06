@@ -14,6 +14,7 @@ interface DocumentCardProps {
   course?: Course;
   to?: string;
   compact?: boolean;
+  onDelete?: () => void;
 }
 
 const cardVariants = {
@@ -37,7 +38,7 @@ const FILE_META: Record<string, { icon: React.ElementType; label: string; emoji:
   podcast: { icon: Rss, label: 'Podcast', emoji: '🎧' },
 };
 
-export const DocumentCard: React.FC<DocumentCardProps> = ({ doc, course, to, compact = false }) => {
+export const DocumentCard: React.FC<DocumentCardProps> = ({ doc, course, to, compact = false, onDelete }) => {
   const { courses, deleteDocument, updateDocumentInList } = useStudy();
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -188,7 +189,7 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({ doc, course, to, com
             <FolderInput size={13} />
           </button>
           <button
-            onClick={e => { e.preventDefault(); setShowDeleteModal(true); }}
+            onClick={e => { e.preventDefault(); onDelete ? onDelete() : setShowDeleteModal(true); }}
             title="Delete document"
             className="flex h-7 w-7 items-center justify-center rounded-full bg-white border border-zinc-200 text-zinc-400 shadow-sm hover:scale-110 hover:bg-red-50 hover:border-red-200 hover:text-red-500 transition-all duration-200"
           >

@@ -4,8 +4,10 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Upload, File, X, Loader2, ShieldCheck, Zap, FileText, FileCode, BookOpen, ArrowRight } from 'lucide-react';
 import { Button } from '../common/Button';
 import { DocumentCard } from '../common/DocumentCard';
+import { usePrompt } from '../common/PromptBox';
 import { useStudy } from '../../context/StudyContext';
 import { cn } from '../../utils/cn';
+import { getApiErrorMessage } from '../../utils/apiError';
 
 const container = {
   hidden: { opacity: 0, y: 24 },
@@ -31,6 +33,7 @@ export interface DocumentTabProps {
 export const DocumentTab: React.FC<DocumentTabProps> = ({ selectedCourseId, onCourseError }) => {
   const navigate = useNavigate();
   const { addDocument, documents, courses } = useStudy();
+  const { showPrompt } = usePrompt();
   const recentDocs = documents.filter(d => d.type !== 'audio' && d.type !== 'podcast' && !d.originalUrl).slice(0, 3);
   const getCourse = (id?: string) => courses.find(c => c.id === id);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -44,11 +47,11 @@ export const DocumentTab: React.FC<DocumentTabProps> = ({ selectedCourseId, onCo
     const types = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain', 'text/markdown'];
     const ext = f.name.substring(f.name.lastIndexOf('.')).toLowerCase();
     if (!types.includes(f.type) && !exts.includes(ext)) {
-      alert('Unsupported file format. Please upload a PDF, DOCX, TXT, or Markdown file.');
+      showPrompt('Unsupported file format. Please upload a PDF, DOCX, TXT, or Markdown file.');
       return;
     }
     if (f.size > 50 * 1024 * 1024) {
-      alert('File size exceeds 50MB limit. Please upload a smaller file.');
+      showPrompt('File size exceeds 50MB limit. Please upload a smaller file.');
       return;
     }
     setFile(f);
@@ -71,10 +74,10 @@ export const DocumentTab: React.FC<DocumentTabProps> = ({ selectedCourseId, onCo
       clearInterval(interval);
       setProgress(100);
       setTimeout(() => navigate(`/documents/${docId}`), 500);
-    } catch {
+    } catch (error) {
       setUploading(false);
       setProgress(0);
-      alert('Upload failed. Please try again.');
+      showPrompt(getApiErrorMessage(error, 'Upload failed.'));
     }
   };
 

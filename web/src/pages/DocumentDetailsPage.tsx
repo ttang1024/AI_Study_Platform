@@ -20,6 +20,7 @@ import { TABS } from '../constants/tab';
 import { cn } from '../utils/cn';
 import { Document } from '../types';
 import { getApiErrorCode } from '../utils/apiError';
+import { getApiUrl } from '../utils/env';
 
 export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; initialDoc?: Document }> = ({ embedded, id: propId, initialDoc }) => {
   const { id: paramId } = useParams();
@@ -193,7 +194,7 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
     });
   }, []);
 
-  const API_URL = import.meta.env.VITE_API_URL ?? '';
+  const API_URL = getApiUrl();
   const token = localStorage.getItem('sp_access_token');
   const authHeaders = useMemo(
     () => token ? { Authorization: `Bearer ${token}` } : undefined,
@@ -452,7 +453,7 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
         notesHtml={noteContent || null}
         fetchQuizzes={currentDocument.courseId ? async () => {
           const qs = await documentService.getQuiz(currentDocument.courseId!, currentDocument.id);
-          return qs.map((q: ShareableQuiz & { answer: string }) => ({ question: q.question, options: q.options ?? [], correctAnswer: q.answer, explanation: q.explanation }));
+          return qs.map((q) => ({ question: q.question, options: q.options ?? [], correctAnswer: q.answer, explanation: q.explanation }));
         } : undefined}
         fetchFlashcards={currentDocument.courseId ? async () => {
           const res = await apiClient.get<{ data: Array<{ front: string; back: string }> }>(`/api/courses/${currentDocument.courseId}/documents/${currentDocument.id}/flashcards`);

@@ -259,6 +259,18 @@ export const NotesPage: React.FC = () => {
     setVideoNotes(prev => prev.filter(v => v.noteId !== noteId));
   };
 
+  const resolveVideoUrl = React.useCallback(async (videoRecordId: string): Promise<string | null> => {
+    const cachedVideo = videoList.find(v => v.id === videoRecordId);
+    if (cachedVideo?.videoUrl) return cachedVideo.videoUrl;
+
+    try {
+      const video = await youtubeService.getVideo(videoRecordId);
+      return video.videoUrl ?? null;
+    } catch {
+      return null;
+    }
+  }, [videoList]);
+
   const isEmpty = !contextLoading && filteredItems.length === 0;
 
   return (
@@ -389,13 +401,14 @@ export const NotesPage: React.FC = () => {
                     icon={<Youtube size={18} className="text-red-500 shrink-0" />}
                     viewLabel="View Video"
                     onView={() => navigate(`/youtube/${entry.videoRecordId}`)}
-                    onShare={() => {
+                    onShare={async () => {
                       const video = videoList.find(v => v.id === entry.videoRecordId);
+                      const sourceUrl = video?.videoUrl ?? await resolveVideoUrl(entry.videoRecordId);
                       setShareNote({
                         title: entry.title,
                         notesHtml: entry.content,
                         sourceType: 'youtube',
-                        sourceUrl: video?.videoUrl ?? null,
+                        sourceUrl,
                       });
                     }}
                     isEditing={editingVideoId === entry.noteId}

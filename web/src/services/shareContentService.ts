@@ -1,4 +1,5 @@
 import { apiClient } from './apiClient';
+import { getShareBaseUrl } from '../utils/env';
 
 export interface ShareableQuiz {
   question: string;
@@ -69,7 +70,7 @@ export async function createShare(payload: CreateSharePayload): Promise<ShareRes
     originalArticleUrl: payload.originalArticleUrl ?? null,
   });
   const { token } = res.data.data;
-  const shareBaseUrl = import.meta.env.VITE_SHARE_BASE_URL ?? window.location.origin;
+  const shareBaseUrl = getShareBaseUrl();
   return { token, shareUrl: `${shareBaseUrl}/share/${token}` };
 }
 

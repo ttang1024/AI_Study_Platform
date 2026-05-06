@@ -5,9 +5,10 @@ import { motion } from 'motion/react';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/common/Button';
 import { cn } from '../utils/cn';
+import { getPublicEnv } from '../utils/env';
 
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
-const GITHUB_CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID as string | undefined;
+const GOOGLE_CLIENT_ID = getPublicEnv('NEXT_PUBLIC_GOOGLE_CLIENT_ID') ?? getPublicEnv('VITE_GOOGLE_CLIENT_ID');
+const GITHUB_CLIENT_ID = getPublicEnv('NEXT_PUBLIC_GITHUB_CLIENT_ID') ?? getPublicEnv('VITE_GITHUB_CLIENT_ID');
 
 function buildOAuthUrl(provider: 'google' | 'github'): string {
   const redirectUri = encodeURIComponent(`${window.location.origin}/auth/callback`);

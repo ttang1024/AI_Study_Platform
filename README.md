@@ -153,11 +153,11 @@ VITE_API_URL=http://localhost:5000
 
 ## Upload Limits
 
-The hosted (Azure) deployment enforces a **5-document upload limit per account** to control storage costs.
+The hosted (Azure) deployment enforces a **10-document upload limit per account** to control storage costs.
 
 | Environment        | Limit       | How it's set                                                          |
 | ------------------ | ----------- | --------------------------------------------------------------------- |
-| Production (Azure) | 5 documents | `AppLimits__DocumentUploadLimit=5` via env var                        |
+| Production (Azure) | 10 documents | `AppLimits__DocumentUploadLimit=10` via env var                      |
 | Local development  | Unlimited   | `AppLimits.DocumentUploadLimit: -1` in `appsettings.Development.json` |
 
 To change the limit in a self-hosted deployment, set `DOCUMENT_UPLOAD_LIMIT` in your `.env` file (or `AppLimits__DocumentUploadLimit` directly in your hosting environment). Use `-1` to disable the limit entirely.

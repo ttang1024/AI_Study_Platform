@@ -15,6 +15,7 @@ import { QuizQuestion, Document } from '../types';
 import { PendingMaterial, pendingMaterialToItem } from '../services/pendingMaterialService';
 import { Pagination } from '../components/common/Pagination';
 import { useRefreshOnVisible } from '../hooks/useRefreshOnVisible';
+import { usePrompt } from '../components/common/PromptBox';
 
 const PAGE_SIZE = 5;
 
@@ -58,6 +59,7 @@ type UnifiedQuizItem = DocQuizItem | VideoQuizItem;
 export const QuizManagementPage: React.FC = () => {
   const { documents, courses, quizSubmissions, totalMaterials, totalQuizSubmissions, achievementStats, isLoading: contextLoading, refreshQuizSubmissions, refreshStats, refreshDocuments } = useStudy();
   const navigate = useNavigate();
+  const { showPrompt } = usePrompt();
 
   const [sourceType, setSourceType] = useState<SourceType>('all');
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
@@ -181,12 +183,12 @@ export const QuizManagementPage: React.FC = () => {
     try {
       const doc = documents.find(d => d.id === docId);
       const questions = await documentService.getQuiz(doc?.courseId || '', docId);
-      if (questions.length === 0) { alert('No questions available for this document.'); return; }
+      if (questions.length === 0) { showPrompt('No questions available for this document.'); return; }
       setTimedExamQuestions(questions);
       setTimedExamDocName(docName);
       setTimedExamDocId(docId);
     } catch {
-      alert('Failed to load questions. Please try again.');
+      showPrompt('Failed to load questions. Please try again.');
     } finally {
       setLoadingTimedExam(null);
     }
@@ -196,7 +198,7 @@ export const QuizManagementPage: React.FC = () => {
     setLoadingTimedExam(videoId);
     try {
       const questions = await youtubeService.getQuiz(videoId);
-      if (questions.length === 0) { alert('No questions available for this video.'); return; }
+      if (questions.length === 0) { showPrompt('No questions available for this video.'); return; }
       setTimedExamQuestions(questions.map(q => ({
         id: q.quizId, question: q.question, options: q.options,
         answer: q.correctAnswer, explanation: q.explanation, type: 'multiple-choice' as const,
@@ -204,7 +206,7 @@ export const QuizManagementPage: React.FC = () => {
       setTimedExamDocName(videoName);
       setTimedExamDocId(videoId);
     } catch {
-      alert('Failed to load questions. Please try again.');
+      showPrompt('Failed to load questions. Please try again.');
     } finally {
       setLoadingTimedExam(null);
     }
@@ -232,8 +234,21 @@ export const QuizManagementPage: React.FC = () => {
     });
   };
 
-  const handleShareVideoQuiz = (videoId: string, videoName: string) => {
+  const resolveVideoUrl = React.useCallback(async (videoId: string): Promise<string | null> => {
+    const cachedVideo = videoList.find(v => v.id === videoId);
+    if (cachedVideo?.videoUrl) return cachedVideo.videoUrl;
+
+    try {
+      const video = await youtubeService.getVideo(videoId);
+      return video.videoUrl ?? null;
+    } catch {
+      return null;
+    }
+  }, [videoList]);
+
+  const handleShareVideoQuiz = async (videoId: string, videoName: string) => {
     const video = videoList.find(v => v.id === videoId);
+    const sourceUrl = video?.videoUrl ?? await resolveVideoUrl(videoId);
     setShareTarget({
       title: videoName,
       fetchQuizzes: async () => {
@@ -244,7 +259,7 @@ export const QuizManagementPage: React.FC = () => {
         }));
       },
       sourceType: 'youtube',
-      sourceUrl: video?.videoUrl ?? null,
+      sourceUrl,
     });
   };
 
@@ -423,6 +438,7 @@ export const QuizManagementPage: React.FC = () => {
                   />
                 );
               }
+              const docId = item.docId;
               return (
                 <QuizItemRow
                   key={item.id}
@@ -434,12 +450,12 @@ export const QuizManagementPage: React.FC = () => {
                   date={item.date}
                   courseName={item.courseName}
                   courseColor={item.courseColor}
-                  docId={item.docId}
+                  docId={docId}
                   pending={item.pending}
-                  examKey={item.docId ?? item.id}
+                  examKey={docId ?? item.id}
                   loadingTimedExam={loadingTimedExam}
-                  onShare={item.docId ? () => handleShareQuiz(item.docId!, item.name, item.courseId ?? '') : undefined}
-                  onExam={item.docId ? () => handleStartTimedExam(item.docId!, item.name) : undefined}
+                  onShare={docId ? () => handleShareQuiz(docId, item.name, item.courseId ?? '') : undefined}
+                  onExam={docId ? () => handleStartTimedExam(docId, item.name) : undefined}
                 />
               );
             })}
@@ -468,7 +484,7 @@ export const QuizManagementPage: React.FC = () => {
               const doc = item.doc;
               const course = courses.find(c => c.id === doc.courseId);
               setGeneratedPending(prev => [
-                ...prev.filter(p => p.docId !== doc.id),
+                ...prev.filter(p => p.type === 'video' || p.docId !== doc.id),
                 {
                   type: docToQuizType(doc),
                   id: `pending-${doc.id}`,

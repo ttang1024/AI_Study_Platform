@@ -13,3 +13,21 @@ export function getApiErrorCode(error: unknown, fallback = 'REQUEST_FAILED'): st
 
   return fallback;
 }
+
+export function getApiErrorMessage(error: unknown, fallback = 'Request failed.'): string {
+  const err = error as {
+    response?: { data?: { message?: unknown; errors?: unknown } };
+    message?: unknown;
+  };
+
+  const message = err?.response?.data?.message ?? err?.message;
+  if (typeof message === 'string' && message.trim()) return message.trim();
+
+  const errors = err?.response?.data?.errors;
+  if (Array.isArray(errors)) {
+    const first = errors.find((item) => typeof item === 'string' && item.trim());
+    if (typeof first === 'string') return first.trim();
+  }
+
+  return fallback;
+}

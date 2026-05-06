@@ -75,7 +75,7 @@ az containerapp update \
     "Cache__DocumentMetadataSeconds=${CACHE_DOCUMENT_METADATA_SECONDS:-60}" \
     "Cache__AnalyticsSummarySeconds=${CACHE_ANALYTICS_SUMMARY_SECONDS:-300}" \
     "Cache__GeneratedResultSeconds=${CACHE_GENERATED_RESULT_SECONDS:-3600}" \
-    "AppLimits__DocumentUploadLimit=${DOCUMENT_UPLOAD_LIMIT:-5}" \
+    "AppLimits__DocumentUploadLimit=${DOCUMENT_UPLOAD_LIMIT:-10}" \
     "YouTube__SubtitleLanguages=${YOUTUBE_SUBTITLE_LANGUAGES:-en.*,en}" \
     "YouTube__ProxyUrl=${YOUTUBE_PROXY_URL:-}" \
     "YouTube__CookiesBase64=${YOUTUBE_COOKIES_B64:-}" \

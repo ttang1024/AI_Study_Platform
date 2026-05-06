@@ -4,9 +4,11 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Mic, X, Loader2, ShieldCheck, Zap, ArrowRight } from 'lucide-react';
 import { Button } from '../common/Button';
 import { DocumentCard } from '../common/DocumentCard';
+import { usePrompt } from '../common/PromptBox';
 import { useStudy } from '../../context/StudyContext';
 import { apiClient } from '../../services/apiClient';
 import { cn } from '../../utils/cn';
+import { getApiErrorMessage } from '../../utils/apiError';
 
 const container = {
   hidden: { opacity: 0, y: 24 },
@@ -32,6 +34,7 @@ export interface AudioTabProps {
 export const AudioTab: React.FC<AudioTabProps> = ({ selectedCourseId, onCourseError }) => {
   const navigate = useNavigate();
   const { refreshStats, documents, courses } = useStudy();
+  const { showPrompt } = usePrompt();
   const recentAudios = documents.filter(d => d.type === 'audio').slice(0, 3);
   const getCourse = (id?: string) => courses.find(c => c.id === id);
   const audioInputRef = useRef<HTMLInputElement>(null);
@@ -44,11 +47,11 @@ export const AudioTab: React.FC<AudioTabProps> = ({ selectedCourseId, onCourseEr
     const exts = ['.mp3', '.m4a', '.wav', '.ogg', '.aac', '.flac'];
     const ext = f.name.substring(f.name.lastIndexOf('.')).toLowerCase();
     if (!f.type.startsWith('audio/') && !exts.includes(ext)) {
-      alert('Unsupported format. Please upload an audio file (MP3, M4A, WAV, OGG).');
+      showPrompt('Unsupported format. Please upload an audio file (MP3, M4A, WAV, OGG).');
       return;
     }
     if (f.size > 100 * 1024 * 1024) {
-      alert('File size exceeds 100 MB limit.');
+      showPrompt('File size exceeds 100 MB limit.');
       return;
     }
     setAudioFile(f);
@@ -79,10 +82,10 @@ export const AudioTab: React.FC<AudioTabProps> = ({ selectedCourseId, onCourseEr
       refreshStats();
       const docId = res.data.data.documentId;
       setTimeout(() => navigate(`/audio/${docId}`, { state: { courseId: selectedCourseId } }), 500);
-    } catch {
+    } catch (error) {
       setUploading(false);
       setProgress(0);
-      alert('Upload failed. Please try again.');
+      showPrompt(getApiErrorMessage(error, 'Upload failed.'));
     }
   };
 

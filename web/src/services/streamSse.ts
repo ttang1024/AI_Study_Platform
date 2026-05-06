@@ -1,6 +1,7 @@
 import { aiSettingsService } from './aiSettingsService'
+import { getApiUrl } from '../utils/env'
 
-const API_URL = (import.meta.env.VITE_API_URL as string) ?? ''
+const API_URL = getApiUrl()
 export const STREAM_ERROR_MESSAGE = "I'm sorry, I encountered an error. Please try again."
 
 type StreamError = Error & { errorCode?: string }

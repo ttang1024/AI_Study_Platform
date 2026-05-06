@@ -70,16 +70,25 @@ export const Counter: React.FC<{ to: number; suffix?: string; duration?: number 
 };
 
 // ─── Particle background ──────────────────────────────────────────────────────
+const PARTICLES = Array.from({ length: 28 }).map((_, i) => {
+  const seed = (i + 1) * 9301 + 49297;
+  const next = (offset: number) => {
+    const value = Math.sin(seed + offset * 233) * 10000;
+    return value - Math.floor(value);
+  };
+  return {
+    size: next(1) * 2.5 + 0.8,
+    x: next(2) * 100,
+    y: next(3) * 100,
+    dur: next(4) * 14 + 10,
+    del: next(5) * 8,
+  };
+});
+
 export const Particles: React.FC = () => {
-  const count = 28;
   return (
     <div className="pointer-events-none fixed inset-0 overflow-hidden">
-      {Array.from({ length: count }).map((_, i) => {
-        const size = Math.random() * 2.5 + 0.8;
-        const x = Math.random() * 100;
-        const y = Math.random() * 100;
-        const dur = Math.random() * 14 + 10;
-        const del = Math.random() * 8;
+      {PARTICLES.map(({ size, x, y, dur, del }, i) => {
         return (
           <motion.div
             key={i}

@@ -1,5 +1,4 @@
 import React, { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import {
   BrainCircuit as _BrainCircuit, BookOpen, Sparkles, Map,
@@ -11,7 +10,7 @@ import {
   Award,
   Github, Key, ExternalLink, Unlock,
 } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import { useOptionalAuth } from '../context/AuthContext';
 import { Typewriter, Counter, Particles, FadeIn } from '../components/landing/LandingAnimations';
 import { Logo, LOGO_STYLES } from '../components/landing/Logo';
 import { Badge } from '../components/landing/Badge';
@@ -39,10 +38,13 @@ const PROVIDER_ICON_SRC: Record<string, string> = {
 };
 
 export const LandingPage: React.FC = () => {
-  const navigate = useNavigate();
-  const { isAuthenticated, isLoading } = useAuth();
-  useEffect(() => { if (!isLoading && isAuthenticated) navigate('/'); }, [isAuthenticated, isLoading, navigate]);
-  const go = () => navigate('/login');
+  const auth = useOptionalAuth();
+  const isAuthenticated = auth?.isAuthenticated ?? false;
+  const isLoading = auth?.isLoading ?? false;
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) window.location.assign('/dashboard');
+  }, [isAuthenticated, isLoading]);
+  const go = () => window.location.assign('/login');
 
   return (
     <div className="relative min-h-screen overflow-x-hidden text-white"

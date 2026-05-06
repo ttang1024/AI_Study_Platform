@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Youtube, Link, Loader2, ListVideo, Zap, ArrowRight, Brain, Captions, PlayCircle, Award } from 'lucide-react';
 import { Button } from '../common/Button';
 import { VideoCard } from '../common/VideoCard';
+import { usePrompt } from '../common/PromptBox';
 import { useStudy } from '../../context/StudyContext';
 import { youtubeService, VideoListItem } from '../../services/youtubeService';
 import { cn } from '../../utils/cn';
@@ -57,6 +58,7 @@ export interface YouTubeTabProps {
 export const YouTubeTab: React.FC<YouTubeTabProps> = ({ selectedCourseId, onCourseError }) => {
   const navigate = useNavigate();
   const { refreshStats } = useStudy();
+  const { showPrompt } = usePrompt();
   const [urlInput, setUrlInput] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
@@ -93,7 +95,7 @@ export const YouTubeTab: React.FC<YouTubeTabProps> = ({ selectedCourseId, onCour
     }
 
     const ytVid = parseVideoId(trimmed);
-    if (!ytVid) { alert('Invalid YouTube URL. Please enter a valid YouTube video or playlist link.'); return; }
+    if (!ytVid) { showPrompt('Invalid YouTube URL. Please enter a valid YouTube video or playlist link.'); return; }
 
     setIsAnalyzing(true);
     try {
