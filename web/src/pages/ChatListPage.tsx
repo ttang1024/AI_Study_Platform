@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import {
   MessageSquare, Plus, Trash2, Sparkles, ArrowLeft,
-  Bot, FileText, Youtube, Loader2, ExternalLink,
+  Bot, FileText, Youtube, Loader2, ExternalLink, Share2, Check, AlertCircle,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { ChatPanel } from '../components/ai/ChatPanel';
@@ -10,6 +10,8 @@ import { aiService, type ChatSessionSummary } from '../services/aiService';
 import { documentService } from '../services/documentService';
 import { youtubeService } from '../services/youtubeService';
 import { STREAM_ERROR_MESSAGE } from '../services/streamSse';
+import { DeleteModal } from '../components/common/DeleteModal';
+import { createShare } from '../services/shareContentService';
 import { cn } from '../utils/cn';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -46,6 +48,19 @@ function activeItemKey(item: ActiveItem): string {
   return `vid-${item.sourceId}`;
 }
 
+function formatConversationForShare(messages: PanelMessage[]): string {
+  const visibleMessages = messages.filter(message => !message.isError && message.content.trim());
+
+  return JSON.stringify({
+    type: 'chat-transcript',
+    version: 1,
+    messages: visibleMessages.map(message => ({
+      role: message.role,
+      content: message.content,
+    })),
+  });
+}
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export const ChatListPage: React.FC = () => {
@@ -56,6 +71,9 @@ export const ChatListPage: React.FC = () => {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [showList, setShowList] = useState(true);
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
+  const [shareStatus, setShareStatus] = useState<'idle' | 'creating' | 'copied' | 'error'>('idle');
+  const [deletingKey, setDeletingKey] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ActiveItem | null>(null);
 
   // Load all sessions on mount
   useEffect(() => {
@@ -143,6 +161,7 @@ export const ChatListPage: React.FC = () => {
   const handleSelect = useCallback((item: ActiveItem) => {
     setActiveItem(item);
     setShowList(false);
+    setShareStatus('idle');
     loadMessages(item);
   }, [loadMessages]);
 
@@ -158,25 +177,89 @@ export const ChatListPage: React.FC = () => {
     setShowList(false);
   }, []);
 
-  // ── Delete local session ─────────────────────────────────────────────────
+  // ── Conversation actions ─────────────────────────────────────────────────
 
-  const handleDeleteLocal = useCallback((e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
-    chatStorage.deleteConversation(id);
-    const remaining = chatStorage.getConversations();
-    setLocalConvs(remaining);
-    if (activeItem?.kind === 'local' && activeItem.id === id) {
-      const allRemaining = buildListItems(remaining, backendSessions);
-      if (allRemaining.length > 0) {
-        handleSelect(allRemaining[0].item);
-      } else {
-        setActiveItem(null);
-        setPanelMessages([]);
-        setShowList(true);
-      }
+  const getConversationTitle = useCallback((item: ActiveItem): string => {
+    if (item.kind === 'local') {
+      return chatStorage.getConversation(item.id)?.title ?? 'Chat';
+    }
+    return item.name;
+  }, []);
+
+  const selectAfterDelete = useCallback((deletedKey: string) => {
+    const remainingItems = buildListItems(chatStorage.getConversations(), backendSessions)
+      .filter(entry => entry.key !== deletedKey);
+
+    if (remainingItems.length > 0) {
+      handleSelect(remainingItems[0].item);
+    } else {
+      setActiveItem(null);
+      setPanelMessages([]);
+      setShowList(true);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeItem, backendSessions]);
+  }, [backendSessions, handleSelect]);
+
+  const deleteConversation = useCallback(async (item: ActiveItem) => {
+    const key = activeItemKey(item);
+
+    setDeletingKey(key);
+    try {
+      if (item.kind === 'local') {
+        chatStorage.deleteConversation(item.id);
+        setLocalConvs(chatStorage.getConversations());
+      } else if (item.kind === 'document') {
+        await documentService.deleteChatHistory(item.courseId, item.sourceId);
+        setBackendSessions(prev => prev.filter(s => !(s.sourceType === 'document' && s.sourceId === item.sourceId)));
+      } else {
+        await youtubeService.deleteChatHistory(item.sourceId);
+        setBackendSessions(prev => prev.filter(s => !(s.sourceType === 'video' && s.sourceId === item.sourceId)));
+      }
+
+      if (activeItem && activeItemKey(activeItem) === key) {
+        selectAfterDelete(key);
+      }
+    } finally {
+      setDeletingKey(null);
+      setDeleteTarget(null);
+    }
+  }, [activeItem, selectAfterDelete]);
+
+  const handleDeleteConversation = useCallback((item: ActiveItem) => {
+    setDeleteTarget(item);
+  }, []);
+
+  const handleDeleteFromList = useCallback((e: React.MouseEvent, item: ActiveItem) => {
+    e.stopPropagation();
+    setDeleteTarget(item);
+  }, []);
+
+  const handleShareActive = useCallback(async () => {
+    if (!activeItem) return;
+
+    const title = getConversationTitle(activeItem);
+    const shareableMessages = panelMessages.filter(message => !message.isError && message.content.trim());
+    if (shareableMessages.length === 0) {
+      setShareStatus('error');
+      window.setTimeout(() => setShareStatus('idle'), 2200);
+      return;
+    }
+
+    setShareStatus('creating');
+    try {
+      const result = await createShare({
+        title,
+        notesHtml: formatConversationForShare(shareableMessages),
+        sourceType: 'chat',
+      });
+      await navigator.clipboard.writeText(result.shareUrl);
+      setShareStatus('copied');
+    } catch {
+      setShareStatus('error');
+    } finally {
+      window.setTimeout(() => setShareStatus('idle'), 2600);
+    }
+  }, [activeItem, getConversationTitle, panelMessages]);
 
   // ── Send handler (unified for all session types) ─────────────────────────
 
@@ -310,13 +393,21 @@ export const ChatListPage: React.FC = () => {
             listItems.map(entry => {
               const isActive = entry.key === activeKey;
               return (
-                <button
+                <div
                   key={entry.key}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => handleSelect(entry.item)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleSelect(entry.item);
+                    }
+                  }}
                   onMouseEnter={() => setHoveredKey(entry.key)}
                   onMouseLeave={() => setHoveredKey(null)}
                   className={cn(
-                    'group w-full text-left flex items-start gap-2.5 rounded-xl px-3 py-2.5 transition-all',
+                    'group w-full cursor-pointer text-left flex items-start gap-2.5 rounded-xl px-3 py-2.5 transition-all focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/25',
                     isActive
                       ? 'bg-[var(--primary)]/10 text-[var(--primary)]'
                       : 'hover:bg-zinc-100 text-text-main',
@@ -337,20 +428,18 @@ export const ChatListPage: React.FC = () => {
                     <p className="text-[11px] text-text-muted mt-0.5 truncate">{formatTime(entry.updatedAt)}</p>
                   </div>
 
-                  {/* Delete button (only for local chats) */}
-                  {entry.kind === 'local' && (
-                    <button
-                      onClick={e => handleDeleteLocal(e, (entry.item as { kind: 'local'; id: string }).id)}
-                      title="Delete chat"
-                      className={cn(
-                        'shrink-0 rounded-md p-1 transition-all text-text-muted hover:bg-red-500/10 hover:text-red-500',
-                        hoveredKey === entry.key || isActive ? 'opacity-100' : 'opacity-0',
-                      )}
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  )}
-                </button>
+                  <button
+                    onClick={e => handleDeleteFromList(e, entry.item)}
+                    disabled={deletingKey === entry.key}
+                    title="Delete chat"
+                    className={cn(
+                      'shrink-0 rounded-md p-1 transition-all text-text-muted hover:bg-red-500/10 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-60',
+                      hoveredKey === entry.key || isActive ? 'opacity-100' : 'opacity-0',
+                    )}
+                  >
+                    {deletingKey === entry.key ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                  </button>
+                </div>
               );
             })
           )}
@@ -364,14 +453,52 @@ export const ChatListPage: React.FC = () => {
           !showList ? 'flex' : 'hidden md:flex',
         )}
       >
-        {/* Mobile back button */}
-        <button
-          onClick={() => setShowList(true)}
-          className="flex items-center gap-2 border-b border-[var(--border-color)] px-4 py-3 text-sm text-text-muted hover:text-text-main transition-colors md:hidden shrink-0"
-        >
-          <ArrowLeft size={15} />
-          All Chats
-        </button>
+        <div className="flex items-center justify-between gap-3 border-b border-[var(--border-color)] px-4 py-3 bg-[var(--bg-sidebar)] shrink-0">
+          <button
+            onClick={() => setShowList(true)}
+            className="flex items-center gap-2 text-sm text-text-muted hover:text-text-main transition-colors md:hidden"
+          >
+            <ArrowLeft size={15} />
+            All Chats
+          </button>
+          <div className="hidden min-w-0 md:block">
+            <p className="truncate text-sm font-semibold text-text-main">
+              {activeItem ? getConversationTitle(activeItem) : 'AI Chat'}
+            </p>
+          </div>
+          {activeItem && (
+            <div className="ml-auto flex items-center gap-1.5">
+              <button
+                onClick={handleShareActive}
+                disabled={shareStatus === 'creating'}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-color)] bg-white px-3 py-1.5 text-xs font-semibold text-text-main hover:border-[var(--primary)] hover:text-[var(--primary)] transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {shareStatus === 'creating'
+                  ? <Loader2 size={14} className="animate-spin" />
+                  : shareStatus === 'idle'
+                    ? <Share2 size={14} />
+                    : shareStatus === 'error'
+                      ? <AlertCircle size={14} />
+                      : <Check size={14} />}
+                {shareStatus === 'creating'
+                  ? 'Creating'
+                  : shareStatus === 'copied'
+                    ? 'Link copied'
+                    : shareStatus === 'error'
+                      ? 'Unable to share'
+                      : 'Share'}
+              </button>
+              <button
+                onClick={() => handleDeleteConversation(activeItem)}
+                disabled={deletingKey === activeKey}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {deletingKey === activeKey ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                Delete
+              </button>
+            </div>
+          )}
+        </div>
 
         {loadingMessages ? (
           <div className="flex flex-col items-center justify-center flex-1 text-center">
@@ -439,6 +566,26 @@ export const ChatListPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      <DeleteModal
+        isOpen={!!deleteTarget}
+        title="Delete conversation"
+        itemName={deleteTarget ? getConversationTitle(deleteTarget) : undefined}
+        description={
+          deleteTarget ? (
+            <>
+              Delete <span className="font-semibold text-zinc-800 break-words">"{getConversationTitle(deleteTarget)}"</span>?{' '}
+              This will remove the conversation history.
+            </>
+          ) : undefined
+        }
+        confirmLabel="Delete"
+        isDeleting={!!deleteTarget && deletingKey === activeItemKey(deleteTarget)}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          if (deleteTarget) void deleteConversation(deleteTarget);
+        }}
+      />
     </div>
   );
 };

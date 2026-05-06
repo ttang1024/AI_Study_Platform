@@ -337,6 +337,10 @@ export const documentService = {
 		return (response.data.data as BackendChatMessage[]).map(mapChatMessage)
 	},
 
+	async deleteChatHistory(courseId: string, documentId: string): Promise<void> {
+		await apiClient.delete(`/api/courses/${courseId}/documents/${documentId}/chat`)
+	},
+
 	async getNotes(courseId: string, documentId: string): Promise<Note[]> {
 		const response = await apiClient.get(
 			`/api/courses/${courseId}/documents/${documentId}/notes`,

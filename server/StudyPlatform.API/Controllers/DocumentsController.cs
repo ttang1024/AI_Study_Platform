@@ -382,6 +382,24 @@ public class DocumentsController : ControllerBase
     }
 
     /// <summary>
+    /// Delete AI chat history for a document
+    /// </summary>
+    [HttpDelete("{documentId:guid}/chat")]
+    [ProducesResponseType(typeof(BaseResponse<string>), 200)]
+    [ProducesResponseType(typeof(BaseResponse), 404)]
+    public async Task<IActionResult> DeleteChatHistory(Guid courseId, Guid documentId, CancellationToken cancellationToken)
+    {
+        var userId = User.GetUserId();
+        var document = await _unitOfWork.Documents.GetByIdAsync(documentId, cancellationToken);
+        if (document == null || document.UserId != userId)
+            return NotFound(BaseResponse<string>.Fail("Document not found.", "DOCUMENT_NOT_FOUND"));
+
+        await _unitOfWork.ChatMessages.DeleteByDocumentIdAsync(documentId, userId, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return Ok(BaseResponse<string>.Ok("Chat history deleted."));
+    }
+
+    /// <summary>
     /// Get notes for a document
     /// </summary>
     [HttpGet("{documentId:guid}/notes")]

@@ -305,6 +305,21 @@ public class YouTubeController : ControllerBase
         return Ok(BaseResponse<IEnumerable<ChatMessageDto>>.Ok(result.Data!));
     }
 
+    [HttpDelete("videos/{id:guid}/chat")]
+    [ProducesResponseType(typeof(BaseResponse<string>), 200)]
+    [ProducesResponseType(typeof(BaseResponse), 404)]
+    public async Task<IActionResult> DeleteVideoChatHistory(Guid id, CancellationToken cancellationToken)
+    {
+        var userId = User.GetUserId();
+        var video = await GetVideoWithAccessCheckAsync(id, userId, cancellationToken);
+        if (video is null)
+            return NotFound(BaseResponse<string>.Fail("Video not found.", "VIDEO_NOT_FOUND"));
+
+        await _unitOfWork.ChatMessages.DeleteByYouTubeVideoIdAsync(id, userId, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return Ok(BaseResponse<string>.Ok("Chat history deleted."));
+    }
+
     // ── Video library (CRUD) ──────────────────────────────────────────────
 
     [HttpPost("videos")]

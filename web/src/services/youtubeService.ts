@@ -272,6 +272,10 @@ export const youtubeService = {
 		}))
 	},
 
+	async deleteChatHistory(videoId: string): Promise<void> {
+		await apiClient.delete(`/api/youtube/videos/${videoId}/chat`)
+	},
+
 	async sendChat(
 		videoId: string,
 		message: string,

@@ -27,7 +27,7 @@ export interface CreateSharePayload {
   flashcards?: ShareableCard[] | null;
   glossaryTerms?: ShareableGlossaryTerm[] | null;
   expiresInDays?: number | null;
-  sourceType?: 'youtube' | 'article' | 'audio' | 'podcast' | 'document' | null;
+  sourceType?: 'youtube' | 'article' | 'audio' | 'podcast' | 'document' | 'chat' | null;
   sourceUrl?: string | null;
   originalArticleUrl?: string | null;
 }

@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { motion, AnimatePresence } from 'motion/react';
-import { Youtube, Clock, Trash2, Sparkles, FolderInput, AlertTriangle, Loader2 } from 'lucide-react';
+import { motion } from 'motion/react';
+import { Youtube, Clock, Trash2, Sparkles, FolderInput } from 'lucide-react';
 import { useStudy } from '../../context/StudyContext';
 import { youtubeService } from '../../services/youtubeService';
 import { MoveToCourseModal } from './MoveToCourseModal';
+import { DeleteModal } from './DeleteModal';
 
 function hashCode(str: string) {
   let h = 0;
@@ -142,46 +143,15 @@ export const VideoCard: React.FC<VideoCardProps> = ({ video, to, onDeleted, onMo
         </div>
       </motion.div>
 
-      {/* Delete modal */}
-      <AnimatePresence>
-        {showDeleteModal && (
-          <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm"
-              onClick={() => !isDeleting && setShowDeleteModal(false)}
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 8 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-              className="fixed left-1/2 top-1/2 z-50 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-3xl bg-white p-8 shadow-2xl"
-            >
-              <div className="flex flex-col items-center text-center gap-4">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50 text-red-500">
-                  <AlertTriangle size={28} />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-zinc-900">Delete Video</h3>
-                  <p className="mt-1 text-sm text-zinc-500">
-                    Are you sure you want to delete <span className="font-semibold text-zinc-700 break-all">"{video.title}"</span>? This action cannot be undone.
-                  </p>
-                </div>
-                <div className="flex w-full gap-3 pt-2">
-                  <button onClick={() => setShowDeleteModal(false)} disabled={isDeleting}
-                    className="flex-1 rounded-2xl border border-zinc-200 py-3 text-sm font-semibold text-zinc-600 hover:bg-zinc-50 transition-colors disabled:opacity-50"
-                  >Cancel</button>
-                  <button onClick={handleDelete} disabled={isDeleting}
-                    className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-red-500 py-3 text-sm font-semibold text-white hover:bg-red-600 transition-colors disabled:opacity-50"
-                  >
-                    {isDeleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
-                    {isDeleting ? 'Deleting…' : 'Delete'}
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+      <DeleteModal
+        isOpen={showDeleteModal}
+        title="Delete video"
+        itemName={video.title}
+        confirmLabel="Delete"
+        isDeleting={isDeleting}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={handleDelete}
+      />
 
       {/* Move modal */}
       {showMoveModal && (
