@@ -1,6 +1,11 @@
 import type { Metadata } from 'next';
 import { SharedContentClient } from '../../_components/SharedContentClient';
-import { getWechatShareMetadata } from '../../shareMetadata';
+import {
+  defaultShareImage,
+  defaultShareImageHeight,
+  defaultShareImageWidth,
+  getWechatShareMetadata,
+} from '../../shareMetadata';
 
 type PageProps = {
   params: Promise<{ token: string }>;
@@ -15,7 +20,6 @@ type SharedContentMetadata = {
 };
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? process.env.API_BACKEND_URL ?? process.env.VITE_API_URL ?? '';
-const shareImage = '/share.png';
 
 const stripHtml = (value: string) => value.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
 
@@ -62,15 +66,22 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       title,
       description,
       url,
-      images: [{ url: shareImage, width: 1200, height: 630, alt: title }],
+      images: [
+        {
+          url: defaultShareImage,
+          width: defaultShareImageWidth,
+          height: defaultShareImageHeight,
+          alt: title,
+        },
+      ],
     },
     twitter: {
       card: 'summary_large_image',
       title,
       description,
-      images: [shareImage],
+      images: [defaultShareImage],
     },
-    other: getWechatShareMetadata(title, description, shareImage),
+    other: getWechatShareMetadata(title, description, defaultShareImage),
   };
 }
 

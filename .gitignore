@@ -91,6 +91,7 @@ AzuriteConfig
 .azure_env_variables
 report
 cookies.txt
+tech
 skills.md
 demos/StudyPlatform1.png
 demos/StudyPlatform2.png

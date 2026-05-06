@@ -9,6 +9,7 @@ COPY . .
 
 # VITE_ env vars must be available at build time
 ARG VITE_API_URL
+ARG VITE_SHARE_BASE_URL
 ARG VITE_GOOGLE_CLIENT_ID
 ARG VITE_GITHUB_CLIENT_ID
 

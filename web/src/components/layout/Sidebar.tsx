@@ -99,7 +99,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isCollapsed, 
               transition={{ type: 'spring', stiffness: 380, damping: 16 }}
               onClick={isCollapsed ? onToggle : undefined}
               className={cn(
-                'relative h-10 w-10 shrink-0 rounded-xl overflow-hidden',
+                'p-0.5 relative h-10 w-10 shrink-0 rounded-xl overflow-hidden',
                 isCollapsed && 'cursor-pointer',
               )}
               title={isCollapsed ? 'Expand sidebar' : undefined}

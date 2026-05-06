@@ -133,7 +133,7 @@ export const LoginPage: React.FC = () => {
           <motion.div
             whileHover={{ scale: 1.08, rotate: 6 }}
             transition={{ type: 'spring', stiffness: 380, damping: 16 }}
-            className="relative mx-auto mb-4 h-14 w-14 rounded-2xl overflow-hidden"
+            className="p-0.5 relative mx-auto mb-4 h-14 w-14 rounded-2xl overflow-hidden"
           >
             <img src="/app.png" alt="toto.ai logo" className="w-full h-full object-cover" />
           </motion.div>

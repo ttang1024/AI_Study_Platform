@@ -203,6 +203,7 @@ WEB_URL="$(az storage account show --name "$WEB_STORAGE_ACCOUNT" --resource-grou
 ADMIN_URL="$(az storage account show --name "$ADMIN_STORAGE_ACCOUNT" --resource-group "$RESOURCE_GROUP" --query primaryEndpoints.web -o tsv)"
 WEB_ORIGIN="${WEB_URL%/}"
 ADMIN_ORIGIN="${ADMIN_URL%/}"
+WEB_PUBLIC_ORIGIN="${WEB_PUBLIC_ORIGIN:-$WEB_ORIGIN}"
 
 echo "==> Deploying API container app"
 API_ENV_VARS=(
@@ -273,6 +274,7 @@ echo "==> Building web frontend"
   cd web
   npm ci
   VITE_API_URL="$API_URL" \
+  VITE_SHARE_BASE_URL="$WEB_PUBLIC_ORIGIN" \
   VITE_GOOGLE_CLIENT_ID="$GOOGLE_CLIENT_ID" \
   VITE_GITHUB_CLIENT_ID="$GITHUB_CLIENT_ID" \
   npm run build

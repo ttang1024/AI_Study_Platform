@@ -2,11 +2,15 @@ import type { Metadata, Viewport } from 'next';
 import '../index.css';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
-import { getWechatShareMetadata, siteUrl } from './shareMetadata';
-
-const title = 'toto.ai - AI Study Platform';
-const description = 'Turn documents, YouTube videos, podcasts, audio lectures, and web articles into AI summaries, mind maps, flashcards, and quizzes.';
-const shareImage = '/share.png';
+import {
+  defaultShareDescription,
+  defaultShareImage,
+  defaultShareImageHeight,
+  defaultShareImageWidth,
+  defaultShareTitle,
+  getWechatShareMetadata,
+  siteUrl,
+} from './shareMetadata';
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -16,10 +20,10 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: title,
+    default: defaultShareTitle,
     template: '%s | toto.ai',
   },
-  description,
+  description: defaultShareDescription,
   applicationName: 'toto.ai',
   icons: {
     icon: '/app.png',
@@ -28,18 +32,25 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     siteName: 'toto.ai',
-    title,
-    description,
+    title: defaultShareTitle,
+    description: defaultShareDescription,
     url: '/',
-    images: [{ url: shareImage, width: 512, height: 512, alt: 'toto.ai' }],
+    images: [
+      {
+        url: defaultShareImage,
+        width: defaultShareImageWidth,
+        height: defaultShareImageHeight,
+        alt: 'toto.ai AI study platform',
+      },
+    ],
   },
   twitter: {
     card: 'summary_large_image',
-    title,
-    description,
-    images: [shareImage],
+    title: defaultShareTitle,
+    description: defaultShareDescription,
+    images: [defaultShareImage],
   },
-  other: getWechatShareMetadata(title, description, shareImage),
+  other: getWechatShareMetadata(defaultShareTitle, defaultShareDescription, defaultShareImage),
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
