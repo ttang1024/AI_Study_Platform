@@ -192,28 +192,18 @@ export const CoursePicker: React.FC<CoursePickerProps> = ({
               key={course.id}
               onClick={() => { onSelect(course.id); setPendingDeleteId(null); }}
               className={cn(
-                'group relative w-full flex items-center gap-3 rounded-xl border-2 px-3 py-2.5 min-h-[52px] transition-all duration-300 overflow-hidden text-left',
-                isActive
-                  ? 'shadow-lg'
-                  : cn('border-zinc-100 bg-white text-zinc-400', accent.hoverBorder, 'hover:bg-zinc-50'),
+                'group relative w-full flex items-center gap-3 rounded-xl px-3 py-2.5 min-h-[52px] transition-all duration-300 overflow-hidden text-left',
+                isActive ? 'shadow-lg' : 'bg-white hover:bg-zinc-50',
               )}
-              style={isActive ? { borderColor: course.color, backgroundColor: course.color } : {}}
+              style={{
+                color: isActive ? '#fff' : course.color,
+                ...(isActive && { backgroundColor: course.color }),
+              }}
             >
-              {/* Color icon */}
-              <div
-                className={cn(
-                  'shrink-0 h-7 w-7 rounded-lg flex items-center justify-center text-white font-black text-base shadow-sm transition-all duration-300 group-hover:scale-105',
-                  isActive ? 'bg-white/20' : '',
-                )}
-                style={!isActive ? { backgroundColor: course.color } : {}}
-              >
-                {course.name.charAt(0)}
-              </div>
-
               {/* Name */}
               <span className={cn(
                 'text-sm font-black tracking-tight truncate flex-1',
-                isActive ? 'text-white' : 'text-zinc-900',
+                isActive ? 'text-white' : course.color,
               )}>
                 {course.name}
               </span>

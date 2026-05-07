@@ -474,66 +474,149 @@ Return a JSON array of suggested links only, no markdown, no code blocks:
         return delta.TryGetProperty("content", out var content) ? content.GetString() : null;
     }
 
-    // ── Gemini file-based core (inline base64 — Gemini only) ─────────────
+    // ── Provider-aware file request builder ──────────────────────────────
 
-    private async Task<string> CallAiWithFileAsync(byte[] fileData, string mimeType, string prompt, CancellationToken cancellationToken, bool cleanJson = true)
+    private HttpRequestMessage BuildFileRequest(
+        byte[] fileData,
+        string mimeType,
+        string prompt,
+        double temperature,
+        int maxTokens,
+        bool stream,
+        string url)
     {
         var base64Data = Convert.ToBase64String(fileData);
-        var requestBody = new
+        object body;
+
+        if (Provider == "gemini")
         {
-            contents = new[]
+            body = new
             {
-                new
+                contents = new[]
                 {
-                    parts = new object[]
+                    new
                     {
-                        new { inlineData = new { mimeType, data = base64Data } },
-                        new { text = prompt }
+                        parts = new object[]
+                        {
+                            new { inlineData = new { mimeType, data = base64Data } },
+                            new { text = prompt }
+                        }
                     }
-                }
-            },
-            generationConfig = new { temperature = 0.7, maxOutputTokens = 8192 }
-        };
-        return await SendFileRequestAsync(requestBody, cleanJson, cancellationToken);
-    }
-
-    private async Task<string> SendFileRequestAsync(object requestBody, bool cleanJson, CancellationToken cancellationToken)
-    {
-        var json = JsonSerializer.Serialize(requestBody);
-        var content = new StringContent(json, Encoding.UTF8, "application/json");
-        var url = $"{AiBaseUrl}?key={ApiKey}";
-
-        var response = await _httpClient.PostAsync(url, content, cancellationToken);
-        if (!response.IsSuccessStatusCode)
+                },
+                generationConfig = new { temperature, maxOutputTokens = maxTokens }
+            };
+        }
+        else if (Provider == "claude")
         {
-            var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
-            _logger.LogError("Gemini API error: {StatusCode} - {Content}", response.StatusCode, errorContent);
-            throw new InvalidOperationException($"Gemini API returned {response.StatusCode}: {errorContent}");
+            object fileContent = mimeType == "application/pdf"
+                ? (object)new { type = "document", source = new { type = "base64", media_type = mimeType, data = base64Data } }
+                : new { type = "image", source = new { type = "base64", media_type = mimeType, data = base64Data } };
+
+            body = new
+            {
+                model = Model,
+                max_tokens = maxTokens,
+                messages = new[]
+                {
+                    new
+                    {
+                        role = "user",
+                        content = new object[] { fileContent, new { type = "text", text = prompt } }
+                    }
+                },
+                temperature,
+                stream
+            };
+        }
+        else
+        {
+            // OpenAI-compatible: send image as base64 data URL in content array
+            var dataUrl = $"data:{mimeType};base64,{base64Data}";
+            body = new
+            {
+                model = Model,
+                messages = new[]
+                {
+                    new
+                    {
+                        role = "user",
+                        content = new object[]
+                        {
+                            new { type = "image_url", image_url = new { url = dataUrl } },
+                            new { type = "text", text = prompt }
+                        }
+                    }
+                },
+                max_tokens = maxTokens,
+                temperature,
+                stream
+            };
         }
 
-        var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
-        var aiResponse = JsonSerializer.Deserialize<AiResponse>(responseJson,
-            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        var request = new HttpRequestMessage(HttpMethod.Post, url)
+        {
+            Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json")
+        };
 
-        var text = aiResponse?.Candidates?.FirstOrDefault()?.Content?.Parts?.FirstOrDefault()?.Text
-            ?? throw new InvalidOperationException("No response from Gemini API.");
+        if (Provider == "claude")
+        {
+            request.Headers.Add("x-api-key", ApiKey);
+            request.Headers.Add("anthropic-version", "2023-06-01");
+        }
+        else if (Provider != "gemini")
+        {
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", ApiKey);
+        }
 
-        return cleanJson ? CleanJsonResponse(text) : text.Trim();
+        return request;
     }
 
-    private async IAsyncEnumerable<string> StreamFileRequestAsync(object requestBody, [EnumeratorCancellation] CancellationToken cancellationToken)
+    // ── Provider-aware file core: non-streaming ───────────────────────────
+
+    private Task<string> CallAiWithFileAsync(byte[] fileData, string mimeType, string prompt, CancellationToken cancellationToken, bool cleanJson = true)
+        => SendFileTextAsync(fileData, mimeType, prompt, 0.7, 8192, cleanJson, cancellationToken);
+
+    private async Task<string> SendFileTextAsync(
+        byte[] fileData,
+        string mimeType,
+        string prompt,
+        double temperature,
+        int maxTokens,
+        bool cleanJson,
+        CancellationToken cancellationToken)
     {
-        var json = JsonSerializer.Serialize(requestBody);
-        var httpContent = new StringContent(json, Encoding.UTF8, "application/json");
-        var url = $"{AiStreamUrl}?alt=sse&key={ApiKey}";
+        using var request = BuildFileRequest(fileData, mimeType, prompt, temperature, maxTokens, stream: false, GetNonStreamUrl());
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, url) { Content = httpContent };
-        using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
         if (!response.IsSuccessStatusCode)
         {
             var err = await response.Content.ReadAsStringAsync(cancellationToken);
-            throw new InvalidOperationException($"Gemini streaming API returned {response.StatusCode}: {err}");
+            _logger.LogError("{Provider} API error: {Status} - {Content}", Provider, response.StatusCode, err);
+            throw new InvalidOperationException($"{Provider} API returned {response.StatusCode}: {err}");
+        }
+
+        var json = await response.Content.ReadAsStringAsync(cancellationToken);
+        var text = ExtractTextFromResponse(json);
+        return cleanJson ? CleanJsonResponse(text) : text.Trim();
+    }
+
+    // ── Provider-aware file core: streaming ──────────────────────────────
+
+    private async IAsyncEnumerable<string> StreamFileTextAsync(
+        byte[] fileData,
+        string mimeType,
+        string prompt,
+        double temperature,
+        int maxTokens,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        using var request = BuildFileRequest(fileData, mimeType, prompt, temperature, maxTokens, stream: true, GetStreamUrl());
+
+        using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            var err = await response.Content.ReadAsStringAsync(cancellationToken);
+            throw new InvalidOperationException($"{Provider} streaming API returned {response.StatusCode}: {err}");
         }
 
         using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
@@ -546,16 +629,12 @@ Return a JSON array of suggested links only, no markdown, no code blocks:
             if (line == null) break;
             if (!line.StartsWith("data: ")) continue;
 
-            var data = line[6..];
-            if (data.TrimEnd() == "[DONE]") break;
+            var data = line[6..].TrimEnd();
+            if (data == "[DONE]") break;
+            if (string.IsNullOrEmpty(data)) continue;
 
             string? text = null;
-            try
-            {
-                var aiResponse = JsonSerializer.Deserialize<AiResponse>(data,
-                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                text = aiResponse?.Candidates?.FirstOrDefault()?.Content?.Parts?.FirstOrDefault()?.Text;
-            }
+            try { text = ExtractChunkText(data); }
             catch { }
 
             if (!string.IsNullOrEmpty(text))
@@ -567,13 +646,7 @@ Return a JSON array of suggested links only, no markdown, no code blocks:
 
     public async IAsyncEnumerable<string> StreamSummaryAsync(byte[] fileData, string mimeType, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var base64Data = Convert.ToBase64String(fileData);
-        var requestBody = new
-        {
-            contents = new[] { new { parts = new object[] { new { inlineData = new { mimeType, data = base64Data } }, new { text = Prompts.StreamSummary } } } },
-            generationConfig = new { temperature = 0.7, maxOutputTokens = 8192 }
-        };
-        await foreach (var chunk in StreamFileRequestAsync(requestBody, cancellationToken))
+        await foreach (var chunk in StreamFileTextAsync(fileData, mimeType, Prompts.StreamSummary, 0.7, 8192, cancellationToken))
             yield return chunk;
     }
 
@@ -595,13 +668,7 @@ Return a JSON array of suggested links only, no markdown, no code blocks:
 
     public async IAsyncEnumerable<string> StreamMindMapAsync(byte[] fileData, string mimeType, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var base64Data = Convert.ToBase64String(fileData);
-        var requestBody = new
-        {
-            contents = new[] { new { parts = new object[] { new { inlineData = new { mimeType, data = base64Data } }, new { text = Prompts.MindMap } } } },
-            generationConfig = new { temperature = 0.35, maxOutputTokens = 4096 }
-        };
-        await foreach (var chunk in StreamFileRequestAsync(requestBody, cancellationToken))
+        await foreach (var chunk in StreamFileTextAsync(fileData, mimeType, Prompts.MindMap, 0.35, 4096, cancellationToken))
             yield return chunk;
     }
 
@@ -878,10 +945,4 @@ Answer:";
         return SendTextAsync(null, [("user", prompt)], 0.5, 2048, cleanJson: false, cancellationToken);
     }
 
-    // ── Gemini response types ─────────────────────────────────────────────
-
-    private record AiResponse(AiCandidate[]? Candidates);
-    private record AiCandidate(AiContent? Content);
-    private record AiContent(AiPart[]? Parts);
-    private record AiPart(string? Text);
 }
