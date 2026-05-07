@@ -6,6 +6,12 @@ set -euo pipefail
 # - Web/Admin: Azure Storage static websites, no frontend containers.
 # - Database: smallest PostgreSQL Flexible Server used by this app.
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+if [[ -f "$SCRIPT_DIR/.azure_env_variables" ]]; then
+  # shellcheck source=.azure_env_variables
+  source "$SCRIPT_DIR/.azure_env_variables"
+fi
+
 RESOURCE_GROUP="${RESOURCE_GROUP:-study-platform-rg}"
 LOCATION="${LOCATION:-eastus}"
 DB_LOCATION="${DB_LOCATION:-westus3}"

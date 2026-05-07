@@ -50,8 +50,11 @@ public static class InfrastructureServiceExtensions
             client.Timeout = TimeSpan.FromSeconds(120);
         });
 
+        // YouTubeCredentialPool: singleton so failure state is shared across all requests.
+        services.AddSingleton<YouTubeCredentialPool>();
+
         // YouTube Transcript — HttpClient is used only to fetch subtitle CDN URLs after
-        // yt-dlp resolves them. Proxy is handled by yt-dlp's --proxy flag, not here.
+        // yt-dlp resolves them. Proxy/cookie rotation is handled by YouTubeCredentialPool.
         services.AddHttpClient<IYouTubeTranscriptService, YouTubeTranscriptService>(client =>
         {
             client.Timeout = GetConfiguredTimeout(configuration, "YouTube:HttpTimeoutSeconds", 60);

@@ -91,6 +91,9 @@ AzuriteConfig
 .azure_env_variables
 report
 cookies.txt
+cookies1.txt
+cookies2.txt
+cookies3.txt
 tech
 skills.md
 demos/StudyPlatform1.png
@@ -103,3 +106,4 @@ demos/StudyPlatform7.png
 
 .next
 out
+Webshare_residential_proxies.txt

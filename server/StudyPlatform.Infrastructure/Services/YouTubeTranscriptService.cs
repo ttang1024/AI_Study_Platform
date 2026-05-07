@@ -13,22 +13,23 @@ namespace StudyPlatform.Infrastructure.Services;
 public class YouTubeTranscriptService : IYouTubeTranscriptService
 {
     private readonly HttpClient _httpClient;
-    private readonly string? _proxyUrl;
-    private readonly string? _cookiesBase64;
+    private readonly YouTubeCredentialPool _pool;
     private readonly ITranscriptionService _transcriptionService;
     private readonly IMemoryCache _cache;
     private readonly ILogger<YouTubeTranscriptService> _logger;
 
+    // How many proxy+cookie combinations to try before giving up.
+    private const int MaxYtDlpAttempts = 5;
+
     public YouTubeTranscriptService(
         HttpClient httpClient,
-        IConfiguration configuration,
+        YouTubeCredentialPool pool,
         ITranscriptionService transcriptionService,
         IMemoryCache cache,
         ILogger<YouTubeTranscriptService> logger)
     {
         _httpClient = httpClient;
-        _proxyUrl = configuration["YouTube:ProxyUrl"];
-        _cookiesBase64 = configuration["YouTube:CookiesBase64"];
+        _pool = pool;
         _transcriptionService = transcriptionService;
         _cache = cache;
         _logger = logger;
@@ -265,94 +266,145 @@ public class YouTubeTranscriptService : IYouTubeTranscriptService
         }
     }
 
-    // ── yt-dlp subprocess ─────────────────────────────────────────────────────
+    // ── yt-dlp subprocess with proxy+cookie rotation ──────────────────────────
 
     private async Task<string> RunYtDlpAsync(IEnumerable<string> args, CancellationToken ct)
     {
-        // Write cookies to a temp file for this invocation so the path is never
-        // shared across concurrent requests and is always cleaned up.
-        string? cookieFile = null;
-        if (!string.IsNullOrWhiteSpace(_cookiesBase64))
+        var argList = args.ToList();
+        Exception? lastException = null;
+
+        var credentials = _pool.GetNext();
+
+        for (int attempt = 0; attempt < MaxYtDlpAttempts; attempt++)
         {
-            var cookieBytes = TryDecodeCookies(_cookiesBase64);
+            var (proxy, cookieIndex, cookieBytes) = credentials;
+
+            string? cookieFile = null;
             if (cookieBytes is { Length: > 0 })
             {
                 cookieFile = Path.GetTempFileName();
                 await File.WriteAllBytesAsync(cookieFile, cookieBytes, ct);
             }
-        }
 
-        try
-        {
-            using var process = new Process();
-            process.StartInfo = new ProcessStartInfo
+            try
             {
-                FileName = "yt-dlp",
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-            };
+                var (exitCode, stdout, stderr) = await RunProcessAsync(argList, proxy, cookieFile, ct);
 
-            foreach (var arg in args)
-                process.StartInfo.ArgumentList.Add(arg);
+                if (exitCode == 0)
+                {
+                    if (attempt > 0)
+                        _logger.LogInformation("yt-dlp succeeded on attempt {Attempt} (proxy={Proxy}, cookie={Cookie})",
+                            attempt + 1, proxy ?? "none", cookieIndex);
+                    return stdout;
+                }
 
-            if (!string.IsNullOrWhiteSpace(_proxyUrl))
-            {
-                process.StartInfo.ArgumentList.Add("--proxy");
-                process.StartInfo.ArgumentList.Add(_proxyUrl);
+                var failure = ClassifyFailure(stderr);
+                _logger.LogWarning(
+                    "yt-dlp attempt {Attempt}/{Max} failed ({Type}): {Error}",
+                    attempt + 1, MaxYtDlpAttempts, failure, stderr.Trim().Split('\n')[^1]);
+
+                lastException = new InvalidOperationException($"yt-dlp exited {exitCode}: {stderr.Trim()}");
+
+                switch (failure)
+                {
+                    case YtDlpFailureType.ProxyError:
+                        _pool.ReportProxyFailure(proxy);
+                        credentials = _pool.GetNextExcludingProxy(proxy);
+                        break;
+
+                    case YtDlpFailureType.BotDetection:
+                        _pool.ReportCookieFailure(cookieIndex);
+                        credentials = _pool.GetNextExcludingCookie(proxy, cookieIndex);
+                        break;
+
+                    case YtDlpFailureType.NotRetryable:
+                        // Video unavailable, private, no subtitles, etc. — stop immediately.
+                        throw lastException;
+                }
             }
-
-            if (cookieFile != null)
+            finally
             {
-                process.StartInfo.ArgumentList.Add("--cookies");
-                process.StartInfo.ArgumentList.Add(cookieFile);
+                if (cookieFile != null && File.Exists(cookieFile))
+                    File.Delete(cookieFile);
             }
-
-            process.Start();
-
-            var stdoutTask = process.StandardOutput.ReadToEndAsync(ct);
-            var stderrTask = process.StandardError.ReadToEndAsync(ct);
-            await process.WaitForExitAsync(ct);
-
-            var stdout = await stdoutTask;
-            var stderr = await stderrTask;
-
-            if (process.ExitCode != 0)
-                throw new InvalidOperationException($"yt-dlp exited {process.ExitCode}: {stderr.Trim()}");
-
-            return stdout;
         }
-        finally
+
+        throw lastException ?? new InvalidOperationException("yt-dlp failed after all retry attempts");
+    }
+
+    private static async Task<(int ExitCode, string Stdout, string Stderr)> RunProcessAsync(
+        IReadOnlyList<string> baseArgs, string? proxy, string? cookieFile, CancellationToken ct)
+    {
+        using var process = new Process();
+        process.StartInfo = new ProcessStartInfo
         {
-            if (cookieFile != null && File.Exists(cookieFile))
-                File.Delete(cookieFile);
+            FileName = "yt-dlp",
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        };
+
+        foreach (var arg in baseArgs)
+            process.StartInfo.ArgumentList.Add(arg);
+
+        if (!string.IsNullOrWhiteSpace(proxy))
+        {
+            process.StartInfo.ArgumentList.Add("--proxy");
+            process.StartInfo.ArgumentList.Add(proxy);
         }
+
+        if (cookieFile != null)
+        {
+            process.StartInfo.ArgumentList.Add("--cookies");
+            process.StartInfo.ArgumentList.Add(cookieFile);
+        }
+
+        process.Start();
+
+        var stdoutTask = process.StandardOutput.ReadToEndAsync(ct);
+        var stderrTask = process.StandardError.ReadToEndAsync(ct);
+        await process.WaitForExitAsync(ct);
+
+        return (process.ExitCode, await stdoutTask, await stderrTask);
+    }
+
+    // ── Failure classification ────────────────────────────────────────────────
+
+    private enum YtDlpFailureType { ProxyError, BotDetection, NotRetryable, Unknown }
+
+    private static YtDlpFailureType ClassifyFailure(string stderr)
+    {
+        var s = stderr.ToLowerInvariant();
+
+        if (s.Contains("unable to connect to proxy")
+            || s.Contains("proxy connection failed")
+            || s.Contains("tunnel connection failed")
+            || s.Contains("connection refused")
+            || s.Contains("proxyconnect tcp")
+            || s.Contains("proxy error"))
+            return YtDlpFailureType.ProxyError;
+
+        if (s.Contains("sign in to confirm")
+            || s.Contains("are you a robot")
+            || s.Contains("confirm you're not a robot")
+            || s.Contains("please sign in")
+            || s.Contains("http error 429")
+            || s.Contains("too many requests")
+            || s.Contains("http error 403"))
+            return YtDlpFailureType.BotDetection;
+
+        if (s.Contains("video unavailable")
+            || s.Contains("private video")
+            || s.Contains("this video is not available")
+            || s.Contains("video has been removed")
+            || s.Contains("no subtitles"))
+            return YtDlpFailureType.NotRetryable;
+
+        return YtDlpFailureType.Unknown;
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
-
-    private byte[]? TryDecodeCookies(string cookiesBase64)
-    {
-        var cleanedBase64 = Regex.Replace(cookiesBase64, @"\s+", "");
-        if (cleanedBase64.StartsWith("secretref:", StringComparison.OrdinalIgnoreCase))
-        {
-            _logger.LogError(
-                "YouTube:CookiesBase64 is configured as a literal Container Apps secret reference. " +
-                "Resolve the secret reference in deployment or set the value to base64-encoded cookies.txt content.");
-            return null;
-        }
-
-        try
-        {
-            return Convert.FromBase64String(cleanedBase64);
-        }
-        catch (FormatException ex)
-        {
-            _logger.LogError(ex, "YouTube:CookiesBase64 is not valid base64; continuing without YouTube cookies.");
-            return null;
-        }
-    }
 
     private static bool IsConnectivityFailure(Exception ex, CancellationToken ct)
     {
@@ -385,7 +437,7 @@ public class YouTubeTranscriptService : IYouTubeTranscriptService
 
     private static IReadOnlyList<TranscriptSegment> ParseWhisperTranscript(string transcriptJson)
     {
-        var chunks = JsonSerializer.Deserialize<List<WhisperTranscriptChunk>>(transcriptJson, new JsonSerializerOptions
+        var chunks = System.Text.Json.JsonSerializer.Deserialize<List<WhisperTranscriptChunk>>(transcriptJson, new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true
         });
