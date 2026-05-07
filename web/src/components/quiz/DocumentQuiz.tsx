@@ -31,6 +31,8 @@ interface DocumentQuizProps {
   onExternalAnswer?: (questionId: string, option: string) => void;
   /** External submit handler */
   onExternalSubmit?: () => void;
+  generateDisabled?: boolean;
+  generateDisabledReason?: string;
 }
 
 export const DocumentQuiz: React.FC<DocumentQuizProps> = ({
@@ -43,6 +45,8 @@ export const DocumentQuiz: React.FC<DocumentQuizProps> = ({
   onExternalGenerate,
   onExternalAnswer,
   onExternalSubmit,
+  generateDisabled = false,
+  generateDisabledReason,
 }) => {
   const { currentDocument } = useStudy();
   const { user } = useAuth();
@@ -84,6 +88,7 @@ export const DocumentQuiz: React.FC<DocumentQuizProps> = ({
   }, [currentDocument?.id, isExternal]);
 
   const generateQuiz = async () => {
+    if (generateDisabled) return;
     if (isExternal) {
       onExternalGenerate!();
       return;
@@ -177,7 +182,7 @@ export const DocumentQuiz: React.FC<DocumentQuizProps> = ({
 
   if (activeError && activeQuestions.length === 0) {
     return (
-      <GenerationFailedState message={activeError} onRetry={generateQuiz} />
+      <GenerationFailedState message={activeError} onRetry={generateQuiz} retryDisabled={generateDisabled} disabledReason={generateDisabledReason} />
     );
   }
 
@@ -189,6 +194,8 @@ export const DocumentQuiz: React.FC<DocumentQuizProps> = ({
         description="Ready to test what you've learned?"
         actionLabel="Generate Quiz"
         onAction={generateQuiz}
+        actionDisabled={generateDisabled}
+        disabledReason={generateDisabledReason}
       />
     );
   }
@@ -207,7 +214,7 @@ export const DocumentQuiz: React.FC<DocumentQuizProps> = ({
             </p>
           </div>
           <div className="flex gap-2 justify-center pt-2">
-            <Button onClick={generateQuiz} variant="secondary" size="sm">
+            <Button onClick={generateQuiz} variant="secondary" size="sm" disabled={generateDisabled} title={generateDisabled ? generateDisabledReason : undefined}>
               <RotateCcw size={14} className="mr-2" />
               Retake Quiz
             </Button>

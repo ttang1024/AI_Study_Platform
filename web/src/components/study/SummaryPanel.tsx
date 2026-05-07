@@ -22,6 +22,9 @@ interface SummaryPanelProps {
 	/** Forwarded to the summary content div for text-selection handling */
 	onMouseUp?: React.MouseEventHandler<HTMLDivElement>;
 	summaryRef?: React.RefObject<HTMLDivElement>;
+	onTimelineSeek?: (seconds: number) => void;
+	generateDisabled?: boolean;
+	generateDisabledReason?: string;
 }
 
 const markdownComponents = {
@@ -44,6 +47,85 @@ const stripMarkdown = (md: string): string =>
 		.replace(/^[-*]\s+/gm, '')
 		.replace(/^\d+\.\s+/gm, '');
 
+const timelineRangePattern = /^\s*(?:[-*]\s*)?(\d{1,2}:\d{2}(?::\d{2})?)\s*[–-]\s*(\d{1,2}:\d{2}(?::\d{2})?)\s*(.*)$/;
+
+const getTextFromChildren = (children: React.ReactNode): string => {
+	if (typeof children === 'string' || typeof children === 'number') return String(children);
+	if (Array.isArray(children)) return children.map(getTextFromChildren).join('');
+	if (React.isValidElement<{ children?: React.ReactNode }>(children)) return getTextFromChildren(children.props.children);
+	return '';
+};
+
+const parseTimestamp = (value: string): number => {
+	const parts = value.split(':').map(Number);
+	if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+	return parts[0] * 60 + parts[1];
+};
+
+const formatTimestamp = (seconds: number): string => {
+	const safe = Math.max(0, Math.floor(seconds));
+	const h = Math.floor(safe / 3600);
+	const m = Math.floor((safe % 3600) / 60);
+	const s = safe % 60;
+	return h > 0
+		? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+		: `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+};
+
+const cleanTimelineBody = (body: string): string => body.replace(/^\s*[:\-–]\s*/, '').trim();
+
+const TimelineParagraph: React.FC<{
+	startLabel: string;
+	endLabel: string;
+	body: string;
+	onSeek: (seconds: number) => void;
+}> = ({ startLabel, endLabel, body, onSeek }) => {
+	const startSeconds = parseTimestamp(startLabel);
+	const endSeconds = Math.max(startSeconds, parseTimestamp(endLabel));
+	const [value, setValue] = React.useState(startSeconds);
+
+	React.useEffect(() => {
+		setValue(startSeconds);
+	}, [startSeconds, endSeconds]);
+
+	const progress = endSeconds > startSeconds
+		? ((value - startSeconds) / (endSeconds - startSeconds)) * 100
+		: 0;
+
+	const handleSeek = (nextValue: number) => {
+		setValue(nextValue);
+		onSeek(nextValue);
+	};
+
+	return (
+		<div className="summary-timeline-item">
+			<div className="summary-timeline-head">
+				<button
+					type="button"
+					onClick={() => handleSeek(startSeconds)}
+					className="summary-timeline-range"
+					title="Jump to this timeline segment"
+				>
+					{startLabel} – {endLabel}
+				</button>
+				<span className="summary-timeline-current">{formatTimestamp(value)}</span>
+			</div>
+			<input
+				type="range"
+				min={startSeconds}
+				max={endSeconds}
+				step={1}
+				value={value}
+				onChange={(event) => handleSeek(Number(event.target.value))}
+				className="summary-timeline-slider"
+				style={{ ['--timeline-progress' as string]: `${progress}%` }}
+				aria-label={`Seek within ${startLabel} to ${endLabel}`}
+			/>
+			<p className="summary-p mt-2">{cleanTimelineBody(body)}</p>
+		</div>
+	);
+};
+
 export const SummaryPanel: React.FC<SummaryPanelProps> = ({
 	summary,
 	isLoading,
@@ -55,12 +137,36 @@ export const SummaryPanel: React.FC<SummaryPanelProps> = ({
 	streamingText,
 	onMouseUp,
 	summaryRef,
+	onTimelineSeek,
+	generateDisabled = false,
+	generateDisabledReason,
 }) => {
 	const ttsItems = React.useMemo(
 		() => summary ? [{ text: stripMarkdown(summary), title: 'Summary' }] : [],
 		[summary],
 	);
 	const { playerState, ttsError, play, pause, resume, stop, clearError, switchToBrowser } = useTts(ttsItems);
+	const renderTimelineText = React.useCallback((children: React.ReactNode, fallback: (children: React.ReactNode) => React.ReactNode) => {
+		const text = getTextFromChildren(children);
+		const match = onTimelineSeek ? text.match(timelineRangePattern) : null;
+		if (match) {
+			return (
+				<TimelineParagraph
+					startLabel={match[1]}
+					endLabel={match[2]}
+					body={match[3]}
+					onSeek={onTimelineSeek}
+				/>
+			);
+		}
+		return fallback(children);
+	}, [onTimelineSeek]);
+
+	const markdownComponentsWithTimeline = React.useMemo(() => ({
+		...markdownComponents,
+		p: ({ children }: any) => renderTimelineText(children, (node) => <p className="summary-p">{node}</p>),
+		li: ({ children }: any) => renderTimelineText(children, (node) => <li className="summary-li">{node}</li>),
+	}), [renderTimelineText]);
 
 	if (isLoading && streamingText) {
 		return (
@@ -81,7 +187,7 @@ export const SummaryPanel: React.FC<SummaryPanelProps> = ({
 	}
 
 	if (error) {
-		return <GenerationFailedState message={error} onRetry={onRetry} />;
+		return <GenerationFailedState message={error} onRetry={onRetry} retryDisabled={generateDisabled} disabledReason={generateDisabledReason} />;
 	}
 
 	if (summary) {
@@ -108,7 +214,7 @@ export const SummaryPanel: React.FC<SummaryPanelProps> = ({
 					className="summary-content select-text"
 					onMouseUp={onMouseUp}
 				>
-					<ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]} components={markdownComponents}>{summary}</ReactMarkdown>
+					<ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]} components={markdownComponentsWithTimeline}>{summary}</ReactMarkdown>
 				</div>
 				{ttsError?.code === 'no_key' && (
 					<TtsKeyPrompt
@@ -141,6 +247,8 @@ export const SummaryPanel: React.FC<SummaryPanelProps> = ({
 			description={emptyText}
 			actionLabel="Generate Summary"
 			onAction={onGenerate}
+			actionDisabled={generateDisabled}
+			disabledReason={generateDisabledReason}
 		/>
 	);
 };

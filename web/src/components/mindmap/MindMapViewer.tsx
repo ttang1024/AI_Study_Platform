@@ -188,6 +188,8 @@ interface MindMapViewerProps {
   streamingText?: string | null;
   title?: string;
   externalError?: string | null;
+  generateDisabled?: boolean;
+  generateDisabledReason?: string;
 }
 
 export const MindMapViewer: React.FC<MindMapViewerProps> = ({
@@ -197,6 +199,8 @@ export const MindMapViewer: React.FC<MindMapViewerProps> = ({
   streamingText: propStreamingText,
   title: propTitle,
   externalError,
+  generateDisabled = false,
+  generateDisabledReason,
 }) => {
   const { currentDocument, setCurrentDocument, updateDocumentInList } = useStudy();
   const isExternal = propOnGenerate !== undefined;
@@ -231,6 +235,7 @@ export const MindMapViewer: React.FC<MindMapViewerProps> = ({
   const downloadName = propTitle ?? currentDocument?.name ?? 'mindmap';
 
   const handleGenerate = async () => {
+    if (generateDisabled) return;
     if (isExternal) {
       await propOnGenerate!();
       return;
@@ -377,7 +382,7 @@ export const MindMapViewer: React.FC<MindMapViewerProps> = ({
 
   if (activeError && !activeMindMarkText) {
     return (
-      <GenerationFailedState message={activeError} onRetry={handleGenerate} />
+      <GenerationFailedState message={activeError} onRetry={handleGenerate} retryDisabled={generateDisabled} disabledReason={generateDisabledReason} />
     );
   }
 
@@ -389,6 +394,8 @@ export const MindMapViewer: React.FC<MindMapViewerProps> = ({
         description="Generate a visual mind map."
         actionLabel="Generate Mind Map"
         onAction={handleGenerate}
+        actionDisabled={generateDisabled}
+        disabledReason={generateDisabledReason}
       />
     );
   }

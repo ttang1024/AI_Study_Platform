@@ -23,6 +23,8 @@ interface FlashcardsProps {
   isExternalGenerating?: boolean;
   /** External error message */
   externalError?: string | null;
+  generateDisabled?: boolean;
+  generateDisabledReason?: string;
 }
 
 export const Flashcards: React.FC<FlashcardsProps> = ({
@@ -31,6 +33,8 @@ export const Flashcards: React.FC<FlashcardsProps> = ({
   onExternalGenerate,
   isExternalGenerating,
   externalError,
+  generateDisabled = false,
+  generateDisabledReason,
 }) => {
   const { flashcards, setFlashcards, currentDocument, documents } = useStudy();
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -73,6 +77,7 @@ export const Flashcards: React.FC<FlashcardsProps> = ({
   }, [effectiveDoc?.id, isExternal]);
 
   const handleGenerate = async () => {
+    if (generateDisabled) return;
     if (isExternal && onExternalGenerate) {
       await onExternalGenerate();
       setCurrentIndex(0);
@@ -111,7 +116,7 @@ export const Flashcards: React.FC<FlashcardsProps> = ({
 
   if (activeError && docFlashcards.length === 0) {
     return (
-      <GenerationFailedState message={activeError} onRetry={handleGenerate} />
+      <GenerationFailedState message={activeError} onRetry={handleGenerate} retryDisabled={generateDisabled} disabledReason={generateDisabledReason} />
     );
   }
 
@@ -123,6 +128,8 @@ export const Flashcards: React.FC<FlashcardsProps> = ({
         description="Generate AI-powered flashcards."
         actionLabel="Generate Flashcards"
         onAction={handleGenerate}
+        actionDisabled={generateDisabled}
+        disabledReason={generateDisabledReason}
       />
     );
   }

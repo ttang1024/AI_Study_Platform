@@ -145,6 +145,35 @@
 	@apply font-semibold text-text-main;
 }
 
+.summary-timeline-item {
+	@apply rounded-lg border border-[var(--border-color)] bg-white px-3 py-3 shadow-sm;
+}
+
+.summary-timeline-head {
+	@apply flex items-center justify-between gap-3;
+}
+
+.summary-timeline-range {
+	@apply shrink-0 rounded-md bg-[var(--primary)]/10 px-2 py-1 font-mono text-[11px] font-bold tabular-nums text-[var(--primary)] hover:bg-[var(--primary)] hover:text-white transition-colors;
+}
+
+.summary-timeline-current {
+	@apply font-mono text-[11px] font-semibold tabular-nums text-text-muted;
+}
+
+.summary-timeline-slider {
+	@apply mt-3 h-1.5 w-full cursor-pointer appearance-none rounded-full bg-zinc-200;
+	background: linear-gradient(to right, var(--primary) 0%, var(--primary) var(--timeline-progress), #e4e4e7 var(--timeline-progress), #e4e4e7 100%);
+}
+
+.summary-timeline-slider::-webkit-slider-thumb {
+	@apply h-4 w-4 appearance-none rounded-full border-2 border-white bg-[var(--primary)] shadow-md;
+}
+
+.summary-timeline-slider::-moz-range-thumb {
+	@apply h-4 w-4 rounded-full border-2 border-white bg-[var(--primary)] shadow-md;
+}
+
 /* Keep display equations usable inside narrow chat bubbles. */
 .katex-display {
 	overflow-x: auto;

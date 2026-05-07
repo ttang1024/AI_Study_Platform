@@ -11,6 +11,8 @@ interface EmptyGenerationStateProps {
   actionLabel: string;
   onAction: () => void;
   variant?: EmptyGenerationVariant;
+  actionDisabled?: boolean;
+  disabledReason?: string;
 }
 
 const emptyVariantStyles: Record<EmptyGenerationVariant, {
@@ -49,6 +51,8 @@ export const EmptyGenerationState: React.FC<EmptyGenerationStateProps> = ({
   actionLabel,
   onAction,
   variant = 'default',
+  actionDisabled = false,
+  disabledReason,
 }) => {
   const styles = emptyVariantStyles[variant];
 
@@ -63,8 +67,10 @@ export const EmptyGenerationState: React.FC<EmptyGenerationStateProps> = ({
       </div>
       <button
         onClick={onAction}
+        disabled={actionDisabled}
+        title={actionDisabled ? disabledReason : undefined}
         className={cn(
-          'flex items-center gap-2 rounded-xl bg-[var(--primary)] font-bold text-white shadow-lg hover:opacity-90 transition-opacity',
+          'flex items-center gap-2 rounded-xl bg-[var(--primary)] font-bold text-white shadow-lg hover:opacity-90 transition-opacity disabled:cursor-not-allowed disabled:opacity-50',
           styles.button,
         )}
       >
@@ -78,11 +84,15 @@ export const EmptyGenerationState: React.FC<EmptyGenerationStateProps> = ({
 interface GenerationFailedStateProps {
   message: string;
   onRetry?: () => void;
+  retryDisabled?: boolean;
+  disabledReason?: string;
 }
 
 export const GenerationFailedState: React.FC<GenerationFailedStateProps> = ({
   message,
   onRetry,
+  retryDisabled = false,
+  disabledReason,
 }) => (
   <div className="flex flex-col items-center justify-center py-12 text-center gap-5 px-6">
     <div className="rounded-2xl bg-red-500/10 p-4 text-red-500">
@@ -95,7 +105,9 @@ export const GenerationFailedState: React.FC<GenerationFailedStateProps> = ({
     {onRetry && (
       <button
         onClick={onRetry}
-        className="flex items-center gap-2 rounded-xl bg-[var(--primary)] px-5 py-2.5 text-xs font-bold text-white shadow-lg hover:opacity-90 transition-opacity"
+        disabled={retryDisabled}
+        title={retryDisabled ? disabledReason : undefined}
+        className="flex items-center gap-2 rounded-xl bg-[var(--primary)] px-5 py-2.5 text-xs font-bold text-white shadow-lg hover:opacity-90 transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
       >
         <RotateCcw size={13} />
         Retry

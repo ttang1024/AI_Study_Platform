@@ -657,9 +657,16 @@ Return a JSON array of suggested links only, no markdown, no code blocks:
             yield return chunk;
     }
 
+    public async IAsyncEnumerable<string> StreamTimelineSummaryAsync(string timedTranscript, string mediaType, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        var prompt = $"{Prompts.TimelineStreamSummary(mediaType)}\n\nTimed transcript:\n{TruncateContent(timedTranscript)}";
+        await foreach (var chunk in StreamTextAsync(null, [("user", prompt)], 0.7, 8192, cancellationToken))
+            yield return chunk;
+    }
+
     public async IAsyncEnumerable<string> StreamSummaryFromYouTubeAsync(string transcriptText, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var prompt = $"{Prompts.YouTubeStreamSummary}\n\nVideo transcript:\n{TruncateContent(transcriptText)}";
+        var prompt = $"{Prompts.TimelineStreamSummary("video")}\n\nTimed transcript:\n{TruncateContent(transcriptText)}";
         await foreach (var chunk in StreamTextAsync(null, [("user", prompt)], 0.7, 8192, cancellationToken))
             yield return chunk;
     }
@@ -842,10 +849,20 @@ Focus on technical terms, concepts, and domain-specific vocabulary.
 Return a JSON array only, no markdown, no code blocks: [{""term"": ""..."", ""definition"": ""...""}]";
 
         public const string StreamSummary =
-            "Analyze this document and write a summary in Markdown. Start with a concise overview (1-3 short paragraph) covering the main thesis and conclusions. Follow with a '## Key Concepts' section explaining the most important ideas in detail. Then add a '## Key Takeaways' bullet list of 8-12 specific, informative points using '- '.";
+            "Analyze the source material and write a summary in Markdown. Start with exactly one concise, professional, academic overview paragraph covering the main thesis and conclusions. Discuss the content directly; do not use meta phrases such as 'this document', 'the document', 'the text', 'the source material', or 'the content'. Follow with a '## Key Concepts' section explaining the most important ideas in detail. Then add a '## Key Takeaways' bullet list of 3-6 specific, informative points using '- '.";
 
         public const string YouTubeStreamSummary =
-            "Analyze this video transcript and write a summary in Markdown. Start with a concise overview (1-3 short paragraph) covering the main topic and conclusions. Follow with a '## Key Concepts' section explaining the most important ideas in detail. Then add a '## Key Takeaways' bullet list of 8-12 specific, informative points using '- '.";
+            "Analyze the source material and write a summary in Markdown. Start with exactly one concise, professional, academic overview paragraph covering the main topic and conclusions. Discuss the content directly; do not use meta phrases such as 'this video', 'the video', 'the transcript', 'the speaker', 'the source material', or 'the content'. Follow with a '## Key Concepts' section explaining the most important ideas in detail. Then add a '## Key Takeaways' bullet list of 3-6 specific, informative points using '- '.";
+
+        public static string TimelineStreamSummary(string mediaType) =>
+            $@"Analyze the source material and write a timeline-based study summary in Markdown.
+Start with exactly one concise, professional, academic overview paragraph covering the main topic and conclusions.
+Discuss the content directly; do not use meta phrases such as 'this {mediaType}', 'the {mediaType}', 'the transcript', 'the speaker', 'the source material', or 'the content'.
+Then add a '## Timeline Summary' section with 3-6 chronological paragraphs. Each paragraph MUST start with a timestamp range from the transcript, formatted like '00:00 – 02:15' or '1:00:00 – 1:02:15', followed by a clear summary of what happens or is explained across that segment.
+Group nearby transcript fragments into meaningful segments instead of listing every line.
+After the timeline, add a '## Key Concepts' section explaining the most important ideas in detail.
+Finish with a '## Key Takeaways' bullet list of 3-6 specific, informative points using '- '.
+Use only timestamp ranges that appear in or can be directly inferred from the transcript. If the transcript has no timestamps, still summarize chronologically but omit timestamp prefixes.";
 
         public const string YouTubeMindMap =
             @"Generate a detailed study mind map for this YouTube video transcript in XMindMark format.

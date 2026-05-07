@@ -180,9 +180,11 @@ const ProblemCard: React.FC<ProblemCardProps> = ({ problem }) => {
 interface WorkedProblemsPanelProps {
   documentId?: string;
   videoId?: string;
+  generateDisabled?: boolean;
+  generateDisabledReason?: string;
 }
 
-export const WorkedProblemsPanel: React.FC<WorkedProblemsPanelProps> = ({ documentId, videoId }) => {
+export const WorkedProblemsPanel: React.FC<WorkedProblemsPanelProps> = ({ documentId, videoId, generateDisabled = false, generateDisabledReason }) => {
   const [problems, setProblems] = useState<WorkedProblem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -202,6 +204,7 @@ export const WorkedProblemsPanel: React.FC<WorkedProblemsPanelProps> = ({ docume
   }, [documentId, videoId]);
 
   const handleGenerate = useCallback(async () => {
+    if (generateDisabled) return;
     setIsGenerating(true);
     setError(null);
     try {
@@ -214,7 +217,7 @@ export const WorkedProblemsPanel: React.FC<WorkedProblemsPanelProps> = ({ docume
     } finally {
       setIsGenerating(false);
     }
-  }, [documentId, videoId, difficulty, count]);
+  }, [documentId, videoId, difficulty, count, generateDisabled]);
 
   if (isLoading) {
     return (
@@ -248,7 +251,8 @@ export const WorkedProblemsPanel: React.FC<WorkedProblemsPanelProps> = ({ docume
         </select>
         <button
           onClick={handleGenerate}
-          disabled={isGenerating}
+          disabled={isGenerating || generateDisabled}
+          title={generateDisabled ? generateDisabledReason : undefined}
           className="flex items-center gap-1.5 rounded-lg bg-primary px-4 py-1.5 text-xs font-bold text-white hover:opacity-90 disabled:opacity-50 transition-all"
         >
           {isGenerating ? <Loader2 size={12} className="animate-spin" /> : error ? <RotateCcw size={12} /> : <Sparkles size={12} />}

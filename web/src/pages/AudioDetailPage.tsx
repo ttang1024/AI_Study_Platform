@@ -285,6 +285,17 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
     doTranscribe(courseId, id);
   };
 
+  const seekAudioTo = useCallback((seconds: number) => {
+    if (!audioRef.current) return;
+    audioRef.current.currentTime = seconds;
+    audioRef.current.play();
+  }, []);
+
+  const generationDisabled = !transcript && !transcriptError;
+  const generationDisabledReason = isPodcast
+    ? 'Waiting for podcast transcription to finish.'
+    : 'Waiting for audio transcription to finish.';
+
   // ─── Transcript helpers ─────────────────────────────────────────────────────
 
   const fmtSrtTime = (sec: number) => {
@@ -339,7 +350,7 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
   // ─── Summary ───────────────────────────────────────────────────────────────
 
   const generateSummary = useCallback(async () => {
-    if (!id || !courseId || isLoadingSummary) return;
+    if (!id || !courseId || isLoadingSummary || generationDisabled) return;
     setSummaryError(null);
     setIsLoadingSummary(true);
     setSummaryStreamText('');
@@ -358,12 +369,12 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
     } finally {
       setIsLoadingSummary(false);
     }
-  }, [id, courseId, isLoadingSummary]);
+  }, [id, courseId, isLoadingSummary, generationDisabled]);
 
   // ─── Mind Map ──────────────────────────────────────────────────────────────
 
   const generateMindMap = useCallback(async () => {
-    if (!id || !courseId || isLoadingMindMap) return;
+    if (!id || !courseId || isLoadingMindMap || generationDisabled) return;
     setMindMapError(null);
     setIsLoadingMindMap(true);
     setMindMapStreamingText('');
@@ -381,12 +392,12 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
     } finally {
       setIsLoadingMindMap(false);
     }
-  }, [id, courseId, isLoadingMindMap]);
+  }, [id, courseId, isLoadingMindMap, generationDisabled]);
 
   // ─── Flashcards ────────────────────────────────────────────────────────────
 
   const generateFlashcards = useCallback(async () => {
-    if (!id || !courseId || isLoadingFlashcards) return;
+    if (!id || !courseId || isLoadingFlashcards || generationDisabled) return;
     setFlashcardsError(null);
     setIsLoadingFlashcards(true);
     try {
@@ -397,12 +408,12 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
     } finally {
       setIsLoadingFlashcards(false);
     }
-  }, [id, courseId, isLoadingFlashcards]);
+  }, [id, courseId, isLoadingFlashcards, generationDisabled]);
 
   // ─── Quiz ──────────────────────────────────────────────────────────────────
 
   const generateQuiz = useCallback(async () => {
-    if (!id || !courseId || isLoadingQuiz) return;
+    if (!id || !courseId || isLoadingQuiz || generationDisabled) return;
     setQuizError(null);
     setIsLoadingQuiz(true);
     setQuizQuestions([]);
@@ -417,7 +428,7 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
     } finally {
       setIsLoadingQuiz(false);
     }
-  }, [id, courseId, isLoadingQuiz]);
+  }, [id, courseId, isLoadingQuiz, generationDisabled]);
 
   const submitQuiz = useCallback(async () => {
     let score = 0;
@@ -487,6 +498,9 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
               error={summaryError}
               onRetry={generateSummary}
               streamingText={summaryStreamText}
+              onTimelineSeek={seekAudioTo}
+              generateDisabled={generationDisabled}
+              generateDisabledReason={generationDisabledReason}
             />
           </div>
 
@@ -498,6 +512,8 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
               streamingText={mindMapStreamingText}
               externalError={mindMapError}
               title={fileName ?? 'mindmap'}
+              generateDisabled={generationDisabled}
+              generateDisabledReason={generationDisabledReason}
             />
           </div>
 
@@ -522,6 +538,8 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
               onExternalGenerate={generateFlashcards}
               isExternalGenerating={isLoadingFlashcards}
               externalError={flashcardsError}
+              generateDisabled={generationDisabled}
+              generateDisabledReason={generationDisabledReason}
             />
           </div>
 
@@ -534,6 +552,8 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
               isExternalLoading={isLoadingQuiz}
               externalError={quizError}
               onExternalGenerate={generateQuiz}
+              generateDisabled={generationDisabled}
+              generateDisabledReason={generationDisabledReason}
               onExternalAnswer={(qId, option) => {
                 if (!isQuizSubmitted) setUserAnswers(prev => ({ ...prev, [qId]: option }));
               }}
@@ -543,7 +563,7 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
 
           <div className={cn('h-full overflow-y-auto', activeTab !== 'problems' && 'hidden')}>
             {id && activeTab === 'problems' && (
-              <WorkedProblemsPanel documentId={id} />
+              <WorkedProblemsPanel documentId={id} generateDisabled={generationDisabled} generateDisabledReason={generationDisabledReason} />
             )}
           </div>
         </div>

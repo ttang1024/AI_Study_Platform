@@ -562,7 +562,13 @@ public class DocumentsController : ControllerBase
         try
         {
             var (bytes, text) = await GetDocumentContentAsync(document, cancellationToken);
-            stream = bytes != null
+            var timelineText = document.ContentType.StartsWith("audio/", StringComparison.OrdinalIgnoreCase)
+                ? FormatAudioTranscriptForTimeline(text)
+                : null;
+
+            stream = timelineText != null
+                ? _aiService.StreamTimelineSummaryAsync(timelineText, "audio", cancellationToken)
+                : bytes != null
                 ? _aiService.StreamSummaryAsync(bytes, document.ContentType, cancellationToken)
                 : _aiService.StreamSummaryAsync(text!, cancellationToken);
         }
@@ -628,6 +634,59 @@ public class DocumentsController : ControllerBase
         await Response.WriteAsync("data: [DONE]\n\n", cancellationToken);
         await Response.Body.FlushAsync(cancellationToken);
         return new EmptyResult();
+    }
+
+    private static string? FormatAudioTranscriptForTimeline(string? transcript)
+    {
+        if (string.IsNullOrWhiteSpace(transcript))
+            return null;
+
+        try
+        {
+            using var doc = JsonDocument.Parse(transcript);
+            if (doc.RootElement.ValueKind != JsonValueKind.Array)
+                return null;
+
+            var lines = new List<string>();
+            foreach (var chunk in doc.RootElement.EnumerateArray())
+            {
+                if (!chunk.TryGetProperty("text", out var textElement))
+                    continue;
+
+                var text = textElement.GetString();
+                if (string.IsNullOrWhiteSpace(text))
+                    continue;
+
+                var start = GetDoubleProperty(chunk, "start");
+                if (start is null)
+                    continue;
+
+                var end = GetDoubleProperty(chunk, "end");
+                var timestamp = end is null
+                    ? FormatTimestamp(start.Value)
+                    : $"{FormatTimestamp(start.Value)} – {FormatTimestamp(end.Value)}";
+                lines.Add($"{timestamp} {text.Trim()}");
+            }
+
+            return lines.Count > 0 ? string.Join('\n', lines) : null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static double? GetDoubleProperty(JsonElement element, string name)
+        => element.TryGetProperty(name, out var property) && property.TryGetDouble(out var value)
+            ? value
+            : null;
+
+    private static string FormatTimestamp(double seconds)
+    {
+        var time = TimeSpan.FromSeconds(Math.Max(0, seconds));
+        return time.TotalHours >= 1
+            ? $"{(int)time.TotalHours}:{time.Minutes:D2}:{time.Seconds:D2}"
+            : $"{time.Minutes:D2}:{time.Seconds:D2}";
     }
 
     /// <summary>

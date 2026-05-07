@@ -109,6 +109,7 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 	const [subtitles, setSubtitles] = useState<TranscriptSegment[] | null>(null);
 	const [subtitlesError, setSubtitlesError] = useState<string | null>(null);
 	const [isLoadingSubtitles, setIsLoadingSubtitles] = useState(false);
+	const [resolvedSubtitlesVideoId, setResolvedSubtitlesVideoId] = useState<string | null>(null);
 
 	const iframeRef = useRef<HTMLIFrameElement>(null);
 
@@ -216,7 +217,11 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 	// Fetch transcript when video loads
 	useEffect(() => {
 		if (!videoId || !videoUrl) return;
+		setResolvedSubtitlesVideoId(null);
+		setSubtitles(null);
+		setSubtitlesError(null);
 		doFetchTranscript(videoId);
+		doFetchSubtitles(videoId);
 	}, [videoId]);
 
 	const seekTo = (seconds: number) => {
@@ -244,6 +249,7 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 	const doFetchSubtitles = async (vid: string) => {
 		setIsLoadingSubtitles(true);
 		setSubtitlesError(null);
+		setResolvedSubtitlesVideoId(null);
 		try {
 			const segments = await youtubeService.getSubtitles(vid);
 			setSubtitles(segments.length > 0 ? segments : null);
@@ -252,6 +258,7 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 			setSubtitlesError(msg);
 			setSubtitles(null);
 		} finally {
+			setResolvedSubtitlesVideoId(vid);
 			setIsLoadingSubtitles(false);
 		}
 	};
@@ -320,7 +327,11 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 		setOpenMenu(null);
 	};
 
+	const generationDisabled = !videoId || resolvedSubtitlesVideoId !== videoId;
+	const generationDisabledReason = 'Waiting for subtitles to finish loading.';
+
 	const doGenerateSummary = async (url: string) => {
+		if (generationDisabled) return;
 		setSummaryError(null);
 		setIsLoadingSummary(true);
 		setSummaryStreamText('');
@@ -345,11 +356,11 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 	};
 
 	const generateSummary = () => {
-		if (videoUrl && !isLoadingSummary) doGenerateSummary(videoUrl);
+		if (videoUrl && !isLoadingSummary && !generationDisabled) doGenerateSummary(videoUrl);
 	};
 
 	const generateMindMap = useCallback(async () => {
-		if (!videoUrl || isLoadingMindMap) return;
+		if (!videoUrl || isLoadingMindMap || generationDisabled) return;
 		setMindMapError(null);
 		setIsLoadingMindMap(true);
 		setMindMapStreamingText('');
@@ -374,10 +385,10 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 		} finally {
 			setIsLoadingMindMap(false);
 		}
-	}, [videoUrl, isLoadingMindMap, id]);
+	}, [videoUrl, isLoadingMindMap, id, generationDisabled]);
 
 	const generateFlashcards = useCallback(async () => {
-		if (!videoUrl || isLoadingFlashcards || !id) return;
+		if (!videoUrl || isLoadingFlashcards || !id || generationDisabled) return;
 		setFlashcardsError(null);
 		setIsLoadingFlashcards(true);
 		try {
@@ -388,10 +399,10 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 		} finally {
 			setIsLoadingFlashcards(false);
 		}
-	}, [videoUrl, isLoadingFlashcards, id]);
+	}, [videoUrl, isLoadingFlashcards, id, generationDisabled]);
 
 	const generateQuiz = useCallback(async () => {
-		if (!videoUrl || isLoadingQuiz || !id) return;
+		if (!videoUrl || isLoadingQuiz || !id || generationDisabled) return;
 		setQuizError(null);
 		setIsLoadingQuiz(true);
 		setQuizQuestions([]);
@@ -412,7 +423,7 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 		} finally {
 			setIsLoadingQuiz(false);
 		}
-	}, [videoUrl, isLoadingQuiz, id]);
+	}, [videoUrl, isLoadingQuiz, id, generationDisabled]);
 
 	const handleNoteSave = useCallback(async (html: string) => {
 		setNoteContent(html);
@@ -511,6 +522,9 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 							streamingText={summaryStreamText}
 							summaryRef={summaryRef}
 							onMouseUp={handleSummaryMouseUp}
+							onTimelineSeek={seekTo}
+							generateDisabled={generationDisabled}
+							generateDisabledReason={generationDisabledReason}
 						/>
 					</div>
 
@@ -523,6 +537,8 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 							streamingText={mindMapStreamingText}
 							externalError={mindMapError}
 							title={videoId ?? 'mindmap'}
+							generateDisabled={generationDisabled}
+							generateDisabledReason={generationDisabledReason}
 						/>
 					</div>
 
@@ -549,6 +565,8 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 							onExternalGenerate={generateFlashcards}
 							isExternalGenerating={isLoadingFlashcards}
 							externalError={flashcardsError}
+							generateDisabled={generationDisabled}
+							generateDisabledReason={generationDisabledReason}
 						/>
 					</div>
 
@@ -562,6 +580,8 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 							isExternalLoading={isLoadingQuiz}
 							externalError={quizError}
 							onExternalGenerate={generateQuiz}
+							generateDisabled={generationDisabled}
+							generateDisabledReason={generationDisabledReason}
 							onExternalAnswer={(qId, option) => {
 								if (!isQuizSubmitted) setUserAnswers(prev => ({ ...prev, [qId]: option }));
 							}}
@@ -572,7 +592,7 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 					{/* Problems */}
 					<div className={cn('h-full overflow-y-auto', activeTab !== 'problems' && 'hidden')}>
 						{id && activeTab === 'problems' && (
-							<WorkedProblemsPanel videoId={id} />
+							<WorkedProblemsPanel videoId={id} generateDisabled={generationDisabled} generateDisabledReason={generationDisabledReason} />
 						)}
 					</div>
 				</div>

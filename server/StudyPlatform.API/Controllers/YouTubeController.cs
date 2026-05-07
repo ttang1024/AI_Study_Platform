@@ -213,6 +213,55 @@ public class YouTubeController : ControllerBase
         return transcript;
     }
 
+    private async Task<string?> GetTranscriptTimelineTextAsync(string videoId, CancellationToken cancellationToken)
+    {
+        var cacheKey = TranscriptSegmentsCacheKey(videoId);
+        var ttl = TimeSpan.FromSeconds(_cacheOptions.TranscriptSeconds);
+
+        var cached = await _cache.GetAsync<List<TranscriptSegmentDto>>(cacheKey, cancellationToken);
+        if (cached is { Count: > 0 })
+            return FormatTranscriptSegments(cached);
+
+        var segments = await _transcriptService.GetTranscriptAsync(videoId, cancellationToken)
+                       ?? await _transcriptService.GetSubtitlesAsync(videoId, cancellationToken);
+        if (segments is { Count: > 0 })
+        {
+            var dtos = segments.Select(s => new TranscriptSegmentDto(s.Start.TotalSeconds, s.Text)).ToList();
+            await _cache.SetAsync(cacheKey, dtos, ttl, cancellationToken);
+            return FormatTranscriptSegments(dtos);
+        }
+
+        return await GetTranscriptTextAsync(videoId, cancellationToken);
+    }
+
+    private static string FormatTranscriptSegments(IEnumerable<TranscriptSegmentDto> segments)
+    {
+        var list = segments
+            .Where(s => !string.IsNullOrWhiteSpace(s.Text))
+            .ToList();
+
+        var lines = new List<string>();
+        for (var i = 0; i < list.Count; i++)
+        {
+            var start = list[i].StartSeconds;
+            var end = i + 1 < list.Count ? list[i + 1].StartSeconds : start;
+            var timestamp = end > start
+                ? $"{FormatTimestamp(start)} – {FormatTimestamp(end)}"
+                : FormatTimestamp(start);
+            lines.Add($"{timestamp} {list[i].Text.Trim()}");
+        }
+
+        return string.Join('\n', lines);
+    }
+
+    private static string FormatTimestamp(double seconds)
+    {
+        var time = TimeSpan.FromSeconds(Math.Max(0, seconds));
+        return time.TotalHours >= 1
+            ? $"{(int)time.TotalHours}:{time.Minutes:D2}:{time.Seconds:D2}"
+            : $"{time.Minutes:D2}:{time.Seconds:D2}";
+    }
+
     // ── AI generation ─────────────────────────────────────────────────────
 
     [HttpPost("mindmap")]
@@ -721,7 +770,7 @@ public class YouTubeController : ControllerBase
         if (videoId == null)
             return BadRequest(BaseResponse<string>.Fail("Invalid YouTube URL.", "INVALID_VIDEO_URL"));
 
-        var transcript = await GetTranscriptTextAsync(videoId, cancellationToken);
+        var transcript = await GetTranscriptTimelineTextAsync(videoId, cancellationToken);
         if (transcript == null)
             return BadRequest(BaseResponse<string>.Fail("No subtitles available for this video.", "NO_TRANSCRIPT"));
 
