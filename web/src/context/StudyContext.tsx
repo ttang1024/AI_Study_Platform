@@ -138,8 +138,8 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setIsLoading(true);
       try {
         const [fetchedCourses, fetchedFlashcards, fetchedSubmissions, stats, docsResult, fetchedNotes] = await Promise.all([
-          courseService.getCourses(),
-          flashcardService.getAllFlashcards(1, 500),
+          courseService.getCourses().catch(() => [] as Course[]),
+          flashcardService.getAllFlashcards(1, 500).catch(() => ({ items: [] as Flashcard[], totalCount: 0, page: 1, pageSize: 500, totalPages: 0 })),
           quizSubmissionService.getAllSubmissions(1, 10).catch(() => ({ items: [] as QuizSubmission[], totalCount: 0, page: 1, pageSize: 10, totalPages: 0 })),
           statsService.getUserStats().catch(() => EMPTY_STATS),
           documentService.getAllDocuments(1, 500).catch(() => ({ items: [] as Document[], totalCount: 0, page: 1, pageSize: 500, totalPages: 0 })),

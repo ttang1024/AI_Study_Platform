@@ -34,12 +34,26 @@ public class AIVideoChatCommandHandler : IRequestHandler<AIVideoChatCommand, Res
         var history = await _unitOfWork.ChatMessages.GetByYouTubeVideoIdAsync(request.VideoId, request.UserId, cancellationToken);
         var historyTuples = history.Select(m => (m.Role, m.Content)).ToList();
 
-        // Fetch transcript to use as context
-        var segments = await _transcriptService.GetTranscriptAsync(video.VideoId, cancellationToken)
-                       ?? await _transcriptService.GetSubtitlesAsync(video.VideoId, cancellationToken);
-        var transcriptText = segments != null && segments.Count > 0
-            ? string.Join(" ", segments.Select(s => s.Text))
-            : string.Empty;
+        // Use stored transcript if available; otherwise fetch, store, and return.
+        string transcriptText;
+        if (!string.IsNullOrEmpty(video.Transcript))
+        {
+            transcriptText = video.Transcript;
+        }
+        else
+        {
+            var segments = await _transcriptService.GetTranscriptAsync(video.VideoId, cancellationToken)
+                           ?? await _transcriptService.GetSubtitlesAsync(video.VideoId, cancellationToken);
+            transcriptText = segments != null && segments.Count > 0
+                ? string.Join(" ", segments.Select(s => s.Text))
+                : string.Empty;
+            if (!string.IsNullOrEmpty(transcriptText))
+            {
+                video.Transcript = transcriptText;
+                video.UpdatedAt = DateTime.UtcNow;
+                _unitOfWork.YouTubeVideos.Update(video);
+            }
+        }
 
         var userMessage = new ChatMessage
         {

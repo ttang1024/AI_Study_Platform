@@ -52,7 +52,7 @@ public class GenerateWorkedProblemsCommandHandler : IRequestHandler<GenerateWork
             var video = await _unitOfWork.YouTubeVideos.GetByIdForUserAsync(request.VideoId.Value, request.UserId, cancellationToken);
             if (video == null)
                 return Result<IEnumerable<WorkedProblemDto>>.Failure("Video not found.", "VIDEO_NOT_FOUND");
-            content = video.Summary ?? video.Title;
+            content = video.Transcript ?? video.Summary ?? video.Title;
         }
 
         if (string.IsNullOrWhiteSpace(content))

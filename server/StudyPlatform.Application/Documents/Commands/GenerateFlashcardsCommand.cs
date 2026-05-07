@@ -54,9 +54,9 @@ public class GenerateFlashcardsCommandHandler : IRequestHandler<GenerateFlashcar
 
         string flashcardsJson;
 
-        if (document.ContentType == "audio/podcast")
+        if (document.ContentType.StartsWith("audio/", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(document.Transcript))
         {
-            flashcardsJson = await _aiService.GenerateFlashcardsAsync(document.Transcript ?? string.Empty, cancellationToken);
+            flashcardsJson = await _aiService.GenerateFlashcardsAsync(document.Transcript, cancellationToken);
         }
         else if (AiInlineData.IsSupported(document.ContentType))
         {

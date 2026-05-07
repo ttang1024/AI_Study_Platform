@@ -15,6 +15,7 @@ public class YouTubeVideoConfiguration : IEntityTypeConfiguration<YouTubeVideo>
         builder.Property(v => v.ThumbnailUrl).IsRequired().HasMaxLength(500);
         builder.Property(v => v.Summary).HasColumnType("text");
         builder.Property(v => v.MindMapText).HasColumnType("text");
+        builder.Property(v => v.Transcript).HasColumnType("text");
         builder.Property(v => v.CreatedAt).IsRequired();
         builder.Property(v => v.UpdatedAt).IsRequired();
 

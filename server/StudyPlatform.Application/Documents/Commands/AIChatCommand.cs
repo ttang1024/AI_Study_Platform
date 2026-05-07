@@ -37,7 +37,7 @@ public class AIChatCommandHandler : IRequestHandler<AIChatCommand, Result<ChatMe
         var history = await _unitOfWork.ChatMessages.GetByDocumentIdAsync(request.DocumentId, request.UserId, cancellationToken);
         var historyTuples = history.Select(m => (m.Role, m.Content)).ToList();
 
-        var content = document.ContentType == "audio/podcast"
+        var content = document.ContentType.StartsWith("audio/", StringComparison.OrdinalIgnoreCase)
             ? document.Transcript ?? string.Empty
             : await _textExtractor.ExtractTextAsync(document.BlobUrl, document.ContentType, cancellationToken);
 

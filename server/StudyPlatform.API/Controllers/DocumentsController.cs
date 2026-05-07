@@ -43,12 +43,25 @@ public class DocumentsController : ControllerBase
     }
 
     /// Returns (bytes, null) for inline-capable types, (null, text) for text-based types.
-    /// For audio/podcast the transcript is used as the text content.
+    /// For audio content, uses the stored transcript when available.
     private async Task<(byte[]? Bytes, string? Text)> GetDocumentContentAsync(
         Document document, CancellationToken cancellationToken)
     {
-        if (document.ContentType == "audio/podcast")
-            return (null, document.Transcript ?? string.Empty);
+        if (document.ContentType.StartsWith("audio/", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!string.IsNullOrEmpty(document.Transcript))
+                return (null, document.Transcript);
+
+            if (AiInlineData.IsSupported(document.ContentType))
+            {
+                var audioStream = await _blobStorageService.DownloadAsync(document.BlobUrl, cancellationToken);
+                using var ms = new MemoryStream();
+                await audioStream.CopyToAsync(ms, cancellationToken);
+                return (ms.ToArray(), null);
+            }
+
+            return (null, string.Empty);
+        }
 
         if (AiInlineData.IsSupported(document.ContentType))
         {

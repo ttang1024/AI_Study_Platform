@@ -4,6 +4,7 @@ import { Upload, X, CheckCircle2, Loader2, AlertCircle, Files, Plus, CircleFadin
 import { useNavigate } from 'react-router-dom';
 import { useStudy } from '../../context/StudyContext';
 import { cn } from '../../utils/cn';
+import { getApiErrorMessage } from '../../utils/apiError';
 import { usePrompt } from './PromptBox';
 
 function getDocRoute(fileName: string, docId: string): string {
@@ -106,8 +107,10 @@ export const BulkUploadSection: React.FC<BulkUploadSectionProps> = ({ selectedCo
           f.id === entry.id ? { ...f, status: 'done', progress: 100, docId } : f,
         ));
       } catch (err) {
+        const message = getApiErrorMessage(err, 'Upload failed.');
+        showPrompt(message);
         setFiles(prev => prev.map(f =>
-          f.id === entry.id ? { ...f, status: 'error', progress: 0, error: 'Upload failed' } : f,
+          f.id === entry.id ? { ...f, status: 'error', progress: 0, error: message } : f,
         ));
       }
     }

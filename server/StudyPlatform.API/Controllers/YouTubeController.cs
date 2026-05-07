@@ -135,8 +135,31 @@ public class YouTubeController : ControllerBase
         return null;
     }
 
-    private async Task<string?> GetTranscriptTextAsync(string videoId, CancellationToken cancellationToken)
+    // Returns stored transcript from DB if available; otherwise fetches from YouTube, stores, and returns.
+    private async Task<string?> GetOrFetchTranscriptAsync(YouTubeVideo video, CancellationToken cancellationToken)
     {
+        if (!string.IsNullOrEmpty(video.Transcript))
+            return video.Transcript;
+
+        var segments = await _transcriptService.GetTranscriptAsync(video.VideoId, cancellationToken)
+                       ?? await _transcriptService.GetSubtitlesAsync(video.VideoId, cancellationToken);
+        if (segments == null || segments.Count == 0) return null;
+
+        var transcript = string.Join(" ", segments.Select(s => s.Text));
+        video.Transcript = transcript;
+        video.UpdatedAt = DateTime.UtcNow;
+        _unitOfWork.YouTubeVideos.Update(video);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return transcript;
+    }
+
+    // For anonymous endpoints: looks up the saved video by videoId+userId to reuse stored transcript if available.
+    private async Task<string?> GetTranscriptTextAsync(string videoId, Guid userId, CancellationToken cancellationToken)
+    {
+        var savedVideo = await _unitOfWork.YouTubeVideos.GetByVideoIdForUserAsync(videoId, userId, cancellationToken);
+        if (savedVideo != null)
+            return await GetOrFetchTranscriptAsync(savedVideo, cancellationToken);
+
         var segments = await _transcriptService.GetTranscriptAsync(videoId, cancellationToken)
                        ?? await _transcriptService.GetSubtitlesAsync(videoId, cancellationToken);
         if (segments == null || segments.Count == 0) return null;
@@ -153,7 +176,7 @@ public class YouTubeController : ControllerBase
 
         var videoId = ExtractVideoId(request.VideoUrl);
         if (videoId == null) return BadRequest(BaseResponse<string>.Fail("Invalid YouTube URL.", "INVALID_VIDEO_URL"));
-        var transcript = await GetTranscriptTextAsync(videoId, cancellationToken);
+        var transcript = await GetTranscriptTextAsync(videoId, User.GetUserId(), cancellationToken);
         if (transcript == null) return BadRequest(BaseResponse<string>.Fail("No subtitles available for this video.", "NO_TRANSCRIPT"));
 
         var result = await _aiService.GenerateMindMapFromYouTubeAsync(transcript, cancellationToken);
@@ -174,7 +197,7 @@ public class YouTubeController : ControllerBase
         if (videoId == null)
             return BadRequest(BaseResponse<string>.Fail("Invalid YouTube URL.", "INVALID_VIDEO_URL"));
 
-        var transcript = await GetTranscriptTextAsync(videoId, cancellationToken);
+        var transcript = await GetTranscriptTextAsync(videoId, User.GetUserId(), cancellationToken);
         if (transcript == null)
             return BadRequest(BaseResponse<string>.Fail("No subtitles available for this video.", "NO_TRANSCRIPT"));
 
@@ -241,7 +264,7 @@ public class YouTubeController : ControllerBase
 
         var videoId = ExtractVideoId(request.VideoUrl);
         if (videoId == null) return BadRequest(BaseResponse<string>.Fail("Invalid YouTube URL.", "INVALID_VIDEO_URL"));
-        var transcript = await GetTranscriptTextAsync(videoId, cancellationToken);
+        var transcript = await GetTranscriptTextAsync(videoId, User.GetUserId(), cancellationToken);
         if (transcript == null) return BadRequest(BaseResponse<string>.Fail("No subtitles available for this video.", "NO_TRANSCRIPT"));
 
         var result = await _aiService.GenerateQuizFromYouTubeAsync(transcript, cancellationToken);
@@ -256,7 +279,7 @@ public class YouTubeController : ControllerBase
 
         var videoId = ExtractVideoId(request.VideoUrl);
         if (videoId == null) return BadRequest(BaseResponse<string>.Fail("Invalid YouTube URL.", "INVALID_VIDEO_URL"));
-        var transcript = await GetTranscriptTextAsync(videoId, cancellationToken);
+        var transcript = await GetTranscriptTextAsync(videoId, User.GetUserId(), cancellationToken);
         if (transcript == null) return BadRequest(BaseResponse<string>.Fail("No subtitles available for this video.", "NO_TRANSCRIPT"));
 
         var result = await _aiService.GenerateFlashcardsFromYouTubeAsync(transcript, cancellationToken);
@@ -273,7 +296,7 @@ public class YouTubeController : ControllerBase
 
         var videoId = ExtractVideoId(request.VideoUrl);
         if (videoId == null) return BadRequest(BaseResponse<string>.Fail("Invalid YouTube URL.", "INVALID_VIDEO_URL"));
-        var transcript = await GetTranscriptTextAsync(videoId, cancellationToken);
+        var transcript = await GetTranscriptTextAsync(videoId, User.GetUserId(), cancellationToken);
         if (transcript == null) return BadRequest(BaseResponse<string>.Fail("No subtitles available for this video.", "NO_TRANSCRIPT"));
 
         var history = (request.History ?? []).Select(h => (h.Role, h.Content));
@@ -424,7 +447,7 @@ public class YouTubeController : ControllerBase
                 existing.Select(f => new FlashcardDto(f.FlashcardId, f.DocumentId, f.YouTubeVideoId, f.SourceType, f.UserId, f.Front, f.Back, f.CreatedAt, f.UpdatedAt))));
 
         // No cached data — fetch transcript and generate
-        var transcript = await GetTranscriptTextAsync(video.VideoId, cancellationToken);
+        var transcript = await GetOrFetchTranscriptAsync(video, cancellationToken);
         if (transcript == null)
             return BadRequest(BaseResponse<IEnumerable<FlashcardDto>>.Fail("No subtitles available for this video.", "NO_TRANSCRIPT"));
 
@@ -486,7 +509,7 @@ public class YouTubeController : ControllerBase
             // Delete existing terms to allow regeneration
             await _unitOfWork.GlossaryTerms.DeleteByVideoIdAsync(id, cancellationToken);
 
-            var transcript = await GetTranscriptTextAsync(video.VideoId, cancellationToken);
+            var transcript = await GetOrFetchTranscriptAsync(video, cancellationToken);
             if (transcript == null)
                 return BadRequest(BaseResponse<IEnumerable<GlossaryTermDto>>.Fail("No subtitles available for this video.", "NO_TRANSCRIPT"));
 
@@ -565,7 +588,7 @@ public class YouTubeController : ControllerBase
                 q.CorrectAnswer, q.Explanation, q.CreatedAt))));
 
         // No cached data — fetch transcript and generate
-        var transcript = await GetTranscriptTextAsync(video.VideoId, cancellationToken);
+        var transcript = await GetOrFetchTranscriptAsync(video, cancellationToken);
         if (transcript == null)
             return BadRequest(BaseResponse<IEnumerable<QuizDto>>.Fail("No subtitles available for this video.", "NO_TRANSCRIPT"));
 
@@ -651,7 +674,7 @@ public class YouTubeController : ControllerBase
         if (videoId == null)
             return BadRequest(BaseResponse<string>.Fail("Invalid YouTube URL.", "INVALID_VIDEO_URL"));
 
-        var transcript = await GetTranscriptTextAsync(videoId, cancellationToken);
+        var transcript = await GetTranscriptTextAsync(videoId, User.GetUserId(), cancellationToken);
         if (transcript == null)
             return BadRequest(BaseResponse<string>.Fail("No subtitles available for this video.", "NO_TRANSCRIPT"));
 
@@ -717,7 +740,7 @@ public class YouTubeController : ControllerBase
 
         var history = await _unitOfWork.ChatMessages.GetByYouTubeVideoIdAsync(id, userId, cancellationToken);
         var historyTuples = history.Select(m => (m.Role, m.Content)).ToList();
-        var videoTranscript = await GetTranscriptTextAsync(video.VideoId, cancellationToken) ?? string.Empty;
+        var videoTranscript = await GetOrFetchTranscriptAsync(video, cancellationToken) ?? string.Empty;
 
         var stream = _aiService.StreamChatWithYouTubeAsync(videoTranscript, historyTuples, request.Message, cancellationToken);
         await using var enumerator = stream.GetAsyncEnumerator(cancellationToken);

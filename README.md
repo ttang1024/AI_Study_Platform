@@ -155,10 +155,10 @@ VITE_API_URL=http://localhost:5000
 
 The hosted (Azure) deployment enforces a **10-document upload limit per account** to control storage costs.
 
-| Environment        | Limit       | How it's set                                                          |
-| ------------------ | ----------- | --------------------------------------------------------------------- |
-| Production (Azure) | 10 documents | `AppLimits__DocumentUploadLimit=10` via env var                      |
-| Local development  | Unlimited   | `AppLimits.DocumentUploadLimit: -1` in `appsettings.Development.json` |
+| Environment        | Limit        | How it's set                                                          |
+| ------------------ | ------------ | --------------------------------------------------------------------- |
+| Production (Azure) | 10 documents | `AppLimits__DocumentUploadLimit=10` via env var                       |
+| Local development  | Unlimited    | `AppLimits.DocumentUploadLimit: -1` in `appsettings.Development.json` |
 
 To change the limit in a self-hosted deployment, set `DOCUMENT_UPLOAD_LIMIT` in your `.env` file (or `AppLimits__DocumentUploadLimit` directly in your hosting environment). Use `-1` to disable the limit entirely.
 
@@ -207,12 +207,16 @@ bash deploy.sh
 
 ### 🎬 Production YouTube Subtitle Fetching
 
+#### Proxy Configuration
+
 YouTube may block subtitle requests from Azure IPs. Route yt-dlp traffic through a non-Azure SOCKS or HTTP proxy by setting `YOUTUBE_PROXY_URL` before deploying the backend:
 
 ```bash
 export YOUTUBE_PROXY_URL="socks5://USERNAME:PASSWORD@proxy.webshare.io:PORT"
 ./deploy-backend.sh
 ```
+
+#### Cookie Authentication
 
 For videos that require authenticated cookies, base64-encode a Netscape-format `cookies.txt` file and deploy it as `YOUTUBE_COOKIES_B64`:
 

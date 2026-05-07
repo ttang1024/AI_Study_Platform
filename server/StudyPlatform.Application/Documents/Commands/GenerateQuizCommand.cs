@@ -55,9 +55,9 @@ public class GenerateQuizCommandHandler : IRequestHandler<GenerateQuizCommand, R
 
         string quizJson;
 
-        if (document.ContentType == "audio/podcast")
+        if (document.ContentType.StartsWith("audio/", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(document.Transcript))
         {
-            quizJson = await _aiService.GenerateQuizAsync(document.Transcript ?? string.Empty, cancellationToken);
+            quizJson = await _aiService.GenerateQuizAsync(document.Transcript, cancellationToken);
         }
         else if (AiInlineData.IsSupported(document.ContentType))
         {

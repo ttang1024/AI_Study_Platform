@@ -117,8 +117,9 @@ export const YouTubeTab: React.FC<YouTubeTabProps> = ({ selectedCourseId, onCour
       refreshStats();
       const returnTo = `/summarizer?tab=youtube&courseId=${encodeURIComponent(selectedCourseIdRef.current)}`;
       navigate(`/youtube/${saved.id}`, { state: { returnTo } });
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      const msg = err?.response?.data?.message ?? 'Failed to add video. Please try again.';
+      showPrompt(msg);
     } finally {
       setIsAnalyzing(false);
     }
