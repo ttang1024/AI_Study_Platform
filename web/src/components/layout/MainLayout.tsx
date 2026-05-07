@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Menu, BrainCircuit, Search, Keyboard } from 'lucide-react';
+import { Menu, Search, Keyboard } from 'lucide-react';
 import { Sidebar } from './Sidebar';
 import { cn } from '../../utils/cn';
 import { OfflineBanner } from '../common/OfflineBanner';
@@ -77,9 +77,7 @@ export const MainLayout: React.FC = () => {
             <Menu size={20} />
           </button>
           <div className="flex items-center gap-2 flex-1">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-white">
-              <BrainCircuit size={15} />
-            </div>
+            <img src="/app.png" alt="logo" className="h-7 w-7 rounded-lg object-cover" />
             <span className="logo-text bg-primary bg-clip-text text-transparent font-bold text-sm">
               Easy Study
             </span>

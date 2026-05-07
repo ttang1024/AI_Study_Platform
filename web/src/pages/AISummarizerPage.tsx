@@ -43,7 +43,7 @@ export const AISummarizerPage: React.FC = () => {
       <div className="w-full mx-auto flex gap-8 h-full">
 
         {/* Left — Course Picker sidebar */}
-        <div className="w-56 shrink-0 flex flex-col h-full overflow-hidden">
+        <div className="w-[214px] shrink-0 flex flex-col h-full overflow-hidden">
           <CoursePicker
             selectedCourseId={selectedCourseId}
             onSelect={(id) => { setSelectedCourseId(id); setCourseError(false); }}

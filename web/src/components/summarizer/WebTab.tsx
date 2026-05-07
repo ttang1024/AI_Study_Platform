@@ -14,7 +14,7 @@ export interface WebTabProps {
 
 export const WebTab: React.FC<WebTabProps> = ({ selectedCourseId, onCourseError }) => {
   const navigate = useNavigate();
-  const { documents, courses, refreshDocuments } = useStudy();
+  const { documents, courses, refreshDocuments, refreshStats } = useStudy();
   const [webUrl, setWebUrl] = useState('');
   const [clippingUrl, setClippingUrl] = useState(false);
   const [clipError, setClipError] = useState('');
@@ -38,6 +38,7 @@ export const WebTab: React.FC<WebTabProps> = ({ selectedCourseId, onCourseError 
     try {
       const res = await apiClient.post('/api/documents/clip-url', { url: webUrl, courseId: selectedCourseId });
       setWebUrl('');
+      await Promise.all([refreshDocuments(), refreshStats()]);
       navigate(`/articles/${res.data.data.documentId}`, { state: { courseId: res.data.data.courseId } });
     } catch (e: any) {
       setClipError(e?.response?.data?.message ?? 'Failed to clip article. Please try again.');
