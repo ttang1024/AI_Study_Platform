@@ -16,6 +16,15 @@ GITHUB_CLIENT_SECRET="${GITHUB_CLIENT_SECRET:?Set GITHUB_CLIENT_SECRET env var}"
 SMTP_USER="${SMTP_USER:?Set SMTP_USER env var}"
 SMTP_PASSWORD="${SMTP_PASSWORD:?Set SMTP_PASSWORD env var}"
 
+strip_cr() {
+  printf '%s' "$1" | tr -d '\r'
+}
+
+GOOGLE_CLIENT_ID="$(strip_cr "$GOOGLE_CLIENT_ID")"
+GOOGLE_CLIENT_SECRET="$(strip_cr "$GOOGLE_CLIENT_SECRET")"
+GITHUB_CLIENT_ID="$(strip_cr "$GITHUB_CLIENT_ID")"
+GITHUB_CLIENT_SECRET="$(strip_cr "$GITHUB_CLIENT_SECRET")"
+
 if ! az account show >/dev/null 2>&1; then
   echo "==> Logging in to Azure"
   az login

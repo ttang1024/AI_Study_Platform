@@ -5,7 +5,9 @@ type RuntimeProcess = {
 const runtimeProcess = typeof process !== 'undefined' ? (process as RuntimeProcess) : undefined;
 const viteEnv = typeof import.meta !== 'undefined' ? import.meta.env : undefined;
 
-export const getPublicEnv = (key: string) => runtimeProcess?.env?.[key] ?? viteEnv?.[key];
+const cleanEnvValue = (value: string | undefined) => value?.trim();
+
+export const getPublicEnv = (key: string) => cleanEnvValue(runtimeProcess?.env?.[key] ?? viteEnv?.[key]);
 
 export const getApiUrl = () => getPublicEnv('NEXT_PUBLIC_API_URL') ?? getPublicEnv('VITE_API_URL') ?? '';
 

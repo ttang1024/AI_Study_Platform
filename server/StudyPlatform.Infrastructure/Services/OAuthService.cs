@@ -31,8 +31,9 @@ public class OAuthService : IOAuthService
 
     private async Task<OAuthUserInfo?> GetGoogleUserInfoAsync(string code, string redirectUri, CancellationToken cancellationToken)
     {
-        var clientId = _configuration["GoogleOAuth:ClientId"];
-        var clientSecret = _configuration["GoogleOAuth:ClientSecret"];
+        var clientId = _configuration["GoogleOAuth:ClientId"]?.Trim();
+        var clientSecret = _configuration["GoogleOAuth:ClientSecret"]?.Trim();
+        redirectUri = redirectUri.Trim();
         if (string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(clientSecret))
         {
             _logger.LogError("Google OAuth client ID or secret is not configured.");
@@ -85,8 +86,9 @@ public class OAuthService : IOAuthService
 
     private async Task<OAuthUserInfo?> GetGitHubUserInfoAsync(string code, string redirectUri, CancellationToken cancellationToken)
     {
-        var clientId = _configuration["GitHubOAuth:ClientId"];
-        var clientSecret = _configuration["GitHubOAuth:ClientSecret"];
+        var clientId = _configuration["GitHubOAuth:ClientId"]?.Trim();
+        var clientSecret = _configuration["GitHubOAuth:ClientSecret"]?.Trim();
+        redirectUri = redirectUri.Trim();
         if (string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(clientSecret))
         {
             _logger.LogError("GitHub OAuth client ID or secret is not configured.");

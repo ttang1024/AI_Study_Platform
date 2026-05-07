@@ -8,6 +8,13 @@ API_APP_NAME="${API_APP_NAME:-api}"
 GOOGLE_CLIENT_ID="${GOOGLE_CLIENT_ID:?Set GOOGLE_CLIENT_ID env var}"
 GITHUB_CLIENT_ID="${GITHUB_CLIENT_ID:?Set GITHUB_CLIENT_ID env var}"
 
+strip_cr() {
+  printf '%s' "$1" | tr -d '\r'
+}
+
+GOOGLE_CLIENT_ID="$(strip_cr "$GOOGLE_CLIENT_ID")"
+GITHUB_CLIENT_ID="$(strip_cr "$GITHUB_CLIENT_ID")"
+
 if ! az account show >/dev/null 2>&1; then
   echo "==> Logging in to Azure"
   az login
