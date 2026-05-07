@@ -50,7 +50,7 @@ export const WebTab: React.FC<WebTabProps> = ({ selectedCourseId, onCourseError 
   return (
     <div className="space-y-4">
       <p className="text-sm text-text-muted">Paste any web article URL to extract and analyze its content.</p>
-      <div className="flex gap-3">
+      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
         <input
           type="url"
           placeholder="https://example.com/article"
@@ -61,7 +61,7 @@ export const WebTab: React.FC<WebTabProps> = ({ selectedCourseId, onCourseError 
         <button
           onClick={handleClipUrl}
           disabled={!webUrl || clippingUrl}
-          className="flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
+          className="flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-white hover:opacity-90 disabled:opacity-50 transition-opacity sm:w-auto"
         >
           {clippingUrl ? <Loader2 size={16} className="animate-spin" /> : <Globe size={16} />}
           {clippingUrl ? 'Clipping...' : 'Clip Article'}

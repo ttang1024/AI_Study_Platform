@@ -99,7 +99,7 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ selectedCourseId, onCour
             <div>
               <p className="text-lg font-black tracking-tight text-zinc-900">Paste an Apple Podcasts link</p>
             </div>
-            <div className="flex items-center justify-center gap-2">
+            <div className="flex flex-wrap items-center justify-center gap-2">
               {PODCAST_FEATURES.map(({ icon: Icon, label, color }) => (
                 <div key={label} className={cn('flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold', color)}>
                   <Icon size={11} />{label}

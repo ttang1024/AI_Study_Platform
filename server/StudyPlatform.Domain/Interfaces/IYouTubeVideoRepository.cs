@@ -10,5 +10,6 @@ public interface IYouTubeVideoRepository : IRepository<YouTubeVideo>
 
     Task<YouTubeVideo?> GetByIdForUserAsync(Guid id, Guid userId, CancellationToken cancellationToken = default);
     Task<YouTubeVideo?> GetByIdWithCourseAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<YouTubeVideo?> GetByVideoIdAsync(string videoId, CancellationToken cancellationToken = default);
     Task<YouTubeVideo?> GetByVideoIdForUserAsync(string videoId, Guid userId, CancellationToken cancellationToken = default);
 }

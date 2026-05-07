@@ -355,10 +355,10 @@ export const QuizManagementPage: React.FC = () => {
             <Sparkles size={14} />
             Performance
           </div>
-          <h1 className="text-4xl font-black tracking-tight text-text-main">
+          <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-text-main">
             Quiz <span className="text-primary">History</span>
           </h1>
-          <p className="text-lg text-zinc-500 font-medium max-w-2xl">
+          <p className="text-base sm:text-lg text-zinc-500 font-medium max-w-2xl">
             Track your progress and sharpen your knowledge.
           </p>
         </div>

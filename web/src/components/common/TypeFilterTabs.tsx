@@ -20,6 +20,7 @@ export function TypeFilterTabs<T extends string = string>({
   onChange,
 }: TypeFilterTabsProps<T>) {
   return (
+    <div className="w-full overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
     <div className="flex items-center gap-1 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-sidebar)] p-1.5 w-fit">
       {tabs.map(({ id, label, icon: Icon, count }) => {
         const isActive = active === id;
@@ -47,6 +48,7 @@ export function TypeFilterTabs<T extends string = string>({
           </button>
         );
       })}
+    </div>
     </div>
   );
 }

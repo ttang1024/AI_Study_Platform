@@ -352,7 +352,7 @@ export const GlossaryPage: React.FC = () => {
         );
         return (
           <div className="rounded-3xl border border-[var(--border-color)] bg-[var(--bg-sidebar)] p-6">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2">
               <h2 className="text-sm font-bold text-text-main">Generate Glossary</h2>
               {totalPages > 1 && (
                 <div className="flex items-center gap-2">

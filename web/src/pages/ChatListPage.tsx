@@ -360,7 +360,7 @@ export const ChatListPage: React.FC = () => {
       {/* ── Left panel: session list ── */}
       <div
         className={cn(
-          'flex flex-col border-r border-[var(--border-color)] shrink-0 w-72',
+          'flex flex-col border-r border-[var(--border-color)] shrink-0 w-full md:w-72',
           showList ? 'flex' : 'hidden md:flex',
         )}
       >
@@ -434,7 +434,7 @@ export const ChatListPage: React.FC = () => {
                     title="Delete chat"
                     className={cn(
                       'shrink-0 rounded-md p-1 transition-all text-text-muted hover:bg-red-500/10 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-60',
-                      hoveredKey === entry.key || isActive ? 'opacity-100' : 'opacity-0',
+                      hoveredKey === entry.key || isActive ? 'opacity-100' : 'sm:opacity-0',
                     )}
                   >
                     {deletingKey === entry.key ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
@@ -454,13 +454,17 @@ export const ChatListPage: React.FC = () => {
         )}
       >
         <div className="flex items-center justify-between gap-3 border-b border-[var(--border-color)] px-4 py-3 bg-[var(--bg-sidebar)] shrink-0">
-          <button
-            onClick={() => setShowList(true)}
-            className="flex items-center gap-2 text-sm text-text-muted hover:text-text-main transition-colors md:hidden"
-          >
-            <ArrowLeft size={15} />
-            All Chats
-          </button>
+          <div className="flex items-center gap-2 min-w-0 md:hidden">
+            <button
+              onClick={() => setShowList(true)}
+              className="flex items-center gap-1.5 text-sm text-text-muted hover:text-text-main transition-colors shrink-0"
+            >
+              <ArrowLeft size={15} />
+            </button>
+            <p className="truncate text-sm font-semibold text-text-main">
+              {activeItem ? getConversationTitle(activeItem) : 'AI Chat'}
+            </p>
+          </div>
           <div className="hidden min-w-0 md:block">
             <p className="truncate text-sm font-semibold text-text-main">
               {activeItem ? getConversationTitle(activeItem) : 'AI Chat'}
@@ -472,6 +476,7 @@ export const ChatListPage: React.FC = () => {
                 onClick={handleShareActive}
                 disabled={shareStatus === 'creating'}
                 className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-color)] bg-white px-3 py-1.5 text-xs font-semibold text-text-main hover:border-[var(--primary)] hover:text-[var(--primary)] transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+                title={shareStatus === 'creating' ? 'Creating link…' : shareStatus === 'copied' ? 'Link copied!' : shareStatus === 'error' ? 'Unable to share' : 'Share conversation'}
               >
                 {shareStatus === 'creating'
                   ? <Loader2 size={14} className="animate-spin" />
@@ -480,13 +485,15 @@ export const ChatListPage: React.FC = () => {
                     : shareStatus === 'error'
                       ? <AlertCircle size={14} />
                       : <Check size={14} />}
-                {shareStatus === 'creating'
-                  ? 'Creating'
-                  : shareStatus === 'copied'
-                    ? 'Link copied'
-                    : shareStatus === 'error'
-                      ? 'Unable to share'
-                      : 'Share'}
+                <span className="hidden sm:inline">
+                  {shareStatus === 'creating'
+                    ? 'Creating'
+                    : shareStatus === 'copied'
+                      ? 'Link copied'
+                      : shareStatus === 'error'
+                        ? 'Unable to share'
+                        : 'Share'}
+                </span>
               </button>
               <button
                 onClick={() => handleDeleteConversation(activeItem)}
@@ -543,6 +550,7 @@ export const ChatListPage: React.FC = () => {
                 externalMessages={panelMessages}
                 onExternalStreamSend={handleStreamSend}
                 placeholder="Ask anything…"
+                hideHeader
               />
             </div>
           </div>

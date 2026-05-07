@@ -43,6 +43,10 @@ public class YouTubeVideoRepository : Repository<YouTubeVideo>, IYouTubeVideoRep
             .Include(v => v.Course)
             .FirstOrDefaultAsync(v => v.YouTubeVideoId == id, cancellationToken);
 
+    public async Task<YouTubeVideo?> GetByVideoIdAsync(string videoId, CancellationToken cancellationToken = default)
+        => await _dbSet
+            .FirstOrDefaultAsync(v => v.VideoId == videoId, cancellationToken);
+
     public async Task<YouTubeVideo?> GetByVideoIdForUserAsync(string videoId, Guid userId, CancellationToken cancellationToken = default)
         => await _dbSet
             .FirstOrDefaultAsync(v => v.VideoId == videoId && v.UserId == userId, cancellationToken);

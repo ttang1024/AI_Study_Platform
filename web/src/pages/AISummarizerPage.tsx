@@ -39,11 +39,11 @@ export const AISummarizerPage: React.FC = () => {
   };
 
   return (
-    <div className="flex h-full overflow-hidden px-6">
-      <div className="w-full mx-auto flex gap-8 h-full">
+    <div className="flex h-full overflow-hidden px-4 sm:px-6">
+      <div className="w-full mx-auto flex flex-col md:flex-row gap-3 md:gap-8 h-full">
 
-        {/* Left — Course Picker sidebar */}
-        <div className="w-[214px] shrink-0 flex flex-col h-full overflow-hidden">
+        {/* Top (mobile) / Left (desktop) — Course Picker */}
+        <div className="shrink-0 flex flex-col h-[190px] md:h-full overflow-hidden md:w-[214px]">
           <CoursePicker
             selectedCourseId={selectedCourseId}
             onSelect={(id) => { setSelectedCourseId(id); setCourseError(false); }}
@@ -53,8 +53,8 @@ export const AISummarizerPage: React.FC = () => {
         </div>
 
         {/* Right — Header + Tabs + Form */}
-        <div className="flex-1 flex flex-col gap-5 min-w-0 overflow-y-auto">
-          <h1 className="text-3xl font-black tracking-tight text-text-main">
+        <div className="flex-1 flex flex-col gap-4 md:gap-5 min-w-0 overflow-y-auto pb-4 md:pb-0">
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-text-main">
             Turn anything into <span className="text-primary">study material</span>
           </h1>
 
@@ -63,40 +63,43 @@ export const AISummarizerPage: React.FC = () => {
             <button
               onClick={() => handleTabChange('document')}
               className={cn(
-                'flex-1 flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-bold transition-all duration-200',
+                'flex-1 flex items-center justify-center gap-1 sm:gap-2 rounded-lg py-2 sm:py-2.5 text-[11px] sm:text-sm font-bold transition-all duration-200 whitespace-nowrap',
                 activeTab === 'document' ? 'bg-white text-primary shadow-sm' : 'text-zinc-500 hover:text-zinc-700',
               )}
             >
-              <Upload size={15} /> Document
+              <Upload size={13} className="sm:hidden" /><Upload size={15} className="hidden sm:block" /> Document
             </button>
             <button
               onClick={() => handleTabChange('youtube')}
               className={cn(
-                'flex-1 flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-bold transition-all duration-200',
+                'flex-1 flex items-center justify-center gap-1 sm:gap-2 rounded-lg py-2 sm:py-2.5 text-[11px] sm:text-sm font-bold transition-all duration-200 whitespace-nowrap',
                 activeTab === 'youtube' ? 'bg-white text-red-500 shadow-sm' : 'text-zinc-500 hover:text-zinc-700',
               )}
             >
-              <Youtube size={15} /> YouTube
+              <Youtube size={13} className="sm:hidden" /><Youtube size={15} className="hidden sm:block" /> YouTube
             </button>
             <button
               onClick={() => handleTabChange('web')}
               className={cn(
-                'flex-1 flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-bold transition-all duration-200',
+                'flex-1 flex items-center justify-center gap-1 sm:gap-2 rounded-lg py-2 sm:py-2.5 text-[11px] sm:text-sm font-bold transition-all duration-200 whitespace-nowrap',
                 activeTab === 'web' ? 'bg-white text-primary shadow-sm' : 'text-zinc-500 hover:text-zinc-700',
               )}
             >
-              <Globe size={15} /> Web Article
+              <Globe size={13} className="sm:hidden" /><Globe size={15} className="hidden sm:block" />
+              <span className="hidden sm:inline">Web Article</span><span className="sm:hidden">Web</span>
             </button>
             <button
               onClick={() => handleTabChange('audio')}
               className={cn(
-                'flex-1 flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-bold transition-all duration-200',
+                'flex-1 flex items-center justify-center gap-1 sm:gap-2 rounded-lg py-2 sm:py-2.5 text-[11px] sm:text-sm font-bold transition-all duration-200 whitespace-nowrap',
                 activeTab === 'audio'
                   ? audioSubTab === 'podcast' ? 'bg-white text-amber-500 shadow-sm' : 'bg-white text-primary shadow-sm'
                   : 'text-zinc-500 hover:text-zinc-700',
               )}
             >
-              {activeTab === 'audio' && audioSubTab === 'podcast' ? <Rss size={15} /> : <Mic size={15} />}
+              {activeTab === 'audio' && audioSubTab === 'podcast'
+                ? <><Rss size={13} className="sm:hidden" /><Rss size={15} className="hidden sm:block" /></>
+                : <><Mic size={13} className="sm:hidden" /><Mic size={15} className="hidden sm:block" /></>}
               Audio
             </button>
           </div>

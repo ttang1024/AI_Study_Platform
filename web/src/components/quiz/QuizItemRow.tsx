@@ -122,7 +122,7 @@ export const QuizItemRow: React.FC<QuizItemRowProps> = ({
               </span>
             )}
           </div>
-          <div className="flex items-center gap-3 text-xs text-text-muted mt-1">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:gap-3 gap-0.5 text-xs text-text-muted mt-1">
             {date && (
               <span className="flex items-center gap-1">
                 <Clock size={12} />{new Date(date).toLocaleDateString()}
@@ -138,7 +138,7 @@ export const QuizItemRow: React.FC<QuizItemRowProps> = ({
       </div>
 
       {/* Right */}
-      <div className="flex items-center gap-3 shrink-0 ml-4">
+      <div className="flex items-center gap-2 sm:gap-3 shrink-0 ml-2 sm:ml-4">
         {scorePct !== null && total !== undefined && score !== undefined && (
           <div className="text-right hidden sm:block">
             <p className="text-lg font-bold text-text-main">{score}/{total}</p>
@@ -159,13 +159,13 @@ export const QuizItemRow: React.FC<QuizItemRowProps> = ({
               <button
                 onClick={onShare}
                 className={cn(
-                  'flex items-center gap-1.5 rounded-xl border border-[var(--border-color)] px-3 py-1.5 text-xs font-bold text-text-muted transition-all',
+                  'flex items-center gap-1.5 rounded-xl border border-[var(--border-color)] px-2 sm:px-3 py-1.5 text-xs font-bold text-text-muted transition-all',
                   cfg.actionHoverClass,
                 )}
                 title="Share quiz link"
               >
                 <Share2 size={12} />
-                Share
+                <span className="hidden sm:inline">Share</span>
               </button>
             )}
 
@@ -174,7 +174,7 @@ export const QuizItemRow: React.FC<QuizItemRowProps> = ({
                 onClick={onExam}
                 disabled={loadingTimedExam === examKey}
                 className={cn(
-                  'flex items-center gap-1.5 rounded-xl border border-[var(--border-color)] px-3 py-1.5 text-xs font-bold text-text-muted transition-all',
+                  'flex items-center gap-1.5 rounded-xl border border-[var(--border-color)] px-2 sm:px-3 py-1.5 text-xs font-bold text-text-muted transition-all',
                   cfg.actionHoverClass,
                 )}
                 title="Timed exam"
@@ -182,7 +182,7 @@ export const QuizItemRow: React.FC<QuizItemRowProps> = ({
                 {loadingTimedExam === examKey
                   ? <Loader2 size={12} className="animate-spin" />
                   : <Clock size={12} />}
-                Exam
+                <span className="hidden sm:inline">Exam</span>
               </button>
             )}
           </>
@@ -190,7 +190,7 @@ export const QuizItemRow: React.FC<QuizItemRowProps> = ({
 
         <Link to={retakePath} state={{ activeTab: 'quiz' }}>
           <Button size="sm" variant="outline">
-            <Play size={14} className="mr-2" />
+            <Play size={14} className="mr-1 sm:mr-2" />
             {pending ? 'Take Quiz' : 'Retake'}
           </Button>
         </Link>

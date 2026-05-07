@@ -31,6 +31,8 @@ interface ChatPanelProps {
   onExternalAddToNote?: (html: string) => void;
   /** Placeholder for the textarea */
   placeholder?: string;
+  /** Hide the "AI Tutor" header bar (use when the parent already provides a header) */
+  hideHeader?: boolean;
 }
 
 export const ChatPanel = forwardRef<ChatPanelRef, ChatPanelProps>(({
@@ -40,6 +42,7 @@ export const ChatPanel = forwardRef<ChatPanelRef, ChatPanelProps>(({
   onExternalStreamSend,
   onExternalAddToNote,
   placeholder,
+  hideHeader = false,
 }, ref) => {
   const { chatMessages: contextMessages, addChatMessage, aiInput, setAiInput, setNoteInput } = useStudy();
   const isExternal = onExternalSend !== undefined || onExternalStreamSend !== undefined;
@@ -137,10 +140,12 @@ export const ChatPanel = forwardRef<ChatPanelRef, ChatPanelProps>(({
 
   return (
     <div className="flex h-full flex-col bg-[var(--bg-app)]">
-      <div className="flex items-center gap-2 border-b border-[var(--border-color)] px-4 py-3">
-        <Sparkles size={18} className="text-[var(--primary)]" />
-        <h3 className="font-semibold text-text-main">AI Tutor</h3>
-      </div>
+      {!hideHeader && (
+        <div className="flex items-center gap-2 border-b border-[var(--border-color)] px-4 py-3">
+          <Sparkles size={18} className="text-[var(--primary)]" />
+          <h3 className="font-semibold text-text-main">AI Tutor</h3>
+        </div>
+      )}
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 && (

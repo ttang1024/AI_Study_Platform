@@ -296,7 +296,7 @@ export const PendingItemsGrid: React.FC<PendingItemsGridProps> = ({
                     <Link
                       to={to}
                       state={{ activeTab }}
-                      className="flex items-center gap-1 text-[10px] font-bold text-text-muted hover:text-text-main transition-colors opacity-0 group-hover:opacity-100"
+                      className="hidden sm:flex items-center gap-1 text-[10px] font-bold text-text-muted hover:text-text-main transition-colors opacity-0 group-hover:opacity-100"
                       onClick={e => e.stopPropagation()}
                     >
                       <ExternalLink size={11} />

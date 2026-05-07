@@ -121,7 +121,7 @@ export const DocumentTab: React.FC<DocumentTabProps> = ({ selectedCourseId, onCo
                 <p className="text-lg font-black tracking-tight text-zinc-900">{isDragging ? 'Release to upload' : 'Drop your file here'}</p>
                 <p className="mt-0.5 text-zinc-400 text-xs">or click to browse</p>
               </div>
-              <div className="flex items-center justify-center gap-2">
+              <div className="flex flex-wrap items-center justify-center gap-2">
                 {FILE_TYPES.map(({ icon: Icon, label, color }) => (
                   <div key={label} className={cn('flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold', color)}>
                     <Icon size={11} />{label}
