@@ -5,8 +5,8 @@ public interface IAiService
     // Document-based (file bytes)
     Task<string> GenerateMindMapAsync(byte[] fileData, string mimeType, CancellationToken cancellationToken = default);
     Task<string> GenerateMindMapAsync(string textContent, CancellationToken cancellationToken = default);
-    Task<string> GenerateQuizAsync(byte[] fileData, string mimeType, CancellationToken cancellationToken = default);
-    Task<string> GenerateQuizAsync(string textContent, CancellationToken cancellationToken = default);
+    Task<string> GenerateQuizAsync(byte[] fileData, string mimeType, string difficulty = "medium", CancellationToken cancellationToken = default);
+    Task<string> GenerateQuizAsync(string textContent, string difficulty = "medium", CancellationToken cancellationToken = default);
     Task<string> GenerateFlashcardsAsync(byte[] fileData, string mimeType, CancellationToken cancellationToken = default);
     Task<string> GenerateFlashcardsAsync(string textContent, CancellationToken cancellationToken = default);
     Task<string> GenerateGlossaryAsync(byte[] fileData, string mimeType, CancellationToken cancellationToken = default);
@@ -15,7 +15,7 @@ public interface IAiService
 
     // YouTube-based (transcript text)
     Task<string> GenerateMindMapFromYouTubeAsync(string transcriptText, CancellationToken cancellationToken = default);
-    Task<string> GenerateQuizFromYouTubeAsync(string transcriptText, CancellationToken cancellationToken = default);
+    Task<string> GenerateQuizFromYouTubeAsync(string transcriptText, string difficulty = "medium", CancellationToken cancellationToken = default);
     Task<string> GenerateFlashcardsFromYouTubeAsync(string transcriptText, CancellationToken cancellationToken = default);
     Task<string> ChatWithYouTubeAsync(string transcriptText, IEnumerable<(string role, string content)> history, string message, CancellationToken cancellationToken = default);
 

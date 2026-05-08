@@ -25,6 +25,12 @@ interface SimpleCard { id: string; front: string; back: string; }
 interface ChatMsg { id: string; role: 'user' | 'model'; content: string; isError?: boolean; }
 interface TranscriptSegment { start: number; end: number; text: string; }
 type AudioStudyTab = 'summary' | 'mindmap' | 'notes' | 'flashcards' | 'quiz' | 'problems' | 'chat';
+type QuizDifficulty = 'easy' | 'medium' | 'hard';
+
+const emptyQuizSets = (): Record<QuizDifficulty, QuizQuestion[]> => ({ easy: [], medium: [], hard: [] });
+const emptyAnswerSets = (): Record<QuizDifficulty, Record<string, string>> => ({ easy: {}, medium: {}, hard: {} });
+const emptySubmittedSets = (): Record<QuizDifficulty, boolean> => ({ easy: false, medium: false, hard: false });
+const emptyScoreSets = (): Record<QuizDifficulty, number> => ({ easy: 0, medium: 0, hard: 0 });
 
 function parseTranscript(raw: string | null): TranscriptSegment[] | null {
   if (!raw) return null;
@@ -175,6 +181,11 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
   const [flashcardsError, setFlashcardsError] = useState<string | null>(null);
 
   // Quiz
+  const [activeQuizDifficulty, setActiveQuizDifficulty] = useState<QuizDifficulty>('medium');
+  const [quizQuestionSets, setQuizQuestionSets] = useState<Record<QuizDifficulty, QuizQuestion[]>>(emptyQuizSets);
+  const [quizAnswerSets, setQuizAnswerSets] = useState<Record<QuizDifficulty, Record<string, string>>>(emptyAnswerSets);
+  const [quizSubmittedSets, setQuizSubmittedSets] = useState<Record<QuizDifficulty, boolean>>(emptySubmittedSets);
+  const [quizScoreSets, setQuizScoreSets] = useState<Record<QuizDifficulty, number>>(emptyScoreSets);
   const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
   const [isLoadingQuiz, setIsLoadingQuiz] = useState(false);
   const [userAnswers, setUserAnswers] = useState<Record<string, string>>({});
@@ -244,13 +255,23 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
       // Load quiz
       try {
         const questions = await documentService.getQuiz(cId, docId);
-        setQuizQuestions(questions);
+        const grouped = emptyQuizSets();
+        questions.forEach(q => grouped[(q.difficulty ?? 'medium') as QuizDifficulty].push(q));
+        setQuizQuestionSets(grouped);
+        setQuizQuestions(grouped[activeQuizDifficulty]);
       } catch { }
 
       // Load quiz submission
       try {
         const sub = await documentService.getQuizSubmission(cId, docId);
-        if (sub) { setUserAnswers(sub.answers); setQuizScore(sub.score); setIsQuizSubmitted(true); }
+        if (sub) {
+          setUserAnswers(sub.answers);
+          setQuizAnswerSets(prev => ({ ...prev, [activeQuizDifficulty]: sub.answers }));
+          setQuizScore(sub.score);
+          setQuizScoreSets(prev => ({ ...prev, [activeQuizDifficulty]: sub.score }));
+          setIsQuizSubmitted(true);
+          setQuizSubmittedSets(prev => ({ ...prev, [activeQuizDifficulty]: true }));
+        }
       } catch { }
 
       // Load chat
@@ -412,23 +433,38 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
 
   // ─── Quiz ──────────────────────────────────────────────────────────────────
 
-  const generateQuiz = useCallback(async () => {
+  const generateQuiz = useCallback(async (difficulty: QuizDifficulty = activeQuizDifficulty) => {
     if (!id || !courseId || isLoadingQuiz || generationDisabled) return;
+    setActiveQuizDifficulty(difficulty);
     setQuizError(null);
     setIsLoadingQuiz(true);
     setQuizQuestions([]);
+    setQuizQuestionSets(prev => ({ ...prev, [difficulty]: [] }));
     setUserAnswers({});
+    setQuizAnswerSets(prev => ({ ...prev, [difficulty]: {} }));
     setIsQuizSubmitted(false);
+    setQuizSubmittedSets(prev => ({ ...prev, [difficulty]: false }));
     setQuizScore(0);
+    setQuizScoreSets(prev => ({ ...prev, [difficulty]: 0 }));
     try {
-      const questions = await documentService.generateQuiz(courseId, id);
+      const questions = await documentService.generateQuiz(courseId, id, difficulty);
       setQuizQuestions(questions);
+      setQuizQuestionSets(prev => ({ ...prev, [difficulty]: questions }));
     } catch (err: any) {
       setQuizError(getApiErrorCode(err));
     } finally {
       setIsLoadingQuiz(false);
     }
-  }, [id, courseId, isLoadingQuiz, generationDisabled]);
+  }, [id, courseId, isLoadingQuiz, generationDisabled, activeQuizDifficulty]);
+
+  const handleQuizDifficultyChange = useCallback((difficulty: QuizDifficulty) => {
+    setActiveQuizDifficulty(difficulty);
+    setQuizError(null);
+    setQuizQuestions(quizQuestionSets[difficulty]);
+    setUserAnswers(quizAnswerSets[difficulty]);
+    setIsQuizSubmitted(quizSubmittedSets[difficulty]);
+    setQuizScore(quizScoreSets[difficulty]);
+  }, [quizQuestionSets, quizAnswerSets, quizSubmittedSets, quizScoreSets]);
 
   const submitQuiz = useCallback(async () => {
     let score = 0;
@@ -440,11 +476,13 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
       }
     });
     setQuizScore(score);
+    setQuizScoreSets(prev => ({ ...prev, [activeQuizDifficulty]: score }));
     setIsQuizSubmitted(true);
+    setQuizSubmittedSets(prev => ({ ...prev, [activeQuizDifficulty]: true }));
     if (id && courseId) {
       try { await documentService.saveQuizSubmission(courseId, id, userAnswers, score, quizQuestions.length); } catch { }
     }
-  }, [quizQuestions, userAnswers, id, courseId]);
+  }, [quizQuestions, userAnswers, id, courseId, activeQuizDifficulty]);
 
   // ─── Notes ─────────────────────────────────────────────────────────────────
 
@@ -546,16 +584,28 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
           <div className={cn('h-full overflow-y-auto', activeTab !== 'quiz' && 'hidden')}>
             <DocumentQuiz
               externalQuestions={quizQuestions}
+              externalQuestionCounts={{
+                easy: quizQuestionSets.easy.length,
+                medium: quizQuestionSets.medium.length,
+                hard: quizQuestionSets.hard.length,
+              }}
               externalUserAnswers={userAnswers}
               externalSubmitted={isQuizSubmitted}
               externalScore={quizScore}
               isExternalLoading={isLoadingQuiz}
               externalError={quizError}
               onExternalGenerate={generateQuiz}
+              onExternalDifficultyChange={handleQuizDifficultyChange}
               generateDisabled={generationDisabled}
               generateDisabledReason={generationDisabledReason}
               onExternalAnswer={(qId, option) => {
-                if (!isQuizSubmitted) setUserAnswers(prev => ({ ...prev, [qId]: option }));
+                if (!isQuizSubmitted) {
+                  setUserAnswers(prev => ({ ...prev, [qId]: option }));
+                  setQuizAnswerSets(prev => ({
+                    ...prev,
+                    [activeQuizDifficulty]: { ...prev[activeQuizDifficulty], [qId]: option },
+                  }));
+                }
               }}
               onExternalSubmit={submitQuiz}
             />
@@ -820,14 +870,16 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
         sourceType={isPodcast ? 'podcast' : 'audio'}
         sourceUrl={courseId && id ? `${courseId}/${id}` : null}
         originalArticleUrl={isPodcast ? podcastOriginalUrl : null}
-        fetchQuizzes={quizQuestions.length > 0 ? async () =>
-          quizQuestions.map(q => ({
+        fetchQuizzes={courseId && id ? async () => {
+          const qs = await documentService.getQuiz(courseId, id);
+          return qs.map(q => ({
             question: q.question,
             options: q.options ?? [],
             correctAnswer: q.answer,
             explanation: q.explanation ?? '',
-          } satisfies ShareableQuiz))
-          : undefined}
+            difficulty: q.difficulty ?? 'medium',
+          } satisfies ShareableQuiz));
+        } : undefined}
         fetchFlashcards={flashcards.length > 0 ? async () =>
           flashcards.map(c => ({ front: c.front, back: c.back } satisfies ShareableCard))
           : undefined}

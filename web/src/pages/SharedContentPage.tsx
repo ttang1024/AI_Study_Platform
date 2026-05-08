@@ -21,6 +21,7 @@ import { getShare, SharedContent, ShareableQuiz, ShareableCard } from '../servic
 import { cn } from '../utils/cn';
 import { getCorrectQuizOptionText, isQuizOptionCorrect } from '../utils/quizAnswers';
 import { getApiUrl } from '../utils/env';
+import { SummaryMarkdown } from '../components/study/SummaryMarkdown';
 
 const API_URL = getApiUrl();
 
@@ -933,8 +934,8 @@ export const SharedContentPage: React.FC<{ token?: string }> = ({ token: tokenPr
             {activeTab === 'summary' && content.summary && (
               <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-sidebar)] p-6">
                 <h2 className="text-sm font-bold uppercase tracking-widest text-text-muted mb-4">Summary</h2>
-                <div className="prose prose-sm max-w-none text-text-main">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{content.summary}</ReactMarkdown>
+                <div className="summary-content select-text px-0 py-0">
+                  <SummaryMarkdown value={content.summary} />
                 </div>
               </div>
             )}

@@ -6,6 +6,7 @@ export interface ShareableQuiz {
   options: string[];
   correctAnswer: string;
   explanation: string;
+  difficulty?: 'easy' | 'medium' | 'hard';
 }
 
 export interface ShareableCard {

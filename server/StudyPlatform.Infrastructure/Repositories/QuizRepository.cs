@@ -15,6 +15,12 @@ public class QuizRepository : Repository<Quiz>, IQuizRepository
             .OrderBy(q => q.CreatedAt)
             .ToListAsync(cancellationToken);
 
+    public async Task<IEnumerable<Quiz>> GetByDocumentIdAndDifficultyAsync(Guid documentId, string difficulty, CancellationToken cancellationToken = default)
+        => await _dbSet
+            .Where(q => q.DocumentId == documentId && q.Difficulty == difficulty)
+            .OrderBy(q => q.CreatedAt)
+            .ToListAsync(cancellationToken);
+
     public async Task DeleteByDocumentIdAsync(Guid documentId, CancellationToken cancellationToken = default)
     {
         var quizzes = await _dbSet.Where(q => q.DocumentId == documentId).ToListAsync(cancellationToken);

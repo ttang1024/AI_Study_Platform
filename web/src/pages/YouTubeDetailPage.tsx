@@ -47,6 +47,12 @@ interface ChatMsg {
 }
 
 type VideoStudyTab = 'summary' | 'mindmap' | 'notes' | 'flashcards' | 'quiz' | 'problems' | 'chat';
+type QuizDifficulty = 'easy' | 'medium' | 'hard';
+
+const emptyQuizSets = (): Record<QuizDifficulty, QuizQuestion[]> => ({ easy: [], medium: [], hard: [] });
+const emptyAnswerSets = (): Record<QuizDifficulty, Record<string, string>> => ({ easy: {}, medium: {}, hard: {} });
+const emptySubmittedSets = (): Record<QuizDifficulty, boolean> => ({ easy: false, medium: false, hard: false });
+const emptyScoreSets = (): Record<QuizDifficulty, number> => ({ easy: 0, medium: 0, hard: 0 });
 
 interface YouTubeDetailLocationState {
 	activeTab?: VideoStudyTab;
@@ -128,6 +134,11 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 	const [isLoadingFlashcards, setIsLoadingFlashcards] = useState(false);
 
 	// Quiz
+	const [activeQuizDifficulty, setActiveQuizDifficulty] = useState<QuizDifficulty>('medium');
+	const [quizQuestionSets, setQuizQuestionSets] = useState<Record<QuizDifficulty, QuizQuestion[]>>(emptyQuizSets);
+	const [quizAnswerSets, setQuizAnswerSets] = useState<Record<QuizDifficulty, Record<string, string>>>(emptyAnswerSets);
+	const [quizSubmittedSets, setQuizSubmittedSets] = useState<Record<QuizDifficulty, boolean>>(emptySubmittedSets);
+	const [quizScoreSets, setQuizScoreSets] = useState<Record<QuizDifficulty, number>>(emptyScoreSets);
 	const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
 	const [isLoadingQuiz, setIsLoadingQuiz] = useState(false);
 	const [userAnswers, setUserAnswers] = useState<Record<string, string>>({});
@@ -176,13 +187,18 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 
 			try {
 				const questions = await youtubeService.getQuiz(videoRecordId);
-				setQuizQuestions(questions.map(q => ({
+				const mapped = questions.map(q => ({
 					id: q.quizId,
 					question: q.question,
 					options: q.options,
 					answer: q.correctAnswer,
 					explanation: q.explanation,
-				} as QuizQuestion)));
+					difficulty: q.difficulty ?? 'medium',
+				} as QuizQuestion));
+				const grouped = emptyQuizSets();
+				mapped.forEach(q => grouped[(q.difficulty ?? 'medium') as QuizDifficulty].push(q));
+				setQuizQuestionSets(grouped);
+				setQuizQuestions(grouped[activeQuizDifficulty]);
 			} catch { }
 
 			try {
@@ -197,8 +213,11 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 				const submission = await youtubeService.getQuizSubmission(videoRecordId);
 				if (submission) {
 					setUserAnswers(submission.answers);
+					setQuizAnswerSets(prev => ({ ...prev, [activeQuizDifficulty]: submission.answers }));
 					setQuizScore(submission.score);
+					setQuizScoreSets(prev => ({ ...prev, [activeQuizDifficulty]: submission.score }));
 					setIsQuizSubmitted(true);
+					setQuizSubmittedSets(prev => ({ ...prev, [activeQuizDifficulty]: true }));
 				}
 			} catch { }
 
@@ -401,29 +420,46 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 		}
 	}, [videoUrl, isLoadingFlashcards, id, generationDisabled]);
 
-	const generateQuiz = useCallback(async () => {
+	const generateQuiz = useCallback(async (difficulty: QuizDifficulty = activeQuizDifficulty) => {
 		if (!videoUrl || isLoadingQuiz || !id || generationDisabled) return;
+		setActiveQuizDifficulty(difficulty);
 		setQuizError(null);
 		setIsLoadingQuiz(true);
 		setQuizQuestions([]);
+		setQuizQuestionSets(prev => ({ ...prev, [difficulty]: [] }));
 		setUserAnswers({});
+		setQuizAnswerSets(prev => ({ ...prev, [difficulty]: {} }));
 		setIsQuizSubmitted(false);
+		setQuizSubmittedSets(prev => ({ ...prev, [difficulty]: false }));
 		setQuizScore(0);
+		setQuizScoreSets(prev => ({ ...prev, [difficulty]: 0 }));
 		try {
-			const questions = await youtubeService.generateQuiz(id, videoUrl);
-			setQuizQuestions(questions.map(q => ({
+			const questions = await youtubeService.generateQuiz(id, videoUrl, difficulty);
+			const mapped = questions.map(q => ({
 				id: q.quizId,
 				question: q.question,
 				options: q.options,
 				answer: q.correctAnswer,
 				explanation: q.explanation,
-			} as QuizQuestion)));
+				difficulty: q.difficulty ?? difficulty,
+			} as QuizQuestion));
+			setQuizQuestions(mapped);
+			setQuizQuestionSets(prev => ({ ...prev, [difficulty]: mapped }));
 		} catch (err: any) {
 			setQuizError(getApiErrorCode(err));
 		} finally {
 			setIsLoadingQuiz(false);
 		}
-	}, [videoUrl, isLoadingQuiz, id, generationDisabled]);
+	}, [videoUrl, isLoadingQuiz, id, generationDisabled, activeQuizDifficulty]);
+
+	const handleQuizDifficultyChange = useCallback((difficulty: QuizDifficulty) => {
+		setActiveQuizDifficulty(difficulty);
+		setQuizError(null);
+		setQuizQuestions(quizQuestionSets[difficulty]);
+		setUserAnswers(quizAnswerSets[difficulty]);
+		setIsQuizSubmitted(quizSubmittedSets[difficulty]);
+		setQuizScore(quizScoreSets[difficulty]);
+	}, [quizQuestionSets, quizAnswerSets, quizSubmittedSets, quizScoreSets]);
 
 	const handleNoteSave = useCallback(async (html: string) => {
 		setNoteContent(html);
@@ -457,13 +493,15 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 			if (userAnswers[q.id] && isOptionCorrect(userAnswers[q.id], q.answer)) score++;
 		});
 		setQuizScore(score);
+		setQuizScoreSets(prev => ({ ...prev, [activeQuizDifficulty]: score }));
 		setIsQuizSubmitted(true);
+		setQuizSubmittedSets(prev => ({ ...prev, [activeQuizDifficulty]: true }));
 		if (id) {
 			try {
 				await youtubeService.submitQuiz(id, userAnswers, score, quizQuestions.length);
 			} catch { }
 		}
-	}, [quizQuestions, userAnswers, id]);
+	}, [quizQuestions, userAnswers, id, activeQuizDifficulty]);
 
 	const handleSummaryMouseUp = useCallback(() => {
 		const selection = window.getSelection();
@@ -574,16 +612,28 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 					<div className={cn('h-full overflow-y-auto', activeTab !== 'quiz' && 'hidden')}>
 						<DocumentQuiz
 							externalQuestions={quizQuestions}
+							externalQuestionCounts={{
+								easy: quizQuestionSets.easy.length,
+								medium: quizQuestionSets.medium.length,
+								hard: quizQuestionSets.hard.length,
+							}}
 							externalUserAnswers={userAnswers}
 							externalSubmitted={isQuizSubmitted}
 							externalScore={quizScore}
 							isExternalLoading={isLoadingQuiz}
 							externalError={quizError}
 							onExternalGenerate={generateQuiz}
+							onExternalDifficultyChange={handleQuizDifficultyChange}
 							generateDisabled={generationDisabled}
 							generateDisabledReason={generationDisabledReason}
 							onExternalAnswer={(qId, option) => {
-								if (!isQuizSubmitted) setUserAnswers(prev => ({ ...prev, [qId]: option }));
+								if (!isQuizSubmitted) {
+									setUserAnswers(prev => ({ ...prev, [qId]: option }));
+									setQuizAnswerSets(prev => ({
+										...prev,
+										[activeQuizDifficulty]: { ...prev[activeQuizDifficulty], [qId]: option },
+									}));
+								}
 							}}
 							onExternalSubmit={submitQuiz}
 						/>
@@ -955,14 +1005,16 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 				notesHtml={noteContent || null}
 				sourceType="youtube"
 				sourceUrl={videoUrl}
-				fetchQuizzes={quizQuestions.length > 0 ? async () =>
-					quizQuestions.map(q => ({
+				fetchQuizzes={id ? async () => {
+					const qs = await youtubeService.getQuiz(id);
+					return qs.map(q => ({
 						question: q.question,
 						options: q.options ?? [],
-						correctAnswer: q.answer,
+						correctAnswer: q.correctAnswer,
 						explanation: q.explanation ?? '',
-					} satisfies ShareableQuiz))
-					: undefined}
+						difficulty: q.difficulty ?? 'medium',
+					} satisfies ShareableQuiz));
+				} : undefined}
 				fetchFlashcards={flashcards.length > 0 ? async () =>
 					flashcards.map(c => ({ front: c.front, back: c.back } satisfies ShareableCard))
 					: undefined}

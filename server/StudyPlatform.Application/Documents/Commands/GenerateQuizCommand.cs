@@ -9,7 +9,7 @@ using StudyPlatform.Domain.Interfaces;
 
 namespace StudyPlatform.Application.Documents.Commands;
 
-public record GenerateQuizCommand(Guid DocumentId, Guid UserId) : IRequest<Result<IEnumerable<QuizDto>>>;
+public record GenerateQuizCommand(Guid DocumentId, Guid UserId, string Difficulty = "medium") : IRequest<Result<IEnumerable<QuizDto>>>;
 
 public class GenerateQuizCommandHandler : IRequestHandler<GenerateQuizCommand, Result<IEnumerable<QuizDto>>>
 {
@@ -36,7 +36,8 @@ public class GenerateQuizCommandHandler : IRequestHandler<GenerateQuizCommand, R
         if (document == null || document.UserId != request.UserId)
             return Result<IEnumerable<QuizDto>>.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
 
-        var existing = await _unitOfWork.Quizzes.GetByDocumentIdAsync(request.DocumentId, cancellationToken);
+        var difficulty = NormalizeDifficulty(request.Difficulty);
+        var existing = await _unitOfWork.Quizzes.GetByDocumentIdAndDifficultyAsync(request.DocumentId, difficulty, cancellationToken);
         if (existing.Any())
         {
             var cachedDtos = existing.Select(q => new QuizDto(
@@ -48,7 +49,8 @@ public class GenerateQuizCommandHandler : IRequestHandler<GenerateQuizCommand, R
                 JsonSerializer.Deserialize<string[]>(q.OptionsJson) ?? Array.Empty<string>(),
                 q.CorrectAnswer,
                 q.Explanation,
-                q.CreatedAt));
+                q.CreatedAt,
+                q.Difficulty));
 
             return Result<IEnumerable<QuizDto>>.Success(cachedDtos, "Quiz retrieved successfully.");
         }
@@ -57,19 +59,19 @@ public class GenerateQuizCommandHandler : IRequestHandler<GenerateQuizCommand, R
 
         if (document.ContentType.StartsWith("audio/", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(document.Transcript))
         {
-            quizJson = await _aiService.GenerateQuizAsync(document.Transcript, cancellationToken);
+            quizJson = await _aiService.GenerateQuizAsync(document.Transcript, difficulty, cancellationToken);
         }
         else if (AiInlineData.IsSupported(document.ContentType))
         {
             var stream = await _blobStorageService.DownloadAsync(document.BlobUrl, cancellationToken);
             using var ms = new MemoryStream();
             await stream.CopyToAsync(ms, cancellationToken);
-            quizJson = await _aiService.GenerateQuizAsync(ms.ToArray(), document.ContentType, cancellationToken);
+            quizJson = await _aiService.GenerateQuizAsync(ms.ToArray(), document.ContentType, difficulty, cancellationToken);
         }
         else
         {
             var text = await _textExtractor.ExtractTextAsync(document.BlobUrl, document.ContentType, cancellationToken);
-            quizJson = await _aiService.GenerateQuizAsync(text, cancellationToken);
+            quizJson = await _aiService.GenerateQuizAsync(text, difficulty, cancellationToken);
         }
 
         List<AiQuizItem> quizItems;
@@ -93,6 +95,7 @@ public class GenerateQuizCommandHandler : IRequestHandler<GenerateQuizCommand, R
             OptionsJson = JsonSerializer.Serialize(q.Options),
             CorrectAnswer = NormalizeCorrectAnswer(q.Options, q.CorrectAnswer),
             Explanation = q.Explanation,
+            Difficulty = difficulty,
             CreatedAt = DateTime.UtcNow
         }).ToList();
 
@@ -108,7 +111,8 @@ public class GenerateQuizCommandHandler : IRequestHandler<GenerateQuizCommand, R
             JsonSerializer.Deserialize<string[]>(q.OptionsJson) ?? Array.Empty<string>(),
             q.CorrectAnswer,
             q.Explanation,
-            q.CreatedAt));
+            q.CreatedAt,
+            q.Difficulty));
 
         return Result<IEnumerable<QuizDto>>.Success(dtos, "Quiz generated successfully.");
     }
@@ -127,6 +131,13 @@ public class GenerateQuizCommandHandler : IRequestHandler<GenerateQuizCommand, R
 
         return trimmed;
     }
+
+    private static string NormalizeDifficulty(string difficulty) => difficulty.ToLowerInvariant() switch
+    {
+        "easy" => "easy",
+        "hard" => "hard",
+        _ => "medium"
+    };
 
     private static bool AnswersMatch(string option, string answer)
     {

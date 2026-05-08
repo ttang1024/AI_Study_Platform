@@ -52,6 +52,7 @@ export interface VideoQuizItem {
 	options: string[]
 	correctAnswer: string
 	explanation: string
+	difficulty?: 'easy' | 'medium' | 'hard'
 }
 
 export interface TranscriptSegment {
@@ -155,16 +156,17 @@ export const youtubeService = {
 		return res.data.data ?? []
 	},
 
-	async getQuiz(videoId: string): Promise<VideoQuizItem[]> {
+	async getQuiz(videoId: string, difficulty?: string): Promise<VideoQuizItem[]> {
+		const query = difficulty ? `?difficulty=${encodeURIComponent(difficulty)}` : ''
 		const res = await apiClient.get<{ data: VideoQuizItem[] }>(
-			`/api/youtube/videos/${videoId}/quiz`,
+			`/api/youtube/videos/${videoId}/quiz${query}`,
 		)
 		return res.data.data ?? []
 	},
 
-	async generateQuiz(videoId: string, videoUrl: string): Promise<VideoQuizItem[]> {
+	async generateQuiz(videoId: string, videoUrl: string, difficulty = 'medium'): Promise<VideoQuizItem[]> {
 		const res = await apiClient.post<{ data: VideoQuizItem[] }>(
-			`/api/youtube/videos/${videoId}/quiz/generate`,
+			`/api/youtube/videos/${videoId}/quiz/generate?difficulty=${encodeURIComponent(difficulty)}`,
 			{ videoUrl },
 		)
 		return res.data.data ?? []

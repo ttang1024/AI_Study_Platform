@@ -363,7 +363,7 @@ public class YouTubeController : ControllerBase
         var transcript = await GetTranscriptTextAsync(videoId, cancellationToken);
         if (transcript == null) return BadRequest(BaseResponse<string>.Fail("No subtitles available for this video.", "NO_TRANSCRIPT"));
 
-        var result = await _aiService.GenerateQuizFromYouTubeAsync(transcript, cancellationToken);
+        var result = await _aiService.GenerateQuizFromYouTubeAsync(transcript, "medium", cancellationToken);
         return Ok(BaseResponse<string>.Ok(result));
     }
 
@@ -656,39 +656,43 @@ public class YouTubeController : ControllerBase
     // ── Video Quiz ────────────────────────────────────────────────────────
 
     [HttpGet("videos/{id:guid}/quiz")]
-    public async Task<IActionResult> GetVideoQuiz(Guid id, CancellationToken cancellationToken)
+    public async Task<IActionResult> GetVideoQuiz(Guid id, [FromQuery] string? difficulty, CancellationToken cancellationToken)
     {
         var userId = User.GetUserId();
-        var quizzes = await _unitOfWork.Quizzes.FindAsync(q => q.YouTubeVideoId == id && q.UserId == userId, cancellationToken);
+        var normalizedDifficulty = string.IsNullOrWhiteSpace(difficulty) ? null : NormalizeQuizDifficulty(difficulty);
+        var quizzes = await _unitOfWork.Quizzes.FindAsync(
+            q => q.YouTubeVideoId == id && q.UserId == userId && (normalizedDifficulty == null || q.Difficulty == normalizedDifficulty),
+            cancellationToken);
         var dtos = quizzes.Select(q => new QuizDto(
             q.QuizId, null, q.YouTubeVideoId, q.SourceType, q.Question,
             JsonSerializer.Deserialize<string[]>(q.OptionsJson) ?? [],
-            q.CorrectAnswer, q.Explanation, q.CreatedAt));
+            q.CorrectAnswer, q.Explanation, q.CreatedAt, q.Difficulty));
         return Ok(BaseResponse<IEnumerable<QuizDto>>.Ok(dtos));
     }
 
     [HttpPost("videos/{id:guid}/quiz/generate")]
-    public async Task<IActionResult> GenerateVideoQuiz(Guid id, [FromBody] YouTubeUrlRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> GenerateVideoQuiz(Guid id, [FromBody] YouTubeUrlRequest request, [FromQuery] string difficulty = "medium", CancellationToken cancellationToken = default)
     {
         var userId = User.GetUserId();
+        var normalizedDifficulty = NormalizeQuizDifficulty(difficulty);
         var video = await GetVideoWithAccessCheckAsync(id, userId, cancellationToken);
         if (video is null)
             return NotFound(BaseResponse<IEnumerable<QuizDto>>.Fail("Video not found.", "VIDEO_NOT_FOUND"));
 
         // Return cached quiz if it already exists
-        var existingQuizzes = (await _unitOfWork.Quizzes.FindAsync(q => q.YouTubeVideoId == id && q.UserId == userId, cancellationToken)).ToList();
+        var existingQuizzes = (await _unitOfWork.Quizzes.FindAsync(q => q.YouTubeVideoId == id && q.UserId == userId && q.Difficulty == normalizedDifficulty, cancellationToken)).ToList();
         if (existingQuizzes.Count > 0)
             return Ok(BaseResponse<IEnumerable<QuizDto>>.Ok(existingQuizzes.Select(q => new QuizDto(
                 q.QuizId, null, q.YouTubeVideoId, q.SourceType, q.Question,
                 JsonSerializer.Deserialize<string[]>(q.OptionsJson) ?? [],
-                q.CorrectAnswer, q.Explanation, q.CreatedAt))));
+                q.CorrectAnswer, q.Explanation, q.CreatedAt, q.Difficulty))));
 
         // No cached data — fetch transcript and generate
         var transcript = await GetOrFetchTranscriptAsync(video, cancellationToken);
         if (transcript == null)
             return BadRequest(BaseResponse<IEnumerable<QuizDto>>.Fail("No subtitles available for this video.", "NO_TRANSCRIPT"));
 
-        var resultJson = await _aiService.GenerateQuizFromYouTubeAsync(transcript, cancellationToken);
+        var resultJson = await _aiService.GenerateQuizFromYouTubeAsync(transcript, normalizedDifficulty, cancellationToken);
 
         List<QuizItem> quizItems;
         try
@@ -713,18 +717,26 @@ public class YouTubeController : ControllerBase
                 OptionsJson = JsonSerializer.Serialize(item.Options),
                 CorrectAnswer = item.CorrectAnswer,
                 Explanation = item.Explanation,
+                Difficulty = normalizedDifficulty,
                 CreatedAt = DateTime.UtcNow
             }, cancellationToken);
         }
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        var saved = await _unitOfWork.Quizzes.FindAsync(q => q.YouTubeVideoId == id && q.UserId == userId, cancellationToken);
+        var saved = await _unitOfWork.Quizzes.FindAsync(q => q.YouTubeVideoId == id && q.UserId == userId && q.Difficulty == normalizedDifficulty, cancellationToken);
         var dtos = saved.Select(q => new QuizDto(
             q.QuizId, null, q.YouTubeVideoId, q.SourceType, q.Question,
             JsonSerializer.Deserialize<string[]>(q.OptionsJson) ?? [],
-            q.CorrectAnswer, q.Explanation, q.CreatedAt));
+            q.CorrectAnswer, q.Explanation, q.CreatedAt, q.Difficulty));
         return Ok(BaseResponse<IEnumerable<QuizDto>>.Ok(dtos));
     }
+
+    private static string NormalizeQuizDifficulty(string difficulty) => difficulty.ToLowerInvariant() switch
+    {
+        "easy" => "easy",
+        "hard" => "hard",
+        _ => "medium"
+    };
 
     [HttpPost("videos/{id:guid}/quiz/submit")]
     [ProducesResponseType(typeof(BaseResponse<QuizSubmissionDto>), 200)]

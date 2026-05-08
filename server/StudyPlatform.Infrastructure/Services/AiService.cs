@@ -119,12 +119,15 @@ public class AiService : IAiService
         return CleanTextResponse(result);
     }
 
-    public Task<string> GenerateQuizAsync(byte[] fileData, string mimeType, CancellationToken cancellationToken = default)
-        => CacheGeneratedResultAsync(
+    public Task<string> GenerateQuizAsync(byte[] fileData, string mimeType, string difficulty = "medium", CancellationToken cancellationToken = default)
+    {
+        var prompt = Prompts.QuizForDifficulty(difficulty);
+        return CacheGeneratedResultAsync(
             "quiz:file",
-            HashBytes(fileData, mimeType, Prompts.Quiz),
-            ct => CallAiWithFileAsync(fileData, mimeType, Prompts.Quiz, ct),
+            HashBytes(fileData, mimeType, prompt),
+            ct => CallAiWithFileAsync(fileData, mimeType, prompt, ct),
             cancellationToken);
+    }
 
     public Task<string> GenerateFlashcardsAsync(byte[] fileData, string mimeType, CancellationToken cancellationToken = default)
         => CacheGeneratedResultAsync(
@@ -144,7 +147,7 @@ public class AiService : IAiService
 
     public async Task<string> GenerateMindMapAsync(string textContent, CancellationToken cancellationToken = default)
     {
-        var prompt = $"{Prompts.MindMap}\n\nDocument content:\n{TruncateContent(textContent)}";
+        var prompt = $"{Prompts.MindMap}\n\nSource material:\n{TruncateContent(textContent)}";
         var result = await CacheGeneratedResultAsync(
             "mindmap:text",
             HashText(prompt),
@@ -153,9 +156,9 @@ public class AiService : IAiService
         return CleanTextResponse(result);
     }
 
-    public Task<string> GenerateQuizAsync(string textContent, CancellationToken cancellationToken = default)
+    public Task<string> GenerateQuizAsync(string textContent, string difficulty = "medium", CancellationToken cancellationToken = default)
     {
-        var prompt = $"{Prompts.Quiz}\n\nDocument content:\n{TruncateContent(textContent)}";
+        var prompt = $"{Prompts.QuizForDifficulty(difficulty)}\n\nSource material:\n{TruncateContent(textContent)}";
         return CacheGeneratedResultAsync(
             "quiz:text",
             HashText(prompt),
@@ -165,7 +168,7 @@ public class AiService : IAiService
 
     public Task<string> GenerateFlashcardsAsync(string textContent, CancellationToken cancellationToken = default)
     {
-        var prompt = $"{Prompts.Flashcards}\n\nDocument content:\n{TruncateContent(textContent)}";
+        var prompt = $"{Prompts.Flashcards}\n\nSource material:\n{TruncateContent(textContent)}";
         return CacheGeneratedResultAsync(
             "flashcards:text",
             HashText(prompt),
@@ -175,7 +178,7 @@ public class AiService : IAiService
 
     public Task<string> GenerateGlossaryAsync(string textContent, CancellationToken cancellationToken = default)
     {
-        var prompt = $"{Prompts.Glossary}\n\nDocument content:\n{TruncateContent(textContent)}";
+        var prompt = $"{Prompts.Glossary}\n\nSource material:\n{TruncateContent(textContent)}";
         return CacheGeneratedResultAsync(
             "glossary:text",
             HashText(prompt),
@@ -187,7 +190,7 @@ public class AiService : IAiService
 
     public async Task<string> GenerateMindMapFromYouTubeAsync(string transcriptText, CancellationToken cancellationToken = default)
     {
-        var prompt = $"{Prompts.YouTubeMindMap}\n\nVideo transcript:\n{TruncateContent(transcriptText)}";
+        var prompt = $"{Prompts.YouTubeMindMap}\n\nSource material:\n{TruncateContent(transcriptText)}";
         var result = await CacheGeneratedResultAsync(
             "mindmap:youtube",
             HashText(prompt),
@@ -196,9 +199,9 @@ public class AiService : IAiService
         return CleanTextResponse(result);
     }
 
-    public Task<string> GenerateQuizFromYouTubeAsync(string transcriptText, CancellationToken cancellationToken = default)
+    public Task<string> GenerateQuizFromYouTubeAsync(string transcriptText, string difficulty = "medium", CancellationToken cancellationToken = default)
     {
-        var prompt = $"{Prompts.YouTubeQuiz}\n\nVideo transcript:\n{TruncateContent(transcriptText)}";
+        var prompt = $"{Prompts.YouTubeQuizForDifficulty(difficulty)}\n\nSource material:\n{TruncateContent(transcriptText)}";
         return CacheGeneratedResultAsync(
             "quiz:youtube",
             HashText(prompt),
@@ -208,7 +211,7 @@ public class AiService : IAiService
 
     public Task<string> GenerateFlashcardsFromYouTubeAsync(string transcriptText, CancellationToken cancellationToken = default)
     {
-        var prompt = $"{Prompts.YouTubeFlashcards}\n\nVideo transcript:\n{TruncateContent(transcriptText)}";
+        var prompt = $"{Prompts.YouTubeFlashcards}\n\nSource material:\n{TruncateContent(transcriptText)}";
         return CacheGeneratedResultAsync(
             "flashcards:youtube",
             HashText(prompt),
@@ -222,7 +225,7 @@ public class AiService : IAiService
     {
         var system = string.IsNullOrWhiteSpace(transcriptText)
             ? Prompts.YouTubeTutorInstruction
-            : $"{Prompts.YouTubeTutorInstruction}\n\n[Video transcript for context]\n{TruncateContent(transcriptText)}";
+            : $"{Prompts.YouTubeTutorInstruction}\n\n[Source context]\n{TruncateContent(transcriptText)}";
 
         var messages = history.Append(("user", message));
         return SendTextAsync(system, messages, 0.7, 8192, cleanJson: false, cancellationToken);
@@ -277,11 +280,12 @@ public class AiService : IAiService
 
     public Task<string> SuggestConceptLinksAsync(string documentContent, string entityType, Guid entityId, string existingTerms, CancellationToken cancellationToken = default)
     {
-        var prompt = $@"Analyze the following content and suggest concept links to related entities.
+        var prompt = $@"Analyze the supplied study material and suggest concept links to related entities.
+Do not use meta phrases such as ""this document"", ""the document"", ""this video"", ""the video"", ""the transcript"", ""the source material"", ""the content"", or similar wording in generated titles or labels.
 Existing terms/concepts available: {existingTerms}
 Entity type: {entityType}, Entity ID: {entityId}
 
-Content:
+Source material:
 {TruncateContent(documentContent, 2000)}
 
 Return a JSON array of suggested links only, no markdown, no code blocks:
@@ -652,21 +656,21 @@ Return a JSON array of suggested links only, no markdown, no code blocks:
 
     public async IAsyncEnumerable<string> StreamSummaryAsync(string textContent, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var prompt = $"{Prompts.StreamSummary}\n\nDocument content:\n{TruncateContent(textContent)}";
+        var prompt = $"{Prompts.StreamSummary}\n\nSource material:\n{TruncateContent(textContent)}";
         await foreach (var chunk in StreamTextAsync(null, [("user", prompt)], 0.7, 8192, cancellationToken))
             yield return chunk;
     }
 
     public async IAsyncEnumerable<string> StreamTimelineSummaryAsync(string timedTranscript, string mediaType, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var prompt = $"{Prompts.TimelineStreamSummary(mediaType)}\n\nTimed transcript:\n{TruncateContent(timedTranscript)}";
+        var prompt = $"{Prompts.TimelineStreamSummary(mediaType)}\n\nTimestamped source material:\n{TruncateContent(timedTranscript)}";
         await foreach (var chunk in StreamTextAsync(null, [("user", prompt)], 0.7, 8192, cancellationToken))
             yield return chunk;
     }
 
     public async IAsyncEnumerable<string> StreamSummaryFromYouTubeAsync(string transcriptText, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var prompt = $"{Prompts.TimelineStreamSummary("video")}\n\nTimed transcript:\n{TruncateContent(transcriptText)}";
+        var prompt = $"{Prompts.TimelineStreamSummary("video")}\n\nTimestamped source material:\n{TruncateContent(transcriptText)}";
         await foreach (var chunk in StreamTextAsync(null, [("user", prompt)], 0.7, 8192, cancellationToken))
             yield return chunk;
     }
@@ -681,14 +685,14 @@ Return a JSON array of suggested links only, no markdown, no code blocks:
 
     public async IAsyncEnumerable<string> StreamMindMapAsync(string textContent, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var prompt = $"{Prompts.MindMap}\n\nDocument content:\n{TruncateContent(textContent)}";
+        var prompt = $"{Prompts.MindMap}\n\nSource material:\n{TruncateContent(textContent)}";
         await foreach (var chunk in StreamTextAsync(null, [("user", prompt)], 0.35, 4096, cancellationToken))
             yield return chunk;
     }
 
     public async IAsyncEnumerable<string> StreamMindMapFromYouTubeAsync(string transcriptText, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var prompt = $"{Prompts.YouTubeMindMap}\n\nVideo transcript:\n{TruncateContent(transcriptText)}";
+        var prompt = $"{Prompts.YouTubeMindMap}\n\nSource material:\n{TruncateContent(transcriptText)}";
         await foreach (var chunk in StreamTextAsync(null, [("user", prompt)], 0.35, 4096, cancellationToken))
             yield return chunk;
     }
@@ -706,7 +710,7 @@ Return a JSON array of suggested links only, no markdown, no code blocks:
     {
         var system = string.IsNullOrWhiteSpace(transcriptText)
             ? Prompts.YouTubeTutorInstruction
-            : $"{Prompts.YouTubeTutorInstruction}\n\n[Video transcript for context]\n{TruncateContent(transcriptText)}";
+            : $"{Prompts.YouTubeTutorInstruction}\n\n[Source context]\n{TruncateContent(transcriptText)}";
 
         var messages = history.Append(("user", message));
         await foreach (var chunk in StreamTextAsync(system, messages, 0.7, 8192, cancellationToken))
@@ -723,9 +727,9 @@ Return a JSON array of suggested links only, no markdown, no code blocks:
     // ── Utilities ─────────────────────────────────────────────────────────
 
     private static string BuildDocumentChatPrompt(string truncatedDoc, string historyText, string userMessage) =>
-        $@"You are a knowledgeable AI assistant. Answer the user's question using your broad general knowledge. The document below is provided as supplementary context — reference it when it is relevant to the question, but do not restrict your answers to only what the document says.
+        $@"You are a knowledgeable AI assistant. Answer the user's question using your broad general knowledge. The source context below is supplementary; use it when relevant, but do not restrict answers to only that context.
 
-Document content:
+Source context:
 {truncatedDoc}
 
 Conversation history:
@@ -733,7 +737,7 @@ Conversation history:
 
 USER: {userMessage}
 
-Provide a helpful, accurate, and complete answer. Use the document for context where applicable, and supplement with your general knowledge as needed.";
+Provide a helpful, accurate, and complete answer. Discuss ideas directly and do not mention the source format or use phrases like ""this document"", ""the document"", ""this video"", ""the video"", ""the transcript"", ""the source material"", or ""the content"" unless quoting the user.";
 
     private static string CleanJsonResponse(string text)
     {
@@ -795,12 +799,15 @@ Provide a helpful, accurate, and complete answer. Use the document for context w
     }
 
     private static string TruncateContent(string content, int maxLength = 10000)
-        => content.Length <= maxLength ? content : content[..maxLength] + "\n[Content truncated...]";
+        => content.Length <= maxLength ? content : content[..maxLength] + "\n[Source truncated...]";
 
     // ── Prompts ───────────────────────────────────────────────────────────
 
     private static class Prompts
     {
+        private const string NoSourceMetaPhrases =
+            @"Do not mention the source format or refer to the material with meta phrases such as ""this document"", ""the document"", ""this video"", ""the video"", ""the transcript"", ""the source material"", ""the content"", ""the text"", ""the speaker"", ""the lecture"", or similar wording. Discuss the ideas directly.";
+
         public const string MindMap =
             @"Create a detailed hierarchical study mind map in XMindMark format.
 STRICT RULES:
@@ -818,6 +825,7 @@ Include named entities, key numbers, dates, formulas, assumptions, and concrete 
 Avoid generic nodes such as Overview, Important Points, Key Ideas, or Conclusion unless the source uses them as real section topics.
 Avoid repetition; merge duplicates and keep each branch conceptually distinct.
 Do not invent details not supported by the source.
+Do not include meta phrases about the source format in any node.
 Example:
 Main Topic
 - Core Concept
@@ -832,40 +840,50 @@ Main Topic
         - Trigger or input
         - Important constraint";
 
-        public const string Quiz =
-            @"Generate 5 to 10 multiple-choice questions from this document.
+        public static readonly string Quiz =
+            $@"Generate 5 to 10 multiple-choice questions from the supplied study material.
+{NoSourceMetaPhrases}
 Each question must have exactly 4 options. Each option must start with ""A) "", ""B) "", ""C) "", ""D) "" respectively.
 correctAnswer MUST be only the matching letter: ""A"", ""B"", ""C"", or ""D"". Do not put the answer text in correctAnswer.
 Return a JSON array only, no markdown, no code blocks:
-[{""question"": ""..."", ""options"": [""A) ..."",""B) ..."",""C) ..."",""D) ...""], ""correctAnswer"": ""A"", ""explanation"": ""...""}]";
+[{{""question"": ""..."", ""options"": [""A) ..."",""B) ..."",""C) ..."",""D) ...""], ""correctAnswer"": ""A"", ""explanation"": ""...""}}]";
 
-        public const string Flashcards =
-            @"Generate 15 flashcards from this document for spaced repetition learning.
-Return a JSON array only, no markdown, no code blocks: [{""front"": ""..."", ""back"": ""...""}]";
+        public static string QuizForDifficulty(string difficulty) =>
+            $@"{Quiz}
+Difficulty: {QuizDifficultyLabel(difficulty)}.
+Beginner questions should focus on recall and understanding.
+Intermediate questions should focus on understanding and application.
+Advanced questions should focus on application and analysis.";
 
-        public const string Glossary =
-            @"Extract 10–20 key terms and their definitions from this document.
+        public static readonly string Flashcards =
+            $@"Generate 15 flashcards from the supplied study material for spaced repetition learning.
+{NoSourceMetaPhrases}
+Return a JSON array only, no markdown, no code blocks: [{{""front"": ""..."", ""back"": ""...""}}]";
+
+        public static readonly string Glossary =
+            $@"Extract 10-20 key terms and their definitions from the supplied study material.
+{NoSourceMetaPhrases}
 Focus on technical terms, concepts, and domain-specific vocabulary.
-Return a JSON array only, no markdown, no code blocks: [{""term"": ""..."", ""definition"": ""...""}]";
+Return a JSON array only, no markdown, no code blocks: [{{""term"": ""..."", ""definition"": ""...""}}]";
 
-        public const string StreamSummary =
-            "Analyze the source material and write a summary in Markdown. Start with exactly one concise, professional, academic overview paragraph covering the main thesis and conclusions. Discuss the content directly; do not use meta phrases such as 'this document', 'the document', 'the text', 'the source material', or 'the content'. Follow with a '## Key Concepts' section explaining the most important ideas in detail. Then add a '## Key Takeaways' bullet list of 3-6 specific, informative points using '- '.";
+        public static readonly string StreamSummary =
+            $"Write a Markdown study summary. Start with exactly one concise, professional, academic overview paragraph covering the main thesis and conclusions. {NoSourceMetaPhrases} Follow with a '## Key Concepts' section explaining the most important ideas in detail. Then add a '## Key Takeaways' bullet list of 3-6 specific, informative points using '- '.";
 
-        public const string YouTubeStreamSummary =
-            "Analyze the source material and write a summary in Markdown. Start with exactly one concise, professional, academic overview paragraph covering the main topic and conclusions. Discuss the content directly; do not use meta phrases such as 'this video', 'the video', 'the transcript', 'the speaker', 'the source material', or 'the content'. Follow with a '## Key Concepts' section explaining the most important ideas in detail. Then add a '## Key Takeaways' bullet list of 3-6 specific, informative points using '- '.";
+        public static readonly string YouTubeStreamSummary =
+            $"Write a Markdown study summary. Start with exactly one concise, professional, academic overview paragraph covering the main topic and conclusions. {NoSourceMetaPhrases} Follow with a '## Key Concepts' section explaining the most important ideas in detail. Then add a '## Key Takeaways' bullet list of 3-6 specific, informative points using '- '.";
 
         public static string TimelineStreamSummary(string mediaType) =>
-            $@"Analyze the source material and write a timeline-based study summary in Markdown.
+            $@"Write a timeline-based study summary in Markdown.
 Start with exactly one concise, professional, academic overview paragraph covering the main topic and conclusions.
-Discuss the content directly; do not use meta phrases such as 'this {mediaType}', 'the {mediaType}', 'the transcript', 'the speaker', 'the source material', or 'the content'.
-Then add a '## Timeline Summary' section with 3-6 chronological paragraphs. Each paragraph MUST start with a timestamp range from the transcript, formatted like '00:00 – 02:15' or '1:00:00 – 1:02:15', followed by a clear summary of what happens or is explained across that segment.
-Group nearby transcript fragments into meaningful segments instead of listing every line.
+{NoSourceMetaPhrases}
+Then add a '## Timeline Summary' section with 3-6 chronological paragraphs. Each paragraph MUST start with a timestamp range from the timestamped source, formatted like '00:00 - 02:15' or '1:00:00 - 1:02:15', followed by a clear summary of what happens or is explained across that segment.
+Group nearby timestamped fragments into meaningful segments instead of listing every line.
 After the timeline, add a '## Key Concepts' section explaining the most important ideas in detail.
 Finish with a '## Key Takeaways' bullet list of 3-6 specific, informative points using '- '.
-Use only timestamp ranges that appear in or can be directly inferred from the transcript. If the transcript has no timestamps, still summarize chronologically but omit timestamp prefixes.";
+Use only timestamp ranges that appear in or can be directly inferred from the supplied timestamps. If no timestamps are available, still summarize chronologically but omit timestamp prefixes.";
 
         public const string YouTubeMindMap =
-            @"Generate a detailed study mind map for this YouTube video transcript in XMindMark format.
+            @"Generate a detailed study mind map from the supplied study material in XMindMark format.
 STRICT RULES:
 Output ONLY the mind map text. No explanations, no JSON, no code fences.
 First line MUST be the single root topic.
@@ -874,42 +892,59 @@ Maximum 4 levels: Root → Main → Sub → Detail.
 Make the map comprehensive enough for exam revision, not just a video outline.
 Use 5-9 main branches covering all major themes, arguments, processes, definitions, examples, demonstrations, and conclusions.
 Each main branch should usually have 3-6 sub-branches.
-Each sub-branch should usually have 2-4 detail nodes with specific facts, mechanisms, formulas, examples, causes, effects, limitations, or comparisons from the transcript.
+Each sub-branch should usually have 2-4 detail nodes with specific facts, mechanisms, formulas, examples, causes, effects, limitations, or comparisons from the source.
 Main and sub-branch nodes should be concise labels, usually 2-8 words.
 Detail nodes may be short phrases up to 18 words when needed to preserve meaning.
 Include named entities, key numbers, dates, formulas, assumptions, and concrete examples when present.
-Preserve important sequence or cause-effect relationships from the video.
-Avoid generic nodes such as Overview, Important Points, Key Ideas, or Conclusion unless the transcript uses them as real section topics.
+Preserve important sequence or cause-effect relationships.
+Avoid generic nodes such as Overview, Important Points, Key Ideas, or Conclusion unless they are real section topics.
 Avoid repetition; merge duplicates and keep each branch conceptually distinct.
-Do not invent details not supported by the transcript.
+Do not invent details not supported by the source.
+Do not include meta phrases about the source format in any node.
 Example:
 Main Topic
 - Core Concept
     - Definition
-        - Precise meaning from transcript
+        - Precise meaning from source
         - Related term or contrast
     - Example
-        - Specific example from speaker
+        - Specific example
         - Why example matters
 - Demonstration or Process
     - Step One
         - Trigger or input
         - Important constraint";
 
-        public const string YouTubeQuiz =
-            @"Generate 5 to 10 multiple-choice quiz questions based on this YouTube video transcript.
+        public static readonly string YouTubeQuiz =
+            $@"Generate 5 to 10 multiple-choice quiz questions from the supplied study material.
+{NoSourceMetaPhrases}
 Each question must have exactly 4 options. Each option must start with ""A. "", ""B. "", ""C. "", ""D. "" respectively.
 correctAnswer MUST be only the matching letter: ""A"", ""B"", ""C"", or ""D"". Do not put the answer text in correctAnswer.
 Return a JSON array only, no markdown, no code blocks:
-[{""question"":""..."",""options"":[""A. ..."",""B. ..."",""C. ..."",""D. ...""],""correctAnswer"":""A"",""explanation"":""...""}]";
+[{{""question"":""..."",""options"":[""A. ..."",""B. ..."",""C. ..."",""D. ...""],""correctAnswer"":""A"",""explanation"":""...""}}]";
 
-        public const string YouTubeFlashcards =
-            @"Generate 5 to 10 flashcards based on this YouTube video transcript, focusing on the most important concepts only.
+        public static string YouTubeQuizForDifficulty(string difficulty) =>
+            $@"{YouTubeQuiz}
+Difficulty: {QuizDifficultyLabel(difficulty)}.
+Beginner questions should focus on recall and understanding.
+Intermediate questions should focus on understanding and application.
+Advanced questions should focus on application and analysis.";
+
+        private static string QuizDifficultyLabel(string difficulty) => difficulty?.ToLowerInvariant() switch
+        {
+            "easy" => "Beginner",
+            "hard" => "Advanced",
+            _ => "Intermediate"
+        };
+
+        public static readonly string YouTubeFlashcards =
+            $@"Generate 5 to 10 flashcards from the supplied study material, focusing on the most important concepts only.
+{NoSourceMetaPhrases}
 Each flashcard: front (question/concept) and back (answer/definition). Keep answers concise.
-Return a JSON array only, no markdown, no code blocks: [{""front"":""..."",""back"":""...""}]";
+Return a JSON array only, no markdown, no code blocks: [{{""front"":""..."",""back"":""...""}}]";
 
-        public const string YouTubeTutorInstruction =
-            "You are a knowledgeable AI assistant. Answer questions using your broad general knowledge. The video transcript below is provided as supplementary context — reference it when relevant, but do not restrict your answers to only what the video covers. If the user asks something beyond the video's scope, answer from your general knowledge.";
+        public static readonly string YouTubeTutorInstruction =
+            $"You are a knowledgeable AI assistant. Answer questions using your broad general knowledge. Source context may be supplied as supplementary context; use it when relevant, but do not restrict answers to only that context. If the user asks something beyond the context, answer from general knowledge. {NoSourceMetaPhrases}";
 
         public const string GeneralTutorInstruction =
             "You are a knowledgeable AI assistant. Answer any question the user asks using your broad general knowledge. Give clear, accurate, and helpful responses. Adjust depth to match the complexity of the question — be concise for simple questions, and thorough for complex ones.";
@@ -926,9 +961,9 @@ Return a JSON array only, no markdown, no code blocks: [{""front"":""..."",""bac
 
     public Task<string> GenerateWorkedProblemsAsync(string content, string difficulty, int count, CancellationToken cancellationToken = default)
     {
-        var prompt = $@"Generate {count} {difficulty}-difficulty worked problems based on the following content. Return a JSON array where each element has: problem (string), steps (array of objects with stepNumber (int), description (string), formula (string, optional)), answer (string), topic (string). Return ONLY the JSON array, no other text.
+        var prompt = $@"Generate {count} {difficulty}-difficulty worked problems from the supplied study material. Do not use meta phrases such as ""this document"", ""the document"", ""this video"", ""the video"", ""the transcript"", ""the source material"", ""the content"", or similar wording in any generated field. Return a JSON array where each element has: problem (string), steps (array of objects with stepNumber (int), description (string), formula (string, optional)), answer (string), topic (string). Return ONLY the JSON array, no other text.
 
-Content:
+Source material:
 {TruncateContent(content)}";
         return CacheGeneratedResultAsync(
             "worked-problems:text",
@@ -951,9 +986,9 @@ Return ONLY the JSON object, no other text.";
 
     public Task<string> AnswerQuestionAsync(string documentContent, string question, CancellationToken cancellationToken = default)
     {
-        var prompt = $@"Answer the following question based on the provided document content. Give a clear, accurate, and helpful answer.
+        var prompt = $@"Answer the following question using the supplied source context when relevant. Give a clear, accurate, and helpful answer. Do not mention the source format or use meta phrases such as ""this document"", ""the document"", ""this video"", ""the video"", ""the transcript"", ""the source material"", ""the content"", or similar wording unless quoting the user.
 
-Document:
+Source context:
 {TruncateContent(documentContent, 4000)}
 
 Question: {question}

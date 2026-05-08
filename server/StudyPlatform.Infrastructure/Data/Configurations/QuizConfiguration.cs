@@ -13,6 +13,7 @@ public class QuizConfiguration : IEntityTypeConfiguration<Quiz>
         builder.Property(q => q.OptionsJson).IsRequired().HasColumnType("jsonb");
         builder.Property(q => q.CorrectAnswer).IsRequired().HasMaxLength(10);
         builder.Property(q => q.Explanation).IsRequired().HasColumnType("text");
+        builder.Property(q => q.Difficulty).IsRequired().HasMaxLength(20).HasDefaultValue("medium");
         builder.Property(q => q.SourceType).IsRequired().HasMaxLength(20).HasDefaultValue("document");
         builder.Property(q => q.CreatedAt).IsRequired();
 

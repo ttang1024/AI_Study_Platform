@@ -164,7 +164,7 @@ public class GetAIChatHistoryQueryHandler : IRequestHandler<GetAIChatHistoryQuer
     }
 }
 
-public record GetDocumentQuizzesQuery(Guid DocumentId, Guid UserId) : IRequest<Result<IEnumerable<QuizDto>>>;
+public record GetDocumentQuizzesQuery(Guid DocumentId, Guid UserId, string? Difficulty = null) : IRequest<Result<IEnumerable<QuizDto>>>;
 
 public class GetDocumentQuizzesQueryHandler : IRequestHandler<GetDocumentQuizzesQuery, Result<IEnumerable<QuizDto>>>
 {
@@ -181,14 +181,23 @@ public class GetDocumentQuizzesQueryHandler : IRequestHandler<GetDocumentQuizzes
         if (document == null || document.UserId != request.UserId)
             return Result<IEnumerable<QuizDto>>.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
 
-        var quizzes = await _unitOfWork.Quizzes.GetByDocumentIdAsync(request.DocumentId, cancellationToken);
+        var quizzes = string.IsNullOrWhiteSpace(request.Difficulty)
+            ? await _unitOfWork.Quizzes.GetByDocumentIdAsync(request.DocumentId, cancellationToken)
+            : await _unitOfWork.Quizzes.GetByDocumentIdAndDifficultyAsync(request.DocumentId, NormalizeDifficulty(request.Difficulty), cancellationToken);
         var dtos = quizzes.Select(q => new QuizDto(
             q.QuizId, q.DocumentId, q.YouTubeVideoId, q.SourceType, q.Question,
             JsonSerializer.Deserialize<string[]>(q.OptionsJson) ?? Array.Empty<string>(),
-            q.CorrectAnswer, q.Explanation, q.CreatedAt));
+            q.CorrectAnswer, q.Explanation, q.CreatedAt, q.Difficulty));
 
         return Result<IEnumerable<QuizDto>>.Success(dtos);
     }
+
+    private static string NormalizeDifficulty(string difficulty) => difficulty.ToLowerInvariant() switch
+    {
+        "easy" => "easy",
+        "hard" => "hard",
+        _ => "medium"
+    };
 }
 
 public record GetDocumentDownloadUrlQuery(Guid DocumentId, Guid UserId) : IRequest<Result<string>>;

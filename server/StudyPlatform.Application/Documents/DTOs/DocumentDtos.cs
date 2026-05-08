@@ -24,7 +24,8 @@ public record QuizDto(
     string[] Options,
     string CorrectAnswer,
     string Explanation,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    string Difficulty = "medium");
 
 public record FlashcardDto(
     Guid FlashcardId,

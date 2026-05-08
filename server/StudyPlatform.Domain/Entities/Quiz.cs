@@ -11,6 +11,7 @@ public class Quiz
     public string OptionsJson { get; set; } = string.Empty;
     public string CorrectAnswer { get; set; } = string.Empty;
     public string Explanation { get; set; } = string.Empty;
+    public string Difficulty { get; set; } = "medium";
     public DateTime CreatedAt { get; set; }
     public Document? Document { get; set; }
     public YouTubeVideo? YouTubeVideo { get; set; }

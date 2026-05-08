@@ -49,6 +49,7 @@ export interface QuizQuestion {
 	answer: string
 	explanation: string
 	type: 'multiple-choice' | 'short-answer'
+	difficulty?: 'easy' | 'medium' | 'hard'
 }
 
 export interface Flashcard {

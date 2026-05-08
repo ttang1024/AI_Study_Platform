@@ -453,7 +453,13 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
         notesHtml={noteContent || null}
         fetchQuizzes={currentDocument.courseId ? async () => {
           const qs = await documentService.getQuiz(currentDocument.courseId!, currentDocument.id);
-          return qs.map((q) => ({ question: q.question, options: q.options ?? [], correctAnswer: q.answer, explanation: q.explanation }));
+          return qs.map((q) => ({
+            question: q.question,
+            options: q.options ?? [],
+            correctAnswer: q.answer,
+            explanation: q.explanation ?? '',
+            difficulty: q.difficulty ?? 'medium',
+          } satisfies ShareableQuiz));
         } : undefined}
         fetchFlashcards={currentDocument.courseId ? async () => {
           const res = await apiClient.get<{ data: Array<{ front: string; back: string }> }>(`/api/courses/${currentDocument.courseId}/documents/${currentDocument.id}/flashcards`);

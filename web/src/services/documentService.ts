@@ -52,6 +52,7 @@ interface BackendQuiz {
 	options: string[]
 	correctAnswer: string
 	explanation: string
+	difficulty?: 'easy' | 'medium' | 'hard'
 }
 
 interface BackendFlashcard {
@@ -124,6 +125,7 @@ const mapQuiz = (bq: BackendQuiz): QuizQuestion => ({
 	answer: bq.correctAnswer,
 	explanation: bq.explanation,
 	type: 'multiple-choice',
+	difficulty: bq.difficulty ?? 'medium',
 })
 
 const mapFlashcard = (bf: BackendFlashcard): Flashcard => ({
@@ -245,16 +247,17 @@ export const documentService = {
 		return { mindMapText: doc.mindMapText || '' }
 	},
 
-	async generateQuiz(courseId: string, documentId: string): Promise<QuizQuestion[]> {
+	async generateQuiz(courseId: string, documentId: string, difficulty = 'medium'): Promise<QuizQuestion[]> {
 		const response = await apiClient.post(
-			`/api/courses/${courseId}/documents/${documentId}/quiz/generate`,
+			`/api/courses/${courseId}/documents/${documentId}/quiz/generate?difficulty=${encodeURIComponent(difficulty)}`,
 		)
 		return (response.data.data as BackendQuiz[]).map(mapQuiz)
 	},
 
-	async getQuiz(courseId: string, documentId: string): Promise<QuizQuestion[]> {
+	async getQuiz(courseId: string, documentId: string, difficulty?: string): Promise<QuizQuestion[]> {
+		const query = difficulty ? `?difficulty=${encodeURIComponent(difficulty)}` : ''
 		const response = await apiClient.get(
-			`/api/courses/${courseId}/documents/${documentId}/quiz`,
+			`/api/courses/${courseId}/documents/${documentId}/quiz${query}`,
 		)
 		return (response.data.data as BackendQuiz[]).map(mapQuiz)
 	},

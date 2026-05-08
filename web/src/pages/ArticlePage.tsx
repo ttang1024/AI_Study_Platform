@@ -23,6 +23,7 @@ import { TABS } from '../constants/tab';
 import { cn } from '../utils/cn';
 import { getDocDisplayName } from '../utils/docName';
 import { ShareModal } from '../components/common/ShareModal';
+import { ShareableQuiz } from '../services/shareContentService';
 import { Document } from '../types';
 import { getApiErrorCode } from '../utils/apiError';
 import { getApiUrl } from '../utils/env';
@@ -521,6 +522,16 @@ export const ArticlePage: React.FC<{ embedded?: boolean; id?: string }> = ({ emb
         sourceType="article"
         sourceUrl={currentDocument.courseId && currentDocument.id ? `${currentDocument.courseId}/${currentDocument.id}` : null}
         originalArticleUrl={currentDocument.originalUrl || null}
+        fetchQuizzes={currentDocument.courseId ? async () => {
+          const qs = await documentService.getQuiz(currentDocument.courseId!, currentDocument.id);
+          return qs.map(q => ({
+            question: q.question,
+            options: q.options ?? [],
+            correctAnswer: q.answer,
+            explanation: q.explanation ?? '',
+            difficulty: q.difficulty ?? 'medium',
+          } satisfies ShareableQuiz));
+        } : undefined}
       />
 
       <QuizModal />

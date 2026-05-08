@@ -295,10 +295,10 @@ public class DocumentsController : ControllerBase
     [HttpPost("{documentId:guid}/quiz/generate")]
     [ProducesResponseType(typeof(BaseResponse<IEnumerable<QuizDto>>), 200)]
     [ProducesResponseType(typeof(BaseResponse), 404)]
-    public async Task<IActionResult> GenerateQuiz(Guid courseId, Guid documentId)
+    public async Task<IActionResult> GenerateQuiz(Guid courseId, Guid documentId, [FromQuery] string difficulty = "medium")
     {
         var userId = User.GetUserId();
-        var result = await _mediator.Send(new GenerateQuizCommand(documentId, userId));
+        var result = await _mediator.Send(new GenerateQuizCommand(documentId, userId, difficulty));
         if (!result.IsSuccess)
         {
             if (result.ErrorCode == "DOCUMENT_NOT_FOUND")
@@ -316,10 +316,10 @@ public class DocumentsController : ControllerBase
     /// </summary>
     [HttpGet("{documentId:guid}/quiz")]
     [ProducesResponseType(typeof(BaseResponse<IEnumerable<QuizDto>>), 200)]
-    public async Task<IActionResult> GetQuizzes(Guid courseId, Guid documentId)
+    public async Task<IActionResult> GetQuizzes(Guid courseId, Guid documentId, [FromQuery] string? difficulty = null)
     {
         var userId = User.GetUserId();
-        var result = await _mediator.Send(new GetDocumentQuizzesQuery(documentId, userId));
+        var result = await _mediator.Send(new GetDocumentQuizzesQuery(documentId, userId, difficulty));
         if (!result.IsSuccess)
             return NotFound(BaseResponse<IEnumerable<QuizDto>>.Fail(result.Message, result.ErrorCode));
 

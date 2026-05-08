@@ -544,6 +544,13 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Property<Guid?>("DocumentId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Difficulty")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("medium");
+
                     b.Property<string>("Explanation")
                         .IsRequired()
                         .HasColumnType("text");
