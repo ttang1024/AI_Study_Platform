@@ -160,6 +160,13 @@ public class YouTubeController : ControllerBase
     private static string TranscriptCacheKey(string videoId) => $"transcript:{videoId}";
     private static string TranscriptSegmentsCacheKey(string videoId) => $"transcript_segments:{videoId}";
     private static string SubtitlesCacheKey(string videoId) => $"subtitles:{videoId}";
+    private static string MindMapCacheKey(string videoId) => $"mindmap:{videoId}";
+    private static string SummaryCacheKey(string videoId) => $"summary:{videoId}";
+    private static string QuizCacheKey(string videoId) => $"quiz:{videoId}";
+    private static string FlashcardsCacheKey(string videoId) => $"flashcards:{videoId}";
+    private static string VideoFlashcardsCacheKey(Guid videoRecordId, Guid userId) => $"flashcards:video:{videoRecordId}:{userId}";
+    private static string VideoGlossaryCacheKey(Guid videoRecordId, Guid userId) => $"glossary:video:{videoRecordId}:{userId}";
+    private static string VideoQuizCacheKey(Guid videoRecordId, Guid userId, string difficulty) => $"quiz:video:{videoRecordId}:{userId}:{difficulty}";
 
     // Returns transcript from Redis → DB → YouTube fetch (in that order), persisting to DB and Redis on miss.
     private async Task<string?> GetOrFetchTranscriptAsync(YouTubeVideo video, CancellationToken cancellationToken)
@@ -177,8 +184,8 @@ public class YouTubeController : ControllerBase
             return video.Transcript;
         }
 
-        var segments = await _transcriptService.GetTranscriptAsync(video.VideoId, cancellationToken)
-                       ?? await _transcriptService.GetSubtitlesAsync(video.VideoId, cancellationToken);
+        var segments = await _transcriptService.GetSubtitlesAsync(video.VideoId, cancellationToken)
+                       ?? await _transcriptService.GetTranscriptAsync(video.VideoId, cancellationToken);
         if (segments == null || segments.Count == 0) return null;
 
         var transcript = string.Join(" ", segments.Select(s => s.Text));
@@ -204,8 +211,8 @@ public class YouTubeController : ControllerBase
         if (savedVideo != null)
             return await GetOrFetchTranscriptAsync(savedVideo, cancellationToken);
 
-        var segments = await _transcriptService.GetTranscriptAsync(videoId, cancellationToken)
-                       ?? await _transcriptService.GetSubtitlesAsync(videoId, cancellationToken);
+        var segments = await _transcriptService.GetSubtitlesAsync(videoId, cancellationToken)
+                       ?? await _transcriptService.GetTranscriptAsync(videoId, cancellationToken);
         if (segments == null || segments.Count == 0) return null;
 
         var transcript = string.Join(" ", segments.Select(s => s.Text));
@@ -222,8 +229,8 @@ public class YouTubeController : ControllerBase
         if (cached is { Count: > 0 })
             return FormatTranscriptSegments(cached);
 
-        var segments = await _transcriptService.GetTranscriptAsync(videoId, cancellationToken)
-                       ?? await _transcriptService.GetSubtitlesAsync(videoId, cancellationToken);
+        var segments = await _transcriptService.GetSubtitlesAsync(videoId, cancellationToken)
+                       ?? await _transcriptService.GetTranscriptAsync(videoId, cancellationToken);
         if (segments is { Count: > 0 })
         {
             var dtos = segments.Select(s => new TranscriptSegmentDto(s.Start.TotalSeconds, s.Text)).ToList();
@@ -272,10 +279,18 @@ public class YouTubeController : ControllerBase
 
         var videoId = ExtractVideoId(request.VideoUrl);
         if (videoId == null) return BadRequest(BaseResponse<string>.Fail("Invalid YouTube URL.", "INVALID_VIDEO_URL"));
+
+        var ttl = TimeSpan.FromSeconds(_cacheOptions.GeneratedResultSeconds);
+        var cacheKey = MindMapCacheKey(videoId);
+        var cached = await _cache.GetAsync<string>(cacheKey, cancellationToken);
+        if (!string.IsNullOrEmpty(cached))
+            return Ok(BaseResponse<string>.Ok(cached));
+
         var transcript = await GetTranscriptTextAsync(videoId, cancellationToken);
         if (transcript == null) return BadRequest(BaseResponse<string>.Fail("No subtitles available for this video.", "NO_TRANSCRIPT"));
 
         var result = await _aiService.GenerateMindMapFromYouTubeAsync(transcript, cancellationToken);
+        await _cache.SetAsync(cacheKey, result, ttl, cancellationToken);
         return Ok(BaseResponse<string>.Ok(result));
     }
 
@@ -292,6 +307,20 @@ public class YouTubeController : ControllerBase
         var videoId = ExtractVideoId(request.VideoUrl);
         if (videoId == null)
             return BadRequest(BaseResponse<string>.Fail("Invalid YouTube URL.", "INVALID_VIDEO_URL"));
+
+        var ttl = TimeSpan.FromSeconds(_cacheOptions.GeneratedResultSeconds);
+        var cacheKey = MindMapCacheKey(videoId);
+        var cached = await _cache.GetAsync<string>(cacheKey, cancellationToken);
+        if (!string.IsNullOrEmpty(cached))
+        {
+            Response.ContentType = "text/event-stream";
+            Response.Headers["Cache-Control"] = "no-cache";
+            Response.Headers["X-Accel-Buffering"] = "no";
+            await WriteSseDataAsync(cached, cancellationToken);
+            await Response.WriteAsync("data: [DONE]\n\n", cancellationToken);
+            await Response.Body.FlushAsync(cancellationToken);
+            return new EmptyResult();
+        }
 
         var transcript = await GetTranscriptTextAsync(videoId, cancellationToken);
         if (transcript == null)
@@ -321,14 +350,21 @@ public class YouTubeController : ControllerBase
         Response.Headers["Cache-Control"] = "no-cache";
         Response.Headers["X-Accel-Buffering"] = "no";
 
+        var fullText = new StringBuilder();
         try
         {
+            fullText.Append(firstChunk);
             await WriteSseDataAsync(firstChunk, cancellationToken);
 
             while (await enumerator.MoveNextAsync())
             {
-                await WriteSseDataAsync(enumerator.Current, cancellationToken);
+                var chunk = enumerator.Current;
+                fullText.Append(chunk);
+                await WriteSseDataAsync(chunk, cancellationToken);
             }
+
+            if (fullText.Length > 0)
+                await _cache.SetAsync(cacheKey, fullText.ToString(), ttl, cancellationToken);
         }
         catch (OperationCanceledException) { return new EmptyResult(); }
         catch (Exception ex)
@@ -360,10 +396,18 @@ public class YouTubeController : ControllerBase
 
         var videoId = ExtractVideoId(request.VideoUrl);
         if (videoId == null) return BadRequest(BaseResponse<string>.Fail("Invalid YouTube URL.", "INVALID_VIDEO_URL"));
+
+        var ttl = TimeSpan.FromSeconds(_cacheOptions.GeneratedResultSeconds);
+        var cacheKey = QuizCacheKey(videoId);
+        var cached = await _cache.GetAsync<string>(cacheKey, cancellationToken);
+        if (!string.IsNullOrEmpty(cached))
+            return Ok(BaseResponse<string>.Ok(cached));
+
         var transcript = await GetTranscriptTextAsync(videoId, cancellationToken);
         if (transcript == null) return BadRequest(BaseResponse<string>.Fail("No subtitles available for this video.", "NO_TRANSCRIPT"));
 
         var result = await _aiService.GenerateQuizFromYouTubeAsync(transcript, "medium", cancellationToken);
+        await _cache.SetAsync(cacheKey, result, ttl, cancellationToken);
         return Ok(BaseResponse<string>.Ok(result));
     }
 
@@ -375,10 +419,18 @@ public class YouTubeController : ControllerBase
 
         var videoId = ExtractVideoId(request.VideoUrl);
         if (videoId == null) return BadRequest(BaseResponse<string>.Fail("Invalid YouTube URL.", "INVALID_VIDEO_URL"));
+
+        var ttl = TimeSpan.FromSeconds(_cacheOptions.GeneratedResultSeconds);
+        var cacheKey = FlashcardsCacheKey(videoId);
+        var cached = await _cache.GetAsync<string>(cacheKey, cancellationToken);
+        if (!string.IsNullOrEmpty(cached))
+            return Ok(BaseResponse<string>.Ok(cached));
+
         var transcript = await GetTranscriptTextAsync(videoId, cancellationToken);
         if (transcript == null) return BadRequest(BaseResponse<string>.Fail("No subtitles available for this video.", "NO_TRANSCRIPT"));
 
         var result = await _aiService.GenerateFlashcardsFromYouTubeAsync(transcript, cancellationToken);
+        await _cache.SetAsync(cacheKey, result, ttl, cancellationToken);
         return Ok(BaseResponse<string>.Ok(result));
     }
 
@@ -523,8 +575,17 @@ public class YouTubeController : ControllerBase
     public async Task<IActionResult> GetVideoFlashcards(Guid id, CancellationToken cancellationToken)
     {
         var userId = User.GetUserId();
+        var ttl = TimeSpan.FromSeconds(_cacheOptions.GeneratedResultSeconds);
+        var cacheKey = VideoFlashcardsCacheKey(id, userId);
+
+        var cached = await _cache.GetAsync<List<FlashcardDto>>(cacheKey, cancellationToken);
+        if (cached != null)
+            return Ok(BaseResponse<IEnumerable<FlashcardDto>>.Ok(cached));
+
         var flashcards = await _unitOfWork.Flashcards.FindAsync(f => f.YouTubeVideoId == id && f.UserId == userId, cancellationToken);
-        var dtos = flashcards.Select(f => new FlashcardDto(f.FlashcardId, f.DocumentId, f.YouTubeVideoId, f.SourceType, f.UserId, f.Front, f.Back, f.CreatedAt, f.UpdatedAt));
+        var dtos = flashcards.Select(f => new FlashcardDto(f.FlashcardId, f.DocumentId, f.YouTubeVideoId, f.SourceType, f.UserId, f.Front, f.Back, f.CreatedAt, f.UpdatedAt)).ToList();
+        if (dtos.Count > 0)
+            await _cache.SetAsync(cacheKey, dtos, ttl, cancellationToken);
         return Ok(BaseResponse<IEnumerable<FlashcardDto>>.Ok(dtos));
     }
 
@@ -577,7 +638,9 @@ public class YouTubeController : ControllerBase
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         var saved = await _unitOfWork.Flashcards.FindAsync(f => f.YouTubeVideoId == id && f.UserId == userId, cancellationToken);
-        return Ok(BaseResponse<IEnumerable<FlashcardDto>>.Ok(saved.Select(f => new FlashcardDto(f.FlashcardId, f.DocumentId, f.YouTubeVideoId, f.SourceType, f.UserId, f.Front, f.Back, f.CreatedAt, f.UpdatedAt))));
+        var savedDtos = saved.Select(f => new FlashcardDto(f.FlashcardId, f.DocumentId, f.YouTubeVideoId, f.SourceType, f.UserId, f.Front, f.Back, f.CreatedAt, f.UpdatedAt)).ToList();
+        await _cache.SetAsync(VideoFlashcardsCacheKey(id, userId), savedDtos, TimeSpan.FromSeconds(_cacheOptions.GeneratedResultSeconds), cancellationToken);
+        return Ok(BaseResponse<IEnumerable<FlashcardDto>>.Ok(savedDtos));
     }
 
     // ── Video Glossary ────────────────────────────────────────────────────
@@ -586,9 +649,19 @@ public class YouTubeController : ControllerBase
     public async Task<IActionResult> GetVideoGlossary(Guid id, CancellationToken cancellationToken)
     {
         var userId = User.GetUserId();
+        var ttl = TimeSpan.FromSeconds(_cacheOptions.GeneratedResultSeconds);
+        var cacheKey = VideoGlossaryCacheKey(id, userId);
+
+        var cached = await _cache.GetAsync<List<GlossaryTermDto>>(cacheKey, cancellationToken);
+        if (cached != null)
+            return Ok(BaseResponse<IEnumerable<GlossaryTermDto>>.Ok(cached));
+
         var terms = await _unitOfWork.GlossaryTerms.GetByVideoIdAsync(id, cancellationToken);
         var dtos = terms.Where(t => t.UserId == userId)
-            .Select(t => new GlossaryTermDto(t.GlossaryTermId, null, t.Term, t.Definition, t.CreatedAt, t.YouTubeVideoId));
+            .Select(t => new GlossaryTermDto(t.GlossaryTermId, null, t.Term, t.Definition, t.CreatedAt, t.YouTubeVideoId))
+            .ToList();
+        if (dtos.Count > 0)
+            await _cache.SetAsync(cacheKey, dtos, ttl, cancellationToken);
         return Ok(BaseResponse<IEnumerable<GlossaryTermDto>>.Ok(dtos));
     }
 
@@ -602,8 +675,9 @@ public class YouTubeController : ControllerBase
 
         try
         {
-            // Delete existing terms to allow regeneration
+            // Delete existing terms and invalidate cache to allow regeneration
             await _unitOfWork.GlossaryTerms.DeleteByVideoIdAsync(id, cancellationToken);
+            await _cache.RemoveAsync(VideoGlossaryCacheKey(id, userId), cancellationToken);
 
             var transcript = await GetOrFetchTranscriptAsync(video, cancellationToken);
             if (transcript == null)
@@ -638,7 +712,9 @@ public class YouTubeController : ControllerBase
 
             var saved = await _unitOfWork.GlossaryTerms.GetByVideoIdAsync(id, cancellationToken);
             var dtos = saved.Where(t => t.UserId == userId)
-                .Select(t => new GlossaryTermDto(t.GlossaryTermId, null, t.Term, t.Definition, t.CreatedAt, t.YouTubeVideoId));
+                .Select(t => new GlossaryTermDto(t.GlossaryTermId, null, t.Term, t.Definition, t.CreatedAt, t.YouTubeVideoId))
+                .ToList();
+            await _cache.SetAsync(VideoGlossaryCacheKey(id, userId), dtos, TimeSpan.FromSeconds(_cacheOptions.GeneratedResultSeconds), cancellationToken);
             return Ok(BaseResponse<IEnumerable<GlossaryTermDto>>.Ok(dtos, "Glossary generated successfully."));
         }
         catch (Exception ex)
@@ -660,13 +736,22 @@ public class YouTubeController : ControllerBase
     {
         var userId = User.GetUserId();
         var normalizedDifficulty = string.IsNullOrWhiteSpace(difficulty) ? null : NormalizeQuizDifficulty(difficulty);
+        var ttl = TimeSpan.FromSeconds(_cacheOptions.GeneratedResultSeconds);
+        var cacheKey = VideoQuizCacheKey(id, userId, normalizedDifficulty ?? "all");
+
+        var cached = await _cache.GetAsync<List<QuizDto>>(cacheKey, cancellationToken);
+        if (cached != null)
+            return Ok(BaseResponse<IEnumerable<QuizDto>>.Ok(cached));
+
         var quizzes = await _unitOfWork.Quizzes.FindAsync(
             q => q.YouTubeVideoId == id && q.UserId == userId && (normalizedDifficulty == null || q.Difficulty == normalizedDifficulty),
             cancellationToken);
         var dtos = quizzes.Select(q => new QuizDto(
             q.QuizId, null, q.YouTubeVideoId, q.SourceType, q.Question,
             JsonSerializer.Deserialize<string[]>(q.OptionsJson) ?? [],
-            q.CorrectAnswer, q.Explanation, q.CreatedAt, q.Difficulty));
+            q.CorrectAnswer, q.Explanation, q.CreatedAt, q.Difficulty)).ToList();
+        if (dtos.Count > 0)
+            await _cache.SetAsync(cacheKey, dtos, ttl, cancellationToken);
         return Ok(BaseResponse<IEnumerable<QuizDto>>.Ok(dtos));
     }
 
@@ -724,11 +809,12 @@ public class YouTubeController : ControllerBase
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         var saved = await _unitOfWork.Quizzes.FindAsync(q => q.YouTubeVideoId == id && q.UserId == userId && q.Difficulty == normalizedDifficulty, cancellationToken);
-        var dtos = saved.Select(q => new QuizDto(
+        var savedDtos = saved.Select(q => new QuizDto(
             q.QuizId, null, q.YouTubeVideoId, q.SourceType, q.Question,
             JsonSerializer.Deserialize<string[]>(q.OptionsJson) ?? [],
-            q.CorrectAnswer, q.Explanation, q.CreatedAt, q.Difficulty));
-        return Ok(BaseResponse<IEnumerable<QuizDto>>.Ok(dtos));
+            q.CorrectAnswer, q.Explanation, q.CreatedAt, q.Difficulty)).ToList();
+        await _cache.SetAsync(VideoQuizCacheKey(id, userId, normalizedDifficulty), savedDtos, TimeSpan.FromSeconds(_cacheOptions.GeneratedResultSeconds), cancellationToken);
+        return Ok(BaseResponse<IEnumerable<QuizDto>>.Ok(savedDtos));
     }
 
     private static string NormalizeQuizDifficulty(string difficulty) => difficulty.ToLowerInvariant() switch
@@ -782,6 +868,20 @@ public class YouTubeController : ControllerBase
         if (videoId == null)
             return BadRequest(BaseResponse<string>.Fail("Invalid YouTube URL.", "INVALID_VIDEO_URL"));
 
+        var ttl = TimeSpan.FromSeconds(_cacheOptions.GeneratedResultSeconds);
+        var cacheKey = SummaryCacheKey(videoId);
+        var cached = await _cache.GetAsync<string>(cacheKey, cancellationToken);
+        if (!string.IsNullOrEmpty(cached))
+        {
+            Response.ContentType = "text/event-stream";
+            Response.Headers["Cache-Control"] = "no-cache";
+            Response.Headers["X-Accel-Buffering"] = "no";
+            await WriteSseDataAsync(cached, cancellationToken);
+            await Response.WriteAsync("data: [DONE]\n\n", cancellationToken);
+            await Response.Body.FlushAsync(cancellationToken);
+            return new EmptyResult();
+        }
+
         var transcript = await GetTranscriptTimelineTextAsync(videoId, cancellationToken);
         if (transcript == null)
             return BadRequest(BaseResponse<string>.Fail("No subtitles available for this video.", "NO_TRANSCRIPT"));
@@ -810,14 +910,21 @@ public class YouTubeController : ControllerBase
         Response.Headers["Cache-Control"] = "no-cache";
         Response.Headers["X-Accel-Buffering"] = "no";
 
+        var fullText = new StringBuilder();
         try
         {
+            fullText.Append(firstChunk);
             await WriteSseDataAsync(firstChunk, cancellationToken);
 
             while (await enumerator.MoveNextAsync())
             {
-                await WriteSseDataAsync(enumerator.Current, cancellationToken);
+                var chunk = enumerator.Current;
+                fullText.Append(chunk);
+                await WriteSseDataAsync(chunk, cancellationToken);
             }
+
+            if (fullText.Length > 0)
+                await _cache.SetAsync(cacheKey, fullText.ToString(), ttl, cancellationToken);
         }
         catch (OperationCanceledException) { return new EmptyResult(); }
         catch (Exception ex)

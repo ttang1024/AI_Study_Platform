@@ -239,8 +239,7 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 		setResolvedSubtitlesVideoId(null);
 		setSubtitles(null);
 		setSubtitlesError(null);
-		doFetchTranscript(videoId);
-		doFetchSubtitles(videoId);
+		doFetchSubtitles(videoId).then(() => doFetchTranscript(videoId));
 	}, [videoId]);
 
 	const seekTo = (seconds: number) => {
