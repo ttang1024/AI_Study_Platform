@@ -29,6 +29,35 @@ public class OAuthService : IOAuthService
         };
     }
 
+    public async Task<OAuthUserInfo?> GetGoogleUserInfoFromCredentialAsync(string credential, CancellationToken cancellationToken = default)
+    {
+        var clientId = _configuration["GoogleOAuth:ClientId"]?.Trim();
+        if (string.IsNullOrEmpty(clientId))
+        {
+            _logger.LogError("Google OAuth client ID is not configured.");
+            return null;
+        }
+
+        var tokenInfoResponse = await _httpClient.GetAsync(
+            $"https://oauth2.googleapis.com/tokeninfo?id_token={Uri.EscapeDataString(credential)}",
+            cancellationToken);
+
+        if (!tokenInfoResponse.IsSuccessStatusCode)
+        {
+            _logger.LogError("Google credential verification failed: {Status}", tokenInfoResponse.StatusCode);
+            return null;
+        }
+
+        var tokenInfo = await tokenInfoResponse.Content.ReadFromJsonAsync<GoogleIdTokenInfo>(cancellationToken: cancellationToken);
+        if (tokenInfo?.Audience != clientId || string.IsNullOrEmpty(tokenInfo.Email) || tokenInfo.EmailVerified != "true")
+        {
+            _logger.LogError("Google credential token did not pass audience/email verification.");
+            return null;
+        }
+
+        return new OAuthUserInfo(tokenInfo.Email, tokenInfo.Name ?? tokenInfo.Email.Split('@')[0]);
+    }
+
     private async Task<OAuthUserInfo?> GetGoogleUserInfoAsync(string code, string redirectUri, CancellationToken cancellationToken)
     {
         var clientId = _configuration["GoogleOAuth:ClientId"]?.Trim();
@@ -169,6 +198,11 @@ public class OAuthService : IOAuthService
 // Internal JSON models
 file record GoogleTokenResponse([property: JsonPropertyName("access_token")] string? AccessToken);
 file record GoogleUserInfo([property: JsonPropertyName("email")] string? Email, [property: JsonPropertyName("name")] string? Name);
+file record GoogleIdTokenInfo(
+    [property: JsonPropertyName("aud")] string? Audience,
+    [property: JsonPropertyName("email")] string? Email,
+    [property: JsonPropertyName("email_verified")] string? EmailVerified,
+    [property: JsonPropertyName("name")] string? Name);
 file record GitHubTokenResponse([property: JsonPropertyName("access_token")] string? AccessToken);
 
 file class GitHubUser

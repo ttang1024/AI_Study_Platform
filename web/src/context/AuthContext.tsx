@@ -6,6 +6,7 @@ interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<void>;
   loginWithOAuth: (provider: string, code: string, redirectUri: string) => Promise<void>;
+  loginWithGoogleCredential: (credential: string) => Promise<void>;
   logout: () => Promise<void>;
   register: (data: { email: string; fullName: string; password: string; otpCode: string }) => Promise<void>;
   sendOtp: (email: string, purpose: 'registration' | 'passwordReset') => Promise<void>;
@@ -87,12 +88,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(apiUser);
   };
 
+  const loginWithGoogleCredential = async (credential: string): Promise<void> => {
+    const { accessToken, refreshToken, user: apiUser } = await authService.loginWithGoogleCredential(credential);
+    localStorage.setItem('sp_access_token', accessToken);
+    localStorage.setItem('sp_refresh_token', refreshToken);
+    localStorage.setItem('sp_user', JSON.stringify(apiUser));
+    setUser(apiUser);
+  };
+
   const changePassword = async (data: { currentPassword: string; newPassword: string }): Promise<void> => {
     await authService.changePassword(data);
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, loginWithOAuth, logout, register, sendOtp, resetPassword, updateProfile, changePassword, isAuthenticated: !!user, isLoading }}>
+    <AuthContext.Provider value={{ user, login, loginWithOAuth, loginWithGoogleCredential, logout, register, sendOtp, resetPassword, updateProfile, changePassword, isAuthenticated: !!user, isLoading }}>
       {children}
     </AuthContext.Provider>
   );

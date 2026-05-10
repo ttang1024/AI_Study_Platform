@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import {
   BrainCircuit as _BrainCircuit, BookOpen, Sparkles, Map,
@@ -11,6 +11,7 @@ import {
   Github, Key, ExternalLink, Unlock,
 } from 'lucide-react';
 import { useOptionalAuth } from '../context/AuthContext';
+import { getPublicEnv } from '../utils/env';
 import { Typewriter, Counter, Particles, FadeIn } from '../components/landing/LandingAnimations';
 import { Logo, LOGO_STYLES } from '../components/landing/Logo';
 import { Badge } from '../components/landing/Badge';
@@ -24,6 +25,30 @@ import {
   BentoProblemCard,
   BentoStudyGroupCard,
 } from '../components/landing/BentoCards';
+
+const GOOGLE_CLIENT_ID = getPublicEnv('NEXT_PUBLIC_GOOGLE_CLIENT_ID') ?? getPublicEnv('VITE_GOOGLE_CLIENT_ID');
+const GOOGLE_SCRIPT_SRC = 'https://accounts.google.com/gsi/client';
+
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (config: {
+            client_id: string;
+            callback: (response: { credential?: string }) => void;
+            auto_select?: boolean;
+            cancel_on_tap_outside?: boolean;
+            context?: 'signin' | 'signup' | 'use';
+            itp_support?: boolean;
+            use_fedcm_for_prompt?: boolean;
+          }) => void;
+          prompt: () => void;
+        };
+      };
+    };
+  }
+}
 
 const PROVIDER_ICON_SRC: Record<string, string> = {
   gemini: '/images/gemini.png',
@@ -40,11 +65,53 @@ const PROVIDER_ICON_SRC: Record<string, string> = {
 export const LandingPage: React.FC = () => {
   const auth = useOptionalAuth();
   const isAuthenticated = auth?.isAuthenticated ?? false;
-  const isLoading = auth?.isLoading ?? false;
+  const username = auth?.user?.name || auth?.user?.email || 'Open app';
+  const go = () => window.location.assign(isAuthenticated ? '/summarizer' : '/login');
+  const [googleError, setGoogleError] = useState<string | null>(null);
+  const oneTapInitialized = useRef(false);
+
   useEffect(() => {
-    if (!isLoading && isAuthenticated) window.location.assign('/dashboard');
-  }, [isAuthenticated, isLoading]);
-  const go = () => window.location.assign('/login');
+    if (isAuthenticated || !GOOGLE_CLIENT_ID || !auth?.loginWithGoogleCredential) return;
+
+    const initializeGoogleSignIn = () => {
+      if (!window.google || oneTapInitialized.current) return;
+      oneTapInitialized.current = true;
+
+      const handleCredential = ({ credential }: { credential?: string }) => {
+        if (!credential) return;
+        auth.loginWithGoogleCredential(credential)
+          .then(() => window.location.assign('/summarizer'))
+          .catch(() => setGoogleError('Google sign-in failed. Please try again.'));
+      };
+
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleCredential,
+        auto_select: false,
+        cancel_on_tap_outside: true,
+        context: 'signin',
+        itp_support: true,
+        use_fedcm_for_prompt: true,
+      });
+
+      window.google.accounts.id.prompt();
+    };
+
+    const existingScript = document.querySelector<HTMLScriptElement>(`script[src="${GOOGLE_SCRIPT_SRC}"]`);
+    if (existingScript) {
+      if (window.google) initializeGoogleSignIn();
+      else existingScript.addEventListener('load', initializeGoogleSignIn, { once: true });
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = GOOGLE_SCRIPT_SRC;
+    script.async = true;
+    script.defer = true;
+    script.onload = initializeGoogleSignIn;
+    script.onerror = () => setGoogleError('Google sign-in is unavailable right now.');
+    document.head.appendChild(script);
+  }, [auth, isAuthenticated]);
 
   return (
     <div className="relative min-h-screen overflow-x-hidden text-white"
@@ -99,7 +166,7 @@ export const LandingPage: React.FC = () => {
           </motion.a>
           <button onClick={go}
             className="hidden sm:block text-sm font-medium text-white/50 hover:text-white transition-colors px-3 py-1.5">
-            Sign in
+            {isAuthenticated ? username : 'Sign in'}
           </button>
           <motion.button onClick={go} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
             className="text-sm font-bold px-5 py-2 rounded-full"
@@ -107,7 +174,7 @@ export const LandingPage: React.FC = () => {
               background: 'linear-gradient(135deg, #059669, #0891b2)',
               boxShadow: '0 0 24px rgba(6,182,212,0.4)',
             }}>
-            Get Started Free
+            {isAuthenticated ? 'Open App' : 'Get Started Free'}
           </motion.button>
         </div>
       </motion.nav>
@@ -171,9 +238,10 @@ export const LandingPage: React.FC = () => {
           <button onClick={go}
             className="flex items-center gap-2 text-base font-semibold px-8 py-4 rounded-2xl transition-all hover:bg-white/8"
             style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.7)' }}>
-            Sign In <ChevronRight className="w-4 h-4" />
+            {isAuthenticated ? 'Open App' : 'Sign In'} <ChevronRight className="w-4 h-4" />
           </button>
         </motion.div>
+        {googleError && <p className="mt-4 text-sm text-red-300">{googleError}</p>}
 
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
           transition={{ duration: 0.8, delay: 0.9 }}

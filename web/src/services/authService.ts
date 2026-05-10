@@ -71,6 +71,17 @@ export const authService = {
 		}
 	},
 
+	async loginWithGoogleCredential(credential: string): Promise<LoginResponse> {
+		const response = await apiClient.post('/api/auth/google-credential', { credential })
+		const { accessToken, refreshToken, expiresAt, ...backendUser } = response.data.data
+		return {
+			accessToken,
+			refreshToken,
+			expiresAt,
+			user: mapUser(backendUser),
+		}
+	},
+
 	async logout(refreshToken: string): Promise<void> {
 		await apiClient.post('/api/auth/logout', { refreshToken })
 	},

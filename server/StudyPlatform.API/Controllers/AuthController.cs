@@ -147,6 +147,21 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
+    /// Login or register using a Google Identity Services credential token
+    /// </summary>
+    [HttpPost("google-credential")]
+    [ProducesResponseType(typeof(BaseResponse<AuthResponse>), 200)]
+    [ProducesResponseType(typeof(BaseResponse), 400)]
+    public async Task<IActionResult> GoogleCredentialLogin([FromBody] GoogleCredentialLoginRequest request)
+    {
+        var result = await _mediator.Send(new GoogleCredentialLoginCommand(request.Credential));
+        if (!result.IsSuccess)
+            return BadRequest(BaseResponse<AuthResponse>.Fail(result.Message, result.ErrorCode, result.Errors));
+
+        return Ok(BaseResponse<AuthResponse>.Ok(result.Data!, result.Message));
+    }
+
+    /// <summary>
     /// Logout and revoke refresh token
     /// </summary>
     [HttpPost("logout")]

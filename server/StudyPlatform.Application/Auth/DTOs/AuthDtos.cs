@@ -33,6 +33,8 @@ public record AuthResponse(
 
 public record OAuthLoginRequest(string Provider, string Code, string RedirectUri);
 
+public record GoogleCredentialLoginRequest(string Credential);
+
 public record UserDto(
     Guid UserId,
     string Email,
