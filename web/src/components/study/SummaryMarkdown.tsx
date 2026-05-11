@@ -15,8 +15,17 @@ export const summaryMarkdownComponents = {
 	h3: ({ children }: any) => <h3 className="summary-h3">{children}</h3>,
 	p: ({ children }: any) => <p className="summary-p">{children}</p>,
 	ul: ({ children }: any) => <ul className="summary-ul">{children}</ul>,
+	ol: ({ children }: any) => <ol className="summary-ul list-decimal">{children}</ol>,
 	li: ({ children }: any) => <li className="summary-li">{children}</li>,
 	strong: ({ children }: any) => <strong className="summary-strong">{children}</strong>,
+	blockquote: ({ children }: any) => <blockquote className="border-l-4 border-primary/30 pl-4 italic text-text-muted">{children}</blockquote>,
+	code: ({ inline, children }: any) => inline
+		? <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-[0.9em] text-text-main">{children}</code>
+		: <code className="block overflow-x-auto rounded-xl bg-zinc-950 p-4 font-mono text-xs leading-relaxed text-zinc-100">{children}</code>,
+	pre: ({ children }: any) => <pre className="my-3 overflow-x-auto rounded-xl bg-zinc-950">{children}</pre>,
+	table: ({ children }: any) => <div className="my-3 overflow-x-auto"><table className="min-w-full border-collapse text-sm">{children}</table></div>,
+	th: ({ children }: any) => <th className="border border-zinc-200 bg-zinc-50 px-3 py-2 text-left font-bold">{children}</th>,
+	td: ({ children }: any) => <td className="border border-zinc-200 px-3 py-2 align-top">{children}</td>,
 };
 
 const timelineRangePattern = /^\s*(?:[-*]\s*)?(\d{1,2}:\d{2}(?::\d{2})?)\s*[–-]\s*(\d{1,2}:\d{2}(?::\d{2})?)\s*(.*)$/;

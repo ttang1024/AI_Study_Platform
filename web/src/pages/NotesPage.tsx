@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, FileText, ChevronLeft, ChevronRight, Search, Calendar, Trash2, Edit3, X, Check, Youtube, Loader2, Sparkles, Play, Globe, Mic, Share2 } from 'lucide-react';
+import { BookOpen, FileText, ChevronLeft, ChevronRight, Search, Calendar, Trash2, Edit3, X, Check, Youtube, Loader2, Sparkles, Play, Globe, Mic, Share2, Download } from 'lucide-react';
 import { useStudy } from '../context/StudyContext';
 import { cn } from '../utils/cn';
 import { getDocDisplayName } from '../utils/docName';
@@ -15,6 +15,7 @@ import { TtsPlayer } from '../components/common/TtsPlayer';
 import { TtsKeyPrompt } from '../components/common/TtsKeyPrompt';
 import { ShareModal } from '../components/common/ShareModal';
 import { Pagination } from '../components/common/Pagination';
+import { downloadNotesMarkdown, ExportNoteRecord } from '../services/exportInteropService';
 
 const PAGE_SIZE = 5;
 
@@ -259,6 +260,26 @@ export const NotesPage: React.FC = () => {
     setVideoNotes(prev => prev.filter(v => v.noteId !== noteId));
   };
 
+  const exportableNotes = useMemo<ExportNoteRecord[]>(() => filteredItems.map(item => {
+    if (item.type === 'video') {
+      return {
+        title: item.entry.title,
+        courseName: item.entry.courseName,
+        sourceType: 'video',
+        createdAt: item.entry.createdAt,
+        html: item.entry.content,
+      };
+    }
+
+    return {
+      title: item.docName,
+      courseName: item.courseName,
+      sourceType: item.type,
+      createdAt: item.note.createdAt,
+      html: item.note.content,
+    };
+  }), [filteredItems]);
+
   const resolveVideoUrl = React.useCallback(async (videoRecordId: string): Promise<string | null> => {
     const cachedVideo = videoList.find(v => v.id === videoRecordId);
     if (cachedVideo?.videoUrl) return cachedVideo.videoUrl;
@@ -298,6 +319,17 @@ export const NotesPage: React.FC = () => {
             >
               <Play size={14} className="fill-current" />
               Play Notes
+            </Button>
+          )}
+          {exportableNotes.length > 0 && (
+            <Button
+              onClick={() => downloadNotesMarkdown(exportableNotes, 'filtered_notes')}
+              size="sm"
+              variant="outline"
+              className="flex items-center gap-1.5 shrink-0"
+            >
+              <Download size={14} />
+              Export MD
             </Button>
           )}
           <div className="relative w-full sm:w-64">

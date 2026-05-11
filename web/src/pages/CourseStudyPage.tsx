@@ -8,16 +8,23 @@ import { useStudy } from '../context/StudyContext';
 import { documentService } from '../services/documentService';
 import { youtubeService, VideoListItem } from '../services/youtubeService';
 import { courseService } from '../services/courseService';
+import { flashcardService } from '../services/flashcardService';
+import { noteService } from '../services/noteService';
+import { glossaryService } from '../services/glossaryService';
+import { workedProblemsService, WorkedProblem } from '../services/workedProblemsService';
+import { questionBankService, QuestionBankQuestion } from '../services/questionBankService';
 import { DocumentDetailsPage } from './DocumentDetailsPage';
 import { YouTubeDetailPage } from './YouTubeDetailPage';
 import { AudioDetailPage } from './AudioDetailPage';
 import { ArticlePage } from './ArticlePage';
-import { Document, Course } from '../types';
+import { Document, Course, Flashcard, GlossaryTerm, Note } from '../types';
 import { cn } from '../utils/cn';
+import { CourseArtifacts, CourseArtifactsWorkspace, CourseStudySelected } from '../components/course/CourseArtifactsWorkspace';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
-type Selected = { kind: 'doc'; data: Document } | { kind: 'video'; data: VideoListItem } | null;
+type Selected = CourseStudySelected;
+type WorkspaceMode = 'study' | 'artifacts';
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
@@ -85,10 +92,20 @@ export const CourseStudyPage: React.FC = () => {
 
   // Selection
   const [selected, setSelected] = useState<Selected>(null);
+  const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>('study');
 
   // Studied tracking (persisted per course in localStorage)
   const [studiedIds, setStudiedIds] = useState<Set<string>>(new Set());
   const [filterUnstudied, setFilterUnstudied] = useState(false);
+
+  const [artifacts, setArtifacts] = useState<CourseArtifacts>({
+    notes: [],
+    flashcards: [],
+    questions: [],
+    glossary: [],
+    workedProblems: [],
+  });
+  const [isLoadingArtifacts, setIsLoadingArtifacts] = useState(false);
 
   // Load studied IDs from localStorage when courseId changes
   useEffect(() => {
@@ -130,6 +147,54 @@ export const CourseStudyPage: React.FC = () => {
     }).catch(() => { }).finally(() => setIsLoadingMaterials(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [courseId]);
+
+  useEffect(() => {
+    if (!courseId || (documents.length === 0 && videos.length === 0)) {
+      setArtifacts({ notes: [], flashcards: [], questions: [], glossary: [], workedProblems: [] });
+      return;
+    }
+
+    let cancelled = false;
+    const loadArtifacts = async () => {
+      setIsLoadingArtifacts(true);
+      try {
+        const documentIds = new Set(documents.map(d => d.id));
+        const videoIds = new Set(videos.map(v => v.id));
+        const [notesResult, flashcardsResult, questions, glossary, docProblems, videoProblems] = await Promise.all([
+          noteService.getAllNotes(1, 1000).catch(() => ({ items: [] as Note[], totalCount: 0, page: 1, pageSize: 1000, totalPages: 0 })),
+          flashcardService.getAllFlashcards(1, 1000).catch(() => ({ items: [] as Flashcard[], totalCount: 0, page: 1, pageSize: 1000, totalPages: 0 })),
+          questionBankService.getQuestions({ courseId }).catch(() => [] as QuestionBankQuestion[]),
+          glossaryService.getAllGlossary().catch(() => [] as GlossaryTerm[]),
+          Promise.all(documents.map(doc => workedProblemsService.getProblems(doc.id).catch(() => [] as WorkedProblem[]))),
+          Promise.all(videos.map(video => workedProblemsService.getVideoProblems(video.id).catch(() => [] as WorkedProblem[]))),
+        ]);
+
+        if (cancelled) return;
+        setArtifacts({
+          notes: notesResult.items.filter(n =>
+            (n.documentId && documentIds.has(n.documentId)) ||
+            (n.youTubeVideoId && videoIds.has(n.youTubeVideoId)),
+          ),
+          flashcards: flashcardsResult.items.filter(f =>
+            (f.documentId && documentIds.has(f.documentId)) ||
+            (f.youTubeVideoId && videoIds.has(f.youTubeVideoId)),
+          ),
+          questions,
+          glossary: glossary.filter(g =>
+            (g.documentId && documentIds.has(g.documentId)) ||
+            (g.youTubeVideoId && videoIds.has(g.youTubeVideoId)) ||
+            g.courseId === courseId,
+          ),
+          workedProblems: [...docProblems.flat(), ...videoProblems.flat()],
+        });
+      } finally {
+        if (!cancelled) setIsLoadingArtifacts(false);
+      }
+    };
+
+    void loadArtifacts();
+    return () => { cancelled = true; };
+  }, [courseId, documents, videos]);
 
   // ─── Derived values ──────────────────────────────────────────────────────
 
@@ -330,6 +395,20 @@ export const CourseStudyPage: React.FC = () => {
             )}
           </div>
         </div>
+        <div className="flex rounded-xl border border-[var(--border-color)] bg-[var(--bg-sidebar)] p-1">
+          {(['study', 'artifacts'] as const).map(mode => (
+            <button
+              key={mode}
+              onClick={() => setWorkspaceMode(mode)}
+              className={cn(
+                'rounded-lg px-3 py-1.5 text-xs font-bold capitalize transition-colors',
+                workspaceMode === mode ? 'bg-primary text-white' : 'text-text-muted hover:text-text-main',
+              )}
+            >
+              {mode === 'study' ? 'Study' : 'Artifacts'}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* ── Main ── */}
@@ -364,7 +443,22 @@ export const CourseStudyPage: React.FC = () => {
 
         {/* Embedded detail page */}
         <div className="flex-1 overflow-hidden">
-          <EmbeddedPage selected={selected} />
+          {workspaceMode === 'study' ? (
+            <EmbeddedPage selected={selected} />
+          ) : (
+            <CourseArtifactsWorkspace
+              course={course}
+              documents={documents}
+              videos={videos}
+              selected={selected}
+              setSelected={(next) => {
+                setSelected(next);
+                setWorkspaceMode('study');
+              }}
+              artifacts={artifacts}
+              loading={isLoadingArtifacts}
+            />
+          )}
         </div>
       </div>
     </div>

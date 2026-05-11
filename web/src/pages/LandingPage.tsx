@@ -241,7 +241,7 @@ export const LandingPage: React.FC = () => {
             {isAuthenticated ? 'Open App' : 'Sign In'} <ChevronRight className="w-4 h-4" />
           </button>
         </motion.div>
-        {googleError && <p className="mt-4 text-sm text-red-300">{googleError}</p>}
+        {/* {googleError && <p className="mt-4 text-sm text-red-300">{googleError}</p>} */}
 
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
           transition={{ duration: 0.8, delay: 0.9 }}

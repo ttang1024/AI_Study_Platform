@@ -1,12 +1,28 @@
 import React, { useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { User, Shield, LogOut, Save, Eye, EyeOff, Info, ShieldAlert, CheckCircle2, KeyRound, Wifi, Volume2 } from 'lucide-react';
+import { User, Shield, LogOut, Save, Eye, EyeOff, Info, ShieldAlert, CheckCircle2, KeyRound, Wifi, Volume2, Download, Archive, FileText } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useStudy } from '../context/StudyContext';
 import { Button } from '../components/common/Button';
 import { cn } from '../utils/cn';
 import { aiSettingsService, DEFAULT_MODELS, type AIProvider, type AISettings } from '../services/aiSettingsService';
 import { apiClient } from '../services/apiClient';
 import { ttsSettingsService, type TtsSettings } from '../services/ttsSettingsService';
+import { glossaryService } from '../services/glossaryService';
+import { documentService } from '../services/documentService';
+import { youtubeService } from '../services/youtubeService';
+import {
+  downloadNotesMarkdown,
+  downloadObsidianVault,
+  downloadQtiZip,
+  downloadQuizCsv,
+  downloadStudyPackPdf,
+  ExportGlossaryRecord,
+  ExportNoteRecord,
+  ExportQuizRecord,
+  StudyPackExport,
+} from '../services/exportInteropService';
+import { getCorrectQuizOptionText } from '../utils/quizAnswers';
 
 const PROVIDER_ICON_SRC: Partial<Record<AIProvider, string>> = {
   gemini: '/images/gemini.png',
@@ -133,8 +149,9 @@ function ProviderIcon({ id, size = 22 }: { id: AIProvider; size?: number }) {
 
 export const SettingsPage: React.FC = () => {
   const { user, logout, updateProfile, changePassword } = useAuth();
+  const { allNotes, documents, courses, flashcards, quizSubmissions } = useStudy();
   const location = useLocation();
-  const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'ai' | 'voice'>(
+  const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'ai' | 'voice' | 'export'>(
     (location.state as any)?.activeTab ?? 'profile'
   );
   const [isSaving, setIsSaving] = useState(false);
@@ -164,6 +181,7 @@ export const SettingsPage: React.FC = () => {
   const [aiSuccess, setAISuccess] = useState(false);
   const [testingConnection, setTestingConnection] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [exporting, setExporting] = useState<null | 'notes' | 'pdf' | 'obsidian' | 'quizCsv' | 'qti'>(null);
 
   const validatePassword = (pass: string) => {
     if (pass.length < 8 || pass.length > 20) return false;
@@ -280,9 +298,112 @@ export const SettingsPage: React.FC = () => {
     { id: 'security', label: 'Security', icon: Shield },
     { id: 'ai', label: 'AI Services', icon: KeyRound },
     { id: 'voice', label: 'Voice', icon: Volume2 },
+    { id: 'export', label: 'Export', icon: Archive },
   ];
 
   const newPasswordValid = validatePassword(newPassword);
+
+  const buildNotesExport = (): ExportNoteRecord[] => allNotes.map(note => {
+    const doc = documents.find(d => d.id === note.documentId);
+    const course = courses.find(c => c.id === doc?.courseId);
+    return {
+      title: note.videoName ?? note.documentName ?? doc?.name ?? 'Untitled note',
+      courseName: course?.name,
+      sourceType: note.youTubeVideoId ? 'video' : doc?.originalUrl ? 'article' : doc?.type ?? 'document',
+      createdAt: note.createdAt,
+      html: note.content,
+    };
+  });
+
+  const buildQuizExport = async (): Promise<ExportQuizRecord[]> => {
+    const records: ExportQuizRecord[] = [];
+    const seen = new Set<string>();
+    for (const submission of quizSubmissions) {
+      const key = submission.youTubeVideoId ? `video:${submission.youTubeVideoId}` : `doc:${submission.documentId}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      try {
+        if (submission.youTubeVideoId || submission.sourceType === 'video') {
+          const videoId = submission.youTubeVideoId ?? '';
+          if (!videoId) continue;
+          const questions = await youtubeService.getQuiz(videoId);
+          records.push({
+            title: submission.videoName ?? 'Video quiz',
+            questions: questions.map(q => ({
+              question: q.question,
+              options: q.options ?? [],
+              correctAnswer: getCorrectQuizOptionText(q.options, q.correctAnswer),
+              explanation: q.explanation ?? '',
+            })),
+          });
+        } else {
+          const doc = documents.find(d => d.id === submission.documentId);
+          if (!doc) continue;
+          const course = courses.find(c => c.id === doc.courseId);
+          const questions = await documentService.getQuiz(doc.courseId ?? '', doc.id);
+          records.push({
+            title: doc.name,
+            courseName: course?.name,
+            questions: questions.map(q => ({
+              question: q.question,
+              options: q.options ?? [],
+              correctAnswer: getCorrectQuizOptionText(q.options, q.answer),
+              explanation: q.explanation ?? '',
+            })),
+          });
+        }
+      } catch {
+        // Continue exporting available sources.
+      }
+    }
+    return records.filter(r => r.questions.length > 0);
+  };
+
+  const buildStudyPack = async (): Promise<StudyPackExport> => {
+    const glossary = await glossaryService.getAllGlossary().catch(() => []);
+    const quizRecords = await buildQuizExport();
+    const glossaryRecords: ExportGlossaryRecord[] = glossary.map(term => ({
+      term: term.term,
+      definition: term.definition,
+      sourceName: term.sourceName,
+    }));
+    return {
+      notes: buildNotesExport(),
+      quizzes: quizRecords,
+      flashcards: flashcards.map(card => ({
+        front: card.front,
+        back: card.back,
+        sourceTitle: card.documentName ?? card.videoName,
+      })),
+      glossary: glossaryRecords,
+    };
+  };
+
+  const handleExport = async (kind: 'notes' | 'pdf' | 'obsidian' | 'quizCsv' | 'qti') => {
+    setExporting(kind);
+    try {
+      if (kind === 'notes') {
+        downloadNotesMarkdown(buildNotesExport(), 'study_platform_notes');
+        return;
+      }
+
+      if (kind === 'quizCsv') {
+        downloadQuizCsv(await buildQuizExport(), 'study_platform_quizzes');
+        return;
+      }
+
+      if (kind === 'qti') {
+        await downloadQtiZip(await buildQuizExport(), 'study_platform_quizzes');
+        return;
+      }
+
+      const pack = await buildStudyPack();
+      if (kind === 'pdf') downloadStudyPackPdf(pack, 'study_platform_study_pack');
+      else await downloadObsidianVault(pack, 'study_platform_vault');
+    } finally {
+      setExporting(null);
+    }
+  };
 
   return (
     <div className="max-w-7xl mx-auto space-y-8">
@@ -645,18 +766,98 @@ export const SettingsPage: React.FC = () => {
             </div>
           )}
 
-          <div className="mt-8 pt-8 border-t border-[var(--border-color)] flex justify-end">
-            <Button onClick={handleSave} disabled={isSaving}>
-              {isSaving ? (
-                <>Saving...</>
-              ) : (
-                <>
-                  <Save size={18} className="mr-2" />
-                  Save Changes
-                </>
-              )}
-            </Button>
-          </div>
+          {activeTab === 'export' && (
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-bold text-text-main">Export and Interop</h3>
+                <p className="text-sm text-text-muted mt-1">
+                  Download your learning materials for review, backup, Obsidian, and LMS import.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {[
+                  {
+                    id: 'notes' as const,
+                    title: 'Markdown Notes',
+                    description: `${allNotes.length} notes as one Markdown file.`,
+                    icon: FileText,
+                    label: 'Export MD',
+                  },
+                  {
+                    id: 'pdf' as const,
+                    title: 'PDF Study Pack',
+                    description: 'Notes, quizzes, flashcards, and glossary in a printable pack.',
+                    icon: Download,
+                    label: 'Export PDF',
+                  },
+                  {
+                    id: 'obsidian' as const,
+                    title: 'Obsidian Vault',
+                    description: 'ZIP with Markdown folders for notes, quizzes, flashcards, and glossary.',
+                    icon: Archive,
+                    label: 'Export ZIP',
+                  },
+                  {
+                    id: 'quizCsv' as const,
+                    title: 'Quiz CSV',
+                    description: 'Question bank CSV for spreadsheets and generic import tools.',
+                    icon: FileText,
+                    label: 'Export CSV',
+                  },
+                  {
+                    id: 'qti' as const,
+                    title: 'LMS QTI Package',
+                    description: 'QTI 1.2 ZIP for LMS question import workflows.',
+                    icon: Archive,
+                    label: 'Export QTI',
+                  },
+                ].map(option => (
+                  <div key={option.id} className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-app)] p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="h-10 w-10 rounded-xl bg-[var(--primary)]/10 flex items-center justify-center text-[var(--primary)] shrink-0">
+                        <option.icon size={18} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h4 className="font-semibold text-text-main">{option.title}</h4>
+                        <p className="mt-1 text-xs leading-relaxed text-text-muted">{option.description}</p>
+                        <button
+                          type="button"
+                          onClick={() => handleExport(option.id)}
+                          disabled={exporting !== null}
+                          className="mt-4 inline-flex items-center gap-2 rounded-xl border border-[var(--border-color)] px-3 py-2 text-xs font-semibold text-text-main hover:border-[var(--primary)] hover:text-[var(--primary)] disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {exporting === option.id ? 'Exporting...' : option.label}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex items-start gap-2 p-3 rounded-xl bg-zinc-50 border border-zinc-100">
+                <Info size={14} className="mt-0.5 text-[var(--primary)] shrink-0" />
+                <p className="text-[10px] leading-relaxed text-zinc-500">
+                  LMS packages include quiz questions that can be reloaded from submitted quiz sources. Sources without available generated questions are skipped.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {activeTab !== 'export' && (
+            <div className="mt-8 pt-8 border-t border-[var(--border-color)] flex justify-end">
+              <Button onClick={handleSave} disabled={isSaving}>
+                {isSaving ? (
+                  <>Saving...</>
+                ) : (
+                  <>
+                    <Save size={18} className="mr-2" />
+                    Save Changes
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </div>

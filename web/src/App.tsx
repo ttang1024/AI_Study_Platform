@@ -7,6 +7,7 @@ import { PromptProvider } from './components/common/PromptBox';
 import { DashboardPage } from './pages/DashboardPage';
 import { LibraryPage } from './pages/LibraryPage';
 import { QuizManagementPage } from './pages/QuizManagementPage';
+import { QuestionBankPage } from './pages/QuestionBankPage';
 import { FlashcardsPage } from './pages/FlashcardsPage';
 import { NotesPage } from './pages/NotesPage';
 import { SettingsPage } from './pages/SettingsPage';
@@ -70,6 +71,7 @@ export default function App() {
                   <Route path="flashcards" element={<FlashcardsPage />} />
                   <Route path="notes" element={<NotesPage />} />
                   <Route path="quizzes" element={<QuizManagementPage />} />
+                  <Route path="question-bank" element={<QuestionBankPage />} />
                   <Route path="settings" element={<SettingsPage />} />
                   <Route path="glossary" element={<GlossaryPage />} />
                   <Route path="feedback" element={<FeedbackPage />} />

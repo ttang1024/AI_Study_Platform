@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useStudy } from '../context/StudyContext';
-import { Sparkles, Award, Loader2 } from 'lucide-react';
+import { Sparkles, Award, Loader2, Download } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getDocDisplayName } from '../utils/docName';
 import { SourceFilterBar, SourceType } from '../components/common/SourceFilterBar';
@@ -16,6 +16,13 @@ import { PendingMaterial, pendingMaterialToItem } from '../services/pendingMater
 import { Pagination } from '../components/common/Pagination';
 import { useRefreshOnVisible } from '../hooks/useRefreshOnVisible';
 import { usePrompt } from '../components/common/PromptBox';
+import { getCorrectQuizOptionText } from '../utils/quizAnswers';
+import {
+  downloadMoodleGift,
+  downloadQtiZip,
+  downloadQuizCsv,
+  ExportQuizRecord,
+} from '../services/exportInteropService';
 
 const PAGE_SIZE = 5;
 
@@ -81,6 +88,7 @@ export const QuizManagementPage: React.FC = () => {
   const [coverage, setCoverage] = useState({ documentIds: [] as string[], youTubeVideoIds: [] as string[] });
   const [pendingLoading, setPendingLoading] = useState(true);
   const [pendingItems, setPendingItems] = useState<PendingItem[]>([]);
+  const [exporting, setExporting] = useState<null | 'csv' | 'gift' | 'qti'>(null);
 
   // Remove pending entries once a real submission arrives for the same doc
   useEffect(() => {
@@ -263,6 +271,62 @@ export const QuizManagementPage: React.FC = () => {
     });
   };
 
+  const loadQuizRecordsForExport = async (): Promise<ExportQuizRecord[]> => {
+    const records: ExportQuizRecord[] = [];
+    for (const item of filteredItems.filter(i => !i.pending)) {
+      try {
+        if (item.type === 'video') {
+          const questions = await youtubeService.getQuiz(item.id);
+          if (questions.length) {
+            records.push({
+              title: item.name,
+              courseName: item.courseName,
+              questions: questions.map(q => ({
+                question: q.question,
+                options: q.options ?? [],
+                correctAnswer: getCorrectQuizOptionText(q.options, q.correctAnswer),
+                explanation: q.explanation ?? '',
+              })),
+            });
+          }
+        } else if (item.docId) {
+          const questions = await documentService.getQuiz(item.courseId ?? '', item.docId);
+          if (questions.length) {
+            records.push({
+              title: item.name,
+              courseName: item.courseName,
+              questions: questions.map(q => ({
+                question: q.question,
+                options: q.options ?? [],
+                correctAnswer: getCorrectQuizOptionText(q.options, q.answer),
+                explanation: q.explanation ?? '',
+              })),
+            });
+          }
+        }
+      } catch {
+        // Skip sources that cannot be loaded; the export still includes available quizzes.
+      }
+    }
+    return records;
+  };
+
+  const handleExportQuizzes = async (format: 'csv' | 'gift' | 'qti') => {
+    setExporting(format);
+    try {
+      const records = await loadQuizRecordsForExport();
+      if (records.length === 0) {
+        showPrompt('No exportable quiz questions found for the current filters.');
+        return;
+      }
+      if (format === 'csv') downloadQuizCsv(records, 'filtered_quizzes');
+      else if (format === 'gift') downloadMoodleGift(records, 'filtered_quizzes');
+      else await downloadQtiZip(records, 'filtered_quizzes');
+    } finally {
+      setExporting(null);
+    }
+  };
+
   // ─── Data ─────────────────────────────────────────────────────────────────────
 
   const docQuizItems = useMemo<DocQuizItem[]>(() =>
@@ -363,7 +427,33 @@ export const QuizManagementPage: React.FC = () => {
           </p>
         </div>
         {docStats.totalTaken > 0 && (
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex flex-wrap items-center gap-3 shrink-0">
+            <div className="flex items-center gap-1 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-sidebar)]/70 p-1">
+              <button
+                onClick={() => handleExportQuizzes('csv')}
+                disabled={!!exporting}
+                className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold text-text-main hover:bg-white disabled:opacity-50"
+              >
+                {exporting === 'csv' ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
+                CSV
+              </button>
+              <button
+                onClick={() => handleExportQuizzes('gift')}
+                disabled={!!exporting}
+                className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold text-text-main hover:bg-white disabled:opacity-50"
+              >
+                {exporting === 'gift' ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
+                GIFT
+              </button>
+              <button
+                onClick={() => handleExportQuizzes('qti')}
+                disabled={!!exporting}
+                className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold text-text-main hover:bg-white disabled:opacity-50"
+              >
+                {exporting === 'qti' ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
+                QTI
+              </button>
+            </div>
             <div className="rounded-2xl border border-teal-400/30 bg-teal-50/50 px-4 py-2 text-center">
               <p className="text-xl font-bold text-teal-600">{docStats.avgScore}%</p>
               <p className="text-[10px] font-semibold uppercase tracking-wider text-teal-500/70">avg score</p>

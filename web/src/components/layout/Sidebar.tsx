@@ -6,7 +6,7 @@ import {
   LayoutDashboard, Library, Settings, LogOut, BrainCircuit,
   Award, NotebookPen, X, Sparkles, ChevronLeft, ChevronRight,
   User, BookMarked, MessageSquarePlus,
-  Search, Trophy, Users, Bot,
+  Search, Trophy, Users, Bot, ListChecks,
 } from 'lucide-react';
 import { AchievementsPanel } from '../dashboard/AchievementsPanel';
 import { cn } from '../../utils/cn';
@@ -26,6 +26,7 @@ const navItems = [
   { icon: Library, label: 'Library', path: '/library' },
   { icon: BrainCircuit, label: 'Flashcards', path: '/flashcards' },
   { icon: Award, label: 'Quizzes', path: '/quizzes' },
+  { icon: ListChecks, label: 'Question Bank', path: '/question-bank' },
   { icon: BookMarked, label: 'Glossary', path: '/glossary' },
   { icon: NotebookPen, label: 'Notes', path: '/notes' },
   { icon: Bot, label: 'AI Chat', path: '/chat' },

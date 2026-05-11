@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useStudy } from '../context/StudyContext';
 import { useAuth } from '../context/AuthContext';
 import { motion } from 'motion/react';
@@ -32,6 +32,7 @@ type MasteryFilter = 'all' | 'unmastered' | 'mastered';
 export const GlossaryPage: React.FC = () => {
   const { documents, courses } = useStudy();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const userId = user?.id ?? 'guest';
 
@@ -45,7 +46,8 @@ export const GlossaryPage: React.FC = () => {
   const [activeLetter, setActiveLetter] = useState<string | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
   const [generatePage, setGeneratePage] = useState(1);
-  const [masteryFilter, setMasteryFilter] = useState<MasteryFilter>('all');
+  const initialMastery = searchParams.get('mastery') === 'unmastered' ? 'unmastered' : 'all';
+  const [masteryFilter, setMasteryFilter] = useState<MasteryFilter>(initialMastery);
   const [masteredIds, setMasteredIds] = useState<Set<string>>(() => masteredService.getCached(userId));
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState({ term: '', definition: '' });
