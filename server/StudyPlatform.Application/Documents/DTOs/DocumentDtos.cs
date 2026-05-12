@@ -93,6 +93,8 @@ public record ClipUrlRequest(string Url, string CourseId);
 
 public record MoveCourseRequest(Guid TargetCourseId);
 
+public record UpdateDocumentRequest(string FileName);
+
 public record GlossaryTermDto(
     Guid Id,
     Guid? DocumentId,

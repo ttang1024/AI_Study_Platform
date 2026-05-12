@@ -217,6 +217,14 @@ export const documentService = {
 		return mapDocument(response.data.data)
 	},
 
+	async updateDocument(courseId: string, documentId: string, data: { fileName: string }): Promise<Document> {
+		const response = await apiClient.patch(
+			`/api/courses/${courseId}/documents/${documentId}`,
+			data,
+		)
+		return mapDocument(response.data.data)
+	},
+
 	async getDownloadUrl(courseId: string, documentId: string): Promise<string> {
 		const response = await apiClient.get(
 			`/api/courses/${courseId}/documents/${documentId}/download-url`,

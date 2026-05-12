@@ -159,6 +159,26 @@ public class DocumentsController : ControllerBase
     }
 
     /// <summary>
+    /// Update document metadata
+    /// </summary>
+    [HttpPatch("{documentId:guid}")]
+    [ProducesResponseType(typeof(BaseResponse<DocumentDto>), 200)]
+    [ProducesResponseType(typeof(BaseResponse), 404)]
+    public async Task<IActionResult> UpdateDocument(Guid courseId, Guid documentId, [FromBody] UpdateDocumentRequest request)
+    {
+        var userId = User.GetUserId();
+        var result = await _mediator.Send(new UpdateDocumentCommand(documentId, userId, request.FileName));
+        if (!result.IsSuccess)
+        {
+            if (result.ErrorCode == "DOCUMENT_NOT_FOUND")
+                return NotFound(BaseResponse<DocumentDto>.Fail(result.Message, result.ErrorCode));
+            return BadRequest(BaseResponse<DocumentDto>.Fail(result.Message, result.ErrorCode));
+        }
+
+        return Ok(BaseResponse<DocumentDto>.Ok(result.Data!));
+    }
+
+    /// <summary>
     /// Move a document to a different course
     /// </summary>
     [HttpPatch("{documentId:guid}/move")]

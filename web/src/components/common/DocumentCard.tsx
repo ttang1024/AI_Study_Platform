@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { FileText, FileType, FileCode, Globe, Clock, Trash2, Sparkles, Mic, Rss, FolderInput } from 'lucide-react';
+import { FileText, FileType, FileCode, Globe, Clock, Trash2, Sparkles, Mic, Rss, FolderInput, Pencil, Loader2 } from 'lucide-react';
 import { Document, Course } from '../../types';
 import { cn } from '../../utils/cn';
 import { getDocDisplayName } from '../../utils/docName';
@@ -9,6 +9,7 @@ import { documentService } from '../../services/documentService';
 import { useStudy } from '../../context/StudyContext';
 import { MoveToCourseModal } from './MoveToCourseModal';
 import { DeleteModal } from './DeleteModal';
+import { Modal } from './Modal';
 
 interface DocumentCardProps {
   doc: Document;
@@ -16,6 +17,7 @@ interface DocumentCardProps {
   to?: string;
   compact?: boolean;
   onDelete?: () => void;
+  onUpdated?: (doc: Document) => void;
 }
 
 const cardVariants = {
@@ -39,12 +41,16 @@ const FILE_META: Record<string, { icon: React.ElementType; label: string; emoji:
   podcast: { icon: Rss, label: 'Podcast', emoji: '🎧' },
 };
 
-export const DocumentCard: React.FC<DocumentCardProps> = ({ doc, course, to, compact = false, onDelete }) => {
+export const DocumentCard: React.FC<DocumentCardProps> = ({ doc, course, to, compact = false, onDelete, onUpdated }) => {
   const { courses, deleteDocument, updateDocumentInList } = useStudy();
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showMoveModal, setShowMoveModal] = useState(false);
+  const [showRenameModal, setShowRenameModal] = useState(false);
+  const [renameDraft, setRenameDraft] = useState(doc.name);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [renameError, setRenameError] = useState<string | null>(null);
 
   const formattedDate = new Date(doc.uploadDate).toLocaleDateString(undefined, {
     month: 'short', day: 'numeric', year: 'numeric',
@@ -96,6 +102,36 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({ doc, course, to, com
   const handleMove = async (targetCourseId: string) => {
     const updated = await documentService.moveDocument(doc.courseId || '', doc.id, targetCourseId);
     updateDocumentInList(updated);
+  };
+
+  const openRenameModal = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setRenameDraft(doc.name);
+    setRenameError(null);
+    setShowRenameModal(true);
+  };
+
+  const handleRename = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const fileName = renameDraft.trim();
+    if (!fileName) {
+      setRenameError('File name is required.');
+      return;
+    }
+
+    setIsRenaming(true);
+    setRenameError(null);
+    try {
+      const updated = await documentService.updateDocument(doc.courseId || '', doc.id, { fileName });
+      updateDocumentInList(updated);
+      onUpdated?.(updated);
+      setShowRenameModal(false);
+    } catch {
+      setRenameError('Unable to update the file name.');
+    } finally {
+      setIsRenaming(false);
+    }
   };
 
   return (
@@ -183,6 +219,13 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({ doc, course, to, com
         {/* Action buttons */}
         <div className="absolute right-3 top-4 z-20 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
           <button
+            onClick={openRenameModal}
+            title="Edit file name"
+            className="flex h-7 w-7 items-center justify-center rounded-full bg-white border border-zinc-200 text-zinc-400 shadow-sm hover:scale-110 hover:bg-[var(--primary)]/10 hover:border-[var(--primary)]/30 hover:text-[var(--primary)] transition-all duration-200"
+          >
+            <Pencil size={13} />
+          </button>
+          <button
             onClick={e => { e.preventDefault(); setShowMoveModal(true); }}
             title="Move to course"
             className="flex h-7 w-7 items-center justify-center rounded-full bg-white border border-zinc-200 text-zinc-400 shadow-sm hover:scale-110 hover:bg-teal-50 hover:border-teal-200 hover:text-teal-500 transition-all duration-200"
@@ -202,19 +245,59 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({ doc, course, to, com
       <DeleteModal
         isOpen={showDeleteModal}
         title="Delete document"
-        itemName={doc.name}
+        itemName={getDocDisplayName(doc)}
         confirmLabel="Delete"
         isDeleting={isDeleting}
         onClose={() => setShowDeleteModal(false)}
         onConfirm={handleDelete}
       />
 
+      <Modal
+        isOpen={showRenameModal}
+        onClose={() => !isRenaming && setShowRenameModal(false)}
+        title="Edit file name"
+        className="max-w-md"
+      >
+        <form onSubmit={handleRename} className="space-y-4">
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-text-muted">
+              File name
+            </label>
+            <input
+              autoFocus
+              value={renameDraft}
+              onChange={e => setRenameDraft(e.target.value)}
+              className="w-full rounded-xl border border-[var(--border-color)] px-3 py-2 text-sm font-medium text-text-main outline-none transition-colors focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15"
+            />
+            {renameError && <p className="mt-2 text-xs font-medium text-red-500">{renameError}</p>}
+          </div>
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setShowRenameModal(false)}
+              disabled={isRenaming}
+              className="rounded-lg border border-[var(--border-color)] px-3 py-2 text-xs font-semibold text-text-main hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isRenaming}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--primary)] px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isRenaming && <Loader2 size={13} className="animate-spin" />}
+              Save
+            </button>
+          </div>
+        </form>
+      </Modal>
+
       {/* Move modal */}
       {showMoveModal && (
         <MoveToCourseModal
           currentCourseId={doc.courseId}
           courses={courses}
-          itemName={doc.name}
+          itemName={getDocDisplayName(doc)}
           onConfirm={handleMove}
           onClose={() => setShowMoveModal(false)}
         />

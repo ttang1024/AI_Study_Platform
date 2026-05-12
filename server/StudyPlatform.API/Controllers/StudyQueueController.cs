@@ -31,4 +31,16 @@ public class StudyQueueController : ControllerBase
         var result = await _mediator.Send(new GetDailyStudyQueueQuery(userId, limit));
         return Ok(BaseResponse<DailyStudyQueueDto>.Ok(result.Data!));
     }
+
+    /// <summary>
+    /// Get today's weakness-based review queue for the authenticated user.
+    /// </summary>
+    [HttpGet("weakness-review")]
+    [ProducesResponseType(typeof(BaseResponse<WeaknessReviewQueueDto>), 200)]
+    public async Task<IActionResult> GetWeaknessReviewQueue([FromQuery] int limitPerSection = 8)
+    {
+        var userId = User.GetUserId();
+        var result = await _mediator.Send(new GetWeaknessReviewQueueQuery(userId, limitPerSection));
+        return Ok(BaseResponse<WeaknessReviewQueueDto>.Ok(result.Data!));
+    }
 }

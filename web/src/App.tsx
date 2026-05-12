@@ -26,6 +26,8 @@ import { SearchResultsPage } from './pages/SearchResultsPage';
 import { StudyGroupsPage } from './pages/StudyGroupsPage';
 import { StudyGroupDetailPage } from './pages/StudyGroupDetailPage';
 import { ChatListPage } from './pages/ChatListPage';
+import { KnowledgeGraphPage } from './pages/KnowledgeGraphPage';
+import { WeaknessReviewPage } from './pages/WeaknessReviewPage';
 
 const DocumentDetailsPage = lazy(() =>
   import('./pages/DocumentDetailsPage').then((mod) => ({ default: mod.DocumentDetailsPage })),
@@ -64,6 +66,7 @@ export default function App() {
                   </ProtectedRoute>
                 }>
                   <Route path="dashboard" element={<DashboardPage />} />
+                  <Route path="review" element={<WeaknessReviewPage />} />
                   <Route path="library" element={<LibraryPage />} />
                   <Route path="documents" element={<Navigate to="/library" replace />} />
                   <Route path="youtube" element={<Navigate to="/library?type=videos" replace />} />
@@ -74,6 +77,7 @@ export default function App() {
                   <Route path="question-bank" element={<QuestionBankPage />} />
                   <Route path="settings" element={<SettingsPage />} />
                   <Route path="glossary" element={<GlossaryPage />} />
+                  <Route path="knowledge-graph" element={<KnowledgeGraphPage />} />
                   <Route path="feedback" element={<FeedbackPage />} />
                   <Route path="search" element={<SearchResultsPage />} />
                   <Route path="groups" element={<StudyGroupsPage />} />

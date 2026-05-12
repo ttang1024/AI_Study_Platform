@@ -537,10 +537,14 @@ public class YouTubeController : ControllerBase
     {
         var userId = User.GetUserId();
         var result = await _mediator.Send(new UpdateYouTubeVideoCommand(
-            id, userId, request.Summary, request.MindMapText), cancellationToken);
+            id, userId, request.Title, request.Summary, request.MindMapText), cancellationToken);
 
         if (!result.IsSuccess)
-            return NotFound(BaseResponse<YouTubeVideoDto>.Fail(result.Message, result.ErrorCode));
+        {
+            if (result.ErrorCode == "VIDEO_NOT_FOUND")
+                return NotFound(BaseResponse<YouTubeVideoDto>.Fail(result.Message, result.ErrorCode));
+            return BadRequest(BaseResponse<YouTubeVideoDto>.Fail(result.Message, result.ErrorCode));
+        }
 
         return Ok(BaseResponse<YouTubeVideoDto>.Ok(result.Data!));
     }

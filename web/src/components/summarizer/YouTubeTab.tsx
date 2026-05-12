@@ -254,6 +254,7 @@ export const YouTubeTab: React.FC<YouTubeTabProps> = ({ selectedCourseId, onCour
                   compact
                   onDeleted={() => setAllVideos(prev => prev.filter(v => v.id !== video.id))}
                   onMoved={(newCourseId) => setAllVideos(prev => prev.map(v => v.id === video.id ? { ...v, courseId: newCourseId } : v))}
+                  onUpdated={(updated) => setAllVideos(prev => prev.map(v => v.id === updated.id ? { ...v, ...updated } : v))}
                 />
               ))}
             </div>

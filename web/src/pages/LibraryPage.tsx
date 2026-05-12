@@ -316,6 +316,7 @@ export const LibraryPage: React.FC = () => {
                     doc={item.data}
                     course={getCourse(item.data.courseId)}
                     to={(item.data.type === 'audio' || item.data.type === 'podcast') ? `/audio/${item.data.id}` : item.data.originalUrl ? `/articles/${item.data.id}` : undefined}
+                    onUpdated={(updated) => setLibraryDocuments(prev => prev.map(d => d.id === updated.id ? updated : d))}
                   />
                 ) : (
                   <VideoCard
@@ -323,6 +324,7 @@ export const LibraryPage: React.FC = () => {
                     to={`/youtube/${item.data.id}`}
                     onDeleted={() => setAllVideos(prev => prev.filter(v => v.id !== item.data.id))}
                     onMoved={(newCourseId) => setAllVideos(prev => prev.map(v => v.id === item.data.id ? { ...v, courseId: newCourseId } : v))}
+                    onUpdated={(updated) => setAllVideos(prev => prev.map(v => v.id === updated.id ? { ...v, ...updated } : v))}
                   />
                 )}
               </motion.div>

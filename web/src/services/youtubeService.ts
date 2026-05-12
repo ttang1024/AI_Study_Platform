@@ -129,8 +129,9 @@ export const youtubeService = {
 		return res.data.data ?? []
 	},
 
-	async updateVideo(id: string, data: Record<string, unknown>): Promise<void> {
-		await apiClient.patch(`/api/youtube/videos/${id}`, data)
+	async updateVideo(id: string, data: Record<string, unknown>): Promise<VideoListItem> {
+		const res = await apiClient.patch<{ data: VideoListItem }>(`/api/youtube/videos/${id}`, data)
+		return res.data.data
 	},
 
 	async deleteVideo(id: string): Promise<void> {

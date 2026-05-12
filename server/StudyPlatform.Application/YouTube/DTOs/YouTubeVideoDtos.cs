@@ -23,6 +23,7 @@ public record SaveYouTubeVideoRequest(
     string? Summary);
 
 public record UpdateYouTubeVideoRequest(
+    string? Title,
     string? Summary,
     string? MindMapText);
 

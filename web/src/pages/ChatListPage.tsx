@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import {
   MessageSquare, Plus, Trash2, Sparkles, ArrowLeft,
   Bot, FileText, Youtube, Loader2, ExternalLink, Share2, Check, AlertCircle,
+  Pencil, X,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { ChatPanel } from '../components/ai/ChatPanel';
@@ -74,6 +75,8 @@ export const ChatListPage: React.FC = () => {
   const [shareStatus, setShareStatus] = useState<'idle' | 'creating' | 'copied' | 'error'>('idle');
   const [deletingKey, setDeletingKey] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ActiveItem | null>(null);
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [renameDraft, setRenameDraft] = useState('');
 
   // Load all sessions on mount
   useEffect(() => {
@@ -233,6 +236,32 @@ export const ChatListPage: React.FC = () => {
     e.stopPropagation();
     setDeleteTarget(item);
   }, []);
+
+  const handleStartRename = useCallback((e: React.MouseEvent, entry: ListEntry) => {
+    e.stopPropagation();
+    if (entry.kind !== 'local') return;
+    setEditingKey(entry.key);
+    setRenameDraft(entry.title);
+  }, []);
+
+  const handleCancelRename = useCallback((e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setEditingKey(null);
+    setRenameDraft('');
+  }, []);
+
+  const handleSaveRename = useCallback((e?: React.MouseEvent | React.FormEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+    if (!editingKey?.startsWith('local-')) return;
+
+    const conversationId = editingKey.replace(/^local-/, '');
+    const nextTitle = renameDraft.trim() || 'Untitled chat';
+    chatStorage.updateTitle(conversationId, nextTitle);
+    setLocalConvs(chatStorage.getConversations());
+    setEditingKey(null);
+    setRenameDraft('');
+  }, [editingKey, renameDraft]);
 
   const handleShareActive = useCallback(async () => {
     if (!activeItem) return;
@@ -424,9 +453,61 @@ export const ChatListPage: React.FC = () => {
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate leading-tight">{entry.title}</p>
-                    <p className="text-[11px] text-text-muted mt-0.5 truncate">{formatTime(entry.updatedAt)}</p>
+                    {editingKey === entry.key ? (
+                      <form
+                        onClick={e => e.stopPropagation()}
+                        onSubmit={handleSaveRename}
+                        className="flex items-center gap-1"
+                      >
+                        <input
+                          autoFocus
+                          value={renameDraft}
+                          onChange={e => setRenameDraft(e.target.value)}
+                          onKeyDown={e => {
+                            e.stopPropagation();
+                            if (e.key === 'Escape') {
+                              e.preventDefault();
+                              handleCancelRename();
+                            }
+                          }}
+                          className="min-w-0 flex-1 rounded-md border border-[var(--primary)]/30 bg-white px-2 py-1 text-sm font-medium text-text-main outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15"
+                        />
+                        <button
+                          type="submit"
+                          title="Save name"
+                          className="shrink-0 rounded-md p-1 text-[var(--primary)] hover:bg-[var(--primary)]/10"
+                        >
+                          <Check size={13} />
+                        </button>
+                        <button
+                          type="button"
+                          title="Cancel rename"
+                          onClick={handleCancelRename}
+                          className="shrink-0 rounded-md p-1 text-text-muted hover:bg-zinc-100 hover:text-text-main"
+                        >
+                          <X size={13} />
+                        </button>
+                      </form>
+                    ) : (
+                      <>
+                        <p className="text-sm font-medium truncate leading-tight">{entry.title}</p>
+                        <p className="text-[11px] text-text-muted mt-0.5 truncate">{formatTime(entry.updatedAt)}</p>
+                      </>
+                    )}
                   </div>
+
+                  {entry.kind === 'local' && editingKey !== entry.key && (
+                    <button
+                      onClick={e => handleStartRename(e, entry)}
+                      title="Rename chat"
+                      className={cn(
+                        'shrink-0 rounded-md p-1 transition-all text-text-muted hover:bg-[var(--primary)]/10 hover:text-[var(--primary)]',
+                        hoveredKey === entry.key || isActive ? 'opacity-100' : 'sm:opacity-0',
+                      )}
+                    >
+                      <Pencil size={13} />
+                    </button>
+                  )}
 
                   <button
                     onClick={e => handleDeleteFromList(e, entry.item)}
