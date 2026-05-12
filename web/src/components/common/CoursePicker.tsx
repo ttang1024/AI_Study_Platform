@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, X, Check, Pencil, Trash2, Loader2, Ban } from 'lucide-react';
+import { Plus, X, Check, Pencil, Trash2, Loader2, Ban, FileText, Youtube, Globe, Headphones } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useStudy } from '../../context/StudyContext';
 
@@ -138,6 +138,13 @@ export const CoursePicker: React.FC<CoursePickerProps> = ({
           const isEditing = editingId === course.id;
           const isPendingDelete = pendingDeleteId === course.id;
           const isBlocked = blockInfo?.courseId === course.id;
+          const counts = courseMaterialCounts.find(c => c.courseId === course.id);
+          const materialStats = [
+            { label: 'Documents', value: counts?.documents ?? 0, icon: FileText },
+            { label: 'Videos', value: counts?.videos ?? 0, icon: Youtube },
+            { label: 'Articles', value: counts?.articles ?? 0, icon: Globe },
+            { label: 'Audio', value: counts?.audio ?? 0, icon: Headphones },
+          ];
 
           if (isEditing) {
             return (
@@ -192,58 +199,87 @@ export const CoursePicker: React.FC<CoursePickerProps> = ({
               key={course.id}
               onClick={() => { onSelect(course.id); setPendingDeleteId(null); }}
               className={cn(
-                'group relative w-full flex items-center gap-3 rounded-xl px-3 py-2.5 min-h-[52px] transition-all duration-300 overflow-hidden text-left',
-                isActive ? 'shadow-lg' : 'bg-white hover:bg-zinc-50',
+                'group relative w-full overflow-hidden rounded-xl border px-3 py-3 text-left transition-all duration-300',
+                isActive
+                  ? 'border-transparent shadow-lg'
+                  : 'border-zinc-100 bg-white hover:border-zinc-200 hover:shadow-sm',
               )}
               style={{
-                color: isActive ? '#fff' : course.color,
-                ...(isActive && { backgroundColor: course.color }),
+                backgroundColor: isActive ? course.color : undefined,
+                boxShadow: isActive ? `0 12px 26px ${course.color}24` : undefined,
               }}
             >
-              {/* Name */}
-              <span className={cn(
-                'text-sm font-black tracking-tight truncate flex-1',
-                isActive ? 'text-white' : course.color,
-              )}>
-                {course.name}
-              </span>
+              <div
+                className="pointer-events-none absolute inset-y-0 left-0 w-1"
+                style={{ backgroundColor: course.color }}
+              />
 
+              <div className="relative z-10 min-w-0 pl-1">
+                <div className="flex min-w-0 items-center gap-2 pr-14">
+                  <span className={cn(
+                    'truncate text-sm font-black tracking-tight transition-colors duration-300',
+                    isActive ? 'text-white' : 'text-zinc-900',
+                  )}>
+                    {course.name}
+                  </span>
+                </div>
+                <div className="mt-2 grid grid-cols-4 gap-1.5">
+                  {materialStats.map(stat => {
+                    const Icon = stat.icon;
+                    return (
+                      <span
+                        key={stat.label}
+                        title={stat.label}
+                        className={cn(
+                          'flex min-w-0 items-center justify-center gap-1 rounded-lg px-1.5 py-1 transition-colors duration-300',
+                          isActive
+                            ? 'bg-white/15 text-white'
+                            : 'bg-zinc-100 text-zinc-500 group-hover:bg-zinc-200/70 group-hover:text-zinc-700',
+                        )}
+                      >
+                        <Icon size={11} className="shrink-0 opacity-75" />
+                        <span className="text-[10px] font-black tabular-nums leading-none">{stat.value}</span>
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
               {/* Edit / Delete controls */}
               <div
-                className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200 shrink-0"
+                className="absolute right-2 top-2 z-20 flex items-center gap-1 opacity-0 transition-all duration-200 group-focus-within:opacity-100 group-hover:opacity-100"
                 onClick={e => e.stopPropagation()}
               >
                 <div
                   onClick={() => startEdit(course.id, course.name, course.color)}
                   className={cn(
-                    'flex h-6 w-6 items-center justify-center rounded-full transition-all',
+                    'flex h-7 w-7 items-center justify-center rounded-full border transition-all',
                     isActive
-                      ? 'bg-white/20 text-white hover:bg-white/40'
-                      : 'bg-zinc-100 text-zinc-400 hover:bg-blue-100 hover:text-blue-500',
+                      ? 'border-white/20 bg-white/15 text-white hover:bg-white/25'
+                      : 'border-zinc-100 bg-white text-zinc-400 shadow-sm hover:bg-blue-50 hover:text-blue-500',
                   )}
                   title="Edit course"
                 >
-                  <Pencil size={11} />
+                  <Pencil size={12} />
                 </div>
                 <div
                   onClick={() => handleDelete(course.id)}
                   className={cn(
-                    'flex h-6 w-6 items-center justify-center rounded-full transition-all',
+                    'flex h-7 w-7 items-center justify-center rounded-full border transition-all',
                     isBlocked
-                      ? 'bg-orange-400 text-white scale-110'
+                      ? 'scale-105 border-orange-400 bg-orange-400 text-white'
                       : isPendingDelete
-                        ? 'bg-red-500 text-white scale-110'
+                        ? 'scale-105 border-red-500 bg-red-500 text-white'
                         : isActive
-                          ? 'bg-white/20 text-white hover:bg-red-400'
-                          : 'bg-zinc-100 text-zinc-400 hover:bg-red-100 hover:text-red-500',
+                          ? 'border-white/20 bg-white/15 text-white hover:bg-red-400'
+                          : 'border-zinc-100 bg-white text-zinc-400 shadow-sm hover:bg-red-50 hover:text-red-500',
                   )}
                   title={isPendingDelete ? 'Click again to confirm delete' : 'Delete course'}
                 >
                   {checkingDeleteId === course.id
-                    ? <Loader2 size={11} className="animate-spin" />
+                    ? <Loader2 size={12} className="animate-spin" />
                     : isBlocked
-                      ? <Ban size={11} />
-                      : <Trash2 size={11} />}
+                      ? <Ban size={12} />
+                      : <Trash2 size={12} />}
                 </div>
               </div>
 
