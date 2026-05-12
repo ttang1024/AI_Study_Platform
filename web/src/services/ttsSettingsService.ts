@@ -1,13 +1,11 @@
 const STORAGE_KEY = 'sp_tts_settings';
 
 export interface TtsSettings {
-  humeApiKey: string;
   voice: string;
 }
 
 const DEFAULTS: TtsSettings = {
-  humeApiKey: '',
-  voice: 'ITO',
+  voice: 'en-US-AriaNeural',
 };
 
 export const ttsSettingsService = {
@@ -21,10 +19,6 @@ export const ttsSettingsService = {
 
   save(settings: TtsSettings): void {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-  },
-
-  getHumeApiKey(): string {
-    return ttsSettingsService.load().humeApiKey.trim();
   },
 
   getVoice(): string {

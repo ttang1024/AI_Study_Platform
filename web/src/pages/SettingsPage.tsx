@@ -171,7 +171,6 @@ export const SettingsPage: React.FC = () => {
 
   // Voice / TTS settings
   const [ttsSettings, setTtsSettings] = useState<TtsSettings>(() => ttsSettingsService.load());
-  const [showTtsKey, setShowTtsKey] = useState(false);
   const [ttsSuccess, setTtsSuccess] = useState(false);
 
   // AI Settings states
@@ -711,49 +710,62 @@ export const SettingsPage: React.FC = () => {
               <div>
                 <h3 className="text-lg font-bold text-text-main">Voice Synthesis</h3>
                 <p className="text-sm text-text-muted mt-1">
-                  Uses Hume AI for expressive, natural-sounding TTS. Keys are stored locally and never sent to our servers.
+                  Uses Microsoft Edge TTS for free, high-quality neural speech. No API key required.
                 </p>
               </div>
 
               <div className="space-y-4">
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-text-main">Hume API Key</label>
-                  <div className="relative">
-                    <input
-                      type={showTtsKey ? 'text' : 'password'}
-                      value={ttsSettings.humeApiKey}
-                      onChange={(e) => { setTtsSuccess(false); setTtsSettings(s => ({ ...s, humeApiKey: e.target.value })); }}
-                      placeholder="hume_..."
-                      className="w-full px-4 py-2.5 pr-12 rounded-xl border border-[var(--border-color)] bg-[var(--bg-app)] text-text-main outline-none focus:border-[var(--primary)] font-mono text-sm"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowTtsKey(v => !v)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-main transition-colors"
-                    >
-                      {showTtsKey ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
-                  </div>
-                  <p className="text-[10px] text-text-muted">Get your key at platform.hume.ai</p>
-                </div>
-
-                <div className="space-y-1.5">
                   <label className="text-sm font-medium text-text-main">Voice</label>
-                  <input
-                    type="text"
+                  <select
                     value={ttsSettings.voice}
                     onChange={(e) => { setTtsSuccess(false); setTtsSettings(s => ({ ...s, voice: e.target.value })); }}
-                    placeholder="ITO"
-                    className="w-full px-4 py-2.5 rounded-xl border border-[var(--border-color)] bg-[var(--bg-app)] text-text-main outline-none focus:border-[var(--primary)] font-mono text-sm"
-                  />
-                  <p className="text-[10px] text-text-muted">Hume AI voice name, e.g. ITO, KORA, DACHER, AURA, FINN, WHIMSY</p>
+                    className="w-full px-4 py-2.5 rounded-xl border border-[var(--border-color)] bg-[var(--bg-app)] text-text-main outline-none focus:border-[var(--primary)] text-sm"
+                  >
+                    <optgroup label="English">
+                      <option value="en-US-AriaNeural">Aria (US Female)</option>
+                      <option value="en-US-GuyNeural">Guy (US Male)</option>
+                      <option value="en-US-JennyNeural">Jenny (US Female)</option>
+                      <option value="en-GB-SoniaNeural">Sonia (UK Female)</option>
+                      <option value="en-GB-RyanNeural">Ryan (UK Male)</option>
+                      <option value="en-AU-NatashaNeural">Natasha (AU Female)</option>
+                    </optgroup>
+                    <optgroup label="Chinese">
+                      <option value="zh-CN-XiaoxiaoNeural">晓晓 (Mainland Female)</option>
+                      <option value="zh-CN-YunxiNeural">云希 (Mainland Male)</option>
+                      <option value="zh-CN-XiaoyiNeural">晓伊 (Mainland Female)</option>
+                      <option value="zh-CN-YunyangNeural">云扬 (Mainland Male)</option>
+                      <option value="zh-TW-HsiaoChenNeural">曉臻 (Taiwan Female)</option>
+                      <option value="zh-HK-HiuGaaiNeural">曉佳 (HK Female)</option>
+                    </optgroup>
+                    <optgroup label="Japanese">
+                      <option value="ja-JP-NanamiNeural">Nanami (JP Female)</option>
+                      <option value="ja-JP-KeitaNeural">Keita (JP Male)</option>
+                    </optgroup>
+                    <optgroup label="Korean">
+                      <option value="ko-KR-SunHiNeural">SunHi (KR Female)</option>
+                      <option value="ko-KR-InJoonNeural">InJoon (KR Male)</option>
+                    </optgroup>
+                    <optgroup label="French">
+                      <option value="fr-FR-DeniseNeural">Denise (FR Female)</option>
+                      <option value="fr-FR-HenriNeural">Henri (FR Male)</option>
+                    </optgroup>
+                    <optgroup label="Spanish">
+                      <option value="es-ES-ElviraNeural">Elvira (ES Female)</option>
+                      <option value="es-MX-DaliaNeural">Dalia (MX Female)</option>
+                    </optgroup>
+                    <optgroup label="German">
+                      <option value="de-DE-KatjaNeural">Katja (DE Female)</option>
+                      <option value="de-DE-ConradNeural">Conrad (DE Male)</option>
+                    </optgroup>
+                  </select>
                 </div>
               </div>
 
               <div className="flex items-start gap-2 p-3 rounded-xl bg-zinc-50 border border-zinc-100">
                 <Info size={14} className="mt-0.5 text-[var(--primary)] shrink-0" />
                 <p className="text-[10px] leading-relaxed text-zinc-500">
-                  Without a key, playback falls back to the browser's built-in speech synthesis.
+                  Powered by Microsoft Edge neural voices. Free to use with no usage limits.
                 </p>
               </div>
 

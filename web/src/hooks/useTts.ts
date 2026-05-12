@@ -1,6 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { synthesizeSpeech, HumeTtsError } from '../services/humeService';
-import { ttsSettingsService } from '../services/ttsSettingsService';
+import { synthesizeSpeech } from '../services/edgeTtsService';
 
 export interface TtsItem {
   text: string;
@@ -8,7 +7,7 @@ export interface TtsItem {
 }
 
 export type TtsState = 'idle' | 'loading' | 'playing' | 'paused';
-export type TtsErrorCode = 'no_key' | 'zero_credits' | 'api_error';
+export type TtsErrorCode = 'api_error';
 export interface TtsError { code: TtsErrorCode; message: string; }
 
 const SLEEP_OPTIONS = [
@@ -30,7 +29,6 @@ export interface UseTtsReturn {
   skipForward: () => void;
   skipBack: () => void;
   clearError: () => void;
-  switchToBrowser: (index?: number) => void;
   sleepTimeLeft: string | null;
   hasSleepTimer: boolean;
   setSleepTimer: (minutes: number) => void;
@@ -51,8 +49,6 @@ export function useTts(items: TtsItem[]): UseTtsReturn {
   const abortRef = useRef<AbortController | null>(null);
   const blobUrlRef = useRef<string | null>(null);
   const pendingBlobUrlsRef = useRef<string[]>([]);
-  const isBrowserTtsRef = useRef(false);
-  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const sleepTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sleepCountdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -75,10 +71,6 @@ export function useTts(items: TtsItem[]): UseTtsReturn {
       abortRef.current.abort();
       abortRef.current = null;
     }
-    if (utteranceRef.current) {
-      speechSynthesis.cancel();
-      utteranceRef.current = null;
-    }
   }, []);
 
   const clearSleepTimer = useCallback(() => {
@@ -90,7 +82,6 @@ export function useTts(items: TtsItem[]): UseTtsReturn {
 
   const stop = useCallback(() => {
     isActiveRef.current = false;
-    isBrowserTtsRef.current = false;
     releaseAudio();
     setPlayerState('idle');
     clearSleepTimer();
@@ -103,37 +94,6 @@ export function useTts(items: TtsItem[]): UseTtsReturn {
     if (index < 0 || index >= current.length) { stop(); return; }
 
     releaseAudio();
-
-    // Browser TTS path
-    if (isBrowserTtsRef.current) {
-      isActiveRef.current = true;
-      setCurrentIndex(index);
-      currentIndexRef.current = index;
-      setTtsError(null);
-      setPlayerState('playing');
-
-      const utterance = new SpeechSynthesisUtterance(current[index].text);
-      utteranceRef.current = utterance;
-      utterance.onend = () => {
-        if (!isActiveRef.current) return;
-        utteranceRef.current = null;
-        const next = currentIndexRef.current + 1;
-        setCurrentIndex(next);
-        currentIndexRef.current = next;
-        playAtIndex(next);
-      };
-      utterance.onerror = () => { if (isActiveRef.current) stop(); };
-      speechSynthesis.speak(utterance);
-      return;
-    }
-
-    const humeKey = ttsSettingsService.getHumeApiKey();
-
-    // No API key — surface a prompt instead of starting playback
-    if (!humeKey) {
-      setTtsError({ code: 'no_key', message: 'Hume API key not configured.' });
-      return;
-    }
 
     isActiveRef.current = true;
     setCurrentIndex(index);
@@ -183,11 +143,7 @@ export function useTts(items: TtsItem[]): UseTtsReturn {
       })
       .catch((err) => {
         if (controller.signal.aborted) return;
-        if (err instanceof HumeTtsError) {
-          setTtsError({ code: err.code, message: err.message });
-        } else {
-          setTtsError({ code: 'api_error', message: 'TTS failed. Please try again.' });
-        }
+        setTtsError({ code: 'api_error', message: err?.message ?? 'TTS failed. Please try again.' });
         stop();
       });
   }, [stop, releaseAudio]);
@@ -197,15 +153,13 @@ export function useTts(items: TtsItem[]): UseTtsReturn {
   }, [playAtIndex]);
 
   const pause = useCallback(() => {
-    if (isBrowserTtsRef.current) { speechSynthesis.pause(); }
-    else if (audioRef.current) { audioRef.current.pause(); }
+    if (audioRef.current) { audioRef.current.pause(); }
     isActiveRef.current = false;
     setPlayerState('paused');
   }, []);
 
   const resume = useCallback(() => {
-    if (isBrowserTtsRef.current) { speechSynthesis.resume(); }
-    else if (audioRef.current) { audioRef.current.play().catch(() => {}); }
+    if (audioRef.current) { audioRef.current.play().catch(() => {}); }
     isActiveRef.current = true;
     setPlayerState('playing');
   }, []);
@@ -238,18 +192,11 @@ export function useTts(items: TtsItem[]): UseTtsReturn {
 
   const cancelSleepTimer = useCallback(() => { clearSleepTimer(); }, [clearSleepTimer]);
 
-  const switchToBrowser = useCallback((index?: number) => {
-    releaseAudio();
-    isBrowserTtsRef.current = true;
-    setTtsError(null);
-    playAtIndex(index ?? currentIndexRef.current);
-  }, [releaseAudio, playAtIndex]);
-
   useEffect(() => () => { stop(); }, [stop]);
 
   return {
     playerState, currentIndex, ttsError,
     play, pause, resume, stop, skipForward, skipBack,
-    clearError, switchToBrowser, sleepTimeLeft, hasSleepTimer, setSleepTimer, cancelSleepTimer,
+    clearError, sleepTimeLeft, hasSleepTimer, setSleepTimer, cancelSleepTimer,
   };
 }

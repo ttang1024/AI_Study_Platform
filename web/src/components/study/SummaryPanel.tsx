@@ -3,7 +3,6 @@ import { Sparkles, Loader2, Volume2, VolumeX } from 'lucide-react';
 import 'katex/dist/katex.min.css';
 import { useTts } from '../../hooks/useTts';
 import { TtsPlayer } from '../common/TtsPlayer';
-import { TtsKeyPrompt } from '../common/TtsKeyPrompt';
 import { EmptyGenerationState, GenerationFailedState } from '../common/GenerationStates';
 import { SummaryMarkdown } from './SummaryMarkdown';
 
@@ -54,7 +53,7 @@ export const SummaryPanel: React.FC<SummaryPanelProps> = ({
 		() => summary ? [{ text: stripMarkdown(summary), title: 'Summary' }] : [],
 		[summary],
 	);
-	const { playerState, ttsError, play, pause, resume, stop, clearError, switchToBrowser } = useTts(ttsItems);
+	const { playerState, ttsError, play, pause, resume, stop, clearError } = useTts(ttsItems);
 
 	if (isLoading && streamingText) {
 		return (
@@ -104,24 +103,15 @@ export const SummaryPanel: React.FC<SummaryPanelProps> = ({
 				>
 					<SummaryMarkdown value={summary} onTimelineSeek={onTimelineSeek} />
 				</div>
-				{ttsError?.code === 'no_key' && (
-					<TtsKeyPrompt
-						onSaved={() => { clearError(); play(0); }}
-						onDismiss={clearError}
-						onUseBrowser={() => switchToBrowser(0)}
-					/>
-				)}
-				{(playerState !== 'idle' || (ttsError && ttsError.code !== 'no_key')) && (
+				{(playerState !== 'idle' || ttsError) && (
 					<TtsPlayer
 						state={playerState}
 						title="Summary"
 						onPlay={resume}
 						onPause={pause}
 						onStop={stop}
-						error={ttsError?.code !== 'no_key' ? ttsError?.message : null}
-						errorCode={ttsError?.code}
+						error={ttsError?.message}
 						onDismissError={clearError}
-						onUseBrowserTts={() => switchToBrowser()}
 					/>
 				)}
 			</>

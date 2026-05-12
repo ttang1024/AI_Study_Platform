@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
-import { Volume2, Play, Pause, SkipBack, SkipForward, X, Timer, ChevronDown, Loader2, AlertCircle, ExternalLink, MonitorSpeaker } from 'lucide-react';
+import { Volume2, Play, Pause, SkipBack, SkipForward, X, Timer, ChevronDown, Loader2, AlertCircle } from 'lucide-react';
 import { TtsState, SLEEP_OPTIONS } from '../../hooks/useTts';
 
 interface TtsPlayerProps {
@@ -18,12 +18,8 @@ interface TtsPlayerProps {
   hasSleepTimer?: boolean;
   onSetSleepTimer?: (minutes: number) => void;
   onCancelSleepTimer?: () => void;
-  /** Non-fatal error message to display inside the player bar */
   error?: string | null;
-  /** Error code — 'zero_credits' renders a billing link */
-  errorCode?: string | null;
   onDismissError?: () => void;
-  onUseBrowserTts?: () => void;
 }
 
 export const TtsPlayer: React.FC<TtsPlayerProps> = ({
@@ -42,9 +38,7 @@ export const TtsPlayer: React.FC<TtsPlayerProps> = ({
   onSetSleepTimer,
   onCancelSleepTimer,
   error,
-  errorCode,
   onDismissError,
-  onUseBrowserTts,
 }) => {
   const [showSleepMenu, setShowSleepMenu] = useState(false);
 
@@ -56,27 +50,6 @@ export const TtsPlayer: React.FC<TtsPlayerProps> = ({
           <AlertCircle size={16} className="text-red-500 shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-red-700">{error}</p>
-            {errorCode === 'zero_credits' && (
-              <div className="flex items-center gap-3 mt-1">
-                <a
-                  href="https://platform.hume.ai/billing"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-xs font-bold text-red-600 hover:text-red-800 underline"
-                >
-                  Manage billing <ExternalLink size={11} />
-                </a>
-                {onUseBrowserTts && (
-                  <button
-                    onClick={onUseBrowserTts}
-                    className="inline-flex items-center gap-1 text-xs font-bold text-red-600 hover:text-red-800 transition-colors"
-                  >
-                    <MonitorSpeaker size={11} />
-                    Use browser voice
-                  </button>
-                )}
-              </div>
-            )}
           </div>
           {onDismissError && (
             <button onClick={onDismissError} className="p-0.5 rounded text-red-400 hover:text-red-600 transition-colors shrink-0">

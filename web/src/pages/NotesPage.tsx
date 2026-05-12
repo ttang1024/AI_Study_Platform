@@ -12,7 +12,6 @@ import { Note } from '../types';
 import { SourceFilterBar, SourceType } from '../components/common/SourceFilterBar';
 import { useTts } from '../hooks/useTts';
 import { TtsPlayer } from '../components/common/TtsPlayer';
-import { TtsKeyPrompt } from '../components/common/TtsKeyPrompt';
 import { ShareModal } from '../components/common/ShareModal';
 import { Pagination } from '../components/common/Pagination';
 import { downloadNotesMarkdown, ExportNoteRecord } from '../services/exportInteropService';
@@ -227,7 +226,7 @@ export const NotesPage: React.FC = () => {
   const {
     playerState, currentIndex, ttsError,
     play, pause, resume, stop,
-    skipForward, skipBack, clearError, switchToBrowser,
+    skipForward, skipBack, clearError,
     sleepTimeLeft, hasSleepTimer, setSleepTimer, cancelSleepTimer,
   } = useTts(ttsItems);
 
@@ -464,15 +463,7 @@ export const NotesPage: React.FC = () => {
         </>
       )}
 
-      {ttsError?.code === 'no_key' && (
-        <TtsKeyPrompt
-          onSaved={() => { clearError(); play(0); }}
-          onDismiss={clearError}
-          onUseBrowser={() => switchToBrowser(0)}
-        />
-      )}
-
-      {(playerState !== 'idle' || (ttsError && ttsError.code !== 'no_key')) && (
+      {(playerState !== 'idle' || ttsError) && (
         <TtsPlayer
           state={playerState}
           title={ttsItems[currentIndex]?.title ?? ''}
@@ -488,10 +479,8 @@ export const NotesPage: React.FC = () => {
           hasSleepTimer={hasSleepTimer}
           onSetSleepTimer={setSleepTimer}
           onCancelSleepTimer={cancelSleepTimer}
-          error={ttsError?.code !== 'no_key' ? ttsError?.message : null}
-          errorCode={ttsError?.code}
+          error={ttsError?.message}
           onDismissError={clearError}
-          onUseBrowserTts={() => switchToBrowser()}
         />
       )}
 
