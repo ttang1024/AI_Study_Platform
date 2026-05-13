@@ -12,6 +12,8 @@ const DOCKER_LINES = [
 ];
 
 const LOCAL_LINES = [
+  { prompt: '~', cmd: 'redis-server &', color: '#f87171' },
+  { prompt: null, cmd: '✓ Redis ready on :6379', color: '#818cf8' },
   { prompt: '~', cmd: 'azurite-blob --blobHost 127.0.0.1 --blobPort 10000 &', color: '#f0abfc' },
   { prompt: null, cmd: '✓ Azurite blob ready on :10000', color: '#818cf8' },
   { prompt: '~/Study_Platform/server', cmd: 'dotnet ef database update --project StudyPlatform.Infrastructure --startup-project StudyPlatform.API', color: '#fb923c' },
@@ -38,7 +40,7 @@ export const TerminalCard: React.FC = () => {
   const lines = tab === 'docker' ? DOCKER_LINES : tab === 'azure' ? AZURE_LINES : LOCAL_LINES;
 
   return (
-    <div className="lg:col-span-2 flex flex-col gap-4">
+    <div className="lg:col-span-3 flex flex-col gap-4">
       <div
         className="rounded-2xl overflow-hidden"
         style={{ background: 'rgba(0,0,0,0.7)', border: '1px solid rgba(74,222,128,0.2)', boxShadow: '0 0 40px rgba(74,222,128,0.06)' }}

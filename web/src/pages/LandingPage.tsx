@@ -348,10 +348,10 @@ export const LandingPage: React.FC = () => {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-7 gap-6 items-start">
             <TerminalCard />
 
-            <div className="lg:col-span-3 flex flex-col gap-4">
+            <div className="lg:col-span-4 flex flex-col gap-4">
               <div className="flex items-center gap-3 px-4 py-3 rounded-xl"
                 style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
                 <Key className="w-4 h-4 text-cyan-400 shrink-0" />
@@ -400,10 +400,10 @@ export const LandingPage: React.FC = () => {
                           )}
                           <span className="truncate text-sm font-bold" style={{ color: p.color }}>{p.name}</span>
                         </div>
-                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                        {/* <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
                           style={{ background: `${p.color}18`, color: p.color }}>
                           {p.free}
-                        </span>
+                        </span> */}
                       </div>
                       <div className="font-mono text-xs rounded px-2 py-1" style={{ background: 'rgba(0,0,0,0.4)', color: 'rgba(255,255,255,0.35)' }}>
                         {p.keyHint}

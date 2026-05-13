@@ -113,25 +113,6 @@ export const BentoFlashcardCard: React.FC = () => {
           <ThumbsUp className="w-3 h-3" /> Good
         </button>
       </div>
-
-      <div className="rounded-xl px-3 py-3" style={{ background: 'rgba(0,0,0,0.28)', border: '1px solid rgba(255,255,255,0.05)' }}>
-        <p className="text-[10px] font-bold uppercase tracking-widest text-white/25 mb-2">Study queue</p>
-        <div className="grid grid-cols-3 gap-2">
-          {REVIEW_STATS.map((stat, i) => (
-            <motion.div
-              key={stat.label}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.07, duration: 0.25 }}
-              className="rounded-lg px-2 py-2 text-center"
-              style={{ background: `${stat.color}14`, border: `1px solid ${stat.color}33` }}
-            >
-              <div className="text-lg font-black leading-none" style={{ color: stat.color }}>{stat.value}</div>
-              <div className="mt-1 text-[9px] font-semibold uppercase tracking-wide text-white/30">{stat.label}</div>
-            </motion.div>
-          ))}
-        </div>
-      </div>
     </motion.div>
   );
 };
