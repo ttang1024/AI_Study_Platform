@@ -78,16 +78,6 @@ export interface LearningProgress {
 	lastAccessed: string
 }
 
-// ─── Spaced Repetition (SRS) ────────────────────────────────────────────────
-export type SRSRating = 0 | 1 | 2 | 3 | 4 // 0=Again, 1=Hard, 2=Good, 3=Easy, 4=Perfect
-export interface SRSData {
-	interval: number // days until next review
-	easeFactor: number // default 2.5
-	repetitions: number // consecutive correct answers
-	nextReview: string // ISO date
-	lastReviewed: string
-}
-
 // ─── Glossary ────────────────────────────────────────────────────────────────
 export interface GlossaryTerm {
 	id: string
@@ -95,11 +85,10 @@ export interface GlossaryTerm {
 	definition: string
 	documentId?: string
 	youTubeVideoId?: string
-	sourceName?: string   // doc name or video title
+	sourceName?: string // doc name or video title
 	courseId?: string
 	sourceKind?: 'document' | 'video' | 'article' | 'audio'
 }
-
 
 // ─── Shared Study Set ────────────────────────────────────────────────────────
 export interface SharedSet {
