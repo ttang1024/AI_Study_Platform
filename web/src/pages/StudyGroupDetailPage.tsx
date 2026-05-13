@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Copy, Check, Send, BookOpen, Users, ExternalLink, X } from 'lucide-react';
+import * as signalR from '@microsoft/signalr';
 import studyGroupService, {
   type StudyGroupDetail,
   type GroupChatMessage,
 } from '../services/studyGroupService';
 import { useAuth } from '../context/AuthContext';
 import { apiClient } from '../services/apiClient';
+import { getApiUrl } from '../utils/env';
 
 interface Course {
   courseId: string;
@@ -26,6 +28,7 @@ export const StudyGroupDetailPage: React.FC = () => {
   const [availableCourses, setAvailableCourses] = useState<Course[]>([]);
   const [selectedCourseId, setSelectedCourseId] = useState('');
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const hubRef = useRef<signalR.HubConnection | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -43,15 +46,29 @@ export const StudyGroupDetailPage: React.FC = () => {
       .catch(() => {});
   }, [id]);
 
-  // Poll for new messages every 10 seconds
+  // SignalR connection for real-time chat
   useEffect(() => {
     if (!id) return;
-    const interval = setInterval(() => {
-      studyGroupService.getChat(id)
-        .then((res) => setMessages(res.data?.data ?? []))
-        .catch(() => {});
-    }, 10000);
-    return () => clearInterval(interval);
+
+    const connection = new signalR.HubConnectionBuilder()
+      .withUrl(`${getApiUrl()}/hubs/group-chat`, {
+        accessTokenFactory: () => localStorage.getItem('sp_access_token') ?? '',
+      })
+      .withAutomaticReconnect()
+      .build();
+
+    connection.on('ReceiveMessage', (msg: GroupChatMessage) => {
+      setMessages((prev) => [...prev, msg]);
+    });
+
+    connection.start()
+      .then(() => connection.invoke('JoinGroup', id))
+      .catch(() => {});
+
+    hubRef.current = connection;
+    return () => {
+      connection.stop();
+    };
   }, [id]);
 
   // Scroll chat to bottom
@@ -67,14 +84,11 @@ export const StudyGroupDetailPage: React.FC = () => {
   };
 
   const handleSendMessage = async () => {
-    if (!id || !messageInput.trim()) return;
+    if (!id || !messageInput.trim() || !hubRef.current) return;
     setSending(true);
     try {
-      const res = await studyGroupService.sendMessage(id, messageInput.trim());
-      if (res.data?.data) {
-        setMessages((prev) => [...prev, res.data.data]);
-        setMessageInput('');
-      }
+      await hubRef.current.invoke('SendMessage', id, messageInput.trim());
+      setMessageInput('');
     } catch {
       // ignore
     } finally {
