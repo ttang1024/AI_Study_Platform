@@ -22,6 +22,8 @@ export interface UseTtsReturn {
   playerState: TtsState;
   currentIndex: number;
   ttsError: TtsError | null;
+  items: TtsItem[];
+  setItems: (items: TtsItem[]) => void;
   play: (index?: number) => void;
   pause: () => void;
   resume: () => void;
@@ -36,6 +38,7 @@ export interface UseTtsReturn {
 }
 
 export function useTts(items: TtsItem[]): UseTtsReturn {
+  const [storedItems, setStoredItems] = useState(items);
   const [playerState, setPlayerState] = useState<TtsState>('idle');
   const [currentIndex, setCurrentIndex] = useState(0);
   const [ttsError, setTtsError] = useState<TtsError | null>(null);
@@ -52,8 +55,16 @@ export function useTts(items: TtsItem[]): UseTtsReturn {
   const sleepTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sleepCountdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  itemsRef.current = items;
+  useEffect(() => {
+    itemsRef.current = items;
+    setStoredItems(items);
+  }, [items]);
   useEffect(() => { currentIndexRef.current = currentIndex; }, [currentIndex]);
+
+  const replaceItems = useCallback((nextItems: TtsItem[]) => {
+    itemsRef.current = nextItems;
+    setStoredItems(nextItems);
+  }, []);
 
   const releaseAudio = useCallback(() => {
     if (audioRef.current) {
@@ -196,6 +207,8 @@ export function useTts(items: TtsItem[]): UseTtsReturn {
 
   return {
     playerState, currentIndex, ttsError,
+    items: storedItems,
+    setItems: replaceItems,
     play, pause, resume, stop, skipForward, skipBack,
     clearError, sleepTimeLeft, hasSleepTimer, setSleepTimer, cancelSleepTimer,
   };

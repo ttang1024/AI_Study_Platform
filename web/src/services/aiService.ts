@@ -36,14 +36,31 @@ async function post<T>(url: string, body: unknown): Promise<T> {
 }
 
 export interface ChatSessionSummary {
-	sourceType: 'document' | 'video';
+	sourceType: 'document' | 'video' | 'general';
 	sourceId: string;
 	sourceName: string;
-	courseId: string;
+	courseId: string | null;
 	lastMessage: string;
 	lastMessageRole: string;
 	updatedAt: string;
 	messageCount: number;
+}
+
+export interface GeneralChatConversation {
+	conversationId: string;
+	title: string;
+	createdAt: string;
+	updatedAt: string;
+}
+
+export interface ChatMessageDto {
+	messageId: string;
+	documentId?: string | null;
+	youTubeVideoId?: string | null;
+	sourceType: string;
+	role: 'user' | 'assistant' | 'model';
+	content: string;
+	createdAt: string;
 }
 
 export const aiService = {
@@ -53,11 +70,41 @@ export const aiService = {
 			return (res.data?.data ?? []).map(s => ({
 				...s,
 				sourceId: s.sourceId as string,
-				courseId: s.courseId as string,
+				courseId: s.courseId ? s.courseId as string : null,
 			}))
 		} catch {
 			return []
 		}
+	},
+
+	async createGeneralChatConversation(): Promise<GeneralChatConversation> {
+		const res = await apiClient.post<{ data: GeneralChatConversation }>('/api/ai/chat/conversations', {
+			title: 'New conversation',
+		})
+		return res.data.data
+	},
+
+	async getGeneralChatHistory(conversationId: string): Promise<ChatMessageDto[]> {
+		const res = await apiClient.get<{ data: ChatMessageDto[] }>(`/api/ai/chat/conversations/${conversationId}/messages`)
+		return res.data.data ?? []
+	},
+
+	async deleteGeneralChatConversation(conversationId: string): Promise<void> {
+		await apiClient.delete(`/api/ai/chat/conversations/${conversationId}`)
+	},
+
+	async streamGeneralChatConversation(
+		conversationId: string,
+		message: string,
+		onChunk: (chunk: string) => void,
+		signal?: AbortSignal,
+	): Promise<void> {
+		return streamSse(
+			`/api/ai/chat/conversations/${conversationId}/stream`,
+			{ message },
+			onChunk,
+			signal,
+		)
 	},
 
 	// --- Document-based (these are already handled by the Documents API; kept for compatibility) ---

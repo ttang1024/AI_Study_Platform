@@ -67,7 +67,7 @@ export const TimedExamModal: React.FC<TimedExamModalProps> = ({
   const handleAutoSubmit = useCallback(() => {
     setTimeTaken(timeLimit * 60 - timeRemaining);
     setPhase('results');
-  }, [timeLimit, timeRemaining]);
+  }, [timeLimit, timeRemaining, shuffled, answers, sourceTitle]);
 
   const handleStart = () => {
     const q = shuffle(questions);

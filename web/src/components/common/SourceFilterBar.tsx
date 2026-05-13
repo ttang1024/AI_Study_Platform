@@ -13,14 +13,16 @@ interface SourceFilterBarProps {
   sourceType: SourceType;
   onSelectType: (type: SourceType) => void;
   counts?: { all: number; document: number; video: number; article: number; audio: number };
+  courseCounts?: Record<string, number>;
+  hideTypeTabs?: boolean;
 }
 
 const SOURCE_TABS: TypeTab<SourceType>[] = [
-  { id: 'all',      label: 'All' },
+  { id: 'all', label: 'All' },
   { id: 'document', label: 'Documents', icon: FileText },
-  { id: 'video',    label: 'Videos',    icon: Youtube },
-  { id: 'article',  label: 'Articles',  icon: Globe },
-  { id: 'audio',    label: 'Audio',     icon: Mic },
+  { id: 'video', label: 'Videos', icon: Youtube },
+  { id: 'article', label: 'Articles', icon: Globe },
+  { id: 'audio', label: 'Audio', icon: Mic },
 ];
 
 export const SourceFilterBar: React.FC<SourceFilterBarProps> = ({
@@ -30,6 +32,8 @@ export const SourceFilterBar: React.FC<SourceFilterBarProps> = ({
   sourceType,
   onSelectType,
   counts,
+  courseCounts,
+  hideTypeTabs,
 }) => {
   const tabs = SOURCE_TABS.map(t => ({
     ...t,
@@ -38,8 +42,7 @@ export const SourceFilterBar: React.FC<SourceFilterBarProps> = ({
 
   return (
     <div className="space-y-3">
-      <TypeFilterTabs tabs={tabs} active={sourceType} onChange={onSelectType} />
-
+      {!hideTypeTabs && <TypeFilterTabs tabs={tabs} active={sourceType} onChange={onSelectType} />}
       {/* Course filter pills */}
       {courses.length > 0 && (
         <div className="flex gap-2 overflow-x-auto no-scrollbar">
@@ -70,7 +73,19 @@ export const SourceFilterBar: React.FC<SourceFilterBarProps> = ({
                 className="h-2 w-2 rounded-full"
                 style={{ backgroundColor: selectedCourseId === c.id ? 'rgba(255,255,255,0.6)' : c.color }}
               />
-              {c.name}
+              <span>{c.name}</span>
+              {courseCounts && (
+                <span
+                  className={cn(
+                    'ml-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums',
+                    selectedCourseId === c.id
+                      ? 'bg-white/20 text-white'
+                      : 'bg-[var(--border-color)] text-text-muted',
+                  )}
+                >
+                  {courseCounts[c.id] ?? 0}
+                </span>
+              )}
             </button>
           ))}
         </div>

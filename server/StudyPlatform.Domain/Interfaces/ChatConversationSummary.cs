@@ -4,7 +4,7 @@ public record ChatConversationSummary(
     string SourceType,
     Guid SourceId,
     string SourceName,
-    Guid CourseId,
+    Guid? CourseId,
     string LastMessage,
     string LastMessageRole,
     DateTime UpdatedAt,

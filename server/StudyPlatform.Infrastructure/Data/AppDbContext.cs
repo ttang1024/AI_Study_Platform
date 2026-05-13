@@ -16,6 +16,7 @@ public class AppDbContext : DbContext
     public DbSet<Quiz> Quizzes => Set<Quiz>();
     public DbSet<Flashcard> Flashcards => Set<Flashcard>();
     public DbSet<Note> Notes => Set<Note>();
+    public DbSet<ChatConversation> ChatConversations => Set<ChatConversation>();
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
     public DbSet<QuizAttempt> QuizAttempts => Set<QuizAttempt>();
     public DbSet<QuizSubmission> QuizSubmissions => Set<QuizSubmission>();

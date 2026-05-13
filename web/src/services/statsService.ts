@@ -8,6 +8,7 @@ export interface UserStats {
   totalNotes: number
   totalFlashcards: number
   totalGlossaryTerms: number
+  totalQuizQuestions: number
   totalQuizSubmissions: number
   totalVideos: number
   courseMaterialCounts: CourseMaterialStats[]
@@ -46,6 +47,7 @@ export const statsService = {
           totalNotes: d.totalNotes,
           totalFlashcards: d.totalFlashcards,
           totalGlossaryTerms: d.totalGlossaryTerms ?? 0,
+          totalQuizQuestions: d.totalQuizQuestions ?? 0,
           totalQuizSubmissions: d.totalQuizSubmissions,
           totalVideos: d.totalVideos,
           courseMaterialCounts: d.courseMaterialCounts ?? [],

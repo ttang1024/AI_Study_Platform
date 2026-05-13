@@ -4,7 +4,7 @@ import { useStudy } from '../context/StudyContext';
 import { useAuth } from '../context/AuthContext';
 import { motion } from 'motion/react';
 import {
-  BookMarked, Search, Sparkles, Loader2, RefreshCw, Play,
+  BookMarked, Search, Sparkles, Loader2, Play,
   FileText, Youtube, Globe, Mic,
   CheckCircle2, Circle, Share2, Pencil, Trash2, Check, X,
 } from 'lucide-react';
@@ -14,8 +14,7 @@ import { masteredService } from '../services/masteredService';
 import { youtubeService, VideoListItem } from '../services/youtubeService';
 import { cn } from '../utils/cn';
 import { getDocDisplayName } from '../utils/docName';
-import { useTts } from '../hooks/useTts';
-import { TtsPlayer } from '../components/common/TtsPlayer';
+import { usePersistentTts } from '../context/TtsContext';
 import { SourceFilterBar, SourceType } from '../components/common/SourceFilterBar';
 import { GlossaryShareModal } from '../components/common/GlossaryShareModal';
 import { Pagination } from '../components/common/Pagination';
@@ -39,6 +38,7 @@ export const GlossaryPage: React.FC = () => {
   const [videos, setVideos] = useState<VideoListItem[]>([]);
   const [selectedSourceId, setSelectedSourceId] = useState('');
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
+  const [generateCourseId, setGenerateCourseId] = useState<string | null>(null);
   const [sourceType, setSourceType] = useState<SourceType>('all');
   const [search, setSearch] = useState('');
   const [generating, setGenerating] = useState<Set<string>>(new Set());
@@ -54,6 +54,16 @@ export const GlossaryPage: React.FC = () => {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const GENERATE_PAGE_SIZE = 6;
+
+  const handleSelectCourse = (id: string | null) => {
+    setSelectedCourseId(id);
+    setSelectedSourceId('');
+  };
+
+  const handleSelectGenerateCourse = (id: string | null) => {
+    setGenerateCourseId(id);
+    setGeneratePage(1);
+  };
 
   const toggleMastered = useCallback((id: string) => {
     // Optimistic update
@@ -208,12 +218,15 @@ export const GlossaryPage: React.FC = () => {
     [filtered],
   );
 
-  const {
-    playerState, currentIndex, ttsError,
-    play, pause, resume, stop,
-    skipForward, skipBack, clearError,
-    sleepTimeLeft, hasSleepTimer, setSleepTimer, cancelSleepTimer,
-  } = useTts(ttsItems);
+  const getTtsSubtitle = useCallback(
+    (index: number, itemCount: number) =>
+      `Term ${index + 1} / ${itemCount}${masteryFilter !== 'all' ? ` · ${masteryFilter}` : ''}`,
+    [masteryFilter],
+  );
+
+  const { playerState, play } = usePersistentTts('glossary', ttsItems, {
+    getSubtitle: getTtsSubtitle,
+  });
 
   const masteredCount = useMemo(() => allTerms.filter(t => masteredIds.has(t.id)).length, [allTerms, masteredIds]);
 
@@ -224,6 +237,15 @@ export const GlossaryPage: React.FC = () => {
     article: allTerms.filter(t => t.sourceKind === 'article').length,
     audio: allTerms.filter(t => t.sourceKind === 'audio').length,
   }), [allTerms]);
+
+  const courseCounts = useMemo(() => {
+    const next: Record<string, number> = {};
+    for (const term of allTerms) {
+      if (!term.courseId) continue;
+      next[term.courseId] = (next[term.courseId] ?? 0) + 1;
+    }
+    return next;
+  }, [allTerms]);
 
   // Source options for filter dropdown (filtered by active kind tab)
   const sourceOptions = useMemo(() => {
@@ -267,10 +289,27 @@ export const GlossaryPage: React.FC = () => {
     return [...docs, ...vids];
   }, [documents, videos]);
 
+  const generatedSourceIds = useMemo(() => {
+    const ids = new Set<string>();
+    allTerms.forEach(term => {
+      if (term.documentId) ids.add(term.documentId);
+      if (term.youTubeVideoId) ids.add(term.youTubeVideoId);
+    });
+    return ids;
+  }, [allTerms]);
+
   const visibleSources = useMemo(() =>
-    allSources.filter(s => sourceType === 'all' || s.kind === sourceType),
-    [allSources, sourceType],
+    allSources.filter(s =>
+      !generatedSourceIds.has(s.id) &&
+      (!generateCourseId || s.courseId === generateCourseId)
+    ),
+    [allSources, generatedSourceIds, generateCourseId],
   );
+
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(visibleSources.length / GENERATE_PAGE_SIZE));
+    setGeneratePage(page => Math.min(page, totalPages));
+  }, [visibleSources.length]);
 
   const kindIcon = (kind: string) => {
     if (kind === 'video') return <Youtube size={13} className="text-red-500 shrink-0" />;
@@ -290,11 +329,8 @@ export const GlossaryPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div className="space-y-2">
-          <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-1.5 text-xs font-bold text-primary border border-primary/20">
-            <BookMarked size={14} /> Concept Glossary
-          </div>
           <h1 className="text-4xl font-black text-text-main">
-            Your <span className="text-primary">Glossary</span>
+            Study <span className="text-primary">Glossary</span>
           </h1>
           <p className="text-zinc-500 font-medium">AI-extracted key terms and definitions from all your content.</p>
         </div>
@@ -334,18 +370,8 @@ export const GlossaryPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Source type tabs + course pills */}
-      <SourceFilterBar
-        courses={courses}
-        selectedCourseId={selectedCourseId}
-        onSelectCourse={id => { setSelectedCourseId(id); setSelectedSourceId(''); }}
-        sourceType={sourceType}
-        onSelectType={t => { setSourceType(t); setSelectedSourceId(''); setGeneratePage(1); }}
-        counts={counts}
-      />
-
       {/* Generate panel */}
-      {visibleSources.length > 0 && (() => {
+      {allSources.length > 0 && (() => {
         const totalPages = Math.ceil(visibleSources.length / GENERATE_PAGE_SIZE);
         const pageSources = visibleSources.slice(
           (generatePage - 1) * GENERATE_PAGE_SIZE,
@@ -353,10 +379,27 @@ export const GlossaryPage: React.FC = () => {
         );
         return (
           <div className="rounded-3xl border border-[var(--border-color)] bg-[var(--bg-sidebar)] p-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2">
-              <h2 className="text-sm font-bold text-text-main">Generate Glossary</h2>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-3">
+              <div className="flex items-center gap-4">
+                <h2 className="text-sm font-bold text-text-main">Generate Glossary</h2>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                  {courses.length > 0 && (
+                    <select
+                      value={generateCourseId ?? ''}
+                      onChange={e => handleSelectGenerateCourse(e.target.value || null)}
+                      className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-app)] px-3 py-2 text-xs font-semibold text-text-main outline-none focus:border-primary"
+                      aria-label="Filter glossary generation by course"
+                    >
+                      <option value="">All Courses</option>
+                      {courses.map(course => (
+                        <option key={course.id} value={course.id}>{course.name}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              </div>
               {totalPages > 1 && (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center justify-end gap-3">
                   <span className="text-xs text-text-muted">
                     {(generatePage - 1) * GENERATE_PAGE_SIZE + 1}–{Math.min(generatePage * GENERATE_PAGE_SIZE, visibleSources.length)} of {visibleSources.length}
                   </span>
@@ -371,10 +414,11 @@ export const GlossaryPage: React.FC = () => {
               )}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {pageSources.map(src => {
-                const hasTerms = allTerms.some(t =>
-                  src.kind === 'video' ? t.youTubeVideoId === src.id : t.documentId === src.id
-                );
+              {pageSources.length === 0 ? (
+                <div className="sm:col-span-2 lg:col-span-3 rounded-xl border border-dashed border-[var(--border-color)] bg-[var(--bg-app)] p-6 text-center text-sm font-medium text-text-muted">
+                  No sources available for glossary generation.
+                </div>
+              ) : pageSources.map(src => {
                 const isLoading = generating.has(src.id);
                 return (
                   <div key={src.id} className="flex items-center justify-between rounded-xl border border-[var(--border-color)] bg-[var(--bg-app)] p-3">
@@ -387,15 +431,11 @@ export const GlossaryPage: React.FC = () => {
                       disabled={isLoading}
                       className={cn(
                         'ml-2 flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold transition-all',
-                        hasTerms
-                          ? 'border border-zinc-200 text-text-muted hover:border-primary/50 hover:text-primary'
-                          : 'bg-primary text-white hover:opacity-90'
+                        'bg-primary text-white hover:opacity-90'
                       )}
                     >
-                      {isLoading
-                        ? <Loader2 size={12} className="animate-spin" />
-                        : hasTerms ? <RefreshCw size={12} /> : <Sparkles size={12} />}
-                      {isLoading ? '...' : hasTerms ? 'Refresh' : 'Generate'}
+                      {isLoading ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+                      {isLoading ? '...' : 'Generate'}
                     </button>
                   </div>
                 );
@@ -404,6 +444,18 @@ export const GlossaryPage: React.FC = () => {
           </div>
         );
       })()}
+
+      {/* Source type tabs + course pills */}
+      <SourceFilterBar
+        courses={courses}
+        selectedCourseId={selectedCourseId}
+        onSelectCourse={handleSelectCourse}
+        sourceType={sourceType}
+        onSelectType={t => { setSourceType(t); setSelectedSourceId(''); }}
+        counts={counts}
+        courseCounts={courseCounts}
+        hideTypeTabs={true}
+      />
 
       {/* Filters */}
       <div className="flex flex-col gap-3">
@@ -416,13 +468,6 @@ export const GlossaryPage: React.FC = () => {
               className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-sidebar)] py-2.5 pl-9 pr-4 text-sm outline-none focus:border-primary"
             />
           </div>
-          <select
-            value={selectedSourceId} onChange={e => setSelectedSourceId(e.target.value)}
-            className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-sidebar)] px-4 py-2.5 text-sm outline-none focus:border-primary"
-          >
-            <option value="">All Sources</option>
-            {sourceOptions.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
         </div>
 
         {/* Mastery filter */}
@@ -629,27 +674,6 @@ export const GlossaryPage: React.FC = () => {
             })}
           </div>
         </div>
-      )}
-
-      {(playerState !== 'idle' || ttsError) && (
-        <TtsPlayer
-          state={playerState}
-          title={ttsItems[currentIndex]?.title ?? ''}
-          subtitle={`Term ${currentIndex + 1} / ${filtered.length}${masteryFilter !== 'all' ? ` · ${masteryFilter}` : ''}`}
-          onPlay={resume}
-          onPause={pause}
-          onStop={stop}
-          onSkipBack={skipBack}
-          onSkipForward={skipForward}
-          disableSkipBack={currentIndex === 0}
-          disableSkipForward={currentIndex >= filtered.length - 1}
-          sleepTimeLeft={sleepTimeLeft}
-          hasSleepTimer={hasSleepTimer}
-          onSetSleepTimer={setSleepTimer}
-          onCancelSleepTimer={cancelSleepTimer}
-          error={ttsError?.message}
-          onDismissError={clearError}
-        />
       )}
 
       {(() => {

@@ -6,7 +6,7 @@ import {
   LayoutDashboard, Library, Settings, LogOut, BrainCircuit,
   Award, NotebookPen, X, Sparkles, ChevronLeft, ChevronRight,
   User, BookMarked, MessageSquarePlus,
-  Search, Trophy, Users, Bot, ListChecks, Network, RotateCcw,
+  Search, Trophy, Users, Bot, Network,
 } from 'lucide-react';
 import { AchievementsPanel } from '../dashboard/AchievementsPanel';
 import { cn } from '../../utils/cn';
@@ -23,15 +23,13 @@ interface SidebarProps {
 const navItems = [
   { icon: Sparkles, label: 'AI Summarizer', path: '/summarizer' },
   { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
-  // { icon: RotateCcw, label: 'Daily Review', path: '/review' },
   { icon: Library, label: 'Library', path: '/library' },
   { icon: BrainCircuit, label: 'Flashcards', path: '/flashcards' },
   { icon: Award, label: 'Quizzes', path: '/quizzes' },
-  { icon: ListChecks, label: 'Question Bank', path: '/question-bank' },
   { icon: BookMarked, label: 'Glossary', path: '/glossary' },
-  // { icon: Network, label: 'Knowledge Graph', path: '/knowledge-graph' },
   { icon: NotebookPen, label: 'Notes', path: '/notes' },
   { icon: Bot, label: 'AI Chat', path: '/chat' },
+  // { icon: Network, label: 'Knowledge Graph', path: '/knowledge-graph' },
   { icon: Users, label: 'Study Groups', path: '/groups' },
 ];
 

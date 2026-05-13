@@ -18,6 +18,7 @@ interface StudyContextType {
   totalNotes: number;
   totalFlashcards: number;
   totalGlossaryTerms: number;
+  totalQuizQuestions: number;
   totalQuizSubmissions: number;
   totalVideos: number;
   totalMaterials: number;
@@ -73,6 +74,7 @@ const EMPTY_STATS = {
   totalNotes: 0,
   totalFlashcards: 0,
   totalGlossaryTerms: 0,
+  totalQuizQuestions: 0,
   totalQuizSubmissions: 0,
   totalVideos: 0,
   courseMaterialCounts: [] as CourseMaterialStats[],
@@ -92,6 +94,7 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [totalNotes, setTotalNotes] = useState(0);
   const [totalFlashcards, setTotalFlashcards] = useState(0);
   const [totalGlossaryTerms, setTotalGlossaryTerms] = useState(0);
+  const [totalQuizQuestions, setTotalQuizQuestions] = useState(0);
   const [totalQuizSubmissions, setTotalQuizSubmissions] = useState(0);
   const [totalVideos, setTotalVideos] = useState(0);
   const [courseMaterialCounts, setCourseMaterialCounts] = useState<CourseMaterialStats[]>([]);
@@ -118,6 +121,7 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setTotalNotes(0);
       setTotalFlashcards(0);
       setTotalGlossaryTerms(0);
+      setTotalQuizQuestions(0);
       setTotalQuizSubmissions(0);
       setTotalVideos(0);
       setCourseMaterialCounts([]);
@@ -155,6 +159,7 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setTotalNotes(stats.totalNotes);
         setTotalFlashcards(stats.totalFlashcards);
         setTotalGlossaryTerms(stats.totalGlossaryTerms);
+        setTotalQuizQuestions(stats.totalQuizQuestions);
         setTotalQuizSubmissions(stats.totalQuizSubmissions);
         setTotalVideos(stats.totalVideos);
         setCourseMaterialCounts(stats.courseMaterialCounts);
@@ -264,6 +269,7 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setTotalNotes(stats.totalNotes);
       setTotalFlashcards(stats.totalFlashcards);
       setTotalGlossaryTerms(stats.totalGlossaryTerms);
+      setTotalQuizQuestions(stats.totalQuizQuestions);
       setTotalQuizSubmissions(stats.totalQuizSubmissions);
       setTotalVideos(stats.totalVideos);
       setCourseMaterialCounts(stats.courseMaterialCounts);
@@ -441,6 +447,7 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setTotalNotes(0);
     setTotalFlashcards(0);
     setTotalGlossaryTerms(0);
+    setTotalQuizQuestions(0);
     setTotalQuizSubmissions(0);
     setTotalVideos(0);
     setCourseMaterialCounts([]);
@@ -466,6 +473,7 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         totalNotes,
         totalFlashcards,
         totalGlossaryTerms,
+        totalQuizQuestions,
         totalQuizSubmissions,
         totalVideos,
         totalMaterials,

@@ -7,6 +7,8 @@ export interface KnowledgeGraphNode {
   subtitle?: string | null;
   url?: string | null;
   weight: number;
+  description?: string | null;
+  courseId?: string | null;
 }
 
 export interface KnowledgeGraphEdge {
@@ -30,9 +32,17 @@ export interface KnowledgeGraph {
   stats: KnowledgeGraphStats;
 }
 
+const stripHtml = (html: string): string => {
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  return (div.textContent || div.innerText || '').trim();
+};
+
 export const knowledgeGraphService = {
   async getKnowledgeGraph(): Promise<KnowledgeGraph> {
     const response = await apiClient.get('/api/concept-links/knowledge-graph');
-    return response.data.data as KnowledgeGraph;
+    const data = response.data.data as KnowledgeGraph;
+    data.nodes = data.nodes.map(n => ({ ...n, title: stripHtml(n.title) }));
+    return data;
   },
 };

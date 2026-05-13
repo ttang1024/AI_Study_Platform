@@ -1,12 +1,10 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import {
-  MessageSquare, Plus, Trash2, Sparkles, ArrowLeft,
-  Bot, FileText, Youtube, Loader2, ExternalLink, Share2, Check, AlertCircle,
-  Pencil, X,
+  MessageSquare, Trash2, Sparkles, ArrowLeft,
+  Bot, FileText, Youtube, Loader2, ExternalLink, Share2, Check, AlertCircle, Plus,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { ChatPanel } from '../components/ai/ChatPanel';
-import { chatStorage, type Conversation } from '../services/chatStorage';
 import { aiService, type ChatSessionSummary } from '../services/aiService';
 import { documentService } from '../services/documentService';
 import { youtubeService } from '../services/youtubeService';
@@ -25,7 +23,7 @@ interface PanelMessage {
 }
 
 type ActiveItem =
-  | { kind: 'local'; id: string }
+  | { kind: 'general'; sourceId: string; name: string }
   | { kind: 'document'; sourceId: string; courseId: string; name: string }
   | { kind: 'video'; sourceId: string; name: string };
 
@@ -44,9 +42,24 @@ function formatTime(iso: string): string {
 }
 
 function activeItemKey(item: ActiveItem): string {
-  if (item.kind === 'local') return `local-${item.id}`;
+  if (item.kind === 'general') return `general-${item.sourceId}`;
   if (item.kind === 'document') return `doc-${item.sourceId}`;
   return `vid-${item.sourceId}`;
+}
+
+function createConversationId(): string {
+  return typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function createMessageId(): string {
+  return createConversationId();
+}
+
+function titleFromMessage(message: string): string {
+  const compact = message.trim().replace(/\s+/g, ' ');
+  return compact.length > 42 ? `${compact.slice(0, 39)}...` : compact || 'New conversation';
 }
 
 function formatConversationForShare(messages: PanelMessage[]): string {
@@ -65,7 +78,6 @@ function formatConversationForShare(messages: PanelMessage[]): string {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export const ChatListPage: React.FC = () => {
-  const [localConvs, setLocalConvs] = useState<Conversation[]>([]);
   const [backendSessions, setBackendSessions] = useState<ChatSessionSummary[]>([]);
   const [activeItem, setActiveItem] = useState<ActiveItem | null>(null);
   const [panelMessages, setPanelMessages] = useState<PanelMessage[]>([]);
@@ -75,19 +87,12 @@ export const ChatListPage: React.FC = () => {
   const [shareStatus, setShareStatus] = useState<'idle' | 'creating' | 'copied' | 'error'>('idle');
   const [deletingKey, setDeletingKey] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ActiveItem | null>(null);
-  const [editingKey, setEditingKey] = useState<string | null>(null);
-  const [renameDraft, setRenameDraft] = useState('');
 
   // Load all sessions on mount
   useEffect(() => {
-    const locals = chatStorage.getConversations();
-    setLocalConvs(locals);
-
     aiService.getChatSessions().then(sessions => {
       setBackendSessions(sessions);
-
-      // Auto-select most recent across all session types
-      const allItems = buildListItems(locals, sessions);
+      const allItems = buildListItems(sessions);
       if (allItems.length > 0) {
         const first = allItems[0];
         loadMessages(first.item);
@@ -104,37 +109,32 @@ export const ChatListPage: React.FC = () => {
     title: string;
     updatedAt: string;
     lastMessage: string;
-    kind: 'local' | 'document' | 'video';
+    kind: 'general' | 'document' | 'video';
     item: ActiveItem;
   }
 
-  function buildListItems(locals: Conversation[], backend: ChatSessionSummary[]): ListEntry[] {
-    const localEntries: ListEntry[] = locals.map(c => ({
-      key: `local-${c.id}`,
-      title: c.title,
-      updatedAt: c.updatedAt,
-      lastMessage: c.messages[c.messages.length - 1]?.content ?? '',
-      kind: 'local',
-      item: { kind: 'local', id: c.id },
-    }));
-
-    const backendEntries: ListEntry[] = backend.map(s => ({
-      key: s.sourceType === 'document' ? `doc-${s.sourceId}` : `vid-${s.sourceId}`,
-      title: s.sourceName,
-      updatedAt: s.updatedAt,
-      lastMessage: s.lastMessage,
-      kind: s.sourceType,
-      item: s.sourceType === 'document'
-        ? { kind: 'document', sourceId: s.sourceId, courseId: s.courseId, name: s.sourceName }
-        : { kind: 'video', sourceId: s.sourceId, name: s.sourceName },
-    }));
-
-    return [...localEntries, ...backendEntries].sort(
+  function buildListItems(backend: ChatSessionSummary[]): ListEntry[] {
+    return backend.map(s => ({
+        key: s.sourceType === 'general'
+          ? `general-${s.sourceId}`
+          : s.sourceType === 'document'
+            ? `doc-${s.sourceId}`
+            : `vid-${s.sourceId}`,
+        title: s.sourceName,
+        updatedAt: s.updatedAt,
+        lastMessage: s.lastMessage,
+        kind: s.sourceType as 'general' | 'document' | 'video',
+        item: s.sourceType === 'general'
+          ? { kind: 'general' as const, sourceId: s.sourceId, name: s.sourceName }
+          : s.sourceType === 'document'
+            ? { kind: 'document' as const, sourceId: s.sourceId, courseId: s.courseId ?? '', name: s.sourceName }
+            : { kind: 'video' as const, sourceId: s.sourceId, name: s.sourceName },
+      })).sort(
       (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
     );
   }
 
-  const listItems = buildListItems(localConvs, backendSessions);
+  const listItems = buildListItems(backendSessions);
 
   // ── Load messages for the selected session ───────────────────────────────
 
@@ -142,9 +142,13 @@ export const ChatListPage: React.FC = () => {
     setLoadingMessages(true);
     setPanelMessages([]);
     try {
-      if (item.kind === 'local') {
-        const conv = chatStorage.getConversation(item.id);
-        setPanelMessages(conv?.messages ?? []);
+      if (item.kind === 'general') {
+        const msgs = await aiService.getGeneralChatHistory(item.sourceId);
+        setPanelMessages(msgs.map(m => ({
+          id: m.messageId,
+          role: m.role === 'user' ? 'user' : 'model',
+          content: m.content,
+        })));
       } else if (item.kind === 'document') {
         const msgs = await documentService.getChatHistory(item.courseId, item.sourceId);
         setPanelMessages(msgs.map(m => ({ id: m.id, role: m.role as 'user' | 'model', content: m.content })));
@@ -168,29 +172,35 @@ export const ChatListPage: React.FC = () => {
     loadMessages(item);
   }, [loadMessages]);
 
-  // ── New standalone chat ──────────────────────────────────────────────────
+  const handleNewConversation = useCallback(async () => {
+    const conversation = await aiService.createGeneralChatConversation();
+    const now = conversation.updatedAt;
+    const item: ActiveItem = { kind: 'general', sourceId: conversation.conversationId, name: conversation.title };
 
-  const handleNewChat = useCallback(() => {
-    const conv = chatStorage.createConversation();
-    const all = chatStorage.getConversations();
-    setLocalConvs(all);
-    const item: ActiveItem = { kind: 'local', id: conv.id };
+    setBackendSessions(prev => [{
+      sourceType: 'general',
+      sourceId: conversation.conversationId,
+      sourceName: conversation.title,
+      courseId: null,
+      lastMessage: '',
+      lastMessageRole: '',
+      updatedAt: now,
+      messageCount: 0,
+    }, ...prev]);
     setActiveItem(item);
     setPanelMessages([]);
+    setShareStatus('idle');
     setShowList(false);
   }, []);
 
   // ── Conversation actions ─────────────────────────────────────────────────
 
   const getConversationTitle = useCallback((item: ActiveItem): string => {
-    if (item.kind === 'local') {
-      return chatStorage.getConversation(item.id)?.title ?? 'Chat';
-    }
     return item.name;
   }, []);
 
-  const selectAfterDelete = useCallback((deletedKey: string) => {
-    const remainingItems = buildListItems(chatStorage.getConversations(), backendSessions)
+  const selectAfterDelete = useCallback((deletedKey: string, nextBackendSessions = backendSessions) => {
+    const remainingItems = buildListItems(nextBackendSessions)
       .filter(entry => entry.key !== deletedKey);
 
     if (remainingItems.length > 0) {
@@ -208,25 +218,33 @@ export const ChatListPage: React.FC = () => {
 
     setDeletingKey(key);
     try {
-      if (item.kind === 'local') {
-        chatStorage.deleteConversation(item.id);
-        setLocalConvs(chatStorage.getConversations());
+      if (item.kind === 'general') {
+        await aiService.deleteGeneralChatConversation(item.sourceId);
+        const nextBackendSessions = backendSessions.filter(s => !(s.sourceType === 'general' && s.sourceId === item.sourceId));
+        setBackendSessions(nextBackendSessions);
+        if (activeItem && activeItemKey(activeItem) === key) {
+          selectAfterDelete(key, nextBackendSessions);
+        }
       } else if (item.kind === 'document') {
         await documentService.deleteChatHistory(item.courseId, item.sourceId);
-        setBackendSessions(prev => prev.filter(s => !(s.sourceType === 'document' && s.sourceId === item.sourceId)));
+        const nextBackendSessions = backendSessions.filter(s => !(s.sourceType === 'document' && s.sourceId === item.sourceId));
+        setBackendSessions(nextBackendSessions);
+        if (activeItem && activeItemKey(activeItem) === key) {
+          selectAfterDelete(key, nextBackendSessions);
+        }
       } else {
         await youtubeService.deleteChatHistory(item.sourceId);
-        setBackendSessions(prev => prev.filter(s => !(s.sourceType === 'video' && s.sourceId === item.sourceId)));
-      }
-
-      if (activeItem && activeItemKey(activeItem) === key) {
-        selectAfterDelete(key);
+        const nextBackendSessions = backendSessions.filter(s => !(s.sourceType === 'video' && s.sourceId === item.sourceId));
+        setBackendSessions(nextBackendSessions);
+        if (activeItem && activeItemKey(activeItem) === key) {
+          selectAfterDelete(key, nextBackendSessions);
+        }
       }
     } finally {
       setDeletingKey(null);
       setDeleteTarget(null);
     }
-  }, [activeItem, selectAfterDelete]);
+  }, [activeItem, backendSessions, selectAfterDelete]);
 
   const handleDeleteConversation = useCallback((item: ActiveItem) => {
     setDeleteTarget(item);
@@ -236,32 +254,6 @@ export const ChatListPage: React.FC = () => {
     e.stopPropagation();
     setDeleteTarget(item);
   }, []);
-
-  const handleStartRename = useCallback((e: React.MouseEvent, entry: ListEntry) => {
-    e.stopPropagation();
-    if (entry.kind !== 'local') return;
-    setEditingKey(entry.key);
-    setRenameDraft(entry.title);
-  }, []);
-
-  const handleCancelRename = useCallback((e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    setEditingKey(null);
-    setRenameDraft('');
-  }, []);
-
-  const handleSaveRename = useCallback((e?: React.MouseEvent | React.FormEvent) => {
-    e?.preventDefault();
-    e?.stopPropagation();
-    if (!editingKey?.startsWith('local-')) return;
-
-    const conversationId = editingKey.replace(/^local-/, '');
-    const nextTitle = renameDraft.trim() || 'Untitled chat';
-    chatStorage.updateTitle(conversationId, nextTitle);
-    setLocalConvs(chatStorage.getConversations());
-    setEditingKey(null);
-    setRenameDraft('');
-  }, [editingKey, renameDraft]);
 
   const handleShareActive = useCallback(async () => {
     if (!activeItem) return;
@@ -297,41 +289,22 @@ export const ChatListPage: React.FC = () => {
       if (!activeItem) return;
 
       // Optimistically add user message to the panel
+      const userMessage: PanelMessage = { id: createMessageId(), role: 'user', content: message };
       setPanelMessages(prev => [
         ...prev,
-        { id: crypto.randomUUID(), role: 'user', content: message },
+        userMessage,
       ]);
 
       let accumulated = '';
       let completed = false;
 
       try {
-        if (activeItem.kind === 'local') {
-          const conv = chatStorage.getConversation(activeItem.id);
-          const history = (conv?.messages ?? []).map(m => ({
-            role: m.role as 'user' | 'model',
-            parts: [{ text: m.content }],
-          }));
-
-          chatStorage.addMessage(activeItem.id, 'user', message);
-          const after = chatStorage.getConversation(activeItem.id)!;
-          if (after.messages.length === 1) {
-            chatStorage.updateTitle(
-              activeItem.id,
-              message.length > 60 ? message.slice(0, 57) + '…' : message,
-            );
-          }
-          setLocalConvs(chatStorage.getConversations());
-
-          await aiService.streamChat(history, message, chunk => {
+        if (activeItem.kind === 'general') {
+          await aiService.streamGeneralChatConversation(activeItem.sourceId, message, chunk => {
             accumulated += chunk;
             onChunk(chunk);
           });
           completed = true;
-
-          if (accumulated) chatStorage.addMessage(activeItem.id, 'model', accumulated);
-          setLocalConvs(chatStorage.getConversations());
-
         } else if (activeItem.kind === 'document') {
           await documentService.streamChat(activeItem.courseId, activeItem.sourceId, message, chunk => {
             accumulated += chunk;
@@ -363,21 +336,60 @@ export const ChatListPage: React.FC = () => {
           );
         }
       } catch (err) {
+        const errorMessage: PanelMessage = { id: createMessageId(), role: 'model', content: STREAM_ERROR_MESSAGE, isError: true };
         setPanelMessages(prev => [
           ...prev,
-          { id: crypto.randomUUID(), role: 'model', content: STREAM_ERROR_MESSAGE, isError: true },
+          errorMessage,
         ]);
+        if (activeItem.kind === 'general') {
+          const updatedAt = new Date().toISOString();
+          setBackendSessions(prev => prev.map(session =>
+            session.sourceType === 'general' && session.sourceId === activeItem.sourceId
+              ? {
+                ...session,
+                sourceName: session.messageCount === 0 ? titleFromMessage(message) : session.sourceName,
+                lastMessage: STREAM_ERROR_MESSAGE,
+                lastMessageRole: 'assistant',
+                updatedAt,
+                messageCount: session.messageCount + 2,
+              }
+              : session,
+          ));
+        }
         throw err;
       } finally {
         if (completed && accumulated) {
+          const modelMessage: PanelMessage = { id: createMessageId(), role: 'model', content: accumulated };
           setPanelMessages(prev => [
             ...prev,
-            { id: crypto.randomUUID(), role: 'model', content: accumulated },
+            modelMessage,
           ]);
+          if (activeItem.kind === 'general') {
+            const updatedAt = new Date().toISOString();
+            const nextTitle = titleFromMessage(message);
+            const shouldRetitle = backendSessions.find(session =>
+              session.sourceType === 'general' && session.sourceId === activeItem.sourceId,
+            )?.messageCount === 0;
+            setBackendSessions(prev => prev.map(session =>
+              session.sourceType === 'general' && session.sourceId === activeItem.sourceId
+                ? {
+                  ...session,
+                  sourceName: shouldRetitle ? nextTitle : session.sourceName,
+                  lastMessage: accumulated,
+                  lastMessageRole: 'assistant',
+                  updatedAt,
+                  messageCount: session.messageCount + 2,
+                }
+                : session,
+            ));
+            setActiveItem(prev => prev && prev.kind === 'general' && prev.sourceId === activeItem.sourceId
+              ? { ...prev, name: shouldRetitle ? nextTitle : prev.name }
+              : prev);
+          }
         }
       }
     },
-    [activeItem],
+    [activeItem, backendSessions],
   );
 
   // ── Render ───────────────────────────────────────────────────────────────
@@ -394,17 +406,17 @@ export const ChatListPage: React.FC = () => {
         )}
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-[var(--border-color)] px-4 py-3.5">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center border-b border-[var(--border-color)] px-4 py-3.5">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
             <Bot size={18} className="text-[var(--primary)]" />
             <h2 className="font-semibold text-text-main text-sm">AI Chat</h2>
           </div>
           <button
-            onClick={handleNewChat}
-            className="flex items-center gap-1.5 rounded-lg bg-[var(--primary)] px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 transition-opacity shadow-sm"
+            onClick={handleNewConversation}
+            title="New conversation"
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[var(--border-color)] bg-white text-text-main transition-colors hover:border-[var(--primary)] hover:text-[var(--primary)]"
           >
-            <Plus size={13} />
-            New Chat
+            <Plus size={16} />
           </button>
         </div>
 
@@ -415,7 +427,7 @@ export const ChatListPage: React.FC = () => {
               <MessageSquare size={32} className="text-text-muted opacity-30 mb-3" />
               <p className="text-sm font-medium text-text-muted">No chats yet</p>
               <p className="text-xs text-text-muted mt-1 opacity-70">
-                Click "New Chat" to start, or chat on a document/video page
+                Start a new conversation or chat from a document or video page
               </p>
             </div>
           ) : (
@@ -442,72 +454,16 @@ export const ChatListPage: React.FC = () => {
                       : 'hover:bg-zinc-100 text-text-main',
                   )}
                 >
-                  {/* Source icon */}
-                  <div className={cn(
-                    'mt-0.5 shrink-0',
-                    isActive ? 'text-[var(--primary)]' : 'text-zinc-400',
-                  )}>
+                  <div className={cn('mt-0.5 shrink-0', isActive ? 'text-[var(--primary)]' : 'text-zinc-400')}>
+                    {entry.kind === 'general' && <Sparkles size={15} />}
                     {entry.kind === 'document' && <FileText size={15} />}
                     {entry.kind === 'video' && <Youtube size={15} />}
-                    {entry.kind === 'local' && <MessageSquare size={15} />}
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    {editingKey === entry.key ? (
-                      <form
-                        onClick={e => e.stopPropagation()}
-                        onSubmit={handleSaveRename}
-                        className="flex items-center gap-1"
-                      >
-                        <input
-                          autoFocus
-                          value={renameDraft}
-                          onChange={e => setRenameDraft(e.target.value)}
-                          onKeyDown={e => {
-                            e.stopPropagation();
-                            if (e.key === 'Escape') {
-                              e.preventDefault();
-                              handleCancelRename();
-                            }
-                          }}
-                          className="min-w-0 flex-1 rounded-md border border-[var(--primary)]/30 bg-white px-2 py-1 text-sm font-medium text-text-main outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15"
-                        />
-                        <button
-                          type="submit"
-                          title="Save name"
-                          className="shrink-0 rounded-md p-1 text-[var(--primary)] hover:bg-[var(--primary)]/10"
-                        >
-                          <Check size={13} />
-                        </button>
-                        <button
-                          type="button"
-                          title="Cancel rename"
-                          onClick={handleCancelRename}
-                          className="shrink-0 rounded-md p-1 text-text-muted hover:bg-zinc-100 hover:text-text-main"
-                        >
-                          <X size={13} />
-                        </button>
-                      </form>
-                    ) : (
-                      <>
-                        <p className="text-sm font-medium truncate leading-tight">{entry.title}</p>
-                        <p className="text-[11px] text-text-muted mt-0.5 truncate">{formatTime(entry.updatedAt)}</p>
-                      </>
-                    )}
+                    <p className="text-sm font-medium truncate leading-tight">{entry.title}</p>
+                    <p className="text-[11px] text-text-muted mt-0.5 truncate">{formatTime(entry.updatedAt)}</p>
                   </div>
-
-                  {entry.kind === 'local' && editingKey !== entry.key && (
-                    <button
-                      onClick={e => handleStartRename(e, entry)}
-                      title="Rename chat"
-                      className={cn(
-                        'shrink-0 rounded-md p-1 transition-all text-text-muted hover:bg-[var(--primary)]/10 hover:text-[var(--primary)]',
-                        hoveredKey === entry.key || isActive ? 'opacity-100' : 'sm:opacity-0',
-                      )}
-                    >
-                      <Pencil size={13} />
-                    </button>
-                  )}
 
                   <button
                     onClick={e => handleDeleteFromList(e, entry.item)}
@@ -551,8 +507,24 @@ export const ChatListPage: React.FC = () => {
               {activeItem ? getConversationTitle(activeItem) : 'AI Chat'}
             </p>
           </div>
+          {!activeItem && (
+            <button
+              onClick={handleNewConversation}
+              className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-color)] bg-white px-3 py-1.5 text-xs font-semibold text-text-main transition-colors hover:border-[var(--primary)] hover:text-[var(--primary)]"
+            >
+              <Plus size={14} />
+              New
+            </button>
+          )}
           {activeItem && (
             <div className="ml-auto flex items-center gap-1.5">
+              <button
+                onClick={handleNewConversation}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-color)] bg-white px-3 py-1.5 text-xs font-semibold text-text-main transition-colors hover:border-[var(--primary)] hover:text-[var(--primary)]"
+              >
+                <Plus size={14} />
+                <span className="hidden sm:inline">New</span>
+              </button>
               <button
                 onClick={handleShareActive}
                 disabled={shareStatus === 'creating'}
@@ -595,8 +567,8 @@ export const ChatListPage: React.FC = () => {
           </div>
         ) : activeItem ? (
           <div className="flex-1 min-h-0 flex flex-col">
-            {/* Source label for document/video sessions */}
-            {(activeItem.kind === 'document' || activeItem.kind === 'video') && (
+            {/* Source label */}
+            {activeItem.kind !== 'general' && (
               <div className="flex items-center gap-2 border-b border-[var(--border-color)] px-4 py-2 bg-[var(--bg-app)] shrink-0">
                 {activeItem.kind === 'document'
                   ? <FileText size={14} className="text-[var(--primary)] shrink-0" />
@@ -630,8 +602,9 @@ export const ChatListPage: React.FC = () => {
                 key={activeKey!}
                 externalMessages={panelMessages}
                 onExternalStreamSend={handleStreamSend}
-                placeholder="Ask anything…"
+                placeholder={activeItem.kind === 'general' ? 'Start a new study conversation...' : 'Ask anything…'}
                 hideHeader
+                hideAddToNotes
               />
             </div>
           </div>
@@ -640,17 +613,16 @@ export const ChatListPage: React.FC = () => {
             <div className="mb-5 rounded-2xl bg-[var(--primary)]/10 p-5 text-[var(--primary)]">
               <Sparkles size={36} />
             </div>
-            <h3 className="text-lg font-semibold text-text-main mb-2">Start a Conversation</h3>
-            <p className="text-sm text-text-muted mb-6 max-w-xs leading-relaxed">
-              Chat with your AI tutor. Ask questions, get explanations, and explore any topic.
-              Your chats from document and video pages also appear here.
+            <h3 className="text-lg font-semibold text-text-main mb-2">Select a Conversation</h3>
+            <p className="text-sm text-text-muted max-w-xs leading-relaxed">
+              Select a chat from the list, or start a new conversation.
             </p>
             <button
-              onClick={handleNewChat}
-              className="flex items-center gap-2 rounded-xl bg-[var(--primary)] px-5 py-2.5 text-sm font-semibold text-white hover:opacity-90 transition-opacity shadow-md"
+              onClick={handleNewConversation}
+              className="mt-5 inline-flex items-center gap-2 rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
             >
               <Plus size={16} />
-              New Chat
+              New conversation
             </button>
           </div>
         )}

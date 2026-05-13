@@ -25,6 +25,7 @@ public record UserStatsDto(
     int TotalNotes,
     int TotalFlashcards,
     int TotalGlossaryTerms,
+    int TotalQuizQuestions,
     int TotalQuizSubmissions,
     int TotalVideos,
     IEnumerable<CourseMaterialStatsDto> CourseMaterialCounts,
@@ -52,6 +53,7 @@ public class GetUserStatsQueryHandler : IRequestHandler<GetUserStatsQuery, Resul
         var totalNotes = await _unitOfWork.Notes.CountAsync(n => n.UserId == userId, cancellationToken);
         var totalFlashcards = await _unitOfWork.Flashcards.CountAsync(f => f.UserId == userId, cancellationToken);
         var totalGlossaryTerms = await _unitOfWork.GlossaryTerms.CountAsync(g => g.UserId == userId, cancellationToken);
+        var totalQuizQuestions = await _unitOfWork.Quizzes.CountAsync(q => q.UserId == userId, cancellationToken);
         var totalQuizSubmissions = await _unitOfWork.QuizSubmissions.CountAsync(q => q.UserId == userId, cancellationToken);
         var totalVideos = await _unitOfWork.YouTubeVideos.CountAsync(v => v.UserId == userId, cancellationToken);
 
@@ -81,6 +83,7 @@ public class GetUserStatsQueryHandler : IRequestHandler<GetUserStatsQuery, Resul
             totalNotes,
             totalFlashcards,
             totalGlossaryTerms,
+            totalQuizQuestions,
             totalQuizSubmissions,
             totalVideos,
             courseMaterialCounts,

@@ -8,7 +8,6 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useStudy } from '../context/StudyContext';
 import { StudyCalendar } from '../components/common/StudyCalendar';
-import { DailyStudyQueuePanel } from '../components/dashboard/DailyStudyQueuePanel';
 
 const container = {
   hidden: { opacity: 0 },
@@ -170,7 +169,7 @@ export const DashboardPage: React.FC = () => {
   const { user } = useAuth();
   const {
     totalDocuments, totalArticles, totalAudio, totalNotes,
-    totalFlashcards, totalGlossaryTerms, totalQuizSubmissions, totalVideos,
+    totalFlashcards, totalGlossaryTerms, totalQuizQuestions, totalVideos,
     courses, documents, courseMaterialCounts,
   } = useStudy();
 
@@ -208,17 +207,13 @@ export const DashboardPage: React.FC = () => {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {([
             { label: 'Flashcards', value: totalFlashcards, icon: BrainCircuit, link: '/flashcards' },
-            { label: 'Quizzes', value: totalQuizSubmissions, icon: Award, link: '/quizzes' },
+            { label: 'Quizzes', value: totalQuizQuestions, icon: Award, link: '/quizzes' },
             { label: 'Notes', value: totalNotes, icon: NotebookPen, link: '/notes' },
             { label: 'Glossary', value: totalGlossaryTerms, icon: BookMarked, link: '/glossary' },
           ] as ToolCardProps[]).map(tool => (
             <ToolCard key={tool.label} {...tool} />
           ))}
         </div>
-      </motion.div>
-
-      <motion.div variants={item}>
-        <DailyStudyQueuePanel />
       </motion.div>
 
       {/* ── Courses ──────────────────────────────────────────────────────── */}

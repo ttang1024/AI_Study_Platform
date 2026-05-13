@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
 import { Send, Sparkles, User, Copy, Plus, Check, AlertCircle } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
@@ -33,6 +34,8 @@ interface ChatPanelProps {
   placeholder?: string;
   /** Hide the "AI Tutor" header bar (use when the parent already provides a header) */
   hideHeader?: boolean;
+  /** Hide the add-to-notes action under model responses */
+  hideAddToNotes?: boolean;
 }
 
 export const ChatPanel = forwardRef<ChatPanelRef, ChatPanelProps>(({
@@ -43,6 +46,7 @@ export const ChatPanel = forwardRef<ChatPanelRef, ChatPanelProps>(({
   onExternalAddToNote,
   placeholder,
   hideHeader = false,
+  hideAddToNotes = false,
 }, ref) => {
   const { chatMessages: contextMessages, addChatMessage, aiInput, setAiInput, setNoteInput } = useStudy();
   const isExternal = onExternalSend !== undefined || onExternalStreamSend !== undefined;
@@ -189,7 +193,7 @@ export const ChatPanel = forwardRef<ChatPanelRef, ChatPanelProps>(({
               )}>
                 {msg.role === 'model' ? (
                   <ReactMarkdown
-                    remarkPlugins={[remarkMath]}
+                    remarkPlugins={[remarkGfm, remarkMath]}
                     rehypePlugins={[rehypeKatex]}
                     components={{
                       p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
@@ -209,6 +213,15 @@ export const ChatPanel = forwardRef<ChatPanelRef, ChatPanelProps>(({
                       h2: ({ children }) => <h2 className="mb-1 text-sm font-bold">{children}</h2>,
                       h3: ({ children }) => <h3 className="mb-1 text-sm font-semibold">{children}</h3>,
                       blockquote: ({ children }) => <blockquote className="border-l-2 border-[var(--primary)]/40 pl-3 italic text-text-muted">{children}</blockquote>,
+                      table: ({ children }) => (
+                        <div className="my-2 max-w-full overflow-x-auto rounded-lg border border-[var(--border-color)] bg-white">
+                          <table className="min-w-full border-collapse text-left text-xs">{children}</table>
+                        </div>
+                      ),
+                      thead: ({ children }) => <thead className="bg-zinc-100 text-text-main">{children}</thead>,
+                      th: ({ children }) => <th className="border-b border-r border-[var(--border-color)] px-3 py-2 font-semibold last:border-r-0">{children}</th>,
+                      td: ({ children }) => <td className="border-b border-r border-[var(--border-color)] px-3 py-2 align-top last:border-r-0">{children}</td>,
+                      tr: ({ children }) => <tr className="last:[&_td]:border-b-0">{children}</tr>,
                     }}
                   >
                     {msg.content}
@@ -233,7 +246,7 @@ export const ChatPanel = forwardRef<ChatPanelRef, ChatPanelProps>(({
                     </div>
                   </div>
                 </button>
-                {msg.role === 'model' && !msg.isError && (
+                {msg.role === 'model' && !msg.isError && !hideAddToNotes && (
                   <button
                     onClick={() => handleAddToNotes(msg.content)}
                     className="p-1.5 rounded-lg hover:bg-zinc-100 text-text-muted transition-all flex items-center justify-center border border-transparent hover:border-[var(--border-color)] group relative"
@@ -258,13 +271,22 @@ export const ChatPanel = forwardRef<ChatPanelRef, ChatPanelProps>(({
             </div>
             <div className="rounded-[var(--radius)] rounded-tl-none bg-[var(--primary)]/10 px-4 py-2 text-sm leading-relaxed text-text-main border border-[var(--primary)]/20 max-w-[85%]">
               <ReactMarkdown
-                remarkPlugins={[remarkMath]}
+                remarkPlugins={[remarkGfm, remarkMath]}
                 rehypePlugins={[rehypeKatex]}
                 components={{
                   p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
                   strong: ({ children }) => <strong className="font-bold text-text-main">{children}</strong>,
                   ul: ({ children }) => <ul className="mb-2 ml-4 list-disc space-y-0.5">{children}</ul>,
                   li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+                  table: ({ children }) => (
+                    <div className="my-2 max-w-full overflow-x-auto rounded-lg border border-[var(--border-color)] bg-white">
+                      <table className="min-w-full border-collapse text-left text-xs">{children}</table>
+                    </div>
+                  ),
+                  thead: ({ children }) => <thead className="bg-zinc-100 text-text-main">{children}</thead>,
+                  th: ({ children }) => <th className="border-b border-r border-[var(--border-color)] px-3 py-2 font-semibold last:border-r-0">{children}</th>,
+                  td: ({ children }) => <td className="border-b border-r border-[var(--border-color)] px-3 py-2 align-top last:border-r-0">{children}</td>,
+                  tr: ({ children }) => <tr className="last:[&_td]:border-b-0">{children}</tr>,
                 }}
               >
                 {streamingContent}

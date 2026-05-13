@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BookOpen, FileText, ChevronLeft, ChevronRight, Search, Calendar, Trash2, Edit3, X, Check, Youtube, Loader2, Sparkles, Play, Globe, Mic, Share2, Download } from 'lucide-react';
 import { useStudy } from '../context/StudyContext';
@@ -10,8 +10,7 @@ import { youtubeService, VideoListItem } from '../services/youtubeService';
 import { noteService } from '../services/noteService';
 import { Note } from '../types';
 import { SourceFilterBar, SourceType } from '../components/common/SourceFilterBar';
-import { useTts } from '../hooks/useTts';
-import { TtsPlayer } from '../components/common/TtsPlayer';
+import { usePersistentTts } from '../context/TtsContext';
 import { ShareModal } from '../components/common/ShareModal';
 import { Pagination } from '../components/common/Pagination';
 import { downloadNotesMarkdown, ExportNoteRecord } from '../services/exportInteropService';
@@ -223,12 +222,14 @@ export const NotesPage: React.FC = () => {
     [filteredItems],
   );
 
-  const {
-    playerState, currentIndex, ttsError,
-    play, pause, resume, stop,
-    skipForward, skipBack, clearError,
-    sleepTimeLeft, hasSleepTimer, setSleepTimer, cancelSleepTimer,
-  } = useTts(ttsItems);
+  const getTtsSubtitle = useCallback(
+    (index: number, itemCount: number) => `Note ${index + 1} / ${itemCount}`,
+    [],
+  );
+
+  const { playerState, play } = usePersistentTts('notes', ttsItems, {
+    getSubtitle: getTtsSubtitle,
+  });
 
   const counts = useMemo(() => ({
     all: allItems.length,
@@ -237,6 +238,16 @@ export const NotesPage: React.FC = () => {
     article: allItems.filter(i => i.type === 'article').length,
     audio: allItems.filter(i => i.type === 'audio').length,
   }), [allItems]);
+
+  const courseCounts = useMemo(() => {
+    const next: Record<string, number> = {};
+    for (const item of allItems) {
+      const courseId = item.type === 'video' ? item.entry.courseId : item.courseId;
+      if (!courseId) continue;
+      next[courseId] = (next[courseId] ?? 0) + 1;
+    }
+    return next;
+  }, [allItems]);
 
   const handleSaveEdit = async () => {
     if (!editingId) return;
@@ -298,12 +309,8 @@ export const NotesPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div className="flex flex-col gap-3">
-          <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-1.5 text-xs font-bold text-primary w-fit border border-primary/20">
-            <Sparkles size={14} />
-            Knowledge Base
-          </div>
           <h1 className="text-4xl font-black tracking-tight text-text-main">
-            My <span className="text-primary">Notes</span>
+            Study <span className="text-primary">Notes</span>
           </h1>
           <p className="text-lg text-zinc-500 font-medium max-w-2xl">
             Capture your thoughts across every document &amp; lecture.
@@ -352,6 +359,8 @@ export const NotesPage: React.FC = () => {
         sourceType={sourceType}
         onSelectType={setSourceType}
         counts={counts}
+        courseCounts={courseCounts}
+        hideTypeTabs={true}
       />
 
       {contextLoading ? (
@@ -461,27 +470,6 @@ export const NotesPage: React.FC = () => {
             onPageChange={setPage}
           />
         </>
-      )}
-
-      {(playerState !== 'idle' || ttsError) && (
-        <TtsPlayer
-          state={playerState}
-          title={ttsItems[currentIndex]?.title ?? ''}
-          subtitle={`Note ${currentIndex + 1} / ${filteredItems.length}`}
-          onPlay={resume}
-          onPause={pause}
-          onStop={stop}
-          onSkipBack={skipBack}
-          onSkipForward={skipForward}
-          disableSkipBack={currentIndex === 0}
-          disableSkipForward={currentIndex >= filteredItems.length - 1}
-          sleepTimeLeft={sleepTimeLeft}
-          hasSleepTimer={hasSleepTimer}
-          onSetSleepTimer={setSleepTimer}
-          onCancelSleepTimer={cancelSleepTimer}
-          error={ttsError?.message}
-          onDismissError={clearError}
-        />
       )}
 
       {shareNote && (

@@ -18,7 +18,7 @@ public record ConceptLinkDto(
     string? LinkLabel,
     DateTime CreatedAt);
 
-public record NodeDto(string Id, string Type, string Title, string? Subtitle = null, string? Url = null, int Weight = 1);
+public record NodeDto(string Id, string Type, string Title, string? Subtitle = null, string? Url = null, int Weight = 1, string? Description = null, string? CourseId = null);
 public record EdgeDto(string Source, string Target, string? Label, int Weight = 1);
 public record KnowledgeGraphStatsDto(int Materials, int Concepts, int Notes, int Quizzes, int Links);
 public record KnowledgeGraphDto(IEnumerable<NodeDto> Nodes, IEnumerable<EdgeDto> Edges, KnowledgeGraphStatsDto Stats);
@@ -49,22 +49,43 @@ public class GetKnowledgeGraphQueryHandler : IRequestHandler<GetKnowledgeGraphQu
         {
             if (nodes.TryGetValue(node.Id, out var existing))
             {
-                nodes[node.Id] = existing with { Weight = Math.Max(existing.Weight, node.Weight) + 1 };
+                nodes[node.Id] = existing with {
+                    Weight = Math.Max(existing.Weight, node.Weight) + 1,
+                    Description = existing.Description ?? node.Description,
+                };
                 return;
             }
             nodes[node.Id] = node;
         }
 
+        (string Source, string Target) GetEdgePair(string source, string target)
+            => string.Compare(source, target, StringComparison.OrdinalIgnoreCase) <= 0
+                ? (source, target)
+                : (target, source);
+
+        bool HasEdgeBetween(string source, string target)
+        {
+            var pair = GetEdgePair(source, target);
+            return edgeWeights.Keys.Any(k =>
+                k.Source.Equals(pair.Source, StringComparison.OrdinalIgnoreCase)
+                && k.Target.Equals(pair.Target, StringComparison.OrdinalIgnoreCase));
+        }
+
         void AddEdge(string source, string target, string label)
         {
             if (source.Equals(target, StringComparison.OrdinalIgnoreCase)) return;
-            var key = string.Compare(source, target, StringComparison.OrdinalIgnoreCase) <= 0
-                ? (source, target, label)
-                : (target, source, label);
+            var pair = GetEdgePair(source, target);
+            var key = (pair.Source, pair.Target, label);
             edgeWeights[key] = edgeWeights.TryGetValue(key, out var weight) ? weight + 1 : 1;
         }
 
-        string AddConcept(string term, int weight = 1)
+        void AddEdgeIfUnconnected(string source, string target, string label)
+        {
+            if (!HasEdgeBetween(source, target))
+                AddEdge(source, target, label);
+        }
+
+        string AddConcept(string term, int weight = 1, string? description = null)
         {
             var title = CleanTitle(term);
             var normalized = NormalizeConcept(title);
@@ -72,7 +93,7 @@ public class GetKnowledgeGraphQueryHandler : IRequestHandler<GetKnowledgeGraphQu
                 normalized = "concept";
             var id = $"concept:{normalized}";
             knownConcepts[title] = id;
-            AddNode(new NodeDto(id, "concept", title, "Shared concept", $"/glossary?search={Uri.EscapeDataString(title)}", weight));
+            AddNode(new NodeDto(id, "concept", title, "Shared concept", $"/glossary?search={Uri.EscapeDataString(title)}", weight, description));
             return id;
         }
 
@@ -85,10 +106,9 @@ public class GetKnowledgeGraphQueryHandler : IRequestHandler<GetKnowledgeGraphQu
                 doc.FileName,
                 GetDocumentSubtitle(doc),
                 GetDocumentUrl(doc),
-                HasStudyArtifacts(doc) ? 3 : 1));
-
-            foreach (var concept in ExtractMindMapConcepts(doc.MindMapText).Take(24))
-                AddEdge($"document:{doc.DocumentId}", AddConcept(concept), "covers");
+                HasStudyArtifacts(doc) ? 3 : 1,
+                null,
+                doc.CourseId.ToString()));
         }
 
         foreach (var video in videos)
@@ -99,15 +119,14 @@ public class GetKnowledgeGraphQueryHandler : IRequestHandler<GetKnowledgeGraphQu
                 string.IsNullOrWhiteSpace(video.Title) ? video.VideoId : video.Title,
                 "YouTube video",
                 $"/youtube/{video.YouTubeVideoId}",
-                HasStudyArtifacts(video) ? 3 : 1));
-
-            foreach (var concept in ExtractMindMapConcepts(video.MindMapText).Take(24))
-                AddEdge($"video:{video.YouTubeVideoId}", AddConcept(concept), "covers");
+                HasStudyArtifacts(video) ? 3 : 1,
+                null,
+                video.CourseId.ToString()));
         }
 
         foreach (var term in glossaryTerms)
         {
-            var conceptId = AddConcept(term.Term, 2);
+            var conceptId = AddConcept(term.Term, 2, term.Definition);
             if (term.DocumentId.HasValue)
                 AddEdge($"document:{term.DocumentId.Value}", conceptId, "defines");
             if (term.YouTubeVideoId.HasValue)
@@ -144,6 +163,20 @@ public class GetKnowledgeGraphQueryHandler : IRequestHandler<GetKnowledgeGraphQu
             await EnsureLinkedNodeAsync(source, nodes, cancellationToken);
             await EnsureLinkedNodeAsync(target, nodes, cancellationToken);
             AddEdge(source, target, link.LinkLabel ?? "related");
+        }
+
+        foreach (var courseMaterials in nodes.Values
+            .Where(IsCourseMaterialNode)
+            .GroupBy(n => n.CourseId, StringComparer.OrdinalIgnoreCase))
+        {
+            var materials = courseMaterials
+                .OrderBy(n => GetMaterialSortRank(n.Type))
+                .ThenBy(n => n.Title, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(n => n.Id, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            for (var i = 1; i < materials.Count; i++)
+                AddEdgeIfUnconnected(materials[i - 1].Id, materials[i].Id, "same course");
         }
 
         var edges = edgeWeights
@@ -239,6 +272,21 @@ public class GetKnowledgeGraphQueryHandler : IRequestHandler<GetKnowledgeGraphQu
     private static bool HasStudyArtifacts(YouTubeVideo video)
         => !string.IsNullOrWhiteSpace(video.Summary) || !string.IsNullOrWhiteSpace(video.MindMapText) || !string.IsNullOrWhiteSpace(video.Transcript);
 
+    private static bool IsCourseMaterialNode(NodeDto node)
+        => !string.IsNullOrWhiteSpace(node.CourseId)
+           && node.Type is "document" or "video" or "audio" or "podcast" or "article";
+
+    private static int GetMaterialSortRank(string type)
+        => type switch
+        {
+            "document" => 0,
+            "article" => 1,
+            "audio" => 2,
+            "podcast" => 3,
+            "video" => 4,
+            _ => 5
+        };
+
     private static string GetDocumentNodeType(Document doc)
     {
         var contentType = doc.ContentType.ToLowerInvariant();
@@ -265,23 +313,6 @@ public class GetKnowledgeGraphQueryHandler : IRequestHandler<GetKnowledgeGraphQu
             "article" => $"/articles/{doc.DocumentId}",
             _ => $"/documents/{doc.DocumentId}"
         };
-
-    private static IEnumerable<string> ExtractMindMapConcepts(string? mindMapText)
-    {
-        if (string.IsNullOrWhiteSpace(mindMapText)) yield break;
-
-        foreach (var rawLine in mindMapText.Split('\n'))
-        {
-            var line = rawLine.Trim();
-            if (line.Length < 3 || line.StartsWith("```")) continue;
-            line = Regex.Replace(line, @"^[-*#\s]+", string.Empty).Trim();
-            line = Regex.Replace(line, @"^\d+[\.)]\s*", string.Empty).Trim();
-            line = Regex.Replace(line, @":\s.*$", string.Empty).Trim();
-            if (line.Length is < 3 or > 80) continue;
-            if (line.Contains("example", StringComparison.OrdinalIgnoreCase)) continue;
-            yield return line;
-        }
-    }
 
     private static IEnumerable<string> FindConceptsInText(string? text, Dictionary<string, string> knownConcepts)
     {

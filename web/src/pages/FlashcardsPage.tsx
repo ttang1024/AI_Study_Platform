@@ -225,6 +225,15 @@ export const FlashcardsPage: React.FC = () => {
     audio: allSets.filter(s => s.type === 'audio').length,
   }), [allSets]);
 
+  const courseCounts = useMemo(() => {
+    const next: Record<string, number> = {};
+    for (const set of allSets) {
+      if (!set.courseId) continue;
+      next[set.courseId] = (next[set.courseId] ?? 0) + 1;
+    }
+    return next;
+  }, [allSets]);
+
   // Detail views
   if (selectedDocId) {
     const selectedDoc = documents.find(d => d.id === selectedDocId);
@@ -378,10 +387,6 @@ export const FlashcardsPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div className="flex flex-col gap-3">
-          <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-1.5 text-xs font-bold text-primary w-fit border border-primary/20">
-            <Sparkles size={14} />
-            Mastery Center
-          </div>
           <h1 className="text-4xl font-black tracking-tight text-text-main">
             Study <span className="text-primary">Flashcards</span>
           </h1>
@@ -409,6 +414,8 @@ export const FlashcardsPage: React.FC = () => {
         sourceType={sourceType}
         onSelectType={setSourceType}
         counts={counts}
+        courseCounts={courseCounts}
+        hideTypeTabs={true}
       />
 
       {/* Content */}

@@ -18,21 +18,25 @@ import {
   Youtube,
 } from 'lucide-react';
 import { knowledgeGraphService, KnowledgeGraph, KnowledgeGraphEdge, KnowledgeGraphNode } from '../services/knowledgeGraphService';
-import { cn } from '../utils/cn';
+import { QuizPreviewModal } from '../components/quiz/QuizPreviewModal';
+import { ConceptPreviewModal } from '../components/knowledge-graph/ConceptPreviewModal';
+import { NotePreviewModal } from '../components/knowledge-graph/NotePreviewModal';
+import { SourceFilterBar, SourceType } from '../components/common/SourceFilterBar';
+import { useStudy } from '../context/StudyContext';
 
 type GraphNode = KnowledgeGraphNode & d3.SimulationNodeDatum;
 type GraphLink = Omit<KnowledgeGraphEdge, 'source' | 'target'> & d3.SimulationLinkDatum<GraphNode>;
 
 const nodeStyles: Record<string, { color: string; bg: string; icon: React.ElementType; label: string }> = {
-  concept: { color: '#0d9488', bg: '#ccfbf1', icon: BrainCircuit, label: 'Concept' },
-  document: { color: '#2563eb', bg: '#dbeafe', icon: FileText, label: 'Document' },
-  article: { color: '#0891b2', bg: '#cffafe', icon: Globe, label: 'Article' },
-  audio: { color: '#d97706', bg: '#fef3c7', icon: Mic, label: 'Audio' },
-  podcast: { color: '#c2410c', bg: '#ffedd5', icon: Mic, label: 'Podcast' },
-  video: { color: '#dc2626', bg: '#fee2e2', icon: Youtube, label: 'Video' },
-  note: { color: '#7c3aed', bg: '#ede9fe', icon: NotebookPen, label: 'Note' },
-  quiz: { color: '#16a34a', bg: '#dcfce7', icon: Trophy, label: 'Quiz' },
-  flashcard: { color: '#4f46e5', bg: '#e0e7ff', icon: BookOpen, label: 'Flashcard' },
+  concept: { color: '#0d9488', bg: '#ccfbf1', icon: BrainCircuit, label: 'Concept' }, // teal   ~160°
+  document: { color: '#2563eb', bg: '#dbeafe', icon: FileText, label: 'Document' }, // blue   ~240°
+  article: { color: '#65a30d', bg: '#ecfccb', icon: Globe, label: 'Article' }, // lime   ~80°
+  audio: { color: '#0284c7', bg: '#e0f2fe', icon: Mic, label: 'Audio' }, // sky    ~200°
+  podcast: { color: '#c026d3', bg: '#fae8ff', icon: Mic, label: 'Podcast' }, // fuchsia ~300°
+  video: { color: '#dc2626', bg: '#fee2e2', icon: Youtube, label: 'Video' }, // red    ~0°
+  note: { color: '#7c3aed', bg: '#ede9fe', icon: NotebookPen, label: 'Note' }, // violet ~280°
+  quiz: { color: '#16a34a', bg: '#dcfce7', icon: Trophy, label: 'Quiz' }, // green  ~140°
+  flashcard: { color: '#d97706', bg: '#fef3c7', icon: BookOpen, label: 'Flashcard' }, // amber  ~40°
 };
 
 const getNodeStyle = (type: string) => nodeStyles[type] ?? nodeStyles.concept;
@@ -46,6 +50,7 @@ const getNodeRadius = (node: KnowledgeGraphNode) => {
 const getNodeTarget = (node: KnowledgeGraphNode) => node.url || undefined;
 
 export const KnowledgeGraphPage: React.FC = () => {
+  const { courses, courseMaterialCounts } = useStudy();
   const svgRef = useRef<SVGSVGElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const [graph, setGraph] = useState<KnowledgeGraph | null>(null);
@@ -53,7 +58,16 @@ export const KnowledgeGraphPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<KnowledgeGraphNode | null>(null);
   const [search, setSearch] = useState('');
-  const [activeType, setActiveType] = useState<string>('all');
+  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
+  const [quizModalOpen, setQuizModalOpen] = useState(false);
+  const [conceptModalOpen, setConceptModalOpen] = useState(false);
+  const [noteModalOpen, setNoteModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (selected?.type !== 'quiz') setQuizModalOpen(false);
+    if (selected?.type !== 'concept') setConceptModalOpen(false);
+    if (selected?.type !== 'note') setNoteModalOpen(false);
+  }, [selected]);
 
   useEffect(() => {
     let cancelled = false;
@@ -77,17 +91,30 @@ export const KnowledgeGraphPage: React.FC = () => {
   const filtered = useMemo(() => {
     if (!graph) return null;
     const normalizedSearch = search.trim().toLowerCase();
-    const nodes = graph.nodes.filter(node => {
-      const matchesType = activeType === 'all' || node.type === activeType;
-      const matchesSearch = !normalizedSearch
-        || node.title.toLowerCase().includes(normalizedSearch)
-        || node.subtitle?.toLowerCase().includes(normalizedSearch);
-      return matchesType && matchesSearch;
-    });
-    const ids = new Set(nodes.map(node => node.id));
-    const edges = graph.edges.filter(edge => ids.has(edge.source) && ids.has(edge.target));
+    const matchesSearch = (node: KnowledgeGraphNode) =>
+      !normalizedSearch
+      || node.title.toLowerCase().includes(normalizedSearch)
+      || node.subtitle?.toLowerCase().includes(normalizedSearch);
+
+    let nodes: KnowledgeGraphNode[];
+    if (selectedCourseId === null) {
+      nodes = graph.nodes.filter(matchesSearch);
+    } else {
+      const courseNodeIds = new Set(
+        graph.nodes.filter(n => n.courseId === selectedCourseId).map(n => n.id),
+      );
+      const includedIds = new Set(courseNodeIds);
+      graph.edges.forEach(e => {
+        if (courseNodeIds.has(e.source)) includedIds.add(e.target);
+        if (courseNodeIds.has(e.target)) includedIds.add(e.source);
+      });
+      nodes = graph.nodes.filter(n => includedIds.has(n.id) && matchesSearch(n));
+    }
+
+    const ids = new Set(nodes.map(n => n.id));
+    const edges = graph.edges.filter(e => ids.has(e.source) && ids.has(e.target));
     return { nodes, edges };
-  }, [activeType, graph, search]);
+  }, [graph, search, selectedCourseId]);
 
   useEffect(() => {
     if (!filtered || !svgRef.current || !wrapperRef.current) return;
@@ -152,7 +179,7 @@ export const KnowledgeGraphPage: React.FC = () => {
 
     const label = labelLayer
       .selectAll('text')
-      .data(nodes.filter(node => node.type !== 'concept' || node.weight > 1))
+      .data(nodes)
       .join('text')
       .text(d => d.title.length > 28 ? `${d.title.slice(0, 27)}...` : d.title)
       .attr('font-size', d => d.type === 'concept' ? 10 : 11)
@@ -191,38 +218,37 @@ export const KnowledgeGraphPage: React.FC = () => {
     };
   }, [filtered]);
 
-  const typeCounts = useMemo(() => {
-    const counts = new Map<string, number>();
-    graph?.nodes.forEach(node => counts.set(node.type, (counts.get(node.type) ?? 0) + 1));
-    return counts;
-  }, [graph]);
+  const coursesWithMaterials = useMemo(() =>
+    courses.filter(c => {
+      const counts = courseMaterialCounts.find(m => m.courseId === c.id);
+      return counts && (counts.documents + counts.articles + counts.audio + counts.videos) > 0;
+    }),
+    [courses, courseMaterialCounts]);
 
   const activeNodes = filtered?.nodes ?? [];
   const activeEdges = filtered?.edges ?? [];
   const selectedStyle = selected ? getNodeStyle(selected.type) : null;
   const SelectedIcon = selectedStyle?.icon ?? Network;
+  const graphSourceType: SourceType = 'all';
 
   return (
     <div className="space-y-5">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-text-muted">
-            <Network size={15} className="text-[var(--primary)]" />
-            Knowledge Graph
-          </div>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight text-text-main">Cross-material concept map</h1>
+          <h1 className="mt-2 text-4xl font-black text-text-main">
+            Cross-material <span className="text-emerald-600">Concept Map</span>
+          </h1>
           <p className="mt-2 max-w-2xl text-sm text-text-muted">
-            Explore how concepts connect across documents, videos, podcasts, audio, notes, and quizzes.
+            Connect concepts, notes, quizzes, flashcards, and materials across courses.
           </p>
         </div>
         {graph && (
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {[
               ['Materials', graph.stats.materials],
               ['Concepts', graph.stats.concepts],
               ['Notes', graph.stats.notes],
               ['Quizzes', graph.stats.quizzes],
-              ['Links', graph.stats.links],
             ].map(([label, value]) => (
               <div key={label} className="rounded-xl border border-black/[0.06] bg-white px-3 py-2 text-right shadow-sm">
                 <p className="text-lg font-bold tabular-nums text-text-main">{value}</p>
@@ -235,8 +261,16 @@ export const KnowledgeGraphPage: React.FC = () => {
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
         <section className="min-h-[640px] overflow-hidden rounded-2xl border border-black/[0.06] bg-white shadow-sm">
-          <div className="flex flex-col gap-3 border-b border-black/[0.06] p-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="relative w-full lg:max-w-sm">
+          <div className="flex flex-col gap-3 border-b border-black/[0.06] p-4">
+            <SourceFilterBar
+              courses={coursesWithMaterials}
+              selectedCourseId={selectedCourseId}
+              onSelectCourse={setSelectedCourseId}
+              sourceType={graphSourceType}
+              onSelectType={() => undefined}
+              hideTypeTabs
+            />
+            <div className="relative w-full">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
               <input
                 value={search}
@@ -245,27 +279,7 @@ export const KnowledgeGraphPage: React.FC = () => {
                 className="h-10 w-full rounded-xl border border-black/[0.08] bg-[var(--bg-app)] pl-9 pr-3 text-sm text-text-main outline-none transition focus:border-[var(--primary)]"
               />
             </div>
-            <div className="flex gap-2 overflow-x-auto pb-1 lg:pb-0">
-              {['all', 'concept', 'document', 'video', 'article', 'audio', 'podcast', 'note', 'quiz'].map(type => {
-                const style = type === 'all' ? { color: '#334155', bg: '#f1f5f9', label: 'All' } : getNodeStyle(type);
-                const count = type === 'all' ? graph?.nodes.length ?? 0 : typeCounts.get(type) ?? 0;
-                return (
-                  <button
-                    key={type}
-                    onClick={() => setActiveType(type)}
-                    className={cn(
-                      'shrink-0 rounded-xl px-3 py-2 text-xs font-semibold transition',
-                      activeType === type ? 'text-white shadow-sm' : 'text-text-muted hover:bg-[var(--bg-app)]',
-                    )}
-                    style={activeType === type ? { backgroundColor: style.color } : undefined}
-                  >
-                    {style.label} {count}
-                  </button>
-                );
-              })}
-            </div>
           </div>
-
           <div ref={wrapperRef} className="relative h-[620px] bg-[radial-gradient(circle_at_1px_1px,rgba(15,23,42,0.09)_1px,transparent_0)] [background-size:22px_22px]">
             {loading ? (
               <div className="flex h-full items-center justify-center gap-2 text-sm text-text-muted">
@@ -316,7 +330,31 @@ export const KnowledgeGraphPage: React.FC = () => {
                     {selected.subtitle && <p className="mt-2 text-sm text-text-muted">{selected.subtitle}</p>}
                   </div>
                 </div>
-                {getNodeTarget(selected) && (
+                {selected.type === 'quiz' ? (
+                  <button
+                    onClick={() => setQuizModalOpen(true)}
+                    className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--primary)] px-4 py-2.5 text-sm font-semibold text-white"
+                  >
+                    View Questions
+                    <Trophy size={16} />
+                  </button>
+                ) : selected.type === 'concept' ? (
+                  <button
+                    onClick={() => setConceptModalOpen(true)}
+                    className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--primary)] px-4 py-2.5 text-sm font-semibold text-white"
+                  >
+                    View Definition
+                    <BrainCircuit size={16} />
+                  </button>
+                ) : selected.type === 'note' ? (
+                  <button
+                    onClick={() => setNoteModalOpen(true)}
+                    className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--primary)] px-4 py-2.5 text-sm font-semibold text-white"
+                  >
+                    View Note
+                    <NotebookPen size={16} />
+                  </button>
+                ) : getNodeTarget(selected) ? (
                   <Link
                     to={getNodeTarget(selected)!}
                     className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--primary)] px-4 py-2.5 text-sm font-semibold text-white"
@@ -324,7 +362,7 @@ export const KnowledgeGraphPage: React.FC = () => {
                     Open
                     <PlayCircle size={16} />
                   </Link>
-                )}
+                ) : null}
               </div>
             ) : (
               <p className="mt-3 text-sm text-text-muted">Select a node to inspect it.</p>
@@ -363,6 +401,16 @@ export const KnowledgeGraphPage: React.FC = () => {
           </div>
         </aside>
       </div>
+
+      {quizModalOpen && selected?.type === 'quiz' && (
+        <QuizPreviewModal node={selected} onClose={() => setQuizModalOpen(false)} />
+      )}
+      {conceptModalOpen && selected?.type === 'concept' && (
+        <ConceptPreviewModal node={selected} onClose={() => setConceptModalOpen(false)} />
+      )}
+      {noteModalOpen && selected?.type === 'note' && (
+        <NotePreviewModal node={selected} onClose={() => setNoteModalOpen(false)} />
+      )}
     </div>
   );
 };

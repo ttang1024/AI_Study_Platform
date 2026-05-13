@@ -1,12 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Award, Check, Download, Edit3, FileText, Filter, Loader2, Plus, Search, Tags, Trash2, X } from 'lucide-react';
+import { Award, Check, Download, Edit3, FileText, Filter, Loader2, Plus, Search, Trash2, X } from 'lucide-react';
 import { useStudy } from '../context/StudyContext';
 import { TimedExamModal } from '../components/quiz/TimedExamModal';
 import { QuizQuestion } from '../types';
 import { getCorrectQuizOptionText } from '../utils/quizAnswers';
 import {
   questionBankService,
-  questionBankTagService,
   QuestionBankQuestion,
   QuestionDifficulty,
 } from '../services/questionBankService';
@@ -30,6 +29,7 @@ const toQuizQuestion = (q: QuestionBankQuestion): QuizQuestion => ({
   difficulty: q.difficulty,
 });
 
+
 const shuffle = <T,>(items: T[]): T[] => {
   const copy = [...items];
   for (let i = copy.length - 1; i > 0; i--) {
@@ -47,8 +47,6 @@ export const QuestionBankPage: React.FC = () => {
   const [courseId, setCourseId] = useState('all');
   const [sourceType, setSourceType] = useState<'all' | 'document' | 'video'>('all');
   const [difficulty, setDifficulty] = useState<'all' | QuestionDifficulty>('all');
-  const [tagMap, setTagMap] = useState(() => questionBankTagService.getAll());
-  const [tagFilter, setTagFilter] = useState('all');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [editing, setEditing] = useState<QuestionBankQuestion | null>(null);
   const [examQuestions, setExamQuestions] = useState<QuizQuestion[]>([]);
@@ -72,28 +70,14 @@ export const QuestionBankPage: React.FC = () => {
 
   useEffect(() => { void loadQuestions(); }, [loadQuestions]);
 
-  const allTags = useMemo(() =>
-    Array.from(new Set(Object.values(tagMap).flat())).sort((a, b) => a.localeCompare(b)),
-    [tagMap],
-  );
-
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return questions.filter(item => {
-      const tags = tagMap[item.quizId] ?? [];
-      if (tagFilter !== 'all' && !tags.includes(tagFilter)) return false;
-      if (!q) return true;
-      return [
-        item.question,
-        item.explanation,
-        item.sourceName,
-        item.courseName,
-        item.difficulty,
-        ...item.options,
-        ...tags,
-      ].some(value => value?.toLowerCase().includes(q));
-    });
-  }, [questions, search, tagMap, tagFilter]);
+    if (!q) return questions;
+    return questions.filter(item =>
+      [item.question, item.explanation, item.sourceName, item.courseName, item.difficulty, ...item.options]
+        .some(value => value?.toLowerCase().includes(q)),
+    );
+  }, [questions, search]);
 
   const selectedQuestions = useMemo(() =>
     filtered.filter(q => selectedIds.has(q.quizId)),
@@ -147,19 +131,11 @@ export const QuestionBankPage: React.FC = () => {
   const handleDelete = async (question: QuestionBankQuestion) => {
     await questionBankService.deleteQuestion(question.quizId);
     setQuestions(prev => prev.filter(q => q.quizId !== question.quizId));
-    setTagMap(questionBankTagService.removeQuestion(question.quizId));
     setSelectedIds(prev => {
       const next = new Set(prev);
       next.delete(question.quizId);
       return next;
     });
-  };
-
-  const handleSaveTags = (questionId: string, value: string) => {
-    setTagMap(questionBankTagService.setTags(
-      questionId,
-      value.split(',').map(t => t.trim()),
-    ));
   };
 
   const handleExport = async (format: 'csv' | 'gift' | 'qti') => {
@@ -184,7 +160,7 @@ export const QuestionBankPage: React.FC = () => {
             Reusable Assessment
           </div>
           <h1 className="mt-3 text-3xl sm:text-4xl font-black tracking-tight text-text-main">Question Bank</h1>
-          <p className="mt-2 max-w-2xl text-text-muted">Edit generated questions, tag weak topics, and assemble mock exams across courses.</p>
+          <p className="mt-2 max-w-2xl text-text-muted">Edit generated questions and assemble mock exams across courses.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button
@@ -210,13 +186,13 @@ export const QuestionBankPage: React.FC = () => {
       </div>
 
       <div className="rounded-2xl border border-[var(--border-color)] bg-white p-4 shadow-sm">
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_160px_140px_140px_160px]">
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_160px_140px_140px]">
           <div className="relative">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Search questions, options, explanations, tags..."
+              placeholder="Search questions, options, explanations..."
               className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-app)] py-2 pl-9 pr-3 text-sm outline-none focus:border-primary"
             />
           </div>
@@ -231,10 +207,6 @@ export const QuestionBankPage: React.FC = () => {
           </select>
           <select value={difficulty} onChange={e => setDifficulty(e.target.value as any)} className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-app)] px-3 py-2 text-sm">
             {difficultyOptions.map(d => <option key={d} value={d}>{d === 'all' ? 'All levels' : d}</option>)}
-          </select>
-          <select value={tagFilter} onChange={e => setTagFilter(e.target.value)} className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-app)] px-3 py-2 text-sm">
-            <option value="all">All tags</option>
-            {allTags.map(tag => <option key={tag} value={tag}>{tag}</option>)}
           </select>
         </div>
       </div>
@@ -260,7 +232,6 @@ export const QuestionBankPage: React.FC = () => {
       ) : (
         <div className="space-y-3">
           {filtered.map(question => {
-            const tags = tagMap[question.quizId] ?? [];
             const selected = selectedIds.has(question.quizId);
             return (
               <div key={question.quizId} className={cn('rounded-2xl border bg-white p-4 shadow-sm', selected ? 'border-primary/50' : 'border-[var(--border-color)]')}>
@@ -292,20 +263,6 @@ export const QuestionBankPage: React.FC = () => {
                       })}
                     </div>
                     {question.explanation && <p className="mt-3 text-sm text-text-muted">{question.explanation}</p>}
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                      <Tags size={14} className="text-text-muted" />
-                      {tags.map(tag => <span key={tag} className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-text-muted">{tag}</span>)}
-                      <input
-                        placeholder="tag, another"
-                        onKeyDown={e => {
-                          if (e.key === 'Enter') {
-                            handleSaveTags(question.quizId, e.currentTarget.value);
-                            e.currentTarget.value = '';
-                          }
-                        }}
-                        className="min-w-36 rounded-lg border border-[var(--border-color)] px-2 py-1 text-xs outline-none focus:border-primary"
-                      />
-                    </div>
                   </div>
                   <div className="flex shrink-0 flex-col gap-2">
                     <button onClick={() => setEditing(question)} className="rounded-lg p-2 text-text-muted hover:bg-primary/10 hover:text-primary" title="Edit question">
@@ -347,7 +304,7 @@ export const QuestionBankPage: React.FC = () => {
                 >
                   {editing.options.map((option, index) => (
                     <option key={`${index}-${option}`} value={option}>
-                      {String.fromCharCode(65 + index)}. {option || 'Blank option'}
+                      {option || 'Blank option'}
                     </option>
                   ))}
                 </select>

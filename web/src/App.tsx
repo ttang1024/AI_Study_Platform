@@ -2,12 +2,12 @@ import React, { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { StudyProvider } from './context/StudyContext';
+import { TtsProvider } from './context/TtsContext';
 import { MainLayout } from './components/layout/MainLayout';
 import { PromptProvider } from './components/common/PromptBox';
 import { DashboardPage } from './pages/DashboardPage';
 import { LibraryPage } from './pages/LibraryPage';
 import { QuizManagementPage } from './pages/QuizManagementPage';
-import { QuestionBankPage } from './pages/QuestionBankPage';
 import { FlashcardsPage } from './pages/FlashcardsPage';
 import { NotesPage } from './pages/NotesPage';
 import { SettingsPage } from './pages/SettingsPage';
@@ -27,7 +27,6 @@ import { StudyGroupsPage } from './pages/StudyGroupsPage';
 import { StudyGroupDetailPage } from './pages/StudyGroupDetailPage';
 import { ChatListPage } from './pages/ChatListPage';
 import { KnowledgeGraphPage } from './pages/KnowledgeGraphPage';
-import { WeaknessReviewPage } from './pages/WeaknessReviewPage';
 
 const DocumentDetailsPage = lazy(() =>
   import('./pages/DocumentDetailsPage').then((mod) => ({ default: mod.DocumentDetailsPage })),
@@ -52,9 +51,10 @@ export default function App() {
     <AuthProvider>
       <StudyProvider>
         <PromptProvider>
-          <BrowserRouter>
-            <Suspense fallback={null}>
-              <Routes>
+          <TtsProvider>
+            <BrowserRouter>
+              <Suspense fallback={null}>
+                <Routes>
                 <Route path="/" element={<LandingPage />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/register" element={<RegisterPage />} />
@@ -66,7 +66,6 @@ export default function App() {
                   </ProtectedRoute>
                 }>
                   <Route path="dashboard" element={<DashboardPage />} />
-                  <Route path="review" element={<WeaknessReviewPage />} />
                   <Route path="library" element={<LibraryPage />} />
                   <Route path="documents" element={<Navigate to="/library" replace />} />
                   <Route path="youtube" element={<Navigate to="/library?type=videos" replace />} />
@@ -74,7 +73,6 @@ export default function App() {
                   <Route path="flashcards" element={<FlashcardsPage />} />
                   <Route path="notes" element={<NotesPage />} />
                   <Route path="quizzes" element={<QuizManagementPage />} />
-                  <Route path="question-bank" element={<QuestionBankPage />} />
                   <Route path="settings" element={<SettingsPage />} />
                   <Route path="glossary" element={<GlossaryPage />} />
                   <Route path="knowledge-graph" element={<KnowledgeGraphPage />} />
@@ -117,9 +115,10 @@ export default function App() {
 
                 <Route path="/auth/callback" element={<OAuthCallbackPage />} />
                 <Route path="/share/:token" element={<SharedContentPage />} />
-              </Routes>
-            </Suspense>
-          </BrowserRouter>
+                </Routes>
+              </Suspense>
+            </BrowserRouter>
+          </TtsProvider>
         </PromptProvider>
       </StudyProvider>
     </AuthProvider>

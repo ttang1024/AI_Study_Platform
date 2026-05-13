@@ -26,8 +26,15 @@ public class ChatMessageConfiguration : IEntityTypeConfiguration<ChatMessage>
             .IsRequired(false)
             .OnDelete(DeleteBehavior.Cascade);
 
+        builder.HasOne(c => c.ChatConversation)
+            .WithMany(c => c.Messages)
+            .HasForeignKey(c => c.ChatConversationId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.Cascade);
+
         builder.ToTable(t => t.HasCheckConstraint("chk_chat_messages_source",
-            "(\"DocumentId\" IS NOT NULL AND \"YouTubeVideoId\" IS NULL AND \"SourceType\" = 'document') OR " +
-            "(\"YouTubeVideoId\" IS NOT NULL AND \"DocumentId\" IS NULL AND \"SourceType\" = 'video')"));
+            "(\"DocumentId\" IS NOT NULL AND \"YouTubeVideoId\" IS NULL AND \"ChatConversationId\" IS NULL AND \"SourceType\" = 'document') OR " +
+            "(\"YouTubeVideoId\" IS NOT NULL AND \"DocumentId\" IS NULL AND \"ChatConversationId\" IS NULL AND \"SourceType\" = 'video') OR " +
+            "(\"ChatConversationId\" IS NOT NULL AND \"DocumentId\" IS NULL AND \"YouTubeVideoId\" IS NULL AND \"SourceType\" = 'general')"));
     }
 }
