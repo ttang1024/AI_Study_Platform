@@ -7,8 +7,9 @@ import {
   Share2,
   Search,
   Globe,
-  Award,
+  Award as _Award,
   Github, Key, ExternalLink, Unlock,
+  Network, Highlighter,
 } from 'lucide-react';
 import { useOptionalAuth } from '../context/AuthContext';
 import { getPublicEnv } from '../utils/env';
@@ -291,7 +292,7 @@ export const LandingPage: React.FC = () => {
             <span style={{ background: 'linear-gradient(135deg, #e0f7ff, #a5f3fc)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Your Complete</span>{' '}
             <span style={{ background: 'linear-gradient(135deg, #14b8a6, #0891b2)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Study Suite</span>
           </h2>
-          <p className="mt-4 text-white/40 max-w-lg mx-auto">Eighteen AI-powered tools working together for every study session.</p>
+          <p className="mt-4 text-white/40 max-w-lg mx-auto">8+ AI-powered tools working together for every study session.</p>
         </FadeIn>
 
         <div className="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-auto">
@@ -302,7 +303,7 @@ export const LandingPage: React.FC = () => {
             <BentoCard gradient="from-emerald-400 via-teal-500 to-cyan-600" glow="rgba(52,211,153,0.3)" icon={Map} title="Mind Maps" desc="Visualize any document as an interactive mind map — grasp structure at a glance." />
           </FadeIn>
           <FadeIn delay={0.05}>
-            <BentoCard gradient="from-fuchsia-500 to-pink-600" glow="rgba(217,70,239,0.3)" icon={Trophy} title="AI Quizzes" desc="Timed exam mode, weak-topic detection, and shareable links for any quiz." />
+            <BentoCard gradient="from-fuchsia-500 to-pink-600" glow="rgba(217,70,239,0.3)" icon={Trophy} title="AI Quizzes" desc="Question Bank with filtering & pagination, Review Mistakes tab, timed mock exam, and shareable quiz links." />
           </FadeIn>
           <FadeIn delay={0.18}>
             <BentoFlashcardCard />
@@ -453,8 +454,8 @@ export const LandingPage: React.FC = () => {
               style={{ background: 'linear-gradient(to right, rgba(6,182,212,0.4), rgba(13,148,136,0.4))' }} />
             {[
               { step: '01', title: 'Add Your Content', desc: 'Upload PDFs, paste a YouTube link, clip a web article, add audio files, or paste an Apple Podcasts URL.', icon: BookOpen, color: 'from-cyan-500 to-blue-600', glow: 'rgba(6,182,212,0.4)' },
-              { step: '02', title: 'AI Does the Work', desc: 'AI instantly generates summaries, mind maps, flashcards, quizzes, glossaries.', icon: Bot, color: 'from-teal-400 to-cyan-600', glow: 'rgba(13,148,136,0.4)' },
-              { step: '03', title: 'Master the Topic', desc: 'Review with spaced repetition, take quizzes, listen notes and glossaries, and unlock achievements.', icon: GraduationCap, color: 'from-emerald-400 to-teal-600', glow: 'rgba(52,211,153,0.4)' },
+              { step: '02', title: 'AI Does the Work', desc: 'AI instantly generates summaries, mind maps, flashcards, quizzes, glossaries, and step-by-step worked problems.', icon: Bot, color: 'from-teal-400 to-cyan-600', glow: 'rgba(13,148,136,0.4)' },
+              { step: '03', title: 'Master the Topic', desc: 'Review due cards with FSRS spaced repetition, take timed mock exams, annotate PDFs, and explore your Knowledge Graph.', icon: GraduationCap, color: 'from-emerald-400 to-teal-600', glow: 'rgba(52,211,153,0.4)' },
             ].map((item, i) => {
               const Icon = item.icon;
               return (

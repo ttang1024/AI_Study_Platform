@@ -3,7 +3,7 @@ import { motion, AnimatePresence, useInView } from 'motion/react';
 import {
   CreditCard, PenLine, Volume2, BookMarked, FlaskConical, Users,
   MessageCircle, Lock, ChevronRight, Search, RotateCcw,
-  ThumbsUp, ThumbsDown, Minus, CheckCircle2, Circle,
+  ThumbsUp, ThumbsDown, Minus, ChevronsUp, CheckCircle2, Circle,
   Play, Pause, Mic,
 } from 'lucide-react';
 
@@ -96,21 +96,26 @@ export const BentoFlashcardCard: React.FC = () => {
         </motion.div>
       </div>
 
-      <div className="flex items-center gap-2 mb-4">
+      <div className="flex items-center gap-1.5 mb-4">
         <button onClick={advance}
-          className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[11px] font-bold transition-colors hover:bg-red-500/20"
+          className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[10px] font-bold transition-colors hover:bg-red-500/20"
           style={{ border: '1px solid rgba(239,68,68,0.3)', color: '#f87171' }}>
           <ThumbsDown className="w-3 h-3" /> Again
         </button>
         <button onClick={advance}
-          className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[11px] font-bold transition-colors hover:bg-amber-500/20"
+          className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[10px] font-bold transition-colors hover:bg-amber-500/20"
           style={{ border: '1px solid rgba(251,146,60,0.3)', color: '#fb923c' }}>
           <Minus className="w-3 h-3" /> Hard
         </button>
         <button onClick={advance}
-          className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[11px] font-bold transition-colors hover:bg-emerald-500/20"
+          className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[10px] font-bold transition-colors hover:bg-emerald-500/20"
           style={{ border: '1px solid rgba(52,211,153,0.3)', color: '#34d399' }}>
           <ThumbsUp className="w-3 h-3" /> Good
+        </button>
+        <button onClick={advance}
+          className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[10px] font-bold transition-colors hover:bg-cyan-500/20"
+          style={{ border: '1px solid rgba(34,211,238,0.3)', color: '#22d3ee' }}>
+          <ChevronsUp className="w-3 h-3" /> Easy
         </button>
       </div>
     </motion.div>
@@ -303,7 +308,7 @@ export const BentoPlayCard: React.FC = () => {
       </div>
 
       <p className="text-sm text-white/40 leading-relaxed">
-        Listen to summaries, notes, and glossary terms hands-free. AI narrates with a natural voice for quick review.
+        Listen to summaries, notes, and glossary terms hands-free. A natural voice for quick review.
       </p>
     </motion.div>
   );
