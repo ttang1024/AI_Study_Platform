@@ -33,13 +33,13 @@ Upload documents, YouTube videos, podcasts, and web articles — let AI generate
 | 👥  | **Study Groups**     | Create / join groups, share courses & documents, real-time group chat                                               |
 | 🔐  | **Auth**             | Email + OTP, Google OAuth, GitHub OAuth, JWT sessions                                                               |
 
-**AI Providers** — Gemini · OpenAI · Claude · Grok · DeepSeek · Qwen · Wenxin Yiyan (multi-provider routing, switchable from settings)
+**AI Providers** — Gemini · OpenAI · Claude · Grok · DeepSeek · Kimi · Doubao · Qwen · Wenxin Yiyan (multi-provider routing, switchable from settings)
 
 ---
 
 ## Tech Stack
 
-**Backend** — .NET 10 · ASP.NET Core · EF Core 9 · MediatR · FluentValidation · PostgreSQL · Redis · Azure Blob Storage · Whisper.net · MailKit · JWT
+**Backend** — .NET 10 · ASP.NET Core · EF Core 9 · MediatR · FluentValidation · SignalR · PostgreSQL · Redis · Azure Blob Storage · Whisper.net · MailKit · JWT
 
 **Frontend** — React 19 · TypeScript 5.8 · Vite 6 · TailwindCSS 4 · React Router 7 · Tiptap · D3.js + Markmap · Axios
 

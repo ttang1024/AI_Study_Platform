@@ -22,6 +22,7 @@ interface QuestionBankTabProps {
   difficulty: 'all' | QuestionDifficulty;
   onDifficultyChange: (d: 'all' | QuestionDifficulty) => void;
   questions: QuestionBankQuestion[];
+  totalCount?: number;
   selectedIds: Set<string>;
   onSelect: (id: string) => void;
   onSelectFiltered: () => void;
@@ -41,6 +42,7 @@ export const QuestionBankTab: React.FC<QuestionBankTabProps> = ({
   difficulty,
   onDifficultyChange,
   questions,
+  totalCount,
   selectedIds,
   onSelect,
   onSelectFiltered,
@@ -79,7 +81,7 @@ export const QuestionBankTab: React.FC<QuestionBankTabProps> = ({
 
     <div className="flex items-center justify-between text-sm text-text-muted">
       <span className="inline-flex items-center gap-2">
-        <Filter size={14} /> {questions.length} questions
+        <Filter size={14} /> {totalCount ?? questions.length} questions
       </span>
       <button
         onClick={onSelectFiltered}

@@ -37,6 +37,7 @@ import { FailedQuestionsTab, FailedQuestion } from '../components/quiz/FailedQue
 import { QuestionBankTab } from '../components/quiz/QuestionBankTab';
 
 const PAGE_SIZE = 5;
+const BANK_PAGE_SIZE = 10;
 
 type MainTab = 'history' | 'failed' | 'bank';
 
@@ -138,6 +139,7 @@ export const QuizManagementPage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [bankExporting, setBankExporting] = useState<null | 'csv' | 'gift' | 'qti'>(null);
   const [revealedAnswers, setRevealedAnswers] = useState<Set<string>>(new Set());
+  const [bankPage, setBankPage] = useState(1);
 
   // ── History: remove pending entries once a real submission arrives ────────────
   useEffect(() => {
@@ -443,6 +445,10 @@ export const QuizManagementPage: React.FC = () => {
     [bankFiltered, selectedIds],
   );
 
+  const bankTotalPages = Math.max(1, Math.ceil(bankFiltered.length / BANK_PAGE_SIZE));
+  const safeBankPage = Math.min(bankPage, bankTotalPages);
+  const bankPagedQuestions = bankFiltered.slice((safeBankPage - 1) * BANK_PAGE_SIZE, safeBankPage * BANK_PAGE_SIZE);
+
   const bankExportRecords = (items: QuestionBankQuestion[]): ExportQuizRecord[] => [{
     title: 'Question Bank',
     questions: items.map(q => ({
@@ -651,6 +657,7 @@ export const QuizManagementPage: React.FC = () => {
   const pagedItems = filteredItems.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   const handleFilterChange = (cb: () => void) => { cb(); setPage(1); };
+  const handleBankFilterChange = (cb: () => void) => { cb(); setBankPage(1); };
 
   const pendingItemsCount = Math.max(
     0,
@@ -922,24 +929,33 @@ export const QuizManagementPage: React.FC = () => {
 
       {/* ── Question Bank tab ── */}
       {mainTab === 'bank' && (
-        <QuestionBankTab
-          courses={courses}
-          loading={bankLoading}
-          search={bankSearch}
-          onSearchChange={setBankSearch}
-          courseId={bankCourseId}
-          onCourseChange={setBankCourseId}
-          difficulty={bankDifficulty}
-          onDifficultyChange={setBankDifficulty}
-          questions={bankFiltered}
-          selectedIds={selectedIds}
-          onSelect={handleSelect}
-          onSelectFiltered={() => setSelectedIds(new Set(bankFiltered.map(q => q.quizId)))}
-          revealedAnswers={revealedAnswers}
-          onToggleAnswer={toggleAnswer}
-          onEdit={setEditing}
-          onDelete={handleDeleteBankQuestion}
-        />
+        <>
+          <QuestionBankTab
+            courses={courses}
+            loading={bankLoading}
+            search={bankSearch}
+            onSearchChange={s => handleBankFilterChange(() => setBankSearch(s))}
+            courseId={bankCourseId}
+            onCourseChange={id => handleBankFilterChange(() => setBankCourseId(id))}
+            difficulty={bankDifficulty}
+            onDifficultyChange={d => handleBankFilterChange(() => setBankDifficulty(d))}
+            questions={bankPagedQuestions}
+            totalCount={bankFiltered.length}
+            selectedIds={selectedIds}
+            onSelect={handleSelect}
+            onSelectFiltered={() => setSelectedIds(new Set(bankFiltered.map(q => q.quizId)))}
+            revealedAnswers={revealedAnswers}
+            onToggleAnswer={toggleAnswer}
+            onEdit={setEditing}
+            onDelete={handleDeleteBankQuestion}
+          />
+          <Pagination
+            page={safeBankPage}
+            totalPages={bankTotalPages}
+            onPageChange={setBankPage}
+            size="sm"
+          />
+        </>
       )}
 
       {/* Edit question modal */}
