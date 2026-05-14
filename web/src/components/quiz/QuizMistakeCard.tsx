@@ -94,9 +94,6 @@ export const QuizMistakeCard: React.FC<QuizMistakeCardProps> = ({
                 style,
               )}
             >
-              <span className={cn('shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black', letterStyle)}>
-                {OPTION_LETTERS[i] ?? i + 1}
-              </span>
               <span className="flex-1 leading-snug">{option}</span>
               {isSelected && !isCorrect && (
                 <XCircle size={14} className="shrink-0 text-red-500" />

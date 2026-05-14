@@ -841,12 +841,12 @@ Main Topic
         - Important constraint";
 
         public static readonly string Quiz =
-            $@"Generate 5 to 10 multiple-choice questions from the supplied study material.
+            $@"Generate 3 to 10 multiple-choice questions from the supplied study material.
 {NoSourceMetaPhrases}
-Each question must have exactly 4 options. Each option must start with ""A) "", ""B) "", ""C) "", ""D) "" respectively.
+Each question must have exactly 4 options. Each option must start with ""A. "", ""B. "", ""C. "", ""D. "" respectively.
 correctAnswer MUST be only the matching letter: ""A"", ""B"", ""C"", or ""D"". Do not put the answer text in correctAnswer.
 Return a JSON array only, no markdown, no code blocks:
-[{{""question"": ""..."", ""options"": [""A) ..."",""B) ..."",""C) ..."",""D) ...""], ""correctAnswer"": ""A"", ""explanation"": ""...""}}]";
+[{{""question"": ""..."", ""options"": [""A. ..."",""B. ..."",""C. ..."",""D. ...""], ""correctAnswer"": ""A"", ""explanation"": ""...""}}]";
 
         public static string QuizForDifficulty(string difficulty) =>
             $@"{Quiz}
@@ -923,7 +923,7 @@ Main Topic
         - Important constraint";
 
         public static readonly string YouTubeQuiz =
-            $@"Generate 5 to 10 multiple-choice quiz questions from the supplied study material.
+            $@"Generate 3 to 10 multiple-choice quiz questions from the supplied study material.
 {NoSourceMetaPhrases}
 Each question must have exactly 4 options. Each option must start with ""A. "", ""B. "", ""C. "", ""D. "" respectively.
 correctAnswer MUST be only the matching letter: ""A"", ""B"", ""C"", or ""D"". Do not put the answer text in correctAnswer.
