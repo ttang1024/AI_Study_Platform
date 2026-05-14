@@ -47,6 +47,40 @@ const shuffle = <T,>(items: T[]): T[] => {
   return copy;
 };
 
+const getAllQuizSubmissions = async (): Promise<QuizSubmission[]> => {
+  const firstPage = await quizSubmissionService.getAllSubmissions(1, 200);
+  if (firstPage.totalCount <= firstPage.items.length) return firstPage.items;
+  const fullPage = await quizSubmissionService.getAllSubmissions(1, firstPage.totalCount);
+  return fullPage.items;
+};
+
+const isVideoSubmission = (submission: QuizSubmission) =>
+  Boolean(submission.youTubeVideoId || submission.sourceType === 'video');
+
+const isQuestionFromSubmissionSource = (question: QuestionBankQuestion, submission: QuizSubmission) => {
+  if (isVideoSubmission(submission)) {
+    return question.sourceType === 'video' && question.youTubeVideoId === submission.youTubeVideoId;
+  }
+  return question.sourceType === 'document' && question.documentId === submission.documentId;
+};
+
+const getAnsweredQuestionsForSubmission = (
+  submission: QuizSubmission,
+  bankQuestions: QuestionBankQuestion[],
+  byId: Map<string, QuestionBankQuestion>,
+) => {
+  const answerIds = Object.keys(submission.answers ?? {});
+  const answeredQuestionIds = new Set(answerIds);
+  const sourceQuestions = bankQuestions.filter(question => isQuestionFromSubmissionSource(question, submission));
+  const candidates = sourceQuestions.length > 0
+    ? sourceQuestions
+    : answerIds
+      .map(id => byId.get(id))
+      .filter((question): question is QuestionBankQuestion => Boolean(question));
+
+  return candidates.filter(question => answeredQuestionIds.has(question.quizId));
+};
+
 export const ReinforcementCenterPage: React.FC = () => {
   const { user } = useAuth();
   const userId = user?.id ?? 'guest';
@@ -74,7 +108,7 @@ export const ReinforcementCenterPage: React.FC = () => {
     setQuizLoading(true);
     Promise.all([
       questionBankService.getQuestions(),
-      quizSubmissionService.getAllSubmissions(1, 200).then(p => p.items),
+      getAllQuizSubmissions(),
     ])
       .then(([questions, subs]) => {
         setBankQuestions(questions);
@@ -110,9 +144,8 @@ export const ReinforcementCenterPage: React.FC = () => {
       .finally(() => setFlashcardLoading(false));
   }, []);
 
-  const handleFlashcardRate = useCallback(async (cardId: string, rating: SessionRating) => {
+  const handleFlashcardRate = useCallback((cardId: string, rating: SessionRating) => {
     if (rating === 3 || rating === 4) {
-      const newDifficulty = rating === 4 ? 'easy' : 'medium';
       setHardCards(prev => prev.filter(c => c.id !== cardId));
       setFlashcardQueue(prev => prev.filter(c => c.id !== cardId));
     } else {
@@ -131,17 +164,7 @@ export const ReinforcementCenterPage: React.FC = () => {
     const everCorrect = new Set<string>(practiceCorrectIds);
 
     for (const submission of submissions) {
-      const sourceQuestions = bankQuestions.filter(q => {
-        if (submission.youTubeVideoId || submission.sourceType === 'video') {
-          return q.sourceType === 'video' && q.youTubeVideoId === submission.youTubeVideoId;
-        }
-        return q.sourceType === 'document' && q.documentId === submission.documentId;
-      });
-      const questionsToCheck = sourceQuestions.length > 0
-        ? sourceQuestions
-        : Object.keys(submission.answers ?? {})
-          .map(id => byId.get(id))
-          .filter((q): q is QuestionBankQuestion => !!q);
+      const questionsToCheck = getAnsweredQuestionsForSubmission(submission, bankQuestions, byId);
 
       for (const question of questionsToCheck) {
         const selectedAnswer = submission.answers?.[question.quizId] ?? '';
@@ -255,8 +278,8 @@ export const ReinforcementCenterPage: React.FC = () => {
 
     // Refresh submissions so the correct state is reflected after page reload too
     quizSubmissionService.clearListCache();
-    quizSubmissionService.getAllSubmissions(1, 200)
-      .then(p => setSubmissions(p.items))
+    getAllQuizSubmissions()
+      .then(setSubmissions)
       .catch(() => { });
   }, [bankQuestions, submissions]);
 
