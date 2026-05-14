@@ -33,6 +33,7 @@ public class AppDbContext : DbContext
     public DbSet<StudyGroupSharedCourse> StudyGroupSharedCourses => Set<StudyGroupSharedCourse>();
     public DbSet<GroupChatMessage> GroupChatMessages => Set<GroupChatMessage>();
     public DbSet<ConceptLink> ConceptLinks => Set<ConceptLink>();
+    public DbSet<FlashcardSrsData> FlashcardSrs => Set<FlashcardSrsData>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

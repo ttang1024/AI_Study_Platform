@@ -52,6 +52,17 @@ export interface QuizQuestion {
 	difficulty?: 'easy' | 'medium' | 'hard'
 }
 
+export interface FlashcardSrsState {
+	state: 0 | 1 | 2 | 3    // 0=New, 1=Learning, 2=Review, 3=Relearning
+	stability: number        // days of memory stability
+	difficulty: number       // card difficulty 1–10
+	reps: number
+	lapses: number
+	due: string              // ISO datetime
+	lastReview?: string      // ISO datetime
+	retrievability: number   // recall probability 0–1
+}
+
 export interface Flashcard {
 	id: string
 	documentId: string
@@ -60,9 +71,13 @@ export interface Flashcard {
 	videoName?: string
 	front: string
 	back: string
+	cardType: 'basic' | 'cloze' | 'chart'
 	difficulty: 'easy' | 'medium' | 'hard'
+	chapter?: string
+	tags: string[]
 	lastReviewed?: string
 	nextReview?: string
+	srs?: FlashcardSrsState
 }
 
 export interface LearningProgress {

@@ -39,15 +39,9 @@ public class GenerateFlashcardsCommandHandler : IRequestHandler<GenerateFlashcar
         if (existing.Any())
         {
             var cachedDtos = existing.Select(f => new FlashcardDto(
-                f.FlashcardId,
-                f.DocumentId,
-                f.YouTubeVideoId,
-                f.SourceType,
-                f.UserId,
-                f.Front,
-                f.Back,
-                f.CreatedAt,
-                f.UpdatedAt));
+                f.FlashcardId, f.DocumentId, f.YouTubeVideoId, f.SourceType, f.UserId,
+                f.Front, f.Back, f.CreatedAt, f.UpdatedAt,
+                CardType: f.CardType, Difficulty: f.Difficulty, Chapter: f.Chapter, Tags: f.Tags));
 
             return Result<IEnumerable<FlashcardDto>>.Success(cachedDtos, "Flashcards retrieved successfully.");
         }
@@ -82,34 +76,37 @@ public class GenerateFlashcardsCommandHandler : IRequestHandler<GenerateFlashcar
             return Result<IEnumerable<FlashcardDto>>.Failure("AI returned an unexpected response format. Please try again.", "PARSE_ERROR");
         }
 
-        var flashcards = flashcardItems.Select(f => new Flashcard
+        var flashcards = flashcardItems.Select(f =>
         {
-            FlashcardId = Guid.NewGuid(),
-            DocumentId = request.DocumentId,
-            SourceType = "document",
-            UserId = request.UserId,
-            Front = f.Front,
-            Back = f.Back,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
+            var isChart = string.Equals(f.Type, "chart", StringComparison.OrdinalIgnoreCase);
+            var isCloze = string.Equals(f.Type, "cloze", StringComparison.OrdinalIgnoreCase);
+            var back = isChart && f.ChartData.HasValue
+                ? JsonSerializer.Serialize(f.ChartData.Value)
+                : f.Back;
+            return new Flashcard
+            {
+                FlashcardId = Guid.NewGuid(),
+                DocumentId = request.DocumentId,
+                SourceType = "document",
+                UserId = request.UserId,
+                Front = f.Front,
+                Back = back,
+                CardType = isChart ? "chart" : isCloze ? "cloze" : "basic",
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+            };
         }).ToList();
 
         await _unitOfWork.Flashcards.AddRangeAsync(flashcards, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         var dtos = flashcards.Select(f => new FlashcardDto(
-            f.FlashcardId,
-            f.DocumentId,
-            f.YouTubeVideoId,
-            f.SourceType,
-            f.UserId,
-            f.Front,
-            f.Back,
-            f.CreatedAt,
-            f.UpdatedAt));
+            f.FlashcardId, f.DocumentId, f.YouTubeVideoId, f.SourceType, f.UserId,
+            f.Front, f.Back, f.CreatedAt, f.UpdatedAt,
+            CardType: f.CardType, Difficulty: f.Difficulty, Chapter: f.Chapter, Tags: f.Tags));
 
         return Result<IEnumerable<FlashcardDto>>.Success(dtos, "Flashcards generated successfully.");
     }
 
-    private record AiFlashcardItem(string Front, string Back);
+    private record AiFlashcardItem(string Front, string Back, string? Type = null, JsonElement? ChartData = null);
 }

@@ -2,6 +2,7 @@ using MediatR;
 using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Documents.DTOs;
 using StudyPlatform.Application.Flashcards.DTOs;
+using StudyPlatform.Application.Services;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
 
@@ -12,7 +13,8 @@ public record CreateFlashcardCommand(
     string Front,
     string Back,
     Guid? DocumentId = null,
-    Guid? YouTubeVideoId = null) : IRequest<Result<FlashcardDto>>;
+    Guid? YouTubeVideoId = null,
+    string CardType = "basic") : IRequest<Result<FlashcardDto>>;
 
 public class CreateFlashcardCommandHandler : IRequestHandler<CreateFlashcardCommand, Result<FlashcardDto>>
 {
@@ -37,6 +39,7 @@ public class CreateFlashcardCommandHandler : IRequestHandler<CreateFlashcardComm
             UserId = request.UserId,
             Front = request.Front,
             Back = request.Back,
+            CardType = request.CardType,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
@@ -47,11 +50,21 @@ public class CreateFlashcardCommandHandler : IRequestHandler<CreateFlashcardComm
         return Result<FlashcardDto>.Success(ToDto(flashcard), "Flashcard created successfully.");
     }
 
-    internal static FlashcardDto ToDto(Flashcard f) =>
+    internal static FlashcardDto ToDto(Flashcard f, FlashcardSrsData? srs = null) =>
         new(f.FlashcardId, f.DocumentId, f.YouTubeVideoId, f.SourceType, f.UserId, f.Front, f.Back, f.CreatedAt, f.UpdatedAt,
             Title: f.Document?.FileName ?? f.YouTubeVideo?.Title,
             Document: f.Document?.FileName,
-            Video: f.YouTubeVideo?.Title);
+            Video: f.YouTubeVideo?.Title,
+            Srs: srs == null ? null : ToSrsDto(srs),
+            CardType: f.CardType,
+            Difficulty: f.Difficulty,
+            Chapter: f.Chapter,
+            Tags: f.Tags);
+
+    internal static FlashcardSrsDto ToSrsDto(FlashcardSrsData srs) =>
+        new(srs.FlashcardId, srs.State, srs.Stability, srs.Difficulty, srs.Reps, srs.Lapses,
+            srs.Due, srs.LastReview,
+            FsrsService.ComputeRetrievability(srs.Stability, srs.LastReview));
 }
 
 public record GetAllFlashcardsQuery(Guid UserId) : IRequest<Result<IEnumerable<FlashcardDto>>>;
@@ -70,7 +83,7 @@ public class GetAllFlashcardsPagedQueryHandler : IRequestHandler<GetAllFlashcard
     public async Task<Result<PaginatedList<FlashcardDto>>> Handle(GetAllFlashcardsPagedQuery request, CancellationToken cancellationToken)
     {
         var (flashcards, totalCount) = await _unitOfWork.Flashcards.GetPagedByUserIdAsync(request.UserId, request.Page, request.PageSize, cancellationToken);
-        var dtos = flashcards.Select(CreateFlashcardCommandHandler.ToDto);
+        var dtos = flashcards.Select(f => CreateFlashcardCommandHandler.ToDto(f));
         return Result<PaginatedList<FlashcardDto>>.Success(new PaginatedList<FlashcardDto>(dtos, totalCount, request.Page, request.PageSize));
     }
 }
@@ -83,7 +96,7 @@ public class GetAllFlashcardsQueryHandler : IRequestHandler<GetAllFlashcardsQuer
     public async Task<Result<IEnumerable<FlashcardDto>>> Handle(GetAllFlashcardsQuery request, CancellationToken cancellationToken)
     {
         var flashcards = await _unitOfWork.Flashcards.GetByUserIdAsync(request.UserId, cancellationToken);
-        return Result<IEnumerable<FlashcardDto>>.Success(flashcards.Select(CreateFlashcardCommandHandler.ToDto));
+        return Result<IEnumerable<FlashcardDto>>.Success(flashcards.Select(f => CreateFlashcardCommandHandler.ToDto(f)));
     }
 }
 
@@ -192,6 +205,122 @@ public class BulkDeleteFlashcardsCommandHandler : IRequestHandler<BulkDeleteFlas
         await _unitOfWork.Flashcards.DeleteByIdsAsync(request.FlashcardIds, request.UserId, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return Result.Success("Flashcards deleted successfully.");
+    }
+}
+
+// ─── FSRS Review ─────────────────────────────────────────────────────────────
+
+public record ReviewFlashcardCommand(Guid FlashcardId, Guid UserId, int Rating) : IRequest<Result<ReviewFlashcardResponse>>;
+
+public class ReviewFlashcardCommandHandler : IRequestHandler<ReviewFlashcardCommand, Result<ReviewFlashcardResponse>>
+{
+    private readonly IUnitOfWork _unitOfWork;
+    public ReviewFlashcardCommandHandler(IUnitOfWork unitOfWork) { _unitOfWork = unitOfWork; }
+
+    public async Task<Result<ReviewFlashcardResponse>> Handle(ReviewFlashcardCommand request, CancellationToken cancellationToken)
+    {
+        if (request.Rating is < 1 or > 4)
+            return Result<ReviewFlashcardResponse>.Failure("Rating must be 1–4.", "INVALID_RATING");
+
+        var flashcard = await _unitOfWork.Flashcards.GetByIdAsync(request.FlashcardId, cancellationToken);
+        if (flashcard == null || flashcard.UserId != request.UserId)
+            return Result<ReviewFlashcardResponse>.Failure("Flashcard not found.", "FLASHCARD_NOT_FOUND");
+
+        var srs = await _unitOfWork.FlashcardSrs.GetByUserAndFlashcardAsync(
+            request.UserId, request.FlashcardId, cancellationToken)
+            ?? new FlashcardSrsData
+            {
+                Id = Guid.NewGuid(),
+                UserId = request.UserId,
+                FlashcardId = request.FlashcardId,
+                Due = DateTime.UtcNow,
+            };
+
+        var result = FsrsService.Review(srs, request.Rating, DateTime.UtcNow);
+
+        srs.State = result.State;
+        srs.Stability = result.Stability;
+        srs.Difficulty = result.Difficulty;
+        srs.Reps = result.Reps;
+        srs.Lapses = result.Lapses;
+        srs.ScheduledDays = result.ScheduledDays;
+        srs.ElapsedDays = result.ElapsedDays;
+        srs.LastReview = result.LastReview;
+        srs.Due = result.Due;
+
+        if (srs.Reps == 1)
+            await _unitOfWork.FlashcardSrs.AddAsync(srs, cancellationToken);
+
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        var srsDto = CreateFlashcardCommandHandler.ToSrsDto(srs);
+        return Result<ReviewFlashcardResponse>.Success(
+            new ReviewFlashcardResponse(result.ScheduledDays, result.Retrievability, srsDto));
+    }
+}
+
+// ─── SRS State Query ─────────────────────────────────────────────────────────
+
+public record GetFlashcardSrsQuery(Guid UserId) : IRequest<Result<IEnumerable<FlashcardSrsDto>>>;
+
+public class GetFlashcardSrsQueryHandler : IRequestHandler<GetFlashcardSrsQuery, Result<IEnumerable<FlashcardSrsDto>>>
+{
+    private readonly IUnitOfWork _unitOfWork;
+    public GetFlashcardSrsQueryHandler(IUnitOfWork unitOfWork) { _unitOfWork = unitOfWork; }
+
+    public async Task<Result<IEnumerable<FlashcardSrsDto>>> Handle(GetFlashcardSrsQuery request, CancellationToken cancellationToken)
+    {
+        var all = await _unitOfWork.FlashcardSrs.GetByUserIdAsync(request.UserId, cancellationToken);
+        var dtos = all.Select(CreateFlashcardCommandHandler.ToSrsDto);
+        return Result<IEnumerable<FlashcardSrsDto>>.Success(dtos);
+    }
+}
+
+// ─── Classify Flashcard ───────────────────────────────────────────────────────
+
+public record ClassifyFlashcardCommand(
+    Guid FlashcardId,
+    Guid UserId,
+    string? Front,
+    string? Back,
+    string? Difficulty,
+    string? Chapter,
+    IEnumerable<string>? Tags) : IRequest<Result<FlashcardDto>>;
+
+public class ClassifyFlashcardCommandHandler : IRequestHandler<ClassifyFlashcardCommand, Result<FlashcardDto>>
+{
+    private readonly IUnitOfWork _unitOfWork;
+    public ClassifyFlashcardCommandHandler(IUnitOfWork unitOfWork) { _unitOfWork = unitOfWork; }
+
+    public async Task<Result<FlashcardDto>> Handle(ClassifyFlashcardCommand request, CancellationToken cancellationToken)
+    {
+        var flashcard = await _unitOfWork.Flashcards.GetByIdAsync(request.FlashcardId, cancellationToken);
+        if (flashcard == null || flashcard.UserId != request.UserId)
+            return Result<FlashcardDto>.Failure("Flashcard not found.", "FLASHCARD_NOT_FOUND");
+
+        if (!string.IsNullOrWhiteSpace(request.Front))
+            flashcard.Front = request.Front.Trim();
+
+        if (!string.IsNullOrWhiteSpace(request.Back))
+            flashcard.Back = request.Back.Trim();
+
+        if (request.Difficulty is not null)
+            flashcard.Difficulty = request.Difficulty;
+
+        if (request.Chapter is not null)
+            flashcard.Chapter = string.IsNullOrWhiteSpace(request.Chapter) ? null : request.Chapter.Trim();
+
+        if (request.Tags is not null)
+            flashcard.Tags = request.Tags
+                .Select(t => t.Trim().ToLowerInvariant())
+                .Where(t => t.Length > 0)
+                .Distinct()
+                .ToList();
+
+        flashcard.UpdatedAt = DateTime.UtcNow;
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return Result<FlashcardDto>.Success(CreateFlashcardCommandHandler.ToDto(flashcard));
     }
 }
 

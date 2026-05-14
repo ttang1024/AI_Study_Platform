@@ -9,6 +9,10 @@ public class Flashcard
     public Guid UserId { get; set; }
     public string Front { get; set; } = string.Empty;
     public string Back { get; set; } = string.Empty;
+    public string CardType { get; set; } = "basic"; // "basic" | "cloze" | "chart"
+    public string Difficulty { get; set; } = "medium"; // "easy" | "medium" | "hard"
+    public string? Chapter { get; set; }
+    public List<string> Tags { get; set; } = new();
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public Document? Document { get; set; }

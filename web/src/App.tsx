@@ -27,6 +27,7 @@ import { StudyGroupsPage } from './pages/StudyGroupsPage';
 import { StudyGroupDetailPage } from './pages/StudyGroupDetailPage';
 import { ChatListPage } from './pages/ChatListPage';
 import { KnowledgeGraphPage } from './pages/KnowledgeGraphPage';
+import { ReinforcementCenterPage } from './pages/ReinforcementCenterPage';
 
 const DocumentDetailsPage = lazy(() =>
   import('./pages/DocumentDetailsPage').then((mod) => ({ default: mod.DocumentDetailsPage })),
@@ -55,66 +56,67 @@ export default function App() {
             <BrowserRouter>
               <Suspense fallback={null}>
                 <Routes>
-                <Route path="/" element={<LandingPage />} />
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/register" element={<RegisterPage />} />
-                <Route path="/verify-email" element={<EmailVerificationPage />} />
+                  <Route path="/" element={<LandingPage />} />
+                  <Route path="/login" element={<LoginPage />} />
+                  <Route path="/register" element={<RegisterPage />} />
+                  <Route path="/verify-email" element={<EmailVerificationPage />} />
 
-                <Route path="/" element={
-                  <ProtectedRoute>
-                    <MainLayout />
-                  </ProtectedRoute>
-                }>
-                  <Route path="dashboard" element={<DashboardPage />} />
-                  <Route path="library" element={<LibraryPage />} />
-                  <Route path="documents" element={<Navigate to="/library" replace />} />
-                  <Route path="youtube" element={<Navigate to="/library?type=videos" replace />} />
-                  <Route path="summarizer" element={<AISummarizerPage />} />
-                  <Route path="flashcards" element={<FlashcardsPage />} />
-                  <Route path="notes" element={<NotesPage />} />
-                  <Route path="quizzes" element={<QuizManagementPage />} />
-                  <Route path="settings" element={<SettingsPage />} />
-                  <Route path="glossary" element={<GlossaryPage />} />
-                  <Route path="knowledge-graph" element={<KnowledgeGraphPage />} />
-                  <Route path="feedback" element={<FeedbackPage />} />
-                  <Route path="search" element={<SearchResultsPage />} />
-                  <Route path="groups" element={<StudyGroupsPage />} />
-                  <Route path="chat" element={<ChatListPage />} />
-                </Route>
+                  <Route path="/" element={
+                    <ProtectedRoute>
+                      <MainLayout />
+                    </ProtectedRoute>
+                  }>
+                    <Route path="dashboard" element={<DashboardPage />} />
+                    <Route path="library" element={<LibraryPage />} />
+                    <Route path="documents" element={<Navigate to="/library" replace />} />
+                    <Route path="youtube" element={<Navigate to="/library?type=videos" replace />} />
+                    <Route path="summarizer" element={<AISummarizerPage />} />
+                    <Route path="flashcards" element={<FlashcardsPage />} />
+                    <Route path="notes" element={<NotesPage />} />
+                    <Route path="quizzes" element={<QuizManagementPage />} />
+                    <Route path="settings" element={<SettingsPage />} />
+                    <Route path="glossary" element={<GlossaryPage />} />
+                    <Route path="knowledge-graph" element={<KnowledgeGraphPage />} />
+                    <Route path="reinforcement-center" element={<ReinforcementCenterPage />} />
+                    <Route path="feedback" element={<FeedbackPage />} />
+                    <Route path="search" element={<SearchResultsPage />} />
+                    <Route path="groups" element={<StudyGroupsPage />} />
+                    <Route path="chat" element={<ChatListPage />} />
+                  </Route>
 
-                <Route path="/documents/:id" element={
-                  <ProtectedRoute>
-                    <DocumentDetailsPage />
-                  </ProtectedRoute>
-                } />
-                <Route path="/youtube/:id" element={
-                  <ProtectedRoute>
-                    <YouTubeDetailPage />
-                  </ProtectedRoute>
-                } />
-                <Route path="/articles/:id" element={
-                  <ProtectedRoute>
-                    <ArticlePage />
-                  </ProtectedRoute>
-                } />
-                <Route path="/audio/:id" element={
-                  <ProtectedRoute>
-                    <AudioDetailPage />
-                  </ProtectedRoute>
-                } />
-                <Route path="/groups/:id" element={
-                  <ProtectedRoute>
-                    <StudyGroupDetailPage />
-                  </ProtectedRoute>
-                } />
-                <Route path="/courses/:courseId/study" element={
-                  <ProtectedRoute>
-                    <CourseStudyPage />
-                  </ProtectedRoute>
-                } />
+                  <Route path="/documents/:id" element={
+                    <ProtectedRoute>
+                      <DocumentDetailsPage />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/youtube/:id" element={
+                    <ProtectedRoute>
+                      <YouTubeDetailPage />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/articles/:id" element={
+                    <ProtectedRoute>
+                      <ArticlePage />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/audio/:id" element={
+                    <ProtectedRoute>
+                      <AudioDetailPage />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/groups/:id" element={
+                    <ProtectedRoute>
+                      <StudyGroupDetailPage />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/courses/:courseId/study" element={
+                    <ProtectedRoute>
+                      <CourseStudyPage />
+                    </ProtectedRoute>
+                  } />
 
-                <Route path="/auth/callback" element={<OAuthCallbackPage />} />
-                <Route path="/share/:token" element={<SharedContentPage />} />
+                  <Route path="/auth/callback" element={<OAuthCallbackPage />} />
+                  <Route path="/share/:token" element={<SharedContentPage />} />
                 </Routes>
               </Suspense>
             </BrowserRouter>

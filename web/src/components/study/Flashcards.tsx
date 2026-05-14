@@ -1,31 +1,42 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { ChevronLeft, ChevronRight, RotateCcw, Brain, HelpCircle, Loader2, BrainCircuit } from 'lucide-react';
+import { ChevronLeft, ChevronRight, RotateCcw, Brain, Loader2, BrainCircuit } from 'lucide-react';
 import { useStudy } from '../../context/StudyContext';
 import { Button } from '../common/Button';
 import { documentService } from '../../services/documentService';
+import { flashcardService } from '../../services/flashcardService';
 import { getApiErrorCode } from '../../utils/apiError';
 import { EmptyGenerationState, GenerationFailedState } from '../common/GenerationStates';
+import { FlashcardSrsState } from '../../types';
+import { cn } from '../../utils/cn';
+import { FlashcardFlipCard } from './FlashcardFlipCard';
 
 interface SimpleCard {
   id: string;
   front: string;
   back: string;
+  cardType?: 'basic' | 'cloze' | 'chart';
+  srs?: FlashcardSrsState;
 }
 
 interface FlashcardsProps {
   documentId?: string;
-  /** External flashcards (bypasses StudyContext when set) */
   externalCards?: SimpleCard[];
-  /** External generate handler */
   onExternalGenerate?: () => Promise<void>;
-  /** External loading state */
   isExternalGenerating?: boolean;
-  /** External error message */
   externalError?: string | null;
   generateDisabled?: boolean;
   generateDisabledReason?: string;
 }
+
+const RATING_BUTTONS = [
+  { rating: 1 as const, label: 'Again', color: 'bg-red-500 hover:bg-red-600', textColor: 'text-red-600', borderColor: 'border-red-200', bgLight: 'bg-red-50' },
+  { rating: 2 as const, label: 'Hard',  color: 'bg-orange-500 hover:bg-orange-600', textColor: 'text-orange-600', borderColor: 'border-orange-200', bgLight: 'bg-orange-50' },
+  { rating: 3 as const, label: 'Good',  color: 'bg-green-500 hover:bg-green-600', textColor: 'text-green-600', borderColor: 'border-green-200', bgLight: 'bg-green-50' },
+  { rating: 4 as const, label: 'Easy',  color: 'bg-blue-500 hover:bg-blue-600', textColor: 'text-blue-600', borderColor: 'border-blue-200', bgLight: 'bg-blue-50' },
+] as const;
+
+const STATE_LABELS: Record<number, string> = { 0: 'New', 1: 'Learning', 2: 'Review', 3: 'Relearning' };
 
 export const Flashcards: React.FC<FlashcardsProps> = ({
   documentId,
@@ -41,10 +52,11 @@ export const Flashcards: React.FC<FlashcardsProps> = ({
   const [isFlipped, setIsFlipped] = useState(false);
   const [isGeneratingLocal, setIsGeneratingLocal] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [srsMap, setSrsMap] = useState<Map<string, FlashcardSrsState>>(new Map());
+  const [reviewingId, setReviewingId] = useState<string | null>(null);
 
   const isExternal = externalCards !== undefined || onExternalGenerate !== undefined;
 
-  // Use the explicitly passed documentId, falling back to currentDocument
   const effectiveDoc = documentId
     ? documents.find(d => d.id === documentId) ?? currentDocument
     : currentDocument;
@@ -56,7 +68,6 @@ export const Flashcards: React.FC<FlashcardsProps> = ({
   const isGenerating = isExternal ? (isExternalGenerating ?? false) : isGeneratingLocal;
   const activeError = isExternal ? externalError : localError;
 
-  // Load existing flashcards from DB on mount / document change (internal mode only)
   useEffect(() => {
     if (isExternal || !effectiveDoc?.courseId || !effectiveDoc?.id) return;
     const { courseId, id: docId } = effectiveDoc;
@@ -75,6 +86,13 @@ export const Flashcards: React.FC<FlashcardsProps> = ({
       .finally(() => setIsGeneratingLocal(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effectiveDoc?.id, isExternal]);
+
+  useEffect(() => {
+    if (isExternal) return;
+    flashcardService.getSrsStates()
+      .then(map => setSrsMap(map))
+      .catch(() => { });
+  }, [isExternal]);
 
   const handleGenerate = async () => {
     if (generateDisabled) return;
@@ -98,11 +116,31 @@ export const Flashcards: React.FC<FlashcardsProps> = ({
         return [...prev, ...newCards];
       });
     } catch (error) {
-      console.error('Flashcard generation error:', error);
       setLocalError(getApiErrorCode(error));
     } finally {
       setIsGeneratingLocal(false);
     }
+  };
+
+  const ratingToDifficulty = (r: 1 | 2 | 3 | 4): 'easy' | 'medium' | 'hard' =>
+    r === 4 ? 'easy' : r === 3 ? 'medium' : 'hard';
+
+  const handleRate = async (rating: 1 | 2 | 3 | 4) => {
+    const card = docFlashcards[currentIndex];
+    if (!card || reviewingId) return;
+    setReviewingId(card.id);
+    const newDifficulty = ratingToDifficulty(rating);
+    const [reviewResult] = await Promise.allSettled([
+      flashcardService.reviewFlashcard(card.id, rating),
+      flashcardService.classifyFlashcard(card.id, { difficulty: newDifficulty }),
+    ]);
+    if (reviewResult.status === 'fulfilled') {
+      setSrsMap(prev => new Map(prev).set(card.id, reviewResult.value.srs));
+    }
+    setFlashcards(prev => prev.map(f => f.id === card.id ? { ...f, difficulty: newDifficulty } : f));
+    setReviewingId(null);
+    setIsFlipped(false);
+    setCurrentIndex(prev => (prev + 1) % docFlashcards.length);
   };
 
   if (isGenerating) {
@@ -135,6 +173,7 @@ export const Flashcards: React.FC<FlashcardsProps> = ({
   }
 
   const currentCard = docFlashcards[currentIndex];
+  const cardSrs = srsMap.get(currentCard.id);
 
   const handleNext = () => {
     setIsFlipped(false);
@@ -157,6 +196,11 @@ export const Flashcards: React.FC<FlashcardsProps> = ({
             <h2 className="text-xl font-bold text-text-main">Flashcard Review</h2>
             <p className="text-sm text-text-muted">
               Card {currentIndex + 1} of {docFlashcards.length}
+              {cardSrs && (
+                <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-semibold text-zinc-500">
+                  {STATE_LABELS[cardSrs.state]} · {Math.round(cardSrs.retrievability * 100)}%
+                </span>
+              )}
             </p>
           </div>
         </div>
@@ -176,40 +220,17 @@ export const Flashcards: React.FC<FlashcardsProps> = ({
       </div>
 
       {/* Card */}
-      <div className="perspective-1000 relative h-[300px] sm:h-[400px] w-full cursor-pointer" onClick={() => setIsFlipped(!isFlipped)}>
-        <motion.div
-          className="relative h-full w-full transition-all duration-500 preserve-3d"
-          animate={{ rotateY: isFlipped ? 180 : 0 }}
-          transition={{ type: 'spring', stiffness: 260, damping: 20 }}
-        >
-          {/* Front */}
-          <div className="absolute inset-0 backface-hidden">
-            <div className="flex h-full w-full flex-col items-center justify-center rounded-3xl border-2 border-[var(--border-color)] bg-[var(--bg-sidebar)] p-6 sm:p-10 text-center shadow-xl">
-              <span className="mb-4 text-xs font-bold uppercase tracking-widest text-[var(--primary)]">Concept</span>
-              <h3 className="text-lg sm:text-2xl font-bold text-text-main leading-relaxed">
-                {currentCard.front}
-              </h3>
-              <div className="absolute bottom-4 sm:bottom-8 text-[10px] sm:text-sm text-text-muted flex items-center gap-2">
-                <HelpCircle size={14} />
-                Click to reveal explanation
-              </div>
-            </div>
-          </div>
-
-          {/* Back */}
-          <div className="absolute inset-0 backface-hidden rotate-y-180">
-            <div className="flex h-full w-full flex-col items-center justify-center rounded-3xl border-2 border-[var(--primary)] bg-[var(--bg-app)] p-6 sm:p-12 text-center shadow-xl overflow-y-auto">
-              <span className="mb-4 text-xs font-bold uppercase tracking-widest text-[var(--primary)]">Explanation</span>
-              <p className="text-base sm:text-xl text-text-main leading-relaxed">
-                {currentCard.back}
-              </p>
-            </div>
-          </div>
-        </motion.div>
-      </div>
+      <FlashcardFlipCard
+        front={currentCard.front}
+        back={currentCard.back}
+        cardType={currentCard.cardType}
+        isFlipped={isFlipped}
+        onFlip={() => setIsFlipped(!isFlipped)}
+      />
 
       {/* Controls */}
       <div className="flex flex-col items-center gap-6">
+        {/* Navigation */}
         <div className="flex items-center gap-4 sm:gap-8">
           <button
             onClick={(e) => { e.stopPropagation(); handlePrev(); }}
@@ -217,21 +238,23 @@ export const Flashcards: React.FC<FlashcardsProps> = ({
           >
             <ChevronLeft size={20} className="sm:w-6 sm:h-6" />
           </button>
-          {isFlipped ? (
-            <button
-              onClick={(e) => { e.stopPropagation(); handleNext(); }}
-              className="rounded-full bg-[var(--primary)] px-6 sm:px-8 py-2 sm:py-3 text-sm sm:text-base font-bold text-white shadow-lg transition-all hover:scale-105 active:scale-95"
-            >
-              Next Card
-            </button>
-          ) : (
+
+          {!isFlipped ? (
             <button
               onClick={(e) => { e.stopPropagation(); setIsFlipped(true); }}
               className="rounded-full bg-[var(--primary)] px-6 sm:px-8 py-2 sm:py-3 text-sm sm:text-base font-bold text-white shadow-lg transition-all hover:scale-105 active:scale-95"
             >
               Reveal Answer
             </button>
+          ) : (
+            <button
+              onClick={(e) => { e.stopPropagation(); handleNext(); }}
+              className="rounded-full border border-[var(--border-color)] px-6 sm:px-8 py-2 sm:py-3 text-sm sm:text-base font-bold text-text-muted transition-all hover:bg-[var(--bg-sidebar)]"
+            >
+              Skip
+            </button>
           )}
+
           <button
             onClick={(e) => { e.stopPropagation(); handleNext(); }}
             className="rounded-full border border-[var(--border-color)] p-2 sm:p-3 text-text-muted transition-all hover:bg-[var(--bg-sidebar)] hover:text-[var(--primary)]"
@@ -239,6 +262,39 @@ export const Flashcards: React.FC<FlashcardsProps> = ({
             <ChevronRight size={20} className="sm:w-6 sm:h-6" />
           </button>
         </div>
+
+        {/* FSRS Rating Buttons — shown after flipping */}
+        {isFlipped && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="w-full"
+          >
+            <p className="text-center text-xs font-semibold text-text-muted mb-3 uppercase tracking-widest">How well did you remember?</p>
+            <div className="grid grid-cols-4 gap-2">
+              {RATING_BUTTONS.map(({ rating, label, bgLight, textColor, borderColor }) => (
+                <button
+                  key={rating}
+                  onClick={(e) => { e.stopPropagation(); handleRate(rating); }}
+                  disabled={!!reviewingId}
+                  className={cn(
+                    'flex flex-col items-center gap-1 rounded-2xl border-2 px-2 py-3 text-xs font-black transition-all hover:scale-105 active:scale-95 disabled:opacity-50',
+                    bgLight, textColor, borderColor,
+                  )}
+                >
+                  <span className="text-sm">{label}</span>
+                  {reviewingId === currentCard.id ? (
+                    <Loader2 size={10} className="animate-spin" />
+                  ) : null}
+                </button>
+              ))}
+            </div>
+            <div className="flex justify-between mt-2 px-1 text-[10px] text-text-muted">
+              <span>Forgot</span>
+              <span>Too easy</span>
+            </div>
+          </motion.div>
+        )}
       </div>
     </div>
   );

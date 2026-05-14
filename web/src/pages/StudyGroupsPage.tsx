@@ -18,7 +18,7 @@ export const StudyGroupsPage: React.FC = () => {
   useEffect(() => {
     studyGroupService.getMyGroups()
       .then((res) => setGroups(res.data?.data ?? []))
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoading(false));
   }, []);
 
@@ -64,7 +64,7 @@ export const StudyGroupsPage: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-text-main">Study Groups</h1>
+          <h1 className="text-4xl font-bold text-text-main">Study <span className="text-teal-600">Groups</span></h1>
           <p className="text-sm text-text-muted mt-1">Collaborate and share resources with classmates</p>
         </div>
         <div className="flex gap-2">

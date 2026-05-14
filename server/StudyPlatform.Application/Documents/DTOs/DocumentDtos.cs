@@ -27,6 +27,17 @@ public record QuizDto(
     DateTime CreatedAt,
     string Difficulty = "medium");
 
+public record FlashcardSrsDto(
+    Guid FlashcardId,
+    int State,
+    double Stability,
+    double Difficulty,
+    int Reps,
+    int Lapses,
+    DateTime Due,
+    DateTime? LastReview,
+    double Retrievability);
+
 public record FlashcardDto(
     Guid FlashcardId,
     Guid? DocumentId,
@@ -39,7 +50,12 @@ public record FlashcardDto(
     DateTime UpdatedAt,
     string? Title = null,
     string? Document = null,
-    string? Video = null);
+    string? Video = null,
+    FlashcardSrsDto? Srs = null,
+    string CardType = "basic",
+    string Difficulty = "medium",
+    string? Chapter = null,
+    IEnumerable<string>? Tags = null);
 
 public record ChatMessageDto(
     Guid MessageId,

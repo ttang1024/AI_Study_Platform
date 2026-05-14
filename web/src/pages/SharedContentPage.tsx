@@ -22,6 +22,7 @@ import { cn } from '../utils/cn';
 import { getCorrectQuizOptionText, isQuizOptionCorrect } from '../utils/quizAnswers';
 import { getApiUrl } from '../utils/env';
 import { SummaryMarkdown } from '../components/study/SummaryMarkdown';
+import { FlashcardFlipCard } from '../components/study/FlashcardFlipCard';
 
 const API_URL = getApiUrl();
 
@@ -376,7 +377,7 @@ const SharedQuiz: React.FC<{ questions: ShareableQuiz[]; title: string }> = ({ q
 
 // ─── Flashcard sub-component ──────────────────────────────────────────────────
 
-const SharedFlashcards: React.FC<{ cards: ShareableCard[] }> = ({ cards }) => {
+const SharedFlashcardsPanel: React.FC<{ cards: ShareableCard[] }> = ({ cards }) => {
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
 
@@ -386,31 +387,13 @@ const SharedFlashcards: React.FC<{ cards: ShareableCard[] }> = ({ cards }) => {
     <div className="space-y-4">
       <div className="flex items-center justify-between text-sm text-text-muted mb-2">
         <span>{index + 1} / {cards.length}</span>
-        <span className="text-xs">Click card to flip</span>
       </div>
-      <div
-        onClick={() => setFlipped(f => !f)}
-        className="cursor-pointer select-none"
-        style={{ perspective: '1000px' }}
-      >
-        <div
-          className="relative w-full transition-transform duration-500"
-          style={{ transformStyle: 'preserve-3d', transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)', minHeight: '160px' }}
-        >
-          {/* Front */}
-          <div className="absolute inset-0 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-app)] flex items-center justify-center p-6 text-center"
-            style={{ backfaceVisibility: 'hidden' }}
-          >
-            <p className="text-base font-bold text-text-main">{cards[index].front}</p>
-          </div>
-          {/* Back */}
-          <div className="absolute inset-0 rounded-2xl border border-primary/30 bg-primary/5 flex items-center justify-center p-6 text-center"
-            style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
-          >
-            <p className="text-sm text-text-main leading-relaxed">{cards[index].back}</p>
-          </div>
-        </div>
-      </div>
+      <FlashcardFlipCard
+        front={cards[index].front}
+        back={cards[index].back}
+        isFlipped={flipped}
+        onFlip={() => setFlipped(f => !f)}
+      />
       <div className="flex items-center justify-center gap-4 pt-2">
         <button onClick={() => go(-1)} className="rounded-xl border border-[var(--border-color)] p-2 text-text-muted hover:text-primary hover:border-primary/40 transition-all">
           <ChevronLeft size={16} />
@@ -966,7 +949,7 @@ export const SharedContentPage: React.FC<{ token?: string }> = ({ token: tokenPr
             {activeTab === 'flashcards' && content.flashcards && content.flashcards.length > 0 && (
               <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-sidebar)] p-6">
                 <h2 className="text-sm font-bold uppercase tracking-widest text-text-muted mb-4">Flashcards</h2>
-                <SharedFlashcards cards={content.flashcards} />
+                <SharedFlashcardsPanel cards={content.flashcards} />
               </div>
             )}
 

@@ -12,6 +12,10 @@ public class FlashcardConfiguration : IEntityTypeConfiguration<Flashcard>
         builder.Property(f => f.Front).IsRequired().HasColumnType("text");
         builder.Property(f => f.Back).IsRequired().HasColumnType("text");
         builder.Property(f => f.SourceType).IsRequired().HasMaxLength(20).HasDefaultValue("document");
+        builder.Property(f => f.CardType).IsRequired().HasMaxLength(10).HasDefaultValue("basic");
+        builder.Property(f => f.Difficulty).IsRequired().HasMaxLength(10).HasDefaultValue("medium");
+        builder.Property(f => f.Chapter).HasColumnType("text");
+        builder.Property(f => f.Tags).HasColumnType("text[]").HasDefaultValueSql("'{}'::text[]");
         builder.Property(f => f.CreatedAt).IsRequired();
         builder.Property(f => f.UpdatedAt).IsRequired();
 

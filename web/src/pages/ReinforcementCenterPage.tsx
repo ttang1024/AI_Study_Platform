@@ -1,0 +1,425 @@
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { motion, AnimatePresence } from 'motion/react';
+import {
+  XCircle, BookMarked, BrainCircuit,
+  Loader2, ChevronRight, Play,
+} from 'lucide-react';
+import { Flashcard, GlossaryTerm, QuizQuestion } from '../types';
+import { flashcardService } from '../services/flashcardService';
+import { glossaryService } from '../services/glossaryService';
+import { masteredService } from '../services/masteredService';
+import { questionBankService, QuestionBankQuestion } from '../services/questionBankService';
+import { quizSubmissionService, QuizSubmission } from '../services/documentService';
+import { isQuizOptionCorrect } from '../utils/quizAnswers';
+import { TimedExamModal } from '../components/quiz/TimedExamModal';
+import { HardFlashcardCard } from '../components/study/HardFlashcardCard';
+import { QuizMistakeCard } from '../components/quiz/QuizMistakeCard';
+import { GlossaryTermCard } from '../components/common/GlossaryTermCard';
+
+type ActiveModule = 'quiz' | 'glossary' | 'flashcards';
+
+interface FailedQuestion {
+  question: QuestionBankQuestion;
+  selectedAnswer: string;
+  sourceName: string;
+}
+
+const toQuizQuestion = (q: QuestionBankQuestion): QuizQuestion => ({
+  id: q.quizId,
+  question: q.question,
+  options: q.options,
+  answer: q.correctAnswer,
+  explanation: q.explanation,
+  type: 'multiple-choice',
+  difficulty: q.difficulty,
+});
+
+const shuffle = <T,>(items: T[]): T[] => {
+  const copy = [...items];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+};
+
+export const ReinforcementCenterPage: React.FC = () => {
+  const { user } = useAuth();
+  const userId = user?.id ?? 'guest';
+  const navigate = useNavigate();
+
+  const [activeModule, setActiveModule] = useState<ActiveModule>('quiz');
+
+  const [bankQuestions, setBankQuestions] = useState<QuestionBankQuestion[]>([]);
+  const [submissions, setSubmissions] = useState<QuizSubmission[]>([]);
+  const [quizLoading, setQuizLoading] = useState(true);
+
+  const [allTerms, setAllTerms] = useState<GlossaryTerm[]>([]);
+  const [masteredIds, setMasteredIds] = useState<Set<string>>(() => masteredService.getCached(userId));
+  const [glossaryLoading, setGlossaryLoading] = useState(true);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+
+  const [hardCards, setHardCards] = useState<Flashcard[]>([]);
+  const [flashcardLoading, setFlashcardLoading] = useState(true);
+
+  const [examQuestions, setExamQuestions] = useState<QuizQuestion[]>([]);
+
+  useEffect(() => {
+    setQuizLoading(true);
+    Promise.all([
+      questionBankService.getQuestions(),
+      quizSubmissionService.getAllSubmissions(1, 200).then(p => p.items),
+    ])
+      .then(([questions, subs]) => {
+        setBankQuestions(questions);
+        setSubmissions(subs);
+      })
+      .catch(() => { })
+      .finally(() => setQuizLoading(false));
+  }, []);
+
+  useEffect(() => {
+    setGlossaryLoading(true);
+    Promise.all([
+      glossaryService.getAllGlossary(),
+      masteredService.loadFromServer(userId),
+    ])
+      .then(([terms, ids]) => {
+        setAllTerms(terms);
+        setMasteredIds(ids);
+      })
+      .catch(() => { })
+      .finally(() => setGlossaryLoading(false));
+  }, [userId]);
+
+  useEffect(() => {
+    setFlashcardLoading(true);
+    flashcardService.getAllFlashcards(1, 500)
+      .then(data => setHardCards(data.items.filter(c => c.difficulty === 'hard')))
+      .catch(() => { })
+      .finally(() => setFlashcardLoading(false));
+  }, []);
+
+  const failedQuestions = useMemo<FailedQuestion[]>(() => {
+    const byId = new Map(bankQuestions.map(q => [q.quizId, q]));
+    const seen = new Map<string, FailedQuestion>();
+
+    for (const submission of submissions) {
+      const sourceQuestions = bankQuestions.filter(q => {
+        if (submission.youTubeVideoId || submission.sourceType === 'video') {
+          return q.sourceType === 'video' && q.youTubeVideoId === submission.youTubeVideoId;
+        }
+        return q.sourceType === 'document' && q.documentId === submission.documentId;
+      });
+      const questionsToCheck = sourceQuestions.length > 0
+        ? sourceQuestions
+        : Object.keys(submission.answers ?? {})
+          .map(id => byId.get(id))
+          .filter((q): q is QuestionBankQuestion => !!q);
+
+      for (const question of questionsToCheck) {
+        const selectedAnswer = submission.answers?.[question.quizId] ?? '';
+        if (selectedAnswer && isQuizOptionCorrect(selectedAnswer, question.correctAnswer)) continue;
+        if (!seen.has(question.quizId)) {
+          seen.set(question.quizId, {
+            question,
+            selectedAnswer,
+            sourceName: question.sourceName ?? submission.documentName ?? submission.videoName ?? 'Unknown',
+          });
+        }
+      }
+    }
+
+    return Array.from(seen.values());
+  }, [bankQuestions, submissions]);
+
+  const unmasteredTerms = useMemo(
+    () => allTerms.filter(t => !masteredIds.has(t.id)),
+    [allTerms, masteredIds],
+  );
+
+  const handleToggleMastered = useCallback(async (termId: string) => {
+    setTogglingId(termId);
+    setMasteredIds(prev => {
+      const next = new Set(prev);
+      next.has(termId) ? next.delete(termId) : next.add(termId);
+      masteredService.updateCache(userId, next);
+      return next;
+    });
+    try {
+      await masteredService.toggle(userId, termId);
+    } catch {
+      setMasteredIds(prev => {
+        const next = new Set(prev);
+        next.has(termId) ? next.delete(termId) : next.add(termId);
+        masteredService.updateCache(userId, next);
+        return next;
+      });
+    } finally {
+      setTogglingId(null);
+    }
+  }, [userId]);
+
+  const handleStartPractice = () => {
+    const unique = failedQuestions.map(f => f.question);
+    setExamQuestions(shuffle(unique).slice(0, 50).map(toQuizQuestion));
+  };
+
+  const modules = [
+    {
+      id: 'quiz' as ActiveModule,
+      icon: <XCircle size={20} />,
+      title: 'Quiz Mistakes',
+      count: failedQuestions.length,
+      loading: quizLoading,
+      color: 'text-red-500',
+      activeBg: 'bg-red-50 dark:bg-red-950/30',
+      activeBorder: 'border-red-400',
+    },
+    {
+      id: 'glossary' as ActiveModule,
+      icon: <BookMarked size={20} />,
+      title: 'Unmastered Glossary',
+      count: unmasteredTerms.length,
+      loading: glossaryLoading,
+      color: 'text-amber-500',
+      activeBg: 'bg-amber-50 dark:bg-amber-950/30',
+      activeBorder: 'border-amber-400',
+    },
+    {
+      id: 'flashcards' as ActiveModule,
+      icon: <BrainCircuit size={20} />,
+      title: 'Hard Flashcards',
+      count: hardCards.length,
+      loading: flashcardLoading,
+      color: 'text-[#059669]',
+      activeBg: 'bg-[#059669]/10 dark:bg-[#059669]/20',
+      activeBorder: 'border-[#059669]',
+    },
+  ];
+
+  const active = modules.find(m => m.id === activeModule)!;
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-start justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-4xl font-black text-text-main">
+            Reinforcement <span className="text-primary">Center</span>
+          </h1>
+          <p className="text-zinc-500 font-medium">
+            Strengthen weak areas by combining quiz mistakes, hard flashcards, and unmastered glossary terms.
+          </p>
+        </div>
+      </div>
+
+      {/* Module selector cards */}
+      <div className="grid grid-cols-3 gap-3">
+        {modules.map(mod => {
+          const isActive = activeModule === mod.id;
+          return (
+            <button
+              key={mod.id}
+              onClick={() => setActiveModule(mod.id)}
+              className={[
+                'relative rounded-xl border-2 p-4 text-left transition-all',
+                'hover:shadow-sm focus:outline-none',
+                isActive
+                  ? `${mod.activeBorder} ${mod.activeBg}`
+                  : 'border-[var(--border-color)] bg-[var(--bg-card)] hover:border-[var(--primary)]/40',
+              ].join(' ')}
+            >
+              <span className={`${mod.color} ${isActive ? '' : 'opacity-70'}`}>
+                {mod.icon}
+              </span>
+              <p className={`mt-2 text-xs font-semibold leading-tight ${isActive ? 'text-text-main' : 'text-text-muted'}`}>
+                {mod.title}
+              </p>
+              <div className="mt-2 flex items-center gap-1">
+                {mod.loading ? (
+                  <Loader2 size={13} className="animate-spin text-text-muted" />
+                ) : (
+                  <span className={`text-xl font-bold ${isActive ? mod.color : 'text-text-main'}`}>
+                    {mod.count}
+                  </span>
+                )}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Content panel */}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={activeModule}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.18 }}
+        >
+          {/* Quiz Mistakes content */}
+          {activeModule === 'quiz' && (
+            <section>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <XCircle size={18} className="text-red-500" />
+                  <h2 className="font-semibold text-text-main">Quiz Mistakes</h2>
+                  {!quizLoading && (
+                    <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-600">
+                      {failedQuestions.length}
+                    </span>
+                  )}
+                </div>
+                {failedQuestions.length > 0 && (
+                  <button
+                    onClick={handleStartPractice}
+                    className="flex items-center gap-1.5 rounded-lg bg-red-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-600 transition-colors"
+                  >
+                    <Play size={12} />
+                    Practice
+                  </button>
+                )}
+              </div>
+
+              {quizLoading ? (
+                <LoadingRows />
+              ) : failedQuestions.length === 0 ? (
+                <EmptyState message="No mistakes found. Keep it up!" />
+              ) : (
+                <div className="space-y-2">
+                  {failedQuestions.slice(0, 10).map(({ question, selectedAnswer, sourceName }) => (
+                    <QuizMistakeCard
+                      key={question.quizId}
+                      question={question}
+                      selectedAnswer={selectedAnswer}
+                      sourceName={sourceName}
+                    />
+                  ))}
+                  {failedQuestions.length > 10 && (
+                    <p className="text-center text-xs text-text-muted pt-1">
+                      +{failedQuestions.length - 10} more — start practice to see all
+                    </p>
+                  )}
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* Unmastered Glossary content */}
+          {activeModule === 'glossary' && (
+            <section>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <BookMarked size={18} className="text-amber-500" />
+                  <h2 className="font-semibold text-text-main">Unmastered Glossary</h2>
+                  {!glossaryLoading && (
+                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-600">
+                      {unmasteredTerms.length}
+                    </span>
+                  )}
+                </div>
+                <button
+                  onClick={() => navigate('/glossary?mastery=unmastered')}
+                  className="flex items-center gap-1 text-xs text-text-muted hover:text-[var(--primary)] transition-colors"
+                >
+                  View all <ChevronRight size={12} />
+                </button>
+              </div>
+
+              {glossaryLoading ? (
+                <LoadingRows />
+              ) : unmasteredTerms.length === 0 ? (
+                <EmptyState message="All glossary terms mastered!" />
+              ) : (
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  {unmasteredTerms.map(term => (
+                    <GlossaryTermCard
+                      key={term.id}
+                      term={term}
+                      isMastered={masteredIds.has(term.id)}
+                      onToggleMastered={handleToggleMastered}
+                      isTogglingMastered={togglingId === term.id}
+                    />
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* Hard Flashcards content */}
+          {activeModule === 'flashcards' && (
+            <section>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <BrainCircuit size={18} className="text-[#059669]" />
+                  <h2 className="font-semibold text-text-main">Hard Flashcards</h2>
+                  {!flashcardLoading && (
+                    <span className="rounded-full bg-[#059669]/15 px-2 py-0.5 text-xs font-medium text-[#059669]">
+                      {hardCards.length}
+                    </span>
+                  )}
+                </div>
+                <button
+                  onClick={() => navigate('/flashcards')}
+                  className="flex items-center gap-1 text-xs text-text-muted hover:text-[var(--primary)] transition-colors"
+                >
+                  Review all <ChevronRight size={12} />
+                </button>
+              </div>
+
+              {flashcardLoading ? (
+                <LoadingRows />
+              ) : hardCards.length === 0 ? (
+                <EmptyState message="No hard flashcards. Classify cards in Flashcards to track difficulty." />
+              ) : (
+                <>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {hardCards.slice(0, 8).map(card => (
+                      <HardFlashcardCard key={card.id} card={card} />
+                    ))}
+                  </div>
+                  {hardCards.length > 8 && (
+                    <p className="text-center text-xs text-text-muted mt-3">
+                      +{hardCards.length - 8} more —{' '}
+                      <button
+                        onClick={() => navigate('/flashcards')}
+                        className="text-[var(--primary)] underline"
+                      >
+                        view all in Flashcards
+                      </button>
+                    </p>
+                  )}
+                </>
+              )}
+            </section>
+          )}
+        </motion.div>
+      </AnimatePresence>
+
+      <TimedExamModal
+        isOpen={examQuestions.length > 0}
+        onClose={() => setExamQuestions([])}
+        questions={examQuestions}
+        sourceTitle="Quiz Mistakes Practice"
+      />
+    </div>
+  );
+};
+
+const LoadingRows: React.FC = () => (
+  <div className="space-y-2">
+    {[1, 2, 3].map(i => (
+      <div key={i} className="h-16 rounded-xl bg-zinc-100 animate-pulse" />
+    ))}
+  </div>
+);
+
+const EmptyState: React.FC<{ message: string }> = ({ message }) => (
+  <div className="rounded-xl border border-dashed border-[var(--border-color)] py-8 text-center">
+    <p className="text-sm text-text-muted">{message}</p>
+  </div>
+);

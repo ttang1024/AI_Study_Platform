@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion, useInView, animate } from 'motion/react';
 import {
   NotebookPen, ArrowRight, BrainCircuit, BookOpen, Award,
-  Youtube, Globe, BookMarked, Play, Plus, Rss,
+  Youtube, Globe, BookMarked, Play, Plus, Rss, CalendarCheck2,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useStudy } from '../context/StudyContext';
@@ -181,8 +181,8 @@ export const DashboardPage: React.FC = () => {
 
       {/* Greeting */}
       <motion.div variants={item}>
-        <h1 className="text-[26px] font-semibold tracking-tight text-text-main leading-tight">
-          {greeting}, {user?.name}
+        <h1 className="text-4xl font-semibold tracking-tight text-text-main leading-tight">
+          {greeting}, <span className="text-[var(--primary)]">{user?.name}</span>
         </h1>
       </motion.div>
 
@@ -203,7 +203,13 @@ export const DashboardPage: React.FC = () => {
 
       {/* ── Study Tools ──────────────────────────────────────────────────── */}
       <motion.div variants={item}>
-        <SectionLabel>Study Tools</SectionLabel>
+        <div className="flex items-center justify-between mb-3 px-0.5">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">Study Tools</p>
+          <Link to="/reinforcement-center" className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--primary)] hover:opacity-75 transition-opacity">
+            <CalendarCheck2 size={13} />
+            Reinforcement Center
+          </Link>
+        </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {([
             { label: 'Flashcards', value: totalFlashcards, icon: BrainCircuit, link: '/flashcards' },

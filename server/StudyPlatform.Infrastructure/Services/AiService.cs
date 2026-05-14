@@ -858,7 +858,14 @@ Advanced questions should focus on application and analysis.";
         public static readonly string Flashcards =
             $@"Generate 15 flashcards from the supplied study material for spaced repetition learning.
 {NoSourceMetaPhrases}
-Return a JSON array only, no markdown, no code blocks: [{{""front"": ""..."", ""back"": ""...""}}]";
+Use up to three card types — about 55% basic, 35% cloze, and up to 10% chart (only when quantitative data is present):
+- basic: question on the front, concise answer on the back. Use LaTeX math ($...$) for formulas.
+- cloze: a sentence with ONE key term in {{{{double braces}}}}. Leave back empty or a short hint.
+- chart: front is a question about data; back is empty; add a chartData object.
+  Only use chart when the source contains clear numerical or comparative data.
+  chartData schema: {{""type"":""bar""|""line""|""pie"",""title"":""..."",""labels"":[...],""datasets"":[{{""label"":""..."",""data"":[numbers]}}]}}
+Return a JSON array only, no markdown, no code blocks:
+[{{""type"":""basic"",""front"":""..."",""back"":""...""}},{{""type"":""cloze"",""front"":""..{{{{term}}}}..."",""back"":""""}},{{""type"":""chart"",""front"":""..."",""back"":"""",""chartData"":{{""type"":""bar"",""title"":""..."",""labels"":[""A"",""B""],""datasets"":[{{""label"":""X"",""data"":[1,2]}}]}}}}]";
 
         public static readonly string Glossary =
             $@"Extract 10-20 key terms and their definitions from the supplied study material.
@@ -940,8 +947,13 @@ Advanced questions should focus on application and analysis.";
         public static readonly string YouTubeFlashcards =
             $@"Generate 5 to 10 flashcards from the supplied study material, focusing on the most important concepts only.
 {NoSourceMetaPhrases}
-Each flashcard: front (question/concept) and back (answer/definition). Keep answers concise.
-Return a JSON array only, no markdown, no code blocks: [{{""front"":""..."",""back"":""...""}}]";
+Use up to three card types — about 55% basic, 35% cloze, and up to 10% chart (only if the video discusses quantitative data):
+- basic: question on the front, concise answer on the back. Use LaTeX math ($...$) for formulas.
+- cloze: a sentence with ONE key term in {{{{double braces}}}}. Leave back empty or a short hint.
+- chart: front is a question; back is empty; include a chartData object (only when clear numerical data exists).
+  chartData schema: {{""type"":""bar""|""line""|""pie"",""title"":""..."",""labels"":[...],""datasets"":[{{""label"":""..."",""data"":[numbers]}}]}}
+Return a JSON array only, no markdown, no code blocks:
+[{{""type"":""basic"",""front"":""..."",""back"":""...""}},{{""type"":""cloze"",""front"":""..{{{{term}}}}..."",""back"":""""}}]";
 
         public static readonly string YouTubeTutorInstruction =
             $"You are a knowledgeable AI assistant. Answer questions using your broad general knowledge. Source context may be supplied as supplementary context; use it when relevant, but do not restrict answers to only that context. If the user asks something beyond the context, answer from general knowledge. {NoSourceMetaPhrases}";

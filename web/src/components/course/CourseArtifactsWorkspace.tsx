@@ -125,6 +125,62 @@ const ArtifactMetric: React.FC<{
   </button>
 );
 
+const ArtifactSection: React.FC<{
+  id: ArtifactKind;
+  icon: React.ElementType;
+  title: string;
+  count: number;
+  page: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+  activeArtifact: ArtifactKind | null;
+  children: React.ReactNode;
+}> = ({ id, icon: Icon, title, count, page, totalPages, onPageChange, activeArtifact, children }) => (
+  <div
+    id={`artifact-section-${id}`}
+    className={cn(
+      'scroll-mt-6 rounded-2xl border bg-white p-4 shadow-sm transition-all',
+      activeArtifact === id ? 'border-primary shadow-md shadow-primary/10' : 'border-[var(--border-color)]',
+    )}
+  >
+    <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center gap-2">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <Icon size={16} />
+        </div>
+        <h3 className="font-bold text-text-main">{title}</h3>
+      </div>
+      <span className="rounded-full bg-[var(--bg-app)] px-2 py-0.5 text-xs font-bold text-text-muted">{count}</span>
+    </div>
+    <div className="mt-3 space-y-2">{children}</div>
+    {totalPages > 1 && (
+      <div className="mt-4 flex items-center justify-between border-t border-[var(--border-color)] pt-3">
+        <button
+          type="button"
+          onClick={() => onPageChange(page - 1)}
+          disabled={page <= 1}
+          className="inline-flex items-center gap-1 rounded-lg border border-[var(--border-color)] px-2.5 py-1.5 text-xs font-bold text-text-muted hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-[var(--border-color)] disabled:hover:text-text-muted"
+        >
+          <ChevronLeft size={14} />
+          Prev
+        </button>
+        <span className="text-xs font-bold text-text-muted">
+          Page {page} of {totalPages}
+        </span>
+        <button
+          type="button"
+          onClick={() => onPageChange(page + 1)}
+          disabled={page >= totalPages}
+          className="inline-flex items-center gap-1 rounded-lg border border-[var(--border-color)] px-2.5 py-1.5 text-xs font-bold text-text-muted hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-[var(--border-color)] disabled:hover:text-text-muted"
+        >
+          Next
+          <ChevronRight size={14} />
+        </button>
+      </div>
+    )}
+  </div>
+);
+
 export const CourseArtifactsWorkspace: React.FC<CourseArtifactsWorkspaceProps> = ({
   course,
   documents,
@@ -309,60 +365,6 @@ export const CourseArtifactsWorkspace: React.FC<CourseArtifactsWorkspaceProps> =
     setDetail(detailItems[nextIndex]);
   };
 
-  const ArtifactSection: React.FC<{
-    id: ArtifactKind;
-    icon: React.ElementType;
-    title: string;
-    count: number;
-    page: number;
-    totalPages: number;
-    onPageChange: (page: number) => void;
-    children: React.ReactNode;
-  }> = ({ id, icon: Icon, title, count, page, totalPages, onPageChange, children }) => (
-    <div
-      id={`artifact-section-${id}`}
-      className={cn(
-        'scroll-mt-6 rounded-2xl border bg-white p-4 shadow-sm transition-all',
-        activeArtifact === id ? 'border-primary shadow-md shadow-primary/10' : 'border-[var(--border-color)]',
-      )}
-    >
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <Icon size={16} />
-          </div>
-          <h3 className="font-bold text-text-main">{title}</h3>
-        </div>
-        <span className="rounded-full bg-[var(--bg-app)] px-2 py-0.5 text-xs font-bold text-text-muted">{count}</span>
-      </div>
-      <div className="mt-3 space-y-2">{children}</div>
-      {totalPages > 1 && (
-        <div className="mt-4 flex items-center justify-between border-t border-[var(--border-color)] pt-3">
-          <button
-            type="button"
-            onClick={() => onPageChange(page - 1)}
-            disabled={page <= 1}
-            className="inline-flex items-center gap-1 rounded-lg border border-[var(--border-color)] px-2.5 py-1.5 text-xs font-bold text-text-muted hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-[var(--border-color)] disabled:hover:text-text-muted"
-          >
-            <ChevronLeft size={14} />
-            Prev
-          </button>
-          <span className="text-xs font-bold text-text-muted">
-            Page {page} of {totalPages}
-          </span>
-          <button
-            type="button"
-            onClick={() => onPageChange(page + 1)}
-            disabled={page >= totalPages}
-            className="inline-flex items-center gap-1 rounded-lg border border-[var(--border-color)] px-2.5 py-1.5 text-xs font-bold text-text-muted hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-[var(--border-color)] disabled:hover:text-text-muted"
-          >
-            Next
-            <ChevronRight size={14} />
-          </button>
-        </div>
-      )}
-    </div>
-  );
 
   const emptyLine = <p className="text-sm text-text-muted">Nothing generated yet.</p>;
 
@@ -381,10 +383,6 @@ export const CourseArtifactsWorkspace: React.FC<CourseArtifactsWorkspaceProps> =
       <div className="mx-auto max-w-7xl space-y-5 p-4 lg:p-6">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary border border-primary/20">
-              <Layers size={13} />
-              Unified Workspace
-            </div>
             <h1 className="mt-3 text-2xl font-black tracking-tight text-text-main">{course?.name ?? 'Course'} artifacts</h1>
             <p className="mt-1 text-sm text-text-muted">Summaries, notes, flashcards, quizzes, glossary terms, and worked problems in one course view.</p>
           </div>
@@ -415,7 +413,7 @@ export const CourseArtifactsWorkspace: React.FC<CourseArtifactsWorkspaceProps> =
 
         {!loading && (
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-            <ArtifactSection id="notes" icon={NotebookPen} title="Notes" count={artifactBuckets.notes.length} page={pagedNotes.page} totalPages={pagedNotes.totalPages} onPageChange={page => setSectionPage('notes', page)}>
+            <ArtifactSection id="notes" icon={NotebookPen} title="Notes" count={artifactBuckets.notes.length} page={pagedNotes.page} totalPages={pagedNotes.totalPages} onPageChange={page => setSectionPage('notes', page)} activeArtifact={activeArtifact}>
               {artifactBuckets.notes.length === 0 ? emptyLine : pagedNotes.items.map(note => {
                 const detail = buildNoteDetail(note);
                 return (
@@ -431,7 +429,7 @@ export const CourseArtifactsWorkspace: React.FC<CourseArtifactsWorkspaceProps> =
               })}
             </ArtifactSection>
 
-            <ArtifactSection id="flashcards" icon={BrainCircuit} title="Flashcards" count={artifactBuckets.flashcards.length} page={pagedFlashcards.page} totalPages={pagedFlashcards.totalPages} onPageChange={page => setSectionPage('flashcards', page)}>
+            <ArtifactSection id="flashcards" icon={BrainCircuit} title="Flashcards" count={artifactBuckets.flashcards.length} page={pagedFlashcards.page} totalPages={pagedFlashcards.totalPages} onPageChange={page => setSectionPage('flashcards', page)} activeArtifact={activeArtifact}>
               {artifactBuckets.flashcards.length === 0 ? emptyLine : pagedFlashcards.items.map(card => (
                 <button
                   key={card.id}
@@ -444,7 +442,7 @@ export const CourseArtifactsWorkspace: React.FC<CourseArtifactsWorkspaceProps> =
               ))}
             </ArtifactSection>
 
-            <ArtifactSection id="questions" icon={Award} title="Quizzes" count={artifactBuckets.questions.length} page={pagedQuestions.page} totalPages={pagedQuestions.totalPages} onPageChange={page => setSectionPage('questions', page)}>
+            <ArtifactSection id="questions" icon={Award} title="Quizzes" count={artifactBuckets.questions.length} page={pagedQuestions.page} totalPages={pagedQuestions.totalPages} onPageChange={page => setSectionPage('questions', page)} activeArtifact={activeArtifact}>
               {artifactBuckets.questions.length === 0 ? emptyLine : pagedQuestions.items.map(question => (
                 <button
                   key={question.quizId}
@@ -457,7 +455,7 @@ export const CourseArtifactsWorkspace: React.FC<CourseArtifactsWorkspaceProps> =
               ))}
             </ArtifactSection>
 
-            <ArtifactSection id="glossary" icon={BookMarked} title="Glossary Terms" count={artifactBuckets.glossary.length} page={pagedGlossary.page} totalPages={pagedGlossary.totalPages} onPageChange={page => setSectionPage('glossary', page)}>
+            <ArtifactSection id="glossary" icon={BookMarked} title="Glossary Terms" count={artifactBuckets.glossary.length} page={pagedGlossary.page} totalPages={pagedGlossary.totalPages} onPageChange={page => setSectionPage('glossary', page)} activeArtifact={activeArtifact}>
               {artifactBuckets.glossary.length === 0 ? emptyLine : pagedGlossary.items.map(term => (
                 <button
                   key={term.id}
@@ -470,7 +468,7 @@ export const CourseArtifactsWorkspace: React.FC<CourseArtifactsWorkspaceProps> =
               ))}
             </ArtifactSection>
 
-            <ArtifactSection id="workedProblems" icon={Dumbbell} title="Worked Problems" count={artifactBuckets.workedProblems.length} page={pagedWorkedProblems.page} totalPages={pagedWorkedProblems.totalPages} onPageChange={page => setSectionPage('workedProblems', page)}>
+            <ArtifactSection id="workedProblems" icon={Dumbbell} title="Worked Problems" count={artifactBuckets.workedProblems.length} page={pagedWorkedProblems.page} totalPages={pagedWorkedProblems.totalPages} onPageChange={page => setSectionPage('workedProblems', page)} activeArtifact={activeArtifact}>
               {artifactBuckets.workedProblems.length === 0 ? emptyLine : pagedWorkedProblems.items.map(problem => (
                 <button
                   key={problem.workedProblemId}
@@ -483,7 +481,7 @@ export const CourseArtifactsWorkspace: React.FC<CourseArtifactsWorkspaceProps> =
               ))}
             </ArtifactSection>
 
-            <ArtifactSection id="summaries" icon={FileText} title="Summaries" count={summaryRows.length} page={pagedSummaries.page} totalPages={pagedSummaries.totalPages} onPageChange={page => setSectionPage('summaries', page)}>
+            <ArtifactSection id="summaries" icon={FileText} title="Summaries" count={summaryRows.length} page={pagedSummaries.page} totalPages={pagedSummaries.totalPages} onPageChange={page => setSectionPage('summaries', page)} activeArtifact={activeArtifact}>
               {summaryRows.length === 0 ? emptyLine : pagedSummaries.items.map(row => (
                 <button
                   key={row.key}

@@ -6,7 +6,7 @@ import { motion } from 'motion/react';
 import {
   BookMarked, Search, Sparkles, Loader2, Play,
   FileText, Youtube, Globe, Mic,
-  CheckCircle2, Circle, Share2, Pencil, Trash2, Check, X,
+  CheckCircle2, Circle, Share2,
 } from 'lucide-react';
 import { GlossaryTerm } from '../types';
 import { glossaryService } from '../services/glossaryService';
@@ -17,6 +17,7 @@ import { getDocDisplayName } from '../utils/docName';
 import { usePersistentTts } from '../context/TtsContext';
 import { SourceFilterBar, SourceType } from '../components/common/SourceFilterBar';
 import { GlossaryShareModal } from '../components/common/GlossaryShareModal';
+import { GlossaryTermCard } from '../components/common/GlossaryTermCard';
 import { Pagination } from '../components/common/Pagination';
 
 function getDocKind(doc: { type?: string; name: string; originalUrl?: string }): 'audio' | 'article' | 'document' {
@@ -543,107 +544,23 @@ export const GlossaryPage: React.FC = () => {
                   <span className="text-xs text-text-muted">{terms.length}</span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {terms.map(term => {
-                    const isMastered = masteredIds.has(term.id);
-                    const isEditing = editingId === term.id;
-                    const isSaving = savingId === term.id;
-                    const isDeleting = deletingId === term.id;
-                    return (
-                      <div
-                        key={term.id}
-                        className={cn(
-                          'rounded-2xl border p-4 transition-all group',
-                          isMastered
-                            ? 'border-emerald-200 bg-emerald-50/40 hover:border-emerald-300'
-                            : 'border-[var(--border-color)] bg-[var(--bg-sidebar)] hover:border-primary/30',
-                        )}
-                      >
-                        <div className="flex items-start justify-between gap-2 mb-2">
-                          {isEditing ? (
-                            <input
-                              autoFocus
-                              value={editDraft.term}
-                              onChange={e => setEditDraft(d => ({ ...d, term: e.target.value }))}
-                              className="flex-1 rounded-lg border border-primary/50 bg-[var(--bg-app)] px-2 py-1 text-sm font-bold text-text-main outline-none"
-                            />
-                          ) : (
-                            <h3 className="font-bold text-text-main leading-snug">{term.term}</h3>
-                          )}
-                          <div className="flex items-center gap-1 shrink-0">
-                            {!isEditing && term.sourceName && (
-                              <span className="flex items-center gap-1 text-[10px] text-text-muted bg-zinc-100 rounded-full px-2 py-0.5">
-                                {term.sourceKind === 'video' && <Youtube size={9} className="text-red-400" />}
-                                {term.sourceKind === 'article' && <Globe size={9} className="text-teal-400" />}
-                                {term.sourceKind === 'audio' && <Mic size={9} className="text-amber-400" />}
-                                {term.sourceName.slice(0, 18)}{term.sourceName.length > 18 ? '…' : ''}
-                              </span>
-                            )}
-                            {isEditing ? (
-                              <>
-                                <button
-                                  onClick={() => saveEdit(term.id)}
-                                  disabled={isSaving || !editDraft.term.trim() || !editDraft.definition.trim()}
-                                  title="Save"
-                                  className="rounded-full p-0.5 text-emerald-500 hover:text-emerald-700 disabled:opacity-40 transition-all"
-                                >
-                                  {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
-                                </button>
-                                <button
-                                  onClick={cancelEdit}
-                                  title="Cancel"
-                                  className="rounded-full p-0.5 text-zinc-400 hover:text-zinc-600 transition-all"
-                                >
-                                  <X size={16} />
-                                </button>
-                              </>
-                            ) : (
-                              <>
-                                <button
-                                  onClick={() => startEdit(term)}
-                                  title="Edit term"
-                                  className="rounded-full p-0.5 text-zinc-300 hover:text-primary opacity-0 group-hover:opacity-100 transition-all"
-                                >
-                                  <Pencil size={14} />
-                                </button>
-                                <button
-                                  onClick={() => handleDelete(term.id)}
-                                  disabled={isDeleting}
-                                  title="Delete term"
-                                  className="rounded-full p-0.5 text-zinc-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all disabled:opacity-40"
-                                >
-                                  {isDeleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-                                </button>
-                                <button
-                                  onClick={() => toggleMastered(term.id)}
-                                  title={isMastered ? 'Mark as learning' : 'Mark as mastered'}
-                                  className={cn(
-                                    'rounded-full p-0.5 transition-all',
-                                    isMastered
-                                      ? 'text-emerald-500 hover:text-emerald-700'
-                                      : 'text-zinc-300 hover:text-emerald-400',
-                                  )}
-                                >
-                                  {isMastered
-                                    ? <CheckCircle2 size={17} className="fill-emerald-100" />
-                                    : <Circle size={17} />}
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                        {isEditing ? (
-                          <textarea
-                            value={editDraft.definition}
-                            onChange={e => setEditDraft(d => ({ ...d, definition: e.target.value }))}
-                            rows={3}
-                            className="w-full rounded-lg border border-primary/50 bg-[var(--bg-app)] px-2 py-1.5 text-sm text-text-muted outline-none resize-none"
-                          />
-                        ) : (
-                          <p className="text-sm text-text-muted leading-relaxed">{term.definition}</p>
-                        )}
-                      </div>
-                    );
-                  })}
+                  {terms.map(term => (
+                    <GlossaryTermCard
+                      key={term.id}
+                      term={term}
+                      isMastered={masteredIds.has(term.id)}
+                      onToggleMastered={toggleMastered}
+                      onEdit={startEdit}
+                      onDelete={handleDelete}
+                      isDeleting={deletingId === term.id}
+                      isEditing={editingId === term.id}
+                      editDraft={editingId === term.id ? editDraft : undefined}
+                      onEditDraftChange={draft => setEditDraft(draft)}
+                      isSaving={savingId === term.id}
+                      onSave={saveEdit}
+                      onCancelEdit={cancelEdit}
+                    />
+                  ))}
                 </div>
               </div>
             ))}

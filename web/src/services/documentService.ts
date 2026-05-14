@@ -60,6 +60,10 @@ interface BackendFlashcard {
 	front: string
 	back: string
 	documentId?: string
+	cardType?: string
+	difficulty?: string
+	chapter?: string
+	tags?: string[]
 }
 
 const AUDIO_EXTENSIONS = ['.mp3', '.m4a', '.wav', '.ogg', '.aac', '.flac', '.webm']
@@ -132,8 +136,11 @@ const mapFlashcard = (bf: BackendFlashcard): Flashcard => ({
 	id: bf.flashcardId,
 	front: bf.front,
 	back: bf.back,
+	cardType: bf.cardType === 'cloze' ? 'cloze' : bf.cardType === 'chart' ? 'chart' : 'basic',
+	difficulty: (bf.difficulty === 'easy' || bf.difficulty === 'hard') ? bf.difficulty : 'medium',
+	chapter: bf.chapter ?? undefined,
+	tags: bf.tags ?? [],
 	documentId: bf.documentId || '',
-	difficulty: 'medium',
 })
 
 const mapQuizSubmission = (bs: any): QuizSubmission => ({

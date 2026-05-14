@@ -579,17 +579,9 @@ public class YouTubeController : ControllerBase
     public async Task<IActionResult> GetVideoFlashcards(Guid id, CancellationToken cancellationToken)
     {
         var userId = User.GetUserId();
-        var ttl = TimeSpan.FromSeconds(_cacheOptions.GeneratedResultSeconds);
-        var cacheKey = VideoFlashcardsCacheKey(id, userId);
-
-        var cached = await _cache.GetAsync<List<FlashcardDto>>(cacheKey, cancellationToken);
-        if (cached != null)
-            return Ok(BaseResponse<IEnumerable<FlashcardDto>>.Ok(cached));
-
         var flashcards = await _unitOfWork.Flashcards.FindAsync(f => f.YouTubeVideoId == id && f.UserId == userId, cancellationToken);
-        var dtos = flashcards.Select(f => new FlashcardDto(f.FlashcardId, f.DocumentId, f.YouTubeVideoId, f.SourceType, f.UserId, f.Front, f.Back, f.CreatedAt, f.UpdatedAt)).ToList();
-        if (dtos.Count > 0)
-            await _cache.SetAsync(cacheKey, dtos, ttl, cancellationToken);
+        var dtos = flashcards.Select(f => new FlashcardDto(f.FlashcardId, f.DocumentId, f.YouTubeVideoId, f.SourceType, f.UserId, f.Front, f.Back, f.CreatedAt, f.UpdatedAt,
+            CardType: f.CardType, Difficulty: f.Difficulty, Chapter: f.Chapter, Tags: f.Tags)).ToList();
         return Ok(BaseResponse<IEnumerable<FlashcardDto>>.Ok(dtos));
     }
 
@@ -605,7 +597,8 @@ public class YouTubeController : ControllerBase
         var existing = (await _unitOfWork.Flashcards.FindAsync(f => f.YouTubeVideoId == id && f.UserId == userId, cancellationToken)).ToList();
         if (existing.Count > 0)
             return Ok(BaseResponse<IEnumerable<FlashcardDto>>.Ok(
-                existing.Select(f => new FlashcardDto(f.FlashcardId, f.DocumentId, f.YouTubeVideoId, f.SourceType, f.UserId, f.Front, f.Back, f.CreatedAt, f.UpdatedAt))));
+                existing.Select(f => new FlashcardDto(f.FlashcardId, f.DocumentId, f.YouTubeVideoId, f.SourceType, f.UserId, f.Front, f.Back, f.CreatedAt, f.UpdatedAt,
+                    CardType: f.CardType, Difficulty: f.Difficulty, Chapter: f.Chapter, Tags: f.Tags))));
 
         // No cached data — fetch transcript and generate
         var transcript = await GetOrFetchTranscriptAsync(video, cancellationToken);
@@ -627,6 +620,11 @@ public class YouTubeController : ControllerBase
 
         foreach (var card in cards)
         {
+            var isChart = string.Equals(card.Type, "chart", StringComparison.OrdinalIgnoreCase);
+            var isCloze = string.Equals(card.Type, "cloze", StringComparison.OrdinalIgnoreCase);
+            var back = isChart && card.ChartData.HasValue
+                ? JsonSerializer.Serialize(card.ChartData.Value)
+                : card.Back;
             await _unitOfWork.Flashcards.AddAsync(new Flashcard
             {
                 FlashcardId = Guid.NewGuid(),
@@ -634,16 +632,17 @@ public class YouTubeController : ControllerBase
                 YouTubeVideoId = id,
                 SourceType = "video",
                 Front = card.Front,
-                Back = card.Back,
+                Back = back,
+                CardType = isChart ? "chart" : isCloze ? "cloze" : "basic",
                 CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
+                UpdatedAt = DateTime.UtcNow,
             }, cancellationToken);
         }
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         var saved = await _unitOfWork.Flashcards.FindAsync(f => f.YouTubeVideoId == id && f.UserId == userId, cancellationToken);
-        var savedDtos = saved.Select(f => new FlashcardDto(f.FlashcardId, f.DocumentId, f.YouTubeVideoId, f.SourceType, f.UserId, f.Front, f.Back, f.CreatedAt, f.UpdatedAt)).ToList();
-        await _cache.SetAsync(VideoFlashcardsCacheKey(id, userId), savedDtos, TimeSpan.FromSeconds(_cacheOptions.GeneratedResultSeconds), cancellationToken);
+        var savedDtos = saved.Select(f => new FlashcardDto(f.FlashcardId, f.DocumentId, f.YouTubeVideoId, f.SourceType, f.UserId, f.Front, f.Back, f.CreatedAt, f.UpdatedAt,
+            CardType: f.CardType, Difficulty: f.Difficulty, Chapter: f.Chapter, Tags: f.Tags)).ToList();
         return Ok(BaseResponse<IEnumerable<FlashcardDto>>.Ok(savedDtos));
     }
 
@@ -1069,6 +1068,6 @@ public class YouTubeController : ControllerBase
         return Ok(BaseResponse<IEnumerable<WorkedProblemDto>>.Ok(result.Data!));
     }
 
-    private record FlashcardItem(string Front, string Back);
+    private record FlashcardItem(string Front, string Back, string? Type = null, JsonElement? ChartData = null);
     private record QuizItem(string Question, string[] Options, string CorrectAnswer, string Explanation);
 }

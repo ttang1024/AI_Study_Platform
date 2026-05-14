@@ -1,27 +1,58 @@
 import { apiClient } from './apiClient';
-import { Flashcard } from '../types';
+import { Flashcard, FlashcardSrsState } from '../types';
 import { PendingMaterial } from './pendingMaterialService';
+
+interface BackendSrs {
+  state: 0 | 1 | 2 | 3;
+  stability: number;
+  difficulty: number;
+  reps: number;
+  lapses: number;
+  due: string;
+  lastReview?: string;
+  retrievability: number;
+}
 
 interface BackendFlashcard {
   flashcardId: string;
   front: string;
   back: string;
+  cardType?: string;
+  difficulty?: string;
+  chapter?: string;
+  tags?: string[];
   documentId?: string;
   youTubeVideoId?: string;
   document?: string;
   video?: string;
   title?: string;
+  srs?: BackendSrs;
 }
+
+const mapSrs = (s: BackendSrs): FlashcardSrsState => ({
+  state: s.state,
+  stability: s.stability,
+  difficulty: s.difficulty,
+  reps: s.reps,
+  lapses: s.lapses,
+  due: s.due,
+  lastReview: s.lastReview,
+  retrievability: s.retrievability,
+});
 
 const mapFlashcard = (bf: BackendFlashcard): Flashcard => ({
   id: bf.flashcardId,
   front: bf.front,
   back: bf.back,
+  cardType: bf.cardType === 'cloze' ? 'cloze' : bf.cardType === 'chart' ? 'chart' : 'basic',
+  difficulty: (bf.difficulty === 'easy' || bf.difficulty === 'hard') ? bf.difficulty : 'medium',
+  chapter: bf.chapter ?? undefined,
+  tags: bf.tags ?? [],
   documentId: bf.documentId || '',
   youTubeVideoId: bf.youTubeVideoId ?? undefined,
   documentName: bf.document ?? bf.title ?? undefined,
   videoName: bf.video ?? undefined,
-  difficulty: 'medium',
+  srs: bf.srs ? mapSrs(bf.srs) : undefined,
 });
 
 export interface PagedFlashcards {
@@ -105,5 +136,36 @@ export const flashcardService = {
 
   async deleteFlashcardsBulk(flashcardIds: string[]): Promise<void> {
     await apiClient.delete('/api/flashcards/bulk', { data: { flashcardIds } });
+  },
+
+  /** Submit FSRS review. rating: 1=Again, 2=Hard, 3=Good, 4=Easy */
+  async reviewFlashcard(flashcardId: string, rating: 1 | 2 | 3 | 4): Promise<{ scheduledDays: number; retrievability: number; srs: FlashcardSrsState }> {
+    const response = await apiClient.post(`/api/flashcards/${flashcardId}/review`, { rating });
+    const d = response.data.data;
+    return {
+      scheduledDays: d.scheduledDays,
+      retrievability: d.retrievability,
+      srs: mapSrs(d.srs),
+    };
+  },
+
+  /** Update difficulty, chapter, and/or tags for a flashcard (patch — null fields are ignored) */
+  async classifyFlashcard(
+    flashcardId: string,
+    data: { front?: string; back?: string; difficulty?: 'easy' | 'medium' | 'hard'; chapter?: string; tags?: string[] },
+  ): Promise<Flashcard> {
+    const response = await apiClient.patch(`/api/flashcards/${flashcardId}/classify`, data);
+    return mapFlashcard(response.data.data);
+  },
+
+  /** Get FSRS SRS state map (flashcardId → SrsState) for all user flashcards */
+  async getSrsStates(): Promise<Map<string, FlashcardSrsState>> {
+    const response = await apiClient.get('/api/flashcards/srs');
+    const list: (BackendSrs & { flashcardId: string })[] = response.data.data ?? [];
+    const map = new Map<string, FlashcardSrsState>();
+    for (const item of list) {
+      map.set(item.flashcardId, mapSrs(item));
+    }
+    return map;
   },
 };

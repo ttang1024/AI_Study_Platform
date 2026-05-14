@@ -44,6 +44,10 @@ export interface VideoFlashcard {
 	flashcardId: string
 	front: string
 	back: string
+	cardType?: 'basic' | 'cloze' | 'chart'
+	difficulty?: 'easy' | 'medium' | 'hard'
+	chapter?: string
+	tags?: string[]
 }
 
 export interface VideoQuizItem {

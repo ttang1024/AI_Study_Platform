@@ -67,7 +67,7 @@ public class FlashcardsController : ControllerBase
     public async Task<IActionResult> CreateFlashcard([FromBody] CreateFlashcardRequest request)
     {
         var userId = User.GetUserId();
-        var result = await _mediator.Send(new CreateFlashcardCommand(userId, request.Front, request.Back, request.DocumentId));
+        var result = await _mediator.Send(new CreateFlashcardCommand(userId, request.Front, request.Back, request.DocumentId, CardType: request.CardType));
         if (!result.IsSuccess)
             return BadRequest(BaseResponse<FlashcardDto>.Fail(result.Message, result.ErrorCode));
 
@@ -100,6 +100,49 @@ public class FlashcardsController : ControllerBase
         var userId = User.GetUserId();
         var result = await _mediator.Send(new BulkDeleteFlashcardsCommand(request.FlashcardIds, userId));
         return Ok(new BaseResponse { Success = true, Message = result.Message });
+    }
+
+    /// <summary>
+    /// Submit an FSRS review for a flashcard (1=Again, 2=Hard, 3=Good, 4=Easy)
+    /// </summary>
+    [HttpPost("{flashcardId:guid}/review")]
+    [ProducesResponseType(typeof(BaseResponse<ReviewFlashcardResponse>), 200)]
+    [ProducesResponseType(typeof(BaseResponse), 400)]
+    public async Task<IActionResult> ReviewFlashcard(Guid flashcardId, [FromBody] ReviewFlashcardRequest request)
+    {
+        var userId = User.GetUserId();
+        var result = await _mediator.Send(new ReviewFlashcardCommand(flashcardId, userId, request.Rating));
+        if (!result.IsSuccess)
+            return BadRequest(BaseResponse<ReviewFlashcardResponse>.Fail(result.Message, result.ErrorCode));
+        return Ok(BaseResponse<ReviewFlashcardResponse>.Ok(result.Data!));
+    }
+
+    /// <summary>
+    /// Get FSRS state for all flashcards of the authenticated user
+    /// </summary>
+    [HttpGet("srs")]
+    [ProducesResponseType(typeof(BaseResponse<IEnumerable<FlashcardSrsDto>>), 200)]
+    public async Task<IActionResult> GetSrsStates()
+    {
+        var userId = User.GetUserId();
+        var result = await _mediator.Send(new GetFlashcardSrsQuery(userId));
+        return Ok(BaseResponse<IEnumerable<FlashcardSrsDto>>.Ok(result.Data!));
+    }
+
+    /// <summary>
+    /// Update classification (difficulty, chapter, tags) for a flashcard
+    /// </summary>
+    [HttpPatch("{flashcardId:guid}/classify")]
+    [ProducesResponseType(typeof(BaseResponse<FlashcardDto>), 200)]
+    [ProducesResponseType(typeof(BaseResponse), 404)]
+    public async Task<IActionResult> ClassifyFlashcard(Guid flashcardId, [FromBody] ClassifyFlashcardRequest request)
+    {
+        var userId = User.GetUserId();
+        var result = await _mediator.Send(
+            new ClassifyFlashcardCommand(flashcardId, userId, request.Front, request.Back, request.Difficulty, request.Chapter, request.Tags));
+        if (!result.IsSuccess)
+            return NotFound(BaseResponse<FlashcardDto>.Fail(result.Message, result.ErrorCode));
+        return Ok(BaseResponse<FlashcardDto>.Ok(result.Data!));
     }
 
 }

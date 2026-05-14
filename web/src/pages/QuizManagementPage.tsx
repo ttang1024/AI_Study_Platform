@@ -975,12 +975,8 @@ export const QuizManagementPage: React.FC = () => {
               {failedFiltered.map(item => (
                 <div key={`${item.submission.submissionId}-${item.question.quizId}`} className="rounded-2xl border border-red-100 bg-white p-4 shadow-sm">
                   <div className="flex gap-3">
-                    <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-red-50 text-red-500">
-                      <XCircle size={18} />
-                    </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold uppercase text-red-600">failed</span>
                         <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase text-primary">{getDifficultyLabel(item.question.difficulty)}</span>
                         {item.courseName && (
                           <span className="rounded-full px-2 py-0.5 text-[10px] font-bold text-white" style={{ backgroundColor: item.courseColor ?? '#0d9488' }}>{item.courseName}</span>
@@ -1000,7 +996,7 @@ export const QuizManagementPage: React.FC = () => {
                               className={cn(
                                 'rounded-xl border px-3 py-2 text-sm',
                                 revealed && correct ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                                  : revealed && !!(selected && !correct) ? 'border-red-200 bg-red-50 text-red-700'
+                                  : !!(selected && !correct) ? 'border-red-200 bg-red-50 text-red-700'
                                     : 'border-zinc-100 bg-zinc-50 text-text-main',
                               )}
                             >
@@ -1009,13 +1005,13 @@ export const QuizManagementPage: React.FC = () => {
                           );
                         })}
                       </div>
-                      {item.question.explanation && <p className="mt-3 text-sm text-text-muted">{item.question.explanation}</p>}
+                      {revealedAnswers.has(item.question.quizId) && item.question.explanation && <p className="mt-3 text-sm text-text-muted">{item.question.explanation}</p>}
                     </div>
                     <div className="flex shrink-0 flex-col">
                       <button
                         onClick={() => toggleAnswer(item.question.quizId)}
                         className={cn('rounded-lg p-2', revealedAnswers.has(item.question.quizId) ? 'text-primary bg-primary/10' : 'text-text-muted hover:bg-primary/10 hover:text-primary')}
-                        title={revealedAnswers.has(item.question.quizId) ? 'Hide answer' : 'Show answer'}
+                        title={revealedAnswers.has(item.question.quizId) ? 'Hide correct answer' : 'Show correct answer & explanation'}
                       >
                         {revealedAnswers.has(item.question.quizId) ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
@@ -1104,7 +1100,7 @@ export const QuizManagementPage: React.FC = () => {
                             );
                           })}
                         </div>
-                        {question.explanation && <p className="mt-3 text-sm text-text-muted">{question.explanation}</p>}
+                        {revealedAnswers.has(question.quizId) && question.explanation && <p className="mt-3 text-sm text-text-muted">{question.explanation}</p>}
                       </div>
                       <div className="flex shrink-0 flex-col gap-2">
                         <button

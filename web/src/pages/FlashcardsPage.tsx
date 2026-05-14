@@ -1,22 +1,21 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useStudy } from '../context/StudyContext';
-import { BrainCircuit, FileText, Play, Search, ArrowLeft, Sparkles, Youtube, Loader2, Download, Smartphone, Globe, Mic, Share2 } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { BrainCircuit, FileText, Play, Search, Loader2, Smartphone, Globe, Mic, Pencil, Youtube } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { cn } from '../utils/cn';
 import { getDocDisplayName } from '../utils/docName';
-import { downloadAnkiDeck, downloadCsvDeck } from '../services/ankiExportService';
 import { motion, AnimatePresence } from 'motion/react';
-import { Flashcards } from '../components/study/Flashcards';
 import { MobileFlashcardReview } from '../components/study/MobileFlashcardReview';
+import { FlashcardDetailView } from '../components/study/FlashcardDetailView';
 import { youtubeService, VideoListItem } from '../services/youtubeService';
 import { flashcardService } from '../services/flashcardService';
 import { Flashcard } from '../types';
 import { SourceFilterBar, SourceType } from '../components/common/SourceFilterBar';
 import { PendingItemsGrid, PendingItem } from '../components/common/PendingItemsGrid';
 import { Pagination } from '../components/common/Pagination';
-import { ShareModal } from '../components/common/ShareModal';
 import { pendingMaterialToItem } from '../services/pendingMaterialService';
 import { useRefreshOnVisible } from '../hooks/useRefreshOnVisible';
+import { FlashcardClassifyModal, DIFFICULTY_COLORS } from '../components/study/FlashcardClassifyModal';
 
 type VideoRecord = Pick<VideoListItem, 'id' | 'title' | 'thumbnailUrl' | 'courseId' | 'courseName' | 'courseColor'>;
 
@@ -30,11 +29,13 @@ interface UnifiedSet {
   courseName: string;
   courseColor: string;
   cardCount: number;
+  clozeCount: number;
   previewText?: string;
   thumbnailUrl?: string;
 }
 
 const PAGE_SIZE = 6;
+const CARD_PAGE_SIZE = 10;
 
 const cardVariants = {
   hidden: { opacity: 0, scale: 0.95, y: 10 },
@@ -59,14 +60,15 @@ export const FlashcardsPage: React.FC = () => {
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
-  const [mobileReview, setMobileReview] = useState<{ cards: { id: string; front: string; back: string }[]; title: string } | null>(null);
-  const [shareTarget, setShareTarget] = useState<{
-    title: string;
-    cards: { front: string; back: string }[];
-    sourceType?: 'youtube' | 'article' | 'audio' | 'podcast' | 'document';
-    sourceUrl?: string | null;
-    originalArticleUrl?: string | null;
-  } | null>(null);
+  const [cardPage, setCardPage] = useState(1);
+  const [mobileReview, setMobileReview] = useState<{ cards: { id: string; front: string; back: string; cardType?: 'basic' | 'cloze' | 'chart' }[]; title: string } | null>(null);
+  const [classifyCard, setClassifyCard] = useState<Flashcard | null>(null);
+  const [flippedCards, setFlippedCards] = useState<Set<string>>(new Set());
+
+  // Classification filters
+  const [filterDifficulty, setFilterDifficulty] = useState<'easy' | 'medium' | 'hard' | null>(null);
+  const [filterChapter, setFilterChapter] = useState('');
+  const [filterTags, setFilterTags] = useState<string[]>([]);
 
   const refreshVideos = React.useCallback(() => {
     setVideosLoading(true);
@@ -116,6 +118,21 @@ export const FlashcardsPage: React.FC = () => {
     refreshVideos,
   ]));
 
+  // Derived tag/chapter lists for autocomplete
+  const allTags = useMemo(() => {
+    const set = new Set<string>();
+    for (const f of flashcards) f.tags?.forEach(t => set.add(t));
+    return Array.from(set).sort();
+  }, [flashcards]);
+
+  const allChapters = useMemo(() => {
+    const set = new Set<string>();
+    for (const f of flashcards) { if (f.chapter) set.add(f.chapter); }
+    return Array.from(set).sort();
+  }, [flashcards]);
+
+  const classifyFiltersActive = filterDifficulty !== null || filterChapter.trim() !== '' || filterTags.length > 0;
+
   // Group video flashcards (from context) by youTubeVideoId
   const videoSets = useMemo(() => {
     const map = new Map<string, Flashcard[]>();
@@ -130,7 +147,7 @@ export const FlashcardsPage: React.FC = () => {
   const handleSelectVideo = (videoId: string) => {
     const cards = flashcards
       .filter(f => f.youTubeVideoId === videoId)
-      .map(f => ({ id: f.id, front: f.front, back: f.back }));
+      .map(f => ({ id: f.id, front: f.front, back: f.back, cardType: f.cardType }));
     setVideoCards(cards);
     const v = videoList.find(vl => vl.id === videoId);
     setSelectedVideo({
@@ -161,7 +178,6 @@ export const FlashcardsPage: React.FC = () => {
     const docItems: UnifiedSet[] = docSets.map(({ docId, cards }) => {
       const doc = documents.find(d => d.id === docId);
       const course = courses.find(c => c.id === doc?.courseId);
-      // Use documentName from API response first (always available), fall back to context lookup
       const name = doc ? getDocDisplayName(doc) : (cards[0]?.documentName ?? 'Unknown Document');
       const type: UnifiedSet['type'] = (doc?.type === 'audio' || doc?.type === 'podcast') ? 'audio' : doc?.originalUrl ? 'article' : 'doc';
       return {
@@ -172,6 +188,7 @@ export const FlashcardsPage: React.FC = () => {
         courseName: course?.name ?? '',
         courseColor: course?.color ?? '#a1a1aa',
         cardCount: cards.length,
+        clozeCount: cards.filter(c => c.cardType === 'cloze').length,
         previewText: cards[0]?.front,
       };
     });
@@ -185,6 +202,7 @@ export const FlashcardsPage: React.FC = () => {
         courseName: v?.courseName ?? '',
         courseColor: v?.courseColor ?? '#a1a1aa',
         cardCount: cards.length,
+        clozeCount: cards.filter(c => c.cardType === 'cloze').length,
         thumbnailUrl: v?.thumbnailUrl,
         previewText: cards[0]?.front,
       };
@@ -206,11 +224,53 @@ export const FlashcardsPage: React.FC = () => {
     return items;
   }, [allSets, sourceType, selectedCourseId, searchQuery]);
 
+  // Flat card list for classify filter view
+  const filteredCards = useMemo(() => {
+    let cards = flashcards;
+    if (sourceType === 'video') cards = cards.filter(f => !!f.youTubeVideoId);
+    else if (sourceType === 'document') cards = cards.filter(f => {
+      if (f.youTubeVideoId) return false;
+      const doc = documents.find(d => d.id === f.documentId);
+      return !!doc && !doc.originalUrl && doc.type !== 'audio' && doc.type !== 'podcast';
+    });
+    else if (sourceType === 'article') cards = cards.filter(f => {
+      const doc = documents.find(d => d.id === f.documentId);
+      return !!doc?.originalUrl;
+    });
+    else if (sourceType === 'audio') cards = cards.filter(f => {
+      const doc = documents.find(d => d.id === f.documentId);
+      return doc?.type === 'audio' || doc?.type === 'podcast';
+    });
+    if (selectedCourseId) {
+      cards = cards.filter(f => {
+        const doc = documents.find(d => d.id === f.documentId);
+        const vid = videoList.find(v => v.id === f.youTubeVideoId);
+        return doc?.courseId === selectedCourseId || vid?.courseId === selectedCourseId;
+      });
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      cards = cards.filter(f => f.front.toLowerCase().includes(q) || f.back.toLowerCase().includes(q));
+    }
+    if (filterDifficulty) cards = cards.filter(f => f.difficulty === filterDifficulty);
+    if (filterChapter.trim()) {
+      const ch = filterChapter.toLowerCase();
+      cards = cards.filter(f => f.chapter?.toLowerCase().includes(ch));
+    }
+    if (filterTags.length > 0) cards = cards.filter(f => filterTags.every(t => f.tags?.includes(t)));
+    return cards;
+  }, [flashcards, sourceType, selectedCourseId, searchQuery, filterDifficulty, filterChapter, filterTags, documents, videoList]);
+
   useEffect(() => { setPage(1); }, [sourceType, selectedCourseId, searchQuery]);
+  useEffect(() => { setCardPage(1); }, [filterDifficulty, filterChapter, filterTags, sourceType, selectedCourseId, searchQuery]);
 
   const totalPages = Math.max(1, Math.ceil(filteredSets.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
   const pagedSets = filteredSets.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
+  const cardTotalPages = Math.max(1, Math.ceil(filteredCards.length / CARD_PAGE_SIZE));
+  const safeCardPage = Math.min(cardPage, cardTotalPages);
+  const pagedCards = filteredCards.slice((safeCardPage - 1) * CARD_PAGE_SIZE, safeCardPage * CARD_PAGE_SIZE);
 
   const pendingItemsCount = Math.max(
     0,
@@ -236,147 +296,30 @@ export const FlashcardsPage: React.FC = () => {
 
   // Detail views
   if (selectedDocId) {
-    const selectedDoc = documents.find(d => d.id === selectedDocId);
     return (
-      <>
-        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
-          <button
-            onClick={() => setSelectedDocId(null)}
-            className="group flex items-center gap-2 text-zinc-400 hover:text-primary transition-colors font-bold text-sm uppercase tracking-widest"
-          >
-            <ArrowLeft size={18} className="transition-transform group-hover:-translate-x-1" />
-            Back to Sets
-          </button>
-          <div className="rounded-[40px] border border-[var(--border-color)] bg-white p-10 shadow-xl shadow-primary/10">
-            <div className="flex flex-col md:flex-row md:items-center justify-between mb-10 gap-6">
-              <div className="space-y-2">
-                <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-1.5 text-[10px] font-black text-primary uppercase tracking-widest border border-primary/20">
-                  <BrainCircuit size={12} />
-                  Active Recall Mode
-                </div>
-                <h2 className="text-4xl font-black text-text-main">{selectedDoc?.name}</h2>
-                <p className="text-zinc-400 font-medium">Master this set using spaced repetition and active recall.</p>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <button
-                    onClick={() => {
-                      const cards = flashcards.filter(f => f.documentId === selectedDocId).map(f => ({ id: f.id, front: f.front, back: f.back }));
-                      downloadAnkiDeck(cards, selectedDoc?.name ?? 'flashcards');
-                    }}
-                    className="flex items-center gap-2 rounded-xl border border-[var(--border-color)] bg-[var(--bg-app)] px-4 py-2 text-sm font-medium text-text-muted hover:border-primary/50 hover:text-primary transition-all"
-                  >
-                    <Download size={14} />
-                    Export TXT
-                  </button>
-                  <button
-                    onClick={() => {
-                      const cards = flashcards.filter(f => f.documentId === selectedDocId).map(f => ({ id: f.id, front: f.front, back: f.back }));
-                      downloadCsvDeck(cards, selectedDoc?.name ?? 'flashcards');
-                    }}
-                    className="flex items-center gap-2 rounded-xl border border-[var(--border-color)] bg-[var(--bg-app)] px-4 py-2 text-sm font-medium text-text-muted hover:border-primary/50 hover:text-primary transition-all"
-                  >
-                    <Download size={14} />
-                    Export CSV
-                  </button>
-                  <button
-                    onClick={() => {
-                      const cards = flashcards.filter(f => f.documentId === selectedDocId).map(f => ({ front: f.front, back: f.back }));
-                      const docType = selectedDoc?.type;
-                      const isArticle = !!selectedDoc?.originalUrl;
-                      const isAudio = docType === 'audio';
-                      const isPodcast = docType === 'podcast';
-                      const srcType = isArticle ? 'article' : isAudio ? 'audio' : isPodcast ? 'podcast' : 'document';
-                      const srcUrl = selectedDoc?.courseId ? `${selectedDoc.courseId}/${selectedDocId}` : null;
-                      setShareTarget({
-                        title: selectedDoc?.name ?? 'Flashcards',
-                        cards,
-                        sourceType: srcType,
-                        sourceUrl: srcUrl,
-                        originalArticleUrl: isArticle ? (selectedDoc?.originalUrl ?? null) : null,
-                      });
-                    }}
-                    className="flex items-center gap-2 rounded-xl border border-[var(--border-color)] bg-[var(--bg-app)] px-4 py-2 text-sm font-medium text-text-muted hover:border-primary/50 hover:text-primary transition-all"
-                  >
-                    <Share2 size={14} />
-                    Share
-                  </button>
-                </div>
-              </div>
-            </div>
-            <Flashcards documentId={selectedDocId} />
-          </div>
-        </motion.div>
-        {shareTarget && (
-          <ShareModal
-            open={!!shareTarget}
-            onClose={() => setShareTarget(null)}
-            title={shareTarget.title}
-            fetchFlashcards={async () => shareTarget.cards}
-            sourceType={shareTarget.sourceType}
-            sourceUrl={shareTarget.sourceUrl}
-            originalArticleUrl={shareTarget.originalArticleUrl}
-          />
-        )}
-      </>
+      <FlashcardDetailView
+        kind="doc"
+        docId={selectedDocId}
+        doc={documents.find(d => d.id === selectedDocId)}
+        flashcards={flashcards}
+        onBack={() => setSelectedDocId(null)}
+      />
     );
   }
 
   if (selectedVideo) {
     return (
-      <>
-        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
-          <button
-            onClick={() => { setSelectedVideo(null); setVideoCards([]); }}
-            className="group flex items-center gap-2 text-zinc-400 hover:text-primary transition-colors font-bold text-sm uppercase tracking-widest"
-          >
-            <ArrowLeft size={18} className="transition-transform group-hover:-translate-x-1" />
-            Back to Sets
-          </button>
-          <div className="rounded-[40px] border border-[var(--border-color)] bg-white p-10 shadow-xl shadow-red-500/10">
-            <div className="flex flex-col md:flex-row md:items-center justify-between mb-10 gap-6">
-              <div className="space-y-2">
-                <div className="inline-flex items-center gap-2 rounded-full bg-red-50 px-4 py-1.5 text-[10px] font-black text-red-500 uppercase tracking-widest border border-red-100">
-                  <Youtube size={12} />
-                  YouTube · Active Recall Mode
-                </div>
-                <h2 className="text-4xl font-black text-text-main">{selectedVideo.title}</h2>
-                <p className="text-zinc-400 font-medium">Master this video using spaced repetition and active recall.</p>
-                <button
-                  onClick={() => {
-                    const video = videoList.find(v => v.id === selectedVideo.id);
-                    setShareTarget({
-                      title: selectedVideo.title,
-                      cards: videoCards.map(c => ({ front: c.front, back: c.back })),
-                      sourceType: 'youtube',
-                      sourceUrl: video?.videoUrl ?? null,
-                    });
-                  }}
-                  className="flex items-center gap-2 rounded-xl border border-[var(--border-color)] bg-[var(--bg-app)] px-4 py-2 text-sm font-medium text-text-muted hover:border-primary/50 hover:text-primary transition-all w-fit"
-                >
-                  <Share2 size={14} />
-                  Share
-                </button>
-              </div>
-            </div>
-            <Flashcards externalCards={videoCards} />
-          </div>
-        </motion.div>
-        {shareTarget && (
-          <ShareModal
-            open={!!shareTarget}
-            onClose={() => setShareTarget(null)}
-            title={shareTarget.title}
-            fetchFlashcards={async () => shareTarget.cards}
-            sourceType={shareTarget.sourceType}
-            sourceUrl={shareTarget.sourceUrl}
-            originalArticleUrl={shareTarget.originalArticleUrl}
-          />
-        )}
-      </>
+      <FlashcardDetailView
+        kind="video"
+        video={selectedVideo}
+        videoCards={videoCards}
+        videoList={videoList}
+        onBack={() => { setSelectedVideo(null); setVideoCards([]); }}
+      />
     );
   }
 
   const isLoading = contextLoading || videosLoading || coverageLoading || pendingLoading;
-
 
   return (
     <motion.div
@@ -406,7 +349,7 @@ export const FlashcardsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Filters */}
+      {/* Source + Course Filters */}
       <SourceFilterBar
         courses={courses}
         selectedCourseId={selectedCourseId}
@@ -418,10 +361,181 @@ export const FlashcardsPage: React.FC = () => {
         hideTypeTabs={true}
       />
 
+      {/* Classification Filters */}
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-sidebar)] px-4 py-3">
+        {/* Difficulty */}
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] font-black uppercase tracking-widest text-text-muted shrink-0">Difficulty:</span>
+          <div className="flex gap-1">
+            {([null, 'easy', 'medium', 'hard'] as const).map(d => (
+              <button
+                key={d ?? 'all'}
+                onClick={() => setFilterDifficulty(d)}
+                className={cn(
+                  'rounded-full px-2.5 py-0.5 text-xs font-bold border transition-all',
+                  filterDifficulty === d
+                    ? d
+                      ? DIFFICULTY_COLORS[d]
+                      : 'bg-[var(--primary)] text-white border-[var(--primary)]'
+                    : 'bg-[var(--bg-app)] text-text-muted border-[var(--border-color)] hover:border-[var(--primary)]/50',
+                )}
+              >
+                {d ? d.charAt(0).toUpperCase() + d.slice(1) : 'All'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Chapter */}
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] font-black uppercase tracking-widest text-text-muted shrink-0">Chapter:</span>
+          <input
+            value={filterChapter}
+            onChange={e => setFilterChapter(e.target.value)}
+            placeholder="Filter..."
+            className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-app)] px-2.5 py-0.5 text-xs outline-none focus:border-[var(--primary)] transition-colors w-28"
+          />
+        </div>
+
+        {/* Tags */}
+        {allTags.length > 0 && (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-[10px] font-black uppercase tracking-widest text-text-muted shrink-0">Tags:</span>
+            {allTags.slice(0, 10).map(t => (
+              <button
+                key={t}
+                onClick={() => setFilterTags(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])}
+                className={cn(
+                  'rounded-full px-2.5 py-0.5 text-xs font-semibold border transition-all',
+                  filterTags.includes(t)
+                    ? 'bg-[var(--primary)]/10 text-[var(--primary)] border-[var(--primary)]/30'
+                    : 'bg-[var(--bg-app)] text-text-muted border-[var(--border-color)] hover:border-[var(--primary)]/50',
+                )}
+              >
+                #{t}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Active filter summary + clear */}
+        {classifyFiltersActive && (
+          <div className="ml-auto flex items-center gap-2">
+            <span className="text-xs font-semibold text-[var(--primary)]">{filteredCards.length} cards</span>
+            <button
+              onClick={() => { setFilterDifficulty(null); setFilterChapter(''); setFilterTags([]); }}
+              className="text-xs font-semibold text-red-500 hover:text-red-600 transition-colors"
+            >
+              Clear
+            </button>
+          </div>
+        )}
+      </div>
+
       {/* Content */}
       {isLoading ? (
         <div className="flex justify-center py-12"><Loader2 size={28} className="animate-spin text-primary" /></div>
+      ) : classifyFiltersActive ? (
+        /* ── Flat card list view (when classify filters active) ─────── */
+        filteredCards.length === 0 ? (
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--border-color)] py-16 text-center bg-[var(--bg-sidebar)]">
+            <div className="mb-4 rounded-2xl bg-zinc-100 p-6 text-zinc-300"><BrainCircuit size={40} /></div>
+            <h3 className="text-lg font-bold text-text-main">No cards match your filters</h3>
+            <p className="text-zinc-400 text-sm max-w-xs mx-auto mt-2">Try adjusting or clearing the filters above.</p>
+          </div>
+        ) : (
+          <>
+            <div className="space-y-2">
+              {pagedCards.map(card => {
+                const doc = documents.find(d => d.id === card.documentId);
+                const vid = videoList.find(v => v.id === card.youTubeVideoId);
+                const sourceName = doc ? getDocDisplayName(doc) : vid?.title ?? card.documentName ?? card.videoName ?? '';
+                const isFlipped = flippedCards.has(card.id);
+                return (
+                  <motion.div
+                    key={card.id}
+                    layout
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    onClick={() => setFlippedCards(prev => {
+                      const next = new Set(prev);
+                      next.has(card.id) ? next.delete(card.id) : next.add(card.id);
+                      return next;
+                    })}
+                    className="flex items-start gap-3 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-app)] px-4 py-3 hover:border-[var(--primary)]/30 transition-colors cursor-pointer"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-text-main line-clamp-2">{card.front}</p>
+                      <AnimatePresence>
+                        {isFlipped && (
+                          <motion.p
+                            key="back"
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="text-sm text-text-muted mt-2 pt-2 border-t border-[var(--border-color)] overflow-hidden"
+                          >
+                            {card.back}
+                          </motion.p>
+                        )}
+                      </AnimatePresence>
+                      <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                        <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-bold border', DIFFICULTY_COLORS[card.difficulty])}>
+                          {card.difficulty}
+                        </span>
+                        {card.chapter && (
+                          <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-semibold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+                            {card.chapter}
+                          </span>
+                        )}
+                        {card.tags?.map(t => (
+                          <span key={t} className="rounded-full bg-[var(--primary)]/10 px-2 py-0.5 text-[10px] font-bold text-[var(--primary)]">
+                            #{t}
+                          </span>
+                        ))}
+                        {sourceName && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const state = { activeTab: 'flashcards' };
+                              if (card.youTubeVideoId) {
+                                navigate(`/youtube/${card.youTubeVideoId}`, { state });
+                              } else if (doc?.originalUrl) {
+                                navigate(`/articles/${card.documentId}`, { state });
+                              } else if (doc?.type === 'audio' || doc?.type === 'podcast') {
+                                navigate(`/audio/${card.documentId}`, { state });
+                              } else if (card.documentId) {
+                                navigate(`/documents/${card.documentId}`, { state });
+                              }
+                            }}
+                            className="text-[10px] text-text-muted ml-0.5 hover:text-[var(--primary)] hover:underline transition-colors"
+                          >
+                            {sourceName}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setClassifyCard(card); }}
+                      className="shrink-0 rounded-lg p-1.5 text-text-muted hover:bg-[var(--bg-sidebar)] hover:text-[var(--primary)] transition-colors"
+                      title="Edit classification"
+                    >
+                      <Pencil size={14} />
+                    </button>
+                  </motion.div>
+                );
+              })}
+            </div>
+            <Pagination
+              page={safeCardPage}
+              totalPages={cardTotalPages}
+              onPageChange={setCardPage}
+              size="sm"
+            />
+          </>
+        )
       ) : filteredSets.length === 0 ? (
+        /* ── Empty set state ─────────────────────────────────────────── */
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--border-color)] py-16 text-center bg-[var(--bg-sidebar)]">
           <div className="mb-4 rounded-2xl bg-zinc-100 p-6 text-zinc-300"><BrainCircuit size={40} /></div>
           <h3 className="text-lg font-bold text-text-main">No flashcard sets found</h3>
@@ -438,6 +552,7 @@ export const FlashcardsPage: React.FC = () => {
           )}
         </div>
       ) : (
+        /* ── Set grid ────────────────────────────────────────────────── */
         <AnimatePresence mode="popLayout">
           <motion.div
             key={`${sourceType}-${selectedCourseId}-${safePage}`}
@@ -468,22 +583,18 @@ export const FlashcardsPage: React.FC = () => {
                 >
                   {/* Stacked Cards Preview */}
                   <div className="relative h-36 mb-4">
-                    {/* Bottom layer */}
                     <div
                       className="absolute inset-x-5 top-4 bottom-0 rounded-xl"
                       style={{ backgroundColor: cardColor, opacity: 0.5, transform: 'rotate(4deg)' }}
                     />
-                    {/* Middle layer */}
                     <div
                       className="absolute inset-x-2.5 top-2 bottom-0 rounded-xl"
                       style={{ backgroundColor: cardColor, opacity: 0.25, transform: 'rotate(8deg)' }}
                     />
-                    {/* Front card */}
                     <div
                       className="absolute inset-x-0 top-0 bottom-0 rounded-xl flex flex-col items-start justify-between p-3.5 group-hover:scale-[1.02] transition-transform duration-300"
                       style={{ backgroundColor: cardColor, boxShadow: `0 6px 20px ${cardColor}40` }}
                     >
-                      {/* First question */}
                       <div className="flex-1 flex items-center justify-center w-full py-1">
                         {set.previewText ? (
                           <p className="text-[11px] font-semibold text-white text-center line-clamp-3 leading-snug px-1">
@@ -493,9 +604,15 @@ export const FlashcardsPage: React.FC = () => {
                           <BrainCircuit size={22} className="text-white opacity-40" />
                         )}
                       </div>
-                      {/* Card count pill */}
-                      <div className="self-end rounded-full bg-white/20 px-2 py-1 flex items-center">
-                        <span className="text-[9px] font-bold text-white">{set.cardCount} cards</span>
+                      <div className="self-end flex items-center gap-1">
+                        <div className="rounded-full bg-white/20 px-2 py-1">
+                          <span className="text-[9px] font-bold text-white">{set.cardCount} cards</span>
+                        </div>
+                        {set.clozeCount > 0 && (
+                          <div className="rounded-full bg-white/30 px-2 py-1">
+                            <span className="text-[9px] font-bold text-white">{set.clozeCount} cloze</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -523,8 +640,8 @@ export const FlashcardsPage: React.FC = () => {
                         onClick={(e) => {
                           e.stopPropagation();
                           const cards = isVideo
-                            ? flashcards.filter(f => f.youTubeVideoId === set.id).map(f => ({ id: f.id, front: f.front, back: f.back }))
-                            : flashcards.filter(f => f.documentId === set.id).map(f => ({ id: f.id, front: f.front, back: f.back }));
+                            ? flashcards.filter(f => f.youTubeVideoId === set.id).map(f => ({ id: f.id, front: f.front, back: f.back, cardType: f.cardType }))
+                            : flashcards.filter(f => f.documentId === set.id).map(f => ({ id: f.id, front: f.front, back: f.back, cardType: f.cardType }));
                           setMobileReview({ cards, title: set.name });
                         }}
                         className="rounded-xl border border-zinc-200 p-2 text-text-muted hover:border-primary/50 hover:text-primary transition-all"
@@ -547,12 +664,14 @@ export const FlashcardsPage: React.FC = () => {
         </AnimatePresence>
       )}
 
-      <Pagination
-        page={safePage}
-        totalPages={totalPages}
-        onPageChange={setPage}
-        size="sm"
-      />
+      {!classifyFiltersActive && (
+        <Pagination
+          page={safePage}
+          totalPages={totalPages}
+          onPageChange={setPage}
+          size="sm"
+        />
+      )}
 
       {!isLoading && (
         <PendingItemsGrid
@@ -578,15 +697,20 @@ export const FlashcardsPage: React.FC = () => {
         />
       )}
 
-      {shareTarget && (
-        <ShareModal
-          open={!!shareTarget}
-          onClose={() => setShareTarget(null)}
-          title={shareTarget.title}
-          fetchFlashcards={async () => shareTarget.cards}
-          sourceType={shareTarget.sourceType}
-          sourceUrl={shareTarget.sourceUrl}
-          originalArticleUrl={shareTarget.originalArticleUrl}
+      {classifyCard && (
+        <FlashcardClassifyModal
+          card={classifyCard}
+          allTags={allTags}
+          allChapters={allChapters}
+          onSave={async (data) => {
+            await flashcardService.classifyFlashcard(classifyCard.id, data);
+            await refreshFlashcards();
+          }}
+          onDelete={async () => {
+            await flashcardService.deleteFlashcard(classifyCard.id);
+            await refreshFlashcards();
+          }}
+          onClose={() => setClassifyCard(null)}
         />
       )}
     </motion.div>
