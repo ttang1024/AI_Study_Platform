@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  Share2, AlertCircle, FileText, Map, MessageSquare,
-  BrainCircuit, BookOpen, ChevronRight, ChevronLeft, ChevronDown, ChevronUp,
+  Share2, AlertCircle, FileText, MessageCircle,
+  ChevronRight, ChevronLeft, ChevronDown, ChevronUp,
   CheckCircle2, XCircle, RotateCcw, Trophy, Clock, Award,
-  Check, Copy, User, Calendar, Youtube, Mic, Rss, ExternalLink, Loader2, BookMarked,
+  Check, Copy, User, Calendar, Youtube, Mic, Rss, ExternalLink, Loader2,
 } from 'lucide-react';
+import { CONTENT_TYPE_ICONS, STUDY_TYPE_ICONS } from '../constants/contentTypeIcons';
 
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -276,7 +277,7 @@ const SharedQuiz: React.FC<{ questions: ShareableQuiz[]; title: string }> = ({ q
           className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-app)] p-8 text-center space-y-6"
         >
           <div className="w-14 h-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto">
-            <BookOpen size={28} />
+            <Award size={28} />
           </div>
           <div>
             <h3 className="text-lg font-black text-text-main">{title}</h3>
@@ -676,12 +677,12 @@ export const SharedContentPage: React.FC<{ token?: string }> = ({ token: tokenPr
   }
 
   const allTabs = [
-    { id: 'summary' as Tab, label: 'Summary', icon: FileText, available: !!content.summary },
-    { id: 'mindmap' as Tab, label: 'Mind Map', icon: Map, available: !!content.mindMapText },
-    { id: 'notes' as Tab, label: content.sourceType === 'chat' ? 'Conversation' : 'Notes', icon: MessageSquare, available: !!content.notesHtml },
-    { id: 'flashcards' as Tab, label: 'Flashcards', icon: BrainCircuit, available: !!(content.flashcards?.length) },
-    { id: 'glossary' as Tab, label: 'Glossary', icon: BookMarked, available: !!(content.glossary?.length) },
-    { id: 'quiz' as Tab, label: 'Quiz', icon: BookOpen, available: !!(content.quizzes?.length) },
+    { id: 'summary' as Tab,    label: 'Summary',                                                  icon: STUDY_TYPE_ICONS.summary.icon,   available: !!content.summary          },
+    { id: 'mindmap' as Tab,    label: 'Mind Map',                                                 icon: STUDY_TYPE_ICONS.mindmap.icon,   available: !!content.mindMapText      },
+    { id: 'notes' as Tab,      label: content.sourceType === 'chat' ? 'Conversation' : 'Notes',   icon: STUDY_TYPE_ICONS.notes.icon,     available: !!content.notesHtml        },
+    { id: 'flashcards' as Tab, label: 'Flashcards',                                               icon: STUDY_TYPE_ICONS.flashcard.icon, available: !!(content.flashcards?.length) },
+    { id: 'glossary' as Tab,   label: 'Glossary',                                                 icon: STUDY_TYPE_ICONS.glossary.icon,  available: !!(content.glossary?.length)   },
+    { id: 'quiz' as Tab,       label: 'Quiz',                                                     icon: STUDY_TYPE_ICONS.quiz.icon,      available: !!(content.quizzes?.length)    },
   ];
   const tabs = allTabs.filter(t => t.available);
 
@@ -701,7 +702,7 @@ export const SharedContentPage: React.FC<{ token?: string }> = ({ token: tokenPr
                 </div>
                 {content.sourceType === 'chat' && (
                   <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary border border-primary/10">
-                    <MessageSquare size={11} /> AI Chat
+                    <MessageCircle size={11} /> AI Chat
                   </div>
                 )}
                 {content.sourceType === 'youtube' && (

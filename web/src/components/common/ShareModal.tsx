@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Share2, Copy, Check, Loader2, ExternalLink, FileText, Map, BookOpen, BrainCircuit, MessageSquare } from 'lucide-react';
+import { X, Share2, Copy, Check, Loader2, ExternalLink } from 'lucide-react';
+import { STUDY_TYPE_ICONS } from '../../constants/contentTypeIcons';
 import { createShare, ShareableQuiz, ShareableCard } from '../../services/shareContentService';
 import { cn } from '../../utils/cn';
 
@@ -96,11 +97,11 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   };
 
   const items = [
-    { key: 'summary' as const, label: 'Summary', icon: FileText, available: !!summary },
-    { key: 'mindMap' as const, label: 'Mind Map', icon: Map, available: !!mindMapText },
-    { key: 'notes' as const, label: 'Notes', icon: MessageSquare, available: !!notesHtml },
-    { key: 'flashcards' as const, label: 'Flashcards', icon: BrainCircuit, available: !!fetchFlashcards },
-    { key: 'quizzes' as const, label: 'Quiz', icon: BookOpen, available: !!fetchQuizzes },
+    { key: 'summary' as const,   label: 'Summary',    icon: STUDY_TYPE_ICONS.summary.icon,   available: !!summary      },
+    { key: 'mindMap' as const,   label: 'Mind Map',   icon: STUDY_TYPE_ICONS.mindmap.icon,   available: !!mindMapText  },
+    { key: 'notes' as const,     label: 'Notes',      icon: STUDY_TYPE_ICONS.notes.icon,     available: !!notesHtml    },
+    { key: 'flashcards' as const,label: 'Flashcards', icon: STUDY_TYPE_ICONS.flashcard.icon, available: !!fetchFlashcards },
+    { key: 'quizzes' as const,   label: 'Quiz',       icon: STUDY_TYPE_ICONS.quiz.icon,      available: !!fetchQuizzes },
   ].filter(i => i.available);
 
   const hasSelection = Object.values(selected).some(Boolean);

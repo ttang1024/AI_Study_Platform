@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, FileText, ChevronLeft, ChevronRight, Search, Calendar, Trash2, Edit3, X, Check, Youtube, Loader2, Sparkles, Play, Globe, Mic, Share2, Download } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Search, Calendar, Trash2, Edit3, X, Check, Loader2, Sparkles, Play, Share2, Download } from 'lucide-react';
+import { STUDY_TYPE_ICONS } from '../constants/contentTypeIcons';
+import { CONTENT_TYPE_ICONS } from '../constants/contentTypeIcons';
 import { useStudy } from '../context/StudyContext';
 import { cn } from '../utils/cn';
 import { getDocDisplayName } from '../utils/docName';
@@ -368,7 +370,7 @@ export const NotesPage: React.FC = () => {
       ) : isEmpty ? (
         <div className="flex flex-col items-center justify-center py-20 text-center bg-[var(--bg-sidebar)] rounded-3xl border border-dashed border-[var(--border-color)]">
           <div className="h-16 w-16 rounded-full bg-[var(--primary)]/10 flex items-center justify-center text-[var(--primary)] mb-4">
-            <BookOpen size={32} />
+            <STUDY_TYPE_ICONS.notes.icon size={32} />
           </div>
           <h3 className="text-lg font-bold text-text-main">No notes found</h3>
           <p className="text-sm text-text-muted max-w-xs mt-2">Start taking notes while studying your documents to see them here.</p>
@@ -388,10 +390,10 @@ export const NotesPage: React.FC = () => {
               if (item.type !== 'video') {
                 const { type, note, docName, courseColor, courseName, docId } = item;
                 const icon = type === 'article'
-                  ? <Globe size={18} className="text-teal-500 shrink-0" />
+                  ? <CONTENT_TYPE_ICONS.article.icon  size={18} className="text-teal-500 shrink-0" />
                   : type === 'audio'
-                    ? <Mic size={18} className="text-amber-500 shrink-0" />
-                    : <FileText size={18} className="text-[var(--primary)] shrink-0" />;
+                    ? <CONTENT_TYPE_ICONS.audio.icon   size={18} className="text-amber-500 shrink-0" />
+                    : <CONTENT_TYPE_ICONS.document.icon size={18} className="text-[var(--primary)] shrink-0" />;
                 const viewLabel = type === 'article' ? 'View Article' : type === 'audio' ? 'View Audio' : 'View Document';
                 const viewPath = type === 'audio' ? `/audio/${docId}` : type === 'article' ? `/articles/${docId}` : `/documents/${docId}`;
                 return (
@@ -438,7 +440,7 @@ export const NotesPage: React.FC = () => {
                     courseColor={entry.courseColor}
                     createdAt={entry.createdAt}
                     content={entry.content}
-                    icon={<Youtube size={18} className="text-red-500 shrink-0" />}
+                    icon={<CONTENT_TYPE_ICONS.video.icon size={18} className="text-red-500 shrink-0" />}
                     viewLabel="View Video"
                     onView={() => navigate(`/youtube/${entry.videoRecordId}`)}
                     onShare={async () => {

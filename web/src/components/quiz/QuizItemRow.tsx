@@ -1,9 +1,9 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import {
-  FileText, Globe, Mic, Rss, Youtube,
   Award, Clock, CheckCircle2, Share2, Loader2, Play,
 } from 'lucide-react';
+import { CONTENT_TYPE_ICONS } from '../../constants/contentTypeIcons';
 import { cn } from '../../utils/cn';
 import { Button } from '../common/Button';
 
@@ -20,7 +20,7 @@ interface TypeConfig {
 
 const TYPE_CONFIG: Record<QuizItemType, TypeConfig> = {
   doc: {
-    Icon: FileText,
+    Icon: CONTENT_TYPE_ICONS.document.icon,
     iconClass: 'text-[var(--primary)]',
     defaultBadgeClass: 'bg-zinc-50 text-zinc-500',
     rowHoverClass: 'hover:border-[var(--primary)]/50',
@@ -28,7 +28,7 @@ const TYPE_CONFIG: Record<QuizItemType, TypeConfig> = {
     retakePath: (docId) => `/documents/${docId}`,
   },
   article: {
-    Icon: Globe,
+    Icon: CONTENT_TYPE_ICONS.article.icon,
     iconClass: 'text-blue-500',
     defaultBadgeClass: 'bg-zinc-50 text-zinc-500',
     rowHoverClass: 'hover:border-blue-300',
@@ -36,7 +36,7 @@ const TYPE_CONFIG: Record<QuizItemType, TypeConfig> = {
     retakePath: (docId) => `/articles/${docId}`,
   },
   audio: {
-    Icon: Mic,
+    Icon: CONTENT_TYPE_ICONS.audio.icon,
     iconClass: 'text-amber-500',
     defaultBadgeClass: 'bg-zinc-50 text-zinc-500',
     rowHoverClass: 'hover:border-amber-300',
@@ -44,7 +44,7 @@ const TYPE_CONFIG: Record<QuizItemType, TypeConfig> = {
     retakePath: (docId) => `/audio/${docId}`,
   },
   podcast: {
-    Icon: Rss,
+    Icon: CONTENT_TYPE_ICONS.podcast.icon,
     iconClass: 'text-rose-500',
     defaultBadgeClass: 'bg-zinc-50 text-zinc-500',
     rowHoverClass: 'hover:border-rose-300',
@@ -52,7 +52,7 @@ const TYPE_CONFIG: Record<QuizItemType, TypeConfig> = {
     retakePath: (docId) => `/audio/${docId}`,
   },
   video: {
-    Icon: Youtube,
+    Icon: CONTENT_TYPE_ICONS.video.icon,
     iconClass: 'text-red-400',
     defaultBadgeClass: 'bg-red-50 text-red-500',
     rowHoverClass: 'hover:border-red-200',

@@ -15,6 +15,7 @@ export type ArtifactKind =
 interface ArtifactSectionProps {
   id: ArtifactKind;
   icon: React.ElementType;
+  color: string;
   title: string;
   count: number;
   page: number;
@@ -28,6 +29,7 @@ interface ArtifactSectionProps {
 export const ArtifactSection: React.FC<ArtifactSectionProps> = ({
   id,
   icon: Icon,
+  color,
   title,
   count,
   page,
@@ -46,7 +48,7 @@ export const ArtifactSection: React.FC<ArtifactSectionProps> = ({
   >
     <div className="flex items-center justify-between gap-3">
       <div className="flex flex-1 min-w-0 items-center gap-2 flex-wrap">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: `${color}18`, color }}>
           <Icon size={16} />
         </div>
         <h3 className="font-bold text-text-main shrink-0">{title}</h3>

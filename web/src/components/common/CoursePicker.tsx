@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, X, Check, Pencil, Trash2, Loader2, Ban, FileText, Youtube, Globe, Headphones } from 'lucide-react';
+import { Plus, X, Check, Pencil, Trash2, Loader2, Ban } from 'lucide-react';
+import { CONTENT_TYPE_ICONS } from '../../constants/contentTypeIcons';
 import { cn } from '../../utils/cn';
 import { useStudy } from '../../context/StudyContext';
 
@@ -140,10 +141,10 @@ export const CoursePicker: React.FC<CoursePickerProps> = ({
           const isBlocked = blockInfo?.courseId === course.id;
           const counts = courseMaterialCounts.find(c => c.courseId === course.id);
           const materialStats = [
-            { label: 'Documents', value: counts?.documents ?? 0, icon: FileText },
-            { label: 'Videos', value: counts?.videos ?? 0, icon: Youtube },
-            { label: 'Articles', value: counts?.articles ?? 0, icon: Globe },
-            { label: 'Audio', value: counts?.audio ?? 0, icon: Headphones },
+            { label: 'Documents', value: counts?.documents ?? 0, icon: CONTENT_TYPE_ICONS.document.icon },
+            { label: 'Videos', value: counts?.videos ?? 0, icon: CONTENT_TYPE_ICONS.video.icon },
+            { label: 'Articles', value: counts?.articles ?? 0, icon: CONTENT_TYPE_ICONS.article.icon },
+            { label: 'Audio', value: counts?.audio ?? 0, icon: CONTENT_TYPE_ICONS.audio.icon },
           ];
 
           if (isEditing) {

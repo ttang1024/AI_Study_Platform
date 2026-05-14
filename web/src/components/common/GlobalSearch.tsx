@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReactDOM from 'react-dom';
-import { Search, FileText, BrainCircuit, StickyNote, BookMarked, X } from 'lucide-react';
+import { Search, FileText, X } from 'lucide-react';
+import { STUDY_TYPE_ICONS } from '../../constants/contentTypeIcons';
 import { useNavigate } from 'react-router-dom';
 import { useStudy } from '../../context/StudyContext';
 import { cn } from '../../utils/cn';
@@ -20,9 +21,9 @@ interface GlobalSearchProps {
 
 const TYPE_ICONS: Record<SearchResult['type'], React.ReactNode> = {
   document: <FileText size={14} />,
-  flashcard: <BrainCircuit size={14} />,
-  note: <StickyNote size={14} />,
-  glossary: <BookMarked size={14} />,
+  flashcard: <STUDY_TYPE_ICONS.flashcard.icon size={14} />,
+  note:      <STUDY_TYPE_ICONS.notes.icon     size={14} />,
+  glossary:  <STUDY_TYPE_ICONS.glossary.icon  size={14} />,
 };
 
 const TYPE_LABELS: Record<SearchResult['type'], string> = {

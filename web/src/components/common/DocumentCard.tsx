@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { FileText, FileType, FileCode, Globe, Clock, Trash2, Sparkles, Mic, Rss, FolderInput, Pencil, Loader2 } from 'lucide-react';
+import { FileText, FileType, FileCode, Clock, Trash2, Sparkles, FolderInput, Pencil, Loader2 } from 'lucide-react';
+import { CONTENT_TYPE_ICONS } from '../../constants/contentTypeIcons';
 import { Document, Course } from '../../types';
 import { cn } from '../../utils/cn';
 import { getDocDisplayName } from '../../utils/docName';
@@ -32,13 +33,13 @@ function hashCode(str: string) {
 }
 
 const FILE_META: Record<string, { icon: React.ElementType; label: string; emoji: string }> = {
-  pdf: { icon: FileText, label: 'PDF', emoji: '📄' },
-  docx: { icon: FileText, label: 'DOCX', emoji: '📝' },
-  txt: { icon: FileType, label: 'TXT', emoji: '📃' },
-  md: { icon: FileCode, label: 'MD', emoji: '✍️' },
-  web: { icon: Globe, label: 'Web', emoji: '🌐' },
-  audio: { icon: Mic, label: 'Audio', emoji: '🎙️' },
-  podcast: { icon: Rss, label: 'Podcast', emoji: '🎧' },
+  pdf:     { icon: FileText,                          label: 'PDF',     emoji: '📄' },
+  docx:    { icon: FileText,                          label: 'DOCX',    emoji: '📝' },
+  txt:     { icon: FileType,                          label: 'TXT',     emoji: '📃' },
+  md:      { icon: FileCode,                          label: 'MD',      emoji: '✍️' },
+  web:     { icon: CONTENT_TYPE_ICONS.article.icon,  label: 'Web',     emoji: CONTENT_TYPE_ICONS.article.emoji },
+  audio:   { icon: CONTENT_TYPE_ICONS.audio.icon,    label: 'Audio',   emoji: CONTENT_TYPE_ICONS.audio.emoji },
+  podcast: { icon: CONTENT_TYPE_ICONS.podcast.icon,  label: 'Podcast', emoji: CONTENT_TYPE_ICONS.podcast.emoji },
 };
 
 export const DocumentCard: React.FC<DocumentCardProps> = ({ doc, course, to, compact = false, onDelete, onUpdated }) => {

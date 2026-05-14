@@ -2,9 +2,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useInView, animate } from 'motion/react';
 import {
-  NotebookPen, ArrowRight, BrainCircuit, BookOpen, Award,
-  Youtube, Globe, BookMarked, Play, Plus, Rss, CalendarCheck2,
+  NotebookPen, ArrowRight, BrainCircuit, Award,
+  BookMarked, Play, Plus, CalendarCheck2,
 } from 'lucide-react';
+import { CONTENT_TYPE_ICONS } from '../constants/contentTypeIcons';
 import { useAuth } from '../context/AuthContext';
 import { useStudy } from '../context/StudyContext';
 import { StudyCalendar } from '../components/common/StudyCalendar';
@@ -191,10 +192,10 @@ export const DashboardPage: React.FC = () => {
         <SectionLabel>Content Library</SectionLabel>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {[
-            { label: 'Documents', value: totalDocuments, icon: BookOpen, link: '/library?type=documents', summarizerTab: '' },
-            { label: 'Videos', value: totalVideos, icon: Youtube, link: '/library?type=videos', summarizerTab: 'youtube' },
-            { label: 'Articles', value: totalArticles, icon: Globe, link: '/library?type=articles', summarizerTab: 'web' },
-            { label: 'Audio', value: totalAudio, icon: Rss, link: '/library?type=audio', summarizerTab: 'audio' },
+            { label: 'Documents', value: totalDocuments, icon: CONTENT_TYPE_ICONS.document.icon, link: '/library?type=documents', summarizerTab: '' },
+            { label: 'Videos', value: totalVideos, icon: CONTENT_TYPE_ICONS.video.icon, link: '/library?type=videos', summarizerTab: 'youtube' },
+            { label: 'Articles', value: totalArticles, icon: CONTENT_TYPE_ICONS.article.icon, link: '/library?type=articles', summarizerTab: 'web' },
+            { label: 'Audio', value: totalAudio, icon: CONTENT_TYPE_ICONS.audio.icon, link: '/library?type=audio', summarizerTab: 'audio' },
           ].map(card => (
             <ContentCard key={card.label} {...card} />
           ))}

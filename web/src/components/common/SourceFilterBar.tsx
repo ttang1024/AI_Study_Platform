@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileText, Youtube, Globe, Mic } from 'lucide-react';
+import { CONTENT_TYPE_ICONS } from '../../constants/contentTypeIcons';
 import { cn } from '../../utils/cn';
 import { Course } from '../../types';
 import { TypeFilterTabs, TypeTab } from './TypeFilterTabs';
@@ -18,11 +18,11 @@ interface SourceFilterBarProps {
 }
 
 const SOURCE_TABS: TypeTab<SourceType>[] = [
-  { id: 'all', label: 'All' },
-  { id: 'document', label: 'Documents', icon: FileText },
-  { id: 'video', label: 'Videos', icon: Youtube },
-  { id: 'article', label: 'Articles', icon: Globe },
-  { id: 'audio', label: 'Audio', icon: Mic },
+  { id: 'all',      label: 'All' },
+  { id: 'document', label: 'Documents', icon: CONTENT_TYPE_ICONS.document.icon },
+  { id: 'video',    label: 'Videos',    icon: CONTENT_TYPE_ICONS.video.icon },
+  { id: 'article',  label: 'Articles',  icon: CONTENT_TYPE_ICONS.article.icon },
+  { id: 'audio',    label: 'Audio',     icon: CONTENT_TYPE_ICONS.audio.icon },
 ];
 
 export const SourceFilterBar: React.FC<SourceFilterBarProps> = ({

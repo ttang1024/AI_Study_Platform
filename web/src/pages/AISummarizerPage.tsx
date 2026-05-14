@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Upload, Youtube, Globe, Mic, Files, Rss } from 'lucide-react';
+import { Upload, Files } from 'lucide-react';
+import { CONTENT_TYPE_ICONS } from '../constants/contentTypeIcons';
 import { BulkUploadSection } from '../components/common/BulkUploadSection';
 import { cn } from '../utils/cn';
 import { CoursePicker } from '../components/common/CoursePicker';
@@ -76,7 +77,7 @@ export const AISummarizerPage: React.FC = () => {
                 activeTab === 'youtube' ? 'bg-white text-red-500 shadow-sm' : 'text-zinc-500 hover:text-zinc-700',
               )}
             >
-              <Youtube size={13} className="sm:hidden" /><Youtube size={15} className="hidden sm:block" /> YouTube
+              <CONTENT_TYPE_ICONS.video.icon size={13} className="sm:hidden" /><CONTENT_TYPE_ICONS.video.icon size={15} className="hidden sm:block" /> YouTube
             </button>
             <button
               onClick={() => handleTabChange('web')}
@@ -85,7 +86,7 @@ export const AISummarizerPage: React.FC = () => {
                 activeTab === 'web' ? 'bg-white text-primary shadow-sm' : 'text-zinc-500 hover:text-zinc-700',
               )}
             >
-              <Globe size={13} className="sm:hidden" /><Globe size={15} className="hidden sm:block" />
+              <CONTENT_TYPE_ICONS.article.icon size={13} className="sm:hidden" /><CONTENT_TYPE_ICONS.article.icon size={15} className="hidden sm:block" />
               <span className="hidden sm:inline">Web Article</span><span className="sm:hidden">Web</span>
             </button>
             <button
@@ -98,8 +99,8 @@ export const AISummarizerPage: React.FC = () => {
               )}
             >
               {activeTab === 'audio' && audioSubTab === 'podcast'
-                ? <><Rss size={13} className="sm:hidden" /><Rss size={15} className="hidden sm:block" /></>
-                : <><Mic size={13} className="sm:hidden" /><Mic size={15} className="hidden sm:block" /></>}
+                ? <><CONTENT_TYPE_ICONS.podcast.icon size={13} className="sm:hidden" /><CONTENT_TYPE_ICONS.podcast.icon size={15} className="hidden sm:block" /></>
+                : <><CONTENT_TYPE_ICONS.audio.icon size={13} className="sm:hidden" /><CONTENT_TYPE_ICONS.audio.icon size={15} className="hidden sm:block" /></>}
               Audio
             </button>
           </div>
@@ -164,7 +165,7 @@ export const AISummarizerPage: React.FC = () => {
                       audioSubTab === 'lecture' ? 'bg-white text-primary shadow-sm' : 'text-zinc-500 hover:text-zinc-700',
                     )}
                   >
-                    <Mic size={12} /> Audio Lecture
+                    <CONTENT_TYPE_ICONS.audio.icon size={12} /> Audio Lecture
                   </button>
                   <button
                     onClick={() => setAudioSubTab('podcast')}
@@ -173,7 +174,7 @@ export const AISummarizerPage: React.FC = () => {
                       audioSubTab === 'podcast' ? 'bg-white text-amber-500 shadow-sm' : 'text-zinc-500 hover:text-zinc-700',
                     )}
                   >
-                    <Rss size={12} /> Podcast
+                    <CONTENT_TYPE_ICONS.podcast.icon size={12} /> Podcast
                   </button>
                 </div>
                 <AnimatePresence mode="wait">

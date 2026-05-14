@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, ChevronLeft, ChevronRight, X, FileText, Youtube } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { CONTENT_TYPE_ICONS } from '../../constants/contentTypeIcons';
 import { motion, AnimatePresence } from 'motion/react';
 import { useStudy } from '../../context/StudyContext';
 import { youtubeService } from '../../services/youtubeService';
@@ -260,7 +261,10 @@ export const StudyCalendar: React.FC = () => {
                     const course = courses.find(c => c.id === entry.courseId);
                     const courseColor = course?.color ?? (entry.type === 'video' ? '#ef4444' : undefined);
                     const courseName = course?.name;
-                    const Icon = entry.type === 'video' ? Youtube : FileText;
+                    const Icon = entry.type === 'video'   ? CONTENT_TYPE_ICONS.video.icon
+                               : entry.type === 'article' ? CONTENT_TYPE_ICONS.article.icon
+                               : entry.type === 'audio'   ? CONTENT_TYPE_ICONS.audio.icon
+                               : CONTENT_TYPE_ICONS.document.icon;
                     return (
                       <button
                         key={entry.id}

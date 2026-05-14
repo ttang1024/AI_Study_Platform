@@ -1,5 +1,6 @@
 import React from 'react';
-import { Loader2, CheckCircle2, Circle, Pencil, Trash2, Check, X, Youtube, Globe, Mic } from 'lucide-react';
+import { Loader2, CheckCircle2, Circle, Pencil, Trash2, Check, X } from 'lucide-react';
+import { CONTENT_TYPE_ICONS } from '../../constants/contentTypeIcons';
 import { cn } from '../../utils/cn';
 import { GlossaryTerm } from '../../types';
 
@@ -56,9 +57,9 @@ export const GlossaryTermCard: React.FC<GlossaryTermCardProps> = ({
       <div className="flex items-center gap-1 shrink-0">
         {!isEditing && term.sourceName && (
           <span className="flex items-center gap-1 text-[10px] text-text-muted bg-zinc-100 rounded-full px-2 py-0.5">
-            {term.sourceKind === 'video' && <Youtube size={9} className="text-red-400" />}
-            {term.sourceKind === 'article' && <Globe size={9} className="text-teal-400" />}
-            {term.sourceKind === 'audio' && <Mic size={9} className="text-amber-400" />}
+            {term.sourceKind === 'video'   && <CONTENT_TYPE_ICONS.video.icon   size={9} className="text-red-400"   />}
+            {term.sourceKind === 'article' && <CONTENT_TYPE_ICONS.article.icon size={9} className="text-teal-400"  />}
+            {term.sourceKind === 'audio'   && <CONTENT_TYPE_ICONS.audio.icon   size={9} className="text-amber-400" />}
             {term.sourceName.slice(0, 18)}{term.sourceName.length > 18 ? '…' : ''}
           </span>
         )}

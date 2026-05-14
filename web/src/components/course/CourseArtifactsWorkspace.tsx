@@ -1,19 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Award,
-  BookMarked,
-  Brain,
-  BrainCircuit,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  Dumbbell,
-  FileText,
   Loader2,
-  MessageSquare,
-  NotebookPen,
   X,
 } from 'lucide-react';
+import { STUDY_TYPE_ICONS } from '../../constants/contentTypeIcons';
 import { Course, Document, Flashcard, GlossaryTerm, Note } from '../../types';
 import { HardFlashcardReview } from '../study/HardFlashcardCard';
 import { SessionRating } from '../study/FlashcardSessionCard';
@@ -652,17 +645,17 @@ export const CourseArtifactsWorkspace: React.FC<CourseArtifactsWorkspaceProps> =
 
         {/* Metrics */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-4">
-          <ArtifactMetric icon={FileText} label="Summaries" value={sourceRows.filter(r => r.summary).length} color="#0d9488" active={activeArtifact === 'summaries'} onClick={() => handleMetricClick('summaries')} />
-          <ArtifactMetric icon={NotebookPen} label="Notes" value={artifacts.notes.length} color="#2563eb" active={activeArtifact === 'notes'} onClick={() => handleMetricClick('notes')} />
-          <ArtifactMetric icon={BrainCircuit} label="Flashcards" value={artifacts.flashcards.length} color="#7c3aed" active={activeArtifact === 'flashcards'} onClick={() => handleMetricClick('flashcards')} />
-          <ArtifactMetric icon={Award} label="Questions" value={artifacts.questions.length} color="#ea580c" active={activeArtifact === 'questions'} onClick={() => handleMetricClick('questions')} />
-          <ArtifactMetric icon={BookMarked} label="Glossary" value={artifacts.glossary.length} color="#059669" active={activeArtifact === 'glossary'} onClick={() => handleMetricClick('glossary')} />
-          <ArtifactMetric icon={Dumbbell} label="Problems" value={artifacts.workedProblems.length} color="#be123c" active={activeArtifact === 'workedProblems'} onClick={() => handleMetricClick('workedProblems')} />
+          <ArtifactMetric icon={STUDY_TYPE_ICONS.summary.icon}   label="Summaries" value={sourceRows.filter(r => r.summary).length} color={STUDY_TYPE_ICONS.summary.color}   active={activeArtifact === 'summaries'}     onClick={() => handleMetricClick('summaries')} />
+          <ArtifactMetric icon={STUDY_TYPE_ICONS.notes.icon}     label="Notes"     value={artifacts.notes.length}               color={STUDY_TYPE_ICONS.notes.color}     active={activeArtifact === 'notes'}         onClick={() => handleMetricClick('notes')} />
+          <ArtifactMetric icon={STUDY_TYPE_ICONS.flashcard.icon} label="Flashcards"value={artifacts.flashcards.length}           color={STUDY_TYPE_ICONS.flashcard.color} active={activeArtifact === 'flashcards'}     onClick={() => handleMetricClick('flashcards')} />
+          <ArtifactMetric icon={STUDY_TYPE_ICONS.quiz.icon}      label="Questions" value={artifacts.questions.length}            color={STUDY_TYPE_ICONS.quiz.color}      active={activeArtifact === 'questions'}     onClick={() => handleMetricClick('questions')} />
+          <ArtifactMetric icon={STUDY_TYPE_ICONS.glossary.icon}  label="Glossary"  value={artifacts.glossary.length}             color={STUDY_TYPE_ICONS.glossary.color}  active={activeArtifact === 'glossary'}      onClick={() => handleMetricClick('glossary')} />
+          <ArtifactMetric icon={STUDY_TYPE_ICONS.problems.icon}  label="Problems"  value={artifacts.workedProblems.length}        color={STUDY_TYPE_ICONS.problems.color}  active={activeArtifact === 'workedProblems'}onClick={() => handleMetricClick('workedProblems')} />
           {mindmapRows.length > 0 && (
-            <ArtifactMetric icon={Brain} label="Mind Maps" value={mindmapRows.length} color="#8b5cf6" active={activeArtifact === 'mindmaps'} onClick={() => handleMetricClick('mindmaps')} />
+            <ArtifactMetric icon={STUDY_TYPE_ICONS.mindmap.icon} label="Mind Maps" value={mindmapRows.length}                    color={STUDY_TYPE_ICONS.mindmap.color}   active={activeArtifact === 'mindmaps'}      onClick={() => handleMetricClick('mindmaps')} />
           )}
           {chatRows.length > 0 && (
-            <ArtifactMetric icon={MessageSquare} label="AI Chats" value={chatRows.length} color="#f59e0b" active={activeArtifact === 'chats'} onClick={() => handleMetricClick('chats')} />
+            <ArtifactMetric icon={STUDY_TYPE_ICONS.chat.icon}    label="AI Chats"  value={chatRows.length}                       color={STUDY_TYPE_ICONS.chat.color}      active={activeArtifact === 'chats'}         onClick={() => handleMetricClick('chats')} />
           )}
         </div>
 
@@ -670,7 +663,7 @@ export const CourseArtifactsWorkspace: React.FC<CourseArtifactsWorkspaceProps> =
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
 
             {/* Notes */}
-            <ArtifactSection id="notes" icon={NotebookPen} title="Notes" count={artifactBuckets.notes.length} page={pagedNotes.page} totalPages={pagedNotes.totalPages} onPageChange={page => setSectionPage('notes', page)} activeArtifact={activeArtifact}>
+            <ArtifactSection id="notes" icon={STUDY_TYPE_ICONS.notes.icon} color={STUDY_TYPE_ICONS.notes.color} title="Notes" count={artifactBuckets.notes.length} page={pagedNotes.page} totalPages={pagedNotes.totalPages} onPageChange={page => setSectionPage('notes', page)} activeArtifact={activeArtifact}>
               {artifactBuckets.notes.length === 0 ? emptyLine : pagedNotes.items.map(note => {
                 const d = buildNoteDetail(note);
                 return (
@@ -685,7 +678,8 @@ export const CourseArtifactsWorkspace: React.FC<CourseArtifactsWorkspaceProps> =
             {/* Flashcards */}
             <ArtifactSection
               id="flashcards"
-              icon={BrainCircuit}
+              icon={STUDY_TYPE_ICONS.flashcard.icon}
+              color={STUDY_TYPE_ICONS.flashcard.color}
               title="Flashcards"
               count={filteredFlashcards.length}
               page={flashcardPage}
@@ -725,7 +719,8 @@ export const CourseArtifactsWorkspace: React.FC<CourseArtifactsWorkspaceProps> =
             {/* Questions */}
             <ArtifactSection
               id="questions"
-              icon={Award}
+              icon={STUDY_TYPE_ICONS.quiz.icon}
+              color={STUDY_TYPE_ICONS.quiz.color}
               title="Quizzes"
               count={filteredQuestions.length}
               page={pagedQuestions.page}
@@ -770,7 +765,8 @@ export const CourseArtifactsWorkspace: React.FC<CourseArtifactsWorkspaceProps> =
             {/* Glossary */}
             <ArtifactSection
               id="glossary"
-              icon={BookMarked}
+              icon={STUDY_TYPE_ICONS.glossary.icon}
+              color={STUDY_TYPE_ICONS.glossary.color}
               title="Glossary Terms"
               count={filteredGlossary.length}
               page={pagedGlossary.page}
@@ -815,7 +811,8 @@ export const CourseArtifactsWorkspace: React.FC<CourseArtifactsWorkspaceProps> =
             {/* Worked Problems */}
             <ArtifactSection
               id="workedProblems"
-              icon={Dumbbell}
+              icon={STUDY_TYPE_ICONS.problems.icon}
+              color={STUDY_TYPE_ICONS.problems.color}
               title="Worked Problems"
               count={filteredWorkedProblems.length}
               page={pagedWorkedProblems.page}
@@ -858,7 +855,7 @@ export const CourseArtifactsWorkspace: React.FC<CourseArtifactsWorkspaceProps> =
             </ArtifactSection>
 
             {/* Summaries */}
-            <ArtifactSection id="summaries" icon={FileText} title="Summaries" count={summaryRows.length} page={pagedSummaries.page} totalPages={pagedSummaries.totalPages} onPageChange={page => setSectionPage('summaries', page)} activeArtifact={activeArtifact}>
+            <ArtifactSection id="summaries" icon={STUDY_TYPE_ICONS.summary.icon} color={STUDY_TYPE_ICONS.summary.color} title="Summaries" count={summaryRows.length} page={pagedSummaries.page} totalPages={pagedSummaries.totalPages} onPageChange={page => setSectionPage('summaries', page)} activeArtifact={activeArtifact}>
               {summaryRows.length === 0 ? emptyLine : pagedSummaries.items.map(row => (
                 <button key={row.key} onClick={() => setDetail(buildSummaryDetail(row))} className="w-full rounded-xl bg-[var(--bg-app)] p-3 text-left hover:bg-primary/5">
                   <p className="truncate text-sm font-semibold text-text-main">{row.title}</p>
@@ -869,7 +866,7 @@ export const CourseArtifactsWorkspace: React.FC<CourseArtifactsWorkspaceProps> =
 
             {/* Mind Maps */}
             {mindmapRows.length > 0 && (
-              <ArtifactSection id="mindmaps" icon={Brain} title="Mind Maps" count={mindmapRows.length} page={pagedMindmaps.page} totalPages={pagedMindmaps.totalPages} onPageChange={page => setSectionPage('mindmaps', page)} activeArtifact={activeArtifact}>
+              <ArtifactSection id="mindmaps" icon={STUDY_TYPE_ICONS.mindmap.icon} color={STUDY_TYPE_ICONS.mindmap.color} title="Mind Maps" count={mindmapRows.length} page={pagedMindmaps.page} totalPages={pagedMindmaps.totalPages} onPageChange={page => setSectionPage('mindmaps', page)} activeArtifact={activeArtifact}>
                 {pagedMindmaps.items.map(row => (
                   <button key={row.key} onClick={() => setDetail(buildMindmapDetail(row))} className="w-full rounded-xl bg-[var(--bg-app)] p-3 text-left hover:bg-primary/5">
                     <p className="truncate text-sm font-semibold text-text-main">{row.title}</p>
@@ -881,7 +878,7 @@ export const CourseArtifactsWorkspace: React.FC<CourseArtifactsWorkspaceProps> =
 
             {/* AI Chats */}
             {chatRows.length > 0 && (
-              <ArtifactSection id="chats" icon={MessageSquare} title="AI Chats" count={chatRows.length} page={pagedChats.page} totalPages={pagedChats.totalPages} onPageChange={page => setSectionPage('chats', page)} activeArtifact={activeArtifact}>
+              <ArtifactSection id="chats" icon={STUDY_TYPE_ICONS.chat.icon} color={STUDY_TYPE_ICONS.chat.color} title="AI Chats" count={chatRows.length} page={pagedChats.page} totalPages={pagedChats.totalPages} onPageChange={page => setSectionPage('chats', page)} activeArtifact={activeArtifact}>
                 {pagedChats.items.map(row => {
                   const session = chatSessions.get(row.documentId ?? row.videoId ?? '');
                   return (

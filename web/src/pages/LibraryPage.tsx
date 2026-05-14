@@ -2,8 +2,9 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  Library, FileText, Youtube, Globe, Plus, Mic, GraduationCap,
+  Library, Plus, GraduationCap,
 } from 'lucide-react';
+import { CONTENT_TYPE_ICONS } from '../constants/contentTypeIcons';
 import { useStudy } from '../context/StudyContext';
 import { youtubeService, VideoListItem } from '../services/youtubeService';
 import { documentService } from '../services/documentService';
@@ -26,11 +27,11 @@ type LibraryItem =
 const PAGE_SIZE = 8;
 
 const TYPE_FILTERS: TypeTab<FilterType>[] = [
-  { id: 'all', label: 'All', icon: Library },
-  { id: 'documents', label: 'Documents', icon: FileText },
-  { id: 'videos', label: 'Videos', icon: Youtube },
-  { id: 'articles', label: 'Articles', icon: Globe },
-  { id: 'audio', label: 'Audio', icon: Mic },
+  { id: 'all',       label: 'All',       icon: Library },
+  { id: 'documents', label: 'Documents', icon: CONTENT_TYPE_ICONS.document.icon },
+  { id: 'videos',    label: 'Videos',    icon: CONTENT_TYPE_ICONS.video.icon },
+  { id: 'articles',  label: 'Articles',  icon: CONTENT_TYPE_ICONS.article.icon },
+  { id: 'audio',     label: 'Audio',     icon: CONTENT_TYPE_ICONS.audio.icon },
 ];
 
 // ─── Page ────────────────────────────────────────────────────────────────────
@@ -268,7 +269,7 @@ export const LibraryPage: React.FC = () => {
             'flex h-16 w-16 items-center justify-center rounded-2xl',
             activeType === 'videos' ? 'bg-red-500/10 text-red-500' : activeType === 'audio' ? 'bg-amber-500/10 text-amber-500' : 'bg-primary/10 text-primary',
           )}>
-            {activeType === 'videos' ? <Youtube size={32} /> : activeType === 'articles' ? <Globe size={32} /> : activeType === 'audio' ? <Mic size={32} /> : <FileText size={32} />}
+            {activeType === 'videos' ? <CONTENT_TYPE_ICONS.video.icon size={32} /> : activeType === 'articles' ? <CONTENT_TYPE_ICONS.article.icon size={32} /> : activeType === 'audio' ? <CONTENT_TYPE_ICONS.audio.icon size={32} /> : <CONTENT_TYPE_ICONS.document.icon size={32} />}
           </div>
           <div>
             <h3 className="text-lg font-semibold text-text-main">

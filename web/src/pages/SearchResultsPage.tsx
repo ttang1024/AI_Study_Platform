@@ -1,24 +1,25 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Search, FileText, StickyNote, BrainCircuit, BookMarked, Loader2 } from 'lucide-react';
+import { Search, FileText, BrainCircuit, Loader2 } from 'lucide-react';
+import { STUDY_TYPE_ICONS } from '../constants/contentTypeIcons';
 import { searchService, SearchResultItem } from '../services/searchService';
 import { cn } from '../utils/cn';
 import { Pagination } from '../components/common/Pagination';
 
 const ENTITY_TYPES = [
-  { id: 'all', label: 'All' },
+  { id: 'all',       label: 'All' },
   { id: 'documents', label: 'Documents', icon: FileText },
-  { id: 'notes', label: 'Notes', icon: StickyNote },
-  { id: 'flashcards', label: 'Flashcards', icon: BrainCircuit },
-  { id: 'glossary', label: 'Glossary', icon: BookMarked },
+  { id: 'notes',     label: 'Notes',     icon: STUDY_TYPE_ICONS.notes.icon     },
+  { id: 'flashcards',label: 'Flashcards',icon: STUDY_TYPE_ICONS.flashcard.icon },
+  { id: 'glossary',  label: 'Glossary',  icon: STUDY_TYPE_ICONS.glossary.icon  },
 ];
 
 const TYPE_ICONS: Record<string, React.ElementType> = {
   document: FileText,
-  note: StickyNote,
-  flashcard: BrainCircuit,
-  glossary: BookMarked,
+  note:     STUDY_TYPE_ICONS.notes.icon,
+  flashcard:STUDY_TYPE_ICONS.flashcard.icon,
+  glossary: STUDY_TYPE_ICONS.glossary.icon,
 };
 
 const TYPE_COLORS: Record<string, string> = {

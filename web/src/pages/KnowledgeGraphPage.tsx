@@ -4,19 +4,13 @@ import * as d3 from 'd3';
 import {
   AlertCircle,
   ArrowRight,
-  BookOpen,
   BrainCircuit,
-  FileText,
-  Globe,
   Loader2,
-  Mic,
   Network,
-  NotebookPen,
   PlayCircle,
   Search,
-  Trophy,
-  Youtube,
 } from 'lucide-react';
+import { CONTENT_TYPE_ICONS, STUDY_TYPE_ICONS } from '../constants/contentTypeIcons';
 import { knowledgeGraphService, KnowledgeGraph, KnowledgeGraphEdge, KnowledgeGraphNode } from '../services/knowledgeGraphService';
 import { QuizPreviewModal } from '../components/quiz/QuizPreviewModal';
 import { ConceptPreviewModal } from '../components/knowledge-graph/ConceptPreviewModal';
@@ -28,15 +22,15 @@ type GraphNode = KnowledgeGraphNode & d3.SimulationNodeDatum;
 type GraphLink = Omit<KnowledgeGraphEdge, 'source' | 'target'> & d3.SimulationLinkDatum<GraphNode>;
 
 const nodeStyles: Record<string, { color: string; bg: string; icon: React.ElementType; label: string }> = {
-  concept: { color: '#0d9488', bg: '#ccfbf1', icon: BrainCircuit, label: 'Concept' }, // teal   ~160°
-  document: { color: '#2563eb', bg: '#dbeafe', icon: FileText, label: 'Document' }, // blue   ~240°
-  article: { color: '#65a30d', bg: '#ecfccb', icon: Globe, label: 'Article' }, // lime   ~80°
-  audio: { color: '#0284c7', bg: '#e0f2fe', icon: Mic, label: 'Audio' }, // sky    ~200°
-  podcast: { color: '#c026d3', bg: '#fae8ff', icon: Mic, label: 'Podcast' }, // fuchsia ~300°
-  video: { color: '#dc2626', bg: '#fee2e2', icon: Youtube, label: 'Video' }, // red    ~0°
-  note: { color: '#7c3aed', bg: '#ede9fe', icon: NotebookPen, label: 'Note' }, // violet ~280°
-  quiz: { color: '#16a34a', bg: '#dcfce7', icon: Trophy, label: 'Quiz' }, // green  ~140°
-  flashcard: { color: '#d97706', bg: '#fef3c7', icon: BookOpen, label: 'Flashcard' }, // amber  ~40°
+  concept:  { color: '#0d9488', bg: '#ccfbf1', icon: BrainCircuit,                                                            label: 'Concept'   }, // teal    ~160°
+  document: { color: '#2563eb', bg: '#dbeafe', icon: CONTENT_TYPE_ICONS.document.icon,                                        label: 'Document'  }, // blue    ~240°
+  article:  { color: '#65a30d', bg: '#ecfccb', icon: CONTENT_TYPE_ICONS.article.icon,                                         label: 'Article'   }, // lime    ~80°
+  audio:    { color: '#0284c7', bg: '#e0f2fe', icon: CONTENT_TYPE_ICONS.audio.icon,                                           label: 'Audio'     }, // sky     ~200°
+  podcast:  { color: '#c026d3', bg: '#fae8ff', icon: CONTENT_TYPE_ICONS.podcast.icon,                                         label: 'Podcast'   }, // fuchsia ~300°
+  video:    { color: '#dc2626', bg: '#fee2e2', icon: CONTENT_TYPE_ICONS.video.icon,                                           label: 'Video'     }, // red     ~0°
+  note:     { color: STUDY_TYPE_ICONS.notes.color,     bg: STUDY_TYPE_ICONS.notes.bg,     icon: STUDY_TYPE_ICONS.notes.icon,     label: 'Note'      }, // violet  ~280°
+  quiz:     { color: STUDY_TYPE_ICONS.quiz.color,      bg: STUDY_TYPE_ICONS.quiz.bg,      icon: STUDY_TYPE_ICONS.quiz.icon,      label: 'Quiz'      }, // green   ~140°
+  flashcard:{ color: STUDY_TYPE_ICONS.flashcard.color, bg: STUDY_TYPE_ICONS.flashcard.bg, icon: STUDY_TYPE_ICONS.flashcard.icon, label: 'Flashcard' }, // amber   ~40°
 };
 
 const getNodeStyle = (type: string) => nodeStyles[type] ?? nodeStyles.concept;
@@ -336,7 +330,7 @@ export const KnowledgeGraphPage: React.FC = () => {
                     className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--primary)] px-4 py-2.5 text-sm font-semibold text-white"
                   >
                     View Questions
-                    <Trophy size={16} />
+                    <STUDY_TYPE_ICONS.quiz.icon size={16} />
                   </button>
                 ) : selected.type === 'concept' ? (
                   <button
@@ -352,7 +346,7 @@ export const KnowledgeGraphPage: React.FC = () => {
                     className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--primary)] px-4 py-2.5 text-sm font-semibold text-white"
                   >
                     View Note
-                    <NotebookPen size={16} />
+                    <STUDY_TYPE_ICONS.notes.icon size={16} />
                   </button>
                 ) : getNodeTarget(selected) ? (
                   <Link

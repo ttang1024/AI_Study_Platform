@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useStudy } from '../context/StudyContext';
-import { BrainCircuit, FileText, Play, Search, Loader2, Smartphone, Globe, Mic, Pencil, Youtube, CalendarDays } from 'lucide-react';
+import { BrainCircuit, Play, Search, Loader2, Smartphone, Pencil, CalendarDays } from 'lucide-react';
+import { CONTENT_TYPE_ICONS } from '../constants/contentTypeIcons';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '../utils/cn';
 import { getDocDisplayName } from '../utils/docName';
@@ -655,12 +656,12 @@ export const FlashcardsPage: React.FC = () => {
                       {set.courseName && (
                         <div className="flex items-center gap-1 mb-1">
                           {set.type === 'video'
-                            ? <Youtube size={15} className='text-red-500' />
+                            ? <CONTENT_TYPE_ICONS.video.icon    size={15} className='text-red-500'     />
                             : set.type === 'article'
-                              ? <Globe size={13} className='text-teal-500' />
+                              ? <CONTENT_TYPE_ICONS.article.icon size={13} className='text-teal-500'  />
                               : set.type === 'audio'
-                                ? <Mic size={13} className='text-amber-500' />
-                                : <FileText size={13} className='text-primary' />
+                                ? <CONTENT_TYPE_ICONS.audio.icon size={13} className='text-amber-500' />
+                                : <CONTENT_TYPE_ICONS.document.icon size={13} className='text-primary' />
                           }
                           <span className="text-[10px] font-bold truncate" style={{ color: cardColor }}>{set.courseName}</span>
                         </div>

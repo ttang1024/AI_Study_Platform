@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FileText, Youtube, Mic, Globe, Sparkles, Loader2, X, ChevronLeft, ChevronRight, ExternalLink, CheckCircle2, XCircle, Trophy } from 'lucide-react';
+import { Sparkles, Loader2, X, ChevronLeft, ChevronRight, ExternalLink, CheckCircle2, XCircle, Trophy } from 'lucide-react';
+import { CONTENT_TYPE_ICONS } from '../../constants/contentTypeIcons';
 import { Pagination } from './Pagination';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../../utils/cn';
@@ -66,11 +67,11 @@ const PATTERNS = [
 ];
 
 const TYPE_META = {
-  video: { Icon: Youtube, typeLabel: 'YouTube', emoji: '▶', fallbackColor: '#ef4444' },
-  audio: { Icon: Mic, typeLabel: 'Audio', emoji: '🎙️', fallbackColor: '#f59e0b' },
-  article: { Icon: Globe, typeLabel: 'Article', emoji: '🌐', fallbackColor: '#14b8a6' },
-  document: { Icon: FileText, typeLabel: 'Document', emoji: '📄', fallbackColor: '#059669' },
-} as const;
+  video:    { Icon: CONTENT_TYPE_ICONS.video.icon,    typeLabel: 'YouTube',                        emoji: CONTENT_TYPE_ICONS.video.emoji,    fallbackColor: CONTENT_TYPE_ICONS.video.color },
+  audio:    { Icon: CONTENT_TYPE_ICONS.audio.icon,    typeLabel: CONTENT_TYPE_ICONS.audio.label,   emoji: CONTENT_TYPE_ICONS.audio.emoji,    fallbackColor: CONTENT_TYPE_ICONS.audio.color },
+  article:  { Icon: CONTENT_TYPE_ICONS.article.icon,  typeLabel: CONTENT_TYPE_ICONS.article.label, emoji: CONTENT_TYPE_ICONS.article.emoji,  fallbackColor: CONTENT_TYPE_ICONS.article.color },
+  document: { Icon: CONTENT_TYPE_ICONS.document.icon, typeLabel: CONTENT_TYPE_ICONS.document.label,emoji: CONTENT_TYPE_ICONS.document.emoji, fallbackColor: CONTENT_TYPE_ICONS.document.color },
+};
 
 function getItemMeta(item: PendingItem, courses: Course[]) {
   if (item.kind === 'video') {
@@ -251,7 +252,7 @@ export const PendingItemsGrid: React.FC<PendingItemsGridProps> = ({
                           onError={e => { (e.target as HTMLImageElement).src = `https://img.youtube.com/vi/${item.video.videoId}/mqdefault.jpg`; }}
                         />
                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition-colors duration-200 flex items-center justify-center">
-                          <Youtube size={12} className="text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow" />
+                          <CONTENT_TYPE_ICONS.video.icon size={12} className="text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow" />
                         </div>
                       </div>
                     ) : (
