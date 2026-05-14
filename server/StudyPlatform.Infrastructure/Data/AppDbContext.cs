@@ -35,6 +35,8 @@ public class AppDbContext : DbContext
     public DbSet<GroupChatMessage> GroupChatMessages => Set<GroupChatMessage>();
     public DbSet<ConceptLink> ConceptLinks => Set<ConceptLink>();
     public DbSet<FlashcardSrsData> FlashcardSrs => Set<FlashcardSrsData>();
+    public DbSet<CacheEntry> CacheEntries => Set<CacheEntry>();
+    public DbSet<YouTubeTranscriptEntry> YouTubeTranscriptEntries => Set<YouTubeTranscriptEntry>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

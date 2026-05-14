@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using StudyPlatform.Infrastructure.Data;
@@ -12,9 +13,11 @@ using StudyPlatform.Infrastructure.Data;
 namespace StudyPlatform.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260514205600_AddPersistentCacheEntries")]
+    partial class AddPersistentCacheEntries
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1134,36 +1137,6 @@ namespace StudyPlatform.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("WorkedProblemMastered");
-                });
-
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.YouTubeTranscriptEntry", b =>
-                {
-                    b.Property<string>("VideoId")
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<string>("Kind")
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime>("ExpiresAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("SegmentsJson")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("VideoId", "Kind");
-
-                    b.HasIndex("ExpiresAt");
-
-                    b.ToTable("YouTubeTranscriptEntries");
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.YouTubeVideo", b =>

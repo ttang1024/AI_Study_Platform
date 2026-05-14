@@ -1,8 +1,10 @@
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using StudyPlatform.API.Extensions;
 using StudyPlatform.Application.Common;
@@ -17,6 +19,7 @@ using StudyPlatform.Application.YouTube.DTOs;
 using StudyPlatform.Application.YouTube.Queries;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
+using StudyPlatform.Infrastructure.Data;
 
 namespace StudyPlatform.API.Controllers;
 
@@ -36,15 +39,19 @@ public class YouTubeController : ControllerBase
     private readonly IAiService _aiService;
     private readonly IMediator _mediator;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly AppDbContext _db;
     private readonly IAppCache _cache;
     private readonly CacheOptions _cacheOptions;
+    private const string TranscriptKind = "transcript";
+    private const string SubtitlesKind = "subtitles";
 
-    public YouTubeController(IYouTubeTranscriptService transcriptService, IAiService aiService, IMediator mediator, IUnitOfWork unitOfWork, IAppCache cache, IOptions<CacheOptions> cacheOptions)
+    public YouTubeController(IYouTubeTranscriptService transcriptService, IAiService aiService, IMediator mediator, IUnitOfWork unitOfWork, AppDbContext db, IAppCache cache, IOptions<CacheOptions> cacheOptions)
     {
         _transcriptService = transcriptService;
         _aiService = aiService;
         _mediator = mediator;
         _unitOfWork = unitOfWork;
+        _db = db;
         _cache = cache;
         _cacheOptions = cacheOptions.Value;
     }
@@ -62,7 +69,15 @@ public class YouTubeController : ControllerBase
 
         var cached = await _cache.GetAsync<List<TranscriptSegmentDto>>(cacheKey, cancellationToken);
         if (cached != null)
-            return Ok(BaseResponse<IReadOnlyList<TranscriptSegmentDto>>.Ok(cached, "Transcript retrieved successfully."));
+            return Ok(BaseResponse<IReadOnlyList<TranscriptSegmentDto>>.Ok(NormalizeTranscriptSegments(cached), "Transcript retrieved successfully."));
+
+        var stored = await GetStoredTranscriptSegmentsAsync(videoId, TranscriptKind, cancellationToken)
+                     ?? await GetStoredTranscriptSegmentsAsync(videoId, SubtitlesKind, cancellationToken);
+        if (stored is { Count: > 0 })
+        {
+            await _cache.SetAsync(cacheKey, stored, ttl, cancellationToken);
+            return Ok(BaseResponse<IReadOnlyList<TranscriptSegmentDto>>.Ok(stored, "Transcript retrieved successfully."));
+        }
 
         var segments = await _transcriptService.GetTranscriptAsync(videoId, cancellationToken);
         if (segments == null)
@@ -70,6 +85,8 @@ public class YouTubeController : ControllerBase
                 "No captions found for this video.", "TRANSCRIPT_NOT_FOUND"));
 
         var dtos = segments.Select(s => new TranscriptSegmentDto(s.Start.TotalSeconds, s.Text)).ToList();
+        dtos = NormalizeTranscriptSegments(dtos);
+        await StoreTranscriptSegmentsAsync(videoId, TranscriptKind, dtos, ttl, cancellationToken);
         await _cache.SetAsync(cacheKey, dtos, ttl, cancellationToken);
         return Ok(BaseResponse<IReadOnlyList<TranscriptSegmentDto>>.Ok(dtos, "Transcript retrieved successfully."));
     }
@@ -87,12 +104,20 @@ public class YouTubeController : ControllerBase
         if (cached != null)
             return Ok(BaseResponse<IReadOnlyList<TranscriptSegmentDto>>.Ok(cached, "Subtitles retrieved successfully."));
 
+        var stored = await GetStoredTranscriptSegmentsAsync(videoId, SubtitlesKind, cancellationToken);
+        if (stored is { Count: > 0 })
+        {
+            await _cache.SetAsync(cacheKey, stored, ttl, cancellationToken);
+            return Ok(BaseResponse<IReadOnlyList<TranscriptSegmentDto>>.Ok(stored, "Subtitles retrieved successfully."));
+        }
+
         var segments = await _transcriptService.GetSubtitlesAsync(videoId, cancellationToken);
         if (segments == null)
             return NotFound(BaseResponse<string>.Fail(
                 "No captions found for this video.", "SUBTITLES_NOT_FOUND"));
 
         var dtos = segments.Select(s => new TranscriptSegmentDto(s.Start.TotalSeconds, s.Text)).ToList();
+        await StoreTranscriptSegmentsAsync(videoId, SubtitlesKind, dtos, ttl, cancellationToken);
         await _cache.SetAsync(cacheKey, dtos, ttl, cancellationToken);
         return Ok(BaseResponse<IReadOnlyList<TranscriptSegmentDto>>.Ok(dtos, "Subtitles retrieved successfully."));
     }
@@ -168,6 +193,65 @@ public class YouTubeController : ControllerBase
     private static string VideoGlossaryCacheKey(Guid videoRecordId, Guid userId) => $"glossary:video:{videoRecordId}:{userId}";
     private static string VideoQuizCacheKey(Guid videoRecordId, Guid userId, string difficulty) => $"quiz:video:{videoRecordId}:{userId}:{difficulty}";
 
+    private async Task<List<TranscriptSegmentDto>?> GetStoredTranscriptSegmentsAsync(
+        string videoId,
+        string kind,
+        CancellationToken cancellationToken)
+    {
+        var entry = await _db.YouTubeTranscriptEntries.FindAsync([videoId, kind], cancellationToken);
+        if (entry is null)
+            return null;
+
+        if (entry.ExpiresAt <= DateTime.UtcNow)
+        {
+            _db.YouTubeTranscriptEntries.Remove(entry);
+            await _db.SaveChangesAsync(cancellationToken);
+            return null;
+        }
+
+        try
+        {
+            var segments = JsonSerializer.Deserialize<List<TranscriptSegmentDto>>(entry.SegmentsJson,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            return kind == TranscriptKind && segments is not null
+                ? NormalizeTranscriptSegments(segments)
+                : segments;
+        }
+        catch
+        {
+            _db.YouTubeTranscriptEntries.Remove(entry);
+            await _db.SaveChangesAsync(cancellationToken);
+            return null;
+        }
+    }
+
+    private async Task StoreTranscriptSegmentsAsync(
+        string videoId,
+        string kind,
+        IReadOnlyCollection<TranscriptSegmentDto> segments,
+        TimeSpan ttl,
+        CancellationToken cancellationToken)
+    {
+        if (segments.Count == 0)
+            return;
+
+        if (kind == TranscriptKind)
+            segments = NormalizeTranscriptSegments(segments);
+
+        var now = DateTime.UtcNow;
+        var expiresAt = now.Add(ttl);
+        var segmentsJson = JsonSerializer.Serialize(segments);
+
+        await _db.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO "YouTubeTranscriptEntries" ("VideoId", "Kind", "SegmentsJson", "ExpiresAt", "CreatedAt", "UpdatedAt")
+            VALUES ({videoId}, {kind}, {segmentsJson}, {expiresAt}, {now}, {now})
+            ON CONFLICT ("VideoId", "Kind") DO UPDATE
+            SET "SegmentsJson" = EXCLUDED."SegmentsJson",
+                "ExpiresAt" = EXCLUDED."ExpiresAt",
+                "UpdatedAt" = EXCLUDED."UpdatedAt";
+            """, cancellationToken);
+    }
+
     // Returns transcript from Redis → DB → YouTube fetch (in that order), persisting to DB and Redis on miss.
     private async Task<string?> GetOrFetchTranscriptAsync(YouTubeVideo video, CancellationToken cancellationToken)
     {
@@ -184,15 +268,35 @@ public class YouTubeController : ControllerBase
             return video.Transcript;
         }
 
-        var segments = await _transcriptService.GetSubtitlesAsync(video.VideoId, cancellationToken)
-                       ?? await _transcriptService.GetTranscriptAsync(video.VideoId, cancellationToken);
+        var storedSegments = await GetStoredTranscriptSegmentsAsync(video.VideoId, SubtitlesKind, cancellationToken)
+                             ?? await GetStoredTranscriptSegmentsAsync(video.VideoId, TranscriptKind, cancellationToken);
+        if (storedSegments is { Count: > 0 })
+        {
+            var storedTranscript = string.Join(" ", storedSegments.Select(s => s.Text));
+            video.Transcript = storedTranscript;
+            video.UpdatedAt = DateTime.UtcNow;
+            _unitOfWork.YouTubeVideos.Update(video);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _cache.SetAsync(cacheKey, storedTranscript, ttl, cancellationToken);
+            return storedTranscript;
+        }
+
+        var segments = await _transcriptService.GetSubtitlesAsync(video.VideoId, cancellationToken);
+        var transcriptKind = SubtitlesKind;
+        if (segments == null || segments.Count == 0)
+        {
+            segments = await _transcriptService.GetTranscriptAsync(video.VideoId, cancellationToken);
+            transcriptKind = TranscriptKind;
+        }
         if (segments == null || segments.Count == 0) return null;
 
+        var dtos = segments.Select(s => new TranscriptSegmentDto(s.Start.TotalSeconds, s.Text)).ToList();
         var transcript = string.Join(" ", segments.Select(s => s.Text));
         video.Transcript = transcript;
         video.UpdatedAt = DateTime.UtcNow;
         _unitOfWork.YouTubeVideos.Update(video);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await StoreTranscriptSegmentsAsync(video.VideoId, transcriptKind, dtos, ttl, cancellationToken);
         await _cache.SetAsync(cacheKey, transcript, ttl, cancellationToken);
         return transcript;
     }
@@ -211,11 +315,27 @@ public class YouTubeController : ControllerBase
         if (savedVideo != null)
             return await GetOrFetchTranscriptAsync(savedVideo, cancellationToken);
 
-        var segments = await _transcriptService.GetSubtitlesAsync(videoId, cancellationToken)
-                       ?? await _transcriptService.GetTranscriptAsync(videoId, cancellationToken);
+        var storedSegments = await GetStoredTranscriptSegmentsAsync(videoId, SubtitlesKind, cancellationToken)
+                             ?? await GetStoredTranscriptSegmentsAsync(videoId, TranscriptKind, cancellationToken);
+        if (storedSegments is { Count: > 0 })
+        {
+            var storedTranscript = string.Join(" ", storedSegments.Select(s => s.Text));
+            await _cache.SetAsync(cacheKey, storedTranscript, ttl, cancellationToken);
+            return storedTranscript;
+        }
+
+        var segments = await _transcriptService.GetSubtitlesAsync(videoId, cancellationToken);
+        var transcriptKind = SubtitlesKind;
+        if (segments == null || segments.Count == 0)
+        {
+            segments = await _transcriptService.GetTranscriptAsync(videoId, cancellationToken);
+            transcriptKind = TranscriptKind;
+        }
         if (segments == null || segments.Count == 0) return null;
 
-        var transcript = string.Join(" ", segments.Select(s => s.Text));
+        var dtos = segments.Select(s => new TranscriptSegmentDto(s.Start.TotalSeconds, s.Text)).ToList();
+        var transcript = string.Join(" ", dtos.Select(s => s.Text));
+        await StoreTranscriptSegmentsAsync(videoId, transcriptKind, dtos, ttl, cancellationToken);
         await _cache.SetAsync(cacheKey, transcript, ttl, cancellationToken);
         return transcript;
     }
@@ -229,16 +349,64 @@ public class YouTubeController : ControllerBase
         if (cached is { Count: > 0 })
             return FormatTranscriptSegments(cached);
 
-        var segments = await _transcriptService.GetSubtitlesAsync(videoId, cancellationToken)
-                       ?? await _transcriptService.GetTranscriptAsync(videoId, cancellationToken);
+        var storedSegments = await GetStoredTranscriptSegmentsAsync(videoId, TranscriptKind, cancellationToken)
+                             ?? await GetStoredTranscriptSegmentsAsync(videoId, SubtitlesKind, cancellationToken);
+        if (storedSegments is { Count: > 0 })
+        {
+            await _cache.SetAsync(cacheKey, storedSegments, ttl, cancellationToken);
+            return FormatTranscriptSegments(storedSegments);
+        }
+
+        var segments = await _transcriptService.GetSubtitlesAsync(videoId, cancellationToken);
+        var transcriptKind = SubtitlesKind;
+        if (segments == null || segments.Count == 0)
+        {
+            segments = await _transcriptService.GetTranscriptAsync(videoId, cancellationToken);
+            transcriptKind = TranscriptKind;
+        }
         if (segments is { Count: > 0 })
         {
             var dtos = segments.Select(s => new TranscriptSegmentDto(s.Start.TotalSeconds, s.Text)).ToList();
+            await StoreTranscriptSegmentsAsync(videoId, transcriptKind, dtos, ttl, cancellationToken);
             await _cache.SetAsync(cacheKey, dtos, ttl, cancellationToken);
             return FormatTranscriptSegments(dtos);
         }
 
         return await GetTranscriptTextAsync(videoId, cancellationToken);
+    }
+
+    private static List<TranscriptSegmentDto> NormalizeTranscriptSegments(IEnumerable<TranscriptSegmentDto> segments)
+        => segments
+            .Select(s => new TranscriptSegmentDto(s.StartSeconds, NormalizeTranscriptSentence(s.Text)))
+            .ToList();
+
+    private static string NormalizeTranscriptSentence(string text)
+    {
+        text = Regex.Replace(text.Trim(), @"\s+([,.;:!?])", "$1");
+        text = AddCommonCommas(text);
+        if (text.Length == 0)
+            return text;
+
+        text = char.ToUpperInvariant(text[0]) + text[1..];
+        return EndsWithSentencePunctuation(text) ? text : text + ".";
+    }
+
+    private static bool EndsWithSentencePunctuation(string text)
+        => text.EndsWith('.') || text.EndsWith('!') || text.EndsWith('?');
+
+    private static string AddCommonCommas(string text)
+    {
+        text = Regex.Replace(
+            text,
+            @"^(however|therefore|meanwhile|first|second|third|finally|for example|in addition|on the other hand)\s+",
+            match => match.Groups[1].Value + ", ",
+            RegexOptions.IgnoreCase);
+
+        return Regex.Replace(
+            text,
+            @"\s+(however|although|though|whereas|while|but|which)\s+",
+            match => ", " + match.Groups[1].Value + " ",
+            RegexOptions.IgnoreCase);
     }
 
     private static string FormatTranscriptSegments(IEnumerable<TranscriptSegmentDto> segments)
