@@ -44,6 +44,8 @@ public class YouTubeController : ControllerBase
     private readonly CacheOptions _cacheOptions;
     private const string TranscriptKind = "transcript";
     private const string SubtitlesKind = "subtitles";
+    private const double MinTranscriptSegmentSeconds = 30.0;
+    private const double MaxTranscriptSegmentSeconds = 60.0;
 
     public YouTubeController(IYouTubeTranscriptService transcriptService, IAiService aiService, IMediator mediator, IUnitOfWork unitOfWork, AppDbContext db, IAppCache cache, IOptions<CacheOptions> cacheOptions)
     {
@@ -69,14 +71,15 @@ public class YouTubeController : ControllerBase
 
         var cached = await _cache.GetAsync<List<TranscriptSegmentDto>>(cacheKey, cancellationToken);
         if (cached != null)
-            return Ok(BaseResponse<IReadOnlyList<TranscriptSegmentDto>>.Ok(NormalizeTranscriptSegments(cached), "Transcript retrieved successfully."));
+            return Ok(BaseResponse<IReadOnlyList<TranscriptSegmentDto>>.Ok(PrepareTranscriptSegments(cached), "Transcript retrieved successfully."));
 
         var stored = await GetStoredTranscriptSegmentsAsync(videoId, TranscriptKind, cancellationToken)
                      ?? await GetStoredTranscriptSegmentsAsync(videoId, SubtitlesKind, cancellationToken);
         if (stored is { Count: > 0 })
         {
-            await _cache.SetAsync(cacheKey, stored, ttl, cancellationToken);
-            return Ok(BaseResponse<IReadOnlyList<TranscriptSegmentDto>>.Ok(stored, "Transcript retrieved successfully."));
+            var prepared = PrepareTranscriptSegments(stored);
+            await _cache.SetAsync(cacheKey, prepared, ttl, cancellationToken);
+            return Ok(BaseResponse<IReadOnlyList<TranscriptSegmentDto>>.Ok(prepared, "Transcript retrieved successfully."));
         }
 
         var segments = await _transcriptService.GetTranscriptAsync(videoId, cancellationToken);
@@ -85,7 +88,7 @@ public class YouTubeController : ControllerBase
                 "No captions found for this video.", "TRANSCRIPT_NOT_FOUND"));
 
         var dtos = segments.Select(s => new TranscriptSegmentDto(s.Start.TotalSeconds, s.Text)).ToList();
-        dtos = NormalizeTranscriptSegments(dtos);
+        dtos = PrepareTranscriptSegments(dtos);
         await StoreTranscriptSegmentsAsync(videoId, TranscriptKind, dtos, ttl, cancellationToken);
         await _cache.SetAsync(cacheKey, dtos, ttl, cancellationToken);
         return Ok(BaseResponse<IReadOnlyList<TranscriptSegmentDto>>.Ok(dtos, "Transcript retrieved successfully."));
@@ -214,7 +217,7 @@ public class YouTubeController : ControllerBase
             var segments = JsonSerializer.Deserialize<List<TranscriptSegmentDto>>(entry.SegmentsJson,
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             return kind == TranscriptKind && segments is not null
-                ? NormalizeTranscriptSegments(segments)
+                ? PrepareTranscriptSegments(segments)
                 : segments;
         }
         catch
@@ -236,7 +239,7 @@ public class YouTubeController : ControllerBase
             return;
 
         if (kind == TranscriptKind)
-            segments = NormalizeTranscriptSegments(segments);
+            segments = PrepareTranscriptSegments(segments);
 
         var now = DateTime.UtcNow;
         var expiresAt = now.Add(ttl);
@@ -375,10 +378,75 @@ public class YouTubeController : ControllerBase
         return await GetTranscriptTextAsync(videoId, cancellationToken);
     }
 
-    private static List<TranscriptSegmentDto> NormalizeTranscriptSegments(IEnumerable<TranscriptSegmentDto> segments)
-        => segments
+    private static List<TranscriptSegmentDto> PrepareTranscriptSegments(IEnumerable<TranscriptSegmentDto> segments)
+        => SegmentTranscriptForReading(segments)
             .Select(s => new TranscriptSegmentDto(s.StartSeconds, NormalizeTranscriptSentence(s.Text)))
             .ToList();
+
+    private static List<TranscriptSegmentDto> SegmentTranscriptForReading(IEnumerable<TranscriptSegmentDto> segments)
+    {
+        var ordered = segments
+            .Where(s => !string.IsNullOrWhiteSpace(s.Text))
+            .OrderBy(s => s.StartSeconds)
+            .ToList();
+
+        if (ordered.Count <= 1)
+            return ordered;
+
+        var result = new List<TranscriptSegmentDto>();
+        var segmentStart = ordered[0].StartSeconds;
+        var segmentText = new StringBuilder();
+
+        for (var i = 0; i < ordered.Count; i++)
+        {
+            var current = ordered[i];
+            var currentStart = current.StartSeconds;
+            var nextStart = i + 1 < ordered.Count ? ordered[i + 1].StartSeconds : (double?)null;
+            var elapsedToCurrent = currentStart - segmentStart;
+
+            if (segmentText.Length > 0 && elapsedToCurrent >= MinTranscriptSegmentSeconds)
+            {
+                result.Add(new TranscriptSegmentDto(segmentStart, segmentText.ToString()));
+                segmentText.Clear();
+                segmentStart = currentStart;
+            }
+
+            if (segmentText.Length == 0)
+                segmentStart = currentStart;
+            else
+                segmentText.Append(' ');
+
+            segmentText.Append(current.Text.Trim());
+
+            if (nextStart.HasValue && nextStart.Value - segmentStart >= MaxTranscriptSegmentSeconds)
+            {
+                result.Add(new TranscriptSegmentDto(segmentStart, segmentText.ToString()));
+                segmentText.Clear();
+            }
+        }
+
+        if (segmentText.Length > 0)
+            result.Add(new TranscriptSegmentDto(segmentStart, segmentText.ToString()));
+
+        MergeShortTrailingSegment(result);
+        return result;
+    }
+
+    private static void MergeShortTrailingSegment(List<TranscriptSegmentDto> segments)
+    {
+        if (segments.Count < 2)
+            return;
+
+        var last = segments[^1];
+        var previous = segments[^2];
+        var trailingDuration = last.StartSeconds - previous.StartSeconds;
+
+        if (trailingDuration >= MinTranscriptSegmentSeconds)
+            return;
+
+        segments[^2] = previous with { Text = $"{previous.Text.Trim()} {last.Text.Trim()}" };
+        segments.RemoveAt(segments.Count - 1);
+    }
 
     private static string NormalizeTranscriptSentence(string text)
     {
