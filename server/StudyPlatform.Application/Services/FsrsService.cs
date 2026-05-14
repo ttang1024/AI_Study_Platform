@@ -108,7 +108,7 @@ public static class FsrsService
                     newStability = Math.Max(0.1, NextForgetStability(srs.Difficulty, srs.Stability, r));
                     newState = 3;
                     scheduledDays = 1;
-                    lapses++;
+                    // lapses already counted on Review→Relearning transition; don't increment again
                 }
                 else
                 {
@@ -129,7 +129,7 @@ public static class FsrsService
             Lapses: lapses,
             ScheduledDays: scheduledDays,
             ElapsedDays: (int)Math.Round(elapsedDays),
-            Due: reviewedAt.Date.AddDays(scheduledDays),
+            Due: DateTime.SpecifyKind(reviewedAt.Date.AddDays(scheduledDays), DateTimeKind.Utc),
             LastReview: reviewedAt,
             Retrievability: Math.Round(r, 4));
     }

@@ -15,19 +15,16 @@ public class GenerateQuizCommandHandler : IRequestHandler<GenerateQuizCommand, R
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly IAiService _aiService;
-    private readonly IBlobStorageService _blobStorageService;
-    private readonly IDocumentTextExtractor _textExtractor;
+    private readonly IDocumentContentService _contentService;
 
     public GenerateQuizCommandHandler(
         IUnitOfWork unitOfWork,
         IAiService aiService,
-        IBlobStorageService blobStorageService,
-        IDocumentTextExtractor textExtractor)
+        IDocumentContentService contentService)
     {
         _unitOfWork = unitOfWork;
         _aiService = aiService;
-        _blobStorageService = blobStorageService;
-        _textExtractor = textExtractor;
+        _contentService = contentService;
     }
 
     public async Task<Result<IEnumerable<QuizDto>>> Handle(GenerateQuizCommand request, CancellationToken cancellationToken)
@@ -55,24 +52,10 @@ public class GenerateQuizCommandHandler : IRequestHandler<GenerateQuizCommand, R
             return Result<IEnumerable<QuizDto>>.Success(cachedDtos, "Quiz retrieved successfully.");
         }
 
-        string quizJson;
-
-        if (document.ContentType.StartsWith("audio/", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(document.Transcript))
-        {
-            quizJson = await _aiService.GenerateQuizAsync(document.Transcript, difficulty, cancellationToken);
-        }
-        else if (AiInlineData.IsSupported(document.ContentType))
-        {
-            var stream = await _blobStorageService.DownloadAsync(document.BlobUrl, cancellationToken);
-            using var ms = new MemoryStream();
-            await stream.CopyToAsync(ms, cancellationToken);
-            quizJson = await _aiService.GenerateQuizAsync(ms.ToArray(), document.ContentType, difficulty, cancellationToken);
-        }
-        else
-        {
-            var text = await _textExtractor.ExtractTextAsync(document.BlobUrl, document.ContentType, cancellationToken);
-            quizJson = await _aiService.GenerateQuizAsync(text, difficulty, cancellationToken);
-        }
+        var (bytes, text) = await _contentService.GetContentAsync(document, cancellationToken);
+        var quizJson = bytes != null
+            ? await _aiService.GenerateQuizAsync(bytes, document.ContentType, difficulty, cancellationToken)
+            : await _aiService.GenerateQuizAsync(text!, difficulty, cancellationToken);
 
         List<AiQuizItem> quizItems;
         try

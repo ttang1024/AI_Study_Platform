@@ -1,8 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useStudy } from '../context/StudyContext';
 import {
-  Sparkles, Award, Eye, EyeOff, Loader2, Download, Check, Edit3, FileText,
-  Filter, Plus, Search, Trash2, X, XCircle, RotateCcw,
+  Award, Loader2, Download, Plus, RotateCcw,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getDocDisplayName } from '../utils/docName';
@@ -19,7 +18,7 @@ import { PendingMaterial, pendingMaterialToItem } from '../services/pendingMater
 import { Pagination } from '../components/common/Pagination';
 import { useRefreshOnVisible } from '../hooks/useRefreshOnVisible';
 import { usePrompt } from '../components/common/PromptBox';
-import { getCorrectQuizOptionText, isQuizOptionCorrect } from '../utils/quizAnswers';
+import { getCorrectQuizOptionText, isQuizOptionCorrect, shuffle } from '../utils/quizAnswers';
 import {
   downloadMoodleGift,
   downloadQtiZip,
@@ -30,20 +29,14 @@ import {
   questionBankService,
   QuestionBankQuestion,
   QuestionDifficulty,
+  getDifficultyLabel,
 } from '../services/questionBankService';
 import { cn } from '../utils/cn';
-import { Select } from '../components/common/Select';
+import { EditQuestionModal } from '../components/quiz/EditQuestionModal';
+import { FailedQuestionsTab, FailedQuestion } from '../components/quiz/FailedQuestionsTab';
+import { QuestionBankTab } from '../components/quiz/QuestionBankTab';
 
 const PAGE_SIZE = 5;
-const difficultyOptions: Array<'all' | QuestionDifficulty> = ['all', 'easy', 'medium', 'hard'];
-const difficultyLabels: Record<QuestionDifficulty, string> = {
-  easy: 'Beginner',
-  medium: 'Intermediate',
-  hard: 'Advanced',
-};
-
-const getDifficultyLabel = (difficulty: QuestionDifficulty | undefined): string =>
-  difficulty ? difficultyLabels[difficulty] : difficultyLabels.medium;
 
 type MainTab = 'history' | 'failed' | 'bank';
 
@@ -83,17 +76,6 @@ type VideoQuizItem = {
 
 type UnifiedQuizItem = DocQuizItem | VideoQuizItem;
 
-type FailedQuestion = {
-  question: QuestionBankQuestion;
-  submission: QuizSubmission;
-  selectedAnswer: string;
-  correctAnswer: string;
-  sourceName: string;
-  courseName?: string;
-  courseColor?: string;
-  submittedAt: string;
-};
-
 const toQuizQuestion = (q: QuestionBankQuestion): QuizQuestion => ({
   id: q.quizId,
   question: q.question,
@@ -103,15 +85,6 @@ const toQuizQuestion = (q: QuestionBankQuestion): QuizQuestion => ({
   type: 'multiple-choice',
   difficulty: q.difficulty,
 });
-
-const shuffle = <T,>(items: T[]): T[] => {
-  const copy = [...items];
-  for (let i = copy.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [copy[i], copy[j]] = [copy[j], copy[i]];
-  }
-  return copy;
-};
 
 export const QuizManagementPage: React.FC = () => {
   const { documents, courses, quizSubmissions, totalMaterials, totalQuizSubmissions, achievementStats, isLoading: contextLoading, refreshQuizSubmissions, refreshStats, refreshDocuments } = useStudy();
@@ -933,243 +906,51 @@ export const QuizManagementPage: React.FC = () => {
 
       {/* ── Failed quiz tab ── */}
       {mainTab === 'failed' && (
-        <>
-          <div className="rounded-2xl border border-[var(--border-color)] bg-white p-4 shadow-sm">
-            <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_180px]">
-              <div className="relative">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
-                <input
-                  value={failedSearch}
-                  onChange={e => setFailedSearch(e.target.value)}
-                  placeholder="Search failed questions..."
-                  className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-app)] py-2 pl-9 pr-3 text-sm outline-none focus:border-primary"
-                />
-              </div>
-              <Select value={failedCourseId} onChange={e => setFailedCourseId(e.target.value)}>
-                <option value="all">All courses</option>
-                {courses.map(course => <option key={course.id} value={course.id}>{course.name}</option>)}
-              </Select>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between text-sm text-text-muted">
-            <span className="inline-flex items-center gap-2"><XCircle size={14} /> {failedFiltered.length} failed questions</span>
-            <button
-              onClick={() => void loadFailedQuizData()}
-              disabled={failedLoading}
-              className="font-semibold text-primary hover:underline disabled:opacity-40"
-            >
-              Refresh
-            </button>
-          </div>
-
-          {failedLoading ? (
-            <div className="flex justify-center py-16"><Loader2 size={28} className="animate-spin text-primary" /></div>
-          ) : failedFiltered.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-[var(--border-color)] py-16 text-center">
-              <Award size={34} className="mx-auto mb-3 text-zinc-300" />
-              <h3 className="font-bold text-text-main">No failed questions found</h3>
-              <p className="mt-1 text-sm text-text-muted">Wrong quiz answers will appear here after you submit quizzes.</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {failedFiltered.map(item => (
-                <div key={`${item.submission.submissionId}-${item.question.quizId}`} className="rounded-2xl border border-red-100 bg-white p-4 shadow-sm">
-                  <div className="flex gap-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase text-primary">{getDifficultyLabel(item.question.difficulty)}</span>
-                        {item.courseName && (
-                          <span className="rounded-full px-2 py-0.5 text-[10px] font-bold text-white" style={{ backgroundColor: item.courseColor ?? '#0d9488' }}>{item.courseName}</span>
-                        )}
-                        <span className="text-xs text-text-muted">{item.sourceName}</span>
-                        <span className="text-xs text-text-muted">{new Date(item.submittedAt).toLocaleDateString()}</span>
-                      </div>
-                      <p className="mt-2 font-semibold leading-relaxed text-text-main">{item.question.question}</p>
-                      <div className="mt-3 grid gap-2 md:grid-cols-2">
-                        {item.question.options.map((option, index) => {
-                          const correct = isQuizOptionCorrect(option, item.question.correctAnswer);
-                          const selected = item.selectedAnswer && isQuizOptionCorrect(option, item.selectedAnswer);
-                          const revealed = revealedAnswers.has(item.question.quizId);
-                          return (
-                            <div
-                              key={`${item.question.quizId}-${index}`}
-                              className={cn(
-                                'rounded-xl border px-3 py-2 text-sm',
-                                revealed && correct ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                                  : !!(selected && !correct) ? 'border-red-200 bg-red-50 text-red-700'
-                                    : 'border-zinc-100 bg-zinc-50 text-text-main',
-                              )}
-                            >
-                              {option}
-                            </div>
-                          );
-                        })}
-                      </div>
-                      {revealedAnswers.has(item.question.quizId) && item.question.explanation && <p className="mt-3 text-sm text-text-muted">{item.question.explanation}</p>}
-                    </div>
-                    <div className="flex shrink-0 flex-col">
-                      <button
-                        onClick={() => toggleAnswer(item.question.quizId)}
-                        className={cn('rounded-lg p-2', revealedAnswers.has(item.question.quizId) ? 'text-primary bg-primary/10' : 'text-text-muted hover:bg-primary/10 hover:text-primary')}
-                        title={revealedAnswers.has(item.question.quizId) ? 'Hide correct answer' : 'Show correct answer & explanation'}
-                      >
-                        {revealedAnswers.has(item.question.quizId) ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </>
+        <FailedQuestionsTab
+          courses={courses}
+          loading={failedLoading}
+          search={failedSearch}
+          onSearchChange={setFailedSearch}
+          courseId={failedCourseId}
+          onCourseChange={setFailedCourseId}
+          questions={failedFiltered}
+          revealedAnswers={revealedAnswers}
+          onToggleAnswer={toggleAnswer}
+          onRefresh={() => void loadFailedQuizData()}
+        />
       )}
 
       {/* ── Question Bank tab ── */}
       {mainTab === 'bank' && (
-        <>
-          <div className="rounded-2xl border border-[var(--border-color)] bg-white p-4 shadow-sm">
-            <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_180px_140px]">
-              <div className="relative">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
-                <input
-                  value={bankSearch}
-                  onChange={e => setBankSearch(e.target.value)}
-                  placeholder="Search questions, options, explanations..."
-                  className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-app)] py-2 pl-9 pr-3 text-sm outline-none focus:border-primary"
-                />
-              </div>
-              <Select value={bankCourseId} onChange={e => setBankCourseId(e.target.value)}>
-                <option value="all">All courses</option>
-                {courses.map(course => <option key={course.id} value={course.id}>{course.name}</option>)}
-              </Select>
-              <Select value={bankDifficulty} onChange={e => setBankDifficulty(e.target.value as any)}>
-                {difficultyOptions.map(d => <option key={d} value={d}>{d === 'all' ? 'All levels' : getDifficultyLabel(d)}</option>)}
-              </Select>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between text-sm text-text-muted">
-            <span className="inline-flex items-center gap-2"><Filter size={14} /> {bankFiltered.length} questions</span>
-            <button
-              onClick={() => setSelectedIds(new Set(bankFiltered.map(q => q.quizId)))}
-              className="font-semibold text-primary hover:underline"
-            >
-              Select filtered
-            </button>
-          </div>
-
-          {bankLoading ? (
-            <div className="flex justify-center py-16"><Loader2 size={28} className="animate-spin text-primary" /></div>
-          ) : bankFiltered.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-[var(--border-color)] py-16 text-center">
-              <FileText size={34} className="mx-auto mb-3 text-zinc-300" />
-              <h3 className="font-bold text-text-main">No questions found</h3>
-              <p className="mt-1 text-sm text-text-muted">Generate quizzes from documents or videos first, then manage them here.</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {bankFiltered.map(question => {
-                const selected = selectedIds.has(question.quizId);
-                return (
-                  <div key={question.quizId} className={cn('rounded-2xl border bg-white p-4 shadow-sm', selected ? 'border-primary/50' : 'border-[var(--border-color)]')}>
-                    <div className="flex gap-3">
-                      <button
-                        onClick={() => handleSelect(question.quizId)}
-                        className={cn('mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded border', selected ? 'border-primary bg-primary text-white' : 'border-zinc-300')}
-                        title="Select question"
-                      >
-                        {selected && <Check size={13} />}
-                      </button>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase text-primary">{getDifficultyLabel(question.difficulty)}</span>
-                          {question.courseName && (
-                            <span className="rounded-full px-2 py-0.5 text-[10px] font-bold text-white" style={{ backgroundColor: question.courseColor ?? '#0d9488' }}>{question.courseName}</span>
-                          )}
-                          <span className="text-xs text-text-muted">{question.sourceName ?? question.sourceType}</span>
-                        </div>
-                        <p className="mt-2 font-semibold leading-relaxed text-text-main">{question.question}</p>
-                        <div className="mt-3 grid gap-2 md:grid-cols-2">
-                          {question.options.map((option, index) => {
-                            const correct = getCorrectQuizOptionText(question.options, question.correctAnswer) === option;
-                            const revealed = revealedAnswers.has(question.quizId);
-                            return (
-                              <div key={`${question.quizId}-${index}`} className={cn('rounded-xl border px-3 py-2 text-sm', revealed && correct ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-zinc-100 bg-zinc-50 text-text-main')}>
-                                {option}
-                              </div>
-                            );
-                          })}
-                        </div>
-                        {revealedAnswers.has(question.quizId) && question.explanation && <p className="mt-3 text-sm text-text-muted">{question.explanation}</p>}
-                      </div>
-                      <div className="flex shrink-0 flex-col gap-2">
-                        <button
-                          onClick={() => toggleAnswer(question.quizId)}
-                          className={cn('rounded-lg p-2', revealedAnswers.has(question.quizId) ? 'text-primary bg-primary/10' : 'text-text-muted hover:bg-primary/10 hover:text-primary')}
-                          title={revealedAnswers.has(question.quizId) ? 'Hide answer' : 'Show answer'}
-                        >
-                          {revealedAnswers.has(question.quizId) ? <EyeOff size={16} /> : <Eye size={16} />}
-                        </button>
-                        <button onClick={() => setEditing(question)} className="rounded-lg p-2 text-text-muted hover:bg-primary/10 hover:text-primary" title="Edit question">
-                          <Edit3 size={16} />
-                        </button>
-                        <button onClick={() => handleDeleteBankQuestion(question)} className="rounded-lg p-2 text-text-muted hover:bg-red-50 hover:text-red-500" title="Delete question">
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </>
+        <QuestionBankTab
+          courses={courses}
+          loading={bankLoading}
+          search={bankSearch}
+          onSearchChange={setBankSearch}
+          courseId={bankCourseId}
+          onCourseChange={setBankCourseId}
+          difficulty={bankDifficulty}
+          onDifficultyChange={setBankDifficulty}
+          questions={bankFiltered}
+          selectedIds={selectedIds}
+          onSelect={handleSelect}
+          onSelectFiltered={() => setSelectedIds(new Set(bankFiltered.map(q => q.quizId)))}
+          revealedAnswers={revealedAnswers}
+          onToggleAnswer={toggleAnswer}
+          onEdit={setEditing}
+          onDelete={handleDeleteBankQuestion}
+        />
       )}
 
       {/* Edit question modal */}
       {editing && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-2xl rounded-2xl bg-white p-5 shadow-2xl">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-text-main">Edit Question</h2>
-              <button onClick={() => setEditing(null)} className="rounded-lg p-1.5 text-text-muted hover:bg-zinc-100"><X size={18} /></button>
-            </div>
-            <div className="mt-4 space-y-3">
-              <textarea value={editing.question} onChange={e => setEditing({ ...editing, question: e.target.value })} className="min-h-24 w-full rounded-xl border border-[var(--border-color)] p-3 text-sm outline-none focus:border-primary" />
-              {editing.options.map((option, index) => (
-                <input
-                  key={index}
-                  value={option}
-                  onChange={e => setEditing({ ...editing, options: editing.options.map((o, i) => i === index ? e.target.value : o) })}
-                  className="w-full rounded-xl border border-[var(--border-color)] px-3 py-2 text-sm outline-none focus:border-primary"
-                />
-              ))}
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <Select
-                  value={getCorrectQuizOptionText(editing.options, editing.correctAnswer)}
-                  onChange={e => setEditing({ ...editing, correctAnswer: e.target.value })}
-                >
-                  {editing.options.map((option, index) => (
-                    <option key={`${index}-${option}`} value={option}>
-                      {option || 'Blank option'}
-                    </option>
-                  ))}
-                </Select>
-                <Select value={editing.difficulty} onChange={e => setEditing({ ...editing, difficulty: e.target.value as QuestionDifficulty })}>
-                  <option value="easy">Beginner</option>
-                  <option value="medium">Intermediate</option>
-                  <option value="hard">Advanced</option>
-                </Select>
-              </div>
-              <textarea value={editing.explanation} onChange={e => setEditing({ ...editing, explanation: e.target.value })} placeholder="Explanation" className="min-h-20 w-full rounded-xl border border-[var(--border-color)] p-3 text-sm outline-none focus:border-primary" />
-              <div className="flex justify-end gap-2">
-                <button onClick={() => setEditing(null)} className="rounded-xl border border-[var(--border-color)] px-4 py-2 text-sm font-bold text-text-muted">Cancel</button>
-                <button onClick={handleSaveEdit} disabled={saving} className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-white disabled:opacity-50">{saving ? 'Saving...' : 'Save'}</button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <EditQuestionModal
+          editing={editing}
+          saving={saving}
+          onChange={setEditing}
+          onSave={handleSaveEdit}
+          onClose={() => setEditing(null)}
+        />
       )}
 
       {/* Timed exam modals */}

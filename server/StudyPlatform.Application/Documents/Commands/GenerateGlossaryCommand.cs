@@ -14,19 +14,16 @@ public class GenerateGlossaryCommandHandler : IRequestHandler<GenerateGlossaryCo
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly IAiService _aiService;
-    private readonly IBlobStorageService _blobStorageService;
-    private readonly IDocumentTextExtractor _textExtractor;
+    private readonly IDocumentContentService _contentService;
 
     public GenerateGlossaryCommandHandler(
         IUnitOfWork unitOfWork,
         IAiService aiService,
-        IBlobStorageService blobStorageService,
-        IDocumentTextExtractor textExtractor)
+        IDocumentContentService contentService)
     {
         _unitOfWork = unitOfWork;
         _aiService = aiService;
-        _blobStorageService = blobStorageService;
-        _textExtractor = textExtractor;
+        _contentService = contentService;
     }
 
     public async Task<Result<IEnumerable<GlossaryTermDto>>> Handle(GenerateGlossaryCommand request, CancellationToken cancellationToken)
@@ -40,20 +37,10 @@ public class GenerateGlossaryCommandHandler : IRequestHandler<GenerateGlossaryCo
             // Delete existing terms so we can regenerate
             await _unitOfWork.GlossaryTerms.DeleteByDocumentIdAsync(request.DocumentId, cancellationToken);
 
-            string glossaryJson;
-
-            if (AiInlineData.IsSupported(document.ContentType))
-            {
-                var stream = await _blobStorageService.DownloadAsync(document.BlobUrl, cancellationToken);
-                using var ms = new MemoryStream();
-                await stream.CopyToAsync(ms, cancellationToken);
-                glossaryJson = await _aiService.GenerateGlossaryAsync(ms.ToArray(), document.ContentType, cancellationToken);
-            }
-            else
-            {
-                var text = await _textExtractor.ExtractTextAsync(document.BlobUrl, document.ContentType, cancellationToken);
-                glossaryJson = await _aiService.GenerateGlossaryAsync(text, cancellationToken);
-            }
+            var (bytes, text) = await _contentService.GetContentAsync(document, cancellationToken);
+            var glossaryJson = bytes != null
+                ? await _aiService.GenerateGlossaryAsync(bytes, document.ContentType, cancellationToken)
+                : await _aiService.GenerateGlossaryAsync(text!, cancellationToken);
 
             List<AiGlossaryItem> items;
             try

@@ -23,13 +23,17 @@ Upload documents, YouTube videos, podcasts, and web articles — let AI generate
 
 ## Features
 
-|     | Category            | What you get                                                                                                       |
-| --- | ------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| 📄  | **Content Sources** | PDF / DOCX upload, YouTube videos, web article clipping, audio files, Apple Podcasts                               |
-| 🤖  | **AI Generation**   | Summaries, flashcards, quizzes, glossaries, mind maps — Gemini, OpenAI, Claude, Grok, DeepSeek, Qwen, Wenxin Yiyan |
-| 🎯  | **Study Tools**     | rich-text notes, AI tutor chat, scored quizzes                                                                     |
-| 👥  | **Study Groups**    | Create/join groups, share documents, quizzes, and flashcard sets                                                   |
-| 🔐  | **Auth**            | Email + OTP, Google OAuth, GitHub OAuth, JWT sessions                                                              |
+|     | Category             | What you get                                                                                                        |
+| --- | -------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| 📄  | **Content Sources**  | PDF / DOCX upload, YouTube videos, web article clipping, audio files, Apple Podcasts                                |
+| 🤖  | **AI Generation**    | Summaries, flashcards (basic / cloze / chart), quizzes, glossaries, mind maps, worked problems, concept links       |
+| 🎯  | **Study Tools**      | Rich-text notes, AI tutor chat, scored quizzes, FSRS-4.5 spaced repetition, reinforcement center, knowledge graph   |
+| 📚  | **Question Bank**    | Course-wide question bank with difficulty filter, mistake tracking, and answer-reveal per question                  |
+| 🔊  | **Extra Features**   | PDF annotations, text-to-speech, Anki export, full-text search, shareable content links                            |
+| 👥  | **Study Groups**     | Create / join groups, share courses & documents, real-time group chat                                               |
+| 🔐  | **Auth**             | Email + OTP, Google OAuth, GitHub OAuth, JWT sessions                                                               |
+
+**AI Providers** — Gemini · OpenAI · Claude · Grok · DeepSeek · Qwen · Wenxin Yiyan (multi-provider routing, switchable from settings)
 
 ---
 
@@ -39,7 +43,7 @@ Upload documents, YouTube videos, podcasts, and web articles — let AI generate
 
 **Frontend** — React 19 · TypeScript 5.8 · Vite 6 · TailwindCSS 4 · React Router 7 · Tiptap · D3.js + Markmap · Axios
 
-**Architecture** — Clean Architecture · CQRS · Repository + Unit of Work · multi-provider AI routing
+**Architecture** — Clean Architecture · CQRS · Repository + Unit of Work · SSE streaming
 
 ---
 
@@ -97,41 +101,35 @@ cd admin && npm install && npm run dev                                # → http
 
 ```jsonc
 {
-	"ConnectionStrings": {
-		"DefaultConnection": "Host=localhost;Port=5432;Database=studyplatform;Username=studyplatform;Password=yourpassword",
-	},
-	"Redis": {
-		"ConnectionString": "localhost:6379",
-		"InstanceName": "StudyPlatform:",
-	},
-	"Cache": {
-		"DashboardStatsSeconds": 60,
-		"DocumentMetadataSeconds": 60,
-		"AnalyticsSummarySeconds": 300,
-		"GeneratedResultSeconds": 3600,
-	},
-	"JwtSettings": {
-		"SecretKey": "your-32-char-secret",
-		"Issuer": "Study Platform",
-		"Audience": "Study Platform Users",
-		"AccessTokenExpiryMinutes": 15,
-		"RefreshTokenExpiryDays": 7,
-	},
-	"EmailSettings": {
-		"FromEmail": "you@gmail.com",
-		"SmtpHost": "smtp.gmail.com",
-		"SmtpPort": 587,
-		"SmtpUser": "you@gmail.com",
-		"SmtpPassword": "xxxx xxxx xxxx xxxx", // Gmail App Password
-	},
-	"AzureStorage": {
-		"ConnectionString": "UseDevelopmentStorage=true",
-		"ContainerName": "documents-dev",
-	},
-	"GoogleOAuth": { "ClientId": "xxxx.apps.googleusercontent.com", "ClientSecret": "GOCSPX-..." },
-	"GitHubOAuth": { "ClientId": "Ov23lic...", "ClientSecret": "..." },
-	"Cors": { "AllowedOrigins": ["http://localhost:3000", "http://localhost:3001"] },
-	"AppLimits": { "DocumentUploadLimit": -1 }, // -1 = unlimited for local dev
+  "ConnectionStrings": {
+    "DefaultConnection": "Host=localhost;Port=5432;Database=studyplatform;Username=studyplatform;Password=yourpassword"
+  },
+  "Redis": {
+    "ConnectionString": "localhost:6379",
+    "InstanceName": "StudyPlatform:"
+  },
+  "JwtSettings": {
+    "SecretKey": "your-32-char-secret",
+    "Issuer": "Study Platform",
+    "Audience": "Study Platform Users",
+    "AccessTokenExpiryMinutes": 15,
+    "RefreshTokenExpiryDays": 7
+  },
+  "EmailSettings": {
+    "FromEmail": "you@gmail.com",
+    "SmtpHost": "smtp.gmail.com",
+    "SmtpPort": 587,
+    "SmtpUser": "you@gmail.com",
+    "SmtpPassword": "xxxx xxxx xxxx xxxx" // Gmail App Password
+  },
+  "AzureStorage": {
+    "ConnectionString": "UseDevelopmentStorage=true",
+    "ContainerName": "documents-dev"
+  },
+  "GoogleOAuth": { "ClientId": "xxxx.apps.googleusercontent.com", "ClientSecret": "GOCSPX-..." },
+  "GitHubOAuth": { "ClientId": "Ov23lic...", "ClientSecret": "..." },
+  "Cors": { "AllowedOrigins": ["http://localhost:3000", "http://localhost:3001"] },
+  "AppLimits": { "DocumentUploadLimit": -1 } // -1 = unlimited for local dev
 }
 ```
 
@@ -153,14 +151,7 @@ VITE_API_URL=http://localhost:5000
 
 ## Upload Limits
 
-The hosted (Azure) deployment enforces a **10-document upload limit per account** to control storage costs.
-
-| Environment        | Limit        | How it's set                                                          |
-| ------------------ | ------------ | --------------------------------------------------------------------- |
-| Production (Azure) | 10 documents | `AppLimits__DocumentUploadLimit=10` via env var                       |
-| Local development  | Unlimited    | `AppLimits.DocumentUploadLimit: -1` in `appsettings.Development.json` |
-
-To change the limit in a self-hosted deployment, set `DOCUMENT_UPLOAD_LIMIT` in your `.env` file (or `AppLimits__DocumentUploadLimit` directly in your hosting environment). Use `-1` to disable the limit entirely.
+The hosted deployment enforces a **10-document upload limit per account** to control storage costs. Set `AppLimits__DocumentUploadLimit=-1` to disable the limit in a self-hosted environment.
 
 ---
 
@@ -183,8 +174,6 @@ docker compose exec api dotnet ef database update \
 | Admin    | http://localhost:4200         |
 | API      | http://localhost:5000         |
 | Swagger  | http://localhost:5000/swagger |
-| Postgres | localhost:5432                |
-| Redis    | localhost:6379                |
 
 > `VITE_*` variables are baked in at build time — rebuild frontend images after changing them.
 
@@ -205,23 +194,17 @@ export SMTP_PASSWORD=...
 bash deploy.sh
 ```
 
-### 🎬 Production YouTube Subtitle Fetching
+### YouTube Subtitle Fetching (Production)
 
-#### Proxy Configuration
-
-YouTube may block subtitle requests from Azure IPs. Route yt-dlp traffic through a non-Azure SOCKS or HTTP proxy by setting `YOUTUBE_PROXY_URL` before deploying the backend:
+YouTube may block subtitle requests from cloud IPs. Route yt-dlp traffic through a proxy:
 
 ```bash
-export YOUTUBE_PROXY_URL="socks5://USERNAME:PASSWORD@proxy.webshare.io:PORT"
-./deploy-backend.sh
-```
+# SOCKS / HTTP proxy
+export YOUTUBE_PROXY_URL="socks5://USERNAME:PASSWORD@proxy.example.com:PORT"
 
-#### Cookie Authentication
-
-For videos that require authenticated cookies, base64-encode a Netscape-format `cookies.txt` file and deploy it as `YOUTUBE_COOKIES_B64`:
-
-```bash
+# Cookie authentication (for videos requiring sign-in)
 export YOUTUBE_COOKIES_B64="$(base64 < cookies.txt | tr -d '\n')"
+
 ./deploy-backend.sh
 ```
 

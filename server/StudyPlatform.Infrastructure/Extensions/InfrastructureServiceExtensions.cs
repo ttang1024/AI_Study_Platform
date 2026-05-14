@@ -35,6 +35,7 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IEmailService, EmailService>();
         services.AddScoped<IBlobStorageService, BlobStorageService>();
         services.AddScoped<IDocumentTextExtractor, DocumentTextExtractorService>();
+        services.AddScoped<IDocumentContentService, DocumentContentService>();
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddSingleton<IAppCache, DistributedAppCache>();
 
@@ -74,7 +75,7 @@ public static class InfrastructureServiceExtensions
             client.DefaultRequestHeaders.Add("User-Agent", "StudyPlatform/1.0");
         });
 
-        // Web Clipper
+        // Web Clipper — used by ClipUrl to fetch article HTML server-side
         services.AddHttpClient("WebClipper", client =>
         {
             client.Timeout = TimeSpan.FromSeconds(30);

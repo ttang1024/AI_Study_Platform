@@ -131,7 +131,7 @@ public class AiService : IAiService
 
     public Task<string> GenerateFlashcardsAsync(byte[] fileData, string mimeType, CancellationToken cancellationToken = default)
         => CacheGeneratedResultAsync(
-            "flashcards:file",
+            "flashcards:file:v2",
             HashBytes(fileData, mimeType, Prompts.Flashcards),
             ct => CallAiWithFileAsync(fileData, mimeType, Prompts.Flashcards, ct),
             cancellationToken);
@@ -170,7 +170,7 @@ public class AiService : IAiService
     {
         var prompt = $"{Prompts.Flashcards}\n\nSource material:\n{TruncateContent(textContent)}";
         return CacheGeneratedResultAsync(
-            "flashcards:text",
+            "flashcards:text:v2",
             HashText(prompt),
             ct => SendTextAsync(null, [("user", prompt)], 0.7, 8192, cleanJson: true, ct),
             cancellationToken);
@@ -213,7 +213,7 @@ public class AiService : IAiService
     {
         var prompt = $"{Prompts.YouTubeFlashcards}\n\nSource material:\n{TruncateContent(transcriptText)}";
         return CacheGeneratedResultAsync(
-            "flashcards:youtube",
+            "flashcards:youtube:v2",
             HashText(prompt),
             ct => SendTextAsync(null, [("user", prompt)], 0.7, 8192, cleanJson: true, ct),
             cancellationToken);

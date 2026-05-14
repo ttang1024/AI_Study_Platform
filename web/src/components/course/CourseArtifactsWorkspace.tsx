@@ -3,8 +3,10 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  Eye,
   Loader2,
   X,
+  XCircle,
 } from 'lucide-react';
 import { STUDY_TYPE_ICONS } from '../../constants/contentTypeIcons';
 import { Course, Document, Flashcard, GlossaryTerm, Note } from '../../types';
@@ -63,7 +65,7 @@ type ArtifactDetail =
   | { kind: 'summaries'; itemKey: string; type: 'summary'; title: string; content: string }
   | { kind: 'notes'; itemKey: string; type: 'note'; title: string; content: string }
   | { kind: 'flashcards'; itemKey: string; type: 'flashcard'; title: string; front: string; back: string }
-  | { kind: 'questions'; itemKey: string; type: 'question'; title: string; question: QuestionBankQuestion }
+  | { kind: 'questions'; itemKey: string; type: 'question'; title: string; question: QuestionBankQuestion; userAnswer?: string }
   | { kind: 'glossary'; itemKey: string; type: 'glossary'; title: string; term: GlossaryTerm }
   | { kind: 'workedProblems'; itemKey: string; type: 'problem'; title: string; problem: WorkedProblem }
   | { kind: 'mindmaps'; itemKey: string; type: 'mindmap'; title: string; sourceKind: 'doc' | 'video'; documentId?: string; videoId?: string; videoUrl?: string; initialMindMapText: string | null }
@@ -170,6 +172,9 @@ export const CourseArtifactsWorkspace: React.FC<CourseArtifactsWorkspaceProps> =
   const [questionFilter, setQuestionFilter] = useState<'all' | 'mistakes'>('all');
   const [quizSubmissions, setQuizSubmissions] = useState<QuizSubmission[]>([]);
 
+  // Answer reveal toggle — reset whenever the detail changes
+  const [revealAnswers, setRevealAnswers] = useState(false);
+
   // Glossary mastered filter
   const [glossaryFilter, setGlossaryFilter] = useState<'all' | 'unmastered'>('all');
   const [masteredIds, setMasteredIds] = useState<Set<string>>(() => masteredService.getCached(userId));
@@ -243,6 +248,22 @@ export const CourseArtifactsWorkspace: React.FC<CourseArtifactsWorkspaceProps> =
     }
     for (const id of everCorrect) everWrong.delete(id);
     return everWrong;
+  }, [artifactBuckets.questions, quizSubmissions]);
+
+  // Maps quizId → the last wrong answer the user selected (for the eye button reveal)
+  const userAnswerMap = useMemo<Map<string, string>>(() => {
+    const byId = new Map(artifactBuckets.questions.map(q => [q.quizId, q]));
+    const wrong = new Map<string, string>();
+    for (const submission of quizSubmissions) {
+      for (const [quizId, selectedAnswer] of Object.entries(submission.answers ?? {})) {
+        if (!byId.has(quizId) || !selectedAnswer) continue;
+        const question = byId.get(quizId)!;
+        if (!isQuizOptionCorrect(selectedAnswer, question.correctAnswer)) {
+          wrong.set(quizId, selectedAnswer);
+        }
+      }
+    }
+    return wrong;
   }, [artifactBuckets.questions, quizSubmissions]);
 
   const filteredFlashcards = useMemo(() => {
@@ -443,6 +464,11 @@ export const CourseArtifactsWorkspace: React.FC<CourseArtifactsWorkspaceProps> =
     if (!detail) chatDetailKeyRef.current = '';
   }, [detail]);
 
+  // Reset answer reveal whenever the open detail item changes
+  useEffect(() => {
+    setRevealAnswers(false);
+  }, [detail?.itemKey]);
+
   const handleGenerateMindMap = useCallback(async () => {
     if (!detail || detail.type !== 'mindmap' || !course || mmGenerating) return;
     setMmGenerating(true);
@@ -543,6 +569,7 @@ export const CourseArtifactsWorkspace: React.FC<CourseArtifactsWorkspaceProps> =
     kind: 'questions', itemKey: question.quizId, type: 'question',
     title: sourceTitle(question.documentId, question.youTubeVideoId, question.sourceName ?? 'Question'),
     question,
+    userAnswer: userAnswerMap.get(question.quizId),
   });
 
   const buildGlossaryDetail = (term: GlossaryTerm): OpenArtifactDetail => ({
@@ -585,7 +612,7 @@ export const CourseArtifactsWorkspace: React.FC<CourseArtifactsWorkspaceProps> =
       case 'summaries': return summaryRows.map(buildSummaryDetail);
       case 'notes': return artifactBuckets.notes.map(buildNoteDetail);
       case 'flashcards': return artifactBuckets.flashcards.map(buildFlashcardDetail);
-      case 'questions': return artifactBuckets.questions.map(buildQuestionDetail);
+      case 'questions': return artifactBuckets.questions.map(q => buildQuestionDetail(q));
       case 'glossary': return artifactBuckets.glossary.map(buildGlossaryDetail);
       case 'workedProblems': return artifactBuckets.workedProblems.map(buildProblemDetail);
       case 'mindmaps': return mindmapRows.map(buildMindmapDetail);
@@ -939,21 +966,57 @@ export const CourseArtifactsWorkspace: React.FC<CourseArtifactsWorkspaceProps> =
               {detail.type === 'question' && (
                 <div className="p-5 space-y-4 text-sm text-text-main">
                   <ArtifactContent value={detail.question.question} />
-                  <div className="space-y-2">
-                    {detail.question.options.map((option, index) => (
-                      <div key={index} className="rounded-xl bg-[var(--bg-app)] px-3 py-2">
-                        <ArtifactContent value={option} />
+
+                  {revealAnswers ? (
+                    /* ── Reveal mode: highlight correct / wrong options ── */
+                    <>
+                      <div className="space-y-2">
+                        {detail.question.options.map((option, index) => {
+                          const isCorrect = isQuizOptionCorrect(option, detail.question.correctAnswer);
+                          const isWrongPick = !!detail.userAnswer
+                            && isQuizOptionCorrect(option, detail.userAnswer)
+                            && !isCorrect;
+                          return (
+                            <div
+                              key={index}
+                              className={cn(
+                                'flex items-start gap-2.5 rounded-xl px-3 py-2.5',
+                                isCorrect
+                                  ? 'border border-emerald-300 bg-emerald-50'
+                                  : isWrongPick
+                                    ? 'border border-red-300 bg-red-50'
+                                    : 'bg-[var(--bg-app)]',
+                              )}
+                            >
+                              {isCorrect && (
+                                <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-emerald-600" />
+                              )}
+                              {isWrongPick && (
+                                <XCircle size={16} className="mt-0.5 shrink-0 text-red-500" />
+                              )}
+                              {!isCorrect && !isWrongPick && (
+                                <span className="mt-0.5 h-4 w-4 shrink-0" />
+                              )}
+                              <ArtifactContent value={option} />
+                            </div>
+                          );
+                        })}
                       </div>
-                    ))}
-                  </div>
-                  <div>
-                    <p className="font-bold text-primary">Answer</p>
-                    <ArtifactContent value={detail.question.correctAnswer} className="mt-1" />
-                  </div>
-                  {detail.question.explanation && (
-                    <div>
-                      <p className="font-bold text-text-main">Explanation</p>
-                      <ArtifactContent value={detail.question.explanation} className="mt-1 text-text-muted" />
+                      {detail.question.explanation && (
+                        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                          <p className="mb-1.5 text-xs font-bold uppercase tracking-widest text-amber-600">Analysis</p>
+                          <ArtifactContent value={detail.question.explanation} className="text-amber-900" />
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    /* ── Standard mode: plain options only ── */
+                    <div className="space-y-2">
+                      {detail.question.options.map((option, index) => (
+                        <div key={index} className="rounded-xl bg-[var(--bg-app)] px-3 py-2">
+                          <ArtifactContent value={option} />
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
@@ -1058,6 +1121,24 @@ export const CourseArtifactsWorkspace: React.FC<CourseArtifactsWorkspaceProps> =
                     <CheckCircle2 size={15} />
                     {masteredProblemIds.has(detail.problem.workedProblemId) ? 'Mastered' : 'Mark as mastered'}
                   </button>
+                ) : detail?.type === 'question' ? (
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setRevealAnswers(prev => !prev)}
+                      className={cn(
+                        'inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-bold transition-colors',
+                        revealAnswers
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-[var(--border-color)] text-text-muted hover:border-primary hover:text-primary',
+                      )}
+                      title={revealAnswers ? 'Hide answer' : 'Reveal answer'}
+                    >
+                      <Eye size={15} />
+                      {revealAnswers ? 'Hide' : 'Reveal'}
+                    </button>
+                    <span className="text-xs font-bold text-text-muted">{detailPosition} of {detailCount}</span>
+                  </div>
                 ) : (
                   <span className="text-xs font-bold text-text-muted">{detailPosition} of {detailCount}</span>
                 )}

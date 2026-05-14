@@ -26,53 +26,23 @@ public class DocumentsController : ControllerBase
     private readonly IBlobStorageService _blobStorageService;
     private readonly IAiService _aiService;
     private readonly IUnitOfWork _unitOfWork;
-    private readonly IDocumentTextExtractor _textExtractor;
+    private readonly IDocumentContentService _contentService;
+    private readonly ILogger<DocumentsController> _logger;
 
     public DocumentsController(
         IMediator mediator,
         IBlobStorageService blobStorageService,
         IAiService aiService,
         IUnitOfWork unitOfWork,
-        IDocumentTextExtractor textExtractor)
+        IDocumentContentService contentService,
+        ILogger<DocumentsController> logger)
     {
         _mediator = mediator;
         _blobStorageService = blobStorageService;
         _aiService = aiService;
         _unitOfWork = unitOfWork;
-        _textExtractor = textExtractor;
-    }
-
-    /// Returns (bytes, null) for inline-capable types, (null, text) for text-based types.
-    /// For audio content, uses the stored transcript when available.
-    private async Task<(byte[]? Bytes, string? Text)> GetDocumentContentAsync(
-        Document document, CancellationToken cancellationToken)
-    {
-        if (document.ContentType.StartsWith("audio/", StringComparison.OrdinalIgnoreCase))
-        {
-            if (!string.IsNullOrEmpty(document.Transcript))
-                return (null, document.Transcript);
-
-            if (AiInlineData.IsSupported(document.ContentType))
-            {
-                var audioStream = await _blobStorageService.DownloadAsync(document.BlobUrl, cancellationToken);
-                using var ms = new MemoryStream();
-                await audioStream.CopyToAsync(ms, cancellationToken);
-                return (ms.ToArray(), null);
-            }
-
-            return (null, string.Empty);
-        }
-
-        if (AiInlineData.IsSupported(document.ContentType))
-        {
-            var blobStream = await _blobStorageService.DownloadAsync(document.BlobUrl, cancellationToken);
-            using var ms = new MemoryStream();
-            await blobStream.CopyToAsync(ms, cancellationToken);
-            return (ms.ToArray(), null);
-        }
-
-        var text = await _textExtractor.ExtractTextAsync(document.BlobUrl, document.ContentType, cancellationToken);
-        return (null, text);
+        _contentService = contentService;
+        _logger = logger;
     }
 
     /// <summary>
@@ -230,7 +200,7 @@ public class DocumentsController : ControllerBase
 
         try
         {
-            var (bytes, text) = await GetDocumentContentAsync(document, cancellationToken);
+            var (bytes, text) = await _contentService.GetContentAsync(document, cancellationToken);
             stream = bytes != null
                 ? _aiService.StreamMindMapAsync(bytes, document.ContentType, cancellationToken)
                 : _aiService.StreamMindMapAsync(text!, cancellationToken);
@@ -263,20 +233,18 @@ public class DocumentsController : ControllerBase
             return AiStreamError(ex);
         }
 
-        Response.ContentType = "text/event-stream";
-        Response.Headers["Cache-Control"] = "no-cache";
-        Response.Headers["X-Accel-Buffering"] = "no";
+        Response.SetSseHeaders();
 
         try
         {
             fullText.Append(firstChunk);
-            await WriteSseDataAsync(firstChunk, cancellationToken);
+            await Response.WriteSseDataAsync(firstChunk, cancellationToken);
 
             while (await enumerator.MoveNextAsync())
             {
                 var chunk = enumerator.Current;
                 fullText.Append(chunk);
-                await WriteSseDataAsync(chunk, cancellationToken);
+                await Response.WriteSseDataAsync(chunk, cancellationToken);
             }
 
             if (fullText.Length > 0)
@@ -290,18 +258,11 @@ public class DocumentsController : ControllerBase
         catch (OperationCanceledException) { return new EmptyResult(); }
         catch (Exception ex)
         {
-            await WriteSseDataAsync("[ERROR] " + ex.Message, cancellationToken);
+            await Response.WriteSseDataAsync("[ERROR] " + ex.Message, cancellationToken);
         }
 
-        await Response.WriteAsync("data: [DONE]\n\n", cancellationToken);
-        await Response.Body.FlushAsync(cancellationToken);
+        await Response.WriteSseDoneAsync(cancellationToken);
         return new EmptyResult();
-    }
-
-    private async Task WriteSseDataAsync(string data, CancellationToken cancellationToken)
-    {
-        await Response.WriteAsync($"data: {JsonSerializer.Serialize(data)}\n\n", cancellationToken);
-        await Response.Body.FlushAsync(cancellationToken);
     }
 
     private ObjectResult AiStreamError(Exception ex)
@@ -358,6 +319,8 @@ public class DocumentsController : ControllerBase
         var result = await _mediator.Send(new GenerateFlashcardsCommand(documentId, userId));
         if (!result.IsSuccess)
         {
+            _logger.LogWarning("Generate flashcards failed for document {DocumentId}: {ErrorCode} {Message}",
+                documentId, result.ErrorCode, result.Message);
             if (result.ErrorCode == "DOCUMENT_NOT_FOUND")
                 return NotFound(BaseResponse<IEnumerable<FlashcardDto>>.Fail(result.Message, result.ErrorCode));
             if (AiErrorMapper.TryGetAiError(result.Message, out _, out _))
@@ -581,7 +544,7 @@ public class DocumentsController : ControllerBase
 
         try
         {
-            var (bytes, text) = await GetDocumentContentAsync(document, cancellationToken);
+            var (bytes, text) = await _contentService.GetContentAsync(document, cancellationToken);
             var timelineText = document.ContentType.StartsWith("audio/", StringComparison.OrdinalIgnoreCase)
                 ? FormatAudioTranscriptForTimeline(text)
                 : null;
@@ -620,20 +583,18 @@ public class DocumentsController : ControllerBase
             return AiStreamError(ex);
         }
 
-        Response.ContentType = "text/event-stream";
-        Response.Headers["Cache-Control"] = "no-cache";
-        Response.Headers["X-Accel-Buffering"] = "no";
+        Response.SetSseHeaders();
 
         try
         {
             fullText.Append(firstChunk);
-            await WriteSseDataAsync(firstChunk, cancellationToken);
+            await Response.WriteSseDataAsync(firstChunk, cancellationToken);
 
             while (await enumerator.MoveNextAsync())
             {
                 var chunk = enumerator.Current;
                 fullText.Append(chunk);
-                await WriteSseDataAsync(chunk, cancellationToken);
+                await Response.WriteSseDataAsync(chunk, cancellationToken);
             }
 
             // Persist the streamed summary
@@ -648,11 +609,10 @@ public class DocumentsController : ControllerBase
         catch (OperationCanceledException) { return new EmptyResult(); }
         catch (Exception ex)
         {
-            await WriteSseDataAsync("[ERROR] " + ex.Message, cancellationToken);
+            await Response.WriteSseDataAsync("[ERROR] " + ex.Message, cancellationToken);
         }
 
-        await Response.WriteAsync("data: [DONE]\n\n", cancellationToken);
-        await Response.Body.FlushAsync(cancellationToken);
+        await Response.WriteSseDoneAsync(cancellationToken);
         return new EmptyResult();
     }
 
@@ -734,7 +694,7 @@ public class DocumentsController : ControllerBase
 
         try
         {
-            var (_, extractedContent) = await GetDocumentContentAsync(document, cancellationToken);
+            var (_, extractedContent) = await _contentService.GetContentAsync(document, cancellationToken);
             content = extractedContent ?? string.Empty;
         }
         catch (OperationCanceledException)
@@ -778,21 +738,19 @@ public class DocumentsController : ControllerBase
         }, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        Response.ContentType = "text/event-stream";
-        Response.Headers["Cache-Control"] = "no-cache";
-        Response.Headers["X-Accel-Buffering"] = "no";
+        Response.SetSseHeaders();
 
         var fullResponse = new StringBuilder();
         try
         {
             fullResponse.Append(firstChunk);
-            await WriteSseDataAsync(firstChunk, cancellationToken);
+            await Response.WriteSseDataAsync(firstChunk, cancellationToken);
 
             while (await enumerator.MoveNextAsync())
             {
                 var chunk = enumerator.Current;
                 fullResponse.Append(chunk);
-                await WriteSseDataAsync(chunk, cancellationToken);
+                await Response.WriteSseDataAsync(chunk, cancellationToken);
             }
 
             // Save model message
@@ -815,51 +773,10 @@ public class DocumentsController : ControllerBase
         catch (OperationCanceledException) { return new EmptyResult(); }
         catch (Exception ex)
         {
-            await WriteSseDataAsync("[ERROR] " + ex.Message, cancellationToken);
+            await Response.WriteSseDataAsync("[ERROR] " + ex.Message, cancellationToken);
         }
 
-        await Response.WriteAsync("data: [DONE]\n\n", cancellationToken);
-        await Response.Body.FlushAsync(cancellationToken);
+        await Response.WriteSseDoneAsync(cancellationToken);
         return new EmptyResult();
     }
 }
-
-/// <summary>
-/// Standalone endpoint for browser extension clipping (not scoped to a course route).
-/// </summary>
-[ApiController]
-[Authorize]
-[Produces("application/json")]
-public class DocumentExtensionController : ControllerBase
-{
-    private readonly IMediator _mediator;
-
-    public DocumentExtensionController(IMediator mediator)
-    {
-        _mediator = mediator;
-    }
-
-    /// <summary>
-    /// Clip a web page from the browser extension
-    /// </summary>
-    [HttpPost("api/documents/clip-extension")]
-    [ProducesResponseType(typeof(BaseResponse<DocumentDto>), 201)]
-    [ProducesResponseType(typeof(BaseResponse), 400)]
-    public async Task<IActionResult> ClipExtension([FromBody] ClipExtensionRequest request)
-    {
-        var userId = User.GetUserId();
-
-        Guid? courseId = null;
-        if (!string.IsNullOrWhiteSpace(request.CourseId) && Guid.TryParse(request.CourseId, out var parsedCourseId))
-            courseId = parsedCourseId;
-
-        var result = await _mediator.Send(new ClipExtensionCommand(userId, request.Url, request.Title, request.Content, courseId));
-
-        if (!result.IsSuccess)
-            return BadRequest(BaseResponse<DocumentDto>.Fail(result.Message, result.ErrorCode));
-
-        return StatusCode(201, BaseResponse<DocumentDto>.Ok(result.Data!, result.Message));
-    }
-}
-
-public record ClipExtensionRequest(string Url, string Title, string Content, string? CourseId = null);

@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Calendar, Brain, CheckCircle2, RotateCcw,
   Play, Trophy, AlertCircle, BookOpen,
-  TrendingUp, BarChart2, Clock, Zap,
+  TrendingUp, Zap,
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { Flashcard } from '../../types';
@@ -72,16 +72,16 @@ const WeakSection: React.FC<WeakSectionProps> = ({ title, icon: Icon, iconClass,
 
 // ── Main component ────────────────────────────────────────────────────────────
 export const ReviewQueueTab: React.FC<Props> = ({ flashcards }) => {
-  const { setFlashcards } = useStudy();
+  const { setFlashcards, refreshFlashcards } = useStudy();
 
   // ── SRS-derived data ──────────────────────────────────────────────
   const dueCards = useMemo(() => {
-    const now = new Date();
-    return flashcards.filter(f => f.srs && new Date(f.srs.due) <= now);
+    const todayUTC = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
+    return flashcards.filter(f => f.srs && f.srs.due.slice(0, 10) <= todayUTC);
   }, [flashcards]);
 
   const newCards = useMemo(() =>
-    flashcards.filter(f => !f.srs || f.srs.state === 0),
+    flashcards.filter(f => !f.srs),
     [flashcards],
   );
 
@@ -95,7 +95,8 @@ export const ReviewQueueTab: React.FC<Props> = ({ flashcards }) => {
     [flashcards],
   );
 
-  const sessionCards = useMemo(() => {
+  // Pre-session candidate list (live, used for the "start" panel counts)
+  const candidateCards = useMemo(() => {
     const due = [...dueCards].sort(
       (a, b) => new Date(a.srs!.due).getTime() - new Date(b.srs!.due).getTime(),
     );
@@ -105,6 +106,8 @@ export const ReviewQueueTab: React.FC<Props> = ({ flashcards }) => {
 
   // ── Session state ─────────────────────────────────────────────────
   const [sessionStarted, setSessionStarted] = useState(false);
+  // Session cards are locked at start so ratings don't shift the card list mid-session
+  const [sessionCards, setSessionCards] = useState<Flashcard[]>([]);
   const [sessionIndex, setSessionIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -114,6 +117,11 @@ export const ReviewQueueTab: React.FC<Props> = ({ flashcards }) => {
   const currentCard = sessionCards[sessionIndex];
   const goodCount = Object.values(sessionResults).filter(r => r >= 3).length;
   const hardCount = Object.values(sessionResults).filter(r => r <= 2).length;
+
+  const startSession = useCallback(() => {
+    setSessionCards(candidateCards);
+    setSessionStarted(true);
+  }, [candidateCards]);
 
   const rate = useCallback(async (rating: Rating) => {
     if (!currentCard || submitting) return;
@@ -145,11 +153,13 @@ export const ReviewQueueTab: React.FC<Props> = ({ flashcards }) => {
 
   const resetSession = useCallback(() => {
     setSessionStarted(false);
+    setSessionCards([]);
     setSessionIndex(0);
     setFlipped(false);
     setSessionDone(false);
     setSessionResults({});
-  }, []);
+    void refreshFlashcards();
+  }, [refreshFlashcards]);
 
   // ── Weak Knowledge ────────────────────────────────────────────────
   const hardFlashcards = useMemo(() =>
@@ -167,7 +177,7 @@ export const ReviewQueueTab: React.FC<Props> = ({ flashcards }) => {
 
   const unmasteredConcepts = useMemo(() =>
     flashcards
-      .filter(f => f.srs && f.srs.reps > 0 && f.srs.state !== 2)
+      .filter(f => f.srs && f.srs.state === 1)
       .sort((a, b) => a.srs!.retrievability - b.srs!.retrievability)
       .slice(0, 5),
     [flashcards],
@@ -182,126 +192,107 @@ export const ReviewQueueTab: React.FC<Props> = ({ flashcards }) => {
     return Math.round(avg * 100);
   }, [reviewedCards]);
 
-  const upcomingReviews = useMemo(() => {
-    const now = new Date();
-    const sevenDays = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-    return flashcards.filter(f => {
-      if (!f.srs) return false;
-      const due = new Date(f.srs.due);
-      return due > now && due <= sevenDays;
-    }).length;
-  }, [flashcards]);
-
-  // ── Render ────────────────────────────────────────────────────────
-  const summaryStats = [
-    { label: 'Due Today',  value: dueCards.length,    icon: Calendar,     color: 'text-orange-500', bg: 'bg-orange-50 dark:bg-orange-950/30', border: 'border-orange-200 dark:border-orange-800' },
-    { label: 'New Cards',  value: newCards.length,    icon: Zap,          color: 'text-blue-500',   bg: 'bg-blue-50 dark:bg-blue-950/30',     border: 'border-blue-200 dark:border-blue-800'   },
-    { label: 'Learning',   value: learningCards.length, icon: Brain,      color: 'text-purple-500', bg: 'bg-purple-50 dark:bg-purple-950/30', border: 'border-purple-200 dark:border-purple-800' },
-    { label: 'Mastered',   value: masteredCards.length, icon: CheckCircle2, color: 'text-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-950/30', border: 'border-emerald-200 dark:border-emerald-800' },
+  const statStrip = [
+    { icon: Calendar,     color: 'text-orange-500', value: dueCards.length,      label: 'due'      },
+    { icon: Zap,          color: 'text-blue-500',   value: newCards.length,       label: 'new'      },
+    { icon: Brain,        color: 'text-purple-500', value: learningCards.length,  label: 'learning' },
+    { icon: CheckCircle2, color: 'text-emerald-500',value: masteredCards.length,  label: 'mastered' },
+    ...(reviewedCards.length > 0
+      ? [{ icon: TrendingUp, color: 'text-teal-500', value: `${retentionRate}%`, label: 'retention' }]
+      : []),
   ];
 
-  const analyticsStats = [
-    { label: 'Retention Rate', value: `${retentionRate}%`, icon: TrendingUp, color: 'text-emerald-500', description: 'Avg recall probability' },
-    { label: 'Cards Reviewed', value: reviewedCards.length, icon: BarChart2, color: 'text-blue-500', description: 'Total cards studied' },
-    { label: 'Mastered',       value: masteredCards.length, icon: Trophy,    color: 'text-amber-500', description: 'In long-term memory'  },
-    { label: 'Upcoming (7d)', value: upcomingReviews,      icon: Clock,     color: 'text-purple-500', description: 'Due in next 7 days'   },
-  ];
+  const hasInsights =
+    hardFlashcards.length > 0 || repeatedMistakes.length > 0 || unmasteredConcepts.length > 0;
 
   return (
-    <div className="space-y-8">
-      {/* ── Today's Review Summary ─────────────────────────────────── */}
-      <section>
-        <h2 className="text-lg font-black text-text-main mb-4">Today's Review Summary</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {summaryStats.map(({ label, value, icon: Icon, color, bg, border }) => (
-            <div key={label} className={cn('rounded-2xl border p-4 flex flex-col gap-2', bg, border)}>
-              <Icon size={18} className={color} />
-              <p className="text-2xl font-black text-text-main">{value}</p>
-              <p className="text-xs font-semibold text-text-muted">{label}</p>
+    <div className="space-y-5">
+      {/* ── Compact stat strip ────────────────────────────────────── */}
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-sidebar)] px-5 py-3">
+        {statStrip.map(({ icon: Icon, color, value, label }, i) => (
+          <React.Fragment key={label}>
+            {i > 0 && <span className="text-zinc-300 dark:text-zinc-600 select-none text-xs">·</span>}
+            <div className="flex items-center gap-1.5">
+              <Icon size={13} className={color} />
+              <span className="text-sm font-black text-text-main">{value}</span>
+              <span className="text-xs text-text-muted">{label}</span>
             </div>
-          ))}
-        </div>
-      </section>
+          </React.Fragment>
+        ))}
+      </div>
 
       {/* ── Review Session ─────────────────────────────────────────── */}
-      <section>
-        <h2 className="text-lg font-black text-text-main mb-4">Review Session</h2>
-
-        {sessionCards.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-[var(--border-color)] bg-[var(--bg-sidebar)] p-10 flex flex-col items-center text-center">
-            <CheckCircle2 size={36} className="text-emerald-400 mb-3" />
-            <p className="font-bold text-text-main">All caught up!</p>
-            <p className="text-sm text-text-muted mt-1">No cards are due right now. Check back later.</p>
+      {candidateCards.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-[var(--border-color)] bg-[var(--bg-sidebar)] p-10 flex flex-col items-center text-center">
+          <CheckCircle2 size={36} className="text-emerald-400 mb-3" />
+          <p className="font-bold text-text-main">All caught up!</p>
+          <p className="text-sm text-text-muted mt-1">No cards are due right now. Check back later.</p>
+        </div>
+      ) : !sessionStarted ? (
+        <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-sidebar)] p-8 flex flex-col items-center text-center gap-4">
+          <div className="rounded-2xl bg-[var(--primary)]/10 p-5">
+            <Brain size={36} className="text-[var(--primary)]" />
           </div>
-        ) : !sessionStarted ? (
-          <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-sidebar)] p-8 flex flex-col items-center text-center gap-4">
-            <div className="rounded-2xl bg-[var(--primary)]/10 p-5">
-              <Brain size={36} className="text-[var(--primary)]" />
-            </div>
-            <div>
-              <p className="text-xl font-black text-text-main">{sessionCards.length} cards ready</p>
-              <p className="text-sm text-text-muted mt-1">
-                {dueCards.length} due · {sessionCards.length - dueCards.length} new
-              </p>
-            </div>
-            <button
-              onClick={() => setSessionStarted(true)}
-              className="flex items-center gap-2 rounded-xl bg-[var(--primary)] px-6 py-3 text-sm font-bold text-white hover:opacity-90 transition-opacity"
-            >
-              <Play size={16} /> Start Review
-            </button>
-          </div>
-        ) : sessionDone ? (
-          <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-sidebar)] p-8 flex flex-col items-center text-center gap-4">
-            <Trophy
-              size={44}
-              className={cn(
-                goodCount / sessionCards.length >= 0.8 ? 'text-emerald-500' :
-                goodCount / sessionCards.length >= 0.5 ? 'text-amber-500' : 'text-red-500',
-              )}
-            />
-            <p className="text-4xl font-black text-text-main">
-              {Math.round((goodCount / sessionCards.length) * 100)}%
+          <div>
+            <p className="text-xl font-black text-text-main">{candidateCards.length} cards ready</p>
+            <p className="text-sm text-text-muted mt-1">
+              {dueCards.length} due · {candidateCards.length - dueCards.length} new
             </p>
-            <p className="text-text-muted">{goodCount} good · {hardCount} need review</p>
-            <button
-              onClick={resetSession}
-              className="flex items-center gap-2 rounded-xl border border-[var(--border-color)] px-5 py-2.5 text-sm font-bold text-text-muted hover:border-[var(--primary)]/50 transition-colors"
-            >
-              <RotateCcw size={15} /> Done
-            </button>
           </div>
-        ) : currentCard ? (
-          <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-sidebar)] overflow-hidden">
-            {/* Progress bar */}
-            <div className="h-1.5 bg-zinc-100 dark:bg-zinc-800">
-              <div
-                className="h-full bg-[var(--primary)] transition-all duration-300"
-                style={{ width: `${(sessionIndex / sessionCards.length) * 100}%` }}
-              />
-            </div>
-            {/* Session header */}
-            <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--border-color)]">
-              <span className="text-xs font-bold text-text-muted">{sessionIndex + 1} / {sessionCards.length}</span>
-              <div className="flex items-center gap-3 text-xs font-bold">
-                <span className="text-emerald-500">{goodCount}✓</span>
-                <span className="text-red-500">{hardCount}✗</span>
-              </div>
-            </div>
-            <FlashcardSessionCard
-              card={currentCard}
-              flipped={flipped}
-              onFlip={() => setFlipped(f => !f)}
-              onRate={(r) => void rate(r)}
-              submitting={submitting}
+          <button
+            onClick={startSession}
+            className="flex items-center gap-2 rounded-xl bg-[var(--primary)] px-6 py-3 text-sm font-bold text-white hover:opacity-90 transition-opacity"
+          >
+            <Play size={16} /> Start Review
+          </button>
+        </div>
+      ) : sessionDone ? (
+        <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-sidebar)] p-8 flex flex-col items-center text-center gap-4">
+          <Trophy
+            size={44}
+            className={cn(
+              goodCount / sessionCards.length >= 0.8 ? 'text-emerald-500' :
+              goodCount / sessionCards.length >= 0.5 ? 'text-amber-500' : 'text-red-500',
+            )}
+          />
+          <p className="text-4xl font-black text-text-main">
+            {Math.round((goodCount / sessionCards.length) * 100)}%
+          </p>
+          <p className="text-text-muted">{goodCount} good · {hardCount} need review</p>
+          <button
+            onClick={resetSession}
+            className="flex items-center gap-2 rounded-xl border border-[var(--border-color)] px-5 py-2.5 text-sm font-bold text-text-muted hover:border-[var(--primary)]/50 transition-colors"
+          >
+            <RotateCcw size={15} /> Done
+          </button>
+        </div>
+      ) : currentCard ? (
+        <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-sidebar)] overflow-hidden">
+          <div className="h-1.5 bg-zinc-100 dark:bg-zinc-800">
+            <div
+              className="h-full bg-[var(--primary)] transition-all duration-300"
+              style={{ width: `${(sessionIndex / sessionCards.length) * 100}%` }}
             />
           </div>
-        ) : null}
-      </section>
+          <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--border-color)]">
+            <span className="text-xs font-bold text-text-muted">{sessionIndex + 1} / {sessionCards.length}</span>
+            <div className="flex items-center gap-3 text-xs font-bold">
+              <span className="text-emerald-500">{goodCount}✓</span>
+              <span className="text-red-500">{hardCount}✗</span>
+            </div>
+          </div>
+          <FlashcardSessionCard
+            card={currentCard}
+            flipped={flipped}
+            onFlip={() => setFlipped(f => !f)}
+            onRate={(r) => void rate(r)}
+            submitting={submitting}
+          />
+        </div>
+      ) : null}
 
-      {/* ── Weak Knowledge ─────────────────────────────────────────── */}
-      <section>
-        <h2 className="text-lg font-black text-text-main mb-4">Weak Knowledge</h2>
+      {/* ── Weak Knowledge ──────────────────────────────────────────── */}
+      {hasInsights && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <WeakSection
             title="Hard Flashcards"
@@ -327,24 +318,7 @@ export const ReviewQueueTab: React.FC<Props> = ({ flashcards }) => {
             empty="All reviewed cards are on track!"
           />
         </div>
-      </section>
-
-      {/* ── Progress Analytics ──────────────────────────────────────── */}
-      <section>
-        <h2 className="text-lg font-black text-text-main mb-4">Progress Analytics</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {analyticsStats.map(({ label, value, icon: Icon, color, description }) => (
-            <div key={label} className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-sidebar)] p-4 flex flex-col gap-2">
-              <Icon size={18} className={color} />
-              <p className="text-2xl font-black text-text-main">{value}</p>
-              <div>
-                <p className="text-xs font-bold text-text-main">{label}</p>
-                <p className="text-[10px] text-text-muted">{description}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
+      )}
     </div>
   );
 };

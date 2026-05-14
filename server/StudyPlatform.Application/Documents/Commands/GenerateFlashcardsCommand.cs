@@ -14,19 +14,16 @@ public class GenerateFlashcardsCommandHandler : IRequestHandler<GenerateFlashcar
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly IAiService _aiService;
-    private readonly IBlobStorageService _blobStorageService;
-    private readonly IDocumentTextExtractor _textExtractor;
+    private readonly IDocumentContentService _contentService;
 
     public GenerateFlashcardsCommandHandler(
         IUnitOfWork unitOfWork,
         IAiService aiService,
-        IBlobStorageService blobStorageService,
-        IDocumentTextExtractor textExtractor)
+        IDocumentContentService contentService)
     {
         _unitOfWork = unitOfWork;
         _aiService = aiService;
-        _blobStorageService = blobStorageService;
-        _textExtractor = textExtractor;
+        _contentService = contentService;
     }
 
     public async Task<Result<IEnumerable<FlashcardDto>>> Handle(GenerateFlashcardsCommand request, CancellationToken cancellationToken)
@@ -46,30 +43,15 @@ public class GenerateFlashcardsCommandHandler : IRequestHandler<GenerateFlashcar
             return Result<IEnumerable<FlashcardDto>>.Success(cachedDtos, "Flashcards retrieved successfully.");
         }
 
-        string flashcardsJson;
-
-        if (document.ContentType.StartsWith("audio/", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(document.Transcript))
-        {
-            flashcardsJson = await _aiService.GenerateFlashcardsAsync(document.Transcript, cancellationToken);
-        }
-        else if (AiInlineData.IsSupported(document.ContentType))
-        {
-            var stream = await _blobStorageService.DownloadAsync(document.BlobUrl, cancellationToken);
-            using var ms = new MemoryStream();
-            await stream.CopyToAsync(ms, cancellationToken);
-            flashcardsJson = await _aiService.GenerateFlashcardsAsync(ms.ToArray(), document.ContentType, cancellationToken);
-        }
-        else
-        {
-            var text = await _textExtractor.ExtractTextAsync(document.BlobUrl, document.ContentType, cancellationToken);
-            flashcardsJson = await _aiService.GenerateFlashcardsAsync(text, cancellationToken);
-        }
+        var (bytes, text) = await _contentService.GetContentAsync(document, cancellationToken);
+        var flashcardsJson = bytes != null
+            ? await _aiService.GenerateFlashcardsAsync(bytes, document.ContentType, cancellationToken)
+            : await _aiService.GenerateFlashcardsAsync(text!, cancellationToken);
 
         List<AiFlashcardItem> flashcardItems;
         try
         {
-            flashcardItems = JsonSerializer.Deserialize<List<AiFlashcardItem>>(flashcardsJson,
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new List<AiFlashcardItem>();
+            flashcardItems = DeserializeFlashcards(flashcardsJson);
         }
         catch (JsonException)
         {
@@ -106,6 +88,93 @@ public class GenerateFlashcardsCommandHandler : IRequestHandler<GenerateFlashcar
             CardType: f.CardType, Difficulty: f.Difficulty, Chapter: f.Chapter, Tags: f.Tags));
 
         return Result<IEnumerable<FlashcardDto>>.Success(dtos, "Flashcards generated successfully.");
+    }
+
+    private static List<AiFlashcardItem> DeserializeFlashcards(string flashcardsJson)
+    {
+        using var document = JsonDocument.Parse(flashcardsJson);
+        var flashcards = new List<AiFlashcardItem>();
+
+        CollectFlashcards(document.RootElement, flashcards);
+        if (flashcards.Count > 0)
+            return flashcards;
+
+        throw new JsonException("Expected a flashcard array.");
+    }
+
+    private static void CollectFlashcards(JsonElement element, List<AiFlashcardItem> flashcards, string? typeHint = null)
+    {
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.Array:
+                foreach (var item in element.EnumerateArray())
+                    CollectFlashcards(item, flashcards, typeHint);
+                break;
+            case JsonValueKind.Object:
+                if (TryReadFlashcard(element, typeHint, out var flashcard))
+                {
+                    flashcards.Add(flashcard);
+                    break;
+                }
+
+                foreach (var property in element.EnumerateObject())
+                    CollectFlashcards(property.Value, flashcards, GetTypeHint(property.Name) ?? typeHint);
+                break;
+        }
+    }
+
+    private static bool TryReadFlashcard(JsonElement element, string? typeHint, out AiFlashcardItem flashcard)
+    {
+        var front = GetContent(element, "front", "question", "prompt", "statement", "text");
+        var back = GetContent(element, "back", "answer", "definition", "hint", "explanation") ?? string.Empty;
+        var type = GetContent(element, "type", "cardType") ?? typeHint;
+        var chartData = GetProperty(element, "chartData", "chart_data", "data")?.Clone();
+
+        if (string.IsNullOrWhiteSpace(front))
+        {
+            flashcard = null!;
+            return false;
+        }
+
+        flashcard = new AiFlashcardItem(front, back, type, chartData);
+        return true;
+    }
+
+    private static string? GetTypeHint(string propertyName)
+    {
+        if (propertyName.Equals("basic", StringComparison.OrdinalIgnoreCase)
+            || propertyName.Equals("basics", StringComparison.OrdinalIgnoreCase))
+            return "basic";
+        if (propertyName.Equals("cloze", StringComparison.OrdinalIgnoreCase)
+            || propertyName.Equals("clozes", StringComparison.OrdinalIgnoreCase))
+            return "cloze";
+        if (propertyName.Equals("chart", StringComparison.OrdinalIgnoreCase)
+            || propertyName.Equals("charts", StringComparison.OrdinalIgnoreCase))
+            return "chart";
+
+        return null;
+    }
+
+    private static string? GetContent(JsonElement element, params string[] propertyNames)
+    {
+        var property = GetProperty(element, propertyNames);
+        if (property is null)
+            return null;
+
+        return property.Value.ValueKind == JsonValueKind.String
+            ? property.Value.GetString()
+            : property.Value.GetRawText();
+    }
+
+    private static JsonElement? GetProperty(JsonElement element, params string[] propertyNames)
+    {
+        foreach (var property in element.EnumerateObject())
+        {
+            if (propertyNames.Any(name => property.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+                return property.Value;
+        }
+
+        return null;
     }
 
     private record AiFlashcardItem(string Front, string Back, string? Type = null, JsonElement? ChartData = null);

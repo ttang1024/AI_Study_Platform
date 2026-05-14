@@ -156,12 +156,15 @@ public class GetAllFlashcardsPagedQueryHandlerTests
 {
     private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IFlashcardRepository> _flashcards = new();
+    private readonly Mock<IFlashcardSrsDataRepository> _srsRepo = new();
     private readonly GetAllFlashcardsPagedQueryHandler _handler;
     private readonly Guid _userId = Guid.NewGuid();
 
     public GetAllFlashcardsPagedQueryHandlerTests()
     {
         _uow.Setup(u => u.Flashcards).Returns(_flashcards.Object);
+        _uow.Setup(u => u.FlashcardSrs).Returns(_srsRepo.Object);
+        _srsRepo.Setup(r => r.GetByUserIdAsync(_userId, default)).ReturnsAsync(Array.Empty<FlashcardSrsData>());
         _handler = new GetAllFlashcardsPagedQueryHandler(_uow.Object);
     }
 

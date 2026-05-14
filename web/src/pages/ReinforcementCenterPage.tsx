@@ -233,7 +233,7 @@ export const ReinforcementCenterPage: React.FC = () => {
         return ans && isQuizOptionCorrect(ans, q.correctAnswer);
       }).length;
 
-      saves.push(documentService.saveQuizSubmission(courseId, documentId, mergedAnswers, score, total).catch(() => {}));
+      saves.push(documentService.saveQuizSubmission(courseId, documentId, mergedAnswers, score, total).catch(() => { }));
     }
 
     for (const [videoId, questions] of videoGroups) {
@@ -248,7 +248,7 @@ export const ReinforcementCenterPage: React.FC = () => {
         return ans && isQuizOptionCorrect(ans, q.correctAnswer);
       }).length;
 
-      saves.push(youtubeService.submitQuiz(videoId, mergedAnswers, score, total).catch(() => {}));
+      saves.push(youtubeService.submitQuiz(videoId, mergedAnswers, score, total).catch(() => { }));
     }
 
     await Promise.all(saves);
@@ -257,7 +257,7 @@ export const ReinforcementCenterPage: React.FC = () => {
     quizSubmissionService.clearListCache();
     quizSubmissionService.getAllSubmissions(1, 200)
       .then(p => setSubmissions(p.items))
-      .catch(() => {});
+      .catch(() => { });
   }, [bankQuestions, submissions]);
 
   const modules = [
@@ -428,7 +428,7 @@ export const ReinforcementCenterPage: React.FC = () => {
               ) : unmasteredTerms.length === 0 ? (
                 <EmptyState message="All glossary terms mastered!" />
               ) : (
-                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-2">
                   {unmasteredTerms.map(term => (
                     <GlossaryTermCard
                       key={term.id}

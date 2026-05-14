@@ -206,7 +206,7 @@ export const DashboardPage: React.FC = () => {
       <motion.div variants={item}>
         <div className="flex items-center justify-between mb-3 px-0.5">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">Study Tools</p>
-          <Link to="/reinforcement-center" className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--primary)] hover:opacity-75 transition-opacity">
+          <Link to="/reinforcement-center" className="flex items-center gap-1.5 text-[11px] font-semibold text-[red] hover:opacity-75 transition-opacity">
             <CalendarCheck2 size={13} />
             Reinforcement Center
           </Link>

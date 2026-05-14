@@ -1,4 +1,3 @@
-using System.Text.Json;
 using System.Text;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -158,27 +157,24 @@ public class AiController : ControllerBase
             return AiErrorMapper.ToObjectResult(this, ex.Message);
         }
 
-        Response.ContentType = "text/event-stream";
-        Response.Headers["Cache-Control"] = "no-cache";
-        Response.Headers["X-Accel-Buffering"] = "no";
+        Response.SetSseHeaders();
 
         try
         {
-            await WriteSseDataAsync(firstChunk, cancellationToken);
+            await Response.WriteSseDataAsync(firstChunk, cancellationToken);
 
             while (await enumerator.MoveNextAsync())
             {
-                await WriteSseDataAsync(enumerator.Current, cancellationToken);
+                await Response.WriteSseDataAsync(enumerator.Current, cancellationToken);
             }
         }
         catch (OperationCanceledException) { return new EmptyResult(); }
         catch (Exception ex)
         {
-            await WriteSseDataAsync("[ERROR] " + ex.Message, cancellationToken);
+            await Response.WriteSseDataAsync("[ERROR] " + ex.Message, cancellationToken);
         }
 
-        await Response.WriteAsync("data: [DONE]\n\n", cancellationToken);
-        await Response.Body.FlushAsync(cancellationToken);
+        await Response.WriteSseDoneAsync(cancellationToken);
         return new EmptyResult();
     }
 
@@ -238,21 +234,19 @@ public class AiController : ControllerBase
         _unitOfWork.ChatMessages.UpdateConversation(conversation);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        Response.ContentType = "text/event-stream";
-        Response.Headers["Cache-Control"] = "no-cache";
-        Response.Headers["X-Accel-Buffering"] = "no";
+        Response.SetSseHeaders();
 
         var fullResponse = new StringBuilder();
         try
         {
             fullResponse.Append(firstChunk);
-            await WriteSseDataAsync(firstChunk, cancellationToken);
+            await Response.WriteSseDataAsync(firstChunk, cancellationToken);
 
             while (await enumerator.MoveNextAsync())
             {
                 var chunk = enumerator.Current;
                 fullResponse.Append(chunk);
-                await WriteSseDataAsync(chunk, cancellationToken);
+                await Response.WriteSseDataAsync(chunk, cancellationToken);
             }
 
             if (fullResponse.Length > 0)
@@ -277,18 +271,11 @@ public class AiController : ControllerBase
         catch (OperationCanceledException) { return new EmptyResult(); }
         catch (Exception ex)
         {
-            await WriteSseDataAsync("[ERROR] " + ex.Message, cancellationToken);
+            await Response.WriteSseDataAsync("[ERROR] " + ex.Message, cancellationToken);
         }
 
-        await Response.WriteAsync("data: [DONE]\n\n", cancellationToken);
-        await Response.Body.FlushAsync(cancellationToken);
+        await Response.WriteSseDoneAsync(cancellationToken);
         return new EmptyResult();
-    }
-
-    private async Task WriteSseDataAsync(string data, CancellationToken cancellationToken)
-    {
-        await Response.WriteAsync($"data: {JsonSerializer.Serialize(data)}\n\n", cancellationToken);
-        await Response.Body.FlushAsync(cancellationToken);
     }
 
     private static GeneralChatConversationDto ToConversationDto(ChatConversation conversation)

@@ -33,6 +33,15 @@ export interface UpdateQuestionBankQuestion {
   difficulty: QuestionDifficulty
 }
 
+export const DIFFICULTY_LABELS: Record<QuestionDifficulty, string> = {
+  easy: 'Beginner',
+  medium: 'Intermediate',
+  hard: 'Advanced',
+};
+
+export const getDifficultyLabel = (difficulty: QuestionDifficulty | undefined): string =>
+  difficulty ? DIFFICULTY_LABELS[difficulty] : DIFFICULTY_LABELS.medium;
+
 export const questionBankService = {
   async getQuestions(filters: QuestionBankFilters = {}): Promise<QuestionBankQuestion[]> {
     const response = await apiClient.get('/api/question-bank', { params: filters })

@@ -313,12 +313,9 @@ public class YouTubeController : ControllerBase
         var cached = await _cache.GetAsync<string>(cacheKey, cancellationToken);
         if (!string.IsNullOrEmpty(cached))
         {
-            Response.ContentType = "text/event-stream";
-            Response.Headers["Cache-Control"] = "no-cache";
-            Response.Headers["X-Accel-Buffering"] = "no";
-            await WriteSseDataAsync(cached, cancellationToken);
-            await Response.WriteAsync("data: [DONE]\n\n", cancellationToken);
-            await Response.Body.FlushAsync(cancellationToken);
+            Response.SetSseHeaders();
+            await Response.WriteSseDataAsync(cached, cancellationToken);
+            await Response.WriteSseDoneAsync(cancellationToken);
             return new EmptyResult();
         }
 
@@ -346,21 +343,19 @@ public class YouTubeController : ControllerBase
             return AiStreamError(ex);
         }
 
-        Response.ContentType = "text/event-stream";
-        Response.Headers["Cache-Control"] = "no-cache";
-        Response.Headers["X-Accel-Buffering"] = "no";
+        Response.SetSseHeaders();
 
         var fullText = new StringBuilder();
         try
         {
             fullText.Append(firstChunk);
-            await WriteSseDataAsync(firstChunk, cancellationToken);
+            await Response.WriteSseDataAsync(firstChunk, cancellationToken);
 
             while (await enumerator.MoveNextAsync())
             {
                 var chunk = enumerator.Current;
                 fullText.Append(chunk);
-                await WriteSseDataAsync(chunk, cancellationToken);
+                await Response.WriteSseDataAsync(chunk, cancellationToken);
             }
 
             if (fullText.Length > 0)
@@ -369,18 +364,11 @@ public class YouTubeController : ControllerBase
         catch (OperationCanceledException) { return new EmptyResult(); }
         catch (Exception ex)
         {
-            await WriteSseDataAsync("[ERROR] " + ex.Message, cancellationToken);
+            await Response.WriteSseDataAsync("[ERROR] " + ex.Message, cancellationToken);
         }
 
-        await Response.WriteAsync("data: [DONE]\n\n", cancellationToken);
-        await Response.Body.FlushAsync(cancellationToken);
+        await Response.WriteSseDoneAsync(cancellationToken);
         return new EmptyResult();
-    }
-
-    private async Task WriteSseDataAsync(string data, CancellationToken cancellationToken)
-    {
-        await Response.WriteAsync($"data: {JsonSerializer.Serialize(data)}\n\n", cancellationToken);
-        await Response.Body.FlushAsync(cancellationToken);
     }
 
     private ObjectResult AiStreamError(Exception ex)
@@ -876,12 +864,9 @@ public class YouTubeController : ControllerBase
         var cached = await _cache.GetAsync<string>(cacheKey, cancellationToken);
         if (!string.IsNullOrEmpty(cached))
         {
-            Response.ContentType = "text/event-stream";
-            Response.Headers["Cache-Control"] = "no-cache";
-            Response.Headers["X-Accel-Buffering"] = "no";
-            await WriteSseDataAsync(cached, cancellationToken);
-            await Response.WriteAsync("data: [DONE]\n\n", cancellationToken);
-            await Response.Body.FlushAsync(cancellationToken);
+            Response.SetSseHeaders();
+            await Response.WriteSseDataAsync(cached, cancellationToken);
+            await Response.WriteSseDoneAsync(cancellationToken);
             return new EmptyResult();
         }
 
@@ -909,21 +894,19 @@ public class YouTubeController : ControllerBase
             return AiStreamError(ex);
         }
 
-        Response.ContentType = "text/event-stream";
-        Response.Headers["Cache-Control"] = "no-cache";
-        Response.Headers["X-Accel-Buffering"] = "no";
+        Response.SetSseHeaders();
 
         var fullText = new StringBuilder();
         try
         {
             fullText.Append(firstChunk);
-            await WriteSseDataAsync(firstChunk, cancellationToken);
+            await Response.WriteSseDataAsync(firstChunk, cancellationToken);
 
             while (await enumerator.MoveNextAsync())
             {
                 var chunk = enumerator.Current;
                 fullText.Append(chunk);
-                await WriteSseDataAsync(chunk, cancellationToken);
+                await Response.WriteSseDataAsync(chunk, cancellationToken);
             }
 
             if (fullText.Length > 0)
@@ -932,11 +915,10 @@ public class YouTubeController : ControllerBase
         catch (OperationCanceledException) { return new EmptyResult(); }
         catch (Exception ex)
         {
-            await WriteSseDataAsync("[ERROR] " + ex.Message, cancellationToken);
+            await Response.WriteSseDataAsync("[ERROR] " + ex.Message, cancellationToken);
         }
 
-        await Response.WriteAsync("data: [DONE]\n\n", cancellationToken);
-        await Response.Body.FlushAsync(cancellationToken);
+        await Response.WriteSseDoneAsync(cancellationToken);
         return new EmptyResult();
     }
 
@@ -994,21 +976,19 @@ public class YouTubeController : ControllerBase
         await _unitOfWork.ChatMessages.AddAsync(userMsg, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        Response.ContentType = "text/event-stream";
-        Response.Headers["Cache-Control"] = "no-cache";
-        Response.Headers["X-Accel-Buffering"] = "no";
+        Response.SetSseHeaders();
 
         var fullResponse = new StringBuilder();
         try
         {
             fullResponse.Append(firstChunk);
-            await WriteSseDataAsync(firstChunk, cancellationToken);
+            await Response.WriteSseDataAsync(firstChunk, cancellationToken);
 
             while (await enumerator.MoveNextAsync())
             {
                 var chunk = enumerator.Current;
                 fullResponse.Append(chunk);
-                await WriteSseDataAsync(chunk, cancellationToken);
+                await Response.WriteSseDataAsync(chunk, cancellationToken);
             }
 
             if (fullResponse.Length > 0)
@@ -1030,11 +1010,10 @@ public class YouTubeController : ControllerBase
         catch (OperationCanceledException) { return new EmptyResult(); }
         catch (Exception ex)
         {
-            await WriteSseDataAsync("[ERROR] " + ex.Message, cancellationToken);
+            await Response.WriteSseDataAsync("[ERROR] " + ex.Message, cancellationToken);
         }
 
-        await Response.WriteAsync("data: [DONE]\n\n", cancellationToken);
-        await Response.Body.FlushAsync(cancellationToken);
+        await Response.WriteSseDoneAsync(cancellationToken);
         return new EmptyResult();
     }
 
