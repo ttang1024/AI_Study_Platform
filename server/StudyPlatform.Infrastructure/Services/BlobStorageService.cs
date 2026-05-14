@@ -16,10 +16,20 @@ public class BlobStorageService : IBlobStorageService
     public BlobStorageService(IConfiguration configuration, ILogger<BlobStorageService> logger)
     {
         _logger = logger;
-        var connectionString = configuration["AzureStorage:ConnectionString"]
-            ?? throw new InvalidOperationException("Azure Storage connection string is not configured.");
-        _containerName = configuration["AzureStorage:ContainerName"] ?? "documents";
+        var connectionString = CleanConfigValue(configuration["AzureStorage:ConnectionString"]);
+        if (string.IsNullOrWhiteSpace(connectionString))
+            throw new InvalidOperationException("Azure Storage connection string is not configured.");
+
+        _containerName = CleanConfigValue(configuration["AzureStorage:ContainerName"]) ?? "documents";
         _blobServiceClient = new BlobServiceClient(connectionString);
+    }
+
+    private static string? CleanConfigValue(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return null;
+
+        return value.Trim().Trim('"', '\'');
     }
 
     public async Task<string> UploadAsync(Stream fileStream, string fileName, string contentType, CancellationToken cancellationToken = default)

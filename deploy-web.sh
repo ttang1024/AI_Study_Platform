@@ -2,6 +2,12 @@
 set -euo pipefail
 
 # Deploy static web/admin frontends for the low-cost Azure layout.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+if [[ -f "$SCRIPT_DIR/.azure_env_variables" ]]; then
+  # shellcheck source=.azure_env_variables
+  source "$SCRIPT_DIR/.azure_env_variables"
+fi
+
 RESOURCE_GROUP="${RESOURCE_GROUP:-study-platform-rg}"
 API_APP_NAME="${API_APP_NAME:-api}"
 
@@ -14,6 +20,8 @@ strip_cr() {
 
 GOOGLE_CLIENT_ID="$(strip_cr "$GOOGLE_CLIENT_ID")"
 GITHUB_CLIENT_ID="$(strip_cr "$GITHUB_CLIENT_ID")"
+WEB_PUBLIC_ORIGIN="${WEB_PUBLIC_ORIGIN:-}"
+WEB_PUBLIC_ORIGIN="$(strip_cr "$WEB_PUBLIC_ORIGIN")"
 
 if ! az account show >/dev/null 2>&1; then
   echo "==> Logging in to Azure"
@@ -29,7 +37,8 @@ ADMIN_STORAGE_ACCOUNT="${ADMIN_STORAGE_ACCOUNT:-stplatadmin${AZURE_NAME_SUFFIX}}
 WEB_STORAGE_KEY="$(az storage account keys list --resource-group "$RESOURCE_GROUP" --account-name "$WEB_STORAGE_ACCOUNT" --query '[0].value' -o tsv)"
 ADMIN_STORAGE_KEY="$(az storage account keys list --resource-group "$RESOURCE_GROUP" --account-name "$ADMIN_STORAGE_ACCOUNT" --query '[0].value' -o tsv)"
 WEB_URL="$(az storage account show --name "$WEB_STORAGE_ACCOUNT" --resource-group "$RESOURCE_GROUP" --query primaryEndpoints.web -o tsv)"
-WEB_ORIGIN="${WEB_PUBLIC_ORIGIN:-${WEB_URL%/}}"
+WEB_STORAGE_ORIGIN="${WEB_URL%/}"
+WEB_ORIGIN="${WEB_PUBLIC_ORIGIN:-$WEB_STORAGE_ORIGIN}"
 
 API_FQDN="$(az containerapp show --name "$API_APP_NAME" --resource-group "$RESOURCE_GROUP" --query properties.configuration.ingress.fqdn -o tsv)"
 API_URL="https://$API_FQDN"
@@ -64,6 +73,6 @@ ADMIN_URL="$(az storage account show --name "$ADMIN_STORAGE_ACCOUNT" --resource-
 
 echo ""
 echo "Frontend deployment complete"
-echo "  Web:   ${WEB_URL%/}"
+echo "  Web:   $WEB_ORIGIN"
 echo "  Admin: ${ADMIN_URL%/}"
 echo "  API:   $API_URL"

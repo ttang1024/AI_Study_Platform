@@ -48,7 +48,6 @@ services:
       Redis__ConnectionString: "redis:6379"
       Redis__InstanceName: ${REDIS_INSTANCE_NAME:-StudyPlatform:}
       Cache__DashboardStatsSeconds: ${CACHE_DASHBOARD_STATS_SECONDS:-60}
-      Cache__DocumentMetadataSeconds: ${CACHE_DOCUMENT_METADATA_SECONDS:-60}
       Cache__AnalyticsSummarySeconds: ${CACHE_ANALYTICS_SUMMARY_SECONDS:-300}
       Cache__GeneratedResultSeconds: ${CACHE_GENERATED_RESULT_SECONDS:-3600}
       JwtSettings__SecretKey: ${JWT_SECRET_KEY}

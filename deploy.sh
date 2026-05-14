@@ -30,6 +30,31 @@ GITHUB_CLIENT_SECRET="${GITHUB_CLIENT_SECRET:?Set GITHUB_CLIENT_SECRET env var}"
 SMTP_USER="${SMTP_USER:?Set SMTP_USER env var}"
 SMTP_PASSWORD="${SMTP_PASSWORD:?Set SMTP_PASSWORD env var}"
 
+strip_cr() {
+  printf '%s' "$1" | tr -d '\r'
+}
+
+validate_storage_connection_string() {
+  local value="$1"
+  if [[ "$value" != *"DefaultEndpointsProtocol="* || "$value" != *"AccountName="* || "$value" != *"AccountKey="* || "$value" != *"EndpointSuffix="* ]]; then
+    echo "Azure Storage connection string is invalid. Unset AZURE_STORAGE_CONNECTION_STRING to auto-read it from $DOCS_STORAGE_ACCOUNT, or set a full connection string." >&2
+    exit 1
+  fi
+}
+
+DB_PASS="$(strip_cr "$DB_PASS")"
+JWT_SECRET="$(strip_cr "$JWT_SECRET")"
+GOOGLE_CLIENT_ID="$(strip_cr "$GOOGLE_CLIENT_ID")"
+GOOGLE_CLIENT_SECRET="$(strip_cr "$GOOGLE_CLIENT_SECRET")"
+GITHUB_CLIENT_ID="$(strip_cr "$GITHUB_CLIENT_ID")"
+GITHUB_CLIENT_SECRET="$(strip_cr "$GITHUB_CLIENT_SECRET")"
+SMTP_USER="$(strip_cr "$SMTP_USER")"
+SMTP_PASSWORD="$(strip_cr "$SMTP_PASSWORD")"
+YOUTUBE_PROXY_URL="${YOUTUBE_PROXY_URL:-${YouTube__ProxyUrl:-}}"
+YOUTUBE_COOKIES_B64="${YOUTUBE_COOKIES_B64:-${YouTube__CookiesBase64:-}}"
+YOUTUBE_PROXY_URL="$(strip_cr "$YOUTUBE_PROXY_URL")"
+YOUTUBE_COOKIES_B64="$(strip_cr "$YOUTUBE_COOKIES_B64")"
+
 if ! az account show >/dev/null 2>&1; then
   echo "==> Logging in to Azure"
   az login
@@ -101,6 +126,8 @@ az storage container create \
   --name documents \
   --output none
 AZURE_STORAGE_CONNECTION_STRING="${AZURE_STORAGE_CONNECTION_STRING:-$(az storage account show-connection-string --resource-group "$RESOURCE_GROUP" --name "$DOCS_STORAGE_ACCOUNT" --query connectionString -o tsv)}"
+AZURE_STORAGE_CONNECTION_STRING="$(strip_cr "$AZURE_STORAGE_CONNECTION_STRING")"
+validate_storage_connection_string "$AZURE_STORAGE_CONNECTION_STRING"
 
 echo "==> Creating Azure Container Registry"
 if ! az acr show --name "$ACR_NAME" --resource-group "$RESOURCE_GROUP" >/dev/null 2>&1; then
@@ -210,6 +237,7 @@ ADMIN_URL="$(az storage account show --name "$ADMIN_STORAGE_ACCOUNT" --resource-
 WEB_ORIGIN="${WEB_URL%/}"
 ADMIN_ORIGIN="${ADMIN_URL%/}"
 WEB_PUBLIC_ORIGIN="${WEB_PUBLIC_ORIGIN:-$WEB_ORIGIN}"
+WEB_PUBLIC_ORIGIN="$(strip_cr "$WEB_PUBLIC_ORIGIN")"
 
 echo "==> Deploying API container app"
 API_ENV_VARS=(
@@ -223,7 +251,6 @@ API_ENV_VARS=(
   "Redis__ConnectionString=${REDIS_CONNECTION_STRING:-}"
   "Redis__InstanceName=${REDIS_INSTANCE_NAME:-StudyPlatform:}"
   "Cache__DashboardStatsSeconds=${CACHE_DASHBOARD_STATS_SECONDS:-60}"
-  "Cache__DocumentMetadataSeconds=${CACHE_DOCUMENT_METADATA_SECONDS:-60}"
   "Cache__AnalyticsSummarySeconds=${CACHE_ANALYTICS_SUMMARY_SECONDS:-300}"
   "Cache__GeneratedResultSeconds=${CACHE_GENERATED_RESULT_SECONDS:-3600}"
   "AppLimits__DocumentUploadLimit=${DOCUMENT_UPLOAD_LIMIT:-10}"
@@ -243,6 +270,18 @@ API_ENV_VARS=(
   "Cors__AllowedOrigins__0=$WEB_ORIGIN"
   "Cors__AllowedOrigins__1=$ADMIN_ORIGIN"
 )
+
+if [ "$WEB_PUBLIC_ORIGIN" != "$WEB_ORIGIN" ]; then
+  API_ENV_VARS+=("Cors__AllowedOrigins__2=$WEB_PUBLIC_ORIGIN")
+fi
+
+while IFS= read -r var_name; do
+  API_ENV_VARS+=("${var_name}=${!var_name}")
+done < <(compgen -A variable YouTube__ProxyUrls__ | sort)
+
+while IFS= read -r var_name; do
+  API_ENV_VARS+=("${var_name}=${!var_name}")
+done < <(compgen -A variable YouTube__CookiesList__ | sort)
 
 if az containerapp show --name "$API_APP_NAME" --resource-group "$RESOURCE_GROUP" >/dev/null 2>&1; then
   az containerapp update \
@@ -303,7 +342,7 @@ az storage blob upload-batch --account-name "$ADMIN_STORAGE_ACCOUNT" --account-k
 
 echo ""
 echo "Deployment complete"
-echo "  Web:   $WEB_ORIGIN"
+echo "  Web:   $WEB_PUBLIC_ORIGIN"
 echo "  Admin: $ADMIN_ORIGIN"
 echo "  API:   $API_URL"
 echo ""
