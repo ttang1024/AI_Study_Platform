@@ -16,6 +16,7 @@ import {
   ExportQuizRecord,
 } from '../services/exportInteropService';
 import { cn } from '../utils/cn';
+import { Select } from '../components/common/Select';
 
 const difficultyOptions: Array<'all' | QuestionDifficulty> = ['all', 'easy', 'medium', 'hard'];
 
@@ -196,18 +197,18 @@ export const QuestionBankPage: React.FC = () => {
               className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-app)] py-2 pl-9 pr-3 text-sm outline-none focus:border-primary"
             />
           </div>
-          <select value={courseId} onChange={e => setCourseId(e.target.value)} className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-app)] px-3 py-2 text-sm">
+          <Select value={courseId} onChange={e => setCourseId(e.target.value)}>
             <option value="all">All courses</option>
             {courses.map(course => <option key={course.id} value={course.id}>{course.name}</option>)}
-          </select>
-          <select value={sourceType} onChange={e => setSourceType(e.target.value as any)} className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-app)] px-3 py-2 text-sm">
+          </Select>
+          <Select value={sourceType} onChange={e => setSourceType(e.target.value as any)}>
             <option value="all">All sources</option>
             <option value="document">Documents</option>
             <option value="video">Videos</option>
-          </select>
-          <select value={difficulty} onChange={e => setDifficulty(e.target.value as any)} className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-app)] px-3 py-2 text-sm">
+          </Select>
+          <Select value={difficulty} onChange={e => setDifficulty(e.target.value as any)}>
             {difficultyOptions.map(d => <option key={d} value={d}>{d === 'all' ? 'All levels' : d}</option>)}
-          </select>
+          </Select>
         </div>
       </div>
 
@@ -297,22 +298,21 @@ export const QuestionBankPage: React.FC = () => {
                 />
               ))}
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <select
+                <Select
                   value={getCorrectQuizOptionText(editing.options, editing.correctAnswer)}
                   onChange={e => setEditing({ ...editing, correctAnswer: e.target.value })}
-                  className="rounded-xl border border-[var(--border-color)] px-3 py-2 text-sm outline-none focus:border-primary"
                 >
                   {editing.options.map((option, index) => (
                     <option key={`${index}-${option}`} value={option}>
                       {option || 'Blank option'}
                     </option>
                   ))}
-                </select>
-                <select value={editing.difficulty} onChange={e => setEditing({ ...editing, difficulty: e.target.value as QuestionDifficulty })} className="rounded-xl border border-[var(--border-color)] px-3 py-2 text-sm">
+                </Select>
+                <Select value={editing.difficulty} onChange={e => setEditing({ ...editing, difficulty: e.target.value as QuestionDifficulty })}>
                   <option value="easy">easy</option>
                   <option value="medium">medium</option>
                   <option value="hard">hard</option>
-                </select>
+                </Select>
               </div>
               <textarea value={editing.explanation} onChange={e => setEditing({ ...editing, explanation: e.target.value })} placeholder="Explanation" className="min-h-20 w-full rounded-xl border border-[var(--border-color)] p-3 text-sm outline-none focus:border-primary" />
               <div className="flex justify-end gap-2">

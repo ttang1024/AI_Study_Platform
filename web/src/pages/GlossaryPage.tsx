@@ -19,6 +19,7 @@ import { SourceFilterBar, SourceType } from '../components/common/SourceFilterBa
 import { GlossaryShareModal } from '../components/common/GlossaryShareModal';
 import { GlossaryTermCard } from '../components/common/GlossaryTermCard';
 import { Pagination } from '../components/common/Pagination';
+import { Select } from '../components/common/Select';
 
 function getDocKind(doc: { type?: string; name: string; originalUrl?: string }): 'audio' | 'article' | 'document' {
   if (doc.type === 'audio' || doc.type === 'podcast') return 'audio';
@@ -385,17 +386,18 @@ export const GlossaryPage: React.FC = () => {
                 <h2 className="text-sm font-bold text-text-main">Generate Glossary</h2>
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                   {courses.length > 0 && (
-                    <select
+                    <Select
                       value={generateCourseId ?? ''}
                       onChange={e => handleSelectGenerateCourse(e.target.value || null)}
-                      className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-app)] px-3 py-2 text-xs font-semibold text-text-main outline-none focus:border-primary"
+                      size="xs"
+                      selectClassName="py-2 font-semibold"
                       aria-label="Filter glossary generation by course"
                     >
                       <option value="">All Courses</option>
                       {courses.map(course => (
                         <option key={course.id} value={course.id}>{course.name}</option>
                       ))}
-                    </select>
+                    </Select>
                   )}
                 </div>
               </div>

@@ -9,6 +9,7 @@ import studyGroupService, {
 import { useAuth } from '../context/AuthContext';
 import { apiClient } from '../services/apiClient';
 import { getApiUrl } from '../utils/env';
+import { Select } from '../components/common/Select';
 
 interface Course {
   courseId: string;
@@ -216,16 +217,18 @@ export const StudyGroupDetailPage: React.FC = () => {
             </ul>
             {availableCourses.length > 0 && (
               <div className="px-4 py-3 border-t border-gray-100 flex gap-2">
-                <select
+                <Select
                   value={selectedCourseId}
                   onChange={(e) => setSelectedCourseId(e.target.value)}
-                  className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-teal-200"
+                  className="flex-1"
+                  size="xs"
+                  selectClassName="rounded-lg border-gray-200 px-2 focus:border-gray-200 focus:ring-2 focus:ring-teal-200"
                 >
                   <option value="">Add a course...</option>
                   {availableCourses.map((c) => (
                     <option key={c.courseId} value={c.courseId}>{c.courseName}</option>
                   ))}
-                </select>
+                </Select>
                 <button
                   onClick={handleShareCourse}
                   disabled={!selectedCourseId}

@@ -11,10 +11,12 @@ import { flashcardService } from '../services/flashcardService';
 import { glossaryService } from '../services/glossaryService';
 import { masteredService } from '../services/masteredService';
 import { questionBankService, QuestionBankQuestion } from '../services/questionBankService';
-import { quizSubmissionService, QuizSubmission } from '../services/documentService';
+import { documentService, quizSubmissionService, QuizSubmission } from '../services/documentService';
+import { youtubeService } from '../services/youtubeService';
 import { isQuizOptionCorrect } from '../utils/quizAnswers';
 import { TimedExamModal } from '../components/quiz/TimedExamModal';
-import { HardFlashcardCard } from '../components/study/HardFlashcardCard';
+import { HardFlashcardReview } from '../components/study/HardFlashcardCard';
+import { SessionRating } from '../components/study/FlashcardSessionCard';
 import { QuizMistakeCard } from '../components/quiz/QuizMistakeCard';
 import { GlossaryTermCard } from '../components/common/GlossaryTermCard';
 
@@ -62,9 +64,11 @@ export const ReinforcementCenterPage: React.FC = () => {
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const [hardCards, setHardCards] = useState<Flashcard[]>([]);
+  const [flashcardQueue, setFlashcardQueue] = useState<Flashcard[]>([]);
   const [flashcardLoading, setFlashcardLoading] = useState(true);
 
   const [examQuestions, setExamQuestions] = useState<QuizQuestion[]>([]);
+  const [practiceCorrectIds, setPracticeCorrectIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     setQuizLoading(true);
@@ -97,14 +101,34 @@ export const ReinforcementCenterPage: React.FC = () => {
   useEffect(() => {
     setFlashcardLoading(true);
     flashcardService.getAllFlashcards(1, 500)
-      .then(data => setHardCards(data.items.filter(c => c.difficulty === 'hard')))
+      .then(data => {
+        const cards = data.items.filter(c => c.difficulty === 'hard');
+        setHardCards(cards);
+        setFlashcardQueue(cards);
+      })
       .catch(() => { })
       .finally(() => setFlashcardLoading(false));
+  }, []);
+
+  const handleFlashcardRate = useCallback(async (cardId: string, rating: SessionRating) => {
+    if (rating === 3 || rating === 4) {
+      const newDifficulty = rating === 4 ? 'easy' : 'medium';
+      setHardCards(prev => prev.filter(c => c.id !== cardId));
+      setFlashcardQueue(prev => prev.filter(c => c.id !== cardId));
+    } else {
+      // again/hard: rotate card to the end of the queue
+      setFlashcardQueue(prev => {
+        const card = prev.find(c => c.id === cardId);
+        if (!card) return prev;
+        return [...prev.filter(c => c.id !== cardId), card];
+      });
+    }
   }, []);
 
   const failedQuestions = useMemo<FailedQuestion[]>(() => {
     const byId = new Map(bankQuestions.map(q => [q.quizId, q]));
     const seen = new Map<string, FailedQuestion>();
+    const everCorrect = new Set<string>(practiceCorrectIds);
 
     for (const submission of submissions) {
       const sourceQuestions = bankQuestions.filter(q => {
@@ -121,7 +145,10 @@ export const ReinforcementCenterPage: React.FC = () => {
 
       for (const question of questionsToCheck) {
         const selectedAnswer = submission.answers?.[question.quizId] ?? '';
-        if (selectedAnswer && isQuizOptionCorrect(selectedAnswer, question.correctAnswer)) continue;
+        if (selectedAnswer && isQuizOptionCorrect(selectedAnswer, question.correctAnswer)) {
+          everCorrect.add(question.quizId);
+          continue;
+        }
         if (!seen.has(question.quizId)) {
           seen.set(question.quizId, {
             question,
@@ -132,8 +159,10 @@ export const ReinforcementCenterPage: React.FC = () => {
       }
     }
 
+    for (const id of everCorrect) seen.delete(id);
+
     return Array.from(seen.values());
-  }, [bankQuestions, submissions]);
+  }, [bankQuestions, submissions, practiceCorrectIds]);
 
   const unmasteredTerms = useMemo(
     () => allTerms.filter(t => !masteredIds.has(t.id)),
@@ -166,6 +195,70 @@ export const ReinforcementCenterPage: React.FC = () => {
     const unique = failedQuestions.map(f => f.question);
     setExamQuestions(shuffle(unique).slice(0, 50).map(toQuizQuestion));
   };
+
+  const handlePracticeComplete = useCallback(async (correctIds: string[]) => {
+    if (correctIds.length === 0) return;
+
+    // Optimistic local update so the list shrinks immediately
+    setPracticeCorrectIds(prev => new Set([...prev, ...correctIds]));
+
+    const correctIdSet = new Set(correctIds);
+
+    // Group correctly-answered questions by source
+    const docGroups = new Map<string, { courseId: string; questions: typeof bankQuestions }>();
+    const videoGroups = new Map<string, typeof bankQuestions>();
+
+    for (const q of bankQuestions) {
+      if (!correctIdSet.has(q.quizId)) continue;
+      if (q.sourceType === 'document' && q.documentId && q.courseId) {
+        if (!docGroups.has(q.documentId)) docGroups.set(q.documentId, { courseId: q.courseId, questions: [] });
+        docGroups.get(q.documentId)!.questions.push(q);
+      } else if (q.sourceType === 'video' && q.youTubeVideoId) {
+        if (!videoGroups.has(q.youTubeVideoId)) videoGroups.set(q.youTubeVideoId, []);
+        videoGroups.get(q.youTubeVideoId)!.push(q);
+      }
+    }
+
+    const saves: Promise<unknown>[] = [];
+
+    for (const [documentId, { courseId, questions }] of docGroups) {
+      const existing = submissions.find(s => s.documentId === documentId);
+      const mergedAnswers = { ...(existing?.answers ?? {}) };
+      for (const q of questions) mergedAnswers[q.quizId] = q.correctAnswer;
+
+      const sourceQs = bankQuestions.filter(q => q.sourceType === 'document' && q.documentId === documentId);
+      const total = Math.max(sourceQs.length, existing?.total ?? 0);
+      const score = sourceQs.filter(q => {
+        const ans = mergedAnswers[q.quizId];
+        return ans && isQuizOptionCorrect(ans, q.correctAnswer);
+      }).length;
+
+      saves.push(documentService.saveQuizSubmission(courseId, documentId, mergedAnswers, score, total).catch(() => {}));
+    }
+
+    for (const [videoId, questions] of videoGroups) {
+      const existing = submissions.find(s => s.youTubeVideoId === videoId);
+      const mergedAnswers = { ...(existing?.answers ?? {}) };
+      for (const q of questions) mergedAnswers[q.quizId] = q.correctAnswer;
+
+      const sourceQs = bankQuestions.filter(q => q.sourceType === 'video' && q.youTubeVideoId === videoId);
+      const total = Math.max(sourceQs.length, existing?.total ?? 0);
+      const score = sourceQs.filter(q => {
+        const ans = mergedAnswers[q.quizId];
+        return ans && isQuizOptionCorrect(ans, q.correctAnswer);
+      }).length;
+
+      saves.push(youtubeService.submitQuiz(videoId, mergedAnswers, score, total).catch(() => {}));
+    }
+
+    await Promise.all(saves);
+
+    // Refresh submissions so the correct state is reflected after page reload too
+    quizSubmissionService.clearListCache();
+    quizSubmissionService.getAllSubmissions(1, 200)
+      .then(p => setSubmissions(p.items))
+      .catch(() => {});
+  }, [bankQuestions, submissions]);
 
   const modules = [
     {
@@ -375,25 +468,22 @@ export const ReinforcementCenterPage: React.FC = () => {
                 <LoadingRows />
               ) : hardCards.length === 0 ? (
                 <EmptyState message="No hard flashcards. Classify cards in Flashcards to track difficulty." />
+              ) : flashcardQueue.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-[var(--border-color)] py-10 text-center space-y-3">
+                  <p className="text-sm font-semibold text-text-main">Session complete!</p>
+                  <p className="text-xs text-text-muted">All cards rated Good or Easy this round.</p>
+                  <button
+                    onClick={() => setFlashcardQueue(hardCards)}
+                    className="mt-1 rounded-lg bg-[#059669] px-4 py-1.5 text-xs font-medium text-white hover:bg-[#047857] transition-colors"
+                  >
+                    Review again
+                  </button>
+                </div>
               ) : (
-                <>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {hardCards.slice(0, 8).map(card => (
-                      <HardFlashcardCard key={card.id} card={card} />
-                    ))}
-                  </div>
-                  {hardCards.length > 8 && (
-                    <p className="text-center text-xs text-text-muted mt-3">
-                      +{hardCards.length - 8} more —{' '}
-                      <button
-                        onClick={() => navigate('/flashcards')}
-                        className="text-[var(--primary)] underline"
-                      >
-                        view all in Flashcards
-                      </button>
-                    </p>
-                  )}
-                </>
+                <HardFlashcardReview
+                  cards={flashcardQueue}
+                  onRate={handleFlashcardRate}
+                />
               )}
             </section>
           )}
@@ -405,6 +495,7 @@ export const ReinforcementCenterPage: React.FC = () => {
         onClose={() => setExamQuestions([])}
         questions={examQuestions}
         sourceTitle="Quiz Mistakes Practice"
+        onComplete={handlePracticeComplete}
       />
     </div>
   );

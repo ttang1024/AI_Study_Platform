@@ -4,6 +4,7 @@ import { User, Shield, LogOut, Save, Eye, EyeOff, Info, ShieldAlert, CheckCircle
 import { useAuth } from '../context/AuthContext';
 import { useStudy } from '../context/StudyContext';
 import { Button } from '../components/common/Button';
+import { Select } from '../components/common/Select';
 import { cn } from '../utils/cn';
 import { aiSettingsService, DEFAULT_MODELS, type AIProvider, type AISettings } from '../services/aiSettingsService';
 import { apiClient } from '../services/apiClient';
@@ -717,10 +718,11 @@ export const SettingsPage: React.FC = () => {
               <div className="space-y-4">
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-text-main">Voice</label>
-                  <select
+                  <Select
                     value={ttsSettings.voice}
                     onChange={(e) => { setTtsSuccess(false); setTtsSettings(s => ({ ...s, voice: e.target.value })); }}
-                    className="w-full px-4 py-2.5 rounded-xl border border-[var(--border-color)] bg-[var(--bg-app)] text-text-main outline-none focus:border-[var(--primary)] text-sm"
+                    className="w-full"
+                    selectClassName="px-4 py-2.5"
                   >
                     <optgroup label="English">
                       <option value="en-US-AriaNeural">Aria (US Female)</option>
@@ -758,7 +760,7 @@ export const SettingsPage: React.FC = () => {
                       <option value="de-DE-KatjaNeural">Katja (DE Female)</option>
                       <option value="de-DE-ConradNeural">Conrad (DE Male)</option>
                     </optgroup>
-                  </select>
+                  </Select>
                 </div>
               </div>
 

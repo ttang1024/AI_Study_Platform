@@ -508,4 +508,8 @@ export const quizSubmissionService = {
 		inflightQuizMaterialRequests.set(url, request)
 		return request
 	},
+
+	clearListCache() {
+		quizSubmissionListCache.clear()
+	},
 }

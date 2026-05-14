@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChevronDown, ChevronUp, Loader2, Sparkles, Eye, EyeOff, CheckCircle2, XCircle, Send, AlertCircle, RotateCcw } from 'lucide-react';
+import { Select } from './common/Select';
 import ReactMarkdown from 'react-markdown';
 import { workedProblemsService, WorkedProblem, ProblemAttempt } from '../services/workedProblemsService';
 import { cn } from '../utils/cn';
@@ -231,24 +232,26 @@ export const WorkedProblemsPanel: React.FC<WorkedProblemsPanelProps> = ({ docume
     <div className="p-4 space-y-4">
       {/* Generate controls */}
       <div className="flex flex-wrap items-center gap-2">
-        <select
+        <Select
           value={difficulty}
           onChange={e => setDifficulty(e.target.value as typeof DIFFICULTIES[number])}
-          className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-sidebar)] px-3 py-1.5 text-xs font-medium text-text-main focus:outline-none focus:border-primary"
+          size="xs"
+          selectClassName="rounded-lg bg-[var(--bg-sidebar)] font-medium"
         >
           {DIFFICULTIES.map(d => (
             <option key={d} value={d}>{d.charAt(0).toUpperCase() + d.slice(1)}</option>
           ))}
-        </select>
-        <select
+        </Select>
+        <Select
           value={count}
           onChange={e => setCount(Number(e.target.value) as typeof COUNTS[number])}
-          className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-sidebar)] px-3 py-1.5 text-xs font-medium text-text-main focus:outline-none focus:border-primary"
+          size="xs"
+          selectClassName="rounded-lg bg-[var(--bg-sidebar)] font-medium"
         >
           {COUNTS.map(c => (
             <option key={c} value={c}>{c} problems</option>
           ))}
-        </select>
+        </Select>
         <button
           onClick={handleGenerate}
           disabled={isGenerating || generateDisabled}

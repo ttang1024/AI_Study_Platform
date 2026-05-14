@@ -83,7 +83,9 @@ public class GetAllFlashcardsPagedQueryHandler : IRequestHandler<GetAllFlashcard
     public async Task<Result<PaginatedList<FlashcardDto>>> Handle(GetAllFlashcardsPagedQuery request, CancellationToken cancellationToken)
     {
         var (flashcards, totalCount) = await _unitOfWork.Flashcards.GetPagedByUserIdAsync(request.UserId, request.Page, request.PageSize, cancellationToken);
-        var dtos = flashcards.Select(f => CreateFlashcardCommandHandler.ToDto(f));
+        var srsData = await _unitOfWork.FlashcardSrs.GetByUserIdAsync(request.UserId, cancellationToken);
+        var srsMap = srsData.ToDictionary(s => s.FlashcardId);
+        var dtos = flashcards.Select(f => CreateFlashcardCommandHandler.ToDto(f, srsMap.GetValueOrDefault(f.FlashcardId)));
         return Result<PaginatedList<FlashcardDto>>.Success(new PaginatedList<FlashcardDto>(dtos, totalCount, request.Page, request.PageSize));
     }
 }
@@ -96,7 +98,9 @@ public class GetAllFlashcardsQueryHandler : IRequestHandler<GetAllFlashcardsQuer
     public async Task<Result<IEnumerable<FlashcardDto>>> Handle(GetAllFlashcardsQuery request, CancellationToken cancellationToken)
     {
         var flashcards = await _unitOfWork.Flashcards.GetByUserIdAsync(request.UserId, cancellationToken);
-        return Result<IEnumerable<FlashcardDto>>.Success(flashcards.Select(f => CreateFlashcardCommandHandler.ToDto(f)));
+        var srsData = await _unitOfWork.FlashcardSrs.GetByUserIdAsync(request.UserId, cancellationToken);
+        var srsMap = srsData.ToDictionary(s => s.FlashcardId);
+        return Result<IEnumerable<FlashcardDto>>.Success(flashcards.Select(f => CreateFlashcardCommandHandler.ToDto(f, srsMap.GetValueOrDefault(f.FlashcardId))));
     }
 }
 

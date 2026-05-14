@@ -11,6 +11,7 @@ interface TimedExamModalProps {
   questions: QuizQuestion[];
   sourceTitle: string;
   timeLimitMinutes?: number;
+  onComplete?: (correctQuestionIds: string[]) => void;
 }
 
 type Phase = 'setup' | 'exam' | 'results';
@@ -36,6 +37,7 @@ export const TimedExamModal: React.FC<TimedExamModalProps> = ({
   questions,
   sourceTitle,
   timeLimitMinutes = 10,
+  onComplete,
 }) => {
   const [phase, setPhase] = useState<Phase>('setup');
   const [shuffled, setShuffled] = useState<QuizQuestion[]>([]);
@@ -67,7 +69,8 @@ export const TimedExamModal: React.FC<TimedExamModalProps> = ({
   const handleAutoSubmit = useCallback(() => {
     setTimeTaken(timeLimit * 60 - timeRemaining);
     setPhase('results');
-  }, [timeLimit, timeRemaining, shuffled, answers, sourceTitle]);
+    onComplete?.(answers.filter(a => a.correct).map(a => a.questionId));
+  }, [timeLimit, timeRemaining, answers, onComplete]);
 
   const handleStart = () => {
     const q = shuffle(questions);
@@ -97,6 +100,7 @@ export const TimedExamModal: React.FC<TimedExamModalProps> = ({
       clearInterval(intervalRef.current!);
       setTimeTaken(timeLimit * 60 - timeRemaining);
       setPhase('results');
+      onComplete?.(newAnswers.filter(a => a.correct).map(a => a.questionId));
     } else {
       setCurrentIndex(i => i + 1);
     }

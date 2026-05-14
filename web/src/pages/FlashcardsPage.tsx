@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useStudy } from '../context/StudyContext';
-import { BrainCircuit, FileText, Play, Search, Loader2, Smartphone, Globe, Mic, Pencil, Youtube } from 'lucide-react';
+import { BrainCircuit, FileText, Play, Search, Loader2, Smartphone, Globe, Mic, Pencil, Youtube, CalendarDays } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '../utils/cn';
 import { getDocDisplayName } from '../utils/docName';
@@ -16,6 +16,7 @@ import { Pagination } from '../components/common/Pagination';
 import { pendingMaterialToItem } from '../services/pendingMaterialService';
 import { useRefreshOnVisible } from '../hooks/useRefreshOnVisible';
 import { FlashcardClassifyModal, DIFFICULTY_COLORS } from '../components/study/FlashcardClassifyModal';
+import { ReviewQueueTab } from '../components/study/ReviewQueueTab';
 
 type VideoRecord = Pick<VideoListItem, 'id' | 'title' | 'thumbnailUrl' | 'courseId' | 'courseName' | 'courseColor'>;
 
@@ -64,6 +65,8 @@ export const FlashcardsPage: React.FC = () => {
   const [mobileReview, setMobileReview] = useState<{ cards: { id: string; front: string; back: string; cardType?: 'basic' | 'cloze' | 'chart' }[]; title: string } | null>(null);
   const [classifyCard, setClassifyCard] = useState<Flashcard | null>(null);
   const [flippedCards, setFlippedCards] = useState<Set<string>>(new Set());
+
+  const [activeTab, setActiveTab] = useState<'sets' | 'review'>('sets');
 
   // Classification filters
   const [filterDifficulty, setFilterDifficulty] = useState<'easy' | 'medium' | 'hard' | null>(null);
@@ -337,18 +340,47 @@ export const FlashcardsPage: React.FC = () => {
             Master your subjects with active recall and spaced repetition.
           </p>
         </div>
-        <div className="relative w-full sm:w-64">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={16} />
-          <input
-            type="text"
-            placeholder="Search sets..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-sidebar)] py-2 pl-9 pr-4 text-sm outline-none focus:border-[var(--primary)] transition-all"
-          />
-        </div>
+        {activeTab === 'sets' && (
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={16} />
+            <input
+              type="text"
+              placeholder="Search sets..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-sidebar)] py-2 pl-9 pr-4 text-sm outline-none focus:border-[var(--primary)] transition-all"
+            />
+          </div>
+        )}
       </div>
 
+      {/* Tabs */}
+      <div className="flex gap-1 rounded-xl bg-[var(--bg-sidebar)] p-1 border border-[var(--border-color)] w-fit">
+        {([
+          { id: 'sets',   label: 'My Sets',      icon: BrainCircuit },
+          { id: 'review', label: 'Review Queue', icon: CalendarDays },
+        ] as const).map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={cn(
+              'flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold transition-all',
+              activeTab === tab.id
+                ? 'bg-white dark:bg-zinc-800 text-text-main shadow-sm'
+                : 'text-text-muted hover:text-text-main',
+            )}
+          >
+            <tab.icon size={15} />
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === 'review' && (
+        <ReviewQueueTab flashcards={flashcards} />
+      )}
+
+      {activeTab === 'sets' && <>
       {/* Source + Course Filters */}
       <SourceFilterBar
         courses={courses}
@@ -688,6 +720,7 @@ export const FlashcardsPage: React.FC = () => {
           }}
         />
       )}
+      </>}
 
       {mobileReview && (
         <MobileFlashcardReview
