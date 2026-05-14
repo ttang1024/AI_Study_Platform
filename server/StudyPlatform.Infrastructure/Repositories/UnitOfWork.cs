@@ -28,6 +28,7 @@ public class UnitOfWork : IUnitOfWork
     private IGlossaryMasteredRepository? _glossaryMastered;
     private IWorkedProblemRepository? _workedProblems;
     private IWorkedProblemAttemptRepository? _workedProblemAttempts;
+    private IWorkedProblemMasteredRepository? _workedProblemMastered;
     private IDocumentAnnotationRepository? _documentAnnotations;
     private IStudyGroupRepository? _studyGroups;
     private IStudyGroupMemberRepository? _studyGroupMembers;
@@ -59,6 +60,7 @@ public class UnitOfWork : IUnitOfWork
     public IGlossaryMasteredRepository GlossaryMastered => _glossaryMastered ??= new GlossaryMasteredRepository(_context);
     public IWorkedProblemRepository WorkedProblems => _workedProblems ??= new WorkedProblemRepository(_context);
     public IWorkedProblemAttemptRepository WorkedProblemAttempts => _workedProblemAttempts ??= new WorkedProblemAttemptRepository(_context);
+    public IWorkedProblemMasteredRepository WorkedProblemMastered => _workedProblemMastered ??= new WorkedProblemMasteredRepository(_context);
     public IDocumentAnnotationRepository DocumentAnnotations => _documentAnnotations ??= new DocumentAnnotationRepository(_context);
     public IStudyGroupRepository StudyGroups => _studyGroups ??= new StudyGroupRepository(_context);
     public IStudyGroupMemberRepository StudyGroupMembers => _studyGroupMembers ??= new StudyGroupMemberRepository(_context);

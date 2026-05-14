@@ -27,6 +27,7 @@ public class AppDbContext : DbContext
     public DbSet<GlossaryMastered> GlossaryMastered => Set<GlossaryMastered>();
     public DbSet<WorkedProblem> WorkedProblems => Set<WorkedProblem>();
     public DbSet<WorkedProblemAttempt> WorkedProblemAttempts => Set<WorkedProblemAttempt>();
+    public DbSet<WorkedProblemMastered> WorkedProblemMastered => Set<WorkedProblemMastered>();
     public DbSet<DocumentAnnotation> DocumentAnnotations => Set<DocumentAnnotation>();
     public DbSet<StudyGroup> StudyGroups => Set<StudyGroup>();
     public DbSet<StudyGroupMember> StudyGroupMembers => Set<StudyGroupMember>();

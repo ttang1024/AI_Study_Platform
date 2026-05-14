@@ -20,6 +20,7 @@ public interface IUnitOfWork : IDisposable
     IGlossaryMasteredRepository GlossaryMastered { get; }
     IWorkedProblemRepository WorkedProblems { get; }
     IWorkedProblemAttemptRepository WorkedProblemAttempts { get; }
+    IWorkedProblemMasteredRepository WorkedProblemMastered { get; }
     IDocumentAnnotationRepository DocumentAnnotations { get; }
     IStudyGroupRepository StudyGroups { get; }
     IStudyGroupMemberRepository StudyGroupMembers { get; }

@@ -85,4 +85,28 @@ public class WorkedProblemsController : ControllerBase
         var result = await _mediator.Send(new GetProblemAttemptsQuery(userId, id), cancellationToken);
         return Ok(BaseResponse<IEnumerable<WorkedProblemAttemptDto>>.Ok(result.Data!));
     }
+
+    /// <summary>
+    /// Get all mastered worked problem IDs for the authenticated user
+    /// </summary>
+    [HttpGet("api/worked-problems/mastered")]
+    [ProducesResponseType(typeof(BaseResponse<IEnumerable<Guid>>), 200)]
+    public async Task<IActionResult> GetMastered(CancellationToken cancellationToken)
+    {
+        var userId = User.GetUserId();
+        var result = await _mediator.Send(new GetMasteredProblemIdsQuery(userId), cancellationToken);
+        return Ok(BaseResponse<IEnumerable<Guid>>.Ok(result.Data!));
+    }
+
+    /// <summary>
+    /// Toggle mastery for a worked problem
+    /// </summary>
+    [HttpPost("api/worked-problems/mastered/{problemId:guid}")]
+    [ProducesResponseType(typeof(BaseResponse<bool>), 200)]
+    public async Task<IActionResult> ToggleMastered(Guid problemId, CancellationToken cancellationToken)
+    {
+        var userId = User.GetUserId();
+        var result = await _mediator.Send(new ToggleWorkedProblemMasteredCommand(userId, problemId), cancellationToken);
+        return Ok(BaseResponse<bool>.Ok(result.Data!, result.Message));
+    }
 }

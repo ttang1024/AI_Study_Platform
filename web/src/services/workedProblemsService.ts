@@ -67,4 +67,14 @@ export const workedProblemsService = {
     );
     return res.data.data ?? [];
   },
+
+  async getMastered(): Promise<Set<string>> {
+    const res = await apiClient.get<{ data: string[] }>('/api/worked-problems/mastered');
+    return new Set(res.data.data ?? []);
+  },
+
+  async toggleMastered(problemId: string): Promise<boolean> {
+    const res = await apiClient.post<{ data: boolean }>(`/api/worked-problems/mastered/${problemId}`);
+    return res.data.data;
+  },
 };
