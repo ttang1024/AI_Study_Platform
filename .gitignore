@@ -107,3 +107,4 @@ out
 Webshare_residential_proxies.txt
 playwright-report
 test-results
+*.lscache

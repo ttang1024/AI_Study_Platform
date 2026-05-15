@@ -200,7 +200,7 @@ export const CoursePicker: React.FC<CoursePickerProps> = ({
               key={course.id}
               onClick={() => { onSelect(course.id); setPendingDeleteId(null); }}
               className={cn(
-                'group relative w-full overflow-hidden rounded-xl border px-3 py-3 text-left transition-all duration-300',
+                'group relative w-full min-h-[84px] overflow-hidden rounded-xl border px-3 py-3 text-left transition-all duration-300',
                 isActive
                   ? 'border-transparent shadow-lg'
                   : 'border-zinc-100 bg-white hover:border-zinc-200 hover:shadow-sm',
@@ -224,7 +224,7 @@ export const CoursePicker: React.FC<CoursePickerProps> = ({
                     {course.name}
                   </span>
                 </div>
-                <div className="mt-2 grid grid-cols-4 gap-1.5">
+                <div className="mt-2 grid grid-cols-2 gap-1.5 min-[380px]:grid-cols-4">
                   {materialStats.map(stat => {
                     const Icon = stat.icon;
                     return (
@@ -232,7 +232,7 @@ export const CoursePicker: React.FC<CoursePickerProps> = ({
                         key={stat.label}
                         title={stat.label}
                         className={cn(
-                          'flex min-w-0 items-center justify-center gap-1 rounded-lg px-1.5 py-1 transition-colors duration-300',
+                          'flex min-h-6 min-w-0 items-center justify-center gap-1 rounded-lg px-1.5 py-1 transition-colors duration-300',
                           isActive
                             ? 'bg-white/15 text-white'
                             : 'bg-zinc-100 text-zinc-500 group-hover:bg-zinc-200/70 group-hover:text-zinc-700',
