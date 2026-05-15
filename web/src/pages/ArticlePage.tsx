@@ -493,24 +493,22 @@ export const ArticlePage: React.FC<{ embedded?: boolean; id?: string }> = ({ emb
       </div>
 
       {/* ── Mobile bottom nav ── */}
-      {!embedded && (
-        <div className="flex h-16 border-t border-[var(--border-color)] bg-[var(--bg-sidebar)] lg:hidden shrink-0">
-          <button
-            onClick={() => setActiveView('study')}
-            className={cn('flex flex-1 flex-col items-center justify-center gap-1 transition-colors', activeView === 'study' ? 'text-[var(--primary)]' : 'text-text-muted')}
-          >
-            <Sparkles size={20} />
-            <span className="text-[10px] font-bold uppercase tracking-wider">Study</span>
-          </button>
-          <button
-            onClick={() => setActiveView('article')}
-            className={cn('flex flex-1 flex-col items-center justify-center gap-1 transition-colors', activeView === 'article' ? 'text-[var(--primary)]' : 'text-text-muted')}
-          >
-            <Globe size={20} />
-            <span className="text-[10px] font-bold uppercase tracking-wider">Article</span>
-          </button>
-        </div>
-      )}
+      <div className="flex h-16 border-t border-[var(--border-color)] bg-[var(--bg-sidebar)] lg:hidden shrink-0">
+        <button
+          onClick={() => setActiveView('study')}
+          className={cn('flex flex-1 flex-col items-center justify-center gap-1 transition-colors', activeView === 'study' ? 'text-[var(--primary)]' : 'text-text-muted')}
+        >
+          <Sparkles size={20} />
+          <span className="text-[10px] font-bold uppercase tracking-wider">Study</span>
+        </button>
+        <button
+          onClick={() => setActiveView('article')}
+          className={cn('flex flex-1 flex-col items-center justify-center gap-1 transition-colors', activeView === 'article' ? 'text-[var(--primary)]' : 'text-text-muted')}
+        >
+          <Globe size={20} />
+          <span className="text-[10px] font-bold uppercase tracking-wider">Article</span>
+        </button>
+      </div>
 
       <ShareModal
         open={showShareModal}

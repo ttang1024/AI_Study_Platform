@@ -391,30 +391,28 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
       </div>
 
       {/* Mobile Bottom Navigation */}
-      {!embedded && (
-        <div className="flex h-16 border-t border-[var(--border-color)] bg-[var(--bg-sidebar)] lg:hidden shrink-0">
-          <button
-            onClick={() => setActiveView('study')}
-            className={cn(
-              "flex flex-1 flex-col items-center justify-center gap-1 transition-colors",
-              activeView === 'study' ? "text-[var(--primary)]" : "text-text-muted"
-            )}
-          >
-            <Sparkles size={20} />
-            <span className="text-[10px] font-bold uppercase tracking-wider">Study</span>
-          </button>
-          <button
-            onClick={() => setActiveView('document')}
-            className={cn(
-              "flex flex-1 flex-col items-center justify-center gap-1 transition-colors",
-              activeView === 'document' ? "text-[var(--primary)]" : "text-text-muted"
-            )}
-          >
-            <FileText size={20} />
-            <span className="text-[10px] font-bold uppercase tracking-wider">Doc</span>
-          </button>
-        </div>
-      )}
+      <div className="flex h-16 border-t border-[var(--border-color)] bg-[var(--bg-sidebar)] lg:hidden shrink-0">
+        <button
+          onClick={() => setActiveView('study')}
+          className={cn(
+            "flex flex-1 flex-col items-center justify-center gap-1 transition-colors",
+            activeView === 'study' ? "text-[var(--primary)]" : "text-text-muted"
+          )}
+        >
+          <Sparkles size={20} />
+          <span className="text-[10px] font-bold uppercase tracking-wider">Study</span>
+        </button>
+        <button
+          onClick={() => setActiveView('document')}
+          className={cn(
+            "flex flex-1 flex-col items-center justify-center gap-1 transition-colors",
+            activeView === 'document' ? "text-[var(--primary)]" : "text-text-muted"
+          )}
+        >
+          <FileText size={20} />
+          <span className="text-[10px] font-bold uppercase tracking-wider">Doc</span>
+        </button>
+      </div>
 
       <QuizModal />
 

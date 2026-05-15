@@ -939,16 +939,14 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 				</div>
 
 				{/* Mobile Bottom Nav */}
-				{!embedded && (
-					<div className="flex h-16 border-t border-[var(--border-color)] bg-[var(--bg-sidebar)] lg:hidden shrink-0">
-						<button onClick={() => setActiveView('study')} className={cn('flex flex-1 flex-col items-center justify-center gap-1 transition-colors', activeView === 'study' ? 'text-[var(--primary)]' : 'text-text-muted')}>
-							<Sparkles size={20} /><span className="text-[10px] font-bold uppercase tracking-wider">Study</span>
-						</button>
-						<button onClick={() => setActiveView('video')} className={cn('flex flex-1 flex-col items-center justify-center gap-1 transition-colors', activeView === 'video' ? 'text-[var(--primary)]' : 'text-text-muted')}>
-							<Youtube size={20} /><span className="text-[10px] font-bold uppercase tracking-wider">Video</span>
-						</button>
-					</div>
-				)}
+				<div className="flex h-16 border-t border-[var(--border-color)] bg-[var(--bg-sidebar)] lg:hidden shrink-0">
+					<button onClick={() => setActiveView('study')} className={cn('flex flex-1 flex-col items-center justify-center gap-1 transition-colors', activeView === 'study' ? 'text-[var(--primary)]' : 'text-text-muted')}>
+						<Sparkles size={20} /><span className="text-[10px] font-bold uppercase tracking-wider">Study</span>
+					</button>
+					<button onClick={() => setActiveView('video')} className={cn('flex flex-1 flex-col items-center justify-center gap-1 transition-colors', activeView === 'video' ? 'text-[var(--primary)]' : 'text-text-muted')}>
+						<Youtube size={20} /><span className="text-[10px] font-bold uppercase tracking-wider">Video</span>
+					</button>
+				</div>
 			</motion.div>
 
 			{/* Summary text selection toolbar */}
