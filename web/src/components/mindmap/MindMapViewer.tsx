@@ -483,7 +483,7 @@ export const MindMapViewer: React.FC<MindMapViewerProps> = ({
                   onClick={downloadAsXMindMark}
                   className="flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 rounded-xl transition-colors"
                 >
-                  <FileText size={15} className="text-zinc-400" /> XMindMark Text
+                  <FileText size={15} className="text-zinc-400" /> XMindMark
                 </button>
               </motion.div>
             )}

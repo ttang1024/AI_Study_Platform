@@ -486,7 +486,7 @@ export const FlashcardsPage: React.FC = () => {
               <Pagination
                 page={safeCardPage}
                 totalPages={cardTotalPages}
-                onPageChange={setCardPage}
+                onPageChange={(p) => { setCardPage(p); document.getElementById('main-scroll')?.scrollTo({ top: 0, behavior: 'smooth' }); }}
                 size="sm"
               />
             </>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -19,6 +19,7 @@ import { HardFlashcardReview } from '../components/study/HardFlashcardCard';
 import { SessionRating } from '../components/study/FlashcardSessionCard';
 import { QuizMistakeCard } from '../components/quiz/QuizMistakeCard';
 import { GlossaryTermCard } from '../components/common/GlossaryTermCard';
+import { ReinforcementModuleCard } from '../components/reinforcement/ReinforcementModuleCard';
 
 type ActiveModule = 'quiz' | 'glossary' | 'flashcards';
 
@@ -85,8 +86,12 @@ export const ReinforcementCenterPage: React.FC = () => {
   const { user } = useAuth();
   const userId = user?.id ?? 'guest';
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
-  const [activeModule, setActiveModule] = useState<ActiveModule>('quiz');
+  const [activeModule, setActiveModule] = useState<ActiveModule>(() => {
+    const tab = searchParams.get('tab');
+    return (tab === 'quiz' || tab === 'glossary' || tab === 'flashcards') ? tab : 'quiz';
+  });
 
   const [bankQuestions, setBankQuestions] = useState<QuestionBankQuestion[]>([]);
   const [submissions, setSubmissions] = useState<QuizSubmission[]>([]);
@@ -286,33 +291,39 @@ export const ReinforcementCenterPage: React.FC = () => {
   const modules = [
     {
       id: 'quiz' as ActiveModule,
-      icon: <XCircle size={20} />,
+      icon: <XCircle size={18} />,
       title: 'Quiz Mistakes',
       count: failedQuestions.length,
       loading: quizLoading,
       color: 'text-red-500',
-      activeBg: 'bg-red-50 dark:bg-red-950/30',
-      activeBorder: 'border-red-400',
+      iconBg: 'bg-red-100',
+      activeBg: 'bg-red-50',
+      activeBorder: 'border-red-200',
+      activeShadow: '0 1px 3px rgba(239,68,68,0.1), 0 6px 20px rgba(239,68,68,0.08)',
     },
     {
       id: 'glossary' as ActiveModule,
-      icon: <BookMarked size={20} />,
+      icon: <BookMarked size={18} />,
       title: 'Unmastered Glossary',
       count: unmasteredTerms.length,
       loading: glossaryLoading,
       color: 'text-amber-500',
-      activeBg: 'bg-amber-50 dark:bg-amber-950/30',
-      activeBorder: 'border-amber-400',
+      iconBg: 'bg-amber-100',
+      activeBg: 'bg-amber-50',
+      activeBorder: 'border-amber-200',
+      activeShadow: '0 1px 3px rgba(245,158,11,0.1), 0 6px 20px rgba(245,158,11,0.08)',
     },
     {
       id: 'flashcards' as ActiveModule,
-      icon: <BrainCircuit size={20} />,
+      icon: <BrainCircuit size={18} />,
       title: 'Hard Flashcards',
       count: hardCards.length,
       loading: flashcardLoading,
       color: 'text-[#059669]',
-      activeBg: 'bg-[#059669]/10 dark:bg-[#059669]/20',
-      activeBorder: 'border-[#059669]',
+      iconBg: 'bg-[#059669]/15',
+      activeBg: 'bg-[#059669]/5',
+      activeBorder: 'border-[#059669]/30',
+      activeShadow: '0 1px 3px rgba(5,150,105,0.1), 0 6px 20px rgba(5,150,105,0.08)',
     },
   ];
 
@@ -334,38 +345,14 @@ export const ReinforcementCenterPage: React.FC = () => {
 
       {/* Module selector cards */}
       <div className="grid grid-cols-3 gap-3">
-        {modules.map(mod => {
-          const isActive = activeModule === mod.id;
-          return (
-            <button
-              key={mod.id}
-              onClick={() => setActiveModule(mod.id)}
-              className={[
-                'relative rounded-xl border-2 p-4 text-left transition-all',
-                'hover:shadow-sm focus:outline-none',
-                isActive
-                  ? `${mod.activeBorder} ${mod.activeBg}`
-                  : 'border-[var(--border-color)] bg-[var(--bg-card)] hover:border-[var(--primary)]/40',
-              ].join(' ')}
-            >
-              <span className={`${mod.color} ${isActive ? '' : 'opacity-70'}`}>
-                {mod.icon}
-              </span>
-              <p className={`mt-2 text-xs font-semibold leading-tight ${isActive ? 'text-text-main' : 'text-text-muted'}`}>
-                {mod.title}
-              </p>
-              <div className="mt-2 flex items-center gap-1">
-                {mod.loading ? (
-                  <Loader2 size={13} className="animate-spin text-text-muted" />
-                ) : (
-                  <span className={`text-xl font-bold ${isActive ? mod.color : 'text-text-main'}`}>
-                    {mod.count}
-                  </span>
-                )}
-              </div>
-            </button>
-          );
-        })}
+        {modules.map(mod => (
+          <ReinforcementModuleCard
+            key={mod.id}
+            {...mod}
+            isActive={activeModule === mod.id}
+            onClick={() => setActiveModule(mod.id)}
+          />
+        ))}
       </div>
 
       {/* Content panel */}
@@ -407,7 +394,7 @@ export const ReinforcementCenterPage: React.FC = () => {
                 <EmptyState message="No mistakes found. Keep it up!" />
               ) : (
                 <div className="space-y-2">
-                  {failedQuestions.slice(0, 10).map(({ question, selectedAnswer, sourceName }) => (
+                  {failedQuestions.map(({ question, selectedAnswer, sourceName }) => (
                     <QuizMistakeCard
                       key={question.quizId}
                       question={question}
@@ -415,11 +402,6 @@ export const ReinforcementCenterPage: React.FC = () => {
                       sourceName={sourceName}
                     />
                   ))}
-                  {failedQuestions.length > 10 && (
-                    <p className="text-center text-xs text-text-muted pt-1">
-                      +{failedQuestions.length - 10} more — start practice to see all
-                    </p>
-                  )}
                 </div>
               )}
             </section>

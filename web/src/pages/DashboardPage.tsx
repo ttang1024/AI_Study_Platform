@@ -9,6 +9,7 @@ import { CONTENT_TYPE_ICONS } from '../constants/contentTypeIcons';
 import { useAuth } from '../context/AuthContext';
 import { useStudy } from '../context/StudyContext';
 import { StudyCalendar } from '../components/common/StudyCalendar';
+import { ReinforcementSummaryCards } from '../components/dashboard/ReinforcementSummaryCards';
 
 const container = {
   hidden: { opacity: 0 },
@@ -206,10 +207,6 @@ export const DashboardPage: React.FC = () => {
       <motion.div variants={item}>
         <div className="flex items-center justify-between mb-3 px-0.5">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">Study Tools</p>
-          <Link to="/reinforcement-center" className="flex items-center gap-1.5 text-[11px] font-semibold text-[red] hover:opacity-75 transition-opacity">
-            <CalendarCheck2 size={13} />
-            Reinforcement Center
-          </Link>
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {([
@@ -221,6 +218,18 @@ export const DashboardPage: React.FC = () => {
             <ToolCard key={tool.label} {...tool} />
           ))}
         </div>
+      </motion.div>
+
+      {/* ── Reinforcement Center ─────────────────────────────────────────── */}
+      <motion.div variants={item}>
+        <div className="flex items-center justify-between mb-3 px-0.5">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">Reinforcement Center</p>
+          <Link to="/reinforcement-center" className="flex items-center gap-1.5 text-[11px] font-semibold text-[red] hover:opacity-75 transition-opacity">
+            <CalendarCheck2 size={13} />
+            Open
+          </Link>
+        </div>
+        <ReinforcementSummaryCards />
       </motion.div>
 
       {/* ── Courses ──────────────────────────────────────────────────────── */}

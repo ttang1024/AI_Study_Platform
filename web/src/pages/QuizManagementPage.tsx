@@ -952,7 +952,7 @@ export const QuizManagementPage: React.FC = () => {
           <Pagination
             page={safeBankPage}
             totalPages={bankTotalPages}
-            onPageChange={setBankPage}
+            onPageChange={(p) => { setBankPage(p); document.getElementById('main-scroll')?.scrollTo({ top: 0, behavior: 'smooth' }); }}
             size="sm"
           />
         </>
