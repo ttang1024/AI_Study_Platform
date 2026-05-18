@@ -45,6 +45,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-studyplatform};Username=${POSTGRES_USER:-studyplatform};Password=${POSTGRES_PASSWORD}"
+      Redis__Enabled: ${REDIS_ENABLED:-false}
       Redis__ConnectionString: "redis:6379"
       Redis__InstanceName: ${REDIS_INSTANCE_NAME:-StudyPlatform:}
       Cache__DashboardStatsSeconds: ${CACHE_DASHBOARD_STATS_SECONDS:-60}

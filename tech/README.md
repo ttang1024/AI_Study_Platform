@@ -134,6 +134,7 @@ See [ai-generation.md](ai-generation.md) and [ai-chat.md](ai-chat.md).
 | Key | Purpose |
 | --- | --- |
 | `ConnectionStrings:DefaultConnection` | PostgreSQL |
+| `Redis:Enabled` | Enable Redis cache (`false` by default) |
 | `ConnectionStrings:Redis` / `Redis:ConnectionString` | Redis (optional) |
 | `JwtSettings:SecretKey` | JWT signing key |
 | `Cors:AllowedOrigins` | Allowed frontend origins |

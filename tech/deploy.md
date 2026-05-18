@@ -32,7 +32,8 @@ Key server-side settings required at runtime:
 | `ConnectionStrings:DefaultConnection` | PostgreSQL (required) |
 | `JwtSettings:SecretKey`, `Issuer`, `Audience` | JWT signing and validation |
 | `Cors:AllowedOrigins` | Allowed frontend origins |
-| `ConnectionStrings:Redis` / `Redis:ConnectionString` | Optional Redis cache |
+| `Redis:Enabled` | Enable Redis cache (`false` by default) |
+| `ConnectionStrings:Redis` / `Redis:ConnectionString` | Optional Redis endpoint |
 | `Blob:ConnectionString` / `Blob:ContainerName` | Azure Blob Storage for files |
 | `EmailSettings:*` | SMTP for OTP email |
 | `Whisper:Model`, `Whisper:ModelsDir` | Whisper transcription model |

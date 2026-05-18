@@ -2,7 +2,7 @@
 
 ## Runtime Behavior
 
-The API attempts to use Redis when either `ConnectionStrings:Redis` or `Redis:ConnectionString` is configured. Invalid or missing Redis configuration falls back to `IDistributedCache` in memory so normal API requests do not fail because Redis is unavailable.
+The API uses Redis only when `Redis:Enabled` is `true` and either `ConnectionStrings:Redis` or `Redis:ConnectionString` is configured. Redis is disabled by default. Disabled, invalid, or missing Redis configuration falls back to `IDistributedCache` in memory so normal API requests do not fail because Redis is unavailable.
 
 Rate limiting is intentionally process-local with `AddInMemoryRateLimiting()`. Redis outages do not break rate-limit checks.
 
@@ -10,23 +10,31 @@ Rate limiting is intentionally process-local with `AddInMemoryRateLimiting()`. R
 
 ```csharp
 // Program.cs — Redis or in-memory fallback
+var redisEnabled = builder.Configuration.GetValue("Redis:Enabled", false);
 var redisConnectionString = builder.Configuration.GetConnectionString("Redis")
     ?? builder.Configuration["Redis:ConnectionString"];
 
-if (TryGetRedisConfiguration(redisConnectionString, out var redisConfig, out var error))
+if (redisEnabled)
 {
-    ConfigureRedisTimeouts(redisConfig!, builder.Configuration);
-    builder.Services.AddStackExchangeRedisCache(options =>
+    if (TryGetRedisConfiguration(redisConnectionString, out var redisConfig, out var error))
     {
-        options.ConfigurationOptions = redisConfig;
-        options.InstanceName = builder.Configuration["Redis:InstanceName"] ?? "StudyPlatform:";
-    });
+        ConfigureRedisTimeouts(redisConfig!, builder.Configuration);
+        builder.Services.AddStackExchangeRedisCache(options =>
+        {
+            options.ConfigurationOptions = redisConfig;
+            options.InstanceName = builder.Configuration["Redis:InstanceName"] ?? "StudyPlatform:";
+        });
+    }
+    else
+    {
+        if (!string.IsNullOrWhiteSpace(redisConnectionString))
+            Console.Error.WriteLine($"Redis cache disabled: {error}");
+
+        builder.Services.AddDistributedMemoryCache();
+    }
 }
 else
 {
-    if (!string.IsNullOrWhiteSpace(redisConnectionString))
-        Console.Error.WriteLine($"Redis cache disabled: {error}");
-
     builder.Services.AddDistributedMemoryCache();   // silent in-process fallback
 }
 
@@ -219,6 +227,7 @@ public int OperationTimeoutMilliseconds { get; set; } = 500;   // per-op Redis t
 
 | Key | Meaning |
 | --- | --- |
+| `Redis:Enabled` | Enables Redis cache when `true`; default `false` |
 | `Redis:ConnectionString` or `ConnectionStrings:Redis` | Redis endpoint |
 | `Redis:InstanceName` | cache key prefix, default `StudyPlatform:` |
 | `Redis:ConnectTimeoutMilliseconds` | connection timeout (default 1000) |

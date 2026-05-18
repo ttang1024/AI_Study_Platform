@@ -105,6 +105,7 @@ cd admin && npm install && npm run dev                                # → http
     "DefaultConnection": "Host=localhost;Port=5432;Database=studyplatform;Username=studyplatform;Password=yourpassword"
   },
   "Redis": {
+    "Enabled": false,
     "ConnectionString": "localhost:6379",
     "InstanceName": "StudyPlatform:"
   },

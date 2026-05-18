@@ -94,6 +94,7 @@ API_ENV_VARS=(
   "JwtSettings__Audience=Study Platform Users"
   "AzureStorage__ConnectionString=$AZURE_STORAGE_CONNECTION_STRING"
   "AzureStorage__ContainerName=documents"
+  "Redis__Enabled=${REDIS_ENABLED:-false}"
   "Redis__ConnectionString=${REDIS_CONNECTION_STRING:-}"
   "Redis__InstanceName=${REDIS_INSTANCE_NAME:-StudyPlatform:}"
   "Cache__DashboardStatsSeconds=${CACHE_DASHBOARD_STATS_SECONDS:-60}"

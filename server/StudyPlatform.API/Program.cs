@@ -140,25 +140,33 @@ builder.Services.AddCors(options =>
 
 // Rate Limiting
 builder.Services.AddMemoryCache();
+var redisEnabled = builder.Configuration.GetValue("Redis:Enabled", false);
 var redisConnectionString = builder.Configuration.GetConnectionString("Redis")
     ?? builder.Configuration["Redis:ConnectionString"];
-if (TryGetRedisConfiguration(redisConnectionString, out var redisConfiguration, out var redisConfigurationError))
+if (redisEnabled)
 {
-    ConfigureRedisTimeouts(redisConfiguration!, builder.Configuration);
-
-    builder.Services.AddStackExchangeRedisCache(options =>
+    if (TryGetRedisConfiguration(redisConnectionString, out var redisConfiguration, out var redisConfigurationError))
     {
-        options.ConfigurationOptions = redisConfiguration;
-        options.InstanceName = builder.Configuration["Redis:InstanceName"] ?? "StudyPlatform:";
-    });
+        ConfigureRedisTimeouts(redisConfiguration!, builder.Configuration);
+
+        builder.Services.AddStackExchangeRedisCache(options =>
+        {
+            options.ConfigurationOptions = redisConfiguration;
+            options.InstanceName = builder.Configuration["Redis:InstanceName"] ?? "StudyPlatform:";
+        });
+    }
+    else
+    {
+        if (!string.IsNullOrWhiteSpace(redisConnectionString))
+        {
+            Console.Error.WriteLine($"Redis cache disabled: {redisConfigurationError}");
+        }
+
+        builder.Services.AddDistributedMemoryCache();
+    }
 }
 else
 {
-    if (!string.IsNullOrWhiteSpace(redisConnectionString))
-    {
-        Console.Error.WriteLine($"Redis cache disabled: {redisConfigurationError}");
-    }
-
     builder.Services.AddDistributedMemoryCache();
 }
 
