@@ -71,7 +71,7 @@ services:
       Cors__AllowedOrigins__0: ${WEB_ORIGIN:-http://localhost:3000}
       Cors__AllowedOrigins__1: ${ADMIN_ORIGIN:-http://localhost:4200}
       ApplicationInsights__ConnectionString: ${APPINSIGHTS_CONNECTION_STRING:-}
-      AppLimits__DocumentUploadLimit: ${DOCUMENT_UPLOAD_LIMIT:-10}
+      AppLimits__DocumentUploadLimit: ${DOCUMENT_UPLOAD_LIMIT:-20}
       YouTube__SubtitleLanguages: ${YOUTUBE_SUBTITLE_LANGUAGES:-en.*,en}
       YouTube__ProxyUrl: ${YOUTUBE_PROXY_URL:-}
       YouTube__CookiesBase64: ${YOUTUBE_COOKIES_B64:-}

@@ -152,7 +152,7 @@ VITE_API_URL=http://localhost:5000
 
 ## Upload Limits
 
-The hosted deployment enforces a **10-document upload limit per account** to control storage costs. Set `AppLimits__DocumentUploadLimit=-1` to disable the limit in a self-hosted environment.
+The hosted deployment enforces a **20-document upload limit per account** to control storage costs. Set `AppLimits__DocumentUploadLimit=-1` to disable the limit in a self-hosted environment.
 
 ---
 
