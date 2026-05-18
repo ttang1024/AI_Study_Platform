@@ -39,7 +39,7 @@ Upload documents, YouTube videos, podcasts, and web articles — let AI generate
 
 ## Tech Stack
 
-**Backend** — .NET 10 · ASP.NET Core · EF Core 9 · MediatR · FluentValidation · SignalR · PostgreSQL · Redis · Azure Blob Storage · Whisper.net · MailKit · JWT
+**Backend** — .NET 10 · ASP.NET Core · EF Core 9 · MediatR · FluentValidation · SignalR · PostgreSQL · Redis · Amazon S3 · Whisper.net · MailKit · JWT
 
 **Frontend** — React 19 · TypeScript 5.8 · Vite 6 · TailwindCSS 4 · React Router 7 · Tiptap · D3.js + Markmap · Axios
 
@@ -56,9 +56,9 @@ Upload documents, YouTube videos, podcasts, and web articles — let AI generate
 | PostgreSQL | 14+     | [postgresql.org](https://www.postgresql.org/download)                                                        |
 | Redis      | 7+      | [redis.io](https://redis.io/docs/latest/operate/oss_and_stack/install/install-redis/) / `brew install redis` |
 | ffmpeg     | any     | `brew install ffmpeg` / `apt install ffmpeg`                                                                 |
-| Azurite    | latest  | `npm install -g azurite`                                                                                     |
+| AWS CLI    | latest  | [aws.amazon.com/cli](https://aws.amazon.com/cli/)                                                            |
 
-**Required API keys:** Google Gemini, Google OAuth 2.0, GitHub OAuth App, Gmail SMTP, Azure Storage (prod)
+**Required API keys/services:** Google Gemini, Google OAuth 2.0, GitHub OAuth App, Gmail SMTP, Amazon S3 or MinIO-compatible storage
 
 **Optional AI providers:** OpenAI, Anthropic Claude, DeepSeek, xAI Grok, Alibaba Qwen, Baidu Wenxin Yiyan
 
@@ -75,18 +75,26 @@ cd Study_Platform
 psql postgres -c "CREATE USER studyplatform WITH PASSWORD 'yourpassword';"
 psql postgres -c "CREATE DATABASE studyplatform OWNER studyplatform;"
 
-# 3. Start local services (keep running)
+# 3. Start local services
 redis-server
-azurite-blob --blobHost 127.0.0.1 --blobPort 10000
+docker compose up -d minio minio-init
+
+# MinIO console: http://localhost:9001
+# Login: minioadmin / minioadmin123
+# Bucket: documents-dev
 
 # 4. Configure backend — edit server/StudyPlatform.API/appsettings.Development.json
+# Ensure the S3 section points at local MinIO:
+# "ServiceUrl": "http://localhost:9000"
+# "PublicServiceUrl": "http://localhost:9000"
+# "ForcePathStyle": true
 
 # 5. Run migrations
 cd server
 dotnet ef database update --project StudyPlatform.Infrastructure --startup-project StudyPlatform.API
 
 # 6. Start backend
-dotnet run --project StudyPlatform.API     # → http://localhost:5000
+dotnet run --project StudyPlatform.API     # → http://localhost:5001
 
 # 7. Start frontend
 cd web && cp .env.example .env.local && npm install && npm run dev   # → http://localhost:3000
@@ -117,15 +125,24 @@ cd admin && npm install && npm run dev                                # → http
     "RefreshTokenExpiryDays": 7
   },
   "EmailSettings": {
+    "Provider": "Ses",
     "FromEmail": "you@gmail.com",
+    "SesRegion": "ap-southeast-2",
     "SmtpHost": "smtp.gmail.com",
     "SmtpPort": 587,
     "SmtpUser": "you@gmail.com",
-    "SmtpPassword": "xxxx xxxx xxxx xxxx" // Gmail App Password
+    "SmtpPassword": "xxxx xxxx xxxx xxxx" // SMTP fallback only
   },
-  "AzureStorage": {
-    "ConnectionString": "UseDevelopmentStorage=true",
-    "ContainerName": "documents-dev"
+  "AWS": {
+    "Region": "us-east-1"
+  },
+  "S3": {
+    "BucketName": "documents-dev",
+    "ServiceUrl": "http://localhost:9000",
+    "PublicServiceUrl": "http://localhost:9000",
+    "ForcePathStyle": true,
+    "AccessKey": "minioadmin",
+    "SecretKey": "minioadmin123"
   },
   "GoogleOAuth": { "ClientId": "xxxx.apps.googleusercontent.com", "ClientSecret": "GOCSPX-..." },
   "GitHubOAuth": { "ClientId": "Ov23lic...", "ClientSecret": "..." },
@@ -160,7 +177,7 @@ The hosted deployment enforces a **20-document upload limit per account** to con
 
 ### Docker (self-hosted)
 
-Includes PostgreSQL and Redis — no external database or cache needed.
+Includes PostgreSQL, Redis, and MinIO for S3-compatible local file storage. No external database, cache, or object storage account is needed.
 
 ```bash
 cp .env.example .env          # fill in all values
@@ -175,12 +192,14 @@ docker compose exec api dotnet ef database update \
 | Admin    | http://localhost:4200         |
 | API      | http://localhost:5000         |
 | Swagger  | http://localhost:5000/swagger |
+| MinIO    | http://localhost:9001         |
 
 > `VITE_*` variables are baked in at build time — rebuild frontend images after changing them.
+> MinIO uses `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` from `.env`; the defaults are `minioadmin` / `minioadmin123`, and uploaded documents are stored in `S3_BUCKET_NAME` (`documents-dev` by default). `S3_PUBLIC_SERVICE_URL` should be a host-browser reachable URL for generated download links.
 
-### Azure Deployment
+### AWS Deployment
 
-Use `deploy.sh` for the first Azure deployment. It provisions the API, PostgreSQL, storage, and static `web`/`admin` frontends.
+Use `deploy.sh` for the first AWS deployment. It provisions ECS Fargate and an Application Load Balancer for the API, RDS PostgreSQL, ElastiCache Redis, S3 document/static buckets, and static `web`/`admin` frontends.
 
 ```bash
 export DB_PASS=...
@@ -192,7 +211,7 @@ export GITHUB_CLIENT_SECRET=...
 export SMTP_USER=...
 export SMTP_PASSWORD=...
 
-bash deploy.sh
+./deploy.sh
 ```
 
 ### YouTube Subtitle Fetching (Production)

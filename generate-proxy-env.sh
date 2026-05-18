@@ -23,7 +23,7 @@ while IFS=: read -r host port user pass; do
   (( n++ ))
 done < "$PROXY_FILE"
 
-ENV_FILE=".azure_env_variables"
+ENV_FILE=".env_variables"
 
 # Remove any existing YouTube__ProxyUrl line then append the new one
 if [[ -f "$ENV_FILE" ]]; then

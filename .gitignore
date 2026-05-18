@@ -47,6 +47,7 @@ out/
 .env.development.local
 .env.test.local
 .env.production.local
+.env_variables
 # npm logs
 npm-debug.log*
 yarn-debug.log*
@@ -88,7 +89,7 @@ __azurite_db_blob__.json
 __azurite_db_blob_extent__.json
 __blobstorage__
 AzuriteConfig
-.azure_env_variables
+.env_variables
 report
 cookies.txt
 cookies1.txt

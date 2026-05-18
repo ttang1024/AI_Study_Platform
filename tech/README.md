@@ -12,7 +12,7 @@ This folder contains per-topic technical references for the AI Study Platform. E
 | **Database** | PostgreSQL via Npgsql; migrations applied on startup |
 | **Cache** | Redis (primary) with PostgreSQL `CacheEntries` table as persistent fallback |
 | **AI providers** | Gemini, OpenAI, Claude, DeepSeek, Grok, Qwen, Wenxin, Kimi, Doubao — selected per-request via `X-AI-Provider` / `X-AI-Model` / `X-AI-Key` headers |
-| **File storage** | Azure Blob Storage (production); Azurite for local dev |
+| **File storage** | Amazon S3 |
 | **Transcription** | yt-dlp captions + Whisper.net fallback |
 | **TTS** | Microsoft Edge TTS (`edge-tts` CLI) |
 | **Web frontend** | React 19 + Vite (TypeScript) |
@@ -123,7 +123,7 @@ See [ai-generation.md](ai-generation.md) and [ai-chat.md](ai-chat.md).
 - [admin.md](admin.md) — Admin login, user management, feedback workflow
 
 ### Infrastructure & Ops
-- [deploy.md](deploy.md) — Azure deployment scripts, required config keys, CORS, JWT expiry header
+- [deploy.md](deploy.md) — AWS deployment scripts, required config keys, CORS, JWT expiry header
 - [docker.md](docker.md) — Compose stack, EF migrate-on-start, runtime ENV injection
 - [unit-test.md](unit-test.md) — Moq + xUnit patterns, toggle-command testing
 
@@ -143,5 +143,4 @@ See [ai-generation.md](ai-generation.md) and [ai-chat.md](ai-chat.md).
 | `Cache:OperationTimeoutMilliseconds` | Redis per-op timeout (default 500 ms) |
 | `YouTube:ProxyUrls` / `YouTube:CookiesList` | yt-dlp proxy/cookie pool |
 | `Whisper:Model` | Whisper model size (`base` default) |
-| `Blob:ConnectionString` | Azure Blob Storage |
-| `APPLICATIONINSIGHTS_CONNECTION_STRING` | Application Insights telemetry |
+| `S3:BucketName` | Amazon S3 document bucket |

@@ -33,7 +33,7 @@ public static class InfrastructureServiceExtensions
         // Services
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<IEmailService, EmailService>();
-        services.AddScoped<IBlobStorageService, BlobStorageService>();
+        services.AddScoped<IBlobStorageService, S3BlobStorageService>();
         services.AddScoped<IDocumentTextExtractor, DocumentTextExtractorService>();
         services.AddScoped<IDocumentContentService, DocumentContentService>();
         services.AddScoped<IPasswordHasher, PasswordHasher>();

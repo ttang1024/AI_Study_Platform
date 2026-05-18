@@ -342,10 +342,11 @@ export const LandingPage: React.FC = () => {
             <Badge icon={Unlock} label="100% Free & Open Source" color="#4ade80" />
             <h2 className="text-4xl sm:text-5xl font-extrabold leading-tight mt-2" style={{ fontFamily: 'Orbitron, sans-serif' }}>
               <span style={{ background: 'linear-gradient(135deg, #4ade80, #22d3ee)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Your AI,</span>{' '}
-              <span style={{ background: 'linear-gradient(135deg, #22d3ee, #14b8a6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Your Rules</span>
+              <span style={{ background: 'linear-gradient(135deg, #22d3ee, #14b8a6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Your Deployment</span>
             </h2>
             <p className="mt-4 text-white/40 max-w-lg mx-auto text-sm leading-relaxed">
-              Self-host it, fork it, contribute to it. Bring your own API key — no subscriptions, no vendor lock-in, no limits.
+              Run it locally, start with Docker, or deploy to AWS with App Runner, S3, and RDS.
+              Bring your own API key — no subscriptions, no vendor lock-in, no limits.
             </p>
           </div>
 

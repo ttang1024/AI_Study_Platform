@@ -160,7 +160,7 @@ public sealed class YouTubeCredentialPool
 
     private static IReadOnlyList<string> LoadProxies(IConfiguration configuration)
     {
-        // Priority 1: YouTube:ProxyUrls:0, YouTube:ProxyUrls:1, ... (Azure env var array)
+        // Priority 1: YouTube:ProxyUrls:0, YouTube:ProxyUrls:1, ... (environment array)
         var section = configuration.GetSection("YouTube:ProxyUrls");
         var indexed = section.GetChildren()
             .Select(c => c.Value)
@@ -180,7 +180,7 @@ public sealed class YouTubeCredentialPool
 
     private static IReadOnlyList<byte[]> LoadCookies(IConfiguration configuration)
     {
-        // Priority 1: YouTube:CookiesList:0, YouTube:CookiesList:1, ... (Azure env var array)
+        // Priority 1: YouTube:CookiesList:0, YouTube:CookiesList:1, ... (environment array)
         var section = configuration.GetSection("YouTube:CookiesList");
         var indexed = section.GetChildren()
             .Select(c => c.Value)

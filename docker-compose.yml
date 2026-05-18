@@ -30,6 +30,40 @@ services:
     ports:
       - "${REDIS_PORT:-6379}:6379"
 
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME:-documents-dev}
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"
+        mc mb --ignore-existing "local/$$S3_BUCKET_NAME"
+
   api:
     build:
       context: ./server
@@ -40,12 +74,23 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
     volumes:
       - data_protection_keys:/root/.aspnet/DataProtection-Keys
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-studyplatform};Username=${POSTGRES_USER:-studyplatform};Password=${POSTGRES_PASSWORD}"
-      Redis__Enabled: ${REDIS_ENABLED:-false}
+      AWS__Region: ${AWS_REGION:-us-east-1}
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+      S3__BucketName: ${S3_BUCKET_NAME:-documents-dev}
+      S3__ServiceUrl: ${S3_SERVICE_URL:-http://minio:9000}
+      S3__PublicServiceUrl: ${S3_PUBLIC_SERVICE_URL:-http://localhost:9000}
+      S3__ForcePathStyle: ${S3_FORCE_PATH_STYLE:-true}
+      S3__AccessKey: ${MINIO_ROOT_USER:-minioadmin}
+      S3__SecretKey: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+      Redis__Enabled: ${REDIS_ENABLED:-true}
       Redis__ConnectionString: "redis:6379"
       Redis__InstanceName: ${REDIS_INSTANCE_NAME:-StudyPlatform:}
       Cache__DashboardStatsSeconds: ${CACHE_DASHBOARD_STATS_SECONDS:-60}
@@ -62,15 +107,12 @@ services:
       EmailSettings__SmtpPort: ${SMTP_PORT:-587}
       EmailSettings__SmtpUser: ${SMTP_USER}
       EmailSettings__SmtpPassword: ${SMTP_PASSWORD}
-      AzureStorage__ConnectionString: ${AZURE_STORAGE_CONNECTION_STRING}
-      AzureStorage__ContainerName: ${AZURE_STORAGE_CONTAINER:-documents}
       GoogleOAuth__ClientId: ${GOOGLE_CLIENT_ID}
       GoogleOAuth__ClientSecret: ${GOOGLE_CLIENT_SECRET}
       GitHubOAuth__ClientId: ${GITHUB_CLIENT_ID}
       GitHubOAuth__ClientSecret: ${GITHUB_CLIENT_SECRET}
       Cors__AllowedOrigins__0: ${WEB_ORIGIN:-http://localhost:3000}
       Cors__AllowedOrigins__1: ${ADMIN_ORIGIN:-http://localhost:4200}
-      ApplicationInsights__ConnectionString: ${APPINSIGHTS_CONNECTION_STRING:-}
       AppLimits__DocumentUploadLimit: ${DOCUMENT_UPLOAD_LIMIT:-20}
       YouTube__SubtitleLanguages: ${YOUTUBE_SUBTITLE_LANGUAGES:-en.*,en}
       YouTube__ProxyUrl: ${YOUTUBE_PROXY_URL:-}
@@ -113,3 +155,4 @@ volumes:
   postgres_data:
   data_protection_keys:
   redis_data:
+  minio_data:

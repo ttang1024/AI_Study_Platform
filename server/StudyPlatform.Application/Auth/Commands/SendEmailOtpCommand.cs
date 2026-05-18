@@ -64,7 +64,14 @@ public class SendEmailOtpCommandHandler : IRequestHandler<SendEmailOtpCommand, R
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         var purposeText = purpose == OtpPurpose.Registration ? "Registration" : "Password Reset";
-        await _emailService.SendOtpEmailAsync(request.Email, request.Email, code, purposeText, cancellationToken);
+        try
+        {
+            await _emailService.SendOtpEmailAsync(request.Email, request.Email, code, purposeText, cancellationToken);
+        }
+        catch
+        {
+            return Result.Failure("Failed to send verification email. Please try again later.", "EMAIL_SEND_FAILED");
+        }
 
         return Result.Success("OTP sent successfully.");
     }

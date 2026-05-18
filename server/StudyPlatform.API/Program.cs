@@ -14,9 +14,6 @@ using StudyPlatform.Infrastructure.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Application Insights
-builder.Services.AddApplicationInsightsTelemetry(builder.Configuration);
-
 // Add services to the container
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();

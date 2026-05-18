@@ -8,36 +8,37 @@ const DOCKER_LINES = [
   { prompt: '~/AI_Study_Platform', cmd: 'cp .env.example .env  # fill values', color: '#4ade80' },
   { prompt: '~/AI_Study_Platform', cmd: 'docker compose up --build -d', color: '#22d3ee' },
   { prompt: '~/AI_Study_Platform', cmd: 'docker compose exec api dotnet ef database update --project StudyPlatform.Infrastructure --startup-project StudyPlatform.API', color: '#fb923c' },
-  { prompt: null, cmd: '✓ API :5000  ·  Web :3000  ·  Admin :4200', color: '#818cf8' },
+  { prompt: null, cmd: '✓ API :5000  ·  Web :3000  ·  Admin :4200  ·  MinIO :9001', color: '#818cf8' },
 ];
 
 const LOCAL_LINES = [
   { prompt: '~', cmd: 'redis-server &', color: '#f87171' },
   { prompt: null, cmd: '✓ Redis ready on :6379', color: '#818cf8' },
-  { prompt: '~', cmd: 'azurite-blob --blobHost 127.0.0.1 --blobPort 10000 &', color: '#f0abfc' },
-  { prompt: null, cmd: '✓ Azurite blob ready on :10000', color: '#818cf8' },
-  { prompt: '~/Study_Platform/server', cmd: 'dotnet ef database update --project StudyPlatform.Infrastructure --startup-project StudyPlatform.API', color: '#fb923c' },
+  { prompt: '~/AI_Study_Platform', cmd: 'docker compose up -d minio minio-init', color: '#f0abfc' },
+  { prompt: null, cmd: '✓ MinIO ready on :9001  ·  bucket documents-dev', color: '#818cf8' },
+  { prompt: '~/AI_Study_Platform/server', cmd: 'dotnet ef database update --project StudyPlatform.Infrastructure --startup-project StudyPlatform.API', color: '#fb923c' },
   { prompt: null, cmd: '✓ Migrations applied', color: '#818cf8' },
-  { prompt: '~/Study_Platform/server', cmd: 'dotnet run --project StudyPlatform.API', color: '#22d3ee' },
-  { prompt: null, cmd: '✓ API → http://localhost:5000', color: '#818cf8' },
-  { prompt: '~/Study_Platform/web', cmd: 'npm install && npm run dev', color: '#4ade80' },
+  { prompt: '~/AI_Study_Platform/server', cmd: 'dotnet run --project StudyPlatform.API', color: '#22d3ee' },
+  { prompt: null, cmd: '✓ API → http://localhost:5001', color: '#818cf8' },
+  { prompt: '~/AI_Study_Platform/web', cmd: 'npm install && npm run dev', color: '#4ade80' },
   { prompt: null, cmd: '✓ Web → http://localhost:3000', color: '#818cf8' },
 ];
 
-const AZURE_LINES = [
-  { prompt: '~', cmd: 'az login', color: '#38bdf8' },
-  { prompt: '~/Study_Platform', cmd: 'export DB_PASS=... JWT_SECRET=...', color: '#4ade80' },
-  { prompt: '~/Study_Platform', cmd: 'export GOOGLE_CLIENT_ID=... GITHUB_CLIENT_ID=...', color: '#4ade80' },
-  { prompt: '~/Study_Platform', cmd: 'export SMTP_USER=... SMTP_PASSWORD=...', color: '#4ade80' },
-  { prompt: '~/Study_Platform', cmd: 'bash deploy.sh', color: '#22d3ee' },
-  { prompt: null, cmd: '✓ API on Container Apps · Web/Admin on Storage', color: '#818cf8' },
+const AWS_LINES = [
+  { prompt: '~', cmd: 'aws configure sso', color: '#38bdf8' },
+  { prompt: '~/AI_Study_Platform', cmd: 'export AWS_REGION=ap-southeast-2 APP_NAME=study-platform', color: '#4ade80' },
+  { prompt: '~/AI_Study_Platform', cmd: 'export DB_PASS=... JWT_SECRET=...', color: '#4ade80' },
+  { prompt: '~/AI_Study_Platform', cmd: 'export GOOGLE_CLIENT_ID=... GITHUB_CLIENT_ID=...', color: '#4ade80' },
+  { prompt: '~/AI_Study_Platform', cmd: './deploy.sh', color: '#22d3ee' },
+  { prompt: null, cmd: '✓ API on ECS Fargate + ALB · HTTPS via CloudFront', color: '#818cf8' },
+  { prompt: null, cmd: '✓ RDS PostgreSQL · ElastiCache Redis · S3 documents/assets', color: '#818cf8' },
 ];
 
-type DeployTab = 'local' | 'docker' | 'azure';
+type DeployTab = 'local' | 'docker' | 'aws';
 
 export const TerminalCard: React.FC = () => {
   const [tab, setTab] = useState<DeployTab>('local');
-  const lines = tab === 'docker' ? DOCKER_LINES : tab === 'azure' ? AZURE_LINES : LOCAL_LINES;
+  const lines = tab === 'docker' ? DOCKER_LINES : tab === 'aws' ? AWS_LINES : LOCAL_LINES;
 
   return (
     <div className="lg:col-span-3 flex flex-col gap-4">
@@ -55,7 +56,7 @@ export const TerminalCard: React.FC = () => {
           <Terminal className="w-3.5 h-3.5 text-white/20 ml-2" />
           <span className="text-xs text-white/20 ml-1">bash</span>
           <div className="ml-auto flex gap-1">
-            {(['local', 'docker', 'azure'] as const).map(t => (
+            {(['local', 'docker', 'aws'] as const).map(t => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
@@ -64,7 +65,7 @@ export const TerminalCard: React.FC = () => {
                   ? { background: 'rgba(74,222,128,0.15)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.3)' }
                   : { background: 'transparent', color: 'rgba(255,255,255,0.25)', border: '1px solid rgba(255,255,255,0.08)' }}
               >
-                {t === 'docker' ? 'Docker' : t === 'azure' ? 'Azure' : 'Local'}
+                {t === 'docker' ? 'Docker' : t === 'aws' ? 'AWS' : 'Local'}
               </button>
             ))}
           </div>

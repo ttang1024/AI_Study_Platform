@@ -1,3 +1,6 @@
+using Amazon;
+using Amazon.SimpleEmailV2;
+using Amazon.SimpleEmailV2.Model;
 using MailKit.Net.Smtp;
 using MailKit.Security;
 using Microsoft.Extensions.Configuration;
@@ -80,31 +83,84 @@ public class EmailService : IEmailService
         try
         {
             var emailSettings = _configuration.GetSection("EmailSettings");
-            var fromEmail = emailSettings["FromEmail"] ?? "noreply@studyplatform.com";
-            var fromName = emailSettings["FromName"] ?? "StudyPlatform";
-            var smtpHost = emailSettings["SmtpHost"] ?? "smtp.gmail.com";
-            var smtpPort = int.Parse(emailSettings["SmtpPort"] ?? "587");
-            var smtpUser = emailSettings["SmtpUser"] ?? string.Empty;
-            var smtpPassword = emailSettings["SmtpPassword"] ?? string.Empty;
+            var provider = emailSettings["Provider"] ?? "Smtp";
 
-            var message = new MimeMessage();
-            message.From.Add(new MailboxAddress(fromName, fromEmail));
-            message.To.Add(MailboxAddress.Parse(toEmail));
-            message.Subject = subject;
+            if (provider.Equals("Ses", StringComparison.OrdinalIgnoreCase)
+                || provider.Equals("AwsSes", StringComparison.OrdinalIgnoreCase))
+            {
+                await SendEmailWithSesAsync(emailSettings, toEmail, subject, htmlBody, cancellationToken);
+                return;
+            }
 
-            var bodyBuilder = new BodyBuilder { HtmlBody = htmlBody };
-            message.Body = bodyBuilder.ToMessageBody();
-
-            using var client = new SmtpClient();
-            await client.ConnectAsync(smtpHost, smtpPort, SecureSocketOptions.StartTls, cancellationToken);
-            await client.AuthenticateAsync(smtpUser, smtpPassword, cancellationToken);
-            await client.SendAsync(message, cancellationToken);
-            await client.DisconnectAsync(true, cancellationToken);
+            await SendEmailWithSmtpAsync(emailSettings, toEmail, subject, htmlBody, cancellationToken);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to send email to {Email}", toEmail);
-            // Don't throw - email failures shouldn't break the flow
+            throw new InvalidOperationException("Failed to send email.", ex);
         }
+    }
+
+    private async Task SendEmailWithSesAsync(IConfigurationSection emailSettings, string toEmail, string subject, string htmlBody, CancellationToken cancellationToken)
+    {
+        var fromEmail = emailSettings["FromEmail"] ?? "noreply@studyplatform.com";
+        var fromName = emailSettings["FromName"] ?? "StudyPlatform";
+        var regionName = emailSettings["SesRegion"]
+            ?? _configuration["AWS:Region"]
+            ?? _configuration["AWS_REGION"]
+            ?? "ap-southeast-2";
+
+        using var client = new AmazonSimpleEmailServiceV2Client(RegionEndpoint.GetBySystemName(regionName));
+        await client.SendEmailAsync(new SendEmailRequest
+        {
+            FromEmailAddress = $"{fromName} <{fromEmail}>",
+            Destination = new Destination
+            {
+                ToAddresses = new List<string> { toEmail }
+            },
+            Content = new EmailContent
+            {
+                Simple = new Message
+                {
+                    Subject = new Content
+                    {
+                        Charset = "UTF-8",
+                        Data = subject
+                    },
+                    Body = new Body
+                    {
+                        Html = new Content
+                        {
+                            Charset = "UTF-8",
+                            Data = htmlBody
+                        }
+                    }
+                }
+            }
+        }, cancellationToken);
+    }
+
+    private async Task SendEmailWithSmtpAsync(IConfigurationSection emailSettings, string toEmail, string subject, string htmlBody, CancellationToken cancellationToken)
+    {
+        var fromEmail = emailSettings["FromEmail"] ?? "noreply@studyplatform.com";
+        var fromName = emailSettings["FromName"] ?? "StudyPlatform";
+        var smtpHost = emailSettings["SmtpHost"] ?? "smtp.gmail.com";
+        var smtpPort = int.Parse(emailSettings["SmtpPort"] ?? "587");
+        var smtpUser = emailSettings["SmtpUser"] ?? string.Empty;
+        var smtpPassword = emailSettings["SmtpPassword"] ?? string.Empty;
+
+        var message = new MimeMessage();
+        message.From.Add(new MailboxAddress(fromName, fromEmail));
+        message.To.Add(MailboxAddress.Parse(toEmail));
+        message.Subject = subject;
+
+        var bodyBuilder = new BodyBuilder { HtmlBody = htmlBody };
+        message.Body = bodyBuilder.ToMessageBody();
+
+        using var client = new SmtpClient();
+        await client.ConnectAsync(smtpHost, smtpPort, SecureSocketOptions.StartTls, cancellationToken);
+        await client.AuthenticateAsync(smtpUser, smtpPassword, cancellationToken);
+        await client.SendAsync(message, cancellationToken);
+        await client.DisconnectAsync(true, cancellationToken);
     }
 }
