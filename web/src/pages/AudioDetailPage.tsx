@@ -5,6 +5,7 @@ import {
   Mic, Rss, Sparkles, Loader2, ChevronLeft, AlertCircle, FileText, Copy, Download, RotateCcw, Share2,
 } from 'lucide-react';
 import { ShareModal } from '../components/common/ShareModal';
+import { DetailPageSkeleton } from '../components/common/DetailPageSkeleton';
 import { ShareableQuiz, ShareableCard } from '../services/shareContentService';
 import { documentService } from '../services/documentService';
 import { audioService } from '../services/audioService';
@@ -650,11 +651,7 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
 
 
   if (isLoadingPage) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-[var(--primary)]" />
-      </div>
-    );
+    return <DetailPageSkeleton variant="audio" embedded={embedded} />;
   }
 
   return (

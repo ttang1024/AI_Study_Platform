@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
-  Globe, ChevronLeft, Sparkles, Loader2, AlertCircle, Share2,
+  Globe, ChevronLeft, Sparkles, AlertCircle, Share2,
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -23,6 +23,7 @@ import { TABS } from '../constants/tab';
 import { cn } from '../utils/cn';
 import { getDocDisplayName } from '../utils/docName';
 import { ShareModal } from '../components/common/ShareModal';
+import { ArticleReaderSkeleton, DetailPageSkeleton } from '../components/common/DetailPageSkeleton';
 import { ShareableQuiz } from '../services/shareContentService';
 import { Document } from '../types';
 import { getApiErrorCode } from '../utils/apiError';
@@ -119,14 +120,7 @@ const ArticleReader: React.FC<ArticleReaderProps> = React.memo(({ document, onTe
   const articleTitle = document.name.replace(/\.(txt|md)$/i, '');
 
   if (isLoading) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <div className="flex flex-col items-center gap-3 text-center">
-          <Loader2 className="h-8 w-8 animate-spin text-[var(--primary)]" />
-          <p className="text-sm text-text-muted">Loading article…</p>
-        </div>
-      </div>
-    );
+    return <ArticleReaderSkeleton />;
   }
 
   if (error) {
@@ -335,15 +329,15 @@ export const ArticlePage: React.FC<{ embedded?: boolean; id?: string }> = ({ emb
 
   if (!currentDocument) {
     return (
-      <div className={cn("flex items-center justify-center bg-[var(--bg-app)]", embedded ? "h-full" : "h-screen")}>
-        {isLoading ? (
-          <Loader2 className="h-8 w-8 animate-spin text-[var(--primary)]" />
-        ) : (
-          <div className="text-center">
-            <p className="text-text-muted">Article not found.</p>
-            <button onClick={() => navigate('/summarizer')} className="mt-4 text-sm text-[var(--primary)] hover:underline">
-              Back to Summarizer
-            </button>
+      <div className={cn("bg-[var(--bg-app)]", embedded ? "h-full" : "h-screen")}>
+        {isLoading ? <DetailPageSkeleton variant="article" embedded={embedded} /> : (
+          <div className="flex h-full items-center justify-center">
+            <div className="text-center">
+              <p className="text-text-muted">Article not found.</p>
+              <button onClick={() => navigate('/summarizer')} className="mt-4 text-sm text-[var(--primary)] hover:underline">
+                Back to Summarizer
+              </button>
+            </div>
           </div>
         )}
       </div>

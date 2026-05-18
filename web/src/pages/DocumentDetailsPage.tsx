@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { FileText, ListTodo, Sparkles, ChevronLeft, BrainCircuit, Award, Loader2, Share2 } from 'lucide-react';
+import { FileText, Sparkles, ChevronLeft, Share2 } from 'lucide-react';
 import { useStudy } from '../context/StudyContext';
 import { DocumentViewer } from '../components/document/DocumentViewer';
 import { ChatPanel, ChatPanelRef } from '../components/ai/ChatPanel';
@@ -15,6 +15,7 @@ import { WorkedProblemsPanel } from '../components/WorkedProblemsPanel';
 import { documentService } from '../services/documentService';
 import { apiClient } from '../services/apiClient';
 import { ShareModal } from '../components/common/ShareModal';
+import { DetailPageSkeleton } from '../components/common/DetailPageSkeleton';
 import { ShareableQuiz, ShareableCard } from '../services/shareContentService';
 import { TABS } from '../constants/tab';
 import { cn } from '../utils/cn';
@@ -209,15 +210,15 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
 
   if (!currentDocument) {
     return (
-      <div className={cn("flex items-center justify-center bg-[var(--bg-app)]", embedded ? "h-full" : "h-screen")}>
-        {isLoading ? (
-          <Loader2 className="h-8 w-8 animate-spin text-[var(--primary)]" />
-        ) : (
-          <div className="text-center">
-            <p className="text-text-muted">Document not found.</p>
-            <button onClick={() => navigate('/documents')} className="mt-4 text-sm text-[var(--primary)] hover:underline">
-              Back to Documents
-            </button>
+      <div className={cn("bg-[var(--bg-app)]", embedded ? "h-full" : "h-screen")}>
+        {isLoading ? <DetailPageSkeleton variant="document" embedded={embedded} /> : (
+          <div className="flex h-full items-center justify-center">
+            <div className="text-center">
+              <p className="text-text-muted">Document not found.</p>
+              <button onClick={() => navigate('/documents')} className="mt-4 text-sm text-[var(--primary)] hover:underline">
+                Back to Documents
+              </button>
+            </div>
           </div>
         )}
       </div>

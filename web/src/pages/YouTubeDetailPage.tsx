@@ -16,6 +16,7 @@ import { cn } from '../utils/cn';
 import { TABS } from '../constants/tab';
 import { QuizQuestion } from '../types';
 import { ShareModal } from '../components/common/ShareModal';
+import { DetailPageSkeleton } from '../components/common/DetailPageSkeleton';
 import { ShareableQuiz, ShareableCard } from '../services/shareContentService';
 import { getApiErrorCode } from '../utils/apiError';
 
@@ -683,11 +684,7 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 	// ════════════════════════════════════════════════════════════
 
 	if (isLoadingVideo) {
-		return (
-			<div className="flex h-full items-center justify-center">
-				<Loader2 className="h-8 w-8 animate-spin text-[var(--primary)]" />
-			</div>
-		);
+		return <DetailPageSkeleton variant="youtube" embedded={embedded} />;
 	}
 
 	return (
