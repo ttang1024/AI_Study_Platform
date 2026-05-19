@@ -273,7 +273,7 @@ EMAIL_FROM="$(strip_cr "$EMAIL_FROM")"
 SES_REGION="$(strip_cr "${SES_REGION:-$AWS_REGION}")"
 YOUTUBE_PROXY_URL="$(strip_cr "${YOUTUBE_PROXY_URL:-${YouTube__ProxyUrl:-}}")"
 YOUTUBE_COOKIES_B64="$(strip_cr "${YOUTUBE_COOKIES_B64:-${YouTube__CookiesBase64:-}}")"
-REDIS_ENABLED="$(strip_cr "${REDIS_ENABLED:-true}")"
+REDIS_ENABLED="$(strip_cr "${REDIS_ENABLED:-false}")"
 REDIS_CONNECTION_STRING="$(strip_cr "${REDIS_CONNECTION_STRING:-}")"
 REDIS_INSTANCE_NAME="$(strip_cr "${REDIS_INSTANCE_NAME:-StudyPlatform:}")"
 

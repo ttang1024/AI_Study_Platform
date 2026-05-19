@@ -32,7 +32,7 @@ Key server-side settings required at runtime:
 | `ConnectionStrings:DefaultConnection` | PostgreSQL (required) |
 | `JwtSettings:SecretKey`, `Issuer`, `Audience` | JWT signing and validation |
 | `Cors:AllowedOrigins` | Allowed frontend origins |
-| `Redis:Enabled` | Enable Redis cache (`true` in AWS deployment) |
+| `Redis:Enabled` | Enable Redis cache (`false` by default in production deployment) |
 | `ConnectionStrings:Redis` / `Redis:ConnectionString` | Redis endpoint |
 | `S3:BucketName` | S3/MinIO bucket for uploaded documents |
 | `S3:ServiceUrl` / `S3:Endpoint` | Optional S3-compatible endpoint, for example local MinIO |
