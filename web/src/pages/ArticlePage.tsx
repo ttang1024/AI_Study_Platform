@@ -169,7 +169,7 @@ const ArticleReader: React.FC<ArticleReaderProps> = React.memo(({ document, onTe
 
 // ─── Article Page ─────────────────────────────────────────────────────────────
 
-export const ArticlePage: React.FC<{ embedded?: boolean; id?: string }> = ({ embedded, id: propId }) => {
+export const ArticlePage: React.FC<{ embedded?: boolean; id?: string; courseId?: string }> = ({ embedded, id: propId, courseId: propCourseId }) => {
   const { id: paramId } = useParams();
   const id = propId ?? paramId;
   const navigate = useNavigate();
@@ -197,6 +197,7 @@ export const ArticlePage: React.FC<{ embedded?: boolean; id?: string }> = ({ emb
   const summaryRef = useRef<HTMLDivElement>(null);
 
   const [docChatMessages, setDocChatMessages] = useState<Array<{ id: string; role: 'user' | 'model'; content: string; isError?: boolean }>>([]);
+  const [isDocumentLoading, setIsDocumentLoading] = useState(true);
 
   // ── Load document ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -209,8 +210,9 @@ export const ArticlePage: React.FC<{ embedded?: boolean; id?: string }> = ({ emb
     }
 
     // Fetch fresh data once the document's courseId is known
-    const courseId = doc?.courseId ?? (location.state as any)?.courseId;
+    const courseId = propCourseId ?? doc?.courseId ?? (location.state as any)?.courseId;
     if (courseId) {
+      setIsDocumentLoading(true);
       documentService.getDocument(courseId, id)
         .then(freshDoc => {
           setCurrentDocument(prev => {
@@ -223,7 +225,10 @@ export const ArticlePage: React.FC<{ embedded?: boolean; id?: string }> = ({ emb
           });
           updateDocumentInList(freshDoc);
         })
-        .catch(() => { });
+        .catch(() => { })
+        .finally(() => setIsDocumentLoading(false));
+    } else {
+      setIsDocumentLoading(false);
     }
   }, [id, isLoading]);
 
@@ -330,7 +335,7 @@ export const ArticlePage: React.FC<{ embedded?: boolean; id?: string }> = ({ emb
   if (!currentDocument) {
     return (
       <div className={cn("bg-[var(--bg-app)]", embedded ? "h-full" : "h-screen")}>
-        {isLoading ? <DetailPageSkeleton variant="article" embedded={embedded} /> : (
+        {(isLoading || isDocumentLoading) ? <DetailPageSkeleton variant="article" embedded={embedded} /> : (
           <div className="flex h-full items-center justify-center">
             <div className="text-center">
               <p className="text-text-muted">Article not found.</p>

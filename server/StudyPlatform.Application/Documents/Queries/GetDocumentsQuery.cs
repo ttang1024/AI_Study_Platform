@@ -130,13 +130,24 @@ public class GetDocumentNotesQueryHandler : IRequestHandler<GetDocumentNotesQuer
     public async Task<Result<IEnumerable<NoteDto>>> Handle(GetDocumentNotesQuery request, CancellationToken cancellationToken)
     {
         var document = await _unitOfWork.Documents.GetByIdAsync(request.DocumentId, cancellationToken);
-        if (document == null || document.UserId != request.UserId)
+        if (document == null)
+            return Result<IEnumerable<NoteDto>>.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
+
+        if (document.UserId != request.UserId && !await HasGroupAccessAsync(request.UserId, document.CourseId, cancellationToken))
             return Result<IEnumerable<NoteDto>>.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
 
         var notes = await _unitOfWork.Notes.GetByDocumentIdAsync(request.DocumentId, cancellationToken);
         var dtos = notes.Select(n => new NoteDto(n.NoteId, n.UserId, n.DocumentId, n.YouTubeVideoId, n.SourceType, n.Content, n.Title, n.CreatedAt, n.UpdatedAt));
 
         return Result<IEnumerable<NoteDto>>.Success(dtos);
+    }
+
+    private async Task<bool> HasGroupAccessAsync(Guid userId, Guid courseId, CancellationToken ct)
+    {
+        var shared = await _unitOfWork.StudyGroupSharedCourses.FindAsync(sc => sc.CourseId == courseId, ct);
+        var groupIds = shared.Select(sc => sc.GroupId).ToList();
+        return groupIds.Count > 0 && await _unitOfWork.StudyGroupMembers.ExistsAsync(
+            m => groupIds.Contains(m.GroupId) && m.UserId == userId, ct);
     }
 }
 
@@ -154,13 +165,25 @@ public class GetAIChatHistoryQueryHandler : IRequestHandler<GetAIChatHistoryQuer
     public async Task<Result<IEnumerable<ChatMessageDto>>> Handle(GetAIChatHistoryQuery request, CancellationToken cancellationToken)
     {
         var document = await _unitOfWork.Documents.GetByIdAsync(request.DocumentId, cancellationToken);
-        if (document == null || document.UserId != request.UserId)
+        if (document == null)
             return Result<IEnumerable<ChatMessageDto>>.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
 
-        var messages = await _unitOfWork.ChatMessages.GetByDocumentIdAsync(request.DocumentId, request.UserId, cancellationToken);
+        if (document.UserId != request.UserId && !await HasGroupAccessAsync(request.UserId, document.CourseId, cancellationToken))
+            return Result<IEnumerable<ChatMessageDto>>.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
+
+        var chatUserId = document.UserId == request.UserId ? request.UserId : document.UserId;
+        var messages = await _unitOfWork.ChatMessages.GetByDocumentIdAsync(request.DocumentId, chatUserId, cancellationToken);
         var dtos = messages.Select(m => new ChatMessageDto(m.MessageId, m.DocumentId, m.YouTubeVideoId, m.SourceType, m.Role, m.Content, m.CreatedAt));
 
         return Result<IEnumerable<ChatMessageDto>>.Success(dtos);
+    }
+
+    private async Task<bool> HasGroupAccessAsync(Guid userId, Guid courseId, CancellationToken ct)
+    {
+        var shared = await _unitOfWork.StudyGroupSharedCourses.FindAsync(sc => sc.CourseId == courseId, ct);
+        var groupIds = shared.Select(sc => sc.GroupId).ToList();
+        return groupIds.Count > 0 && await _unitOfWork.StudyGroupMembers.ExistsAsync(
+            m => groupIds.Contains(m.GroupId) && m.UserId == userId, ct);
     }
 }
 
@@ -178,7 +201,10 @@ public class GetDocumentQuizzesQueryHandler : IRequestHandler<GetDocumentQuizzes
     public async Task<Result<IEnumerable<QuizDto>>> Handle(GetDocumentQuizzesQuery request, CancellationToken cancellationToken)
     {
         var document = await _unitOfWork.Documents.GetByIdAsync(request.DocumentId, cancellationToken);
-        if (document == null || document.UserId != request.UserId)
+        if (document == null)
+            return Result<IEnumerable<QuizDto>>.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
+
+        if (document.UserId != request.UserId && !await HasGroupAccessAsync(request.UserId, document.CourseId, cancellationToken))
             return Result<IEnumerable<QuizDto>>.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
 
         var quizzes = string.IsNullOrWhiteSpace(request.Difficulty)
@@ -198,6 +224,14 @@ public class GetDocumentQuizzesQueryHandler : IRequestHandler<GetDocumentQuizzes
         "hard" => "hard",
         _ => "medium"
     };
+
+    private async Task<bool> HasGroupAccessAsync(Guid userId, Guid courseId, CancellationToken ct)
+    {
+        var shared = await _unitOfWork.StudyGroupSharedCourses.FindAsync(sc => sc.CourseId == courseId, ct);
+        var groupIds = shared.Select(sc => sc.GroupId).ToList();
+        return groupIds.Count > 0 && await _unitOfWork.StudyGroupMembers.ExistsAsync(
+            m => groupIds.Contains(m.GroupId) && m.UserId == userId, ct);
+    }
 }
 
 public record GetDocumentDownloadUrlQuery(Guid DocumentId, Guid UserId) : IRequest<Result<string>>;
@@ -252,12 +286,23 @@ public class GetDocumentFlashcardsQueryHandler : IRequestHandler<GetDocumentFlas
     public async Task<Result<IEnumerable<FlashcardDto>>> Handle(GetDocumentFlashcardsQuery request, CancellationToken cancellationToken)
     {
         var document = await _unitOfWork.Documents.GetByIdAsync(request.DocumentId, cancellationToken);
-        if (document == null || document.UserId != request.UserId)
+        if (document == null)
+            return Result<IEnumerable<FlashcardDto>>.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
+
+        if (document.UserId != request.UserId && !await HasGroupAccessAsync(request.UserId, document.CourseId, cancellationToken))
             return Result<IEnumerable<FlashcardDto>>.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
 
         var flashcards = await _unitOfWork.Flashcards.GetByDocumentIdAsync(request.DocumentId, cancellationToken);
         var dtos = flashcards.Select(f => new FlashcardDto(f.FlashcardId, f.DocumentId, f.YouTubeVideoId, f.SourceType, f.UserId, f.Front, f.Back, f.CreatedAt, f.UpdatedAt));
 
         return Result<IEnumerable<FlashcardDto>>.Success(dtos);
+    }
+
+    private async Task<bool> HasGroupAccessAsync(Guid userId, Guid courseId, CancellationToken ct)
+    {
+        var shared = await _unitOfWork.StudyGroupSharedCourses.FindAsync(sc => sc.CourseId == courseId, ct);
+        var groupIds = shared.Select(sc => sc.GroupId).ToList();
+        return groupIds.Count > 0 && await _unitOfWork.StudyGroupMembers.ExistsAsync(
+            m => groupIds.Contains(m.GroupId) && m.UserId == userId, ct);
     }
 }

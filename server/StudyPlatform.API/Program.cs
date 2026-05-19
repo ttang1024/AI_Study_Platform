@@ -8,6 +8,7 @@ using Microsoft.OpenApi.Models;
 using StackExchange.Redis;
 using StudyPlatform.API.Hubs;
 using StudyPlatform.API.Middleware;
+using StudyPlatform.API.Services;
 using StudyPlatform.Application;
 using StudyPlatform.Application.Settings;
 using StudyPlatform.Infrastructure.Extensions;
@@ -175,6 +176,8 @@ builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>()
 
 // SignalR
 builder.Services.AddSignalR();
+builder.Services.AddSingleton<AudioTranscriptionQueue>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<AudioTranscriptionQueue>());
 
 // Application and Infrastructure layers
 builder.Services.AddApplication();

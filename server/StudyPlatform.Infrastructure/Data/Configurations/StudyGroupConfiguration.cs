@@ -86,5 +86,10 @@ public class StudyGroupSharedCourseConfiguration : IEntityTypeConfiguration<Stud
             .WithMany()
             .HasForeignKey(sc => sc.CourseId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne(sc => sc.SharedBy)
+            .WithMany()
+            .HasForeignKey(sc => sc.SharedByUserId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

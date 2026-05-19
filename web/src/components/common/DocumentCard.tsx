@@ -149,6 +149,7 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({ doc, course, to, com
       >
         <Link
           to={to ?? (doc.type === 'audio' || doc.type === 'podcast' ? `/audio/${doc.id}` : `/documents/${doc.id}`)}
+          state={{ courseId: doc.courseId }}
           className="flex flex-col h-full overflow-hidden rounded-2xl border border-[var(--border-color)] bg-[var(--bg-sidebar)] shadow-sm transition-all duration-300 group-hover:border-transparent group-hover:shadow-xl"
         >
           {/* ── Summary cover ── */}

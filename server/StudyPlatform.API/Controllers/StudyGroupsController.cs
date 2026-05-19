@@ -1,7 +1,9 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using StudyPlatform.API.Extensions;
+using StudyPlatform.API.Hubs;
 using StudyPlatform.Application.Common;
 using StudyPlatform.Application.StudyGroups;
 
@@ -14,10 +16,12 @@ namespace StudyPlatform.API.Controllers;
 public class StudyGroupsController : ControllerBase
 {
     private readonly IMediator _mediator;
+    private readonly IHubContext<GroupChatHub> _hubContext;
 
-    public StudyGroupsController(IMediator mediator)
+    public StudyGroupsController(IMediator mediator, IHubContext<GroupChatHub> hubContext)
     {
         _mediator = mediator;
+        _hubContext = hubContext;
     }
 
     /// <summary>
@@ -81,7 +85,10 @@ public class StudyGroupsController : ControllerBase
         if (!result.IsSuccess)
             return BadRequest(BaseResponse<StudyGroupDto>.Fail(result.Message, result.ErrorCode));
 
-        return Ok(BaseResponse<StudyGroupDto>.Ok(result.Data!, result.Message));
+        var groupId = result.Data!.Group.StudyGroupId.ToString();
+        await _hubContext.Clients.Group(groupId).SendAsync("MemberJoined", result.Data.Member);
+
+        return Ok(BaseResponse<StudyGroupDto>.Ok(result.Data.Group, result.Message));
     }
 
     /// <summary>
@@ -98,6 +105,54 @@ public class StudyGroupsController : ControllerBase
         if (!result.IsSuccess)
             return BadRequest(new BaseResponse { Success = false, Message = result.Message, ErrorCode = result.ErrorCode });
 
+        await _hubContext.Clients.Group(id.ToString()).SendAsync("MemberLeft", userId);
+
+        return Ok(new BaseResponse { Success = true, Message = result.Message });
+    }
+
+    /// <summary>
+    /// Remove a member from a study group (owner only)
+    /// </summary>
+    [HttpDelete("{id:guid}/members/{userId:guid}")]
+    [ProducesResponseType(typeof(BaseResponse), 200)]
+    [ProducesResponseType(typeof(BaseResponse), 403)]
+    [ProducesResponseType(typeof(BaseResponse), 404)]
+    public async Task<IActionResult> RemoveGroupMember(Guid id, Guid userId)
+    {
+        var ownerId = User.GetUserId();
+        var result = await _mediator.Send(new RemoveGroupMemberCommand(ownerId, id, userId));
+
+        if (!result.IsSuccess)
+        {
+            if (result.ErrorCode == "NOT_FOUND")
+                return NotFound(new BaseResponse { Success = false, Message = result.Message, ErrorCode = result.ErrorCode });
+            return StatusCode(403, new BaseResponse { Success = false, Message = result.Message, ErrorCode = result.ErrorCode });
+        }
+
+        await _hubContext.Clients.Group(id.ToString()).SendAsync("MemberRemoved", userId);
+
+        return Ok(new BaseResponse { Success = true, Message = result.Message });
+    }
+
+    /// <summary>
+    /// Delete a study group (owner only)
+    /// </summary>
+    [HttpDelete("{id:guid}")]
+    [ProducesResponseType(typeof(BaseResponse), 200)]
+    [ProducesResponseType(typeof(BaseResponse), 403)]
+    [ProducesResponseType(typeof(BaseResponse), 404)]
+    public async Task<IActionResult> DeleteStudyGroup(Guid id)
+    {
+        var userId = User.GetUserId();
+        var result = await _mediator.Send(new DeleteStudyGroupCommand(userId, id));
+
+        if (!result.IsSuccess)
+        {
+            if (result.ErrorCode == "NOT_FOUND")
+                return NotFound(new BaseResponse { Success = false, Message = result.Message, ErrorCode = result.ErrorCode });
+            return StatusCode(403, new BaseResponse { Success = false, Message = result.Message, ErrorCode = result.ErrorCode });
+        }
+
         return Ok(new BaseResponse { Success = true, Message = result.Message });
     }
 
@@ -105,7 +160,7 @@ public class StudyGroupsController : ControllerBase
     /// Share a course with a study group
     /// </summary>
     [HttpPost("{id:guid}/share-course")]
-    [ProducesResponseType(typeof(BaseResponse), 200)]
+    [ProducesResponseType(typeof(BaseResponse<SharedCourseDto>), 200)]
     [ProducesResponseType(typeof(BaseResponse), 400)]
     public async Task<IActionResult> ShareCourseWithGroup(Guid id, [FromBody] ShareCourseRequest request)
     {
@@ -115,7 +170,9 @@ public class StudyGroupsController : ControllerBase
         if (!result.IsSuccess)
             return BadRequest(new BaseResponse { Success = false, Message = result.Message, ErrorCode = result.ErrorCode });
 
-        return Ok(new BaseResponse { Success = true, Message = result.Message });
+        await _hubContext.Clients.Group(id.ToString()).SendAsync("CourseShared", result.Data!);
+
+        return Ok(BaseResponse<SharedCourseDto>.Ok(result.Data!, result.Message));
     }
 
     /// <summary>
@@ -136,6 +193,8 @@ public class StudyGroupsController : ControllerBase
                 return NotFound(new BaseResponse { Success = false, Message = result.Message, ErrorCode = result.ErrorCode });
             return BadRequest(new BaseResponse { Success = false, Message = result.Message, ErrorCode = result.ErrorCode });
         }
+
+        await _hubContext.Clients.Group(id.ToString()).SendAsync("CourseUnshared", courseId);
 
         return Ok(new BaseResponse { Success = true, Message = result.Message });
     }

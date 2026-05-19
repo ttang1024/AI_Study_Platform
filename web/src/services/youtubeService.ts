@@ -192,12 +192,14 @@ export const youtubeService = {
 	},
 
 	async getVideoNote(videoRecordId: string): Promise<VideoNoteResult | null> {
-		const res = await apiClient.get<{ data: { items: any[] } }>('/api/notes?pageSize=100')
-		const items: any[] = res.data?.data?.items ?? []
-		const note = items.find(
-			n => n.youTubeVideoId === videoRecordId || n.youtubeVideoId === videoRecordId,
-		)
+		const notes = await this.getVideoNotes(videoRecordId)
+		const note = notes[0]
 		return note ? { noteId: note.noteId, content: note.content ?? '' } : null
+	},
+
+	async getVideoNotes(videoRecordId: string): Promise<Array<{ noteId: string; youTubeVideoId?: string; content: string; createdAt: string; updatedAt?: string }>> {
+		const res = await apiClient.get<{ data: any[] }>(`/api/youtube/videos/${videoRecordId}/notes`)
+		return res.data?.data ?? []
 	},
 
 	async createNote(content: string, youTubeVideoId: string): Promise<VideoNoteResult> {

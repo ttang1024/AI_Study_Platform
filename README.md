@@ -23,15 +23,15 @@ Upload documents, YouTube videos, podcasts, and web articles — let AI generate
 
 ## Features
 
-|     | Category             | What you get                                                                                                        |
-| --- | -------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| 📄  | **Content Sources**  | PDF / DOCX upload, YouTube videos, web article clipping, audio files, Apple Podcasts                                |
-| 🤖  | **AI Generation**    | Summaries, flashcards (basic / cloze / chart), quizzes, glossaries, mind maps, worked problems, concept links       |
-| 🎯  | **Study Tools**      | Rich-text notes, AI tutor chat, scored quizzes, FSRS-4.5 spaced repetition, reinforcement center, knowledge graph   |
-| 📚  | **Question Bank**    | Course-wide question bank with difficulty filter, mistake tracking, and answer-reveal per question                  |
-| 🔊  | **Extra Features**   | PDF annotations, text-to-speech, Anki export, full-text search, shareable content links                            |
-| 👥  | **Study Groups**     | Create / join groups, share courses & documents, real-time group chat                                               |
-| 🔐  | **Auth**             | Email + OTP, Google OAuth, GitHub OAuth, JWT sessions                                                               |
+|     | Category            | What you get                                                                                                      |
+| --- | ------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| 📄  | **Content Sources** | PDF / DOCX upload, YouTube videos, web article clipping, audio files, Apple Podcasts                              |
+| 🤖  | **AI Generation**   | Summaries, flashcards (basic / cloze / chart), quizzes, glossaries, mind maps, worked problems, concept links     |
+| 🎯  | **Study Tools**     | Rich-text notes, AI tutor chat, scored quizzes, FSRS-4.5 spaced repetition, reinforcement center, knowledge graph |
+| 📚  | **Question Bank**   | Course-wide question bank with difficulty filter, mistake tracking, and answer-reveal per question                |
+| 🔊  | **Extra Features**  | PDF annotations, text-to-speech, Anki export, full-text search, shareable content links                           |
+| 👥  | **Study Groups**    | Create / join groups, share courses & documents, real-time group chat                                             |
+| 🔐  | **Auth**            | Email + OTP, Google OAuth, GitHub OAuth, JWT sessions                                                             |
 
 **AI Providers** — Gemini · OpenAI · Claude · Grok · DeepSeek · Kimi · Doubao · Qwen · Wenxin Yiyan (multi-provider routing, switchable from settings)
 
@@ -97,8 +97,7 @@ dotnet ef database update --project StudyPlatform.Infrastructure --startup-proje
 dotnet run --project StudyPlatform.API     # → http://localhost:5001
 
 # 7. Start frontend
-cd web && cp .env.example .env.local && npm install && npm run dev   # → http://localhost:3000
-cd admin && npm install && npm run dev                                # → http://localhost:3001
+cd web && npm install && npm run dev   # → http://localhost:3000
 ```
 
 ---
@@ -109,45 +108,45 @@ cd admin && npm install && npm run dev                                # → http
 
 ```jsonc
 {
-  "ConnectionStrings": {
-    "DefaultConnection": "Host=localhost;Port=5432;Database=studyplatform;Username=studyplatform;Password=yourpassword"
-  },
-  "Redis": {
-    "Enabled": false,
-    "ConnectionString": "localhost:6379",
-    "InstanceName": "StudyPlatform:"
-  },
-  "JwtSettings": {
-    "SecretKey": "your-32-char-secret",
-    "Issuer": "Study Platform",
-    "Audience": "Study Platform Users",
-    "AccessTokenExpiryMinutes": 15,
-    "RefreshTokenExpiryDays": 7
-  },
-  "EmailSettings": {
-    "Provider": "Ses",
-    "FromEmail": "you@gmail.com",
-    "SesRegion": "ap-southeast-2",
-    "SmtpHost": "smtp.gmail.com",
-    "SmtpPort": 587,
-    "SmtpUser": "you@gmail.com",
-    "SmtpPassword": "xxxx xxxx xxxx xxxx" // SMTP fallback only
-  },
-  "AWS": {
-    "Region": "us-east-1"
-  },
-  "S3": {
-    "BucketName": "documents-dev",
-    "ServiceUrl": "http://localhost:9000",
-    "PublicServiceUrl": "http://localhost:9000",
-    "ForcePathStyle": true,
-    "AccessKey": "minioadmin",
-    "SecretKey": "minioadmin123"
-  },
-  "GoogleOAuth": { "ClientId": "xxxx.apps.googleusercontent.com", "ClientSecret": "GOCSPX-..." },
-  "GitHubOAuth": { "ClientId": "Ov23lic...", "ClientSecret": "..." },
-  "Cors": { "AllowedOrigins": ["http://localhost:3000", "http://localhost:3001"] },
-  "AppLimits": { "DocumentUploadLimit": -1 } // -1 = unlimited for local dev
+	"ConnectionStrings": {
+		"DefaultConnection": "Host=localhost;Port=5432;Database=studyplatform;Username=studyplatform;Password=yourpassword",
+	},
+	"Redis": {
+		"Enabled": false,
+		"ConnectionString": "localhost:6379",
+		"InstanceName": "StudyPlatform:",
+	},
+	"JwtSettings": {
+		"SecretKey": "your-32-char-secret",
+		"Issuer": "Study Platform",
+		"Audience": "Study Platform Users",
+		"AccessTokenExpiryMinutes": 15,
+		"RefreshTokenExpiryDays": 7,
+	},
+	"EmailSettings": {
+		"Provider": "Ses",
+		"FromEmail": "you@gmail.com",
+		"SesRegion": "ap-southeast-2",
+		"SmtpHost": "smtp.gmail.com",
+		"SmtpPort": 587,
+		"SmtpUser": "you@gmail.com",
+		"SmtpPassword": "xxxx xxxx xxxx xxxx", // SMTP fallback only
+	},
+	"AWS": {
+		"Region": "us-east-1",
+	},
+	"S3": {
+		"BucketName": "documents-dev",
+		"ServiceUrl": "http://localhost:9000",
+		"PublicServiceUrl": "http://localhost:9000",
+		"ForcePathStyle": true,
+		"AccessKey": "minioadmin",
+		"SecretKey": "minioadmin123",
+	},
+	"GoogleOAuth": { "ClientId": "xxxx.apps.googleusercontent.com", "ClientSecret": "GOCSPX-..." },
+	"GitHubOAuth": { "ClientId": "Ov23lic...", "ClientSecret": "..." },
+	"Cors": { "AllowedOrigins": ["http://localhost:3000", "http://localhost:3001"] },
+	"AppLimits": { "DocumentUploadLimit": -1 }, // -1 = unlimited for local dev
 }
 ```
 
@@ -186,13 +185,13 @@ docker compose exec api dotnet ef database update \
   --project StudyPlatform.Infrastructure --startup-project StudyPlatform.API
 ```
 
-| Service  | URL                           |
-| -------- | ----------------------------- |
-| Web      | http://localhost:3000         |
-| Admin    | http://localhost:4200         |
-| API      | http://localhost:5000         |
-| Swagger  | http://localhost:5000/swagger |
-| MinIO    | http://localhost:9001         |
+| Service | URL                           |
+| ------- | ----------------------------- |
+| Web     | http://localhost:3000         |
+| Admin   | http://localhost:4200         |
+| API     | http://localhost:5000         |
+| Swagger | http://localhost:5000/swagger |
+| MinIO   | http://localhost:9001         |
 
 > `VITE_*` variables are baked in at build time — rebuild frontend images after changing them.
 > MinIO uses `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` from `.env`; the defaults are `minioadmin` / `minioadmin123`, and uploaded documents are stored in `S3_BUCKET_NAME` (`documents-dev` by default). `S3_PUBLIC_SERVICE_URL` should be a host-browser reachable URL for generated download links.

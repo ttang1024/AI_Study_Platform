@@ -26,6 +26,7 @@ public class StudyGroupRepository : Repository<StudyGroup>, IStudyGroupRepositor
         => await _dbSet
             .Include(g => g.Members).ThenInclude(m => m.User)
             .Include(g => g.SharedCourses).ThenInclude(sc => sc.Course)
+            .Include(g => g.SharedCourses).ThenInclude(sc => sc.SharedBy)
             .FirstOrDefaultAsync(g => g.StudyGroupId == groupId, cancellationToken);
 }
 

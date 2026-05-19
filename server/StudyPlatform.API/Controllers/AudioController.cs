@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using StudyPlatform.API.Extensions;
+using StudyPlatform.API.Services;
 using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Documents.Commands;
 using StudyPlatform.Application.Documents.DTOs;
@@ -19,11 +20,16 @@ public class AudioController : ControllerBase
 {
     private readonly IMediator _mediator;
     private readonly IBlobStorageService _blobStorage;
+    private readonly AudioTranscriptionQueue _transcriptionQueue;
 
-    public AudioController(IMediator mediator, IBlobStorageService blobStorage)
+    public AudioController(
+        IMediator mediator,
+        IBlobStorageService blobStorage,
+        AudioTranscriptionQueue transcriptionQueue)
     {
         _mediator = mediator;
         _blobStorage = blobStorage;
+        _transcriptionQueue = transcriptionQueue;
     }
 
     private static readonly string[] AllowedMimeTypes =
@@ -43,7 +49,7 @@ public class AudioController : ControllerBase
     [ProducesResponseType(typeof(BaseResponse<DocumentDto>), 201)]
     [ProducesResponseType(typeof(BaseResponse), 400)]
     [RequestSizeLimit(104857600)] // 100 MB
-    public async Task<IActionResult> UploadAudio(Guid courseId, IFormFile file)
+    public async Task<IActionResult> UploadAudio(Guid courseId, [FromForm] IFormFile file)
     {
         if (file == null || file.Length == 0)
             return BadRequest(BaseResponse<DocumentDto>.Fail("No file provided.", "NO_FILE"));
@@ -61,7 +67,12 @@ public class AudioController : ControllerBase
             courseId, userId, file.FileName, file.ContentType, file.Length, stream));
 
         if (!result.IsSuccess)
+        {
+            if (result.ErrorCode == "STORAGE_ERROR")
+                return StatusCode(StatusCodes.Status503ServiceUnavailable, BaseResponse<DocumentDto>.Fail(result.Message, result.ErrorCode));
+
             return BadRequest(BaseResponse<DocumentDto>.Fail(result.Message, result.ErrorCode));
+        }
 
         return StatusCode(201, BaseResponse<DocumentDto>.Ok(result.Data!, result.Message));
     }
@@ -119,13 +130,12 @@ public class AudioController : ControllerBase
         if (!docResult.IsSuccess)
             return NotFound(BaseResponse<DocumentDto>.Fail(docResult.Message, docResult.ErrorCode));
 
-        Result<DocumentDto> result = docResult.Data!.ContentType == "audio/podcast"
-            ? await _mediator.Send(new TranscribePodcastCommand(documentId, userId))
-            : await _mediator.Send(new TranscribeAudioCommand(documentId, userId));
+        if (!string.IsNullOrWhiteSpace(docResult.Data!.Transcript))
+            return Ok(BaseResponse<DocumentDto>.Ok(docResult.Data, "Audio already transcribed."));
 
-        if (!result.IsSuccess)
-            return NotFound(BaseResponse<DocumentDto>.Fail(result.Message, result.ErrorCode));
+        var isPodcast = docResult.Data.ContentType == "audio/podcast";
+        _transcriptionQueue.TryEnqueue(documentId, userId, isPodcast);
 
-        return Ok(BaseResponse<DocumentDto>.Ok(result.Data!, result.Message));
+        return Accepted(BaseResponse<DocumentDto>.Ok(docResult.Data, "Audio transcription started."));
     }
 }

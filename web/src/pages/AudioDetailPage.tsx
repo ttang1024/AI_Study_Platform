@@ -116,16 +116,17 @@ const SegmentedTranscript: React.FC<SegmentedTranscriptProps> = ({
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({ embedded, id: propId }) => {
+export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string; courseId?: string }> = ({ embedded, id: propId, courseId: propCourseId }) => {
   const { id: paramId } = useParams<{ id: string }>();
   const id = propId ?? paramId;
   const navigate = useNavigate();
   const location = useLocation();
-  const { documents } = useStudy();
+  const { documents, isLoading } = useStudy();
+  const loadedKeyRef = useRef('');
 
-  // courseId from nav state OR documents context
+  // courseId priority: prop > nav state > documents context
   const navCourseId = (location.state as any)?.courseId as string | undefined;
-  const [courseId, setCourseId] = useState<string>(navCourseId ?? '');
+  const [courseId, setCourseId] = useState<string>(propCourseId ?? navCourseId ?? '');
 
   const [fileName, setFileName] = useState<string | null>(null);
   const [isPodcast, setIsPodcast] = useState(false);
@@ -133,6 +134,7 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [isLoadingPage, setIsLoadingPage] = useState(true);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const audioObjectUrlRef = useRef<string | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const activeSegmentRef = useRef<HTMLDivElement>(null);
 
@@ -210,17 +212,27 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
     return () => document.removeEventListener('mousedown', handleClick);
   }, [openMenu]);
 
+  useEffect(() => () => {
+    if (audioObjectUrlRef.current) {
+      URL.revokeObjectURL(audioObjectUrlRef.current);
+      audioObjectUrlRef.current = null;
+    }
+  }, []);
+
   // ─── Load audio on mount ───────────────────────────────────────────────────
 
   useEffect(() => {
     if (!id) return;
-    // Try to resolve courseId from documents context if not in nav state
     const ctxDoc = documents.find(d => d.id === id);
-    const resolvedCourseId = navCourseId ?? ctxDoc?.courseId ?? '';
-    if (resolvedCourseId) setCourseId(resolvedCourseId);
+    const resolvedCourseId = propCourseId ?? navCourseId ?? ctxDoc?.courseId ?? '';
+    if (!resolvedCourseId) return;
+    const loadKey = `${id}:${resolvedCourseId}`;
+    if (loadedKeyRef.current === loadKey) return;
+    loadedKeyRef.current = loadKey;
+    setCourseId(resolvedCourseId);
     loadAudio(resolvedCourseId, id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, [id, isLoading]);
 
   const loadAudio = async (cId: string, docId: string) => {
     setIsLoadingPage(true);
@@ -233,13 +245,19 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
       setMindMapText(doc.mindMapText ?? null);
       setTranscript(doc.transcript ?? null);
 
-      // Auto-transcribe if no transcript yet
-      if (!doc.transcript) {
-        doTranscribe(cId, docId);
+      if (audioObjectUrlRef.current) {
+        URL.revokeObjectURL(audioObjectUrlRef.current);
+        audioObjectUrlRef.current = null;
       }
 
-      const sasUrl = await audioService.getAudioUrl(cId, docId);
-      setAudioUrl(sasUrl);
+      if (doc.contentType === 'audio/podcast') {
+        const directUrl = await audioService.getAudioUrl(cId, docId);
+        setAudioUrl(directUrl);
+      } else {
+        const objectUrl = await audioService.getAudioBlobUrl(cId, docId);
+        audioObjectUrlRef.current = objectUrl;
+        setAudioUrl(objectUrl);
+      }
 
       // Load saved notes
       try {
@@ -294,9 +312,26 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
     setTranscriptError(null);
     try {
       const doc = await audioService.transcribe(cId, docId);
-      setTranscript(doc.transcript ?? null);
+      if (doc.transcript) {
+        setTranscript(doc.transcript);
+        return;
+      }
+
+      const maxAttempts = 180;
+      for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+        await new Promise(resolve => setTimeout(resolve, 5000));
+        const latest = await audioService.getAudio(cId, docId);
+        if (latest.transcript) {
+          setTranscript(latest.transcript);
+          setSummary(latest.summary ?? null);
+          setMindMapText(latest.mindMapText ?? null);
+          return;
+        }
+      }
+
+      throw new Error('Transcription is still running. Check again in a few minutes.');
     } catch (err: any) {
-      setTranscriptError(err?.response?.data?.message ?? 'Transcription failed. Please try again.');
+      setTranscriptError(err?.response?.data?.message ?? err?.message ?? 'Transcription failed. Please try again.');
     } finally {
       setIsTranscribing(false);
     }
@@ -315,8 +350,8 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
 
   const generationDisabled = !transcript && !transcriptError;
   const generationDisabledReason = isPodcast
-    ? 'Waiting for podcast transcription to finish.'
-    : 'Waiting for audio transcription to finish.';
+    ? 'Transcribe the podcast before generating study materials.'
+    : 'Transcribe the audio before generating study materials.';
 
   // ─── Transcript helpers ─────────────────────────────────────────────────────
 
@@ -824,9 +859,21 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
                     </button>
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center justify-center h-full gap-3 text-center">
-                    <Loader2 className="h-6 w-6 animate-spin text-[var(--primary)]" />
-                    <p className="text-xs text-zinc-400">Preparing transcription…</p>
+                  <div className="flex flex-col items-center justify-center h-full gap-4 text-center px-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-100 text-zinc-400">
+                      <FileText size={20} />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-text-main">No transcript yet</p>
+                      <p className="mt-1 text-[11px] text-zinc-400">Start transcription when you are ready.</p>
+                    </div>
+                    <button
+                      onClick={handleTranscribe}
+                      disabled={isTranscribing}
+                      className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-bold bg-[var(--primary)] text-white hover:opacity-90 transition-opacity disabled:opacity-50"
+                    >
+                      <FileText size={11} /> Transcribe
+                    </button>
                   </div>
                 )}
               </div>

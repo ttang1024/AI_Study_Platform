@@ -47,4 +47,11 @@ export const audioService = {
     const res = await apiClient.get(`/api/courses/${courseId}/audio/${documentId}/url`);
     return res.data.data as string;
   },
+
+  async getAudioBlobUrl(courseId: string, documentId: string): Promise<string> {
+    const res = await apiClient.get(`/api/courses/${courseId}/documents/${documentId}/file`, {
+      responseType: 'blob',
+    });
+    return URL.createObjectURL(res.data);
+  },
 };

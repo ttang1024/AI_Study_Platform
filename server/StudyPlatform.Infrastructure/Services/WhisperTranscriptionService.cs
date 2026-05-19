@@ -15,6 +15,7 @@ public sealed class WhisperTranscriptionService : ITranscriptionService, IDispos
     private readonly GgmlType _modelType;
     private WhisperFactory? _factory;
     private readonly SemaphoreSlim _initLock = new(1, 1);
+    private readonly SemaphoreSlim _transcriptionLock = new(1, 1);
 
     public WhisperTranscriptionService(IConfiguration configuration, ILogger<WhisperTranscriptionService> logger)
     {
@@ -82,32 +83,39 @@ public sealed class WhisperTranscriptionService : ITranscriptionService, IDispos
         string mimeType,
         CancellationToken cancellationToken = default)
     {
-        var factory = await GetFactoryAsync(cancellationToken);
-
-        // Whisper requires 16 kHz mono WAV — convert via FFmpeg
-        var wavData = await ConvertToWavAsync(audioData, mimeType, cancellationToken);
-
-        using var processor = factory.CreateBuilder()
-            .WithLanguage("auto")
-            .Build();
-
-        // Collect all Whisper segments (each is a sentence-level fragment with timestamps)
-        var raw = new List<(double Start, double End, string Text)>();
-        using var ms = new MemoryStream(wavData);
-
-        await foreach (var seg in processor.ProcessAsync(ms, cancellationToken))
+        await _transcriptionLock.WaitAsync(cancellationToken);
+        try
         {
-            if (!string.IsNullOrWhiteSpace(seg.Text))
-                raw.Add((seg.Start.TotalSeconds, seg.End.TotalSeconds, seg.Text.Trim()));
+            var factory = await GetFactoryAsync(cancellationToken);
+
+            // Whisper requires 16 kHz mono WAV - convert via FFmpeg.
+            var wavData = await ConvertToWavAsync(audioData, mimeType, cancellationToken);
+
+            using var processor = factory.CreateBuilder()
+                .WithLanguage("auto")
+                .Build();
+
+            // Collect all Whisper segments (each is a sentence-level fragment with timestamps).
+            var raw = new List<(double Start, double End, string Text)>();
+            using var ms = new MemoryStream(wavData);
+
+            await foreach (var seg in processor.ProcessAsync(ms, cancellationToken))
+            {
+                if (!string.IsNullOrWhiteSpace(seg.Text))
+                    raw.Add((seg.Start.TotalSeconds, seg.End.TotalSeconds, seg.Text.Trim()));
+            }
+
+            var chunks = GroupIntoChunks(raw, ChunkSeconds);
+
+            return JsonSerializer.Serialize(chunks, new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            });
         }
-
-        // Group into ~30-second chunks
-        var chunks = GroupIntoChunks(raw, ChunkSeconds);
-
-        return JsonSerializer.Serialize(chunks, new JsonSerializerOptions
+        finally
         {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-        });
+            _transcriptionLock.Release();
+        }
     }
 
     private static List<TranscriptChunk> GroupIntoChunks(
@@ -206,5 +214,6 @@ public sealed class WhisperTranscriptionService : ITranscriptionService, IDispos
     {
         _factory?.Dispose();
         _initLock.Dispose();
+        _transcriptionLock.Dispose();
     }
 }

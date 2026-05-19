@@ -11,6 +11,7 @@ export interface SharedCourse {
   courseId: string;
   courseName: string;
   sharedAt: string;
+  sharedByUserId: string;
 }
 
 export interface StudyGroup {
@@ -56,6 +57,12 @@ const studyGroupService = {
 
   leave: (id: string) =>
     apiClient.delete(`/api/study-groups/${id}/leave`),
+
+  deleteGroup: (id: string) =>
+    apiClient.delete(`/api/study-groups/${id}`),
+
+  removeMember: (groupId: string, userId: string) =>
+    apiClient.delete(`/api/study-groups/${groupId}/members/${userId}`),
 
   shareCourse: (groupId: string, courseId: string) =>
     apiClient.post(`/api/study-groups/${groupId}/share-course`, { courseId }),

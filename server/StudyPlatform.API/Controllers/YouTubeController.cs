@@ -9,6 +9,7 @@ using Microsoft.Extensions.Options;
 using StudyPlatform.API.Extensions;
 using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Documents.DTOs;
+using StudyPlatform.Application.Notes.DTOs;
 using StudyPlatform.Application.Services;
 using StudyPlatform.Application.Settings;
 using StudyPlatform.Application.WorkedProblems.Commands;
@@ -694,10 +695,13 @@ public class YouTubeController : ControllerBase
     public async Task<IActionResult> GetVideoChatHistory(Guid id, CancellationToken cancellationToken)
     {
         var userId = User.GetUserId();
-        var result = await _mediator.Send(new GetVideoChatHistoryQuery(id, userId), cancellationToken);
-        if (!result.IsSuccess)
-            return NotFound(BaseResponse<IEnumerable<ChatMessageDto>>.Fail(result.Message, result.ErrorCode));
-        return Ok(BaseResponse<IEnumerable<ChatMessageDto>>.Ok(result.Data!));
+        var video = await GetVideoWithAccessCheckAsync(id, userId, cancellationToken);
+        if (video is null)
+            return NotFound(BaseResponse<IEnumerable<ChatMessageDto>>.Fail("Video not found.", "VIDEO_NOT_FOUND"));
+
+        var messages = await _unitOfWork.ChatMessages.GetByYouTubeVideoIdAsync(id, video.UserId, cancellationToken);
+        var dtos = messages.Select(m => new ChatMessageDto(m.MessageId, m.DocumentId, m.YouTubeVideoId, m.SourceType, m.Role, m.Content, m.CreatedAt));
+        return Ok(BaseResponse<IEnumerable<ChatMessageDto>>.Ok(dtos));
     }
 
     [HttpDelete("videos/{id:guid}/chat")]
@@ -803,10 +807,29 @@ public class YouTubeController : ControllerBase
     public async Task<IActionResult> GetVideoFlashcards(Guid id, CancellationToken cancellationToken)
     {
         var userId = User.GetUserId();
-        var flashcards = await _unitOfWork.Flashcards.FindAsync(f => f.YouTubeVideoId == id && f.UserId == userId, cancellationToken);
+        var video = await GetVideoWithAccessCheckAsync(id, userId, cancellationToken);
+        if (video is null)
+            return NotFound(BaseResponse<IEnumerable<FlashcardDto>>.Fail("Video not found.", "VIDEO_NOT_FOUND"));
+
+        var flashcards = await _unitOfWork.Flashcards.FindAsync(f => f.YouTubeVideoId == id && f.UserId == video.UserId, cancellationToken);
         var dtos = flashcards.Select(f => new FlashcardDto(f.FlashcardId, f.DocumentId, f.YouTubeVideoId, f.SourceType, f.UserId, f.Front, f.Back, f.CreatedAt, f.UpdatedAt,
             CardType: f.CardType, Difficulty: f.Difficulty, Chapter: f.Chapter, Tags: f.Tags)).ToList();
         return Ok(BaseResponse<IEnumerable<FlashcardDto>>.Ok(dtos));
+    }
+
+    [HttpGet("videos/{id:guid}/notes")]
+    public async Task<IActionResult> GetVideoNotes(Guid id, CancellationToken cancellationToken)
+    {
+        var userId = User.GetUserId();
+        var video = await GetVideoWithAccessCheckAsync(id, userId, cancellationToken);
+        if (video is null)
+            return NotFound(BaseResponse<IEnumerable<NoteDto>>.Fail("Video not found.", "VIDEO_NOT_FOUND"));
+
+        var notes = await _unitOfWork.Notes.FindAsync(n => n.YouTubeVideoId == id && n.UserId == video.UserId, cancellationToken);
+        var dtos = notes
+            .OrderByDescending(n => n.CreatedAt)
+            .Select(n => new NoteDto(n.NoteId, n.UserId, n.DocumentId, n.YouTubeVideoId, n.SourceType, n.Content, n.Title, n.CreatedAt, n.UpdatedAt));
+        return Ok(BaseResponse<IEnumerable<NoteDto>>.Ok(dtos));
     }
 
     [HttpPost("videos/{id:guid}/flashcards/generate")]
@@ -962,16 +985,20 @@ public class YouTubeController : ControllerBase
     public async Task<IActionResult> GetVideoQuiz(Guid id, [FromQuery] string? difficulty, CancellationToken cancellationToken)
     {
         var userId = User.GetUserId();
+        var video = await GetVideoWithAccessCheckAsync(id, userId, cancellationToken);
+        if (video is null)
+            return NotFound(BaseResponse<IEnumerable<QuizDto>>.Fail("Video not found.", "VIDEO_NOT_FOUND"));
+
         var normalizedDifficulty = string.IsNullOrWhiteSpace(difficulty) ? null : NormalizeQuizDifficulty(difficulty);
         var ttl = TimeSpan.FromSeconds(_cacheOptions.GeneratedResultSeconds);
-        var cacheKey = VideoQuizCacheKey(id, userId, normalizedDifficulty ?? "all");
+        var cacheKey = VideoQuizCacheKey(id, video.UserId, normalizedDifficulty ?? "all");
 
         var cached = await _cache.GetAsync<List<QuizDto>>(cacheKey, cancellationToken);
         if (cached != null)
             return Ok(BaseResponse<IEnumerable<QuizDto>>.Ok(cached));
 
         var quizzes = await _unitOfWork.Quizzes.FindAsync(
-            q => q.YouTubeVideoId == id && q.UserId == userId && (normalizedDifficulty == null || q.Difficulty == normalizedDifficulty),
+            q => q.YouTubeVideoId == id && q.UserId == video.UserId && (normalizedDifficulty == null || q.Difficulty == normalizedDifficulty),
             cancellationToken);
         var dtos = quizzes.Select(q => new QuizDto(
             q.QuizId, null, q.YouTubeVideoId, q.SourceType, q.Question,

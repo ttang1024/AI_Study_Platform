@@ -8,11 +8,9 @@ import { useStudy } from '../context/StudyContext';
 import { documentService } from '../services/documentService';
 import { youtubeService, VideoListItem } from '../services/youtubeService';
 import { courseService } from '../services/courseService';
-import { flashcardService } from '../services/flashcardService';
-import { noteService } from '../services/noteService';
 import { glossaryService } from '../services/glossaryService';
 import { workedProblemsService, WorkedProblem } from '../services/workedProblemsService';
-import { questionBankService, QuestionBankQuestion } from '../services/questionBankService';
+import type { QuestionBankQuestion } from '../services/questionBankService';
 import { DocumentDetailsPage } from './DocumentDetailsPage';
 import { YouTubeDetailPage } from './YouTubeDetailPage';
 import { AudioDetailPage } from './AudioDetailPage';
@@ -40,6 +38,7 @@ const FILE_META: Record<string, { icon: React.ElementType; label: string; color:
   txt: { icon: FileType, label: 'TXT', color: 'text-zinc-400' },
   md: { icon: FileCode, label: 'MD', color: 'text-teal-400' },
   audio: { icon: Mic, label: 'Audio', color: 'text-green-400' },
+  podcast: { icon: Mic, label: 'Podcast', color: 'text-purple-400' },
 };
 
 // ─── EmbeddedPage ─────────────────────────────────────────────────────────
@@ -65,12 +64,12 @@ const EmbeddedPage: React.FC<{ selected: Selected }> = ({ selected }) => {
 
   const doc = selected.data;
 
-  if (doc.type === 'audio') {
-    return <AudioDetailPage key={doc.id} embedded id={doc.id} />;
+  if (doc.type === 'audio' || doc.type === 'podcast') {
+    return <AudioDetailPage key={doc.id} embedded id={doc.id} courseId={doc.courseId} />;
   }
 
   if (doc.originalUrl) {
-    return <ArticlePage key={doc.id} embedded id={doc.id} />;
+    return <ArticlePage key={doc.id} embedded id={doc.id} courseId={doc.courseId} />;
   }
 
   return <DocumentDetailsPage key={doc.id} embedded id={doc.id} initialDoc={doc} />;
@@ -158,28 +157,73 @@ export const CourseStudyPage: React.FC = () => {
     const loadArtifacts = async () => {
       setIsLoadingArtifacts(true);
       try {
-        const documentIds = new Set(documents.map(d => d.id));
-        const videoIds = new Set(videos.map(v => v.id));
-        const [notesResult, flashcardsResult, questions, glossary, docProblems, videoProblems] = await Promise.all([
-          noteService.getAllNotes(1, 1000).catch(() => ({ items: [] as Note[], totalCount: 0, page: 1, pageSize: 1000, totalPages: 0 })),
-          flashcardService.getAllFlashcards(1, 1000).catch(() => ({ items: [] as Flashcard[], totalCount: 0, page: 1, pageSize: 1000, totalPages: 0 })),
-          questionBankService.getQuestions({ courseId }).catch(() => [] as QuestionBankQuestion[]),
+        const [docNotes, videoNotes, docFlashcards, videoFlashcards, docQuestions, videoQuestions, glossary, docProblems, videoProblems] = await Promise.all([
+          Promise.all(documents.map(doc => documentService.getNotes(doc.courseId || courseId, doc.id).catch(() => [] as Note[]))),
+          Promise.all(videos.map(video => youtubeService.getVideoNotes(video.id).catch(() => []))),
+          Promise.all(documents.map(doc => documentService.getFlashcards(doc.courseId || courseId, doc.id).catch(() => [] as Flashcard[]))),
+          Promise.all(videos.map(video => youtubeService.getFlashcards(video.id).then(cards => cards.map(card => ({
+            id: card.flashcardId,
+            front: card.front,
+            back: card.back,
+            cardType: card.cardType ?? 'basic',
+            difficulty: card.difficulty ?? 'medium',
+            chapter: card.chapter,
+            tags: card.tags ?? [],
+            documentId: '',
+            youTubeVideoId: video.id,
+            videoName: video.title,
+          } as Flashcard))).catch(() => [] as Flashcard[]))),
+          Promise.all(documents.map(doc => documentService.getQuiz(doc.courseId || courseId, doc.id).then(items => items.map(item => ({
+            quizId: item.id,
+            documentId: doc.id,
+            courseId,
+            sourceType: 'document',
+            sourceName: doc.name,
+            courseName: course?.name,
+            courseColor: course?.color,
+            question: item.question,
+            options: item.options,
+            correctAnswer: item.answer,
+            explanation: item.explanation,
+            difficulty: item.difficulty ?? 'medium',
+            createdAt: '',
+          } as QuestionBankQuestion))).catch(() => [] as QuestionBankQuestion[]))),
+          Promise.all(videos.map(video => youtubeService.getQuiz(video.id).then(items => items.map(item => ({
+            quizId: item.quizId,
+            youTubeVideoId: video.id,
+            courseId,
+            sourceType: 'video',
+            sourceName: video.title,
+            courseName: course?.name,
+            courseColor: course?.color,
+            question: item.question,
+            options: item.options,
+            correctAnswer: item.correctAnswer,
+            explanation: item.explanation,
+            difficulty: item.difficulty ?? 'medium',
+            createdAt: '',
+          } as QuestionBankQuestion))).catch(() => [] as QuestionBankQuestion[]))),
           glossaryService.getAllGlossary().catch(() => [] as GlossaryTerm[]),
           Promise.all(documents.map(doc => workedProblemsService.getProblems(doc.id).catch(() => [] as WorkedProblem[]))),
           Promise.all(videos.map(video => workedProblemsService.getVideoProblems(video.id).catch(() => [] as WorkedProblem[]))),
         ]);
 
         if (cancelled) return;
+        const documentIds = new Set(documents.map(d => d.id));
+        const videoIds = new Set(videos.map(v => v.id));
         setArtifacts({
-          notes: notesResult.items.filter(n =>
-            (n.documentId && documentIds.has(n.documentId)) ||
-            (n.youTubeVideoId && videoIds.has(n.youTubeVideoId)),
-          ),
-          flashcards: flashcardsResult.items.filter(f =>
-            (f.documentId && documentIds.has(f.documentId)) ||
-            (f.youTubeVideoId && videoIds.has(f.youTubeVideoId)),
-          ),
-          questions,
+          notes: [
+            ...docNotes.flat(),
+            ...videoNotes.flat().map(n => ({
+              id: n.noteId,
+              documentId: '',
+              youTubeVideoId: n.youTubeVideoId,
+              content: n.content,
+              createdAt: n.createdAt,
+            } as Note)),
+          ],
+          flashcards: [...docFlashcards.flat(), ...videoFlashcards.flat()],
+          questions: [...docQuestions.flat(), ...videoQuestions.flat()],
           glossary: glossary.filter(g =>
             (g.documentId && documentIds.has(g.documentId)) ||
             (g.youTubeVideoId && videoIds.has(g.youTubeVideoId)) ||
@@ -194,7 +238,7 @@ export const CourseStudyPage: React.FC = () => {
 
     void loadArtifacts();
     return () => { cancelled = true; };
-  }, [courseId, documents, videos]);
+  }, [courseId, course?.color, course?.name, documents, videos]);
 
   // ─── Derived values ──────────────────────────────────────────────────────
 

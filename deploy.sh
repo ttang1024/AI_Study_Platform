@@ -147,8 +147,8 @@ ensure_static_cloudfront_distribution() {
             HTTPPort: 80,
             HTTPSPort: 443,
             OriginProtocolPolicy: "http-only",
-            OriginReadTimeout: 60,
-            OriginKeepaliveTimeout: 60,
+            OriginReadTimeout: 300,
+            OriginKeepaliveTimeout: 300,
             OriginSslProtocols: {Quantity: 1, Items: ["TLSv1.2"]}
           }
         }]
@@ -217,8 +217,8 @@ ensure_api_cloudfront_distribution() {
             HTTPPort: 80,
             HTTPSPort: 443,
             OriginProtocolPolicy: "http-only",
-            OriginReadTimeout: 60,
-            OriginKeepaliveTimeout: 60,
+            OriginReadTimeout: 300,
+            OriginKeepaliveTimeout: 300,
             OriginSslProtocols: {Quantity: 1, Items: ["TLSv1.2"]}
           }
         }]
@@ -292,8 +292,8 @@ ECS_EXECUTION_ROLE_NAME="${ECS_EXECUTION_ROLE_NAME:-${APP_NAME}-ecs-execution}"
 ECS_TASK_ROLE_NAME="${ECS_TASK_ROLE_NAME:-${APP_NAME}-ecs-task}"
 ECS_SECURITY_GROUP_NAME="${ECS_SECURITY_GROUP_NAME:-${APP_NAME}-ecs-api}"
 ECS_DESIRED_COUNT="${ECS_DESIRED_COUNT:-1}"
-ECS_CPU="${ECS_CPU:-256}"
-ECS_MEMORY="${ECS_MEMORY:-512}"
+ECS_CPU="${ECS_CPU:-1024}"
+ECS_MEMORY="${ECS_MEMORY:-2048}"
 API_CONTAINER_NAME="${API_CONTAINER_NAME:-api}"
 API_CONTAINER_PORT="${API_CONTAINER_PORT:-5000}"
 ALB_NAME="${ALB_NAME:-${APP_NAME}-api}"

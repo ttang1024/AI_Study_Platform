@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Copy, Check, Send, BookOpen, Users, ExternalLink, X } from 'lucide-react';
+import { ArrowLeft, Copy, Check, Send, BookOpen, Users, ExternalLink, X, LogOut, Trash2 } from 'lucide-react';
+import { ConfirmModal } from '../components/common/ConfirmModal';
 import * as signalR from '@microsoft/signalr';
 import studyGroupService, {
   type StudyGroupDetail,
@@ -26,6 +27,12 @@ export const StudyGroupDetailPage: React.FC = () => {
   const [messageInput, setMessageInput] = useState('');
   const [sending, setSending] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [memberToRemove, setMemberToRemove] = useState<{ userId: string; userName: string } | null>(null);
+  const [removingMember, setRemovingMember] = useState(false);
   const [availableCourses, setAvailableCourses] = useState<Course[]>([]);
   const [selectedCourseId, setSelectedCourseId] = useState('');
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -60,6 +67,34 @@ export const StudyGroupDetailPage: React.FC = () => {
 
     connection.on('ReceiveMessage', (msg: GroupChatMessage) => {
       setMessages((prev) => [...prev, msg]);
+    });
+
+    connection.on('MemberJoined', (member: { userId: string; userName: string; role: string; joinedAt: string }) => {
+      setGroup((g) => {
+        if (!g || g.members.some((m) => m.userId === member.userId)) return g;
+        return { ...g, members: [...g.members, member] };
+      });
+    });
+
+    connection.on('MemberLeft', (userId: string) => {
+      setGroup((g) => g ? { ...g, members: g.members.filter((m) => m.userId !== userId) } : g);
+    });
+
+    connection.on('MemberRemoved', (userId: string) => {
+      setGroup((g) => g ? { ...g, members: g.members.filter((m) => m.userId !== userId) } : g);
+      // Navigate away if the current user was removed
+      if (userId === user?.id) navigate('/groups');
+    });
+
+    connection.on('CourseShared', (course: { courseId: string; courseName: string; sharedAt: string; sharedByUserId: string }) => {
+      setGroup((g) => {
+        if (!g || g.sharedCourses.some((sc) => sc.courseId === course.courseId)) return g;
+        return { ...g, sharedCourses: [...g.sharedCourses, course] };
+      });
+    });
+
+    connection.on('CourseUnshared', (courseId: string) => {
+      setGroup((g) => g ? { ...g, sharedCourses: g.sharedCourses.filter((sc) => sc.courseId !== courseId) } : g);
     });
 
     connection.start()
@@ -101,14 +136,7 @@ export const StudyGroupDetailPage: React.FC = () => {
     if (!id || !selectedCourseId) return;
     try {
       await studyGroupService.shareCourse(id, selectedCourseId);
-      const course = availableCourses.find((c) => c.courseId === selectedCourseId);
-      if (course && group) {
-        setGroup((g) => g ? {
-          ...g,
-          sharedCourses: [...g.sharedCourses, { courseId: course.courseId, courseName: course.courseName, sharedAt: new Date().toISOString() }],
-        } : g);
-        setSelectedCourseId('');
-      }
+      setSelectedCourseId('');
     } catch {
       // ignore
     }
@@ -118,12 +146,44 @@ export const StudyGroupDetailPage: React.FC = () => {
     if (!id) return;
     try {
       await studyGroupService.unshareCourse(id, courseId);
-      setGroup((g) => g ? {
-        ...g,
-        sharedCourses: g.sharedCourses.filter((sc) => sc.courseId !== courseId),
-      } : g);
     } catch {
       // ignore
+    }
+  };
+
+  const handleRemoveMember = async () => {
+    if (!id || !memberToRemove) return;
+    setRemovingMember(true);
+    try {
+      await studyGroupService.removeMember(id, memberToRemove.userId);
+      setGroup((g) => g ? { ...g, members: g.members.filter((m) => m.userId !== memberToRemove.userId) } : g);
+      setMemberToRemove(null);
+    } catch {
+      // ignore
+    } finally {
+      setRemovingMember(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!id) return;
+    setDeleting(true);
+    try {
+      await studyGroupService.deleteGroup(id);
+      navigate('/groups');
+    } catch {
+      setDeleting(false);
+    }
+  };
+
+  const handleLeave = async () => {
+    if (!id) return;
+    setLeaving(true);
+    try {
+      await studyGroupService.leave(id);
+      navigate('/groups');
+    } catch {
+      setLeaving(false);
     }
   };
 
@@ -137,6 +197,8 @@ export const StudyGroupDetailPage: React.FC = () => {
   }
 
   if (!group) return null;
+
+  const isOwner = group.members.some((m) => m.userId === user?.id && m.role === 'owner');
 
   const roleColor = (role: string) =>
     role === 'owner' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600';
@@ -162,6 +224,25 @@ export const StudyGroupDetailPage: React.FC = () => {
           <span className="font-mono tracking-widest text-gray-600">{group.inviteCode}</span>
           {copied ? <Check size={14} className="text-green-500" /> : <Copy size={14} className="text-gray-400" />}
         </button>
+        {isOwner ? (
+          <button
+            onClick={() => setShowDeleteModal(true)}
+            className="flex items-center gap-2 border border-red-200 text-red-500 rounded-xl px-3 py-2 text-sm hover:bg-red-50 transition-colors"
+            title="Delete group"
+          >
+            <Trash2 size={14} />
+            <span className="hidden sm:inline">Delete</span>
+          </button>
+        ) : (
+          <button
+            onClick={() => setShowLeaveModal(true)}
+            className="flex items-center gap-2 border border-red-200 text-red-500 rounded-xl px-3 py-2 text-sm hover:bg-red-50 transition-colors"
+            title="Leave group"
+          >
+            <LogOut size={14} />
+            <span className="hidden sm:inline">Leave</span>
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -175,11 +256,20 @@ export const StudyGroupDetailPage: React.FC = () => {
             </div>
             <ul className="divide-y divide-gray-50">
               {group.members.map((m) => (
-                <li key={m.userId} className="flex items-center justify-between px-4 py-2.5">
-                  <span className="text-sm text-gray-700 truncate">{m.userName}</span>
+                <li key={m.userId} className="flex items-center gap-2 px-4 py-2.5">
+                  <span className="flex-1 text-sm text-gray-700 truncate">{m.userName}</span>
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${roleColor(m.role)}`}>
                     {m.role}
                   </span>
+                  {isOwner && m.userId !== user?.id && (
+                    <button
+                      onClick={() => setMemberToRemove({ userId: m.userId, userName: m.userName })}
+                      className="shrink-0 p-1 text-gray-300 hover:text-red-400 transition-colors rounded"
+                      title="Remove member"
+                    >
+                      <X size={13} />
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>
@@ -204,13 +294,15 @@ export const StudyGroupDetailPage: React.FC = () => {
                       <ExternalLink size={13} className="shrink-0 text-gray-400" />
                       <span className="truncate">{sc.courseName}</span>
                     </button>
-                    <button
-                      onClick={() => handleUnshareCourse(sc.courseId)}
-                      className="shrink-0 p-1 text-gray-300 hover:text-red-400 transition-colors rounded"
-                      title="Remove from group"
-                    >
-                      <X size={13} />
-                    </button>
+                    {sc.sharedByUserId === user?.id && (
+                      <button
+                        onClick={() => handleUnshareCourse(sc.courseId)}
+                        className="shrink-0 p-1 text-gray-300 hover:text-red-400 transition-colors rounded"
+                        title="Remove from group"
+                      >
+                        <X size={13} />
+                      </button>
+                    )}
                   </li>
                 ))
               )}
@@ -304,6 +396,42 @@ export const StudyGroupDetailPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={!!memberToRemove}
+        onClose={() => setMemberToRemove(null)}
+        onConfirm={handleRemoveMember}
+        title="Remove member"
+        description={<>Remove <span className="font-semibold text-zinc-800">"{memberToRemove?.userName}"</span> from this group?</>}
+        confirmLabel="Remove"
+        confirmVariant="danger"
+        icon={<X size={20} />}
+        isLoading={removingMember}
+      />
+
+      <ConfirmModal
+        isOpen={showLeaveModal}
+        onClose={() => setShowLeaveModal(false)}
+        onConfirm={handleLeave}
+        title="Leave group"
+        description="You will need an invite code to rejoin this group."
+        confirmLabel="Leave"
+        confirmVariant="danger"
+        icon={<LogOut size={20} />}
+        isLoading={leaving}
+      />
+
+      <ConfirmModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={handleDelete}
+        title="Delete group"
+        description={<>Permanently delete <span className="font-semibold text-zinc-800">"{group?.name}"</span>? All members, chat messages, and shared courses will be removed. This cannot be undone.</>}
+        confirmLabel="Delete"
+        confirmVariant="danger"
+        icon={<Trash2 size={20} />}
+        isLoading={deleting}
+      />
     </div>
   );
 };
