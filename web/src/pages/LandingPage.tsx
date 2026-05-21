@@ -345,7 +345,7 @@ export const LandingPage: React.FC = () => {
               <span style={{ background: 'linear-gradient(135deg, #22d3ee, #14b8a6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Your Deployment</span>
             </h2>
             <p className="mt-4 text-white/40 max-w-lg mx-auto text-sm leading-relaxed">
-              Run it locally, start with Docker, or deploy to AWS with App Runner, S3, and RDS.
+              Run it locally, start with Docker, or deploy to AWS with ECS on EC2, S3, and RDS.
               Bring your own API key — no subscriptions, no vendor lock-in, no limits.
             </p>
           </div>

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Low-cost AWS deployment:
-# - API: ECS Fargate backed by ECR and an Application Load Balancer.
+# - API: ECS on EC2 backed by ECR and an Application Load Balancer.
 # - Web/Admin: S3 static websites.
 # - Documents: private S3 bucket.
 # - Database: public RDS PostgreSQL in the default VPC.
@@ -290,15 +290,20 @@ ECS_SERVICE_NAME="${ECS_SERVICE_NAME:-$API_SERVICE_NAME}"
 ECS_TASK_FAMILY="${ECS_TASK_FAMILY:-$API_SERVICE_NAME}"
 ECS_EXECUTION_ROLE_NAME="${ECS_EXECUTION_ROLE_NAME:-${APP_NAME}-ecs-execution}"
 ECS_TASK_ROLE_NAME="${ECS_TASK_ROLE_NAME:-${APP_NAME}-ecs-task}"
+ECS_INSTANCE_ROLE_NAME="${ECS_INSTANCE_ROLE_NAME:-${APP_NAME}-ecs-instance}"
+ECS_INSTANCE_PROFILE_NAME="${ECS_INSTANCE_PROFILE_NAME:-$ECS_INSTANCE_ROLE_NAME}"
 ECS_SECURITY_GROUP_NAME="${ECS_SECURITY_GROUP_NAME:-${APP_NAME}-ecs-api}"
 ECS_DESIRED_COUNT="${ECS_DESIRED_COUNT:-1}"
 ECS_CPU="${ECS_CPU:-1024}"
-ECS_MEMORY="${ECS_MEMORY:-2048}"
+ECS_MEMORY="${ECS_MEMORY:-768}"
+ECS_EC2_INSTANCE_NAME="${ECS_EC2_INSTANCE_NAME:-${APP_NAME}-ecs-api}"
+ECS_EC2_INSTANCE_TYPE="${ECS_EC2_INSTANCE_TYPE:-t3.micro}"
+ECS_EC2_AMI_ID="${ECS_EC2_AMI_ID:-}"
 API_CONTAINER_NAME="${API_CONTAINER_NAME:-api}"
 API_CONTAINER_PORT="${API_CONTAINER_PORT:-5000}"
 ALB_NAME="${ALB_NAME:-${APP_NAME}-api}"
 ALB_SECURITY_GROUP_NAME="${ALB_SECURITY_GROUP_NAME:-${APP_NAME}-alb}"
-ALB_TARGET_GROUP_NAME="${ALB_TARGET_GROUP_NAME:-${APP_NAME}-api-tg}"
+ALB_TARGET_GROUP_NAME="${ALB_TARGET_GROUP_NAME:-${APP_NAME}-api-ec2-tg}"
 LOG_GROUP_NAME="${LOG_GROUP_NAME:-/ecs/${APP_NAME}-api}"
 REDIS_SECURITY_GROUP_NAME="${REDIS_SECURITY_GROUP_NAME:-${APP_NAME}-redis}"
 REDIS_SUBNET_GROUP_NAME="${REDIS_SUBNET_GROUP_NAME:-${APP_NAME}-redis-subnets}"
@@ -468,6 +473,10 @@ ECS_TASK_TRUST="$(mktemp)"
 cat > "$ECS_TASK_TRUST" <<JSON
 {"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"ecs-tasks.amazonaws.com"},"Action":"sts:AssumeRole"}]}
 JSON
+ECS_INSTANCE_TRUST="$(mktemp)"
+cat > "$ECS_INSTANCE_TRUST" <<JSON
+{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"ec2.amazonaws.com"},"Action":"sts:AssumeRole"}]}
+JSON
 aws iam get-role --role-name "$ECS_EXECUTION_ROLE_NAME" >/dev/null 2>&1 || \
   aws iam create-role --role-name "$ECS_EXECUTION_ROLE_NAME" --assume-role-policy-document "file://$ECS_TASK_TRUST" >/dev/null
 aws iam attach-role-policy \
@@ -511,7 +520,21 @@ JSON
 aws iam put-role-policy --role-name "$ECS_TASK_ROLE_NAME" --policy-name "${APP_NAME}-ses-email" --policy-document "file://$SES_POLICY" >/dev/null
 EXECUTION_ROLE_ARN="$(aws iam get-role --role-name "$ECS_EXECUTION_ROLE_NAME" --query Role.Arn --output text)"
 TASK_ROLE_ARN="$(aws iam get-role --role-name "$ECS_TASK_ROLE_NAME" --query Role.Arn --output text)"
-rm -f "$ECS_TASK_TRUST" "$S3_POLICY" "$SES_POLICY"
+
+aws iam get-role --role-name "$ECS_INSTANCE_ROLE_NAME" >/dev/null 2>&1 || \
+  aws iam create-role --role-name "$ECS_INSTANCE_ROLE_NAME" --assume-role-policy-document "file://$ECS_INSTANCE_TRUST" >/dev/null
+aws iam attach-role-policy \
+  --role-name "$ECS_INSTANCE_ROLE_NAME" \
+  --policy-arn arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role >/dev/null
+if ! aws iam get-instance-profile --instance-profile-name "$ECS_INSTANCE_PROFILE_NAME" >/dev/null 2>&1; then
+  aws iam create-instance-profile --instance-profile-name "$ECS_INSTANCE_PROFILE_NAME" >/dev/null
+fi
+PROFILE_ROLE_COUNT="$(aws iam get-instance-profile --instance-profile-name "$ECS_INSTANCE_PROFILE_NAME" --query "length(InstanceProfile.Roles[?RoleName=='$ECS_INSTANCE_ROLE_NAME'])" --output text)"
+if [[ "$PROFILE_ROLE_COUNT" == "0" ]]; then
+  aws iam add-role-to-instance-profile --instance-profile-name "$ECS_INSTANCE_PROFILE_NAME" --role-name "$ECS_INSTANCE_ROLE_NAME" >/dev/null
+  sleep 10
+fi
+rm -f "$ECS_TASK_TRUST" "$ECS_INSTANCE_TRUST" "$S3_POLICY" "$SES_POLICY"
 
 echo "==> Creating PostgreSQL database"
 DEFAULT_VPC_ID="$(aws ec2 describe-vpcs --filters Name=is-default,Values=true --query 'Vpcs[0].VpcId' --output text)"
@@ -598,13 +621,90 @@ DB_CONN="Host=${DB_HOST};Port=5432;Database=${DB_NAME};Username=${DB_USER};Passw
 WEB_ORIGIN="${WEB_PUBLIC_ORIGIN:-http://${WEB_BUCKET}.s3-website-${AWS_REGION}.amazonaws.com}"
 ADMIN_ORIGIN="${ADMIN_PUBLIC_ORIGIN:-http://${ADMIN_BUCKET}.s3-website-${AWS_REGION}.amazonaws.com}"
 
-echo "==> Deploying API to ECS Fargate"
+echo "==> Deploying API to ECS on EC2"
 aws logs create-log-group --log-group-name "$LOG_GROUP_NAME" >/dev/null 2>&1 || true
 
-if ! aws ecs describe-clusters --clusters "$ECS_CLUSTER_NAME" --query 'clusters[0].clusterName' --output text 2>/dev/null | grep -q "$ECS_CLUSTER_NAME"; then
+ECS_CLUSTER_STATUS="$(aws ecs describe-clusters --clusters "$ECS_CLUSTER_NAME" --query 'clusters[0].status' --output text 2>/dev/null || true)"
+if [[ "$ECS_CLUSTER_STATUS" != "ACTIVE" ]]; then
   aws ecs create-cluster --cluster-name "$ECS_CLUSTER_NAME" >/dev/null
 fi
 echo "    ECS cluster ready: $ECS_CLUSTER_NAME"
+
+if [[ -z "$ECS_EC2_AMI_ID" ]]; then
+  ECS_EC2_AMI_ID="$(aws ssm get-parameter \
+    --name /aws/service/ecs/optimized-ami/amazon-linux-2/recommended/image_id \
+    --query Parameter.Value \
+    --output text)"
+fi
+
+ECS_EC2_USER_DATA="$(mktemp)"
+cat > "$ECS_EC2_USER_DATA" <<EOF
+#!/bin/bash
+echo ECS_CLUSTER=${ECS_CLUSTER_NAME} >> /etc/ecs/ecs.config
+EOF
+
+ECS_EC2_INSTANCE_ID="$(aws ec2 describe-instances \
+  --filters \
+    Name=tag:Name,Values="$ECS_EC2_INSTANCE_NAME" \
+    Name=tag:ECSCluster,Values="$ECS_CLUSTER_NAME" \
+    Name=instance-state-name,Values=pending,running,stopping,stopped \
+  --query 'Reservations[].Instances[].InstanceId | [0]' \
+  --output text 2>/dev/null || true)"
+
+ECS_EC2_INSTANCE_REUSED=0
+if [[ -z "$ECS_EC2_INSTANCE_ID" || "$ECS_EC2_INSTANCE_ID" == "None" ]]; then
+  ECS_EC2_INSTANCE_ID="$(aws ec2 run-instances \
+    --image-id "$ECS_EC2_AMI_ID" \
+    --instance-type "$ECS_EC2_INSTANCE_TYPE" \
+    --iam-instance-profile Name="$ECS_INSTANCE_PROFILE_NAME" \
+    --subnet-id "${DEFAULT_SUBNET_IDS[0]}" \
+    --security-group-ids "$ECS_SECURITY_GROUP_ID" \
+    --user-data "file://$ECS_EC2_USER_DATA" \
+    --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=$ECS_EC2_INSTANCE_NAME},{Key=App,Value=$APP_NAME},{Key=ECSCluster,Value=$ECS_CLUSTER_NAME}]" \
+    --query 'Instances[0].InstanceId' \
+    --output text)"
+else
+  ECS_EC2_INSTANCE_REUSED=1
+  ECS_EC2_INSTANCE_STATE="$(aws ec2 describe-instances --instance-ids "$ECS_EC2_INSTANCE_ID" --query 'Reservations[0].Instances[0].State.Name' --output text)"
+  if [[ "$ECS_EC2_INSTANCE_STATE" == "stopped" ]]; then
+    aws ec2 start-instances --instance-ids "$ECS_EC2_INSTANCE_ID" >/dev/null
+  fi
+fi
+rm -f "$ECS_EC2_USER_DATA"
+
+aws ec2 wait instance-running --instance-ids "$ECS_EC2_INSTANCE_ID"
+echo "    ECS EC2 instance ready: $ECS_EC2_INSTANCE_ID ($ECS_EC2_INSTANCE_TYPE)"
+
+wait_for_ecs_container_instance() {
+  local attempt
+  for attempt in {1..40}; do
+    ECS_CONTAINER_INSTANCE_COUNT="$(aws ecs list-container-instances \
+      --cluster "$ECS_CLUSTER_NAME" \
+      --filter "ec2InstanceId == $ECS_EC2_INSTANCE_ID" \
+      --query 'length(containerInstanceArns)' \
+      --output text 2>/dev/null || echo 0)"
+    if [[ "$ECS_CONTAINER_INSTANCE_COUNT" != "0" ]]; then
+      return 0
+    fi
+    sleep 10
+  done
+  return 1
+}
+
+if ! wait_for_ecs_container_instance; then
+  if [[ "$ECS_EC2_INSTANCE_REUSED" == "1" ]]; then
+    echo "    ECS instance has not registered yet; rebooting existing EC2 host to restart the ECS agent"
+    aws ec2 reboot-instances --instance-ids "$ECS_EC2_INSTANCE_ID"
+    aws ec2 wait instance-running --instance-ids "$ECS_EC2_INSTANCE_ID"
+  fi
+  if ! wait_for_ecs_container_instance; then
+    ECS_CLUSTER_STATUS="$(aws ecs describe-clusters --clusters "$ECS_CLUSTER_NAME" --query 'clusters[0].status' --output text 2>/dev/null || true)"
+    echo "EC2 instance $ECS_EC2_INSTANCE_ID did not register with ECS cluster $ECS_CLUSTER_NAME (cluster status: $ECS_CLUSTER_STATUS)" >&2
+    echo "Check the EC2 system log for ECS agent errors and verify the $ECS_INSTANCE_PROFILE_NAME instance profile has AmazonEC2ContainerServiceforEC2Role." >&2
+    exit 1
+  fi
+fi
+echo "    ECS container instance registered"
 
 ALB_ARN="$(aws elbv2 describe-load-balancers --names "$ALB_NAME" --query 'LoadBalancers[0].LoadBalancerArn' --output text 2>/dev/null || true)"
 if [[ -z "$ALB_ARN" || "$ALB_ARN" == "None" ]]; then
@@ -636,12 +736,18 @@ if [[ -z "$TARGET_GROUP_ARN" || "$TARGET_GROUP_ARN" == "None" ]]; then
     --protocol HTTP \
     --port "$API_CONTAINER_PORT" \
     --vpc-id "$DEFAULT_VPC_ID" \
-    --target-type ip \
+    --target-type instance \
     --health-check-protocol HTTP \
     --health-check-path /health \
     --matcher HttpCode=200-399 \
     --query 'TargetGroups[0].TargetGroupArn' \
     --output text)"
+else
+  TARGET_GROUP_TYPE="$(aws elbv2 describe-target-groups --target-group-arns "$TARGET_GROUP_ARN" --query 'TargetGroups[0].TargetType' --output text)"
+  if [[ "$TARGET_GROUP_TYPE" != "instance" ]]; then
+    echo "Target group $ALB_TARGET_GROUP_NAME has target type $TARGET_GROUP_TYPE. Set ALB_TARGET_GROUP_NAME to a new name for ECS EC2." >&2
+    exit 1
+  fi
 fi
 echo "    Target group ready: $ALB_TARGET_GROUP_NAME"
 
@@ -698,8 +804,8 @@ jq -n \
   --arg adminOrigin "$ADMIN_ORIGIN" \
   '{
     family: $family,
-    networkMode: "awsvpc",
-    requiresCompatibilities: ["FARGATE"],
+    networkMode: "bridge",
+    requiresCompatibilities: ["EC2"],
     cpu: $cpu,
     memory: $memory,
     executionRoleArn: $executionRoleArn,
@@ -764,16 +870,30 @@ TASK_DEFINITION_ARN="$(aws ecs register-task-definition --cli-input-json "file:/
 rm -f "$TASK_DEFINITION"
 echo "    Task definition registered: $TASK_DEFINITION_ARN"
 
-SUBNET_CSV="$(IFS=,; printf '%s' "${DEFAULT_SUBNET_IDS[*]}")"
 SERVICE_ARN="$(aws ecs describe-services --cluster "$ECS_CLUSTER_NAME" --services "$ECS_SERVICE_NAME" --query 'services[0].serviceArn' --output text 2>/dev/null || true)"
+if [[ -n "$SERVICE_ARN" && "$SERVICE_ARN" != "None" ]]; then
+  SERVICE_STATUS="$(aws ecs describe-services --cluster "$ECS_CLUSTER_NAME" --services "$ECS_SERVICE_NAME" --query 'services[0].status' --output text 2>/dev/null || true)"
+  if [[ "$SERVICE_STATUS" != "ACTIVE" && "$SERVICE_STATUS" != "DRAINING" ]]; then
+    SERVICE_ARN=""
+  fi
+fi
+if [[ -n "$SERVICE_ARN" && "$SERVICE_ARN" != "None" ]]; then
+  SERVICE_LAUNCH_TYPE="$(aws ecs describe-services --cluster "$ECS_CLUSTER_NAME" --services "$ECS_SERVICE_NAME" --query 'services[0].launchType' --output text 2>/dev/null || true)"
+  if [[ "$SERVICE_LAUNCH_TYPE" == "FARGATE" ]]; then
+    echo "    Existing Fargate service found; replacing it with ECS EC2"
+    aws ecs update-service --cluster "$ECS_CLUSTER_NAME" --service "$ECS_SERVICE_NAME" --desired-count 0 >/dev/null
+    aws ecs delete-service --cluster "$ECS_CLUSTER_NAME" --service "$ECS_SERVICE_NAME" --force >/dev/null
+    aws ecs wait services-inactive --cluster "$ECS_CLUSTER_NAME" --services "$ECS_SERVICE_NAME"
+    SERVICE_ARN=""
+  fi
+fi
 if [[ -z "$SERVICE_ARN" || "$SERVICE_ARN" == "None" ]]; then
   SERVICE_ARN="$(aws ecs create-service \
     --cluster "$ECS_CLUSTER_NAME" \
     --service-name "$ECS_SERVICE_NAME" \
     --task-definition "$TASK_DEFINITION_ARN" \
     --desired-count "$ECS_DESIRED_COUNT" \
-    --launch-type FARGATE \
-    --network-configuration "awsvpcConfiguration={subnets=[$SUBNET_CSV],securityGroups=[$ECS_SECURITY_GROUP_ID],assignPublicIp=ENABLED}" \
+    --launch-type EC2 \
     --load-balancers "targetGroupArn=$TARGET_GROUP_ARN,containerName=$API_CONTAINER_NAME,containerPort=$API_CONTAINER_PORT" \
     --health-check-grace-period-seconds 120 \
     --query 'service.serviceArn' \

@@ -198,7 +198,9 @@ docker compose exec api dotnet ef database update \
 
 ### AWS Deployment
 
-Use `deploy.sh` for the first AWS deployment. It provisions ECS Fargate and an Application Load Balancer for the API, RDS PostgreSQL, ElastiCache Redis, S3 document/static buckets, and static `web`/`admin` frontends.
+Use `deploy.sh` for the first AWS deployment. It provisions ECS on a low-cost EC2 instance and an Application Load Balancer for the API, RDS PostgreSQL, ElastiCache Redis, S3 document/static buckets, and static `web`/`admin` frontends.
+
+The API host defaults to `ECS_EC2_INSTANCE_TYPE=t3.micro` with `ECS_MEMORY=768`. Override those values before running the script if the API needs more headroom.
 
 ```bash
 export DB_PASS=...

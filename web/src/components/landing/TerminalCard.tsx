@@ -30,7 +30,7 @@ const AWS_LINES = [
   { prompt: '~/AI_Study_Platform', cmd: 'export DB_PASS=... JWT_SECRET=...', color: '#4ade80' },
   { prompt: '~/AI_Study_Platform', cmd: 'export GOOGLE_CLIENT_ID=... GITHUB_CLIENT_ID=...', color: '#4ade80' },
   { prompt: '~/AI_Study_Platform', cmd: './deploy.sh', color: '#22d3ee' },
-  { prompt: null, cmd: '✓ API on ECS Fargate + ALB · HTTPS via CloudFront', color: '#818cf8' },
+  { prompt: null, cmd: '✓ API on ECS EC2 + ALB · HTTPS via CloudFront', color: '#818cf8' },
   { prompt: null, cmd: '✓ RDS PostgreSQL · ElastiCache Redis · S3 documents/assets', color: '#818cf8' },
 ];
 
