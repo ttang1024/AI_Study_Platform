@@ -315,6 +315,31 @@ WEB_CLOUDFRONT_COMMENT="${WEB_CLOUDFRONT_COMMENT:-${APP_NAME}-web-cloudfront}"
 ADMIN_CLOUDFRONT_COMMENT="${ADMIN_CLOUDFRONT_COMMENT:-${APP_NAME}-admin-cloudfront}"
 API_CLOUDFRONT_COMMENT="${API_CLOUDFRONT_COMMENT:-${APP_NAME}-api-cloudfront}"
 
+derive_www_origin() {
+  local origin="$1"
+  if [[ "$origin" == "https://toto-study.com" ]]; then
+    echo "https://www.toto-study.com"
+  else
+    echo "$origin"
+  fi
+}
+
+derive_api_origin() {
+  if [[ "${APP_NAME:-}" == "study-platform" ]]; then
+    echo "https://api.toto-study.com"
+  else
+    echo ""
+  fi
+}
+
+derive_admin_origin() {
+  if [[ "${APP_NAME:-}" == "study-platform" ]]; then
+    echo "https://admin.toto-study.com"
+  else
+    echo ""
+  fi
+}
+
 COMMIT_SHA="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
 IMAGE_TAG="${COMMIT_SHA}-$(date +%Y%m%d%H%M%S)"
 
@@ -326,7 +351,10 @@ if [[ "${DEPLOY_WEB_ONLY:-0}" == "1" ]]; then
   fi
   echo "==> Creating CloudFront distributions"
   WEB_ORIGIN="${WEB_PUBLIC_ORIGIN:-$(ensure_static_cloudfront_distribution "$WEB_CLOUDFRONT_COMMENT" "$WEB_BUCKET")}"
+  ADMIN_PUBLIC_ORIGIN="${ADMIN_PUBLIC_ORIGIN:-$(derive_admin_origin)}"
   ADMIN_ORIGIN="${ADMIN_PUBLIC_ORIGIN:-$(ensure_static_cloudfront_distribution "$ADMIN_CLOUDFRONT_COMMENT" "$ADMIN_BUCKET")}"
+  WEB_WWW_ORIGIN="${WEB_WWW_PUBLIC_ORIGIN:-$(derive_www_origin "$WEB_ORIGIN")}"
+  API_PUBLIC_ORIGIN="${API_PUBLIC_ORIGIN:-$(derive_api_origin)}"
   API_URL="${API_PUBLIC_ORIGIN:-$(ensure_api_cloudfront_distribution "$API_CLOUDFRONT_COMMENT" "$ALB_DNS_NAME")}"
 
   echo "==> Building web frontend"
@@ -621,6 +649,7 @@ DB_HOST="$(aws rds describe-db-instances --db-instance-identifier "$DB_INSTANCE_
 DB_CONN="Host=${DB_HOST};Port=5432;Database=${DB_NAME};Username=${DB_USER};Password=${DB_PASS};Ssl Mode=Require;Trust Server Certificate=true"
 
 WEB_ORIGIN="${WEB_PUBLIC_ORIGIN:-http://${WEB_BUCKET}.s3-website-${AWS_REGION}.amazonaws.com}"
+ADMIN_PUBLIC_ORIGIN="${ADMIN_PUBLIC_ORIGIN:-$(derive_admin_origin)}"
 ADMIN_ORIGIN="${ADMIN_PUBLIC_ORIGIN:-http://${ADMIN_BUCKET}.s3-website-${AWS_REGION}.amazonaws.com}"
 
 echo "==> Deploying API to ECS on EC2"
@@ -725,7 +754,10 @@ echo "    Load balancer ready: $ALB_DNS_NAME"
 
 echo "==> Creating CloudFront distributions"
 WEB_ORIGIN="${WEB_PUBLIC_ORIGIN:-$(ensure_static_cloudfront_distribution "$WEB_CLOUDFRONT_COMMENT" "$WEB_BUCKET")}"
+ADMIN_PUBLIC_ORIGIN="${ADMIN_PUBLIC_ORIGIN:-$(derive_admin_origin)}"
 ADMIN_ORIGIN="${ADMIN_PUBLIC_ORIGIN:-$(ensure_static_cloudfront_distribution "$ADMIN_CLOUDFRONT_COMMENT" "$ADMIN_BUCKET")}"
+WEB_WWW_ORIGIN="${WEB_WWW_PUBLIC_ORIGIN:-$(derive_www_origin "$WEB_ORIGIN")}"
+API_PUBLIC_ORIGIN="${API_PUBLIC_ORIGIN:-$(derive_api_origin)}"
 API_URL="${API_PUBLIC_ORIGIN:-$(ensure_api_cloudfront_distribution "$API_CLOUDFRONT_COMMENT" "$ALB_DNS_NAME")}"
 echo "    Web CloudFront: $WEB_ORIGIN"
 echo "    Admin CloudFront: $ADMIN_ORIGIN"
@@ -803,6 +835,7 @@ jq -n \
   --arg smtpUser "$SMTP_USER" \
   --arg smtpPassword "$SMTP_PASSWORD" \
   --arg webOrigin "$WEB_ORIGIN" \
+  --arg webWwwOrigin "$WEB_WWW_ORIGIN" \
   --arg adminOrigin "$ADMIN_ORIGIN" \
   '{
     family: $family,
@@ -855,7 +888,8 @@ jq -n \
           EmailSettings__SmtpUser: $smtpUser,
           EmailSettings__SmtpPassword: $smtpPassword,
           Cors__AllowedOrigins__0: $webOrigin,
-          Cors__AllowedOrigins__1: $adminOrigin
+          Cors__AllowedOrigins__1: $adminOrigin,
+          Cors__AllowedOrigins__2: $webWwwOrigin
         } | to_entries | map({name: .key, value: .value})),
         logConfiguration: {
           logDriver: "awslogs",
