@@ -53,7 +53,7 @@ export const WebTab: React.FC<WebTabProps> = ({ selectedCourseId, onCourseError 
       <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
         <input
           type="url"
-          placeholder="https://example.com/article"
+          placeholder="Article URL (https://example.com/article)"
           value={webUrl}
           onChange={e => setWebUrl(e.target.value)}
           className="flex-1 rounded-xl border border-[var(--border-color)] bg-[var(--bg-app)] px-4 py-3 text-sm outline-none focus:border-primary"

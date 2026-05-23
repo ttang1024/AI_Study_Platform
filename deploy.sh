@@ -294,6 +294,8 @@ ECS_INSTANCE_ROLE_NAME="${ECS_INSTANCE_ROLE_NAME:-${APP_NAME}-ecs-instance}"
 ECS_INSTANCE_PROFILE_NAME="${ECS_INSTANCE_PROFILE_NAME:-$ECS_INSTANCE_ROLE_NAME}"
 ECS_SECURITY_GROUP_NAME="${ECS_SECURITY_GROUP_NAME:-${APP_NAME}-ecs-api}"
 ECS_DESIRED_COUNT="${ECS_DESIRED_COUNT:-1}"
+ECS_MIN_HEALTHY_PERCENT="${ECS_MIN_HEALTHY_PERCENT:-0}"
+ECS_MAX_PERCENT="${ECS_MAX_PERCENT:-200}"
 ECS_CPU="${ECS_CPU:-1024}"
 ECS_MEMORY="${ECS_MEMORY:-768}"
 ECS_EC2_INSTANCE_NAME="${ECS_EC2_INSTANCE_NAME:-${APP_NAME}-ecs-api}"
@@ -894,6 +896,7 @@ if [[ -z "$SERVICE_ARN" || "$SERVICE_ARN" == "None" ]]; then
     --task-definition "$TASK_DEFINITION_ARN" \
     --desired-count "$ECS_DESIRED_COUNT" \
     --launch-type EC2 \
+    --deployment-configuration "minimumHealthyPercent=$ECS_MIN_HEALTHY_PERCENT,maximumPercent=$ECS_MAX_PERCENT" \
     --load-balancers "targetGroupArn=$TARGET_GROUP_ARN,containerName=$API_CONTAINER_NAME,containerPort=$API_CONTAINER_PORT" \
     --health-check-grace-period-seconds 120 \
     --query 'service.serviceArn' \
@@ -904,6 +907,7 @@ else
     --service "$ECS_SERVICE_NAME" \
     --task-definition "$TASK_DEFINITION_ARN" \
     --desired-count "$ECS_DESIRED_COUNT" \
+    --deployment-configuration "minimumHealthyPercent=$ECS_MIN_HEALTHY_PERCENT,maximumPercent=$ECS_MAX_PERCENT" \
     --force-new-deployment >/dev/null
 fi
 echo "    ECS service deploying: $ECS_SERVICE_NAME"

@@ -200,7 +200,7 @@ docker compose exec api dotnet ef database update \
 
 Use `deploy.sh` for the first AWS deployment. It provisions ECS on a low-cost EC2 instance and an Application Load Balancer for the API, RDS PostgreSQL, ElastiCache Redis, S3 document/static buckets, and static `web`/`admin` frontends.
 
-The API host defaults to `ECS_EC2_INSTANCE_TYPE=t3.micro` with `ECS_MEMORY=768`. Override those values before running the script if the API needs more headroom.
+The API host defaults to `ECS_EC2_INSTANCE_TYPE=t3.micro` with `ECS_MEMORY=768`. Override those values before running the script if the API needs more headroom. The ECS service uses `ECS_MIN_HEALTHY_PERCENT=0` by default so deployments can replace the single fixed-port API task on the low-cost host.
 
 ```bash
 export DB_PASS=...
