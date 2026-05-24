@@ -45,6 +45,7 @@ declare global {
             use_fedcm_for_prompt?: boolean;
           }) => void;
           prompt: () => void;
+          cancel?: () => void;
         };
       };
     };
@@ -66,16 +67,24 @@ const PROVIDER_ICON_SRC: Record<string, string> = {
 export const LandingPage: React.FC = () => {
   const auth = useOptionalAuth();
   const isAuthenticated = auth?.isAuthenticated ?? false;
+  const isAuthLoading = auth?.isLoading ?? false;
   const username = auth?.user?.name || auth?.user?.email || 'Open app';
   const go = () => window.location.assign(isAuthenticated ? '/summarizer' : '/login');
   const [googleError, setGoogleError] = useState<string | null>(null);
   const oneTapInitialized = useRef(false);
 
   useEffect(() => {
-    if (isAuthenticated || !GOOGLE_CLIENT_ID || !auth?.loginWithGoogleCredential) return;
+    if (isAuthenticated) {
+      window.google?.accounts.id.cancel?.();
+      return;
+    }
+
+    if (isAuthLoading || !GOOGLE_CLIENT_ID || !auth?.loginWithGoogleCredential) return;
+
+    let shouldPrompt = true;
 
     const initializeGoogleSignIn = () => {
-      if (!window.google || oneTapInitialized.current) return;
+      if (!shouldPrompt || !window.google || oneTapInitialized.current || auth.isAuthenticated) return;
       oneTapInitialized.current = true;
 
       const handleCredential = ({ credential }: { credential?: string }) => {
@@ -102,7 +111,10 @@ export const LandingPage: React.FC = () => {
     if (existingScript) {
       if (window.google) initializeGoogleSignIn();
       else existingScript.addEventListener('load', initializeGoogleSignIn, { once: true });
-      return;
+      return () => {
+        shouldPrompt = false;
+        existingScript.removeEventListener('load', initializeGoogleSignIn);
+      };
     }
 
     const script = document.createElement('script');
@@ -112,7 +124,10 @@ export const LandingPage: React.FC = () => {
     script.onload = initializeGoogleSignIn;
     script.onerror = () => setGoogleError('Google sign-in is unavailable right now.');
     document.head.appendChild(script);
-  }, [auth, isAuthenticated]);
+    return () => {
+      shouldPrompt = false;
+    };
+  }, [auth, isAuthenticated, isAuthLoading]);
 
   return (
     <div className="relative min-h-screen overflow-x-hidden text-white"
