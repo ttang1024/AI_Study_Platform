@@ -47,12 +47,13 @@ public class VideoController : ControllerBase
     private readonly ITranscriptionService _transcriptionService;
     private readonly ITokenService _tokenService;
     private readonly CacheOptions _cacheOptions;
+    private readonly AppLimitsOptions _limits;
     private const string TranscriptKind = "transcript";
     private const string SubtitlesKind = "subtitles";
     private const double MinTranscriptSegmentSeconds = 30.0;
     private const double MaxTranscriptSegmentSeconds = 60.0;
 
-    public VideoController(IYouTubeTranscriptService transcriptService, IAiService aiService, IMediator mediator, IUnitOfWork unitOfWork, AppDbContext db, IAppCache cache, IBlobStorageService blobStorageService, ITranscriptionService transcriptionService, ITokenService tokenService, IOptions<CacheOptions> cacheOptions)
+    public VideoController(IYouTubeTranscriptService transcriptService, IAiService aiService, IMediator mediator, IUnitOfWork unitOfWork, AppDbContext db, IAppCache cache, IBlobStorageService blobStorageService, ITranscriptionService transcriptionService, ITokenService tokenService, IOptions<CacheOptions> cacheOptions, IOptions<AppLimitsOptions> limits)
     {
         _transcriptService = transcriptService;
         _aiService = aiService;
@@ -64,6 +65,7 @@ public class VideoController : ControllerBase
         _transcriptionService = transcriptionService;
         _tokenService = tokenService;
         _cacheOptions = cacheOptions.Value;
+        _limits = limits.Value;
     }
 
     // ── Transcript ────────────────────────────────────────────────────────
@@ -918,6 +920,17 @@ public class VideoController : ControllerBase
         var course = await _unitOfWork.Courses.GetByIdAsync(courseId, cancellationToken);
         if (course == null || course.UserId != userId)
             return BadRequest(BaseResponse<YouTubeVideoDto>.Fail("Course not found.", "COURSE_NOT_FOUND"));
+
+        if (_limits.VideoUploadLimit >= 0)
+        {
+            var count = await _unitOfWork.YouTubeVideos.CountAsync(
+                v => v.UserId == userId && v.SourceType == "upload",
+                cancellationToken);
+            if (count >= _limits.VideoUploadLimit)
+                return BadRequest(BaseResponse<YouTubeVideoDto>.Fail(
+                    $"Upload limit of {_limits.VideoUploadLimit} videos per account reached.",
+                    "VIDEO_LIMIT_REACHED"));
+        }
 
         await using var ms = new MemoryStream();
         await file.CopyToAsync(ms, cancellationToken);

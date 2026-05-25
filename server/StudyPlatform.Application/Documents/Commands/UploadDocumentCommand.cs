@@ -53,6 +53,19 @@ public class UploadDocumentCommandHandler : IRequestHandler<UploadDocumentComman
                     "DOCUMENT_LIMIT_REACHED");
         }
 
+        if (IsAudioUpload(request.ContentType) && _limits.AudioUploadLimit >= 0)
+        {
+            var count = await _unitOfWork.Documents.CountAsync(
+                d => d.UserId == request.UserId
+                     && d.ContentType != "audio/podcast"
+                     && d.ContentType.StartsWith("audio/"),
+                cancellationToken);
+            if (count >= _limits.AudioUploadLimit)
+                return Result<DocumentDto>.Failure(
+                    $"Upload limit of {_limits.AudioUploadLimit} audio files per account reached.",
+                    "AUDIO_LIMIT_REACHED");
+        }
+
         var (fileHash, uploadStream, disposeUploadStream) = await PrepareUploadStreamAsync(request.FileStream, cancellationToken);
         await using var _ = disposeUploadStream ? uploadStream : Stream.Null;
 
@@ -109,6 +122,10 @@ public class UploadDocumentCommandHandler : IRequestHandler<UploadDocumentComman
         doc.CreatedAt,
         doc.UpdatedAt,
         doc.Transcript);
+
+    private static bool IsAudioUpload(string contentType)
+        => contentType.StartsWith("audio/", StringComparison.OrdinalIgnoreCase)
+           && !contentType.Equals("audio/podcast", StringComparison.OrdinalIgnoreCase);
 
     private static async Task<(string FileHash, Stream UploadStream, bool DisposeUploadStream)> PrepareUploadStreamAsync(
         Stream stream,

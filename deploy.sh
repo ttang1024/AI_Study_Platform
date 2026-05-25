@@ -844,7 +844,9 @@ jq -n \
   --arg cacheDashboardStatsSeconds "${CACHE_DASHBOARD_STATS_SECONDS:-60}" \
   --arg cacheAnalyticsSummarySeconds "${CACHE_ANALYTICS_SUMMARY_SECONDS:-300}" \
   --arg cacheGeneratedResultSeconds "${CACHE_GENERATED_RESULT_SECONDS:-3600}" \
-  --arg documentUploadLimit "${DOCUMENT_UPLOAD_LIMIT:-20}" \
+  --arg documentUploadLimit "${DOCUMENT_UPLOAD_LIMIT:-10}" \
+  --arg audioUploadLimit "${AUDIO_UPLOAD_LIMIT:-10}" \
+  --arg videoUploadLimit "${VIDEO_UPLOAD_LIMIT:-10}" \
   --arg youtubeSubtitleLanguages "${YOUTUBE_SUBTITLE_LANGUAGES:-en.*,en}" \
   --arg youtubeProxyUrl "$YOUTUBE_PROXY_URL" \
   --arg youtubeCookiesBase64 "$YOUTUBE_COOKIES_B64" \
@@ -896,6 +898,8 @@ jq -n \
           Cache__AnalyticsSummarySeconds: $cacheAnalyticsSummarySeconds,
           Cache__GeneratedResultSeconds: $cacheGeneratedResultSeconds,
           AppLimits__DocumentUploadLimit: $documentUploadLimit,
+          AppLimits__AudioUploadLimit: $audioUploadLimit,
+          AppLimits__VideoUploadLimit: $videoUploadLimit,
           YouTube__SubtitleLanguages: $youtubeSubtitleLanguages,
           YouTube__ProxyUrl: $youtubeProxyUrl,
           YouTube__CookiesBase64: $youtubeCookiesBase64,

@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -89,6 +90,28 @@ public class UploadDocumentCommandHandlerTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal("DUPLICATE_DOCUMENT", result.ErrorCode);
+        _storage.Verify(s => s.UploadAsync(It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<string>(), default), Times.Never);
+        _documents.Verify(r => r.AddAsync(It.IsAny<Document>(), default), Times.Never);
+    }
+
+    [Fact]
+    public async Task Handle_AudioLimitReached_ReturnsFailureWithoutUploading()
+    {
+        using var stream = new MemoryStream("audio"u8.ToArray());
+        _documents.Setup(r => r.CountAsync(It.IsAny<Expression<Func<Document, bool>>>(), default))
+            .ReturnsAsync(10);
+
+        var handler = new UploadDocumentCommandHandler(
+            _uow.Object,
+            _storage.Object,
+            Options.Create(new AppLimitsOptions { DocumentUploadLimit = -1, AudioUploadLimit = 10 }),
+            _logger.Object);
+
+        var result = await handler.Handle(new UploadDocumentCommand(
+            _courseId, _userId, "lecture.mp3", "audio/mpeg", stream.Length, stream), default);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("AUDIO_LIMIT_REACHED", result.ErrorCode);
         _storage.Verify(s => s.UploadAsync(It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<string>(), default), Times.Never);
         _documents.Verify(r => r.AddAsync(It.IsAny<Document>(), default), Times.Never);
     }

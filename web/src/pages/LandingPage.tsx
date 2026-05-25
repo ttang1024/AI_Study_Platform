@@ -265,7 +265,7 @@ export const LandingPage: React.FC = () => {
           {[
             { to: 10, suffix: '+', label: 'AI-powered tools' },
             { to: 100, suffix: '%', label: 'Free to start' },
-            { to: 5, suffix: ' content types', label: '' },
+            { to: 7, suffix: ' content types', label: '' },
           ].map((s, i) => (
             <motion.div key={i}
               initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
@@ -342,7 +342,7 @@ export const LandingPage: React.FC = () => {
             <BentoCard gradient="from-cyan-400 to-blue-600" glow="rgba(34,211,238,0.3)" icon={Search} title="Global Search" desc="Instant full-text search across all documents, videos, notes, and flashcards." />
           </FadeIn>
           <FadeIn delay={0.42} className="lg:col-span-2 lg:row-span-1">
-            <BentoCard gradient="from-teal-500 via-cyan-600 to-sky-700" glow="rgba(13,148,136,0.35)" icon={Share2} title="Share Content Publicly" desc="Share summaries, mind maps, quizzes, flashcard sets, article clips, YouTube videos, and Apple Podcasts with a single public link. Anyone can study from them — no account needed." wide />
+            <BentoCard gradient="from-teal-500 via-cyan-600 to-sky-700" glow="rgba(13,148,136,0.35)" icon={Share2} title="Share Content Publicly" desc="Share summaries, mind maps, quizzes, flashcard sets, article clips, YouTube and Bilibili videos, uploaded videos, and Apple Podcasts with a single public link. Anyone can study from them — no account needed." wide />
           </FadeIn>
         </div>
       </section>
@@ -469,7 +469,7 @@ export const LandingPage: React.FC = () => {
             <div className="hidden md:block absolute top-12 left-[calc(33%+2rem)] right-[calc(33%+2rem)] h-px"
               style={{ background: 'linear-gradient(to right, rgba(6,182,212,0.4), rgba(13,148,136,0.4))' }} />
             {[
-              { step: '01', title: 'Add Your Content', desc: 'Upload PDFs, paste a YouTube link, clip a web article, add audio files, or paste an Apple Podcasts URL.', icon: BookOpen, color: 'from-cyan-500 to-blue-600', glow: 'rgba(6,182,212,0.4)' },
+              { step: '01', title: 'Add Your Content', desc: 'Upload PDFs or videos, paste a YouTube or Bilibili link, clip a web article, add audio files, or paste an Apple Podcasts URL.', icon: BookOpen, color: 'from-cyan-500 to-blue-600', glow: 'rgba(6,182,212,0.4)' },
               { step: '02', title: 'AI Does the Work', desc: 'AI instantly generates summaries, mind maps, flashcards, quizzes, glossaries, and step-by-step worked problems.', icon: Bot, color: 'from-teal-400 to-cyan-600', glow: 'rgba(13,148,136,0.4)' },
               { step: '03', title: 'Master the Topic', desc: 'Review due cards with FSRS spaced repetition, take timed mock exams, annotate PDFs, and explore your Knowledge Graph.', icon: GraduationCap, color: 'from-emerald-400 to-teal-600', glow: 'rgba(52,211,153,0.4)' },
             ].map((item, i) => {
@@ -524,10 +524,9 @@ export const LandingPage: React.FC = () => {
                   Start with toto.ai
                 </span>
               </h2>
-              <p className="text-white/40 text-base mb-10 max-w-md mx-auto leading-relaxed">
-                Join learners using AI to study smarter. Free to start — no credit card required.
+              <p className="text-white/50 text-base mb-10 max-w-md mx-auto leading-relaxed">
+                Free to start — no credit card required.
               </p>
-
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <motion.button onClick={go} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.97 }}
                   className="flex items-center gap-2.5 text-base font-bold px-8 py-4 rounded-2xl"
@@ -537,7 +536,7 @@ export const LandingPage: React.FC = () => {
                   <ArrowRight className="w-4 h-4" />
                 </motion.button>
                 <button onClick={go}
-                  className="text-sm font-semibold text-white/40 hover:text-white/70 transition-colors flex items-center gap-1">
+                  className="text-sm font-semibold text-white/50 hover:text-white transition-colors flex items-center gap-1">
                   Already have an account? Sign in <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
@@ -551,7 +550,7 @@ export const LandingPage: React.FC = () => {
         <div className="flex items-center justify-center mb-3">
           <Logo sm />
         </div>
-        <p className="text-xs text-white/18 mt-2">easy study platform · built to help you learn faster with AI.</p>
+        <p className="text-xs text-white mt-2">easy study platform · built to help you learn faster with AI.</p>
       </footer>
     </div>
   );

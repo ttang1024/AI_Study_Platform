@@ -1,5 +1,7 @@
 using MediatR;
+using Microsoft.Extensions.Options;
 using StudyPlatform.Application.Common;
+using StudyPlatform.Application.Settings;
 using StudyPlatform.Application.YouTube.DTOs;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
@@ -19,16 +21,29 @@ public record SaveYouTubeVideoCommand(
 public class SaveYouTubeVideoCommandHandler : IRequestHandler<SaveYouTubeVideoCommand, Result<YouTubeVideoDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly AppLimitsOptions _limits;
 
-    public SaveYouTubeVideoCommandHandler(IUnitOfWork unitOfWork)
+    public SaveYouTubeVideoCommandHandler(IUnitOfWork unitOfWork, IOptions<AppLimitsOptions> limits)
     {
         _unitOfWork = unitOfWork;
+        _limits = limits.Value;
     }
 
     public async Task<Result<YouTubeVideoDto>> Handle(SaveYouTubeVideoCommand request, CancellationToken cancellationToken)
     {
         // Look for an existing record with the same YouTube videoId so we can reuse cached AI content
         var sourceType = NormalizeSourceType(request.SourceType);
+
+        if (sourceType == "upload" && _limits.VideoUploadLimit >= 0)
+        {
+            var count = await _unitOfWork.YouTubeVideos.CountAsync(
+                v => v.UserId == request.UserId && v.SourceType == "upload",
+                cancellationToken);
+            if (count >= _limits.VideoUploadLimit)
+                return Result<YouTubeVideoDto>.Failure(
+                    $"Upload limit of {_limits.VideoUploadLimit} videos per account reached.",
+                    "VIDEO_LIMIT_REACHED");
+        }
 
         var previousRecords = (await _unitOfWork.YouTubeVideos.FindAsync(
             v => v.UserId == request.UserId && v.VideoId == request.VideoId && v.SourceType == sourceType,

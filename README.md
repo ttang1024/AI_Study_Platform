@@ -13,7 +13,7 @@
 
 </div>
 
-Upload documents, YouTube videos, podcasts, and web articles — let AI generate summaries, flashcards, quizzes, glossaries, and mind maps. Master any topic with spaced repetition and an AI tutor.
+Upload documents, YouTube videos, Bilibili videos, uploaded video files, podcasts, and web articles — let AI generate summaries, flashcards, quizzes, glossaries, and mind maps. Master any topic with spaced repetition and an AI tutor.
 
 ---
 
@@ -25,7 +25,7 @@ Upload documents, YouTube videos, podcasts, and web articles — let AI generate
 
 |     | Category            | What you get                                                                                                      |
 | --- | ------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| 📄  | **Content Sources** | PDF / DOCX upload, YouTube videos, web article clipping, audio files, Apple Podcasts                              |
+| 📄  | **Content Sources** | PDF / DOCX upload, YouTube and Bilibili videos, uploaded video files, web article clipping, audio files, Apple Podcasts |
 | 🤖  | **AI Generation**   | Summaries, flashcards (basic / cloze / chart), quizzes, glossaries, mind maps, worked problems, concept links     |
 | 🎯  | **Study Tools**     | Rich-text notes, AI tutor chat, scored quizzes, FSRS-4.5 spaced repetition, reinforcement center, knowledge graph |
 | 📚  | **Question Bank**   | Course-wide question bank with difficulty filter, mistake tracking, and answer-reveal per question                |
@@ -39,7 +39,7 @@ Upload documents, YouTube videos, podcasts, and web articles — let AI generate
 
 ## Tech Stack
 
-**Backend** — .NET 10 · ASP.NET Core · EF Core 9 · MediatR · FluentValidation · SignalR · PostgreSQL · Redis · Amazon S3 · Whisper.net · MailKit · JWT
+**Backend** — .NET 10 · ASP.NET Core · EF Core 9 · MediatR · FluentValidation · SignalR · PostgreSQL · Redis · Amazon S3 · yt-dlp · ffmpeg · Whisper.net · MailKit · JWT
 
 **Frontend** — React 19 · TypeScript 5.8 · Vite 6 · TailwindCSS 4 · React Router 7 · Tiptap · D3.js + Markmap · Axios
 
@@ -168,7 +168,7 @@ VITE_API_URL=http://localhost:5000
 
 ## Upload Limits
 
-The hosted deployment enforces a **20-document upload limit per account** to control storage costs. Set `AppLimits__DocumentUploadLimit=-1` to disable the limit in a self-hosted environment.
+The hosted deployment enforces a **10-document**, **10-audio-upload**, and **10-video-upload** limit per account to control storage costs. Set `AppLimits__DocumentUploadLimit=-1`, `AppLimits__AudioUploadLimit=-1`, or `AppLimits__VideoUploadLimit=-1` to disable a limit in a self-hosted environment.
 
 ---
 
@@ -215,7 +215,9 @@ export SMTP_PASSWORD=...
 ./deploy.sh
 ```
 
-### YouTube Subtitle Fetching (Production)
+### Video Transcript Fetching (Production)
+
+YouTube, Bilibili, and uploaded videos are stored as video sources and share the same study workflows. YouTube and Bilibili URLs use captions when available, then fall back to yt-dlp audio extraction and Whisper transcription. Uploaded video files are stored in S3-compatible object storage and transcribed with ffmpeg + Whisper.
 
 YouTube may block subtitle requests from cloud IPs. Route yt-dlp traffic through a proxy:
 
