@@ -5,7 +5,7 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<title>toto.ai - AI Study Platform</title>
 		<link rel="icon" type="image/png" href="app.png" />
-		<link rel="canonical" href="https://stplatwebd70cb7be.z13.web.core.windows.net/" />
+		<link rel="canonical" href="%VITE_SHARE_BASE_URL%/" />
 		<link rel="preconnect" href="https://fonts.googleapis.com" />
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 		<link
@@ -20,13 +20,13 @@
 		<meta
 			property="og:description"
 			content="Turn documents, YouTube videos, podcasts, audio lectures, and web articles into AI summaries, mind maps, flashcards, and quizzes." />
-		<meta property="og:url" content="https://stplatwebd70cb7be.z13.web.core.windows.net/" />
+		<meta property="og:url" content="%VITE_SHARE_BASE_URL%/" />
 		<meta
 			property="og:image"
-			content="https://stplatwebd70cb7be.z13.web.core.windows.net/share.png" />
+			content="%VITE_SHARE_BASE_URL%/share.png" />
 		<meta
 			property="og:image:secure_url"
-			content="https://stplatwebd70cb7be.z13.web.core.windows.net/share.png" />
+			content="%VITE_SHARE_BASE_URL%/share.png" />
 		<meta property="og:image:type" content="image/png" />
 		<meta property="og:image:width" content="1200" />
 		<meta property="og:image:height" content="630" />
@@ -37,21 +37,42 @@
 			content="Turn documents, YouTube videos, podcasts, audio lectures, and web articles into AI summaries, mind maps, flashcards, and quizzes." />
 		<meta
 			name="twitter:image"
-			content="https://stplatwebd70cb7be.z13.web.core.windows.net/share.png" />
+			content="%VITE_SHARE_BASE_URL%/share.png" />
 		<meta name="wechat:title" content="toto.ai - AI Study Platform" />
 		<meta
 			name="wechat:description"
 			content="Turn documents, YouTube videos, podcasts, audio lectures, and web articles into AI summaries, mind maps, flashcards, and quizzes." />
 		<meta
 			name="wechat:image"
-			content="https://stplatwebd70cb7be.z13.web.core.windows.net/share.png" />
+			content="%VITE_SHARE_BASE_URL%/share.png" />
 		<meta
 			name="image_src"
-			content="https://stplatwebd70cb7be.z13.web.core.windows.net/share.png" />
+			content="%VITE_SHARE_BASE_URL%/share.png" />
+		<script type="application/ld+json">
+			{
+				"@context": "https://schema.org",
+				"@type": "SoftwareApplication",
+				"name": "toto.ai",
+				"applicationCategory": "EducationalApplication",
+				"operatingSystem": "Web",
+				"url": "%VITE_SHARE_BASE_URL%/",
+				"description": "AI study platform that turns documents, YouTube videos, podcasts, audio lectures, and web articles into summaries, mind maps, flashcards, and quizzes.",
+				"offers": {
+					"@type": "Offer",
+					"price": "0",
+					"priceCurrency": "USD"
+				}
+			}
+		</script>
 	</head>
 	<body>
 		<img src="/app.png" alt="toto.ai" width="64" height="64" style="display: none" />
 		<div id="root"></div>
+		<noscript>
+			<h1>toto.ai - AI Study Platform</h1>
+			<p>Turn documents, YouTube videos, podcasts, audio lectures, and web articles into AI summaries, mind maps, flashcards, and quizzes.</p>
+			<p>Study with AI chat, spaced repetition flashcards, question banks, public sharing, and knowledge maps.</p>
+		</noscript>
 		<script type="module" src="/src/main.tsx"></script>
 	</body>
 </html>

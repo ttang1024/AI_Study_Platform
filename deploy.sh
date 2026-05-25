@@ -100,6 +100,29 @@ JSON
   rm -f "$policy_file"
 }
 
+write_web_seo_files() {
+  local web_origin="${1%/}"
+  local output_dir="$2"
+
+  cat > "$output_dir/robots.txt" <<EOF
+User-agent: *
+Allow: /
+
+Sitemap: $web_origin/sitemap.xml
+EOF
+
+  cat > "$output_dir/sitemap.xml" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>$web_origin/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>
+EOF
+}
+
 cloudfront_domain_by_comment() {
   local comment="$1"
   aws cloudfront list-distributions \
@@ -366,6 +389,7 @@ if [[ "${DEPLOY_WEB_ONLY:-0}" == "1" ]]; then
     VITE_GOOGLE_CLIENT_ID="$GOOGLE_CLIENT_ID" \
     VITE_GITHUB_CLIENT_ID="$GITHUB_CLIENT_ID" \
     npm run build
+    write_web_seo_files "$WEB_ORIGIN" dist
   )
   aws s3 sync web/dist "s3://$WEB_BUCKET" --delete
   invalidate_cloudfront_by_comment "$WEB_CLOUDFRONT_COMMENT"
@@ -964,6 +988,7 @@ echo "==> Building web frontend"
   VITE_GOOGLE_CLIENT_ID="$GOOGLE_CLIENT_ID" \
   VITE_GITHUB_CLIENT_ID="$GITHUB_CLIENT_ID" \
   npm run build
+  write_web_seo_files "$WEB_ORIGIN" dist
 )
 aws s3 sync web/dist "s3://$WEB_BUCKET" --delete
 invalidate_cloudfront_by_comment "$WEB_CLOUDFRONT_COMMENT"

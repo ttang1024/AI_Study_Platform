@@ -2,7 +2,7 @@ export const siteUrl =
 	process.env.NEXT_PUBLIC_SITE_URL ??
 	process.env.NEXT_PUBLIC_SHARE_BASE_URL ??
 	process.env.VITE_SHARE_BASE_URL ??
-	'https://stplatwebd70cb7be.z13.web.core.windows.net'
+	'https://d2c6dqq9zfj5j0.cloudfront.net'
 
 export const defaultShareTitle = 'toto.ai - AI Study Platform'
 export const defaultShareDescription =
