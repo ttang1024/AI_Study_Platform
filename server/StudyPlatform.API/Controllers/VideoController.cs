@@ -164,6 +164,24 @@ public class VideoController : ControllerBase
         }
     }
 
+    [HttpGet("bilibili-items")]
+    public async Task<IActionResult> GetBilibiliItems([FromQuery] string videoUrl, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(videoUrl))
+            return BadRequest(BaseResponse<string>.Fail("videoUrl is required.", "MISSING_VIDEO_URL"));
+
+        try
+        {
+            var items = await _transcriptService.GetBilibiliVideoItemsAsync(videoUrl, cancellationToken);
+            var dtos = items.Select(i => new PlaylistVideoItemDto(i.VideoId, i.Title, i.ThumbnailUrl)).ToList();
+            return Ok(BaseResponse<IReadOnlyList<PlaylistVideoItemDto>>.Ok(dtos));
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(BaseResponse<string>.Fail($"Failed to fetch Bilibili videos: {ex.Message}", "BILIBILI_FETCH_ERROR"));
+        }
+    }
+
     // ── Access helper ─────────────────────────────────────────────────────
 
     private async Task<YouTubeVideo?> GetVideoWithAccessCheckAsync(Guid id, Guid userId, CancellationToken cancellationToken)

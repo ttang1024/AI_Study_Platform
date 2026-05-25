@@ -5,15 +5,17 @@ import { videoService, VideoListItem, PlaylistVideoItemData } from '../../servic
 import { cn } from '../../utils/cn';
 
 export interface PlaylistImportModalProps {
-  playlistId: string;
+  playlistId?: string;
+  videoUrl?: string;
   courseId: string;
   existingVideos: VideoListItem[];
+  source?: 'youtube' | 'bilibili';
   onClose: () => void;
   onComplete: () => void;
 }
 
 export const PlaylistImportModal: React.FC<PlaylistImportModalProps> = ({
-  playlistId, courseId, existingVideos, onClose, onComplete,
+  playlistId, videoUrl, courseId, existingVideos, source = 'youtube', onClose, onComplete,
 }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -23,26 +25,38 @@ export const PlaylistImportModal: React.FC<PlaylistImportModalProps> = ({
   const [importProgress, setImportProgress] = useState<{ current: number; total: number; currentTitle: string } | null>(null);
   const [done, setDone] = useState(false);
 
-  const existingByVideoId = new Map(existingVideos.map(v => [v.videoId, v]));
+  const isBilibili = source === 'bilibili';
+  const accent = isBilibili ? 'sky' : 'red';
+  const existingByVideoId = new Map(
+    existingVideos
+      .filter(v => (v.sourceType ?? 'youtube') === source)
+      .map(v => [v.videoId, v]),
+  );
+  const selectableVideos = videos.filter(v => !existingByVideoId.has(v.videoId));
 
   useEffect(() => {
-    videoService.getPlaylistItems(playlistId)
+    const request = isBilibili
+      ? videoService.getBilibiliItems(videoUrl ?? '')
+      : videoService.getPlaylistItems(playlistId ?? '');
+
+    request
       .then(items => {
         setVideos(items);
         setSelected(new Set(items.filter(v => !existingByVideoId.has(v.videoId)).map(v => v.videoId)));
       })
-      .catch(() => setError('Failed to load playlist. The playlist may be private or unavailable.'))
+      .catch(() => setError(isBilibili ? 'Failed to load Bilibili videos. The link may be private or unavailable.' : 'Failed to load playlist. The playlist may be private or unavailable.'))
       .finally(() => setLoading(false));
-  }, [playlistId]);
+  }, [playlistId, videoUrl, isBilibili]);
 
-  const allSelected = videos.length > 0 && selected.size === videos.length;
+  const allSelected = selectableVideos.length > 0 && selected.size === selectableVideos.length;
 
   const toggleAll = () => {
     if (allSelected) setSelected(new Set());
-    else setSelected(new Set(videos.map(v => v.videoId)));
+    else setSelected(new Set(selectableVideos.map(v => v.videoId)));
   };
 
   const toggleOne = (id: string) => {
+    if (existingByVideoId.has(id)) return;
     setSelected(prev => {
       const next = new Set(prev);
       next.has(id) ? next.delete(id) : next.add(id);
@@ -51,17 +65,21 @@ export const PlaylistImportModal: React.FC<PlaylistImportModalProps> = ({
   };
 
   const handleImport = async () => {
-    const toImport = videos.filter(v => selected.has(v.videoId));
+    const toImport = videos.filter(v => selected.has(v.videoId) && !existingByVideoId.has(v.videoId));
     if (toImport.length === 0) return;
     setImporting(true);
     for (let i = 0; i < toImport.length; i++) {
       const v = toImport[i];
       setImportProgress({ current: i + 1, total: toImport.length, currentTitle: v.title });
       try {
+        const itemUrl = isBilibili
+          ? `https://www.bilibili.com/video/${v.videoId.split(':p')[0]}${v.videoId.includes(':p') ? `?p=${v.videoId.split(':p')[1]}` : ''}`
+          : `https://www.youtube.com/watch?v=${v.videoId}`;
         await videoService.createVideo({
           courseId,
           videoId: v.videoId,
-          videoUrl: `https://www.youtube.com/watch?v=${v.videoId}`,
+          videoUrl: v.videoUrl ?? itemUrl,
+          sourceType: source,
           title: v.title,
           thumbnailUrl: v.thumbnailUrl,
           summary: null,
@@ -89,11 +107,15 @@ export const PlaylistImportModal: React.FC<PlaylistImportModalProps> = ({
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100">
           <div className="flex items-center gap-2.5">
-            <div className="rounded-xl bg-red-500 p-2 text-white">
-              <ListVideo size={18} />
+            <div className={cn('rounded-xl p-2 text-white', isBilibili ? 'bg-sky-500' : 'bg-red-500')}>
+              {isBilibili ? (
+                <img src="/images/bilibili-white.png" alt="" className="h-[18px] w-[18px] object-contain" />
+              ) : (
+                <ListVideo size={18} />
+              )}
             </div>
             <div>
-              <h2 className="text-base font-black text-zinc-900">Import Playlist</h2>
+              <h2 className="text-base font-black text-zinc-900">{isBilibili ? 'Import Bilibili Videos' : 'Import Playlist'}</h2>
               {!loading && !error && (
                 <p className="text-xs text-zinc-400">{videos.length} video{videos.length !== 1 ? 's' : ''} found</p>
               )}
@@ -111,8 +133,8 @@ export const PlaylistImportModal: React.FC<PlaylistImportModalProps> = ({
         <div className="overflow-y-auto max-h-[400px]">
           {loading && (
             <div className="flex flex-col items-center justify-center py-16 gap-3 text-zinc-400">
-              <Loader2 size={28} className="animate-spin text-red-400" />
-              <p className="text-sm">Loading playlist…</p>
+              <Loader2 size={28} className={cn('animate-spin', isBilibili ? 'text-sky-400' : 'text-red-400')} />
+              <p className="text-sm">{isBilibili ? 'Loading Bilibili videos…' : 'Loading playlist…'}</p>
             </div>
           )}
           {error && (
@@ -134,22 +156,32 @@ export const PlaylistImportModal: React.FC<PlaylistImportModalProps> = ({
             return (
               <label
                 key={v.videoId}
-                className="flex items-center gap-3 px-5 py-3 hover:bg-zinc-50 cursor-pointer transition-colors border-b border-zinc-50 last:border-0"
+                className={cn(
+                  'flex items-center gap-3 px-5 py-3 transition-colors border-b border-zinc-50 last:border-0',
+                  existingVideo ? 'cursor-not-allowed bg-zinc-50/60' : 'hover:bg-zinc-50 cursor-pointer',
+                )}
               >
                 <input
                   type="checkbox"
                   className="sr-only"
-                  checked={selected.has(v.videoId)}
+                  checked={!existingVideo && selected.has(v.videoId)}
                   onChange={() => toggleOne(v.videoId)}
-                  disabled={importing}
+                  disabled={importing || !!existingVideo}
                 />
                 <div className={cn(
                   'shrink-0 w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all',
-                  selected.has(v.videoId) ? 'bg-red-500 border-red-500' : 'border-zinc-300 bg-white',
+                  existingVideo
+                    ? 'border-zinc-200 bg-zinc-100'
+                    : selected.has(v.videoId) ? `${isBilibili ? 'bg-sky-500 border-sky-500' : 'bg-red-500 border-red-500'}` : 'border-zinc-300 bg-white',
                 )}>
-                  {selected.has(v.videoId) && <Check size={12} className="text-white" strokeWidth={3} />}
+                  {!existingVideo && selected.has(v.videoId) && <Check size={12} className="text-white" strokeWidth={3} />}
                 </div>
-                <img src={v.thumbnailUrl} alt={v.title} className="w-20 h-[45px] rounded-lg object-cover shrink-0 bg-zinc-100" />
+                <img
+                  src={v.thumbnailUrl}
+                  alt={v.title}
+                  referrerPolicy={isBilibili ? 'no-referrer' : undefined}
+                  className="w-20 h-[45px] rounded-lg object-cover shrink-0 bg-zinc-100"
+                />
                 <div className="min-w-0 flex-1 flex flex-col gap-1">
                   <span className="text-sm font-medium text-zinc-800 leading-tight line-clamp-2">{v.title}</span>
                   {existingVideo && (
@@ -184,11 +216,11 @@ export const PlaylistImportModal: React.FC<PlaylistImportModalProps> = ({
                 className={cn(
                   'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-black text-white transition-all',
                   selected.size > 0 && !importing
-                    ? 'bg-red-500 hover:bg-red-600 active:scale-95'
+                    ? isBilibili ? 'bg-sky-500 hover:bg-sky-600 active:scale-95' : 'bg-red-500 hover:bg-red-600 active:scale-95'
                     : 'bg-zinc-200 text-zinc-400 cursor-not-allowed',
                 )}
               >
-                {importing ? (
+	                {importing ? (
                   <>
                     <Loader2 size={14} className="animate-spin" />
                     {importProgress ? `${importProgress.current}/${importProgress.total}` : 'Importing…'}
@@ -205,7 +237,7 @@ export const PlaylistImportModal: React.FC<PlaylistImportModalProps> = ({
         )}
         {done && (
           <div className="px-5 py-4 border-t border-zinc-100 flex justify-end">
-            <button onClick={onComplete} className="px-4 py-2 rounded-xl text-sm font-black bg-red-500 text-white hover:bg-red-600 active:scale-95 transition-all">
+            <button onClick={onComplete} className={cn('px-4 py-2 rounded-xl text-sm font-black text-white active:scale-95 transition-all', isBilibili ? 'bg-sky-500 hover:bg-sky-600' : 'bg-red-500 hover:bg-red-600')}>
               Done
             </button>
           </div>
@@ -225,7 +257,7 @@ export const PlaylistImportModal: React.FC<PlaylistImportModalProps> = ({
               </div>
               <div className="h-1.5 w-full rounded-full bg-zinc-100 overflow-hidden">
                 <motion.div
-                  className="h-full rounded-full bg-red-500"
+                  className={cn('h-full rounded-full', accent === 'sky' ? 'bg-sky-500' : 'bg-red-500')}
                   animate={{ width: `${(importProgress.current / importProgress.total) * 100}%` }}
                   transition={{ duration: 0.3 }}
                 />

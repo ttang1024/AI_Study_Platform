@@ -76,6 +76,7 @@ export interface PlaylistVideoItemData {
 	videoId: string
 	title: string
 	thumbnailUrl: string
+	videoUrl?: string
 }
 
 export interface CreateVideoData {
@@ -183,6 +184,13 @@ export const videoService = {
 	async getPlaylistItems(playlistId: string): Promise<PlaylistVideoItemData[]> {
 		const res = await apiClient.get<{ data: PlaylistVideoItemData[] }>(
 			`${VIDEO_API}/playlist-items?playlistId=${encodeURIComponent(playlistId)}`,
+		)
+		return res.data.data ?? []
+	},
+
+	async getBilibiliItems(videoUrl: string): Promise<PlaylistVideoItemData[]> {
+		const res = await apiClient.get<{ data: PlaylistVideoItemData[] }>(
+			`${VIDEO_API}/bilibili-items?videoUrl=${encodeURIComponent(videoUrl)}`,
 		)
 		return res.data.data ?? []
 	},

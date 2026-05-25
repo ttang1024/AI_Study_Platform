@@ -80,7 +80,7 @@ export const YouTubeTab: React.FC<YouTubeTabProps> = ({ selectedCourseId, onCour
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const [allVideos, setAllVideos] = useState<VideoListItem[]>([]);
-  const [playlistModal, setPlaylistModal] = useState<{ playlistId: string } | null>(null);
+  const [playlistModal, setPlaylistModal] = useState<{ source: 'youtube'; playlistId: string } | { source: 'bilibili'; videoUrl: string } | null>(null);
 
   const loadAllVideos = useCallback(() => {
     videoService.getVideos({ page: 1, pageSize: 10 })
@@ -98,7 +98,7 @@ export const YouTubeTab: React.FC<YouTubeTabProps> = ({ selectedCourseId, onCour
   const selectedCourseIdRef = useRef('');
   useEffect(() => { selectedCourseIdRef.current = selectedCourseId; }, [selectedCourseId]);
 
-  const isPlaylistUrl = (url: string) => !!parsePlaylistId(url);
+  const isPlaylistUrl = (url: string) => !isBilibili && !!parsePlaylistId(url);
 
   const handleAnalyze = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -109,7 +109,7 @@ export const YouTubeTab: React.FC<YouTubeTabProps> = ({ selectedCourseId, onCour
 
     const listId = isBilibili ? null : parsePlaylistId(trimmed);
     if (listId) {
-      setPlaylistModal({ playlistId: listId });
+      setPlaylistModal({ source: 'youtube', playlistId: listId });
       return;
     }
 
@@ -123,12 +123,23 @@ export const YouTubeTab: React.FC<YouTubeTabProps> = ({ selectedCourseId, onCour
       let thumbnailUrl = isBilibili ? '/images/bilibili.png' : `https://img.youtube.com/vi/${ytVid}/mqdefault.jpg`;
       try {
         if (isBilibili) {
-          const meta = await videoService.getVideoMetadata(trimmed);
-          if (meta) {
-            if (meta.title) title = meta.title;
-            if (meta.thumbnailUrl) thumbnailUrl = meta.thumbnailUrl;
+          const items = await videoService.getBilibiliItems(trimmed);
+          if (items.length > 1 && bilibiliVideo!.page === 1) {
+            setPlaylistModal({ source: 'bilibili', videoUrl: trimmed });
+            return;
+          }
+          const selectedItem = items.find(item => item.videoId === ytVid) ?? items[0];
+          if (selectedItem) {
+            title = selectedItem.title || title;
+            thumbnailUrl = selectedItem.thumbnailUrl || thumbnailUrl;
           } else {
-            title = `Bilibili ${bilibiliVideo!.bvid}${bilibiliVideo!.page > 1 ? ` P${bilibiliVideo!.page}` : ''}`;
+            const meta = await videoService.getVideoMetadata(trimmed);
+            if (meta) {
+              if (meta.title) title = meta.title;
+              if (meta.thumbnailUrl) thumbnailUrl = meta.thumbnailUrl;
+            } else {
+              title = `Bilibili ${bilibiliVideo!.bvid}${bilibiliVideo!.page > 1 ? ` P${bilibiliVideo!.page}` : ''}`;
+            }
           }
         } else {
           const oembedRes = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(trimmed)}&format=json`);
@@ -171,9 +182,11 @@ export const YouTubeTab: React.FC<YouTubeTabProps> = ({ selectedCourseId, onCour
         {playlistModal && (
           <PlaylistImportModal
             key="playlist-modal"
-            playlistId={playlistModal.playlistId}
+            playlistId={playlistModal.source === 'youtube' ? playlistModal.playlistId : undefined}
+            videoUrl={playlistModal.source === 'bilibili' ? playlistModal.videoUrl : undefined}
             courseId={selectedCourseIdRef.current}
             existingVideos={allVideos}
+            source={playlistModal.source}
             onClose={() => setPlaylistModal(null)}
             onComplete={handlePlaylistComplete}
           />
@@ -207,7 +220,7 @@ export const YouTubeTab: React.FC<YouTubeTabProps> = ({ selectedCourseId, onCour
               </div>
               <div>
                 {detectedPlaylist
-                  ? <p className="text-lg font-black tracking-tight text-zinc-900">Playlist detected — import all videos</p>
+                  ? <p className="text-lg font-black tracking-tight text-zinc-900">{isBilibili ? 'Bilibili list detected — import all videos' : 'Playlist detected — import all videos'}</p>
                   : <p className="text-lg font-black tracking-tight text-zinc-900">Paste a {isBilibili ? 'Bilibili' : 'YouTube'} link</p>}
               </div>
               <div className="flex flex-wrap items-center justify-center gap-2">
@@ -269,7 +282,7 @@ export const YouTubeTab: React.FC<YouTubeTabProps> = ({ selectedCourseId, onCour
             {isAnalyzing
               ? <span className="flex items-center gap-2"><Loader2 size={18} className="animate-spin" /> Saving…</span>
               : detectedPlaylist
-                ? <span className="flex items-center gap-2"><ListVideo size={18} /> Browse Playlist</span>
+                ? <span className="flex items-center gap-2"><ListVideo size={18} /> {isBilibili ? 'Browse Videos' : 'Browse Playlist'}</span>
                 : <span className="flex items-center gap-2"><Zap size={18} fill="currentColor" /> Analyze Video</span>}
           </Button>
         </motion.div>

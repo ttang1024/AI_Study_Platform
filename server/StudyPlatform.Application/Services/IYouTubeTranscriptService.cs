@@ -38,6 +38,11 @@ public interface IYouTubeTranscriptService
     Task<IReadOnlyList<PlaylistVideoItem>> GetPlaylistItemsAsync(string playlistId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Returns a list of video metadata for all pages in a Bilibili video.
+    /// </summary>
+    Task<IReadOnlyList<PlaylistVideoItem>> GetBilibiliVideoItemsAsync(string videoUrl, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Returns the title and thumbnail URL for the given video URL (supports Bilibili and YouTube).
     /// </summary>
     Task<VideoMetadata?> GetVideoMetadataAsync(string videoUrl, CancellationToken cancellationToken = default);

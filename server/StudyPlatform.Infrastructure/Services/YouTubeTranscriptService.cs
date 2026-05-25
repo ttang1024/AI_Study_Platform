@@ -169,6 +169,32 @@ public class YouTubeTranscriptService : IYouTubeTranscriptService
         return results;
     }
 
+    public async Task<IReadOnlyList<PlaylistVideoItem>> GetBilibiliVideoItemsAsync(string videoUrl, CancellationToken cancellationToken = default)
+    {
+        var (bvid, _) = ParseBilibiliUrl(videoUrl);
+        if (bvid == null) return [];
+
+        var viewData = await GetBilibiliViewAsync(bvid, cancellationToken);
+        if (viewData == null) return [];
+
+        if (viewData.Pages.Count == 0)
+            return [new PlaylistVideoItem(bvid, viewData.Title, viewData.Pic)];
+
+        return viewData.Pages
+            .OrderBy(p => p.PageNumber)
+            .Select(p =>
+            {
+                var videoId = p.PageNumber > 1 ? $"{bvid}:p{p.PageNumber}" : bvid;
+                var pageTitle = string.IsNullOrWhiteSpace(p.Part)
+                    ? viewData.Title
+                    : viewData.Pages.Count == 1
+                        ? p.Part
+                        : $"P{p.PageNumber} {p.Part}";
+                return new PlaylistVideoItem(videoId, pageTitle, viewData.Pic);
+            })
+            .ToList();
+    }
+
     // ── Caption pipeline ─────────────────────────────────────────────────────
 
     private async Task<IReadOnlyList<(TimeSpan Offset, TimeSpan Duration, string Text)>?> GetRawCaptionsAsync(
@@ -538,6 +564,14 @@ public class YouTubeTranscriptService : IYouTubeTranscriptService
         }
     }
 
+    private static string NormalizeBilibiliImageUrl(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return "";
+        if (url.StartsWith("//", StringComparison.Ordinal)) return "https:" + url;
+        if (url.StartsWith("http://", StringComparison.OrdinalIgnoreCase)) return "https://" + url[7..];
+        return url;
+    }
+
     private async Task<BilibiliViewData?> GetBilibiliViewAsync(string bvid, CancellationToken ct)
     {
         var cacheKey = $"bilibili_view:{bvid}";
@@ -556,7 +590,7 @@ public class YouTubeTranscriptService : IYouTubeTranscriptService
             if (!doc.RootElement.TryGetProperty("data", out var data)) return null;
 
             var title = data.TryGetProperty("title", out var t) ? t.GetString() ?? "" : "";
-            var pic = data.TryGetProperty("pic", out var p) ? p.GetString() ?? "" : "";
+            var pic = NormalizeBilibiliImageUrl(data.TryGetProperty("pic", out var p) ? p.GetString() ?? "" : "");
 
             var pages = new List<BilibiliPage>();
             if (data.TryGetProperty("pages", out var pagesArr))
