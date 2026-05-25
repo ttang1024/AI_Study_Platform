@@ -188,6 +188,7 @@ export const ArticlePage: React.FC<{ embedded?: boolean; id?: string; courseId?:
   const [noteContent, setNoteContent] = useState('');
   const [noteId, setNoteId] = useState<string | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [shareQuizzesAvailable, setShareQuizzesAvailable] = useState(false);
 
   const [toolbar, setToolbar] = useState<{ x: number; y: number; text: string } | null>(null);
   const [summaryToolbar, setSummaryToolbar] = useState<{ x: number; y: number; text: string } | null>(null);
@@ -242,6 +243,7 @@ export const ArticlePage: React.FC<{ embedded?: boolean; id?: string; courseId?:
     if (!currentDocument?.courseId || !currentDocument?.id) return;
     setNoteId(null);
     setNoteContent('');
+    setShareQuizzesAvailable(false);
     documentService.getNotes(currentDocument.courseId, currentDocument.id)
       .then(notes => {
         if (notes.length > 0) {
@@ -251,6 +253,15 @@ export const ArticlePage: React.FC<{ embedded?: boolean; id?: string; courseId?:
       })
       .catch(() => { });
   }, [currentDocument?.id]);
+
+  useEffect(() => {
+    if (!showShareModal || !currentDocument?.courseId || !currentDocument?.id) return;
+    let cancelled = false;
+    documentService.getQuiz(currentDocument.courseId, currentDocument.id)
+      .then(qs => { if (!cancelled) setShareQuizzesAvailable(qs.length > 0); })
+      .catch(() => { if (!cancelled) setShareQuizzesAvailable(false); });
+    return () => { cancelled = true; };
+  }, [showShareModal, currentDocument?.courseId, currentDocument?.id]);
 
   // ── Seed summary from saved data ───────────────────────────────────────────
   useEffect(() => {
@@ -519,7 +530,7 @@ export const ArticlePage: React.FC<{ embedded?: boolean; id?: string; courseId?:
         sourceType="article"
         sourceUrl={currentDocument.courseId && currentDocument.id ? `${currentDocument.courseId}/${currentDocument.id}` : null}
         originalArticleUrl={currentDocument.originalUrl || null}
-        fetchQuizzes={currentDocument.courseId ? async () => {
+        fetchQuizzes={currentDocument.courseId && shareQuizzesAvailable ? async () => {
           const qs = await documentService.getQuiz(currentDocument.courseId!, currentDocument.id);
           return qs.map(q => ({
             question: q.question,

@@ -56,7 +56,7 @@ export const glossaryService = {
 	async getVideoGlossary(videoId: string): Promise<GlossaryTerm[]> {
 		try {
 			const res = await apiClient.get<{ data: any[] }>(
-				`/api/youtube/videos/${videoId}/glossary`,
+				`/api/videos/${videoId}/glossary`,
 			)
 			return (res.data.data ?? []).map((t: any) => ({
 				id: t.id,
@@ -71,7 +71,7 @@ export const glossaryService = {
 
 	async generateVideoGlossary(videoId: string, videoUrl: string): Promise<GlossaryTerm[]> {
 		const res = await apiClient.post<{ data: any[] }>(
-			`/api/youtube/videos/${videoId}/glossary/generate`,
+			`/api/videos/${videoId}/glossary/generate`,
 			{ videoUrl },
 		)
 		return (res.data.data ?? []).map((t: any) => ({

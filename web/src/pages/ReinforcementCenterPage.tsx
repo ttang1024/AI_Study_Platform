@@ -12,7 +12,7 @@ import { glossaryService } from '../services/glossaryService';
 import { masteredService } from '../services/masteredService';
 import { questionBankService, QuestionBankQuestion } from '../services/questionBankService';
 import { documentService, quizSubmissionService, QuizSubmission } from '../services/documentService';
-import { youtubeService } from '../services/youtubeService';
+import { videoService } from '../services/videoService';
 import { isQuizOptionCorrect } from '../utils/quizAnswers';
 import { TimedExamModal } from '../components/quiz/TimedExamModal';
 import { HardFlashcardReview } from '../components/study/HardFlashcardCard';
@@ -276,7 +276,7 @@ export const ReinforcementCenterPage: React.FC = () => {
         return ans && isQuizOptionCorrect(ans, q.correctAnswer);
       }).length;
 
-      saves.push(youtubeService.submitQuiz(videoId, mergedAnswers, score, total).catch(() => { }));
+      saves.push(videoService.submitQuiz(videoId, mergedAnswers, score, total).catch(() => { }));
     }
 
     await Promise.all(saves);

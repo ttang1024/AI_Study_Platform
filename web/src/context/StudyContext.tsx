@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Document, Note, ChatMessage, Course, Flashcard, LearningProgress } from '../types';
 import { courseService } from '../services/courseService';
 import { documentService, quizSubmissionService, QuizSubmission } from '../services/documentService';
-import { VideoListItem } from '../services/youtubeService';
+import { VideoListItem } from '../services/videoService';
 import { noteService } from '../services/noteService';
 import { flashcardService } from '../services/flashcardService';
 import { AchievementStats as ServerAchievementStats, CourseMaterialStats, statsService } from '../services/statsService';

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ListVideo, X, Loader2, Check, AlertTriangle, CheckSquare, Square, Zap } from 'lucide-react';
-import { youtubeService, VideoListItem, PlaylistVideoItemData } from '../../services/youtubeService';
+import { videoService, VideoListItem, PlaylistVideoItemData } from '../../services/videoService';
 import { cn } from '../../utils/cn';
 
 export interface PlaylistImportModalProps {
@@ -26,7 +26,7 @@ export const PlaylistImportModal: React.FC<PlaylistImportModalProps> = ({
   const existingByVideoId = new Map(existingVideos.map(v => [v.videoId, v]));
 
   useEffect(() => {
-    youtubeService.getPlaylistItems(playlistId)
+    videoService.getPlaylistItems(playlistId)
       .then(items => {
         setVideos(items);
         setSelected(new Set(items.filter(v => !existingByVideoId.has(v.videoId)).map(v => v.videoId)));
@@ -58,7 +58,7 @@ export const PlaylistImportModal: React.FC<PlaylistImportModalProps> = ({
       const v = toImport[i];
       setImportProgress({ current: i + 1, total: toImport.length, currentTitle: v.title });
       try {
-        await youtubeService.createVideo({
+        await videoService.createVideo({
           courseId,
           videoId: v.videoId,
           videoUrl: `https://www.youtube.com/watch?v=${v.videoId}`,

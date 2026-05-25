@@ -12,6 +12,7 @@ export interface ShareableQuiz {
 export interface ShareableCard {
   front: string;
   back: string;
+  cardType?: 'basic' | 'cloze' | 'chart';
 }
 
 export interface ShareableGlossaryTerm {
@@ -28,7 +29,7 @@ export interface CreateSharePayload {
   flashcards?: ShareableCard[] | null;
   glossaryTerms?: ShareableGlossaryTerm[] | null;
   expiresInDays?: number | null;
-  sourceType?: 'youtube' | 'article' | 'audio' | 'podcast' | 'document' | 'chat' | null;
+  sourceType?: 'youtube' | 'bilibili' | 'upload' | 'article' | 'audio' | 'podcast' | 'document' | 'chat' | null;
   sourceUrl?: string | null;
   originalArticleUrl?: string | null;
 }

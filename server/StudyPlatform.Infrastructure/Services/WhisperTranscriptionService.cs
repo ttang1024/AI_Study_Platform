@@ -207,6 +207,11 @@ public sealed class WhisperTranscriptionService : ITranscriptionService, IDispos
         "audio/aac" => ".aac",
         "audio/flac" => ".flac",
         "audio/webm" => ".webm",
+        "video/mp4" => ".mp4",
+        "video/quicktime" => ".mov",
+        "video/webm" => ".webm",
+        "video/x-matroska" => ".mkv",
+        "video/x-msvideo" => ".avi",
         _ => ".audio",
     };
 

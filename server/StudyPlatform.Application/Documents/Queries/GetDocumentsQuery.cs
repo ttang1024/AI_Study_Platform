@@ -293,7 +293,20 @@ public class GetDocumentFlashcardsQueryHandler : IRequestHandler<GetDocumentFlas
             return Result<IEnumerable<FlashcardDto>>.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
 
         var flashcards = await _unitOfWork.Flashcards.GetByDocumentIdAsync(request.DocumentId, cancellationToken);
-        var dtos = flashcards.Select(f => new FlashcardDto(f.FlashcardId, f.DocumentId, f.YouTubeVideoId, f.SourceType, f.UserId, f.Front, f.Back, f.CreatedAt, f.UpdatedAt));
+        var dtos = flashcards.Select(f => new FlashcardDto(
+            f.FlashcardId,
+            f.DocumentId,
+            f.YouTubeVideoId,
+            f.SourceType,
+            f.UserId,
+            f.Front,
+            f.Back,
+            f.CreatedAt,
+            f.UpdatedAt,
+            CardType: f.CardType,
+            Difficulty: f.Difficulty,
+            Chapter: f.Chapter,
+            Tags: f.Tags));
 
         return Result<IEnumerable<FlashcardDto>>.Success(dtos);
     }

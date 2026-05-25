@@ -4,7 +4,7 @@ import {
   Share2, AlertCircle, FileText, MessageCircle,
   ChevronRight, ChevronLeft, ChevronDown, ChevronUp,
   CheckCircle2, XCircle, RotateCcw, Trophy, Clock, Award,
-  Check, Copy, User, Calendar, Youtube, Mic, Rss, ExternalLink, Loader2,
+  Check, Copy, User, Calendar, Youtube, Mic, Rss, ExternalLink, Loader2, FileVideo,
 } from 'lucide-react';
 import { CONTENT_TYPE_ICONS, STUDY_TYPE_ICONS } from '../constants/contentTypeIcons';
 
@@ -23,7 +23,7 @@ import { cn } from '../utils/cn';
 import { getCorrectQuizOptionText, isQuizOptionCorrect } from '../utils/quizAnswers';
 import { getApiUrl } from '../utils/env';
 import { SummaryMarkdown } from '../components/study/SummaryMarkdown';
-import { FlashcardFlipCard } from '../components/study/FlashcardFlipCard';
+import { FlashcardSessionDeck } from '../components/study/FlashcardSessionCard';
 
 const API_URL = getApiUrl();
 
@@ -378,41 +378,18 @@ const SharedQuiz: React.FC<{ questions: ShareableQuiz[]; title: string }> = ({ q
 
 // ─── Flashcard sub-component ──────────────────────────────────────────────────
 
-const SharedFlashcardsPanel: React.FC<{ cards: ShareableCard[] }> = ({ cards }) => {
-  const [index, setIndex] = useState(0);
-  const [flipped, setFlipped] = useState(false);
-
-  const go = (delta: number) => { setIndex(i => (i + delta + cards.length) % cards.length); setFlipped(false); };
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between text-sm text-text-muted mb-2">
-        <span>{index + 1} / {cards.length}</span>
-      </div>
-      <FlashcardFlipCard
-        front={cards[index].front}
-        back={cards[index].back}
-        isFlipped={flipped}
-        onFlip={() => setFlipped(f => !f)}
-      />
-      <div className="flex items-center justify-center gap-4 pt-2">
-        <button onClick={() => go(-1)} className="rounded-xl border border-[var(--border-color)] p-2 text-text-muted hover:text-primary hover:border-primary/40 transition-all">
-          <ChevronLeft size={16} />
-        </button>
-        <div className="flex gap-1">
-          {cards.map((_, i) => (
-            <button key={i} onClick={() => { setIndex(i); setFlipped(false); }}
-              className={cn('w-2 h-2 rounded-full transition-all', i === index ? 'bg-primary' : 'bg-zinc-200 hover:bg-zinc-300')}
-            />
-          ))}
-        </div>
-        <button onClick={() => go(1)} className="rounded-xl border border-[var(--border-color)] p-2 text-text-muted hover:text-primary hover:border-primary/40 transition-all">
-          <ChevronRight size={16} />
-        </button>
-      </div>
-    </div>
-  );
-};
+const SharedFlashcardsPanel: React.FC<{ cards: ShareableCard[]; title: string }> = ({ cards, title }) => (
+  <FlashcardSessionDeck
+    cards={cards.map((card, index) => ({
+      id: `shared-${index}`,
+      front: card.front,
+      back: card.back,
+      cardType: card.cardType,
+    }))}
+    title={title}
+    variant="inline"
+  />
+);
 
 // ─── Glossary renderer ───────────────────────────────────────────────────────
 
@@ -611,6 +588,26 @@ const getTokenFromPath = () => {
   return window.location.pathname.match(/\/share\/([^/?#]+)/)?.[1] ?? '';
 };
 
+function parseYouTubeVideoId(url: string): string | null {
+  return url.match(/(?:[?&]v=|youtu\.be\/|shorts\/|embed\/)([^&?/\s]{11})/)?.[1] ?? null;
+}
+
+function parseBilibiliVideo(url: string): { bvid: string; page: number } | null {
+  try {
+    const u = new URL(url.trim());
+    const match = u.pathname.match(/\/video\/(BV[0-9A-Za-z]+)/i);
+    if (!match) return null;
+    const page = Math.max(1, Number.parseInt(u.searchParams.get('p') ?? '1', 10) || 1);
+    return { bvid: match[1], page };
+  } catch {
+    const match = url.match(/bilibili\.com\/video\/(BV[0-9A-Za-z]+).*?[?&]p=(\d+)/i)
+      ?? url.match(/bilibili\.com\/video\/(BV[0-9A-Za-z]+)/i);
+    if (!match) return null;
+    const page = Math.max(1, Number.parseInt(match[2] ?? '1', 10) || 1);
+    return { bvid: match[1], page };
+  }
+}
+
 export const SharedContentPage: React.FC<{ token?: string }> = ({ token: tokenProp }) => {
   const token = tokenProp ?? getTokenFromPath();
   const [content, setContent] = useState<SharedContent | null>(null);
@@ -677,16 +674,21 @@ export const SharedContentPage: React.FC<{ token?: string }> = ({ token: tokenPr
   }
 
   const allTabs = [
-    { id: 'summary' as Tab,    label: 'Summary',                                                  icon: STUDY_TYPE_ICONS.summary.icon,   available: !!content.summary          },
-    { id: 'mindmap' as Tab,    label: 'Mind Map',                                                 icon: STUDY_TYPE_ICONS.mindmap.icon,   available: !!content.mindMapText      },
-    { id: 'notes' as Tab,      label: content.sourceType === 'chat' ? 'Conversation' : 'Notes',   icon: STUDY_TYPE_ICONS.notes.icon,     available: !!content.notesHtml        },
-    { id: 'flashcards' as Tab, label: 'Flashcards',                                               icon: STUDY_TYPE_ICONS.flashcard.icon, available: !!(content.flashcards?.length) },
-    { id: 'glossary' as Tab,   label: 'Glossary',                                                 icon: STUDY_TYPE_ICONS.glossary.icon,  available: !!(content.glossary?.length)   },
-    { id: 'quiz' as Tab,       label: 'Quiz',                                                     icon: STUDY_TYPE_ICONS.quiz.icon,      available: !!(content.quizzes?.length)    },
+    { id: 'summary' as Tab, label: 'Summary', icon: STUDY_TYPE_ICONS.summary.icon, available: !!content.summary },
+    { id: 'mindmap' as Tab, label: 'Mind Map', icon: STUDY_TYPE_ICONS.mindmap.icon, available: !!content.mindMapText },
+    { id: 'notes' as Tab, label: content.sourceType === 'chat' ? 'Conversation' : 'Notes', icon: STUDY_TYPE_ICONS.notes.icon, available: !!content.notesHtml },
+    { id: 'flashcards' as Tab, label: 'Flashcards', icon: STUDY_TYPE_ICONS.flashcard.icon, available: !!(content.flashcards?.length) },
+    { id: 'glossary' as Tab, label: 'Glossary', icon: STUDY_TYPE_ICONS.glossary.icon, available: !!(content.glossary?.length) },
+    { id: 'quiz' as Tab, label: 'Quiz', icon: STUDY_TYPE_ICONS.quiz.icon, available: !!(content.quizzes?.length) },
   ];
   const tabs = allTabs.filter(t => t.available);
 
   const createdAt = new Date(content.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  const normalizedSourceType = content.sourceType === 'youtube' && content.sourceUrl?.includes('bilibili.com')
+    ? 'bilibili'
+    : content.sourceType === 'youtube' && content.sourceUrl?.startsWith('video/')
+      ? 'upload'
+      : content.sourceType;
 
   return (
     <div className="min-h-screen bg-[var(--bg-app)]">
@@ -705,27 +707,37 @@ export const SharedContentPage: React.FC<{ token?: string }> = ({ token: tokenPr
                     <MessageCircle size={11} /> AI Chat
                   </div>
                 )}
-                {content.sourceType === 'youtube' && (
+                {normalizedSourceType === 'youtube' && (
                   <div className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-3 py-1 text-xs font-bold text-red-500 border border-red-100">
                     <Youtube size={11} /> YouTube Video
                   </div>
                 )}
-                {content.sourceType === 'audio' && (
+                {normalizedSourceType === 'bilibili' && (
+                  <div className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-3 py-1 text-xs font-bold text-sky-600 border border-sky-100">
+                    <img src="/images/bilibili.png" alt="" className="h-3 w-3 object-contain" /> Bilibili Video
+                  </div>
+                )}
+                {normalizedSourceType === 'upload' && (
+                  <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary border border-primary/10">
+                    <FileVideo size={11} /> Uploaded Video
+                  </div>
+                )}
+                {normalizedSourceType === 'audio' && (
                   <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-600 border border-amber-100">
                     <Mic size={11} /> Audio
                   </div>
                 )}
-                {content.sourceType === 'podcast' && (
+                {normalizedSourceType === 'podcast' && (
                   <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-600 border border-amber-100">
                     <Rss size={11} /> Podcast
                   </div>
                 )}
-                {content.sourceType === 'article' && (
+                {normalizedSourceType === 'article' && (
                   <div className="inline-flex items-center gap-1.5 rounded-full bg-teal-50 px-3 py-1 text-xs font-bold text-teal-600 border border-teal-100">
                     <FileText size={11} /> Article
                   </div>
                 )}
-                {content.sourceType === 'document' && (
+                {normalizedSourceType === 'document' && (
                   <div className="inline-flex items-center gap-1.5 rounded-full bg-zinc-100 px-3 py-1 text-xs font-bold text-zinc-500 border border-zinc-200">
                     <FileText size={11} /> Document
                   </div>
@@ -760,10 +772,8 @@ export const SharedContentPage: React.FC<{ token?: string }> = ({ token: tokenPr
         </div>
 
         {/* Media */}
-        {content.sourceType === 'youtube' && content.sourceUrl && (() => {
-          const videoId = content.sourceUrl.match(
-            /(?:[?&]v=|youtu\.be\/|shorts\/|embed\/)([^&?/\s]{11})/
-          )?.[1];
+        {normalizedSourceType === 'youtube' && content.sourceUrl && (() => {
+          const videoId = parseYouTubeVideoId(content.sourceUrl);
           return videoId ? (
             <div className="rounded-2xl overflow-hidden border border-[var(--border-color)] bg-black">
               <a
@@ -791,7 +801,55 @@ export const SharedContentPage: React.FC<{ token?: string }> = ({ token: tokenPr
           ) : null;
         })()}
 
-        {content.sourceType === 'audio' && (
+        {normalizedSourceType === 'bilibili' && content.sourceUrl && (() => {
+          const video = parseBilibiliVideo(content.sourceUrl);
+          return video ? (
+            <div className="rounded-2xl overflow-hidden border border-[var(--border-color)] bg-black">
+              <a
+                href={content.sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-3 px-4 py-3 bg-[var(--bg-sidebar)] border-b border-[var(--border-color)] hover:bg-sky-50 transition-colors group"
+              >
+                <div className="w-6 h-6 rounded-md bg-sky-500 flex items-center justify-center shrink-0">
+                  <img src="/images/bilibili-white.png" alt="" className="h-3.5 w-3.5 object-contain" />
+                </div>
+                <span className="flex-1 min-w-0 text-xs text-text-muted truncate">{content.sourceUrl}</span>
+                <ExternalLink size={13} className="text-text-muted group-hover:text-sky-600 transition-colors shrink-0" />
+              </a>
+              <div style={{ aspectRatio: '16/9' }}>
+                <iframe
+                  src={`https://player.bilibili.com/player.html?bvid=${video.bvid}&page=${video.page}`}
+                  title={content.title}
+                  allow="autoplay; fullscreen; picture-in-picture"
+                  allowFullScreen
+                  className="w-full h-full"
+                />
+              </div>
+            </div>
+          ) : null;
+        })()}
+
+        {normalizedSourceType === 'upload' && (
+          <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-sidebar)] overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-2.5 border-b border-[var(--border-color)]">
+              <div className="w-6 h-6 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+                <FileVideo size={13} className="text-primary" />
+              </div>
+              <span className="text-xs font-semibold text-text-muted truncate">{content.title}</span>
+            </div>
+            <div className="bg-black" style={{ aspectRatio: '16/9' }}>
+              <video
+                controls
+                preload="metadata"
+                className="h-full w-full"
+                src={`${API_URL}/api/share/${content.token}/video`}
+              />
+            </div>
+          </div>
+        )}
+
+        {normalizedSourceType === 'audio' && (
           <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-sidebar)] overflow-hidden">
             <div className="flex items-center gap-2 px-4 py-2.5 border-b border-[var(--border-color)]">
               <div className="w-6 h-6 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
@@ -809,7 +867,7 @@ export const SharedContentPage: React.FC<{ token?: string }> = ({ token: tokenPr
           </div>
         )}
 
-        {content.sourceType === 'podcast' && (
+        {normalizedSourceType === 'podcast' && (
           <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-sidebar)] overflow-hidden">
             <div className="flex items-center gap-2 px-4 py-2.5 border-b border-[var(--border-color)]">
               <div className="w-6 h-6 rounded-md bg-amber-100 flex items-center justify-center shrink-0">
@@ -841,11 +899,11 @@ export const SharedContentPage: React.FC<{ token?: string }> = ({ token: tokenPr
           </div>
         )}
 
-        {content.sourceType === 'document' && content.fileType && (
+        {normalizedSourceType === 'document' && content.fileType && (
           <SharedDocumentViewer token={content.token} fileType={content.fileType} />
         )}
 
-        {content.sourceType === 'article' && (
+        {normalizedSourceType === 'article' && (
           <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-sidebar)] overflow-hidden">
             {/* Header */}
             <div className="flex items-center gap-2 px-4 py-2.5 border-b border-[var(--border-color)]">
@@ -950,7 +1008,7 @@ export const SharedContentPage: React.FC<{ token?: string }> = ({ token: tokenPr
             {activeTab === 'flashcards' && content.flashcards && content.flashcards.length > 0 && (
               <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-sidebar)] p-6">
                 <h2 className="text-sm font-bold uppercase tracking-widest text-text-muted mb-4">Flashcards</h2>
-                <SharedFlashcardsPanel cards={content.flashcards} />
+                <SharedFlashcardsPanel cards={content.flashcards} title={content.title} />
               </div>
             )}
 

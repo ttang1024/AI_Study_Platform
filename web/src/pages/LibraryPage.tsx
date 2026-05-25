@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { CONTENT_TYPE_ICONS } from '../constants/contentTypeIcons';
 import { useStudy } from '../context/StudyContext';
-import { youtubeService, VideoListItem } from '../services/youtubeService';
+import { videoService, VideoListItem } from '../services/videoService';
 import { documentService } from '../services/documentService';
 import { DocumentCard } from '../components/common/DocumentCard';
 import { VideoCard } from '../components/common/VideoCard';
@@ -76,7 +76,7 @@ export const LibraryPage: React.FC = () => {
     }
 
     setVideosLoading(true);
-    youtubeService.getVideos({ page: 1, pageSize: Math.max(totalVideos, PAGE_SIZE) })
+    videoService.getVideos({ page: 1, pageSize: Math.max(totalVideos, PAGE_SIZE) })
       .then(data => { if (active) setAllVideos(data.items); })
       .catch(() => { if (active) setAllVideos([]); })
       .finally(() => { if (active) setVideosLoading(false); });
@@ -322,7 +322,7 @@ export const LibraryPage: React.FC = () => {
                 ) : (
                   <VideoCard
                     video={item.data}
-                    to={`/youtube/${item.data.id}`}
+                    to={`/videos/${item.data.id}`}
                     onDeleted={() => setAllVideos(prev => prev.filter(v => v.id !== item.data.id))}
                     onMoved={(newCourseId) => setAllVideos(prev => prev.map(v => v.id === item.data.id ? { ...v, courseId: newCourseId } : v))}
                     onUpdated={(updated) => setAllVideos(prev => prev.map(v => v.id === updated.id ? { ...v, ...updated } : v))}

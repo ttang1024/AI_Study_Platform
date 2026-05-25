@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Youtube, Clock, Trash2, Sparkles, FolderInput, Pencil, Loader2 } from 'lucide-react';
+import { Youtube, Clock, Trash2, Sparkles, FolderInput, Pencil, Loader2, FileVideo } from 'lucide-react';
 import { useStudy } from '../../context/StudyContext';
-import { youtubeService } from '../../services/youtubeService';
+import { videoService } from '../../services/videoService';
 import { MoveToCourseModal } from './MoveToCourseModal';
 import { DeleteModal } from './DeleteModal';
 import { Modal } from './Modal';
@@ -21,6 +21,7 @@ export interface VideoCardData {
   thumbnailUrl: string;
   /** YouTube video ID used for thumbnail fallback URL */
   videoId?: string;
+  sourceType?: 'youtube' | 'bilibili' | 'upload';
   courseColor: string;
   courseName: string;
   createdAt: string;
@@ -46,6 +47,22 @@ function formatDate(iso: string) {
 export const VideoCard: React.FC<VideoCardProps> = ({ video, to, onDeleted, onMoved, onUpdated, compact = false }) => {
   const { courses, refreshStats } = useStudy();
   const tiltDir = hashCode(video.id) % 2 === 0 ? 1 : -1;
+  const sourceType = video.sourceType ?? 'youtube';
+  const isBilibili = sourceType === 'bilibili';
+  const isUpload = sourceType === 'upload';
+  const fallbackThumbnail = isBilibili
+    ? '/images/bilibili.png'
+    : isUpload
+      ? ''
+      : video.videoId
+        ? `https://img.youtube.com/vi/${video.videoId}/mqdefault.jpg`
+        : '';
+  const thumbnailSrc = isUpload
+    ? videoService.getUploadedVideoThumbnailUrl(video.id)
+    : (video.thumbnailUrl || fallbackThumbnail);
+  const uploadPreviewUrl = isUpload ? videoService.getUploadedVideoStreamUrl(video.id) : '';
+  const SourceIcon = isUpload ? FileVideo : Youtube;
+  const sourceAccentClass = isBilibili ? 'bg-sky-500' : isUpload ? 'bg-primary' : 'bg-red-500';
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -55,16 +72,21 @@ export const VideoCard: React.FC<VideoCardProps> = ({ video, to, onDeleted, onMo
   const [renameDraft, setRenameDraft] = useState(video.title);
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameError, setRenameError] = useState<string | null>(null);
+  const [imgFailed, setImgFailed] = useState(false);
 
   useEffect(() => {
     setTitle(video.title);
     setRenameDraft(video.title);
   }, [video.title]);
 
+  useEffect(() => { setImgFailed(false); }, [video.thumbnailUrl]);
+
+  const showVideoPreview = isUpload && (!thumbnailSrc || imgFailed);
+
   const handleDelete = async () => {
     setIsDeleting(true);
     try {
-      await youtubeService.deleteVideo(video.id);
+      await videoService.deleteVideo(video.id);
       refreshStats();
       onDeleted?.();
     } finally {
@@ -74,7 +96,7 @@ export const VideoCard: React.FC<VideoCardProps> = ({ video, to, onDeleted, onMo
   };
 
   const handleMove = async (targetCourseId: string) => {
-    await youtubeService.moveVideo(video.id, targetCourseId);
+    await videoService.moveVideo(video.id, targetCourseId);
     refreshStats();
     onMoved?.(targetCourseId);
   };
@@ -98,7 +120,7 @@ export const VideoCard: React.FC<VideoCardProps> = ({ video, to, onDeleted, onMo
     setIsRenaming(true);
     setRenameError(null);
     try {
-      const updated = await youtubeService.updateVideo(video.id, { title: nextTitle });
+      const updated = await videoService.updateVideo(video.id, { title: nextTitle });
       setTitle(updated.title);
       onUpdated?.({ ...video, ...updated });
       setShowRenameModal(false);
@@ -122,20 +144,46 @@ export const VideoCard: React.FC<VideoCardProps> = ({ video, to, onDeleted, onMo
         >
           {/* Thumbnail */}
           <div className={`relative shrink-0 overflow-hidden bg-zinc-100 ${compact ? 'h-[120px]' : 'h-[165px]'}`}>
-            <img
-              src={video.thumbnailUrl}
-              alt={title}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-              onError={e => {
-                if (video.videoId) {
-                  (e.target as HTMLImageElement).src =
-                    `https://img.youtube.com/vi/${video.videoId}/mqdefault.jpg`;
-                }
-              }}
-            />
+            {showVideoPreview ? (
+              <video
+                src={`${uploadPreviewUrl}#t=0.1`}
+                className="h-full w-full object-cover"
+                muted
+                playsInline
+                preload="metadata"
+              />
+            ) : thumbnailSrc ? (
+              <img
+                src={thumbnailSrc}
+                alt={title}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                referrerPolicy="no-referrer"
+                onError={e => {
+                  const img = e.target as HTMLImageElement;
+                  if (fallbackThumbnail && img.dataset.fallbackUsed !== 'true') {
+                    img.dataset.fallbackUsed = 'true';
+                    img.src = fallbackThumbnail;
+                  } else {
+                    setImgFailed(true);
+                  }
+                }}
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center bg-zinc-100 text-zinc-300">
+                {isBilibili ? (
+                  <img src="/images/bilibili.png" alt="" className="h-8 w-8 object-contain" />
+                ) : (
+                  <SourceIcon size={30} />
+                )}
+              </div>
+            )}
             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
-              <div className="h-10 w-10 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
-                <Youtube size={18} />
+              <div className={`h-10 w-10 rounded-full text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg ${sourceAccentClass}`}>
+                {isBilibili ? (
+                  <img src="/images/bilibili-white.png" alt="" className="h-5 w-5 object-contain" />
+                ) : (
+                  <SourceIcon size={18} />
+                )}
               </div>
             </div>
           </div>

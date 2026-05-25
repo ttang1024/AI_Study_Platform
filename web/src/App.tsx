@@ -1,5 +1,5 @@
 import React, { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { StudyProvider } from './context/StudyContext';
 import { TtsProvider } from './context/TtsContext';
@@ -11,7 +11,7 @@ import { QuizManagementPage } from './pages/QuizManagementPage';
 import { FlashcardsPage } from './pages/FlashcardsPage';
 import { NotesPage } from './pages/NotesPage';
 import { SettingsPage } from './pages/SettingsPage';
-import { YouTubeDetailPage } from './pages/YouTubeDetailPage';
+import { VideoDetailPage } from './pages/VideoDetailPage';
 import { AISummarizerPage } from './pages/AISummarizerPage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
@@ -46,6 +46,10 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   return <>{children}</>;
 };
 
+const LegacyYouTubeRedirect: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
+  return <Navigate to={id ? `/videos/${id}` : '/library?type=videos'} replace />;
+};
 
 export default function App() {
   return (
@@ -69,7 +73,8 @@ export default function App() {
                     <Route path="dashboard" element={<DashboardPage />} />
                     <Route path="library" element={<LibraryPage />} />
                     <Route path="documents" element={<Navigate to="/library" replace />} />
-                    <Route path="youtube" element={<Navigate to="/library?type=videos" replace />} />
+                    <Route path="videos" element={<Navigate to="/library?type=videos" replace />} />
+                    <Route path="youtube" element={<Navigate to="/videos" replace />} />
                     <Route path="summarizer" element={<AISummarizerPage />} />
                     <Route path="flashcards" element={<FlashcardsPage />} />
                     <Route path="notes" element={<NotesPage />} />
@@ -89,11 +94,12 @@ export default function App() {
                       <DocumentDetailsPage />
                     </ProtectedRoute>
                   } />
-                  <Route path="/youtube/:id" element={
+                  <Route path="/videos/:id" element={
                     <ProtectedRoute>
-                      <YouTubeDetailPage />
+                      <VideoDetailPage />
                     </ProtectedRoute>
                   } />
+                  <Route path="/youtube/:id" element={<LegacyYouTubeRedirect />} />
                   <Route path="/articles/:id" element={
                     <ProtectedRoute>
                       <ArticlePage />

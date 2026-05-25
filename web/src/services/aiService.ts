@@ -149,11 +149,11 @@ export const aiService = {
 	// --- YouTube-based ---
 
 	async generateSummaryFromYouTube(videoUrl: string): Promise<string> {
-		return post<string>('/api/youtube/summary', { videoUrl })
+		return post<string>('/api/videos/summary', { videoUrl })
 	},
 
 	async generateMindMapFromYouTube(videoUrl: string): Promise<string> {
-		return post<string>('/api/youtube/mindmap', { videoUrl })
+		return post<string>('/api/videos/mindmap', { videoUrl })
 	},
 
 	async streamMindMapFromYouTube(
@@ -161,16 +161,16 @@ export const aiService = {
 		onChunk: (chunk: string) => void,
 		signal?: AbortSignal,
 	): Promise<void> {
-		return streamSse('/api/youtube/mindmap/stream', { videoUrl }, onChunk, signal)
+		return streamSse('/api/videos/mindmap/stream', { videoUrl }, onChunk, signal)
 	},
 
 	async generateQuizFromYouTube(videoUrl: string): Promise<unknown> {
-		const json = await post<string>('/api/youtube/quiz', { videoUrl })
+		const json = await post<string>('/api/videos/quiz', { videoUrl })
 		return JSON.parse(json)
 	},
 
 	async generateFlashcardsFromYouTube(videoUrl: string): Promise<unknown> {
-		const json = await post<string>('/api/youtube/flashcards', { videoUrl })
+		const json = await post<string>('/api/videos/flashcards', { videoUrl })
 		return JSON.parse(json)
 	},
 
@@ -179,7 +179,7 @@ export const aiService = {
 		history: ChatHistoryEntry[],
 		message: string,
 	): Promise<string> {
-		return post<string>('/api/youtube/chat', {
+		return post<string>('/api/videos/chat', {
 			videoUrl,
 			message,
 			history: toHistoryEntries(history),
@@ -188,6 +188,6 @@ export const aiService = {
 
 	// kept for any code that still references this method
 	async generateTranscriptFromYouTube(_videoUrl: string): Promise<string> {
-		throw new Error('Use GET /api/youtube/transcript instead.')
+		throw new Error('Use GET /api/videos/transcript instead.')
 	},
 }

@@ -56,13 +56,13 @@ export const workedProblemsService = {
   },
 
   async getVideoProblems(videoId: string): Promise<WorkedProblem[]> {
-    const res = await apiClient.get<{ data: WorkedProblem[] }>(`/api/youtube/videos/${videoId}/worked-problems`);
+    const res = await apiClient.get<{ data: WorkedProblem[] }>(`/api/videos/${videoId}/worked-problems`);
     return res.data.data ?? [];
   },
 
   async generateVideoProblems(videoId: string, difficulty: string, count: number): Promise<WorkedProblem[]> {
     const res = await apiClient.post<{ data: WorkedProblem[] }>(
-      `/api/youtube/videos/${videoId}/worked-problems/generate`,
+      `/api/videos/${videoId}/worked-problems/generate`,
       { difficulty, count }
     );
     return res.data.data ?? [];

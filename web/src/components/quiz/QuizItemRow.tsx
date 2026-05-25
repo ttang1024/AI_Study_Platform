@@ -57,7 +57,7 @@ const TYPE_CONFIG: Record<QuizItemType, TypeConfig> = {
     defaultBadgeClass: 'bg-red-50 text-red-500',
     rowHoverClass: 'hover:border-red-200',
     actionHoverClass: 'hover:border-red-300 hover:text-red-500',
-    retakePath: (_, itemId) => `/youtube/${itemId}`,
+    retakePath: (_, itemId) => `/videos/${itemId}`,
   },
 };
 

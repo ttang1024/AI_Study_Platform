@@ -1,18 +1,18 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  FileText, FileType, FileCode, Mic, Youtube,
+  FileText, FileType, FileCode, Mic, Youtube, FileVideo,
   ChevronLeft, ChevronRight, Loader2, Search, Menu, X, BookOpen, CheckCircle2, Circle, Filter,
 } from 'lucide-react';
 import { useStudy } from '../context/StudyContext';
 import { documentService } from '../services/documentService';
-import { youtubeService, VideoListItem } from '../services/youtubeService';
+import { videoService, VideoListItem } from '../services/videoService';
 import { courseService } from '../services/courseService';
 import { glossaryService } from '../services/glossaryService';
 import { workedProblemsService, WorkedProblem } from '../services/workedProblemsService';
 import type { QuestionBankQuestion } from '../services/questionBankService';
 import { DocumentDetailsPage } from './DocumentDetailsPage';
-import { YouTubeDetailPage } from './YouTubeDetailPage';
+import { VideoDetailPage } from './VideoDetailPage';
 import { AudioDetailPage } from './AudioDetailPage';
 import { ArticlePage } from './ArticlePage';
 import { Document, Course, Flashcard, GlossaryTerm, Note } from '../types';
@@ -30,6 +30,24 @@ function parseVideoId(url: string): string | null {
   const patterns = [/[?&]v=([^&]+)/, /youtu\.be\/([^?&/]+)/, /youtube\.com\/shorts\/([^?&/]+)/, /youtube\.com\/embed\/([^?&/]+)/];
   for (const p of patterns) { const m = url.match(p); if (m) return m[1]; }
   return null;
+}
+
+function getVideoThumbSrc(video: VideoListItem) {
+  const sourceType = video.sourceType ?? 'youtube';
+  if (sourceType === 'bilibili') return video.thumbnailUrl || '/images/bilibili.png';
+  if (sourceType === 'upload') return videoService.getUploadedVideoThumbnailUrl(video.id);
+  const videoId = parseVideoId(video.videoUrl) ?? video.videoId;
+  return video.thumbnailUrl || (videoId ? `https://img.youtube.com/vi/${videoId}/default.jpg` : '');
+}
+
+function getVideoThumbFallback(video: VideoListItem) {
+  const sourceType = video.sourceType ?? 'youtube';
+  if (sourceType === 'bilibili') return '/images/bilibili.png';
+  if (sourceType === 'youtube') {
+    const videoId = parseVideoId(video.videoUrl) ?? video.videoId;
+    return videoId ? `https://img.youtube.com/vi/${videoId}/default.jpg` : '';
+  }
+  return '';
 }
 
 const FILE_META: Record<string, { icon: React.ElementType; label: string; color: string }> = {
@@ -59,7 +77,7 @@ const EmbeddedPage: React.FC<{ selected: Selected }> = ({ selected }) => {
   }
 
   if (selected.kind === 'video') {
-    return <YouTubeDetailPage key={selected.data.id} embedded id={selected.data.id} />;
+    return <VideoDetailPage key={selected.data.id} embedded id={selected.data.id} />;
   }
 
   const doc = selected.data;
@@ -137,7 +155,7 @@ export const CourseStudyPage: React.FC = () => {
     setIsLoadingMaterials(true);
     Promise.all([
       documentService.getDocuments(courseId),
-      youtubeService.getVideos({ courseId }),
+      videoService.getVideos({ courseId }),
     ]).then(([docs, vids]) => {
       setDocuments(docs);
       setVideos(vids.items);
@@ -159,9 +177,9 @@ export const CourseStudyPage: React.FC = () => {
       try {
         const [docNotes, videoNotes, docFlashcards, videoFlashcards, docQuestions, videoQuestions, glossary, docProblems, videoProblems] = await Promise.all([
           Promise.all(documents.map(doc => documentService.getNotes(doc.courseId || courseId, doc.id).catch(() => [] as Note[]))),
-          Promise.all(videos.map(video => youtubeService.getVideoNotes(video.id).catch(() => []))),
+          Promise.all(videos.map(video => videoService.getVideoNotes(video.id).catch(() => []))),
           Promise.all(documents.map(doc => documentService.getFlashcards(doc.courseId || courseId, doc.id).catch(() => [] as Flashcard[]))),
-          Promise.all(videos.map(video => youtubeService.getFlashcards(video.id).then(cards => cards.map(card => ({
+          Promise.all(videos.map(video => videoService.getFlashcards(video.id).then(cards => cards.map(card => ({
             id: card.flashcardId,
             front: card.front,
             back: card.back,
@@ -188,7 +206,7 @@ export const CourseStudyPage: React.FC = () => {
             difficulty: item.difficulty ?? 'medium',
             createdAt: '',
           } as QuestionBankQuestion))).catch(() => [] as QuestionBankQuestion[]))),
-          Promise.all(videos.map(video => youtubeService.getQuiz(video.id).then(items => items.map(item => ({
+          Promise.all(videos.map(video => videoService.getQuiz(video.id).then(items => items.map(item => ({
             quizId: item.quizId,
             youTubeVideoId: video.id,
             courseId,
@@ -357,7 +375,13 @@ export const CourseStudyPage: React.FC = () => {
                 {filteredVideos.map(video => {
                   const isActive = selected?.kind === 'video' && selected.data.id === video.id;
                   const isStudied = studiedIds.has(video.id);
-                  const vid = parseVideoId(video.videoUrl);
+                  const sourceType = video.sourceType ?? 'youtube';
+                  const isBilibili = sourceType === 'bilibili';
+                  const isUpload = sourceType === 'upload';
+                  const thumbSrc = getVideoThumbSrc(video);
+                  const SourceIcon = isUpload ? FileVideo : Youtube;
+                  const iconColor = isBilibili ? 'text-sky-400' : isUpload ? 'text-blue-400' : 'text-red-400';
+                  const sourceLabel = isBilibili ? 'Bilibili' : isUpload ? 'Upload' : 'YouTube';
                   return (
                     <div
                       key={video.id}
@@ -371,20 +395,45 @@ export const CourseStudyPage: React.FC = () => {
                         onClick={() => { setSelected({ kind: 'video', data: video }); setSidebarOpen(false); }}
                         className="flex items-center gap-3 pl-4 py-2.5 text-left flex-1 min-w-0"
                       >
-                        {vid ? (
-                          <img
-                            src={`https://img.youtube.com/vi/${vid}/default.jpg`}
-                            alt=""
-                            className={cn('shrink-0 w-10 h-7 rounded object-cover', isStudied && 'opacity-50')}
-                          />
+                        {thumbSrc ? (
+                          <>
+                            <img
+                              src={thumbSrc}
+                              alt=""
+                              className={cn('shrink-0 w-10 h-7 rounded object-cover', isStudied && 'opacity-50')}
+                              referrerPolicy="no-referrer"
+                              onError={e => {
+                                const img = e.currentTarget as HTMLImageElement;
+                                const fallback = getVideoThumbFallback(video);
+                                if (fallback && img.dataset.fallbackUsed !== 'true') {
+                                  img.dataset.fallbackUsed = 'true';
+                                  img.src = fallback;
+                                  return;
+                                }
+                                img.style.display = 'none';
+                                (img.nextElementSibling as HTMLElement | null)?.style.setProperty('display', 'flex');
+                              }}
+                            />
+                            <div style={{ display: 'none' }} className={cn('shrink-0 items-center justify-center w-10 h-7 rounded bg-zinc-100', isActive ? 'text-[var(--primary)]' : iconColor)}>
+                              {isBilibili ? (
+                                <img src="/images/bilibili.png" alt="" className="h-4 w-4 object-contain" />
+                              ) : (
+                                <SourceIcon size={14} />
+                              )}
+                            </div>
+                          </>
                         ) : (
-                          <div className={cn('shrink-0 text-red-400', isActive && 'text-[var(--primary)]')}>
-                            <Youtube size={16} />
+                          <div className={cn('shrink-0 flex items-center justify-center w-10 h-7 rounded bg-zinc-100', isActive ? 'text-[var(--primary)]' : iconColor)}>
+                            {isBilibili ? (
+                              <img src="/images/bilibili.png" alt="" className="h-4 w-4 object-contain" />
+                            ) : (
+                              <SourceIcon size={14} />
+                            )}
                           </div>
                         )}
                         <div className="min-w-0 flex-1">
                           <p className={cn('text-xs font-medium line-clamp-2 leading-snug', isActive ? 'text-[var(--primary)]' : 'text-text-main', isStudied && 'line-through opacity-60')}>{video.title}</p>
-                          <p className="text-[10px] text-text-muted">Video</p>
+                          <p className="text-[10px] text-text-muted">{sourceLabel}</p>
                         </div>
                       </button>
                       <button

@@ -73,9 +73,17 @@ const TimelineParagraph: React.FC<{
 		? ((value - startSeconds) / (endSeconds - startSeconds)) * 100
 		: 0;
 
-	const handleSeek = (nextValue: number) => {
+	const handleClickSeek = (nextValue: number) => {
 		setValue(nextValue);
 		onSeek?.(nextValue);
+	};
+
+	const handleDragChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+		setValue(Number(event.target.value));
+	};
+
+	const handleDragCommit = (event: React.MouseEvent<HTMLInputElement> | React.TouchEvent<HTMLInputElement>) => {
+		onSeek?.(Number(event.currentTarget.value));
 	};
 
 	return (
@@ -83,7 +91,7 @@ const TimelineParagraph: React.FC<{
 			<div className="summary-timeline-head">
 				<button
 					type="button"
-					onClick={() => handleSeek(startSeconds)}
+					onClick={() => handleClickSeek(startSeconds)}
 					disabled={!onSeek}
 					className="summary-timeline-range"
 					title={onSeek ? 'Jump to this timeline segment' : undefined}
@@ -99,7 +107,9 @@ const TimelineParagraph: React.FC<{
 				step={1}
 				value={value}
 				disabled={!onSeek}
-				onChange={(event) => handleSeek(Number(event.target.value))}
+				onChange={handleDragChange}
+				onMouseUp={handleDragCommit}
+				onTouchEnd={handleDragCommit}
 				className="summary-timeline-slider"
 				style={{ ['--timeline-progress' as string]: `${progress}%` }}
 				aria-label={`Seek within ${startLabel} to ${endLabel}`}

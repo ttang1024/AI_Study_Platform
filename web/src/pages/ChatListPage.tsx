@@ -7,7 +7,7 @@ import { Link } from 'react-router-dom';
 import { ChatPanel } from '../components/ai/ChatPanel';
 import { aiService, type ChatSessionSummary } from '../services/aiService';
 import { documentService } from '../services/documentService';
-import { youtubeService } from '../services/youtubeService';
+import { videoService } from '../services/videoService';
 import { STREAM_ERROR_MESSAGE } from '../services/streamSse';
 import { DeleteModal } from '../components/common/DeleteModal';
 import { createShare } from '../services/shareContentService';
@@ -153,7 +153,7 @@ export const ChatListPage: React.FC = () => {
         const msgs = await documentService.getChatHistory(item.courseId, item.sourceId);
         setPanelMessages(msgs.map(m => ({ id: m.id, role: m.role as 'user' | 'model', content: m.content })));
       } else {
-        const msgs = await youtubeService.getChatHistory(item.sourceId);
+        const msgs = await videoService.getChatHistory(item.sourceId);
         setPanelMessages(msgs.map(m => ({ id: m.id, role: m.role, content: m.content })));
       }
     } catch {
@@ -233,7 +233,7 @@ export const ChatListPage: React.FC = () => {
           selectAfterDelete(key, nextBackendSessions);
         }
       } else {
-        await youtubeService.deleteChatHistory(item.sourceId);
+        await videoService.deleteChatHistory(item.sourceId);
         const nextBackendSessions = backendSessions.filter(s => !(s.sourceType === 'video' && s.sourceId === item.sourceId));
         setBackendSessions(nextBackendSessions);
         if (activeItem && activeItemKey(activeItem) === key) {
@@ -321,7 +321,7 @@ export const ChatListPage: React.FC = () => {
           );
 
         } else {
-          await youtubeService.streamChat(activeItem.sourceId, message, chunk => {
+          await videoService.streamChat(activeItem.sourceId, message, chunk => {
             accumulated += chunk;
             onChunk(chunk);
           });
@@ -578,7 +578,7 @@ export const ChatListPage: React.FC = () => {
                   <Link
                     to={activeItem.kind === 'document'
                       ? `/documents/${activeItem.sourceId}`
-                      : `/youtube/${activeItem.sourceId}`}
+                      : `/videos/${activeItem.sourceId}`}
                     state={{ activeTab: 'chat' }}
                     className="font-medium text-text-main hover:text-[var(--primary)] hover:underline transition-colors"
                   >
@@ -588,7 +588,7 @@ export const ChatListPage: React.FC = () => {
                 <Link
                   to={activeItem.kind === 'document'
                     ? `/documents/${activeItem.sourceId}`
-                    : `/youtube/${activeItem.sourceId}`}
+                    : `/videos/${activeItem.sourceId}`}
                   state={{ activeTab: 'chat' }}
                   title="Open detail page"
                   className="shrink-0 text-text-muted hover:text-[var(--primary)] transition-colors"

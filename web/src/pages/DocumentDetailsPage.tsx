@@ -39,6 +39,7 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
   const [noteContent, setNoteContent] = useState('');
   const [noteId, setNoteId] = useState<string | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [shareQuizzesAvailable, setShareQuizzesAvailable] = useState(false);
 
   // Ref to note editor for append-from-outside
   const noteEditorRef = useRef<VideoNoteEditorRef>(null);
@@ -94,6 +95,7 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
     if (!currentDocument?.courseId || !currentDocument?.id) return;
     setNoteId(null);
     setNoteContent('');
+    setShareQuizzesAvailable(false);
     documentService.getNotes(currentDocument.courseId, currentDocument.id)
       .then(notes => {
         if (notes.length > 0) {
@@ -103,6 +105,15 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
       })
       .catch(() => { });
   }, [currentDocument?.id]);
+
+  useEffect(() => {
+    if (!showShareModal || !currentDocument?.courseId || !currentDocument?.id) return;
+    let cancelled = false;
+    documentService.getQuiz(currentDocument.courseId, currentDocument.id)
+      .then(qs => { if (!cancelled) setShareQuizzesAvailable(qs.length > 0); })
+      .catch(() => { if (!cancelled) setShareQuizzesAvailable(false); });
+    return () => { cancelled = true; };
+  }, [showShareModal, currentDocument?.courseId, currentDocument?.id]);
 
   // Initialize summary from saved document data (also re-runs when fresh API data arrives)
   useEffect(() => {
@@ -340,7 +351,7 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
                 </div>
 
                 <div className={cn("h-full", activeTab !== 'flashcards' && "hidden")}>
-                  <Flashcards />
+                  <Flashcards documentId={currentDocument.id} />
                 </div>
 
                 <div className={cn("h-full", activeTab !== 'quiz' && "hidden")}>
@@ -450,7 +461,7 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
         sourceType="document"
         sourceUrl={currentDocument.courseId ? `${currentDocument.courseId}/${currentDocument.id}` : undefined}
         notesHtml={noteContent || null}
-        fetchQuizzes={currentDocument.courseId ? async () => {
+        fetchQuizzes={currentDocument.courseId && shareQuizzesAvailable ? async () => {
           const qs = await documentService.getQuiz(currentDocument.courseId!, currentDocument.id);
           return qs.map((q) => ({
             question: q.question,
@@ -461,8 +472,8 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
           } satisfies ShareableQuiz));
         } : undefined}
         fetchFlashcards={currentDocument.courseId ? async () => {
-          const res = await apiClient.get<{ data: Array<{ front: string; back: string }> }>(`/api/courses/${currentDocument.courseId}/documents/${currentDocument.id}/flashcards`);
-          return res.data.data.map((f: ShareableCard) => ({ front: f.front, back: f.back }));
+          const res = await apiClient.get<{ data: ShareableCard[] }>(`/api/courses/${currentDocument.courseId}/documents/${currentDocument.id}/flashcards`);
+          return res.data.data.map(f => ({ front: f.front, back: f.back, cardType: f.cardType }));
         } : undefined}
       />
     </div>

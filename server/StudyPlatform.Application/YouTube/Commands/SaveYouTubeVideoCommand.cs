@@ -11,6 +11,7 @@ public record SaveYouTubeVideoCommand(
     Guid CourseId,
     string VideoId,
     string VideoUrl,
+    string? SourceType,
     string Title,
     string ThumbnailUrl,
     string? Summary) : IRequest<Result<YouTubeVideoDto>>;
@@ -27,8 +28,10 @@ public class SaveYouTubeVideoCommandHandler : IRequestHandler<SaveYouTubeVideoCo
     public async Task<Result<YouTubeVideoDto>> Handle(SaveYouTubeVideoCommand request, CancellationToken cancellationToken)
     {
         // Look for an existing record with the same YouTube videoId so we can reuse cached AI content
+        var sourceType = NormalizeSourceType(request.SourceType);
+
         var previousRecords = (await _unitOfWork.YouTubeVideos.FindAsync(
-            v => v.UserId == request.UserId && v.VideoId == request.VideoId,
+            v => v.UserId == request.UserId && v.VideoId == request.VideoId && v.SourceType == sourceType,
             cancellationToken)).ToList();
 
         var sourceRecord = previousRecords
@@ -42,6 +45,7 @@ public class SaveYouTubeVideoCommandHandler : IRequestHandler<SaveYouTubeVideoCo
             CourseId = request.CourseId,
             VideoId = request.VideoId,
             VideoUrl = request.VideoUrl,
+            SourceType = sourceType,
             Title = request.Title,
             ThumbnailUrl = request.ThumbnailUrl,
             Summary = sourceRecord?.Summary ?? request.Summary,
@@ -105,17 +109,25 @@ public class SaveYouTubeVideoCommandHandler : IRequestHandler<SaveYouTubeVideoCo
         return Result<YouTubeVideoDto>.Success(ToDto(saved!));
     }
 
-    internal static YouTubeVideoDto ToDto(YouTubeVideo v) => new(
+    public static YouTubeVideoDto ToDto(YouTubeVideo v) => new(
         v.YouTubeVideoId,
         v.CourseId,
         v.Course.CourseName,
         v.Course.CourseColor,
         v.VideoId,
         v.VideoUrl,
+        string.IsNullOrWhiteSpace(v.SourceType) ? "youtube" : v.SourceType,
         v.Title,
         v.ThumbnailUrl,
         v.Summary,
         v.MindMapText,
         v.CreatedAt,
         v.UpdatedAt);
+
+    private static string NormalizeSourceType(string? sourceType) => sourceType?.Trim().ToLowerInvariant() switch
+    {
+        "bilibili" => "bilibili",
+        "upload" => "upload",
+        _ => "youtube"
+    };
 }

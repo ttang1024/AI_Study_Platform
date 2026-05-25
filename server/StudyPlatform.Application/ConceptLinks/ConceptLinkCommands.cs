@@ -117,8 +117,8 @@ public class GetKnowledgeGraphQueryHandler : IRequestHandler<GetKnowledgeGraphQu
                 $"video:{video.YouTubeVideoId}",
                 "video",
                 string.IsNullOrWhiteSpace(video.Title) ? video.VideoId : video.Title,
-                "YouTube video",
-                $"/youtube/{video.YouTubeVideoId}",
+                "Video",
+                $"/videos/{video.YouTubeVideoId}",
                 HasStudyArtifacts(video) ? 3 : 1,
                 null,
                 video.CourseId.ToString()));
@@ -228,7 +228,7 @@ public class GetKnowledgeGraphQueryHandler : IRequestHandler<GetKnowledgeGraphQu
                 var video = await _unitOfWork.YouTubeVideos.GetByIdAsync(id, cancellationToken);
                 nodes[nodeId] = video is null
                     ? new NodeDto(nodeId, "video", id.ToString())
-                    : new NodeDto(nodeId, "video", string.IsNullOrWhiteSpace(video.Title) ? video.VideoId : video.Title, "YouTube video", $"/youtube/{video.YouTubeVideoId}");
+                    : new NodeDto(nodeId, "video", string.IsNullOrWhiteSpace(video.Title) ? video.VideoId : video.Title, "Video", $"/videos/{video.YouTubeVideoId}");
                 break;
             case "note":
                 var note = await _unitOfWork.Notes.GetByIdAsync(id, cancellationToken);

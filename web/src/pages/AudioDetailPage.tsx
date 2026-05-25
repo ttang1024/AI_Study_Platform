@@ -22,7 +22,7 @@ import { QuizQuestion } from '../types';
 import { useStudy } from '../context/StudyContext';
 import { getApiErrorCode } from '../utils/apiError';
 
-interface SimpleCard { id: string; front: string; back: string; }
+interface SimpleCard { id: string; front: string; back: string; cardType?: 'basic' | 'cloze' | 'chart'; }
 interface ChatMsg { id: string; role: 'user' | 'model'; content: string; isError?: boolean; }
 interface TranscriptSegment { start: number; end: number; text: string; }
 type AudioStudyTab = 'summary' | 'mindmap' | 'notes' | 'flashcards' | 'quiz' | 'problems' | 'chat';
@@ -268,7 +268,12 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string; course
       // Load flashcards
       try {
         const cards = await documentService.getFlashcards(cId, docId);
-        setFlashcards(cards.map((c, i) => ({ id: `fc-${i}`, front: c.front, back: c.back })));
+        setFlashcards(cards.map(c => ({
+          id: c.id,
+          front: c.front,
+          back: c.back,
+          cardType: c.cardType,
+        })));
       } catch { }
 
       // Load quiz
@@ -352,6 +357,7 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string; course
   const generationDisabledReason = isPodcast
     ? 'Transcribe the podcast before generating study materials.'
     : 'Transcribe the audio before generating study materials.';
+  const hasGeneratedQuizzes = Object.values(quizQuestionSets).some(questions => questions.length > 0);
 
   // ─── Transcript helpers ─────────────────────────────────────────────────────
 
@@ -459,7 +465,12 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string; course
     setIsLoadingFlashcards(true);
     try {
       const cards = await documentService.generateFlashcards(courseId, id);
-      setFlashcards(cards.map((c, i) => ({ id: `fc-${i}`, front: c.front, back: c.back })));
+      setFlashcards(cards.map(c => ({
+        id: c.id,
+        front: c.front,
+        back: c.back,
+        cardType: c.cardType,
+      })));
     } catch (err: any) {
       setFlashcardsError(getApiErrorCode(err));
     } finally {
@@ -912,7 +923,7 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string; course
         sourceType={isPodcast ? 'podcast' : 'audio'}
         sourceUrl={courseId && id ? `${courseId}/${id}` : null}
         originalArticleUrl={isPodcast ? podcastOriginalUrl : null}
-        fetchQuizzes={courseId && id ? async () => {
+        fetchQuizzes={courseId && id && hasGeneratedQuizzes ? async () => {
           const qs = await documentService.getQuiz(courseId, id);
           return qs.map(q => ({
             question: q.question,
@@ -923,7 +934,7 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string; course
           } satisfies ShareableQuiz));
         } : undefined}
         fetchFlashcards={flashcards.length > 0 ? async () =>
-          flashcards.map(c => ({ front: c.front, back: c.back } satisfies ShareableCard))
+          flashcards.map(c => ({ front: c.front, back: c.back, cardType: c.cardType } satisfies ShareableCard))
           : undefined}
       />
     </div>

@@ -1189,6 +1189,13 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Property<string>("Summary")
                         .HasColumnType("text");
 
+                    b.Property<string>("SourceType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("youtube");
+
                     b.Property<string>("ThumbnailUrl")
                         .IsRequired()
                         .HasMaxLength(500)

@@ -170,7 +170,8 @@ public class GetPendingFlashcardMaterialsQueryHandler : IRequestHandler<GetPendi
                     v.VideoId,
                     v.VideoUrl,
                     v.ThumbnailUrl,
-                    v.CreatedAt);
+                    v.CreatedAt,
+                    v.SourceType);
             });
 
         return Result<IEnumerable<PendingMaterialDto>>.Success(
@@ -327,4 +328,3 @@ public class ClassifyFlashcardCommandHandler : IRequestHandler<ClassifyFlashcard
         return Result<FlashcardDto>.Success(CreateFlashcardCommandHandler.ToDto(flashcard));
     }
 }
-

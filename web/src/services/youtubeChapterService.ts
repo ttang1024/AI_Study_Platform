@@ -11,12 +11,12 @@ export interface YouTubeChapter {
 
 export const youtubeChapterService = {
   async getChapters(videoId: string): Promise<YouTubeChapter[]> {
-    const res = await apiClient.get<{ data: YouTubeChapter[] }>(`/api/youtube/videos/${videoId}/chapters`);
+    const res = await apiClient.get<{ data: YouTubeChapter[] }>(`/api/videos/${videoId}/chapters`);
     return res.data.data ?? [];
   },
 
   async generateChapters(videoId: string): Promise<YouTubeChapter[]> {
-    const res = await apiClient.post<{ data: YouTubeChapter[] }>(`/api/youtube/videos/${videoId}/chapters/generate`);
+    const res = await apiClient.post<{ data: YouTubeChapter[] }>(`/api/videos/${videoId}/chapters/generate`);
     return res.data.data ?? [];
   },
 };

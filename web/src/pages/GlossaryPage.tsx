@@ -11,7 +11,7 @@ import {
 import { GlossaryTerm } from '../types';
 import { glossaryService } from '../services/glossaryService';
 import { masteredService } from '../services/masteredService';
-import { youtubeService, VideoListItem } from '../services/youtubeService';
+import { videoService, VideoListItem } from '../services/videoService';
 import { cn } from '../utils/cn';
 import { getDocDisplayName } from '../utils/docName';
 import { usePersistentTts } from '../context/TtsContext';
@@ -95,7 +95,7 @@ export const GlossaryPage: React.FC = () => {
 
   // Load videos once
   useEffect(() => {
-    youtubeService.getVideos({ page: 1, pageSize: 500 })
+    videoService.getVideos({ page: 1, pageSize: 500 })
       .then(d => setVideos(d.items))
       .catch(() => { });
   }, []);

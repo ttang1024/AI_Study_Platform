@@ -6,34 +6,63 @@ import { ClozeText } from './ClozeText';
 import { MathText } from './MathText';
 import { CardChart } from './CardChart';
 
+export type FlashcardCardType = 'basic' | 'cloze' | 'chart';
+export type FlashcardCardStyle = 'flip' | 'compact' | 'review';
+
 interface FlashcardFlipCardProps {
   front: string;
   back: string;
-  cardType?: 'basic' | 'cloze' | 'chart';
+  cardType?: FlashcardCardType;
   isFlipped: boolean;
   onFlip: () => void;
+  variant?: FlashcardCardStyle;
   /** Compact crossfade variant for dense grid layouts (e.g. Hard Flashcards in Daily Review) */
   compact?: boolean;
   /** Source label shown at the bottom of the compact variant */
   sourceName?: string;
   /** Optional badge text shown in the top-right corner of the compact variant */
   badgeLabel?: string;
+  className?: string;
+  style?: React.CSSProperties;
+  hint?: string;
+  onPointerDown?: React.PointerEventHandler<HTMLDivElement>;
+  onPointerMove?: React.PointerEventHandler<HTMLDivElement>;
+  onPointerUp?: React.PointerEventHandler<HTMLDivElement>;
+  children?: React.ReactNode;
 }
+
+export const getFlashcardCardType = (
+  card: { front?: string; cardType?: FlashcardCardType } | undefined,
+): FlashcardCardType => {
+  if (!card) return 'basic';
+  if (card.cardType) return card.cardType;
+  return /\{\{[^}]+\}\}/.test(card.front ?? '') ? 'cloze' : 'basic';
+};
 
 export const FlashcardFlipCard: React.FC<FlashcardFlipCardProps> = ({
   front,
   back,
-  cardType = 'basic',
+  cardType,
   isFlipped,
   onFlip,
+  variant = 'flip',
   compact = false,
   sourceName,
   badgeLabel,
+  className,
+  style,
+  hint,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
+  children,
 }) => {
-  const isCloze = cardType === 'cloze';
-  const isChart = cardType === 'chart';
+  const effectiveVariant = compact ? 'compact' : variant;
+  const effectiveCardType = getFlashcardCardType({ front, cardType });
+  const isCloze = effectiveCardType === 'cloze';
+  const isChart = effectiveCardType === 'chart';
 
-  if (compact) {
+  if (effectiveVariant === 'compact') {
     return (
       <div
         onClick={onFlip}
@@ -82,6 +111,62 @@ export const FlashcardFlipCard: React.FC<FlashcardFlipCardProps> = ({
           <span className="absolute top-3 right-3 rounded-full bg-red-100 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-red-600">
             {badgeLabel}
           </span>
+        )}
+      </div>
+    );
+  }
+
+  if (effectiveVariant === 'review') {
+    return (
+      <div
+        onClick={onFlip}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        className={cn(
+          'rounded-2xl border-2 border-[var(--border-color)] bg-[var(--bg-app)] hover:border-[var(--primary)]/30 p-8 cursor-pointer select-none min-h-48 flex flex-col items-center justify-center text-center transition-colors',
+          className,
+        )}
+        style={style}
+      >
+        {children}
+
+        <p className="text-[10px] font-black uppercase tracking-widest text-text-muted mb-4">
+          {isCloze ? 'Fill in the blank' :
+           isChart ? (isFlipped ? 'Chart' : 'Chart Question') :
+           isFlipped ? 'Answer' : 'Question'}
+        </p>
+
+        {isCloze ? (
+          <p className="text-lg font-semibold text-text-main leading-loose">
+            <ClozeText text={front} revealed={isFlipped} />
+          </p>
+        ) : isChart ? (
+          isFlipped ? (
+            <div className="w-full">
+              <CardChart data={back} />
+              <p className="text-sm text-text-muted mt-2 pt-2 border-t border-[var(--border-color)]">
+                <MathText text={front} />
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-3">
+              <BarChart2 size={32} className="text-[var(--primary)]/50" />
+              <p className="text-lg font-semibold text-text-main leading-relaxed">
+                <MathText text={front} />
+              </p>
+            </div>
+          )
+        ) : (
+          <p className="text-lg font-semibold text-text-main leading-relaxed">
+            {isFlipped
+              ? <MathText text={back} inline={false} />
+              : <MathText text={front} />}
+          </p>
+        )}
+
+        {!isFlipped && (
+          <p className="text-xs text-text-muted mt-6">{hint ?? 'Click to reveal answer'}</p>
         )}
       </div>
     );

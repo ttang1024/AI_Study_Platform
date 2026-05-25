@@ -12,7 +12,7 @@ import { STUDY_TYPE_ICONS } from '../../constants/contentTypeIcons';
 import { Course, Document, Flashcard, GlossaryTerm, Note } from '../../types';
 import { HardFlashcardReview } from '../study/HardFlashcardCard';
 import { SessionRating } from '../study/FlashcardSessionCard';
-import { VideoListItem, youtubeService } from '../../services/youtubeService';
+import { VideoListItem, videoService } from '../../services/videoService';
 import { WorkedProblem, workedProblemsService } from '../../services/workedProblemsService';
 import { QuestionBankQuestion } from '../../services/questionBankService';
 import { documentService, quizSubmissionService, QuizSubmission } from '../../services/documentService';
@@ -450,7 +450,7 @@ export const CourseArtifactsWorkspace: React.FC<CourseArtifactsWorkspaceProps> =
         .catch(() => { })
         .finally(() => setChatLoading(false));
     } else if (detail.sourceKind === 'video' && detail.videoId) {
-      youtubeService.getChatHistory(detail.videoId)
+      videoService.getChatHistory(detail.videoId)
         .then(msgs => setChatMessages(msgs))
         .catch(() => { })
         .finally(() => setChatLoading(false));
@@ -508,7 +508,7 @@ export const CourseArtifactsWorkspace: React.FC<CourseArtifactsWorkspaceProps> =
           onChunk(chunk);
         });
       } else if (detail.sourceKind === 'video' && detail.videoId) {
-        await youtubeService.streamChat(detail.videoId, message, (chunk) => {
+        await videoService.streamChat(detail.videoId, message, (chunk) => {
           accumulated += chunk;
           onChunk(chunk);
         });

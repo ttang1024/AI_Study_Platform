@@ -174,7 +174,8 @@ public class GetPendingQuizMaterialsQueryHandler : IRequestHandler<GetPendingQui
                     v.VideoId,
                     v.VideoUrl,
                     v.ThumbnailUrl,
-                    v.CreatedAt);
+                    v.CreatedAt,
+                    v.SourceType);
             });
 
         return Result<IEnumerable<PendingMaterialDto>>.Success(
@@ -255,7 +256,8 @@ public class GetGeneratedQuizMaterialsQueryHandler : IRequestHandler<GetGenerate
                     v.VideoId,
                     v.VideoUrl,
                     v.ThumbnailUrl,
-                    v.CreatedAt);
+                    v.CreatedAt,
+                    v.SourceType);
             });
 
         return Result<IEnumerable<PendingMaterialDto>>.Success(

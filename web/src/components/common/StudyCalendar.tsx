@@ -4,7 +4,7 @@ import { Calendar, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { CONTENT_TYPE_ICONS } from '../../constants/contentTypeIcons';
 import { motion, AnimatePresence } from 'motion/react';
 import { useStudy } from '../../context/StudyContext';
-import { youtubeService } from '../../services/youtubeService';
+import { videoService } from '../../services/videoService';
 import { cn } from '../../utils/cn';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -25,7 +25,7 @@ interface CalendarEntry {
 }
 
 const entryPath = (entry: { type: string; id: string }) => {
-  if (entry.type === 'video') return `/youtube/${entry.id}`;
+  if (entry.type === 'video') return `/videos/${entry.id}`;
   if (entry.type === 'article') return `/articles/${entry.id}`;
   if (entry.type === 'audio') return `/audio/${entry.id}`;
   return `/documents/${entry.id}`;
@@ -80,7 +80,7 @@ export const StudyCalendar: React.FC = () => {
 
       // Videos
       try {
-        const res = await youtubeService.getVideos({ page: 1, pageSize: 100 });
+        const res = await videoService.getVideos({ page: 1, pageSize: 100 });
         (res?.items ?? []).forEach(v => {
           if (v.createdAt)
             addEntry(toLocalDateStr(v.createdAt), { id: v.id, name: v.title, type: 'video', courseId: v.courseId, courseColor: v.courseColor });

@@ -53,9 +53,13 @@ test.describe('Authenticated application', () => {
     await expect(page.getByRole('heading', { name: /turn anything into study material/i })).toBeVisible()
     await expect(page.getByText('Biology 101').first()).toBeVisible()
 
+    await page.getByRole('button', { name: /^Video$/ }).click()
     await page.getByRole('button', { name: /^YouTube$/ }).click()
     await expect(page.getByText(/youtube/i).first()).toBeVisible()
     await expect(page.getByPlaceholder(/youtube.*url|video.*url/i)).toBeVisible()
+
+    await page.getByRole('button', { name: /^Bilibili$/ }).click()
+    await expect(page.getByPlaceholder(/bilibili/i)).toBeVisible()
 
     await page.getByRole('button', { name: /^Web Article$/ }).click()
     await expect(page.getByPlaceholder(/url/i)).toBeVisible()

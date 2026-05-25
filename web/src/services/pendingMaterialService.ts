@@ -1,5 +1,5 @@
 import { Document } from '../types';
-import { VideoListItem } from './youtubeService';
+import { VideoListItem } from './videoService';
 
 export interface PendingMaterial {
 	kind: 'document' | 'video';
@@ -14,6 +14,7 @@ export interface PendingMaterial {
 	videoId?: string | null;
 	videoUrl?: string | null;
 	thumbnailUrl?: string | null;
+	sourceType?: 'youtube' | 'bilibili' | 'upload' | null;
 	createdAt: string;
 }
 
@@ -43,6 +44,7 @@ export const pendingMaterialToItem = (material: PendingMaterial) => {
 				courseColor: material.courseColor,
 				videoId: material.videoId ?? '',
 				videoUrl: material.videoUrl ?? '',
+				sourceType: material.sourceType ?? 'youtube',
 				title: material.name,
 				thumbnailUrl: material.thumbnailUrl ?? '',
 				summary: null,

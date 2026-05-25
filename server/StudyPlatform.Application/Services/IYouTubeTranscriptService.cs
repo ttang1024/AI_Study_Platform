@@ -28,8 +28,19 @@ public interface IYouTubeTranscriptService
     /// </summary>
     Task<IReadOnlyList<TranscriptSegment>?> GetSubtitlesAsync(string videoId, CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<TranscriptSegment>?> GetTranscriptFromUrlAsync(string videoUrl, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<TranscriptSegment>?> GetSubtitlesFromUrlAsync(string videoUrl, CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Returns a list of video metadata for all videos in a YouTube playlist.
     /// </summary>
     Task<IReadOnlyList<PlaylistVideoItem>> GetPlaylistItemsAsync(string playlistId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Returns the title and thumbnail URL for the given video URL (supports Bilibili and YouTube).
+    /// </summary>
+    Task<VideoMetadata?> GetVideoMetadataAsync(string videoUrl, CancellationToken cancellationToken = default);
 }
+
+public record VideoMetadata(string Title, string ThumbnailUrl);

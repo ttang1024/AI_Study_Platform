@@ -8,7 +8,7 @@ import { cn } from '../utils/cn';
 import { getDocDisplayName } from '../utils/docName';
 import { Button } from '../components/common/Button';
 import { RichTextEditor } from '../components/common/RichTextEditor';
-import { youtubeService, VideoListItem } from '../services/youtubeService';
+import { videoService, VideoListItem } from '../services/videoService';
 import { noteService } from '../services/noteService';
 import { Note } from '../types';
 import { SourceFilterBar, SourceType } from '../components/common/SourceFilterBar';
@@ -139,7 +139,7 @@ export const NotesPage: React.FC = () => {
   } | null>(null);
 
   useEffect(() => {
-    youtubeService.getVideos({ page: 1 })
+    videoService.getVideos({ page: 1 })
       .then(data => setVideoList(data.items))
       .catch(() => { });
   }, []);
@@ -297,7 +297,7 @@ export const NotesPage: React.FC = () => {
     if (cachedVideo?.videoUrl) return cachedVideo.videoUrl;
 
     try {
-      const video = await youtubeService.getVideo(videoRecordId);
+      const video = await videoService.getVideo(videoRecordId);
       return video.videoUrl ?? null;
     } catch {
       return null;
@@ -442,7 +442,7 @@ export const NotesPage: React.FC = () => {
                     content={entry.content}
                     icon={<CONTENT_TYPE_ICONS.video.icon size={18} className="text-red-500 shrink-0" />}
                     viewLabel="View Video"
-                    onView={() => navigate(`/youtube/${entry.videoRecordId}`)}
+                    onView={() => navigate(`/videos/${entry.videoRecordId}`)}
                     onShare={async () => {
                       const video = videoList.find(v => v.id === entry.videoRecordId);
                       const sourceUrl = video?.videoUrl ?? await resolveVideoUrl(entry.videoRecordId);

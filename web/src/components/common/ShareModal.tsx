@@ -14,7 +14,7 @@ interface ShareModalProps {
   notesHtml?: string | null;
   fetchQuizzes?: () => Promise<ShareableQuiz[]>;
   fetchFlashcards?: () => Promise<ShareableCard[]>;
-  sourceType?: 'youtube' | 'article' | 'audio' | 'podcast' | 'document' | null;
+  sourceType?: 'youtube' | 'bilibili' | 'upload' | 'article' | 'audio' | 'podcast' | 'document' | null;
   sourceUrl?: string | null;
   originalArticleUrl?: string | null;
 }

@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { getDocDisplayName } from '../utils/docName';
 import { SourceFilterBar, SourceType } from '../components/common/SourceFilterBar';
 import { PendingItemsGrid, PendingItem } from '../components/common/PendingItemsGrid';
-import { youtubeService, VideoListItem } from '../services/youtubeService';
+import { videoService, VideoListItem } from '../services/videoService';
 import { ShareableQuiz } from '../services/shareContentService';
 import { ShareModal } from '../components/common/ShareModal';
 import { documentService, quizSubmissionService, QuizSubmission } from '../services/documentService';
@@ -153,7 +153,7 @@ export const QuizManagementPage: React.FC = () => {
   }, [quizSubmissions]);
 
   const refreshVideos = React.useCallback(() => {
-    return youtubeService.getVideos({ page: 1, pageSize: 10 })
+    return videoService.getVideos({ page: 1, pageSize: 10 })
       .then(data => setVideoList(data.items))
       .catch(() => { });
   }, []);
@@ -308,7 +308,7 @@ export const QuizManagementPage: React.FC = () => {
   const handleStartVideoTimedExam = async (videoId: string, videoName: string) => {
     setLoadingTimedExam(videoId);
     try {
-      const questions = await youtubeService.getQuiz(videoId);
+      const questions = await videoService.getQuiz(videoId);
       if (questions.length === 0) { showPrompt('No questions available for this video.'); return; }
       setTimedExamQuestions(questions.map(q => ({
         id: q.quizId, question: q.question, options: q.options,
@@ -349,7 +349,7 @@ export const QuizManagementPage: React.FC = () => {
     const cachedVideo = videoList.find(v => v.id === videoId);
     if (cachedVideo?.videoUrl) return cachedVideo.videoUrl;
     try {
-      const video = await youtubeService.getVideo(videoId);
+      const video = await videoService.getVideo(videoId);
       return video.videoUrl ?? null;
     } catch {
       return null;
@@ -362,7 +362,7 @@ export const QuizManagementPage: React.FC = () => {
     setShareTarget({
       title: videoName,
       fetchQuizzes: async () => {
-        const questions = await youtubeService.getQuiz(videoId);
+        const questions = await videoService.getQuiz(videoId);
         return questions.map(q => ({
           question: q.question, options: q.options ?? [],
           correctAnswer: q.correctAnswer, explanation: q.explanation ?? '',
@@ -378,7 +378,7 @@ export const QuizManagementPage: React.FC = () => {
     for (const item of filteredItems.filter(i => !i.pending)) {
       try {
         if (item.type === 'video') {
-          const questions = await youtubeService.getQuiz(item.id);
+          const questions = await videoService.getQuiz(item.id);
           if (questions.length) {
             records.push({
               title: item.name,

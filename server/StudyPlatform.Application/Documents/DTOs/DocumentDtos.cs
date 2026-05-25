@@ -98,7 +98,8 @@ public record PendingMaterialDto(
     string? VideoId,
     string? VideoUrl,
     string? ThumbnailUrl,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    string? SourceType = null);
 
 public record SaveQuizSubmissionRequest(
     Dictionary<string, string> Answers,

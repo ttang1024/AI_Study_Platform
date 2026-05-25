@@ -1,26 +1,28 @@
 import React, { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Upload, Files } from 'lucide-react';
+import { Upload, Files, Youtube, FileVideo } from 'lucide-react';
 import { CONTENT_TYPE_ICONS } from '../constants/contentTypeIcons';
 import { BulkUploadSection } from '../components/common/BulkUploadSection';
 import { cn } from '../utils/cn';
 import { CoursePicker } from '../components/common/CoursePicker';
 import { DocumentTab } from '../components/summarizer/DocumentTab';
 import { YouTubeTab } from '../components/summarizer/YouTubeTab';
+import { UploadVideoTab } from '../components/summarizer/UploadVideoTab';
 import { AudioTab } from '../components/summarizer/AudioTab';
 import { PodcastTab } from '../components/summarizer/PodcastTab';
 import { WebTab } from '../components/summarizer/WebTab';
 
-type Tab = 'document' | 'youtube' | 'web' | 'audio';
+type Tab = 'document' | 'video' | 'web' | 'audio';
 type DocSubTab = 'single' | 'bulk';
 type AudioSubTab = 'lecture' | 'podcast';
+type VideoSubTab = 'youtube' | 'bilibili' | 'upload';
 
 export const AISummarizerPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<Tab>(() => {
     const t = searchParams.get('tab');
-    if (t === 'youtube') return 'youtube';
+    if (t === 'youtube' || t === 'bilibili' || t === 'video' || t === 'upload-video') return 'video';
     if (t === 'web') return 'web';
     if (t === 'audio' || t === 'podcast') return 'audio';
     return 'document';
@@ -31,6 +33,12 @@ export const AISummarizerPage: React.FC = () => {
   const [audioSubTab, setAudioSubTab] = useState<AudioSubTab>(() =>
     searchParams.get('tab') === 'podcast' ? 'podcast' : 'lecture',
   );
+  const [videoSubTab, setVideoSubTab] = useState<VideoSubTab>(() => {
+    const t = searchParams.get('tab');
+    if (t === 'bilibili') return 'bilibili';
+    if (t === 'upload-video') return 'upload';
+    return 'youtube';
+  });
   const [selectedCourseId, setSelectedCourseId] = useState(searchParams.get('courseId') ?? '');
   const [courseError, setCourseError] = useState(false);
 
@@ -49,7 +57,7 @@ export const AISummarizerPage: React.FC = () => {
             selectedCourseId={selectedCourseId}
             onSelect={(id) => { setSelectedCourseId(id); setCourseError(false); }}
             error={courseError}
-            variant={activeTab === 'youtube' ? 'red' : 'primary'}
+            variant={activeTab === 'video' && videoSubTab === 'youtube' ? 'red' : 'primary'}
           />
         </div>
 
@@ -71,13 +79,13 @@ export const AISummarizerPage: React.FC = () => {
               <Upload size={13} className="sm:hidden" /><Upload size={15} className="hidden sm:block" /> Document
             </button>
             <button
-              onClick={() => handleTabChange('youtube')}
+              onClick={() => handleTabChange('video')}
               className={cn(
                 'flex-1 flex items-center justify-center gap-1 sm:gap-2 rounded-lg py-2 sm:py-2.5 text-[11px] sm:text-sm font-bold transition-all duration-200 whitespace-nowrap',
-                activeTab === 'youtube' ? 'bg-white text-red-500 shadow-sm' : 'text-zinc-500 hover:text-zinc-700',
+                activeTab === 'video' ? 'bg-white text-red-500 shadow-sm' : 'text-zinc-500 hover:text-zinc-700',
               )}
             >
-              <CONTENT_TYPE_ICONS.video.icon size={13} className="sm:hidden" /><CONTENT_TYPE_ICONS.video.icon size={15} className="hidden sm:block" /> YouTube
+              <CONTENT_TYPE_ICONS.video.icon size={13} className="sm:hidden" /><CONTENT_TYPE_ICONS.video.icon size={15} className="hidden sm:block" /> Video
             </button>
             <button
               onClick={() => handleTabChange('web')}
@@ -143,9 +151,52 @@ export const AISummarizerPage: React.FC = () => {
               </motion.div>
             )}
 
-            {activeTab === 'youtube' && (
-              <motion.div key="youtube" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.15 }}>
-                <YouTubeTab selectedCourseId={selectedCourseId} onCourseError={setCourseError} />
+            {activeTab === 'video' && (
+              <motion.div key="video" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.15 }} className="flex flex-col gap-4">
+                <div className="flex rounded-lg bg-zinc-50 border border-zinc-200 p-0.5 gap-0.5 self-start">
+                  <button
+                    onClick={() => setVideoSubTab('youtube')}
+                    className={cn(
+                      'flex items-center gap-1.5 rounded-md px-4 py-1.5 text-xs font-bold transition-all duration-200',
+                      videoSubTab === 'youtube' ? 'bg-white text-red-500 shadow-sm' : 'text-zinc-500 hover:text-zinc-700',
+                    )}
+                  >
+                    <Youtube size={12} /> YouTube
+                  </button>
+                  <button
+                    onClick={() => setVideoSubTab('bilibili')}
+                    className={cn(
+                      'flex items-center gap-1.5 rounded-md px-4 py-1.5 text-xs font-bold transition-all duration-200',
+                      videoSubTab === 'bilibili' ? 'bg-white text-sky-500 shadow-sm' : 'text-zinc-500 hover:text-zinc-700',
+                  )}
+                >
+                    <img src="/images/bilibili.png" alt="" className="h-3 w-3 object-contain" /> Bilibili
+                  </button>
+                  <button
+                    onClick={() => setVideoSubTab('upload')}
+                    className={cn(
+                      'flex items-center gap-1.5 rounded-md px-4 py-1.5 text-xs font-bold transition-all duration-200',
+                      videoSubTab === 'upload' ? 'bg-white text-primary shadow-sm' : 'text-zinc-500 hover:text-zinc-700',
+                    )}
+                  >
+                    <FileVideo size={12} /> Upload Video
+                  </button>
+                </div>
+                <AnimatePresence mode="wait">
+                  {videoSubTab === 'youtube' ? (
+                    <motion.div key="youtube" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.12 }}>
+                      <YouTubeTab selectedCourseId={selectedCourseId} onCourseError={setCourseError} source="youtube" />
+                    </motion.div>
+                  ) : videoSubTab === 'bilibili' ? (
+                    <motion.div key="bilibili" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.12 }}>
+                      <YouTubeTab selectedCourseId={selectedCourseId} onCourseError={setCourseError} source="bilibili" />
+                    </motion.div>
+                  ) : (
+                    <motion.div key="upload-video" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.12 }}>
+                      <UploadVideoTab selectedCourseId={selectedCourseId} onCourseError={setCourseError} />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </motion.div>
             )}
 

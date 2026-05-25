@@ -1,5 +1,6 @@
 import { apiClient } from './apiClient'
 import { streamSse } from './streamSse'
+import { getApiUrl } from '../utils/env'
 
 // --- Types ---
 
@@ -10,6 +11,7 @@ export interface VideoListItem {
 	courseColor: string
 	videoId: string
 	videoUrl: string
+	sourceType?: 'youtube' | 'bilibili' | 'upload'
 	title: string
 	thumbnailUrl: string
 	summary: string | null
@@ -32,6 +34,7 @@ export interface VideoDetail {
 	courseId: string
 	videoId: string
 	videoUrl: string
+	sourceType?: 'youtube' | 'bilibili' | 'upload'
 	title: string
 	thumbnailUrl: string
 	summary: string | null
@@ -79,6 +82,7 @@ export interface CreateVideoData {
 	courseId: string
 	videoId: string
 	videoUrl: string
+	sourceType?: 'youtube' | 'bilibili' | 'upload'
 	title: string
 	thumbnailUrl: string
 	summary: null
@@ -94,8 +98,9 @@ export interface GetVideosParams {
 // --- Service ---
 
 const inflightVideoListRequests = new Map<string, Promise<PagedVideos>>()
+const VIDEO_API = '/api/videos'
 
-export const youtubeService = {
+export const videoService = {
 	async getVideos(params: GetVideosParams = {}): Promise<PagedVideos> {
 		const p = new URLSearchParams({
 			page: String(params.page ?? 1),
@@ -103,7 +108,7 @@ export const youtubeService = {
 		})
 		if (params.courseId) p.set('courseId', params.courseId)
 		if (params.search) p.set('search', params.search)
-		const url = `/api/youtube/videos?${p}`
+		const url = `${VIDEO_API}?${p}`
 		const pending = inflightVideoListRequests.get(url)
 		if (pending) return pending
 
@@ -117,45 +122,94 @@ export const youtubeService = {
 	},
 
 	async getVideo(id: string): Promise<VideoDetail> {
-		const res = await apiClient.get<{ data: VideoDetail }>(`/api/youtube/videos/${id}`)
+		const res = await apiClient.get<{ data: VideoDetail }>(`${VIDEO_API}/${id}`)
 		return res.data.data
 	},
 
 	async createVideo(data: CreateVideoData): Promise<VideoDetail> {
-		const res = await apiClient.post<{ data: VideoDetail }>('/api/youtube/videos', data)
+		const res = await apiClient.post<{ data: VideoDetail }>(VIDEO_API, data)
 		return res.data.data
+	},
+
+	async uploadVideo(courseId: string, file: File, thumbnail?: Blob): Promise<VideoDetail> {
+		const formData = new FormData()
+		formData.append('courseId', courseId)
+		formData.append('file', file)
+		if (thumbnail) {
+			formData.append('thumbnail', thumbnail, `${file.name.replace(/\.[^.]+$/, '') || 'video'}-cover.jpg`)
+		}
+		const res = await apiClient.post<{ data: VideoDetail }>(
+			`${VIDEO_API}/upload`,
+			formData,
+			{ headers: { 'Content-Type': 'multipart/form-data' } },
+		)
+		return res.data.data
+	},
+
+	async getPlaybackUrl(videoRecordId: string): Promise<string> {
+		const res = await apiClient.get<{ data: string }>(`${VIDEO_API}/${videoRecordId}/playback-url`)
+		return res.data.data
+	},
+
+	getUploadedVideoStreamUrl(videoRecordId: string): string {
+		const token = typeof window !== 'undefined' ? localStorage.getItem('sp_access_token') : null
+		const baseUrl = getApiUrl()
+		const path = `${VIDEO_API}/${videoRecordId}/file`
+		return token
+			? `${baseUrl}${path}?access_token=${encodeURIComponent(token)}`
+			: `${baseUrl}${path}`
+	},
+
+	getUploadedVideoThumbnailUrl(videoRecordId: string): string {
+		const token = typeof window !== 'undefined' ? localStorage.getItem('sp_access_token') : null
+		const baseUrl = getApiUrl()
+		const path = `${VIDEO_API}/${videoRecordId}/thumbnail`
+		return token
+			? `${baseUrl}${path}?access_token=${encodeURIComponent(token)}`
+			: `${baseUrl}${path}`
+	},
+
+	async getVideoMetadata(videoUrl: string): Promise<{ title: string; thumbnailUrl: string } | null> {
+		try {
+			const res = await apiClient.get<{ data: { title: string; thumbnailUrl: string } }>(
+				`${VIDEO_API}/video-metadata?videoUrl=${encodeURIComponent(videoUrl)}`,
+			)
+			return res.data.data ?? null
+		} catch {
+			return null
+		}
 	},
 
 	async getPlaylistItems(playlistId: string): Promise<PlaylistVideoItemData[]> {
 		const res = await apiClient.get<{ data: PlaylistVideoItemData[] }>(
-			`/api/youtube/playlist-items?playlistId=${encodeURIComponent(playlistId)}`,
+			`${VIDEO_API}/playlist-items?playlistId=${encodeURIComponent(playlistId)}`,
 		)
 		return res.data.data ?? []
 	},
 
 	async updateVideo(id: string, data: Record<string, unknown>): Promise<VideoListItem> {
-		const res = await apiClient.patch<{ data: VideoListItem }>(`/api/youtube/videos/${id}`, data)
+		const res = await apiClient.patch<{ data: VideoListItem }>(`${VIDEO_API}/${id}`, data)
 		return res.data.data
 	},
 
 	async deleteVideo(id: string): Promise<void> {
-		await apiClient.delete(`/api/youtube/videos/${id}`)
+		await apiClient.delete(`${VIDEO_API}/${id}`)
 	},
 
 	async moveVideo(id: string, targetCourseId: string): Promise<void> {
-		await apiClient.patch(`/api/youtube/videos/${id}/move`, { targetCourseId })
+		await apiClient.patch(`${VIDEO_API}/${id}/move`, { targetCourseId })
 	},
 
 	async getFlashcards(videoId: string): Promise<VideoFlashcard[]> {
 		const res = await apiClient.get<{ data: VideoFlashcard[] }>(
-			`/api/youtube/videos/${videoId}/flashcards`,
+			`${VIDEO_API}/${videoId}/flashcards`,
 		)
 		return res.data.data ?? []
 	},
 
 	async generateFlashcards(videoId: string, videoUrl: string): Promise<VideoFlashcard[]> {
 		const res = await apiClient.post<{ data: VideoFlashcard[] }>(
-			`/api/youtube/videos/${videoId}/flashcards/generate`,
+			`${VIDEO_API}/${videoId}/flashcards/generate`,
 			{ videoUrl },
 		)
 		return res.data.data ?? []
@@ -164,14 +218,14 @@ export const youtubeService = {
 	async getQuiz(videoId: string, difficulty?: string): Promise<VideoQuizItem[]> {
 		const query = difficulty ? `?difficulty=${encodeURIComponent(difficulty)}` : ''
 		const res = await apiClient.get<{ data: VideoQuizItem[] }>(
-			`/api/youtube/videos/${videoId}/quiz${query}`,
+			`${VIDEO_API}/${videoId}/quiz${query}`,
 		)
 		return res.data.data ?? []
 	},
 
 	async generateQuiz(videoId: string, videoUrl: string, difficulty = 'medium'): Promise<VideoQuizItem[]> {
 		const res = await apiClient.post<{ data: VideoQuizItem[] }>(
-			`/api/youtube/videos/${videoId}/quiz/generate?difficulty=${encodeURIComponent(difficulty)}`,
+			`${VIDEO_API}/${videoId}/quiz/generate?difficulty=${encodeURIComponent(difficulty)}`,
 			{ videoUrl },
 		)
 		return res.data.data ?? []
@@ -179,14 +233,28 @@ export const youtubeService = {
 
 	async getTranscript(videoId: string): Promise<TranscriptSegment[]> {
 		const res = await apiClient.get<{ data: TranscriptSegment[] }>(
-			`/api/youtube/transcript?videoId=${encodeURIComponent(videoId)}`,
+			`${VIDEO_API}/transcript?videoId=${encodeURIComponent(videoId)}`,
+		)
+		return res.data.data ?? []
+	},
+
+	async getVideoTranscript(videoRecordId: string): Promise<TranscriptSegment[]> {
+		const res = await apiClient.get<{ data: TranscriptSegment[] }>(
+			`${VIDEO_API}/${videoRecordId}/transcript`,
 		)
 		return res.data.data ?? []
 	},
 
 	async getSubtitles(videoId: string): Promise<TranscriptSegment[]> {
 		const res = await apiClient.get<{ data: TranscriptSegment[] }>(
-			`/api/youtube/subtitles?videoId=${encodeURIComponent(videoId)}`,
+			`${VIDEO_API}/subtitles?videoId=${encodeURIComponent(videoId)}`,
+		)
+		return res.data.data ?? []
+	},
+
+	async getVideoSubtitles(videoRecordId: string): Promise<TranscriptSegment[]> {
+		const res = await apiClient.get<{ data: TranscriptSegment[] }>(
+			`${VIDEO_API}/${videoRecordId}/subtitles`,
 		)
 		return res.data.data ?? []
 	},
@@ -198,7 +266,7 @@ export const youtubeService = {
 	},
 
 	async getVideoNotes(videoRecordId: string): Promise<Array<{ noteId: string; youTubeVideoId?: string; content: string; createdAt: string; updatedAt?: string }>> {
-		const res = await apiClient.get<{ data: any[] }>(`/api/youtube/videos/${videoRecordId}/notes`)
+		const res = await apiClient.get<{ data: any[] }>(`${VIDEO_API}/${videoRecordId}/notes`)
 		return res.data?.data ?? []
 	},
 
@@ -220,7 +288,7 @@ export const youtubeService = {
 		score: number,
 		total: number,
 	): Promise<void> {
-		await apiClient.post(`/api/youtube/videos/${videoId}/quiz/submit`, {
+		await apiClient.post(`${VIDEO_API}/${videoId}/quiz/submit`, {
 			answers,
 			score,
 			total,
@@ -232,7 +300,7 @@ export const youtubeService = {
 	): Promise<Array<{ id: string; term: string; definition: string }>> {
 		try {
 			const res = await apiClient.get<{ data: any[] }>(
-				`/api/youtube/videos/${videoId}/glossary`,
+				`${VIDEO_API}/${videoId}/glossary`,
 			)
 			return (res.data?.data ?? []).map((t: any) => ({
 				id: t.id,
@@ -249,7 +317,7 @@ export const youtubeService = {
 		videoUrl: string,
 	): Promise<Array<{ id: string; term: string; definition: string }>> {
 		const res = await apiClient.post<{ data: any[] }>(
-			`/api/youtube/videos/${videoId}/glossary/generate`,
+			`${VIDEO_API}/${videoId}/glossary/generate`,
 			{ videoUrl },
 		)
 		return (res.data?.data ?? []).map((t: any) => ({
@@ -263,7 +331,7 @@ export const youtubeService = {
 		videoId: string,
 	): Promise<{ answers: Record<string, string>; score: number; total: number } | null> {
 		const res = await apiClient.get<{ data: any }>(
-			`/api/youtube/videos/${videoId}/quiz/submission`,
+			`${VIDEO_API}/${videoId}/quiz/submission`,
 		)
 		const data = res.data?.data
 		if (!data) return null
@@ -273,7 +341,7 @@ export const youtubeService = {
 	async getChatHistory(
 		videoId: string,
 	): Promise<Array<{ id: string; role: 'user' | 'model'; content: string }>> {
-		const res = await apiClient.get<{ data: any[] }>(`/api/youtube/videos/${videoId}/chat`)
+		const res = await apiClient.get<{ data: any[] }>(`${VIDEO_API}/${videoId}/chat`)
 		return (res.data?.data ?? []).map((m: any) => ({
 			id: m.messageId,
 			role: m.role === 'assistant' ? 'model' : (m.role as 'user' | 'model'),
@@ -282,14 +350,14 @@ export const youtubeService = {
 	},
 
 	async deleteChatHistory(videoId: string): Promise<void> {
-		await apiClient.delete(`/api/youtube/videos/${videoId}/chat`)
+		await apiClient.delete(`${VIDEO_API}/${videoId}/chat`)
 	},
 
 	async sendChat(
 		videoId: string,
 		message: string,
 	): Promise<{ id: string; role: 'user' | 'model'; content: string }> {
-		const res = await apiClient.post<{ data: any }>(`/api/youtube/videos/${videoId}/chat`, {
+		const res = await apiClient.post<{ data: any }>(`${VIDEO_API}/${videoId}/chat`, {
 			message,
 		})
 		const m = res.data.data
@@ -301,7 +369,23 @@ export const youtubeService = {
 		onChunk: (chunk: string) => void,
 		signal?: AbortSignal,
 	): Promise<void> {
-		return streamSse('/api/youtube/summary/stream', { videoUrl }, onChunk, signal)
+		return streamSse(`${VIDEO_API}/summary/stream`, { videoUrl }, onChunk, signal)
+	},
+
+	async streamVideoSummary(
+		videoRecordId: string,
+		onChunk: (chunk: string) => void,
+		signal?: AbortSignal,
+	): Promise<void> {
+		return streamSse(`${VIDEO_API}/${videoRecordId}/summary/stream`, {}, onChunk, signal)
+	},
+
+	async streamVideoMindMap(
+		videoRecordId: string,
+		onChunk: (chunk: string) => void,
+		signal?: AbortSignal,
+	): Promise<void> {
+		return streamSse(`${VIDEO_API}/${videoRecordId}/mindmap/stream`, {}, onChunk, signal)
 	},
 
 	async streamChat(
@@ -310,6 +394,6 @@ export const youtubeService = {
 		onChunk: (chunk: string) => void,
 		signal?: AbortSignal,
 	): Promise<void> {
-		return streamSse(`/api/youtube/videos/${videoId}/chat/stream`, { message }, onChunk, signal)
+		return streamSse(`${VIDEO_API}/${videoId}/chat/stream`, { message }, onChunk, signal)
 	},
 }

@@ -7,6 +7,7 @@ public record YouTubeVideoDto(
     string CourseColor,
     string VideoId,
     string VideoUrl,
+    string SourceType,
     string Title,
     string ThumbnailUrl,
     string? Summary,
@@ -18,6 +19,7 @@ public record SaveYouTubeVideoRequest(
     Guid CourseId,
     string VideoId,
     string VideoUrl,
+    string? SourceType,
     string Title,
     string ThumbnailUrl,
     string? Summary);

@@ -7,6 +7,7 @@ public class YouTubeVideo
     public Guid CourseId { get; set; }
     public string VideoId { get; set; } = string.Empty;   // YouTube video ID (e.g. dQw4w9WgXcQ)
     public string VideoUrl { get; set; } = string.Empty;
+    public string SourceType { get; set; } = "youtube";
     public string Title { get; set; } = string.Empty;
     public string ThumbnailUrl { get; set; } = string.Empty;
     public string? Summary { get; set; }

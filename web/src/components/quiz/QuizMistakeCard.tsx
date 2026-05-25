@@ -27,7 +27,7 @@ export const QuizMistakeCard: React.FC<QuizMistakeCardProps> = ({
   const handleSourceClick = () => {
     const state = { activeTab: 'quiz' };
     if (question.youTubeVideoId) {
-      navigate(`/youtube/${question.youTubeVideoId}`, { state });
+      navigate(`/videos/${question.youTubeVideoId}`, { state });
     } else if (question.documentId) {
       const doc = documents.find(d => d.id === question.documentId);
       if (doc?.type === 'audio' || doc?.type === 'podcast') {

@@ -185,11 +185,57 @@ public class ShareController : ControllerBase
         return File(stream, contentType);
     }
 
+    // GET /api/share/{token}/video — anonymous, streams an uploaded video shared by its owner
+    [HttpGet("{token}/video")]
+    [AllowAnonymous]
+    public async Task<IActionResult> StreamVideo(string token, CancellationToken cancellationToken = default)
+    {
+        var share = await _unitOfWork.ShareTokens.GetByTokenAsync(token, cancellationToken);
+        if (share == null || share.SourceType != "upload" || share.SourceUrl == null)
+            return NotFound();
+        if (share.ExpiresAt.HasValue && share.ExpiresAt.Value < DateTime.UtcNow)
+            return StatusCode(410, "Share link has expired");
+
+        if (!TryParseVideoPath(share.SourceUrl, out var videoId))
+            return NotFound();
+
+        var video = await _unitOfWork.YouTubeVideos.GetByIdAsync(videoId, cancellationToken);
+        if (video == null || video.UserId != share.OwnerId || video.SourceType != "upload")
+            return NotFound();
+
+        var stream = await _blobStorage.DownloadAsync(video.VideoUrl, cancellationToken);
+        return File(stream, GetVideoContentType(video.VideoUrl), enableRangeProcessing: true);
+    }
+
     private static bool TryParseDocPath(string sourceUrl, out Guid docId)
     {
         docId = Guid.Empty;
         var parts = sourceUrl.Split('/');
         return parts.Length == 2 && Guid.TryParse(parts[1], out docId);
+    }
+
+    private static bool TryParseVideoPath(string sourceUrl, out Guid videoId)
+    {
+        videoId = Guid.Empty;
+        var parts = sourceUrl.Split('/');
+        return parts.Length == 2 && parts[0] == "video" && Guid.TryParse(parts[1], out videoId);
+    }
+
+    private static string GetVideoContentType(string blobUrl)
+    {
+        var path = blobUrl;
+        if (Uri.TryCreate(blobUrl, UriKind.Absolute, out var uri))
+            path = uri.AbsolutePath;
+
+        return Path.GetExtension(Uri.UnescapeDataString(path)).ToLowerInvariant() switch
+        {
+            ".mp4" or ".m4v" => "video/mp4",
+            ".mov" => "video/quicktime",
+            ".webm" => "video/webm",
+            ".mkv" => "video/x-matroska",
+            ".avi" => "video/x-msvideo",
+            _ => "application/octet-stream"
+        };
     }
 
     private static string GenerateToken()

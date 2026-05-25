@@ -206,7 +206,7 @@ export async function mockStudyApi(page: Page) {
       })
     }
     if (path === '/api/documents') return json(route, paged(documents, Number(url.searchParams.get('pageSize') ?? 500)))
-    if (path === '/api/youtube/videos') return json(route, paged(videos, Number(url.searchParams.get('pageSize') ?? 8)))
+    if (path === '/api/videos') return json(route, paged(videos, Number(url.searchParams.get('pageSize') ?? 8)))
     if (path === '/api/notes') return json(route, paged(notes, Number(url.searchParams.get('pageSize') ?? 20)))
     if (path === '/api/flashcards') return json(route, paged(flashcards, Number(url.searchParams.get('pageSize') ?? 20)))
     if (path === '/api/flashcards/coverage') return json(route, { documentIds: ['doc-cells'], youTubeVideoIds: ['video-mitosis'] })

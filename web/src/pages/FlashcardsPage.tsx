@@ -5,9 +5,9 @@ import { useNavigate } from 'react-router-dom';
 import { cn } from '../utils/cn';
 import { getDocDisplayName } from '../utils/docName';
 import { motion, AnimatePresence } from 'motion/react';
-import { MobileFlashcardReview } from '../components/study/MobileFlashcardReview';
+import { FlashcardSessionDeck } from '../components/study/FlashcardSessionCard';
 import { FlashcardDetailView } from '../components/study/FlashcardDetailView';
-import { youtubeService, VideoListItem } from '../services/youtubeService';
+import { videoService, VideoListItem } from '../services/videoService';
 import { flashcardService } from '../services/flashcardService';
 import { Flashcard } from '../types';
 import { SourceFilterBar, SourceType } from '../components/common/SourceFilterBar';
@@ -26,6 +26,18 @@ interface SimpleCard { id: string; front: string; back: string; }
 
 const PAGE_SIZE = 6;
 const CARD_PAGE_SIZE = 10;
+
+function getVideoSetThumbnail(video?: VideoListItem) {
+  if (!video) return undefined;
+  if (video.sourceType === 'upload') return videoService.getUploadedVideoThumbnailUrl(video.id);
+  if (video.thumbnailUrl) return video.thumbnailUrl;
+  if (video.sourceType === 'bilibili') return '/images/bilibili.png';
+  return video.videoId ? `https://img.youtube.com/vi/${video.videoId}/mqdefault.jpg` : undefined;
+}
+
+function getVideoSetPreview(video?: VideoListItem) {
+  return video?.sourceType === 'upload' ? videoService.getUploadedVideoStreamUrl(video.id) : undefined;
+}
 
 export const FlashcardsPage: React.FC = () => {
   const { documents, courses, flashcards, totalMaterials, isLoading: contextLoading, refreshFlashcards, refreshStats, refreshDocuments } = useStudy();
@@ -59,7 +71,7 @@ export const FlashcardsPage: React.FC = () => {
 
   const refreshVideos = React.useCallback(() => {
     setVideosLoading(true);
-    return youtubeService.getVideos({ page: 1, pageSize: 500 })
+    return videoService.getVideos({ page: 1, pageSize: 500 })
       .then(data => setVideoList(data.items))
       .catch(() => { })
       .finally(() => setVideosLoading(false));
@@ -140,7 +152,7 @@ export const FlashcardsPage: React.FC = () => {
     setSelectedVideo({
       id: videoId,
       title: v?.title ?? 'Unknown Video',
-      thumbnailUrl: v?.thumbnailUrl ?? '',
+      thumbnailUrl: getVideoSetThumbnail(v) ?? '',
       courseId: v?.courseId ?? '',
       courseName: v?.courseName ?? '',
       courseColor: v?.courseColor ?? '#a1a1aa',
@@ -190,7 +202,8 @@ export const FlashcardsPage: React.FC = () => {
         courseColor: v?.courseColor ?? '#a1a1aa',
         cardCount: cards.length,
         clozeCount: cards.filter(c => c.cardType === 'cloze').length,
-        thumbnailUrl: v?.thumbnailUrl,
+        thumbnailUrl: getVideoSetThumbnail(v),
+        videoPreviewUrl: getVideoSetPreview(v),
         previewText: cards[0]?.front,
       };
     });
@@ -456,7 +469,7 @@ export const FlashcardsPage: React.FC = () => {
                                 e.stopPropagation();
                                 const state = { activeTab: 'flashcards' };
                                 if (card.youTubeVideoId) {
-                                  navigate(`/youtube/${card.youTubeVideoId}`, { state });
+                                  navigate(`/videos/${card.youTubeVideoId}`, { state });
                                 } else if (doc?.originalUrl) {
                                   navigate(`/articles/${card.documentId}`, { state });
                                 } else if (doc?.type === 'audio' || doc?.type === 'podcast') {
@@ -568,7 +581,7 @@ export const FlashcardsPage: React.FC = () => {
       </>}
 
       {mobileReview && (
-        <MobileFlashcardReview
+        <FlashcardSessionDeck
           cards={mobileReview.cards}
           title={mobileReview.title}
           onClose={() => setMobileReview(null)}

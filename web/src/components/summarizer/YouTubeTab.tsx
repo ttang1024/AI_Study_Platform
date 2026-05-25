@@ -6,7 +6,7 @@ import { Button } from '../common/Button';
 import { VideoCard } from '../common/VideoCard';
 import { usePrompt } from '../common/PromptBox';
 import { useStudy } from '../../context/StudyContext';
-import { youtubeService, VideoListItem } from '../../services/youtubeService';
+import { videoService, VideoListItem } from '../../services/videoService';
 import { cn } from '../../utils/cn';
 import { PlaylistImportModal } from './PlaylistImportModal';
 import { DuplicateAlert } from './DuplicateAlert';
@@ -41,6 +41,22 @@ function parseVideoId(url: string): string | null {
   return null;
 }
 
+function parseBilibiliVideo(url: string): { bvid: string; page: number; key: string } | null {
+  try {
+    const u = new URL(url.trim());
+    const m = u.pathname.match(/\/video\/(BV[0-9A-Za-z]+)/i);
+    if (!m) return null;
+    const page = Math.max(1, Number.parseInt(u.searchParams.get('p') ?? '1', 10) || 1);
+    return { bvid: m[1], page, key: page > 1 ? `${m[1]}:p${page}` : m[1] };
+  } catch {
+    const m = url.match(/bilibili\.com\/video\/(BV[0-9A-Za-z]+).*?[?&]p=(\d+)/i)
+      ?? url.match(/bilibili\.com\/video\/(BV[0-9A-Za-z]+)/i);
+    if (!m) return null;
+    const page = Math.max(1, Number.parseInt(m[2] ?? '1', 10) || 1);
+    return { bvid: m[1], page, key: page > 1 ? `${m[1]}:p${page}` : m[1] };
+  }
+}
+
 function parsePlaylistId(url: string): string | null {
   try {
     const u = new URL(url.trim());
@@ -53,9 +69,10 @@ function parsePlaylistId(url: string): string | null {
 export interface YouTubeTabProps {
   selectedCourseId: string;
   onCourseError: (v: boolean) => void;
+  source?: 'youtube' | 'bilibili';
 }
 
-export const YouTubeTab: React.FC<YouTubeTabProps> = ({ selectedCourseId, onCourseError }) => {
+export const YouTubeTab: React.FC<YouTubeTabProps> = ({ selectedCourseId, onCourseError, source = 'youtube' }) => {
   const navigate = useNavigate();
   const { refreshStats } = useStudy();
   const { showPrompt } = usePrompt();
@@ -66,15 +83,17 @@ export const YouTubeTab: React.FC<YouTubeTabProps> = ({ selectedCourseId, onCour
   const [playlistModal, setPlaylistModal] = useState<{ playlistId: string } | null>(null);
 
   const loadAllVideos = useCallback(() => {
-    youtubeService.getVideos({ page: 1, pageSize: 10 })
+    videoService.getVideos({ page: 1, pageSize: 10 })
       .then(data => setAllVideos(data.items))
       .catch(() => { });
   }, []);
 
   useEffect(() => { loadAllVideos(); }, [loadAllVideos]);
 
-  const detectedVideoId = parseVideoId(urlInput.trim());
-  const dupVideo = detectedVideoId ? (allVideos.find(v => v.videoId === detectedVideoId) ?? null) : null;
+  const isBilibili = source === 'bilibili';
+  const detectedBilibiliVideo = isBilibili ? parseBilibiliVideo(urlInput.trim()) : null;
+  const detectedVideoId = isBilibili ? detectedBilibiliVideo?.key ?? null : parseVideoId(urlInput.trim());
+  const dupVideo = detectedVideoId ? (allVideos.find(v => v.videoId === detectedVideoId && (v.sourceType ?? 'youtube') === source) ?? null) : null;
 
   const selectedCourseIdRef = useRef('');
   useEffect(() => { selectedCourseIdRef.current = selectedCourseId; }, [selectedCourseId]);
@@ -88,35 +107,47 @@ export const YouTubeTab: React.FC<YouTubeTabProps> = ({ selectedCourseId, onCour
     if (!selectedCourseIdRef.current) { onCourseError(true); return; }
     onCourseError(false);
 
-    const listId = parsePlaylistId(trimmed);
+    const listId = isBilibili ? null : parsePlaylistId(trimmed);
     if (listId) {
       setPlaylistModal({ playlistId: listId });
       return;
     }
 
-    const ytVid = parseVideoId(trimmed);
-    if (!ytVid) { showPrompt('Invalid YouTube URL. Please enter a valid YouTube video or playlist link.'); return; }
+    const bilibiliVideo = isBilibili ? parseBilibiliVideo(trimmed) : null;
+    const ytVid = isBilibili ? bilibiliVideo?.key ?? null : parseVideoId(trimmed);
+    if (!ytVid) { showPrompt(isBilibili ? 'Invalid Bilibili URL. Please enter a valid Bilibili video link.' : 'Invalid YouTube URL. Please enter a valid YouTube video or playlist link.'); return; }
 
     setIsAnalyzing(true);
     try {
       let title = 'Untitled Video';
+      let thumbnailUrl = isBilibili ? '/images/bilibili.png' : `https://img.youtube.com/vi/${ytVid}/mqdefault.jpg`;
       try {
-        const oembedRes = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(trimmed)}&format=json`);
-        const oembed = await oembedRes.json();
-        title = oembed.title ?? title;
+        if (isBilibili) {
+          const meta = await videoService.getVideoMetadata(trimmed);
+          if (meta) {
+            if (meta.title) title = meta.title;
+            if (meta.thumbnailUrl) thumbnailUrl = meta.thumbnailUrl;
+          } else {
+            title = `Bilibili ${bilibiliVideo!.bvid}${bilibiliVideo!.page > 1 ? ` P${bilibiliVideo!.page}` : ''}`;
+          }
+        } else {
+          const oembedRes = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(trimmed)}&format=json`);
+          const oembed = await oembedRes.json();
+          title = oembed.title ?? title;
+        }
       } catch { }
-      const thumbnailUrl = `https://img.youtube.com/vi/${ytVid}/mqdefault.jpg`;
-      const saved = await youtubeService.createVideo({
+      const saved = await videoService.createVideo({
         courseId: selectedCourseIdRef.current,
         videoId: ytVid,
         videoUrl: trimmed,
+        sourceType: source,
         title,
         thumbnailUrl,
         summary: null,
       });
       refreshStats();
-      const returnTo = `/summarizer?tab=youtube&courseId=${encodeURIComponent(selectedCourseIdRef.current)}`;
-      navigate(`/youtube/${saved.id}`, { state: { returnTo } });
+      const returnTo = `/summarizer?tab=video&courseId=${encodeURIComponent(selectedCourseIdRef.current)}`;
+      navigate(`/videos/${saved.id}`, { state: { returnTo } });
     } catch (err: any) {
       const msg = err?.response?.data?.message ?? 'Failed to add video. Please try again.';
       showPrompt(msg);
@@ -163,15 +194,21 @@ export const YouTubeTab: React.FC<YouTubeTabProps> = ({ selectedCourseId, onCour
             <div className="absolute inset-0 opacity-30 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, #d4d4d8 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
             <div className="relative z-10 flex flex-col items-center gap-3 text-center pointer-events-none">
               <div className="relative">
-                <div className={cn('absolute inset-0 blur-xl rounded-2xl transition-opacity duration-500', isFocused ? (detectedPlaylist ? 'opacity-25 bg-orange-500' : 'opacity-25 bg-red-500') : 'opacity-0 bg-red-500')} />
-                <div className={cn('relative rounded-2xl p-4 text-white shadow-lg transition-all duration-500', isFocused ? 'scale-105 -rotate-2' : '', detectedPlaylist ? 'bg-orange-500' : 'bg-red-500')}>
-                  {detectedPlaylist ? <ListVideo size={28} /> : <Youtube size={28} />}
+                <div className={cn('absolute inset-0 blur-xl rounded-2xl transition-opacity duration-500', isFocused ? (detectedPlaylist ? 'opacity-25 bg-orange-500' : isBilibili ? 'opacity-25 bg-sky-500' : 'opacity-25 bg-red-500') : 'opacity-0 bg-red-500')} />
+                <div className={cn('relative rounded-2xl p-4 text-white shadow-lg transition-all duration-500', isFocused ? 'scale-105 -rotate-2' : '', detectedPlaylist ? 'bg-orange-500' : isBilibili ? 'bg-sky-500' : 'bg-red-500')}>
+                  {detectedPlaylist ? (
+                    <ListVideo size={28} />
+                  ) : isBilibili ? (
+                    <img src="/images/bilibili-white.png" alt="" className="h-7 w-7 object-contain" />
+                  ) : (
+                    <Youtube size={28} />
+                  )}
                 </div>
               </div>
               <div>
                 {detectedPlaylist
                   ? <p className="text-lg font-black tracking-tight text-zinc-900">Playlist detected — import all videos</p>
-                  : <p className="text-lg font-black tracking-tight text-zinc-900">Paste a YouTube link</p>}
+                  : <p className="text-lg font-black tracking-tight text-zinc-900">Paste a {isBilibili ? 'Bilibili' : 'YouTube'} link</p>}
               </div>
               <div className="flex flex-wrap items-center justify-center gap-2">
                 {YT_FEATURES.map(({ icon: Icon, label, color }) => (
@@ -198,7 +235,7 @@ export const YouTubeTab: React.FC<YouTubeTabProps> = ({ selectedCourseId, onCour
                   onChange={e => setUrlInput(e.target.value)}
                   onFocus={() => setIsFocused(true)}
                   onBlur={() => setIsFocused(false)}
-                  placeholder="https://www.youtube.com/watch?v=… or playlist URL"
+                  placeholder={isBilibili ? 'https://www.bilibili.com/video/BV1jMy3YVEh4' : 'https://www.youtube.com/watch?v=… or playlist URL'}
                   className="flex-1 bg-transparent text-sm text-zinc-900 outline-none placeholder:text-zinc-400 min-w-0"
                 />
               </div>
@@ -211,7 +248,7 @@ export const YouTubeTab: React.FC<YouTubeTabProps> = ({ selectedCourseId, onCour
             <DuplicateAlert
               label="video"
               courseName={dupVideo.courseName}
-              to={`/youtube/${dupVideo.id}`}
+              to={`/videos/${dupVideo.id}`}
             />
           )}
         </AnimatePresence>
@@ -246,11 +283,11 @@ export const YouTubeTab: React.FC<YouTubeTabProps> = ({ selectedCourseId, onCour
               </RouterLink>
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {allVideos.slice(0, 3).map(video => (
+              {allVideos.filter(video => (video.sourceType ?? 'youtube') === source).slice(0, 3).map(video => (
                 <VideoCard
                   key={video.id}
                   video={video}
-                  to={`/youtube/${video.id}`}
+                  to={`/videos/${video.id}`}
                   compact
                   onDeleted={() => setAllVideos(prev => prev.filter(v => v.id !== video.id))}
                   onMoved={(newCourseId) => setAllVideos(prev => prev.map(v => v.id === video.id ? { ...v, courseId: newCourseId } : v))}

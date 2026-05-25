@@ -11,7 +11,7 @@ import { apiClient } from '../services/apiClient';
 import { ttsSettingsService, type TtsSettings } from '../services/ttsSettingsService';
 import { glossaryService } from '../services/glossaryService';
 import { documentService } from '../services/documentService';
-import { youtubeService } from '../services/youtubeService';
+import { videoService } from '../services/videoService';
 import {
   downloadNotesMarkdown,
   downloadObsidianVault,
@@ -326,7 +326,7 @@ export const SettingsPage: React.FC = () => {
         if (submission.youTubeVideoId || submission.sourceType === 'video') {
           const videoId = submission.youTubeVideoId ?? '';
           if (!videoId) continue;
-          const questions = await youtubeService.getQuiz(videoId);
+          const questions = await videoService.getQuiz(videoId);
           records.push({
             title: submission.videoName ?? 'Video quiz',
             questions: questions.map(q => ({

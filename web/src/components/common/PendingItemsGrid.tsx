@@ -7,9 +7,9 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../../utils/cn';
 import { getDocDisplayName } from '../../utils/docName';
 import { Course, Document } from '../../types';
-import { VideoListItem } from '../../services/youtubeService';
+import { VideoListItem } from '../../services/videoService';
 import { documentService } from '../../services/documentService';
-import { youtubeService } from '../../services/youtubeService';
+import { videoService } from '../../services/videoService';
 
 // ── public types ─────────────────────────────────────────────────────────────
 
@@ -67,7 +67,7 @@ const PATTERNS = [
 ];
 
 const TYPE_META = {
-  video:    { Icon: CONTENT_TYPE_ICONS.video.icon,    typeLabel: 'YouTube',                        emoji: CONTENT_TYPE_ICONS.video.emoji,    fallbackColor: CONTENT_TYPE_ICONS.video.color },
+  video:    { Icon: CONTENT_TYPE_ICONS.video.icon,    typeLabel: 'Video',                          emoji: CONTENT_TYPE_ICONS.video.emoji,    fallbackColor: CONTENT_TYPE_ICONS.video.color },
   audio:    { Icon: CONTENT_TYPE_ICONS.audio.icon,    typeLabel: CONTENT_TYPE_ICONS.audio.label,   emoji: CONTENT_TYPE_ICONS.audio.emoji,    fallbackColor: CONTENT_TYPE_ICONS.audio.color },
   article:  { Icon: CONTENT_TYPE_ICONS.article.icon,  typeLabel: CONTENT_TYPE_ICONS.article.label, emoji: CONTENT_TYPE_ICONS.article.emoji,  fallbackColor: CONTENT_TYPE_ICONS.article.color },
   document: { Icon: CONTENT_TYPE_ICONS.document.icon, typeLabel: CONTENT_TYPE_ICONS.document.label,emoji: CONTENT_TYPE_ICONS.document.emoji, fallbackColor: CONTENT_TYPE_ICONS.document.color },
@@ -76,7 +76,7 @@ const TYPE_META = {
 function getItemMeta(item: PendingItem, courses: Course[]) {
   if (item.kind === 'video') {
     const m = TYPE_META.video;
-    return { ...m, id: item.video.id, name: item.video.title, accentColor: item.video.courseColor || m.fallbackColor, courseName: item.video.courseName || '', to: `/youtube/${item.video.id}` };
+    return { ...m, id: item.video.id, name: item.video.title, accentColor: item.video.courseColor || m.fallbackColor, courseName: item.video.courseName || '', to: `/videos/${item.video.id}` };
   }
   const { doc } = item;
   const course = courses.find(c => c.id === doc.courseId);
@@ -96,6 +96,25 @@ function getItemMeta(item: PendingItem, courses: Course[]) {
 
 function isCorrectOption(option: string, answer: string) {
   return option.trim().charAt(0).toUpperCase() === answer.trim().toUpperCase();
+}
+
+function getVideoThumbnailSrc(video: VideoListItem) {
+  if (video.sourceType === 'upload') return videoService.getUploadedVideoThumbnailUrl(video.id);
+  if (video.thumbnailUrl) return video.thumbnailUrl;
+  if (video.sourceType === 'bilibili') return '/images/bilibili.png';
+  return video.videoId ? `https://img.youtube.com/vi/${video.videoId}/mqdefault.jpg` : '';
+}
+
+function getVideoFallbackThumbnail(video: VideoListItem) {
+  if (video.sourceType === 'bilibili') return '/images/bilibili.png';
+  if (video.sourceType === 'youtube' || !video.sourceType) {
+    return video.videoId ? `https://img.youtube.com/vi/${video.videoId}/mqdefault.jpg` : '';
+  }
+  return '';
+}
+
+function getUploadedVideoPreviewSrc(video: VideoListItem) {
+  return video.sourceType === 'upload' ? videoService.getUploadedVideoStreamUrl(video.id) : '';
 }
 
 // ── component ─────────────────────────────────────────────────────────────────
@@ -132,7 +151,7 @@ export const PendingItemsGrid: React.FC<PendingItemsGridProps> = ({
       if (activeTab === 'flashcards') {
         let cards: CardData[];
         if (item.kind === 'video') {
-          const raw = await youtubeService.generateFlashcards(item.video.id, item.video.videoUrl);
+          const raw = await videoService.generateFlashcards(item.video.id, item.video.videoUrl);
           cards = raw.map(c => ({ id: c.flashcardId, front: c.front, back: c.back }));
         } else {
           const raw = await documentService.generateFlashcards(item.doc.courseId || '', item.doc.id);
@@ -143,7 +162,7 @@ export const PendingItemsGrid: React.FC<PendingItemsGridProps> = ({
       } else {
         let questions: QuestionData[];
         if (item.kind === 'video') {
-          const raw = await youtubeService.generateQuiz(item.video.id, item.video.videoUrl);
+          const raw = await videoService.generateQuiz(item.video.id, item.video.videoUrl);
           questions = raw.map(q => ({ id: q.quizId, question: q.question, options: q.options, answer: q.correctAnswer, explanation: q.explanation }));
         } else {
           const raw = await documentService.generateQuiz(item.doc.courseId || '', item.doc.id);
@@ -197,7 +216,7 @@ export const PendingItemsGrid: React.FC<PendingItemsGridProps> = ({
       if (item.kind === 'doc') {
         await documentService.saveQuizSubmission(item.doc.courseId || '', item.doc.id, answers, score, total);
       } else {
-        await youtubeService.submitQuiz(item.video.id, answers, score, total);
+        await videoService.submitQuiz(item.video.id, answers, score, total);
       }
     } catch { /* ignore */ }
     setModal(m => m?.kind === 'quiz' ? { ...m, phase: 'submitted', score, submitting: false } : m);
@@ -225,6 +244,8 @@ export const PendingItemsGrid: React.FC<PendingItemsGridProps> = ({
               const pattern = PATTERNS[hash % PATTERNS.length];
               const isGenerating = generatingId === id;
               const hasError = errorId === id;
+              const videoThumbSrc = item.kind === 'video' ? getVideoThumbnailSrc(item.video) : '';
+              const uploadedPreviewSrc = item.kind === 'video' ? getUploadedVideoPreviewSrc(item.video) : '';
 
               return (
                 <motion.div
@@ -245,13 +266,37 @@ export const PendingItemsGrid: React.FC<PendingItemsGridProps> = ({
                   <div className="shrink-0">
                     {item.kind === 'video' ? (
                       <div className="relative w-14 h-10 rounded-lg overflow-hidden bg-zinc-100">
-                        <img
-                          src={item.video.thumbnailUrl}
-                          alt={item.video.title}
-                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                          onError={e => { (e.target as HTMLImageElement).src = `https://img.youtube.com/vi/${item.video.videoId}/mqdefault.jpg`; }}
-                        />
-                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition-colors duration-200 flex items-center justify-center">
+                        <div className="absolute inset-0 flex items-center justify-center text-zinc-300">
+                          <CONTENT_TYPE_ICONS.video.icon size={14} />
+                        </div>
+                        {uploadedPreviewSrc && (
+                          <video
+                            src={`${uploadedPreviewSrc}#t=0.1`}
+                            className="absolute inset-0 z-10 h-full w-full object-cover"
+                            muted
+                            playsInline
+                            preload="metadata"
+                          />
+                        )}
+                        {videoThumbSrc && (
+                          <img
+                            src={videoThumbSrc}
+                            alt={item.video.title}
+                            className="relative z-20 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                            referrerPolicy="no-referrer"
+                            onError={e => {
+                              const img = e.target as HTMLImageElement;
+                              const fallback = getVideoFallbackThumbnail(item.video);
+                              if (fallback && img.dataset.fallbackUsed !== 'true') {
+                                img.dataset.fallbackUsed = 'true';
+                                img.src = fallback;
+                              } else {
+                                img.style.display = 'none';
+                              }
+                            }}
+                          />
+                        )}
+                        <div className="absolute inset-0 z-30 bg-black/0 group-hover:bg-black/25 transition-colors duration-200 flex items-center justify-center">
                           <CONTENT_TYPE_ICONS.video.icon size={12} className="text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow" />
                         </div>
                       </div>

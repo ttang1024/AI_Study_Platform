@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Youtube, Sparkles, Loader2, RotateCcw, ChevronLeft, AlertCircle, Copy, Download, Share2 } from 'lucide-react';
+import { Youtube, Sparkles, Loader2, RotateCcw, ChevronLeft, AlertCircle, Copy, Download, Share2, FileVideo } from 'lucide-react';
 import { aiService } from '../services/aiService';
-import { youtubeService, TranscriptSegment } from '../services/youtubeService';
+import { videoService, TranscriptSegment } from '../services/videoService';
 import { VideoNoteEditor, VideoNoteEditorRef } from '../components/youtube/VideoNoteEditor';
 import { MindMapViewer } from '../components/mindmap/MindMapViewer';
 import { Flashcards } from '../components/study/Flashcards';
@@ -34,10 +34,40 @@ function parseVideoId(url: string): string | null {
 	return null;
 }
 
+function parseBilibiliVideo(url: string): { bvid: string; page: number; key: string } | null {
+	try {
+		const u = new URL(url.trim());
+		const m = u.pathname.match(/\/video\/(BV[0-9A-Za-z]+)/i);
+		if (!m) return null;
+		const page = Math.max(1, Number.parseInt(u.searchParams.get('p') ?? '1', 10) || 1);
+		return { bvid: m[1], page, key: page > 1 ? `${m[1]}:p${page}` : m[1] };
+	} catch {
+		const m = url.match(/bilibili\.com\/video\/(BV[0-9A-Za-z]+).*?[?&]p=(\d+)/i)
+			?? url.match(/bilibili\.com\/video\/(BV[0-9A-Za-z]+)/i);
+		if (!m) return null;
+		const page = Math.max(1, Number.parseInt(m[2] ?? '1', 10) || 1);
+		return { bvid: m[1], page, key: page > 1 ? `${m[1]}:p${page}` : m[1] };
+	}
+}
+
+function buildBilibiliPlayerUrl(video: { bvid: string; page: number }, startSeconds = 0): string {
+	const params = new URLSearchParams({
+		bvid: video.bvid,
+		page: String(video.page),
+	});
+	const safeSeconds = Math.max(0, Math.floor(startSeconds));
+	if (safeSeconds > 0) {
+		params.set('t', String(safeSeconds));
+		params.set('autoplay', '1');
+	}
+	return `https://player.bilibili.com/player.html?${params.toString()}`;
+}
+
 interface SimpleCard {
 	id: string;
 	front: string;
 	back: string;
+	cardType?: 'basic' | 'cloze' | 'chart';
 }
 
 interface ChatMsg {
@@ -55,22 +85,27 @@ const emptyAnswerSets = (): Record<QuizDifficulty, Record<string, string>> => ({
 const emptySubmittedSets = (): Record<QuizDifficulty, boolean> => ({ easy: false, medium: false, hard: false });
 const emptyScoreSets = (): Record<QuizDifficulty, number> => ({ easy: 0, medium: 0, hard: 0 });
 
-interface YouTubeDetailLocationState {
+interface VideoDetailLocationState {
 	activeTab?: VideoStudyTab;
 	returnTo?: string;
 }
 
-export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({ embedded, id: propId }) => {
+export const VideoDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({ embedded, id: propId }) => {
 	const { id: paramId } = useParams<{ id: string }>();
 	const id = propId ?? paramId;
 	const navigate = useNavigate();
 	const location = useLocation();
-	const locationState = location.state as YouTubeDetailLocationState | null;
+	const locationState = location.state as VideoDetailLocationState | null;
 
 	// Video URL (loaded from API)
 	const [videoUrl, setVideoUrl] = useState<string | null>(null);
+	const [playbackUrl, setPlaybackUrl] = useState<string | null>(null);
 	const [videoTitle, setVideoTitle] = useState<string | null>(null);
-	const videoId = videoUrl ? parseVideoId(videoUrl) : null;
+	const [sourceType, setSourceType] = useState<'youtube' | 'bilibili' | 'upload'>('youtube');
+	const [bilibiliStartSeconds, setBilibiliStartSeconds] = useState(0);
+	const [bilibiliSeekNonce, setBilibiliSeekNonce] = useState(0);
+	const bilibiliVideo = videoUrl && sourceType === 'bilibili' ? parseBilibiliVideo(videoUrl) : null;
+	const videoId = videoUrl ? (sourceType === 'bilibili' ? bilibiliVideo?.key ?? null : sourceType === 'upload' ? id ?? null : parseVideoId(videoUrl)) : null;
 
 	// Page loading state
 	const [isLoadingVideo, setIsLoadingVideo] = useState(true);
@@ -119,6 +154,7 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 	const [resolvedSubtitlesVideoId, setResolvedSubtitlesVideoId] = useState<string | null>(null);
 
 	const iframeRef = useRef<HTMLIFrameElement>(null);
+	const uploadedVideoRef = useRef<HTMLVideoElement>(null);
 
 	// Transcript copy/download menus
 	const [openMenu, setOpenMenu] = useState<'copy' | 'download' | null>(null);
@@ -152,6 +188,7 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 	// Refs for cross-panel actions
 	const noteEditorRef = useRef<VideoNoteEditorRef>(null);
 	const chatPanelRef = useRef<ChatPanelRef>(null);
+	const bilibiliSeekTimerRef = useRef<number | null>(null);
 
 	// Load video record on mount
 	useEffect(() => {
@@ -175,19 +212,36 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 	const loadVideoFromApi = async (videoRecordId: string) => {
 		setIsLoadingVideo(true);
 		try {
-			const v = await youtubeService.getVideo(videoRecordId);
+			const v = await videoService.getVideo(videoRecordId);
 			setSummary(v.summary ?? null);
 			setMindMapText(v.mindMapText ?? null);
 			setVideoUrl(v.videoUrl);
+			setSourceType(v.sourceType ?? 'youtube');
+			setBilibiliStartSeconds(0);
+			setBilibiliSeekNonce(0);
+			if (bilibiliSeekTimerRef.current != null) {
+				window.clearTimeout(bilibiliSeekTimerRef.current);
+				bilibiliSeekTimerRef.current = null;
+			}
 			setVideoTitle(v.title ?? null);
+			if ((v.sourceType ?? 'youtube') === 'upload') {
+				setPlaybackUrl(videoService.getUploadedVideoStreamUrl(videoRecordId));
+			} else {
+				setPlaybackUrl(v.videoUrl);
+			}
 
 			try {
-				const cards = await youtubeService.getFlashcards(videoRecordId);
-				setFlashcards(cards.map((c, i) => ({ id: `fc-${i}`, front: c.front, back: c.back })));
+				const cards = await videoService.getFlashcards(videoRecordId);
+				setFlashcards(cards.map(c => ({
+					id: c.flashcardId,
+					front: c.front,
+					back: c.back,
+					cardType: c.cardType ?? 'basic',
+				})));
 			} catch { }
 
 			try {
-				const questions = await youtubeService.getQuiz(videoRecordId);
+				const questions = await videoService.getQuiz(videoRecordId);
 				const mapped = questions.map(q => ({
 					id: q.quizId,
 					question: q.question,
@@ -203,7 +257,7 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 			} catch { }
 
 			try {
-				const note = await youtubeService.getVideoNote(videoRecordId);
+				const note = await videoService.getVideoNote(videoRecordId);
 				if (note) {
 					setNoteContent(note.content);
 					setNoteId(note.noteId);
@@ -211,7 +265,7 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 			} catch { }
 
 			try {
-				const submission = await youtubeService.getQuizSubmission(videoRecordId);
+				const submission = await videoService.getQuizSubmission(videoRecordId);
 				if (submission) {
 					setUserAnswers(submission.answers);
 					setQuizAnswerSets(prev => ({ ...prev, [activeQuizDifficulty]: submission.answers }));
@@ -223,12 +277,12 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 			} catch { }
 
 			try {
-				const history = await youtubeService.getChatHistory(videoRecordId);
+				const history = await videoService.getChatHistory(videoRecordId);
 				setChatMessages(history);
 			} catch { }
 
 		} catch {
-			navigate('/youtube');
+			navigate('/videos');
 		} finally {
 			setIsLoadingVideo(false);
 		}
@@ -236,25 +290,100 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 
 	// Fetch transcript when video loads
 	useEffect(() => {
-		if (!videoId || !videoUrl) return;
+		if (!videoId || !videoUrl || !id) return;
 		setResolvedSubtitlesVideoId(null);
 		setSubtitles(null);
 		setSubtitlesError(null);
-		doFetchSubtitles(videoId).then(() => doFetchTranscript(videoId));
-	}, [videoId]);
+		if (sourceType === 'youtube') {
+			doFetchSubtitles(videoId).then(() => doFetchTranscript(videoId));
+		} else {
+			doFetchVideoSubtitles(id).then(() => doFetchVideoTranscript(id));
+		}
+	}, [videoId, sourceType, id]);
 
 	const seekTo = (seconds: number) => {
-		iframeRef.current?.contentWindow?.postMessage(
-			JSON.stringify({ event: 'command', func: 'seekTo', args: [seconds, true] }),
-			'*'
-		);
+		const safeSeconds = Math.max(0, seconds);
+		if (sourceType === 'youtube') {
+			iframeRef.current?.contentWindow?.postMessage(
+				JSON.stringify({ event: 'command', func: 'seekTo', args: [safeSeconds, true] }),
+				'*'
+			);
+			return;
+		}
+
+		if (sourceType === 'upload') {
+			const player = uploadedVideoRef.current;
+			if (!player) return;
+			player.currentTime = safeSeconds;
+			player.play().catch(() => { });
+			return;
+		}
+
+		if (sourceType === 'bilibili') {
+			if (bilibiliSeekTimerRef.current != null) {
+				window.clearTimeout(bilibiliSeekTimerRef.current);
+			}
+			bilibiliSeekTimerRef.current = window.setTimeout(() => {
+				setBilibiliStartSeconds(safeSeconds);
+				setBilibiliSeekNonce(prev => prev + 1);
+				bilibiliSeekTimerRef.current = null;
+			}, 200);
+		}
+	};
+
+	const refreshTranscript = () => {
+		if (sourceType === 'youtube' && videoId) {
+			void doFetchTranscript(videoId);
+			return;
+		}
+		if (id) void doFetchVideoTranscript(id);
+	};
+
+	const refreshSubtitles = () => {
+		if (sourceType === 'youtube' && videoId) {
+			void doFetchSubtitles(videoId);
+			return;
+		}
+		if (id) void doFetchVideoSubtitles(id);
+	};
+
+	const doFetchVideoTranscript = async (videoRecordId: string) => {
+		setIsLoadingTranscript(true);
+		setTranscriptError(null);
+		try {
+			const segments = await videoService.getVideoTranscript(videoRecordId);
+			setTranscript(segments.length > 0 ? segments : null);
+		} catch (err: any) {
+			const msg = err?.response?.data?.message ?? 'No captions available for this video.';
+			setTranscriptError(msg);
+			setTranscript(null);
+		} finally {
+			setIsLoadingTranscript(false);
+		}
+	};
+
+	const doFetchVideoSubtitles = async (videoRecordId: string) => {
+		setIsLoadingSubtitles(true);
+		setSubtitlesError(null);
+		setResolvedSubtitlesVideoId(null);
+		try {
+			const segments = await videoService.getVideoSubtitles(videoRecordId);
+			setSubtitles(segments.length > 0 ? segments : null);
+		} catch (err: any) {
+			const msg = err?.response?.data?.message ?? 'No captions available for this video.';
+			setSubtitlesError(msg);
+			setSubtitles(null);
+		} finally {
+			setResolvedSubtitlesVideoId(videoRecordId);
+			setIsLoadingSubtitles(false);
+		}
 	};
 
 	const doFetchTranscript = async (vid: string) => {
 		setIsLoadingTranscript(true);
 		setTranscriptError(null);
 		try {
-			const segments = await youtubeService.getTranscript(vid);
+			const segments = await videoService.getTranscript(vid);
 			setTranscript(segments.length > 0 ? segments : null);
 		} catch (err: any) {
 			const msg = err?.response?.data?.message ?? 'No captions available for this video.';
@@ -270,7 +399,7 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 		setSubtitlesError(null);
 		setResolvedSubtitlesVideoId(null);
 		try {
-			const segments = await youtubeService.getSubtitles(vid);
+			const segments = await videoService.getSubtitles(vid);
 			setSubtitles(segments.length > 0 ? segments : null);
 		} catch (err: any) {
 			const msg = err?.response?.data?.message ?? 'No captions available for this video.';
@@ -346,8 +475,10 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 		setOpenMenu(null);
 	};
 
-	const generationDisabled = !videoId || resolvedSubtitlesVideoId !== videoId;
+	const resolvedTranscriptKey = sourceType === 'youtube' ? videoId : id;
+	const generationDisabled = !videoId || resolvedSubtitlesVideoId !== resolvedTranscriptKey;
 	const generationDisabledReason = 'Waiting for subtitles to finish loading.';
+	const hasGeneratedQuizzes = Object.values(quizQuestionSets).some(questions => questions.length > 0);
 
 	const doGenerateSummary = async (url: string) => {
 		if (generationDisabled) return;
@@ -356,14 +487,18 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 		setSummaryStreamText('');
 		try {
 			let accumulated = '';
-			await youtubeService.streamSummary(url, (chunk) => {
+			const stream = id ? videoService.streamVideoSummary(id, (chunk) => {
+				accumulated += chunk;
+				setSummaryStreamText(accumulated);
+			}) : videoService.streamSummary(url, (chunk) => {
 				accumulated += chunk;
 				setSummaryStreamText(accumulated);
 			});
+			await stream;
 			setSummary(accumulated || null);
 			setSummaryStreamText('');
 			if (id && accumulated) {
-				await youtubeService.updateVideo(id, { summary: accumulated });
+				await videoService.updateVideo(id, { summary: accumulated });
 			}
 		} catch (err: any) {
 			setSummary(null);
@@ -385,18 +520,21 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 		setMindMapStreamingText('');
 		const accum = { current: '' };
 		try {
-			await aiService.streamMindMapFromYouTube(
-				videoUrl,
+			await (id ? videoService.streamVideoMindMap(
+				id,
 				(chunk) => {
 					accum.current += chunk;
 					setMindMapStreamingText(accum.current);
 				},
-			);
+			) : aiService.streamMindMapFromYouTube(videoUrl, (chunk) => {
+				accum.current += chunk;
+				setMindMapStreamingText(accum.current);
+			}));
 			const result = accum.current;
 			setMindMapText(result);
 			setMindMapStreamingText(null);
 			if (id) {
-				await youtubeService.updateVideo(id, { mindMapText: result });
+				await videoService.updateVideo(id, { mindMapText: result });
 			}
 		} catch (err: any) {
 			setMindMapStreamingText(null);
@@ -411,8 +549,13 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 		setFlashcardsError(null);
 		setIsLoadingFlashcards(true);
 		try {
-			const cards = await youtubeService.generateFlashcards(id, videoUrl);
-			setFlashcards(cards.map((c, i) => ({ id: `fc-${i}`, front: c.front, back: c.back })));
+			const cards = await videoService.generateFlashcards(id, videoUrl);
+			setFlashcards(cards.map(c => ({
+				id: c.flashcardId,
+				front: c.front,
+				back: c.back,
+				cardType: c.cardType ?? 'basic',
+			})));
 		} catch (err: any) {
 			setFlashcardsError(getApiErrorCode(err));
 		} finally {
@@ -434,7 +577,7 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 		setQuizScore(0);
 		setQuizScoreSets(prev => ({ ...prev, [difficulty]: 0 }));
 		try {
-			const questions = await youtubeService.generateQuiz(id, videoUrl, difficulty);
+			const questions = await videoService.generateQuiz(id, videoUrl, difficulty);
 			const mapped = questions.map(q => ({
 				id: q.quizId,
 				question: q.question,
@@ -466,9 +609,9 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 		if (!id) return;
 		try {
 			if (noteId) {
-				await youtubeService.updateNote(noteId, html);
+				await videoService.updateNote(noteId, html);
 			} else {
-				const note = await youtubeService.createNote(html, id);
+				const note = await videoService.createNote(html, id);
 				setNoteId(note.noteId);
 			}
 		} catch { }
@@ -479,7 +622,7 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 		const userMsg: ChatMsg = { id: Date.now().toString(), role: 'user', content: message };
 		setChatMessages(prev => [...prev, userMsg]);
 		try {
-			const reply = await youtubeService.sendChat(id, message);
+			const reply = await videoService.sendChat(id, message);
 			setChatMessages(prev => [...prev, { ...reply, id: reply.id ?? String(Date.now() + 1) }]);
 		} catch (err: any) {
 			const errMsg: ChatMsg = { id: String(Date.now() + 1), role: 'model', content: err?.message ?? 'Failed to send message. Please try again.', isError: true };
@@ -498,7 +641,7 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 		setQuizSubmittedSets(prev => ({ ...prev, [activeQuizDifficulty]: true }));
 		if (id) {
 			try {
-				await youtubeService.submitQuiz(id, userAnswers, score, quizQuestions.length);
+				await videoService.submitQuiz(id, userAnswers, score, quizQuestions.length);
 			} catch { }
 		}
 	}, [quizQuestions, userAnswers, id, activeQuizDifficulty]);
@@ -658,7 +801,7 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 							setChatMessages(prev => [...prev, userMsg]);
 							let accumulated = '';
 							try {
-								await youtubeService.streamChat(id, message, (chunk) => {
+								await videoService.streamChat(id, message, (chunk) => {
 									accumulated += chunk;
 									onChunk(chunk);
 								});
@@ -704,8 +847,10 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 						>
 							<ChevronLeft size={16} />
 						</button>
-						<div className="flex h-7 w-7 items-center justify-center rounded-lg bg-red-500 text-white shrink-0">
-							<Youtube size={14} />
+						<div className={cn('flex h-7 w-7 items-center justify-center rounded-lg text-white shrink-0', sourceType === 'bilibili' ? 'bg-sky-500' : 'bg-red-500')}>
+							{sourceType === 'bilibili' ? (
+								<img src="/images/bilibili-white.png" alt="" className="h-4 w-4 object-contain" />
+							) : sourceType === 'upload' ? <FileVideo size={14} /> : <Youtube size={14} />}
 						</div>
 						<div className="flex-1 min-w-0">
 							<p className="text-xs font-medium text-text-main truncate">
@@ -730,7 +875,7 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 					)}>
 						{/* Video 16:9, max 55vh */}
 						<div className="w-full bg-black shrink-0" style={{ aspectRatio: '16 / 9', maxHeight: '55vh' }}>
-							{videoId && (
+							{sourceType === 'youtube' && videoId && (
 								<iframe
 									id="youtube-player"
 									ref={iframeRef}
@@ -740,6 +885,19 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 									allowFullScreen
 									className="w-full h-full"
 								/>
+							)}
+							{sourceType === 'bilibili' && bilibiliVideo && (
+								<iframe
+									key={`${bilibiliVideo.key}-${bilibiliSeekNonce}`}
+									src={buildBilibiliPlayerUrl(bilibiliVideo, bilibiliStartSeconds)}
+									title="Bilibili video player"
+									allow="autoplay; fullscreen; picture-in-picture"
+									allowFullScreen
+									className="w-full h-full"
+								/>
+							)}
+							{sourceType === 'upload' && playbackUrl && (
+								<video ref={uploadedVideoRef} src={playbackUrl} controls preload="metadata" className="h-full w-full bg-black" />
 							)}
 						</div>
 
@@ -754,7 +912,8 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 											onClick={() => {
 												setCenterView(view);
 												if (view === 'subtitles' && !subtitles && !subtitlesError && !isLoadingSubtitles && videoId) {
-													doFetchSubtitles(videoId);
+													if (sourceType === 'youtube') doFetchSubtitles(videoId);
+													else if (id) doFetchVideoSubtitles(id);
 												}
 											}}
 											className={cn(
@@ -815,18 +974,18 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 											)}
 										</div>
 										{/* Refresh */}
-										<button onClick={() => videoId && doFetchTranscript(videoId)} disabled={isLoadingTranscript} className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-[10px] font-medium text-text-muted hover:bg-zinc-100 transition-colors disabled:opacity-50">
+										<button onClick={refreshTranscript} disabled={isLoadingTranscript} className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-[10px] font-medium text-text-muted hover:bg-zinc-100 transition-colors disabled:opacity-50">
 											<RotateCcw size={11} className={isLoadingTranscript ? 'animate-spin' : ''} /> Refresh
 										</button>
 									</div>
 								)}
 								{centerView === 'transcript' && !transcript && transcriptError && (
-									<button onClick={() => videoId && doFetchTranscript(videoId)} disabled={isLoadingTranscript} className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-[10px] font-medium text-text-muted hover:bg-zinc-100 transition-colors disabled:opacity-50">
+									<button onClick={refreshTranscript} disabled={isLoadingTranscript} className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-[10px] font-medium text-text-muted hover:bg-zinc-100 transition-colors disabled:opacity-50">
 										<RotateCcw size={11} className={isLoadingTranscript ? 'animate-spin' : ''} /> Refresh
 									</button>
 								)}
 								{centerView === 'subtitles' && (subtitles || subtitlesError) && (
-									<button onClick={() => videoId && doFetchSubtitles(videoId)} disabled={isLoadingSubtitles} className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-[10px] font-medium text-text-muted hover:bg-zinc-100 transition-colors disabled:opacity-50">
+									<button onClick={refreshSubtitles} disabled={isLoadingSubtitles} className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-[10px] font-medium text-text-muted hover:bg-zinc-100 transition-colors disabled:opacity-50">
 										<RotateCcw size={11} className={isLoadingSubtitles ? 'animate-spin' : ''} /> Refresh
 									</button>
 								)}
@@ -997,10 +1156,10 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 				summary={summary}
 				mindMapText={mindMapText}
 				notesHtml={noteContent || null}
-				sourceType="youtube"
-				sourceUrl={videoUrl}
-				fetchQuizzes={id ? async () => {
-					const qs = await youtubeService.getQuiz(id);
+				sourceType={sourceType}
+				sourceUrl={sourceType === 'upload' && id ? `video/${id}` : videoUrl}
+				fetchQuizzes={id && hasGeneratedQuizzes ? async () => {
+					const qs = await videoService.getQuiz(id);
 					return qs.map(q => ({
 						question: q.question,
 						options: q.options ?? [],
@@ -1010,7 +1169,7 @@ export const YouTubeDetailPage: React.FC<{ embedded?: boolean; id?: string }> = 
 					} satisfies ShareableQuiz));
 				} : undefined}
 				fetchFlashcards={flashcards.length > 0 ? async () =>
-					flashcards.map(c => ({ front: c.front, back: c.back } satisfies ShareableCard))
+					flashcards.map(c => ({ front: c.front, back: c.back, cardType: c.cardType } satisfies ShareableCard))
 					: undefined}
 			/>
 		</div>
