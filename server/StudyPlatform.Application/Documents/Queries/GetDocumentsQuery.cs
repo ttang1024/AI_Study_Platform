@@ -28,7 +28,7 @@ public class GetAllDocumentsQueryHandler : IRequestHandler<GetAllDocumentsQuery,
 
         var dtos = documents.Select(d => new DocumentDto(
             d.DocumentId, d.CourseId, d.UserId, d.FileName, d.BlobUrl,
-            d.ContentType, d.FileSize, d.Summary, d.MindMapText, d.CreatedAt, d.UpdatedAt, d.Transcript, d.OriginalUrl));
+            d.ContentType, d.FileSize, d.FileHash, d.Summary, d.MindMapText, d.CreatedAt, d.UpdatedAt, d.Transcript, d.OriginalUrl));
 
         return Result<PaginatedList<DocumentDto>>.Success(
             new PaginatedList<DocumentDto>(dtos, totalCount, request.Page, request.PageSize));
@@ -67,7 +67,7 @@ public class GetDocumentsByCourseQueryHandler : IRequestHandler<GetDocumentsByCo
 
         var dtos = documents.Select(d => new DocumentDto(
             d.DocumentId, d.CourseId, d.UserId, d.FileName, d.BlobUrl,
-            d.ContentType, d.FileSize, d.Summary, d.MindMapText, d.CreatedAt, d.UpdatedAt, d.Transcript, d.OriginalUrl));
+            d.ContentType, d.FileSize, d.FileHash, d.Summary, d.MindMapText, d.CreatedAt, d.UpdatedAt, d.Transcript, d.OriginalUrl));
 
         return Result<IEnumerable<DocumentDto>>.Success(dtos);
     }
@@ -111,7 +111,7 @@ public class GetDocumentByIdQueryHandler : IRequestHandler<GetDocumentByIdQuery,
         return Result<DocumentDto>.Success(new DocumentDto(
             document.DocumentId, document.CourseId, document.UserId,
             document.FileName, document.BlobUrl, document.ContentType,
-            document.FileSize, document.Summary, document.MindMapText,
+            document.FileSize, document.FileHash, document.Summary, document.MindMapText,
             document.CreatedAt, document.UpdatedAt, document.Transcript, document.OriginalUrl));
     }
 }

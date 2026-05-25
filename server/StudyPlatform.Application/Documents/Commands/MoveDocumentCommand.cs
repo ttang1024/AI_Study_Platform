@@ -36,6 +36,7 @@ public class MoveDocumentCommandHandler : IRequestHandler<MoveDocumentCommand, R
             document.BlobUrl,
             document.ContentType,
             document.FileSize,
+            document.FileHash,
             document.Summary,
             document.MindMapText,
             document.CreatedAt,

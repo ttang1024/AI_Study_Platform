@@ -13,6 +13,7 @@ public class DocumentConfiguration : IEntityTypeConfiguration<Document>
         builder.Property(d => d.BlobUrl).IsRequired().HasMaxLength(2000);
         builder.Property(d => d.ContentType).IsRequired().HasMaxLength(100);
         builder.Property(d => d.FileSize).IsRequired();
+        builder.Property(d => d.FileHash).HasMaxLength(64);
         builder.Property(d => d.Summary).HasColumnType("text");
         builder.Property(d => d.MindMapText).HasColumnType("text");
         builder.Property(d => d.OriginalUrl).HasMaxLength(2000);
@@ -28,5 +29,9 @@ public class DocumentConfiguration : IEntityTypeConfiguration<Document>
             .WithMany()
             .HasForeignKey(d => d.UserId)
             .OnDelete(DeleteBehavior.NoAction);
+
+        builder.HasIndex(d => new { d.UserId, d.FileHash })
+            .IsUnique()
+            .HasFilter("\"FileHash\" IS NOT NULL");
     }
 }

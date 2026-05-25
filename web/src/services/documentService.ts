@@ -24,6 +24,7 @@ interface BackendDocument {
 	blobUrl: string
 	contentType: string
 	fileSize: number
+	fileHash?: string
 	summary?: string
 	mindMapText?: string
 	transcript?: string
@@ -101,6 +102,8 @@ const mapDocument = (bd: BackendDocument): Document => ({
 	type: getTypeFromContentTypeOrFileName(bd.contentType, bd.fileName),
 	url: bd.blobUrl,
 	uploadDate: bd.createdAt,
+	fileSize: bd.fileSize,
+	fileHash: bd.fileHash,
 	courseId: bd.courseId || undefined,
 	summary: bd.summary,
 	mindMapText: bd.mindMapText,

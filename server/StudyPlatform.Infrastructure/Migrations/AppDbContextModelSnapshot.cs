@@ -220,6 +220,10 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("FileHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
                     b.Property<string>("FileName")
                         .IsRequired()
                         .HasMaxLength(500)
@@ -251,7 +255,9 @@ namespace StudyPlatform.Infrastructure.Migrations
 
                     b.HasIndex("CourseId");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("UserId", "FileHash")
+                        .IsUnique()
+                        .HasFilter("\"FileHash\" IS NOT NULL");
 
                     b.ToTable("Documents");
                 });
@@ -1186,15 +1192,15 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Property<string>("MindMapText")
                         .HasColumnType("text");
 
-                    b.Property<string>("Summary")
-                        .HasColumnType("text");
-
                     b.Property<string>("SourceType")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
                         .HasDefaultValue("youtube");
+
+                    b.Property<string>("Summary")
+                        .HasColumnType("text");
 
                     b.Property<string>("ThumbnailUrl")
                         .IsRequired()

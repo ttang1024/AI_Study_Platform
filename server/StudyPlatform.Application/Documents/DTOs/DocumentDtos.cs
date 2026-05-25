@@ -8,6 +8,7 @@ public record DocumentDto(
     string BlobUrl,
     string ContentType,
     long FileSize,
+    string? FileHash,
     string? Summary,
     string? MindMapText,
     DateTime CreatedAt,

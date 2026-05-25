@@ -72,6 +72,7 @@ public class ClipUrlCommandHandler : IRequestHandler<ClipUrlCommand, Result<Docu
         doc.BlobUrl,
         doc.ContentType,
         doc.FileSize,
+        doc.FileHash,
         doc.Summary,
         doc.MindMapText,
         doc.CreatedAt,

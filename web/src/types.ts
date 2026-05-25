@@ -18,6 +18,8 @@ export interface Document {
 	type: 'pdf' | 'docx' | 'txt' | 'md' | 'audio' | 'podcast'
 	url: string
 	uploadDate: string
+	fileSize?: number
+	fileHash?: string
 	courseId?: string
 	summary?: string
 	mindMapText?: string

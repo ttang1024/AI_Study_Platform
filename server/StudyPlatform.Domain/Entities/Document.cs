@@ -9,6 +9,7 @@ public class Document
     public string BlobUrl { get; set; } = string.Empty;
     public string ContentType { get; set; } = string.Empty;
     public long FileSize { get; set; }
+    public string? FileHash { get; set; }
     public string? Summary { get; set; }
     public string? MindMapText { get; set; }
     public string? Transcript { get; set; }

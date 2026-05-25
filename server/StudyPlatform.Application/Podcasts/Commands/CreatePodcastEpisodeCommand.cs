@@ -55,7 +55,7 @@ public class CreatePodcastEpisodeCommandHandler : IRequestHandler<CreatePodcastE
         return Result<DocumentDto>.Success(new DocumentDto(
             document.DocumentId, document.CourseId, document.UserId,
             document.FileName, document.BlobUrl, document.ContentType,
-            document.FileSize, document.Summary, document.MindMapText,
+            document.FileSize, document.FileHash, document.Summary, document.MindMapText,
             document.CreatedAt, document.UpdatedAt,
             document.Transcript, document.OriginalUrl),
             "Podcast episode saved.");

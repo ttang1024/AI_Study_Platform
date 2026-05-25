@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Upload, File, X, Loader2, ShieldCheck, Zap, FileText, FileCode, BookOpen, ArrowRight } from 'lucide-react';
@@ -8,6 +8,8 @@ import { usePrompt } from '../common/PromptBox';
 import { useStudy } from '../../context/StudyContext';
 import { cn } from '../../utils/cn';
 import { getApiErrorMessage } from '../../utils/apiError';
+import { calculateSha256 } from '../../utils/fileHash';
+import { DuplicateAlert } from './DuplicateAlert';
 
 const container = {
   hidden: { opacity: 0, y: 24 },
@@ -39,8 +41,31 @@ export const DocumentTab: React.FC<DocumentTabProps> = ({ selectedCourseId, onCo
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [file, setFile] = useState<File | null>(null);
+  const [fileHash, setFileHash] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    setFileHash(null);
+    if (!file) return;
+
+    calculateSha256(file)
+      .then(hash => { if (!cancelled) setFileHash(hash); })
+      .catch(() => { if (!cancelled) setFileHash(null); });
+
+    return () => { cancelled = true; };
+  }, [file]);
+
+  const duplicateDoc = !uploading && fileHash
+    ? documents.find(doc => doc.fileHash === fileHash) ?? null
+    : null;
+  const duplicateDocCourse = duplicateDoc?.courseId ? courses.find(c => c.id === duplicateDoc.courseId) : undefined;
+  const duplicateDocTo = duplicateDoc?.type === 'audio'
+    ? `/audio/${duplicateDoc.id}`
+    : duplicateDoc?.type === 'md' || duplicateDoc?.originalUrl
+      ? `/articles/${duplicateDoc.id}`
+      : `/documents/${duplicateDoc?.id}`;
 
   const validateAndSetFile = (f: File) => {
     const exts = ['.pdf', '.docx', '.txt', '.md'];
@@ -139,7 +164,7 @@ export const DocumentTab: React.FC<DocumentTabProps> = ({ selectedCourseId, onCo
                   <File size={28} />
                 </div>
                 <button
-                  onClick={(e) => { e.stopPropagation(); setFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
+                  onClick={(e) => { e.stopPropagation(); setFile(null); setFileHash(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
                   className="absolute -right-2 -top-2 rounded-full bg-white p-1.5 text-zinc-400 shadow-lg hover:text-red-500 hover:scale-110 transition-all"
                 >
                   <X size={14} />
@@ -156,6 +181,16 @@ export const DocumentTab: React.FC<DocumentTabProps> = ({ selectedCourseId, onCo
           )}
         </AnimatePresence>
       </motion.div>
+
+      <AnimatePresence>
+        {duplicateDoc && duplicateDocCourse && (
+          <DuplicateAlert
+            label="file"
+            courseName={duplicateDocCourse.name}
+            to={duplicateDocTo}
+          />
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {uploading && (

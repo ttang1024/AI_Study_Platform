@@ -70,6 +70,8 @@ public class AudioController : ControllerBase
         {
             if (result.ErrorCode == "STORAGE_ERROR")
                 return StatusCode(StatusCodes.Status503ServiceUnavailable, BaseResponse<DocumentDto>.Fail(result.Message, result.ErrorCode));
+            if (result.ErrorCode == "DUPLICATE_DOCUMENT")
+                return Conflict(BaseResponse<DocumentDto>.Fail(result.Message, result.ErrorCode));
 
             return BadRequest(BaseResponse<DocumentDto>.Fail(result.Message, result.ErrorCode));
         }

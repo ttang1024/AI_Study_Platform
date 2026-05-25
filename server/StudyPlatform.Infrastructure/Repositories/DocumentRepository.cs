@@ -53,6 +53,12 @@ public class DocumentRepository : Repository<Document>, IDocumentRepository
         return (items, totalCount);
     }
 
+    public async Task<Document?> GetByUserIdAndFileHashAsync(Guid userId, string fileHash, CancellationToken cancellationToken = default)
+        => await _dbSet
+            .Where(d => d.UserId == userId && d.FileHash == fileHash)
+            .OrderByDescending(d => d.CreatedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+
     public async Task<int> CountByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
         => await _dbSet.CountAsync(d => d.UserId == userId, cancellationToken);
 }

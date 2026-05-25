@@ -39,6 +39,7 @@ public class UpdateDocumentCommandHandler : IRequestHandler<UpdateDocumentComman
             document.BlobUrl,
             document.ContentType,
             document.FileSize,
+            document.FileHash,
             document.Summary,
             document.MindMapText,
             document.CreatedAt,

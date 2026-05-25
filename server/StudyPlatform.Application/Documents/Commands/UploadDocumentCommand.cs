@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -52,11 +53,20 @@ public class UploadDocumentCommandHandler : IRequestHandler<UploadDocumentComman
                     "DOCUMENT_LIMIT_REACHED");
         }
 
+        var (fileHash, uploadStream, disposeUploadStream) = await PrepareUploadStreamAsync(request.FileStream, cancellationToken);
+        await using var _ = disposeUploadStream ? uploadStream : Stream.Null;
+
+        var duplicate = await _unitOfWork.Documents.GetByUserIdAndFileHashAsync(request.UserId, fileHash, cancellationToken);
+        if (duplicate != null)
+            return Result<DocumentDto>.Failure(
+                $"This file already exists as \"{duplicate.FileName}\".",
+                "DUPLICATE_DOCUMENT");
+
         var blobFileName = $"{request.UserId}/{request.CourseId}/{Guid.NewGuid()}_{request.FileName}";
         string blobUrl;
         try
         {
-            blobUrl = await _blobStorageService.UploadAsync(request.FileStream, blobFileName, request.ContentType, cancellationToken);
+            blobUrl = await _blobStorageService.UploadAsync(uploadStream, blobFileName, request.ContentType, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -73,6 +83,7 @@ public class UploadDocumentCommandHandler : IRequestHandler<UploadDocumentComman
             BlobUrl = blobUrl,
             ContentType = request.ContentType,
             FileSize = request.FileSize,
+            FileHash = fileHash,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
@@ -92,9 +103,33 @@ public class UploadDocumentCommandHandler : IRequestHandler<UploadDocumentComman
         doc.BlobUrl,
         doc.ContentType,
         doc.FileSize,
+        doc.FileHash,
         doc.Summary,
         doc.MindMapText,
         doc.CreatedAt,
         doc.UpdatedAt,
         doc.Transcript);
+
+    private static async Task<(string FileHash, Stream UploadStream, bool DisposeUploadStream)> PrepareUploadStreamAsync(
+        Stream stream,
+        CancellationToken cancellationToken)
+    {
+        if (!stream.CanSeek)
+        {
+            var buffer = new MemoryStream();
+            await stream.CopyToAsync(buffer, cancellationToken);
+            buffer.Position = 0;
+
+            using var bufferedSha = SHA256.Create();
+            var bufferedHash = await bufferedSha.ComputeHashAsync(buffer, cancellationToken);
+            buffer.Position = 0;
+            return (Convert.ToHexString(bufferedHash).ToLowerInvariant(), buffer, true);
+        }
+
+        stream.Position = 0;
+        using var sha = SHA256.Create();
+        var hash = await sha.ComputeHashAsync(stream, cancellationToken);
+        stream.Position = 0;
+        return (Convert.ToHexString(hash).ToLowerInvariant(), stream, false);
+    }
 }

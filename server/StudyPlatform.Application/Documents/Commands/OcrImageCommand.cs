@@ -86,6 +86,7 @@ public class OcrImageCommandHandler : IRequestHandler<OcrImageCommand, Result<Do
         doc.BlobUrl,
         doc.ContentType,
         doc.FileSize,
+        doc.FileHash,
         doc.Summary,
         doc.MindMapText,
         doc.CreatedAt,
