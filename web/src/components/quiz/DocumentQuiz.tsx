@@ -21,6 +21,12 @@ const QUIZ_DIFFICULTIES: Array<{ value: QuizDifficulty; label: string; detail: s
 ];
 
 interface DocumentQuizProps {
+  /** Initial difficulty tab to show */
+  initialDifficulty?: QuizDifficulty;
+  /** Controlled difficulty tab, used by external quiz owners */
+  activeDifficulty?: QuizDifficulty;
+  /** Question to reveal by selecting the difficulty tab that contains it */
+  targetQuestionId?: string;
   /** External questions (bypasses StudyContext/API when set) */
   externalQuestions?: QuizQuestion[];
   /** External question counts by difficulty */
@@ -48,6 +54,9 @@ interface DocumentQuizProps {
 }
 
 export const DocumentQuiz: React.FC<DocumentQuizProps> = ({
+  initialDifficulty = 'medium',
+  activeDifficulty: externalActiveDifficulty,
+  targetQuestionId,
   externalQuestions,
   externalQuestionCounts,
   externalUserAnswers,
@@ -68,7 +77,7 @@ export const DocumentQuiz: React.FC<DocumentQuizProps> = ({
   const isExternal = onExternalGenerate !== undefined;
 
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
-  const [activeDifficulty, setActiveDifficulty] = useState<QuizDifficulty>('medium');
+  const [activeDifficulty, setActiveDifficulty] = useState<QuizDifficulty>(initialDifficulty);
   const [questionSets, setQuestionSets] = useState<Record<QuizDifficulty, QuizQuestion[]>>({ easy: [], medium: [], hard: [] });
   const [answerSets, setAnswerSets] = useState<Record<QuizDifficulty, Record<string, string>>>({ easy: {}, medium: {}, hard: {} });
   const [submittedSets, setSubmittedSets] = useState<Record<QuizDifficulty, boolean>>({ easy: false, medium: false, hard: false });
@@ -103,9 +112,13 @@ export const DocumentQuiz: React.FC<DocumentQuizProps> = ({
       .then(([qs, submission]) => {
         const grouped: Record<QuizDifficulty, QuizQuestion[]> = { easy: [], medium: [], hard: [] };
         qs.forEach(q => grouped[(q.difficulty ?? 'medium') as QuizDifficulty].push(q));
-        const loadedDifficulty = grouped[activeDifficulty].length > 0
-          ? activeDifficulty
-          : QUIZ_DIFFICULTIES.find(d => grouped[d.value].length > 0)?.value ?? activeDifficulty;
+        const targetDifficulty = targetQuestionId
+          ? QUIZ_DIFFICULTIES.find(d => grouped[d.value].some(q => q.id === targetQuestionId))?.value
+          : undefined;
+        const loadedDifficulty = targetDifficulty
+          ?? (grouped[activeDifficulty].length > 0
+            ? activeDifficulty
+            : QUIZ_DIFFICULTIES.find(d => grouped[d.value].length > 0)?.value ?? activeDifficulty);
         setQuestionSets(grouped);
         if (qs.length > 0) {
           setActiveDifficulty(loadedDifficulty);
@@ -122,9 +135,11 @@ export const DocumentQuiz: React.FC<DocumentQuizProps> = ({
       })
       .catch(() => { })
       .finally(() => setIsLoading(false));
-  }, [currentDocument?.id, isExternal]);
+  }, [currentDocument?.id, isExternal, targetQuestionId]);
 
-  const generateQuiz = async (difficulty: QuizDifficulty = activeDifficulty) => {
+  const selectedDifficulty = externalActiveDifficulty ?? activeDifficulty;
+
+  const generateQuiz = async (difficulty: QuizDifficulty = selectedDifficulty) => {
     if (generateDisabled) return;
     setActiveDifficulty(difficulty);
     if (isExternal) {
@@ -229,20 +244,20 @@ export const DocumentQuiz: React.FC<DocumentQuizProps> = ({
   };
 
   // Resolve active values (external or internal)
-  const activeQuestions = isExternal ? (externalQuestions ?? []) : questionSets[activeDifficulty];
-  const activeAnswers = isExternal ? (externalUserAnswers ?? {}) : answerSets[activeDifficulty];
-  const activeSubmitted = isExternal ? (externalSubmitted ?? false) : submittedSets[activeDifficulty];
-  const activeScore = isExternal ? (externalScore ?? 0) : scoreSets[activeDifficulty];
+  const activeQuestions = isExternal ? (externalQuestions ?? []) : questionSets[selectedDifficulty];
+  const activeAnswers = isExternal ? (externalUserAnswers ?? {}) : answerSets[selectedDifficulty];
+  const activeSubmitted = isExternal ? (externalSubmitted ?? false) : submittedSets[selectedDifficulty];
+  const activeScore = isExternal ? (externalScore ?? 0) : scoreSets[selectedDifficulty];
   const activeLoading = isExternal ? (isExternalLoading ?? false) : isLoading;
-  const activeError = isExternal ? externalError : errorSets[activeDifficulty];
+  const activeError = isExternal ? externalError : errorSets[selectedDifficulty];
 
   const difficultyTabs = (
     <div className="p-6 pb-0">
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
         {QUIZ_DIFFICULTIES.map(difficulty => {
-          const isActive = difficulty.value === activeDifficulty;
+          const isActive = difficulty.value === selectedDifficulty;
           const count = isExternal
-            ? externalQuestionCounts?.[difficulty.value] ?? (difficulty.value === activeDifficulty ? externalQuestions?.length ?? 0 : 0)
+            ? externalQuestionCounts?.[difficulty.value] ?? (difficulty.value === selectedDifficulty ? externalQuestions?.length ?? 0 : 0)
             : questionSets[difficulty.value].length;
           return (
             <button
@@ -281,7 +296,7 @@ export const DocumentQuiz: React.FC<DocumentQuizProps> = ({
     return (
       <div>
         {difficultyTabs}
-        <GenerationFailedState message={activeError} onRetry={() => generateQuiz(activeDifficulty)} retryDisabled={generateDisabled} disabledReason={generateDisabledReason} />
+        <GenerationFailedState message={activeError} onRetry={() => generateQuiz(selectedDifficulty)} retryDisabled={generateDisabled} disabledReason={generateDisabledReason} />
       </div>
     );
   }
@@ -293,9 +308,9 @@ export const DocumentQuiz: React.FC<DocumentQuizProps> = ({
         <EmptyGenerationState
           icon={BookOpenCheck}
           title="No Quiz Yet"
-          description={`Ready to test at ${QUIZ_DIFFICULTIES.find(d => d.value === activeDifficulty)?.label} level?`}
+          description={`Ready to test at ${QUIZ_DIFFICULTIES.find(d => d.value === selectedDifficulty)?.label} level?`}
           actionLabel="Generate Quiz"
-          onAction={() => generateQuiz(activeDifficulty)}
+          onAction={() => generateQuiz(selectedDifficulty)}
           actionDisabled={generateDisabled}
           disabledReason={generateDisabledReason}
         />
@@ -319,7 +334,7 @@ export const DocumentQuiz: React.FC<DocumentQuizProps> = ({
             </p>
           </div>
           <div className="flex gap-2 justify-center pt-2">
-            <Button onClick={() => generateQuiz(activeDifficulty)} variant="secondary" size="sm" disabled={generateDisabled} title={generateDisabled ? generateDisabledReason : undefined}>
+            <Button onClick={() => generateQuiz(selectedDifficulty)} variant="secondary" size="sm" disabled={generateDisabled} title={generateDisabled ? generateDisabledReason : undefined}>
               <RotateCcw size={14} className="mr-2" />
               Retake Quiz
             </Button>

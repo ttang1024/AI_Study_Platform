@@ -59,6 +59,7 @@ type DocQuizItem = {
   courseColor?: string;
   courseName?: string;
   docId?: string;
+  targetQuizQuestionId?: string;
   pending?: boolean;
 };
 
@@ -72,6 +73,7 @@ type VideoQuizItem = {
   score?: number;
   total?: number;
   date?: string;
+  targetQuizQuestionId?: string;
   pending?: boolean;
 };
 
@@ -602,6 +604,7 @@ export const QuizManagementPage: React.FC = () => {
         courseColor: course?.color,
         courseName: course?.name,
         docId: doc?.id,
+        targetQuizQuestionId: Object.keys(s.answers ?? {})[0],
       };
     }), [quizSubmissions, documents, courses]);
 
@@ -616,6 +619,7 @@ export const QuizManagementPage: React.FC = () => {
       score: s.score,
       total: s.total,
       date: s.submittedAt,
+      targetQuizQuestionId: Object.keys(s.answers ?? {})[0],
     })), [quizSubmissions]);
 
   const allItems = useMemo<UnifiedQuizItem[]>(() => {
@@ -838,6 +842,7 @@ export const QuizManagementPage: React.FC = () => {
                         pending={item.pending}
                         examKey={item.id}
                         loadingTimedExam={loadingTimedExam}
+                        retakeState={item.targetQuizQuestionId ? { targetQuizQuestionId: item.targetQuizQuestionId } : undefined}
                         onShare={() => handleShareVideoQuiz(item.id, item.name)}
                         onExam={() => handleStartVideoTimedExam(item.id, item.name)}
                       />
@@ -859,6 +864,7 @@ export const QuizManagementPage: React.FC = () => {
                       pending={item.pending}
                       examKey={docId ?? item.id}
                       loadingTimedExam={loadingTimedExam}
+                      retakeState={item.targetQuizQuestionId ? { targetQuizQuestionId: item.targetQuizQuestionId } : undefined}
                       onShare={docId ? () => handleShareQuiz(docId, item.name, item.courseId ?? '') : undefined}
                       onExam={docId ? () => handleStartTimedExam(docId, item.name) : undefined}
                     />

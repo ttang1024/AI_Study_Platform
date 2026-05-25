@@ -177,6 +177,7 @@ export const ArticlePage: React.FC<{ embedded?: boolean; id?: string; courseId?:
   const { isLoading, documents, currentDocument, setCurrentDocument, chatMessages, updateDocumentInList } = useStudy();
 
   const initialTab = (location.state as any)?.activeTab ?? 'summary';
+  const targetQuizQuestionId = (location.state as any)?.targetQuizQuestionId as string | undefined;
   const [activeTab, setActiveTab] = useState<'summary' | 'mindmap' | 'notes' | 'flashcards' | 'quiz' | 'problems' | 'chat'>(initialTab);
   const [activeView, setActiveView] = useState<'study' | 'article'>('article');
 
@@ -460,7 +461,7 @@ export const ArticlePage: React.FC<{ embedded?: boolean; id?: string; courseId?:
                   <Flashcards />
                 </div>
                 <div className={cn('h-full', activeTab !== 'quiz' && 'hidden')}>
-                  <DocumentQuiz />
+                  <DocumentQuiz targetQuestionId={targetQuizQuestionId} />
                 </div>
                 <div className={cn('h-full overflow-y-auto no-scrollbar', activeTab !== 'problems' && 'hidden')}>
                   {currentDocument.courseId && (

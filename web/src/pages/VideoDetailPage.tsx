@@ -88,6 +88,7 @@ const emptyScoreSets = (): Record<QuizDifficulty, number> => ({ easy: 0, medium:
 interface VideoDetailLocationState {
 	activeTab?: VideoStudyTab;
 	returnTo?: string;
+	targetQuizQuestionId?: string;
 }
 
 export const VideoDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({ embedded, id: propId }) => {
@@ -240,6 +241,8 @@ export const VideoDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
 				})));
 			} catch { }
 
+			let loadedQuizDifficulty = activeQuizDifficulty;
+			let loadedQuizQuestionSets = emptyQuizSets();
 			try {
 				const questions = await videoService.getQuiz(videoRecordId);
 				const mapped = questions.map(q => ({
@@ -252,8 +255,19 @@ export const VideoDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
 				} as QuizQuestion));
 				const grouped = emptyQuizSets();
 				mapped.forEach(q => grouped[(q.difficulty ?? 'medium') as QuizDifficulty].push(q));
+				const targetDifficulty = locationState?.targetQuizQuestionId
+					? (['easy', 'medium', 'hard'] as QuizDifficulty[]).find(difficulty =>
+						grouped[difficulty].some(q => q.id === locationState.targetQuizQuestionId))
+					: undefined;
+				const loadedDifficulty = targetDifficulty
+					?? (grouped[activeQuizDifficulty].length > 0
+						? activeQuizDifficulty
+						: (['easy', 'medium', 'hard'] as QuizDifficulty[]).find(difficulty => grouped[difficulty].length > 0) ?? activeQuizDifficulty);
+				loadedQuizDifficulty = loadedDifficulty;
+				loadedQuizQuestionSets = grouped;
 				setQuizQuestionSets(grouped);
-				setQuizQuestions(grouped[activeQuizDifficulty]);
+				setActiveQuizDifficulty(loadedDifficulty);
+				setQuizQuestions(grouped[loadedDifficulty]);
 			} catch { }
 
 			try {
@@ -267,12 +281,17 @@ export const VideoDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
 			try {
 				const submission = await videoService.getQuizSubmission(videoRecordId);
 				if (submission) {
+					const submittedDifficulty = (['easy', 'medium', 'hard'] as QuizDifficulty[]).find(difficulty =>
+						Object.keys(submission.answers ?? {}).some(questionId => loadedQuizQuestionSets[difficulty].some(q => q.id === questionId)))
+						?? loadedQuizDifficulty;
+					setActiveQuizDifficulty(submittedDifficulty);
+					setQuizQuestions(loadedQuizQuestionSets[submittedDifficulty]);
 					setUserAnswers(submission.answers);
-					setQuizAnswerSets(prev => ({ ...prev, [activeQuizDifficulty]: submission.answers }));
+					setQuizAnswerSets(prev => ({ ...prev, [submittedDifficulty]: submission.answers }));
 					setQuizScore(submission.score);
-					setQuizScoreSets(prev => ({ ...prev, [activeQuizDifficulty]: submission.score }));
+					setQuizScoreSets(prev => ({ ...prev, [submittedDifficulty]: submission.score }));
 					setIsQuizSubmitted(true);
-					setQuizSubmittedSets(prev => ({ ...prev, [activeQuizDifficulty]: true }));
+					setQuizSubmittedSets(prev => ({ ...prev, [submittedDifficulty]: true }));
 				}
 			} catch { }
 
@@ -754,6 +773,8 @@ export const VideoDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
 					{/* Quiz */}
 					<div className={cn('h-full overflow-y-auto', activeTab !== 'quiz' && 'hidden')}>
 						<DocumentQuiz
+							activeDifficulty={activeQuizDifficulty}
+							targetQuestionId={locationState?.targetQuizQuestionId}
 							externalQuestions={quizQuestions}
 							externalQuestionCounts={{
 								easy: quizQuestionSets.easy.length,

@@ -30,6 +30,7 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
   const location = useLocation();
   const { isLoading, documents, currentDocument, setCurrentDocument, chatMessages, updateDocumentInList } = useStudy();
   const initialTab = (location.state as any)?.activeTab ?? 'summary';
+  const targetQuizQuestionId = (location.state as any)?.targetQuizQuestionId as string | undefined;
   const [activeTab, setActiveTab] = useState<'summary' | 'mindmap' | 'notes' | 'flashcards' | 'quiz' | 'problems' | 'chat'>(initialTab);
   const [summary, setSummary] = useState<string | null>(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
@@ -355,7 +356,7 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
                 </div>
 
                 <div className={cn("h-full", activeTab !== 'quiz' && "hidden")}>
-                  <DocumentQuiz />
+                  <DocumentQuiz targetQuestionId={targetQuizQuestionId} />
                 </div>
 
                 <div className={cn("h-full overflow-y-auto no-scrollbar", activeTab !== 'problems' && "hidden")}>

@@ -155,6 +155,7 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string; course
 
   // Layout
   const initialTab = (location.state as any)?.activeTab ?? 'summary';
+  const targetQuizQuestionId = (location.state as any)?.targetQuizQuestionId as string | undefined;
   const [activeTab, setActiveTab] = useState<AudioStudyTab>(initialTab);
   const [activeView, setActiveView] = useState<'study' | 'audio'>('audio');
 
@@ -277,24 +278,42 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string; course
       } catch { }
 
       // Load quiz
+      let loadedQuizDifficulty = activeQuizDifficulty;
+      let loadedQuizQuestionSets = emptyQuizSets();
       try {
         const questions = await documentService.getQuiz(cId, docId);
         const grouped = emptyQuizSets();
         questions.forEach(q => grouped[(q.difficulty ?? 'medium') as QuizDifficulty].push(q));
+        const targetDifficulty = targetQuizQuestionId
+          ? (['easy', 'medium', 'hard'] as QuizDifficulty[]).find(difficulty =>
+            grouped[difficulty].some(q => q.id === targetQuizQuestionId))
+          : undefined;
+        const loadedDifficulty = targetDifficulty
+          ?? (grouped[activeQuizDifficulty].length > 0
+            ? activeQuizDifficulty
+            : (['easy', 'medium', 'hard'] as QuizDifficulty[]).find(difficulty => grouped[difficulty].length > 0) ?? activeQuizDifficulty);
+        loadedQuizDifficulty = loadedDifficulty;
+        loadedQuizQuestionSets = grouped;
         setQuizQuestionSets(grouped);
-        setQuizQuestions(grouped[activeQuizDifficulty]);
+        setActiveQuizDifficulty(loadedDifficulty);
+        setQuizQuestions(grouped[loadedDifficulty]);
       } catch { }
 
       // Load quiz submission
       try {
         const sub = await documentService.getQuizSubmission(cId, docId);
         if (sub) {
+          const submittedDifficulty = (['easy', 'medium', 'hard'] as QuizDifficulty[]).find(difficulty =>
+            Object.keys(sub.answers ?? {}).some(questionId => loadedQuizQuestionSets[difficulty].some(q => q.id === questionId)))
+            ?? loadedQuizDifficulty;
+          setActiveQuizDifficulty(submittedDifficulty);
+          setQuizQuestions(loadedQuizQuestionSets[submittedDifficulty]);
           setUserAnswers(sub.answers);
-          setQuizAnswerSets(prev => ({ ...prev, [activeQuizDifficulty]: sub.answers }));
+          setQuizAnswerSets(prev => ({ ...prev, [submittedDifficulty]: sub.answers }));
           setQuizScore(sub.score);
-          setQuizScoreSets(prev => ({ ...prev, [activeQuizDifficulty]: sub.score }));
+          setQuizScoreSets(prev => ({ ...prev, [submittedDifficulty]: sub.score }));
           setIsQuizSubmitted(true);
-          setQuizSubmittedSets(prev => ({ ...prev, [activeQuizDifficulty]: true }));
+          setQuizSubmittedSets(prev => ({ ...prev, [submittedDifficulty]: true }));
         }
       } catch { }
 
@@ -630,6 +649,8 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string; course
 
           <div className={cn('h-full overflow-y-auto', activeTab !== 'quiz' && 'hidden')}>
             <DocumentQuiz
+              activeDifficulty={activeQuizDifficulty}
+              targetQuestionId={targetQuizQuestionId}
               externalQuestions={quizQuestions}
               externalQuestionCounts={{
                 easy: quizQuestionSets.easy.length,

@@ -78,6 +78,7 @@ export interface QuizItemRowProps {
   /** Id used to match loadingTimedExam state */
   examKey: string;
   loadingTimedExam: string | null;
+  retakeState?: Record<string, unknown>;
   onShare?: () => void;
   onExam?: () => void;
 }
@@ -85,7 +86,7 @@ export interface QuizItemRowProps {
 export const QuizItemRow: React.FC<QuizItemRowProps> = ({
   type, id, name, score, total, date, courseName, courseColor,
   docId, pending, examKey, loadingTimedExam,
-  onShare, onExam,
+  retakeState, onShare, onExam,
 }) => {
   const cfg = TYPE_CONFIG[type];
   const { Icon } = cfg;
@@ -188,7 +189,7 @@ export const QuizItemRow: React.FC<QuizItemRowProps> = ({
           </>
         )}
 
-        <Link to={retakePath} state={{ activeTab: 'quiz' }}>
+        <Link to={retakePath} state={{ activeTab: 'quiz', ...retakeState }}>
           <Button size="sm" variant="outline">
             <Play size={14} className="mr-1 sm:mr-2" />
             {pending ? 'Take Quiz' : 'Retake'}
