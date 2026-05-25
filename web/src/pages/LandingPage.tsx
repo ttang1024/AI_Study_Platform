@@ -307,7 +307,7 @@ export const LandingPage: React.FC = () => {
             <span style={{ background: 'linear-gradient(135deg, #e0f7ff, #a5f3fc)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Your Complete</span>{' '}
             <span style={{ background: 'linear-gradient(135deg, #14b8a6, #0891b2)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Study Suite</span>
           </h2>
-          <p className="mt-4 text-white/40 max-w-lg mx-auto">8+ AI-powered tools working together for every study session.</p>
+          <p className="mt-4 text-white/40 max-w-lg mx-auto">10+ AI-powered tools working together for every study session.</p>
         </FadeIn>
 
         <div className="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-auto">
