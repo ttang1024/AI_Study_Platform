@@ -394,6 +394,45 @@ public class VideoController : ControllerBase
         return transcript;
     }
 
+    // Returns a timestamped transcript for a saved video (used by timeline-aware summary).
+    private async Task<string?> GetOrFetchTimelineTranscriptAsync(YouTubeVideo video, CancellationToken cancellationToken)
+    {
+        var transcriptKey = $"{NormalizeSourceType(video.SourceType)}:{video.VideoId}";
+        var segmentsCacheKey = TranscriptSegmentsCacheKey(transcriptKey);
+        var ttl = TimeSpan.FromSeconds(_cacheOptions.TranscriptSeconds);
+
+        var cached = await _cache.GetAsync<List<TranscriptSegmentDto>>(segmentsCacheKey, cancellationToken);
+        if (cached is { Count: > 0 })
+            return FormatTranscriptSegments(cached);
+
+        var storedSegments = await GetStoredTranscriptSegmentsAsync(transcriptKey, SubtitlesKind, cancellationToken)
+                             ?? await GetStoredTranscriptSegmentsAsync(transcriptKey, TranscriptKind, cancellationToken);
+        if (storedSegments is { Count: > 0 })
+        {
+            await _cache.SetAsync(segmentsCacheKey, storedSegments, ttl, cancellationToken);
+            return FormatTranscriptSegments(storedSegments);
+        }
+
+        var segments = IsExternalVideoSource(video)
+            ? await _transcriptService.GetSubtitlesFromUrlAsync(video.VideoUrl, cancellationToken)
+            : await _transcriptService.GetSubtitlesAsync(video.VideoId, cancellationToken);
+        var transcriptKind = SubtitlesKind;
+        if (segments == null || segments.Count == 0)
+        {
+            segments = IsExternalVideoSource(video)
+                ? await _transcriptService.GetTranscriptFromUrlAsync(video.VideoUrl, cancellationToken)
+                : await _transcriptService.GetTranscriptAsync(video.VideoId, cancellationToken);
+            transcriptKind = TranscriptKind;
+        }
+        if (segments == null || segments.Count == 0)
+            return await GetOrFetchTranscriptAsync(video, cancellationToken);
+
+        var dtos = segments.Select(s => new TranscriptSegmentDto(s.Start.TotalSeconds, s.Text)).ToList();
+        await StoreTranscriptSegmentsAsync(transcriptKey, transcriptKind, dtos, ttl, cancellationToken);
+        await _cache.SetAsync(segmentsCacheKey, dtos, ttl, cancellationToken);
+        return FormatTranscriptSegments(dtos);
+    }
+
     // For anonymous endpoints: Redis → DB → YouTube fetch without requiring a saved video record.
     private async Task<string?> GetTranscriptTextAsync(string videoId, CancellationToken cancellationToken)
     {
@@ -1580,7 +1619,7 @@ public class VideoController : ControllerBase
         if (video is null)
             return NotFound(BaseResponse<string>.Fail("Video not found.", "VIDEO_NOT_FOUND"));
 
-        var transcript = await GetOrFetchTranscriptAsync(video, cancellationToken);
+        var transcript = await GetOrFetchTimelineTranscriptAsync(video, cancellationToken);
         if (transcript == null)
             return BadRequest(BaseResponse<string>.Fail("No subtitles available for this video.", "NO_TRANSCRIPT"));
 
