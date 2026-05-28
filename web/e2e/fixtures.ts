@@ -206,6 +206,11 @@ export async function mockStudyApi(page: Page) {
       })
     }
     if (path === '/api/documents') return json(route, paged(documents, Number(url.searchParams.get('pageSize') ?? 500)))
+    const singleDocMatch = path.match(/^\/api\/courses\/[^/]+\/documents\/([^/]+)$/)
+    if (singleDocMatch) {
+      const doc = documents.find(d => d.documentId === singleDocMatch[1])
+      if (doc) return json(route, doc)
+    }
     if (path === '/api/videos') return json(route, paged(videos, Number(url.searchParams.get('pageSize') ?? 8)))
     if (path === '/api/notes') return json(route, paged(notes, Number(url.searchParams.get('pageSize') ?? 20)))
     if (path === '/api/flashcards') return json(route, paged(flashcards, Number(url.searchParams.get('pageSize') ?? 20)))
