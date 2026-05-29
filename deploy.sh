@@ -299,6 +299,10 @@ YOUTUBE_COOKIES_B64="$(strip_cr "${YOUTUBE_COOKIES_B64:-${YouTube__CookiesBase64
 REDIS_ENABLED="$(strip_cr "${REDIS_ENABLED:-false}")"
 REDIS_CONNECTION_STRING="$(strip_cr "${REDIS_CONNECTION_STRING:-}")"
 REDIS_INSTANCE_NAME="$(strip_cr "${REDIS_INSTANCE_NAME:-StudyPlatform:}")"
+WEB_PUBLIC_ORIGIN="$(strip_cr "${WEB_PUBLIC_ORIGIN:-}")"
+ADMIN_PUBLIC_ORIGIN="$(strip_cr "${ADMIN_PUBLIC_ORIGIN:-}")"
+WEB_WWW_PUBLIC_ORIGIN="$(strip_cr "${WEB_WWW_PUBLIC_ORIGIN:-}")"
+API_PUBLIC_ORIGIN="$(strip_cr "${API_PUBLIC_ORIGIN:-}")"
 
 AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
 ECR_REPOSITORY="${ECR_REPOSITORY:-$APP_NAME-api}"

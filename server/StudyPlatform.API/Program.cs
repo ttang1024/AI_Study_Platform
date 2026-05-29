@@ -198,6 +198,7 @@ using (var scope = app.Services.CreateScope())
 }
 
 // Middleware pipeline
+app.UseCors("AllowFrontend");
 app.UseMiddleware<RequestLoggingMiddleware>();
 app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
 
@@ -210,8 +211,6 @@ app.UseSwaggerUI(options =>
 
 if (app.Environment.IsDevelopment())
     app.UseHttpsRedirection();
-
-app.UseCors("AllowFrontend");
 app.UseIpRateLimiting();
 app.UseAuthentication();
 app.UseAuthorization();
