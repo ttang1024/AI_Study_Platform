@@ -97,13 +97,9 @@ export const RegisterPage: React.FC = () => {
           <motion.div
             whileHover={{ scale: 1.08, rotate: 6 }}
             transition={{ type: 'spring', stiffness: 380, damping: 16 }}
-            className="relative mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl text-white overflow-hidden"
-            style={{ background: 'linear-gradient(135deg, #059669, #14b8a6, #0891b2)' }}
+            className="p-0.5 relative mx-auto mb-4 h-14 w-14 rounded-2xl overflow-hidden"
           >
-            <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-transparent" />
-            <motion.div animate={{ rotate: [0, 10, -6, 0] }} transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}>
-              <BrainCircuit size={28} />
-            </motion.div>
+            <img src="/app.png" alt="toto.ai logo" className="w-full h-full object-cover" />
           </motion.div>
           <h1 className="text-2xl font-bold text-zinc-900">Create account</h1>
         </div>
