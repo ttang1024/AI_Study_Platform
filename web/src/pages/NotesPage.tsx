@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Search, Calendar, Trash2, Edit3, X, Check, Loader2, Sparkles, Play, Share2, Download } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Search, Calendar, Trash2, Edit3, X, Check, Loader2, Sparkles, Play, Share2, Download, CheckSquare, Square } from 'lucide-react';
 import { STUDY_TYPE_ICONS } from '../constants/contentTypeIcons';
 import { CONTENT_TYPE_ICONS } from '../constants/contentTypeIcons';
 import { useStudy } from '../context/StudyContext';
@@ -16,6 +16,7 @@ import { usePersistentTts } from '../context/TtsContext';
 import { ShareModal } from '../components/common/ShareModal';
 import { Pagination } from '../components/common/Pagination';
 import { downloadNotesMarkdown, ExportNoteRecord } from '../services/exportInteropService';
+import { synthesizeToBlob, downloadAudioBlob } from '../services/edgeTtsService';
 
 const PAGE_SIZE = 5;
 
@@ -57,15 +58,31 @@ interface NoteCardProps {
   onSave: () => void;
   onCancel: () => void;
   onDelete: () => void;
+  isSelected: boolean;
+  onToggleSelect: () => void;
 }
 
 const NoteCard: React.FC<NoteCardProps> = ({
   title, courseName, courseColor, createdAt, content, icon, viewLabel, onView, onShare,
   isEditing, editContent, onEditContentChange, onStartEdit, onSave, onCancel, onDelete,
+  isSelected, onToggleSelect,
 }) => (
-  <div className="bg-[var(--bg-sidebar)] rounded-2xl border border-[var(--border-color)] overflow-hidden shadow-sm">
+  <div className={cn(
+    'bg-[var(--bg-sidebar)] rounded-2xl border overflow-hidden shadow-sm transition-all',
+    isSelected ? 'border-[var(--primary)] ring-1 ring-[var(--primary)]/40' : 'border-[var(--border-color)]',
+  )}>
     <div className="px-6 py-4 border-b border-[var(--border-color)] flex items-center justify-between bg-zinc-50/50">
       <div className="flex items-center gap-3 min-w-0">
+        <button
+          onClick={onToggleSelect}
+          title={isSelected ? 'Deselect note' : 'Select note'}
+          className={cn(
+            'shrink-0 transition-all',
+            isSelected ? 'text-[var(--primary)]' : 'text-zinc-300 hover:text-[var(--primary)]',
+          )}
+        >
+          {isSelected ? <CheckSquare size={16} /> : <Square size={16} />}
+        </button>
         {icon}
         <h3 className="font-bold text-text-main truncate">{title}</h3>
         {courseName && (
@@ -130,6 +147,8 @@ export const NotesPage: React.FC = () => {
   const [sourceType, setSourceType] = useState<SourceType>('all');
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [downloadingMp3, setDownloadingMp3] = useState(false);
   const [shareNote, setShareNote] = useState<{
     title: string;
     notesHtml: string;
@@ -215,13 +234,48 @@ export const NotesPage: React.FC = () => {
   const safePage = Math.min(page, totalPages);
   const pagedItems = filteredItems.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
+  const itemId = (item: UnifiedNoteItem) => (item.type !== 'video' ? item.note.id : item.entry.noteId);
+
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  // Drop selections that no longer match the active filters
+  useEffect(() => {
+    setSelectedIds(prev => {
+      if (prev.size === 0) return prev;
+      const visible = new Set(filteredItems.map(itemId));
+      const next = new Set([...prev].filter(id => visible.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [filteredItems]);
+
+  const allVisibleSelected = filteredItems.length > 0 && filteredItems.every(i => selectedIds.has(itemId(i)));
+
+  const toggleSelectAll = useCallback(() => {
+    setSelectedIds(prev => {
+      const allSelected = filteredItems.length > 0 && filteredItems.every(i => prev.has(itemId(i)));
+      return allSelected ? new Set() : new Set(filteredItems.map(itemId));
+    });
+  }, [filteredItems]);
+
+  // Notes that Play will read: the current selection, or the full filtered list when nothing is selected
+  const playItems = useMemo(
+    () => (selectedIds.size > 0 ? filteredItems.filter(i => selectedIds.has(itemId(i))) : filteredItems),
+    [filteredItems, selectedIds],
+  );
+
   const ttsItems = useMemo(
-    () => filteredItems.map((item, i) => {
+    () => playItems.map((item, i) => {
       const title = item.type !== 'video' ? item.docName : item.entry.title;
       const content = item.type !== 'video' ? item.note.content : item.entry.content;
       return { text: `Note ${i + 1}: ${title}. ${stripHtml(content)}`, title };
     }),
-    [filteredItems],
+    [playItems],
   );
 
   const getTtsSubtitle = useCallback(
@@ -232,6 +286,21 @@ export const NotesPage: React.FC = () => {
   const { playerState, play } = usePersistentTts('notes', ttsItems, {
     getSubtitle: getTtsSubtitle,
   });
+
+  const handleDownloadMp3 = useCallback(async () => {
+    if (ttsItems.length === 0 || downloadingMp3) return;
+    setDownloadingMp3(true);
+    try {
+      const text = ttsItems.map(i => i.text).join('\n\n');
+      const blob = await synthesizeToBlob(text);
+      const name = selectedIds.size > 0 ? 'notes_selected' : 'notes';
+      downloadAudioBlob(blob, name);
+    } catch {
+      // Synthesis errors are rare and retryable; avoid an intrusive alert
+    } finally {
+      setDownloadingMp3(false);
+    }
+  }, [ttsItems, selectedIds, downloadingMp3]);
 
   const counts = useMemo(() => ({
     all: allItems.length,
@@ -326,7 +395,20 @@ export const NotesPage: React.FC = () => {
               className="flex items-center gap-1.5 shrink-0"
             >
               <Play size={14} className="fill-current" />
-              Play Notes
+              {selectedIds.size > 0 ? `Play Selected (${playItems.length})` : 'Play Notes'}
+            </Button>
+          )}
+          {filteredItems.length > 0 && (
+            <Button
+              onClick={handleDownloadMp3}
+              disabled={downloadingMp3}
+              size="sm"
+              variant="outline"
+              className="flex items-center gap-1.5 shrink-0"
+              title="Download as MP3"
+            >
+              {downloadingMp3 ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+              {downloadingMp3 ? 'Generating…' : `MP3${selectedIds.size > 0 ? ` (${playItems.length})` : ''}`}
             </Button>
           )}
           {exportableNotes.length > 0 && (
@@ -385,6 +467,25 @@ export const NotesPage: React.FC = () => {
         </div>
       ) : (
         <>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={toggleSelectAll}
+              className="text-xs font-bold text-[var(--primary)] hover:underline"
+            >
+              {allVisibleSelected ? 'Deselect all' : 'Select all'}
+            </button>
+            {selectedIds.size > 0 && (
+              <span className="flex items-center gap-2 text-xs text-text-muted">
+                {selectedIds.size} selected
+                <button
+                  onClick={() => setSelectedIds(new Set())}
+                  className="flex items-center gap-1 rounded-lg border border-[var(--border-color)] px-2 py-0.5 font-bold text-text-muted hover:border-zinc-400"
+                >
+                  <X size={11} /> Clear
+                </button>
+              </span>
+            )}
+          </div>
           <div className="grid grid-cols-1 gap-4">
             {pagedItems.map(item => {
               if (item.type !== 'video') {
@@ -428,6 +529,8 @@ export const NotesPage: React.FC = () => {
                     onSave={handleSaveEdit}
                     onCancel={() => setEditingId(null)}
                     onDelete={() => handleDelete(note.id)}
+                    isSelected={selectedIds.has(note.id)}
+                    onToggleSelect={() => toggleSelect(note.id)}
                   />
                 );
               } else {
@@ -460,6 +563,8 @@ export const NotesPage: React.FC = () => {
                     onSave={() => handleSaveEditVideo(entry.noteId)}
                     onCancel={() => setEditingVideoId(null)}
                     onDelete={() => handleDeleteVideo(entry.noteId)}
+                    isSelected={selectedIds.has(entry.noteId)}
+                    onToggleSelect={() => toggleSelect(entry.noteId)}
                   />
                 );
               }

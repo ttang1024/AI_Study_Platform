@@ -6,7 +6,7 @@ import {
   LayoutDashboard, Library, Settings, LogOut, BrainCircuit,
   Award, NotebookPen, X, Sparkles, ChevronLeft, ChevronRight,
   User, BookMarked, MessageSquarePlus,
-  Search, Trophy, Users, Bot, Network,
+  Search, Trophy, Users, Bot, Network, CloudDownload, LineChart, Target, Layers,
 } from 'lucide-react';
 import { AchievementsPanel } from '../dashboard/AchievementsPanel';
 import { cn } from '../../utils/cn';
@@ -23,14 +23,18 @@ interface SidebarProps {
 const navItems = [
   { icon: Sparkles, label: 'AI Summarizer', path: '/summarizer' },
   { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
+  { icon: Target, label: 'Today', path: '/today' },
+  { icon: LineChart, label: 'Insights', path: '/insights' },
   { icon: Library, label: 'Library', path: '/library' },
   { icon: BrainCircuit, label: 'Flashcards', path: '/flashcards' },
+  { icon: Layers, label: 'Practice', path: '/practice' },
   { icon: Award, label: 'Quizzes', path: '/quizzes' },
   { icon: BookMarked, label: 'Glossary', path: '/glossary' },
   { icon: NotebookPen, label: 'Notes', path: '/notes' },
   { icon: Bot, label: 'AI Chat', path: '/chat' },
-  // { icon: Network, label: 'Knowledge Graph', path: '/knowledge-graph' },
+  { icon: Network, label: 'Knowledge Graph', path: '/knowledge-graph' },
   { icon: Users, label: 'Study Groups', path: '/groups' },
+  { icon: CloudDownload, label: 'Offline', path: '/offline' },
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isCollapsed, onToggle, onSearchOpen }) => {

@@ -37,6 +37,7 @@ public class AppDbContext : DbContext
     public DbSet<FlashcardSrsData> FlashcardSrs => Set<FlashcardSrsData>();
     public DbSet<CacheEntry> CacheEntries => Set<CacheEntry>();
     public DbSet<YouTubeTranscriptEntry> YouTubeTranscriptEntries => Set<YouTubeTranscriptEntry>();
+    public DbSet<StudySession> StudySessions => Set<StudySession>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

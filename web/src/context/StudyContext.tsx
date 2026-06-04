@@ -6,6 +6,7 @@ import { VideoListItem } from '../services/videoService';
 import { noteService } from '../services/noteService';
 import { flashcardService } from '../services/flashcardService';
 import { AchievementStats as ServerAchievementStats, CourseMaterialStats, statsService } from '../services/statsService';
+import { offlineCacheService, isOffline } from '../services/offlineCacheService';
 import { useAuth } from './AuthContext';
 
 interface StudyContextType {
@@ -150,7 +151,15 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           noteService.getAllNotes(1, 10).catch(() => ({ items: [] as Note[], totalCount: 0, page: 1, pageSize: 10, totalPages: 0 })),
         ]);
         setCourses(fetchedCourses);
-        setFlashcards(fetchedFlashcards.items);
+        if (fetchedFlashcards.items.length > 0) {
+          setFlashcards(fetchedFlashcards.items);
+          void offlineCacheService.cacheFlashcards(fetchedFlashcards.items);
+        } else if (isOffline()) {
+          // Offline with no fresh data — fall back to the last cached deck.
+          setFlashcards(await offlineCacheService.getCachedFlashcards());
+        } else {
+          setFlashcards(fetchedFlashcards.items);
+        }
         setQuizSubmissions(fetchedSubmissions.items);
         setTotalDocuments(stats.totalDocuments);
         setTotalArticles(stats.totalArticles);

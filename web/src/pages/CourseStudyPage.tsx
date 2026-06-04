@@ -18,6 +18,7 @@ import { ArticlePage } from './ArticlePage';
 import { Document, Course, Flashcard, GlossaryTerm, Note } from '../types';
 import { cn } from '../utils/cn';
 import { CourseArtifacts, CourseArtifactsWorkspace, CourseStudySelected } from '../components/course/CourseArtifactsWorkspace';
+import { useStudyTimer } from '../hooks/useStudyTimer';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -99,6 +100,7 @@ export const CourseStudyPage: React.FC = () => {
   const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
   const { courses } = useStudy();
+  useStudyTimer({ contextType: 'course', courseId, contextId: courseId, enabled: !!courseId });
 
   // Course + materials
   const [course, setCourse] = useState<Course | null>(null);

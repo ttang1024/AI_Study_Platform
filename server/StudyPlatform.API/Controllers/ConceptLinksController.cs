@@ -29,6 +29,18 @@ public class ConceptLinksController : ControllerBase
         return Ok(BaseResponse<KnowledgeGraphDto>.Ok(result.Data!));
     }
 
+    /// <summary>
+    /// Get knowledge gaps and cross-course dependencies derived from the concept graph
+    /// </summary>
+    [HttpGet("gaps")]
+    [ProducesResponseType(typeof(BaseResponse<KnowledgeGapsDto>), 200)]
+    public async Task<IActionResult> GetKnowledgeGaps(CancellationToken cancellationToken)
+    {
+        var userId = User.GetUserId();
+        var result = await _mediator.Send(new GetKnowledgeGapsQuery(userId), cancellationToken);
+        return Ok(BaseResponse<KnowledgeGapsDto>.Ok(result.Data!));
+    }
+
     [HttpPost]
     [ProducesResponseType(typeof(BaseResponse<ConceptLinkDto>), 201)]
     [ProducesResponseType(typeof(BaseResponse), 400)]

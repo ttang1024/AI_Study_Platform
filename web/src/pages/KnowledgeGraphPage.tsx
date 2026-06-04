@@ -9,9 +9,10 @@ import {
   Network,
   PlayCircle,
   Search,
+  TriangleAlert,
 } from 'lucide-react';
 import { CONTENT_TYPE_ICONS, STUDY_TYPE_ICONS } from '../constants/contentTypeIcons';
-import { knowledgeGraphService, KnowledgeGraph, KnowledgeGraphEdge, KnowledgeGraphNode } from '../services/knowledgeGraphService';
+import { knowledgeGraphService, KnowledgeGraph, KnowledgeGraphEdge, KnowledgeGraphNode, ConceptGap, GapSeverity } from '../services/knowledgeGraphService';
 import { QuizPreviewModal } from '../components/quiz/QuizPreviewModal';
 import { ConceptPreviewModal } from '../components/knowledge-graph/ConceptPreviewModal';
 import { NotePreviewModal } from '../components/knowledge-graph/NotePreviewModal';
@@ -35,6 +36,12 @@ const nodeStyles: Record<string, { color: string; bg: string; icon: React.Elemen
 
 const getNodeStyle = (type: string) => nodeStyles[type] ?? nodeStyles.concept;
 
+const SEVERITY_COLORS: Record<GapSeverity, string> = {
+  high: '#dc2626',
+  medium: '#d97706',
+  low: '#0891b2',
+};
+
 const getNodeRadius = (node: KnowledgeGraphNode) => {
   if (node.type === 'concept') return Math.min(22, 9 + node.weight * 1.4);
   if (['document', 'video', 'article', 'audio', 'podcast'].includes(node.type)) return Math.min(28, 13 + node.weight * 1.6);
@@ -56,6 +63,10 @@ export const KnowledgeGraphPage: React.FC = () => {
   const [quizModalOpen, setQuizModalOpen] = useState(false);
   const [conceptModalOpen, setConceptModalOpen] = useState(false);
   const [noteModalOpen, setNoteModalOpen] = useState(false);
+  const [gaps, setGaps] = useState<ConceptGap[]>([]);
+  const [showGaps, setShowGaps] = useState(true);
+
+  const gapById = useMemo(() => new Map(gaps.map(g => [g.id, g])), [gaps]);
 
   useEffect(() => {
     if (selected?.type !== 'quiz') setQuizModalOpen(false);
@@ -79,6 +90,9 @@ export const KnowledgeGraphPage: React.FC = () => {
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
+    knowledgeGraphService.getKnowledgeGaps()
+      .then(data => { if (!cancelled) setGaps(data.gaps); })
+      .catch(() => { /* gaps are non-critical */ });
     return () => { cancelled = true; };
   }, []);
 
@@ -149,8 +163,8 @@ export const KnowledgeGraphPage: React.FC = () => {
       .join('circle')
       .attr('r', getNodeRadius)
       .attr('fill', d => getNodeStyle(d.type).color)
-      .attr('stroke', '#ffffff')
-      .attr('stroke-width', 2.5)
+      .attr('stroke', d => (showGaps && gapById.has(d.id)) ? SEVERITY_COLORS[gapById.get(d.id)!.severity] : '#ffffff')
+      .attr('stroke-width', d => (showGaps && gapById.has(d.id)) ? 4 : 2.5)
       .attr('class', 'cursor-pointer')
       .on('click', (_, d) => setSelected(d))
       .call(
@@ -210,7 +224,13 @@ export const KnowledgeGraphPage: React.FC = () => {
     return () => {
       simulation.stop();
     };
-  }, [filtered]);
+  }, [filtered, gapById, showGaps]);
+
+  const selectGap = (gap: ConceptGap) => {
+    setSearch('');
+    const node = graph?.nodes.find(n => n.id === gap.id);
+    if (node) setSelected(node);
+  };
 
   const coursesWithMaterials = useMemo(() =>
     courses.filter(c => {
@@ -218,6 +238,13 @@ export const KnowledgeGraphPage: React.FC = () => {
       return counts && (counts.documents + counts.articles + counts.audio + counts.videos) > 0;
     }),
     [courses, courseMaterialCounts]);
+
+  // Default to the first course that has content (the "All Courses" tab is hidden here).
+  useEffect(() => {
+    if (selectedCourseId === null && coursesWithMaterials.length > 0) {
+      setSelectedCourseId(coursesWithMaterials[0].id);
+    }
+  }, [coursesWithMaterials, selectedCourseId]);
 
   const activeNodes = filtered?.nodes ?? [];
   const activeEdges = filtered?.edges ?? [];
@@ -263,6 +290,7 @@ export const KnowledgeGraphPage: React.FC = () => {
               sourceType={graphSourceType}
               onSelectType={() => undefined}
               hideTypeTabs
+              hideAllCoursesTab
             />
             <div className="relative w-full">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
@@ -360,6 +388,46 @@ export const KnowledgeGraphPage: React.FC = () => {
               </div>
             ) : (
               <p className="mt-3 text-sm text-text-muted">Select a node to inspect it.</p>
+            )}
+          </div>
+
+          <div className="rounded-2xl border border-black/[0.06] bg-white p-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <TriangleAlert size={16} className="text-amber-500" />
+                <p className="text-sm font-bold text-text-main">Knowledge gaps</p>
+                {gaps.length > 0 && (
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-700">{gaps.length}</span>
+                )}
+              </div>
+              {gaps.length > 0 && (
+                <button
+                  onClick={() => setShowGaps(v => !v)}
+                  className="text-[11px] font-semibold text-[var(--primary)] hover:opacity-75"
+                >
+                  {showGaps ? 'Hide' : 'Show'} on graph
+                </button>
+              )}
+            </div>
+            <p className="mt-1 text-xs text-text-muted">Concepts referenced but not yet mastered, undefined, or bridging courses.</p>
+            {gaps.length === 0 ? (
+              <p className="mt-3 text-sm text-text-muted">No gaps detected — your concepts are well covered.</p>
+            ) : (
+              <div className="mt-3 max-h-72 space-y-2 overflow-y-auto pr-1">
+                {gaps.slice(0, 30).map(gap => (
+                  <button
+                    key={gap.id}
+                    onClick={() => selectGap(gap)}
+                    className="block w-full rounded-xl border border-black/[0.06] p-2.5 text-left transition hover:border-[var(--primary)]/40 hover:bg-[var(--bg-app)]"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: SEVERITY_COLORS[gap.severity] }} />
+                      <span className="truncate text-[13px] font-semibold text-text-main">{gap.concept}</span>
+                    </div>
+                    <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-text-muted">{gap.reason}</p>
+                  </button>
+                ))}
+              </div>
             )}
           </div>
 

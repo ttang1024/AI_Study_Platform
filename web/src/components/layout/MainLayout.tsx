@@ -3,6 +3,7 @@ import { Outlet, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Menu, Search, Keyboard } from 'lucide-react';
 import { Sidebar } from './Sidebar';
+import { NotificationBell } from './NotificationBell';
 import { cn } from '../../utils/cn';
 import { OfflineBanner } from '../common/OfflineBanner';
 import { AIProviderBanner } from '../common/AIProviderBanner';
@@ -82,12 +83,18 @@ export const MainLayout: React.FC = () => {
               Easy Study
             </span>
           </div>
+          <NotificationBell />
           <button
             onClick={() => setIsSearchOpen(true)}
             className="rounded-lg p-2 text-text-muted hover:bg-[var(--primary)]/10"
           >
             <Search size={18} />
           </button>
+        </div>
+
+        {/* Desktop floating notification bell */}
+        <div className="hidden lg:block absolute top-4 right-6 z-30">
+          <NotificationBell className="bg-[var(--bg-sidebar)]/80 backdrop-blur shadow-sm border border-[var(--border-color)]" />
         </div>
 
         <main className="flex-1 overflow-hidden flex flex-col p-4 sm:p-6 lg:p-8 min-w-0">

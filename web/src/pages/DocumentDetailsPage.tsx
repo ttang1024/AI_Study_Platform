@@ -227,8 +227,8 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
           <div className="flex h-full items-center justify-center">
             <div className="text-center">
               <p className="text-text-muted">Document not found.</p>
-              <button onClick={() => navigate('/documents')} className="mt-4 text-sm text-[var(--primary)] hover:underline">
-                Back to Documents
+              <button onClick={() => navigate('/library')} className="mt-4 text-sm text-[var(--primary)] hover:underline">
+                Back to Library
               </button>
             </div>
           </div>

@@ -9,6 +9,10 @@ public class User
     public bool IsEmailVerified { get; set; }
     public bool IsAdmin { get; set; }
     public bool IsActive { get; set; } = true;
+
+    /// <summary>User's daily study-time goal in minutes, shown on the dashboard. Defaults to 30.</summary>
+    public int DailyStudyGoalMinutes { get; set; } = 30;
+
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public ICollection<Course> Courses { get; set; } = new List<Course>();

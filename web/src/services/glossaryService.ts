@@ -1,11 +1,12 @@
 import { GlossaryTerm } from '../types'
 import { apiClient } from './apiClient'
+import { offlineCacheService } from './offlineCacheService'
 
 export const glossaryService = {
 	async getAllGlossary(): Promise<GlossaryTerm[]> {
 		try {
 			const res = await apiClient.get<{ data: any[] }>('/api/glossary')
-			return (res.data.data ?? []).map((t: any) => ({
+			const terms = (res.data.data ?? []).map((t: any) => ({
 				id: t.id,
 				term: t.term,
 				definition: t.definition,
@@ -15,8 +16,11 @@ export const glossaryService = {
 				sourceName: t.sourceName,
 				sourceKind: t.sourceKind,
 			}))
+			if (terms.length > 0) void offlineCacheService.cacheGlossary(terms)
+			return terms
 		} catch {
-			return []
+			// Offline or server error — serve the last cached glossary if we have one.
+			return offlineCacheService.getCachedGlossary()
 		}
 	},
 

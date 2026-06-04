@@ -1,5 +1,5 @@
 import React, { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { StudyProvider } from './context/StudyContext';
 import { TtsProvider } from './context/TtsContext';
@@ -27,7 +27,10 @@ import { StudyGroupsPage } from './pages/StudyGroupsPage';
 import { StudyGroupDetailPage } from './pages/StudyGroupDetailPage';
 import { ChatListPage } from './pages/ChatListPage';
 import { KnowledgeGraphPage } from './pages/KnowledgeGraphPage';
-import { ReinforcementCenterPage } from './pages/ReinforcementCenterPage';
+import { InsightsPage } from './pages/InsightsPage';
+import { TodayPage } from './pages/TodayPage';
+import { PracticePage } from './pages/PracticePage';
+import { OfflinePage } from './pages/OfflinePage';
 
 const DocumentDetailsPage = lazy(() =>
   import('./pages/DocumentDetailsPage').then((mod) => ({ default: mod.DocumentDetailsPage })),
@@ -51,6 +54,15 @@ const LegacyYouTubeRedirect: React.FC = () => {
   return <Navigate to={id ? `/videos/${id}` : '/library?type=videos'} replace />;
 };
 
+// Reinforcement Center was merged into the Insights page as a tab. Preserve the
+// old ?tab=quiz|glossary|flashcards deep links by mapping them onto ?module=.
+const ReinforcementRedirect: React.FC = () => {
+  const [params] = useSearchParams();
+  const module = params.get('tab');
+  const suffix = (module === 'quiz' || module === 'glossary' || module === 'flashcards') ? `&module=${module}` : '';
+  return <Navigate to={`/insights?tab=reinforcement${suffix}`} replace />;
+};
+
 export default function App() {
   return (
     <AuthProvider>
@@ -71,6 +83,8 @@ export default function App() {
                     </ProtectedRoute>
                   }>
                     <Route path="dashboard" element={<DashboardPage />} />
+                    <Route path="today" element={<TodayPage />} />
+                    <Route path="practice" element={<PracticePage />} />
                     <Route path="library" element={<LibraryPage />} />
                     <Route path="documents" element={<Navigate to="/library" replace />} />
                     <Route path="videos" element={<Navigate to="/library?type=videos" replace />} />
@@ -82,7 +96,10 @@ export default function App() {
                     <Route path="settings" element={<SettingsPage />} />
                     <Route path="glossary" element={<GlossaryPage />} />
                     <Route path="knowledge-graph" element={<KnowledgeGraphPage />} />
-                    <Route path="reinforcement-center" element={<ReinforcementCenterPage />} />
+                    <Route path="insights" element={<InsightsPage />} />
+                    <Route path="analytics" element={<Navigate to="/insights" replace />} />
+                    <Route path="offline" element={<OfflinePage />} />
+                    <Route path="reinforcement-center" element={<ReinforcementRedirect />} />
                     <Route path="feedback" element={<FeedbackPage />} />
                     <Route path="search" element={<SearchResultsPage />} />
                     <Route path="groups" element={<StudyGroupsPage />} />

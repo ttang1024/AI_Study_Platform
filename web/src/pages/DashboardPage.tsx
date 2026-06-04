@@ -10,6 +10,7 @@ import { useAuth } from '../context/AuthContext';
 import { useStudy } from '../context/StudyContext';
 import { StudyCalendar } from '../components/common/StudyCalendar';
 import { ReinforcementSummaryCards } from '../components/dashboard/ReinforcementSummaryCards';
+import { TodayActionHub } from '../components/dashboard/TodayActionHub';
 
 const container = {
   hidden: { opacity: 0 },
@@ -188,6 +189,11 @@ export const DashboardPage: React.FC = () => {
         </h1>
       </motion.div>
 
+      {/* ── Action hub: what to do right now ─────────────────────────────── */}
+      <motion.div variants={item}>
+        <TodayActionHub />
+      </motion.div>
+
       {/* ── Content Library ──────────────────────────────────────────────── */}
       <motion.div variants={item}>
         <SectionLabel>Content Library</SectionLabel>
@@ -224,7 +230,7 @@ export const DashboardPage: React.FC = () => {
       <motion.div variants={item}>
         <div className="flex items-center justify-between mb-3 px-0.5">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">Reinforcement Center</p>
-          <Link to="/reinforcement-center" className="flex items-center gap-1.5 text-[11px] font-semibold text-[red] hover:opacity-75 transition-opacity">
+          <Link to="/insights?tab=reinforcement" className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--primary)] hover:opacity-75 transition-opacity">
             <CalendarCheck2 size={13} />
             Open
           </Link>

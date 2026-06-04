@@ -23,15 +23,18 @@ Upload documents, YouTube videos, Bilibili videos, uploaded video files, podcast
 
 ## Features
 
-|     | Category            | What you get                                                                                                      |
-| --- | ------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| 📄  | **Content Sources** | PDF / DOCX upload, YouTube and Bilibili videos, uploaded video files, web article clipping, audio files, Apple Podcasts |
-| 🤖  | **AI Generation**   | Summaries, flashcards (basic / cloze / chart), quizzes, glossaries, mind maps, worked problems, concept links     |
-| 🎯  | **Study Tools**     | Rich-text notes, AI tutor chat, scored quizzes, FSRS-4.5 spaced repetition, reinforcement center, knowledge graph |
-| 📚  | **Question Bank**   | Course-wide question bank with difficulty filter, mistake tracking, and answer-reveal per question                |
-| 🔊  | **Extra Features**  | PDF annotations, text-to-speech, Anki export, full-text search, shareable content links                           |
-| 👥  | **Study Groups**    | Create / join groups, share courses & documents, real-time group chat                                             |
-| 🔐  | **Auth**            | Email + OTP, Google OAuth, GitHub OAuth, JWT sessions                                                             |
+|     | Category               | What you get                                                                                                            |
+| --- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| 📄  | **Content Sources**    | PDF / DOCX upload, YouTube and Bilibili videos, uploaded video files, web article clipping, audio files, Apple Podcasts |
+| 🤖  | **AI Generation**      | Summaries, flashcards (basic / cloze / chart), quizzes, glossaries, mind maps, worked problems, concept links           |
+| 🎯  | **Study Tools**        | Rich-text notes, AI tutor chat, scored quizzes, FSRS-4.5 spaced repetition, course-wide question bank, knowledge graph  |
+| 🗓️  | **Today & Practice**   | Daily study plan with goal budgeting, unified Practice / Exam mode (quiz · flashcard · glossary · problem), timed runner |
+| 📊  | **Insights**           | Analytics dashboard (time-on-task, accuracy trends, per-course mastery), AI recommendations, knowledge-gap detection     |
+| 🔔  | **Reminders**          | Notification bell digest — due cards, streak-at-risk, daily-goal progress, top knowledge gaps, review suggestions       |
+| 📴  | **Offline PWA**        | Installable app shell; flashcards & glossary cached for offline review with background sync                              |
+| 🔊  | **Extra Features**     | PDF annotations, text-to-speech, Anki export, full-text search, shareable content links                                 |
+| 👥  | **Study Groups**       | Create / join groups, share courses & documents, real-time group chat                                                   |
+| 🔐  | **Auth**               | Email + OTP, Google OAuth, GitHub OAuth, JWT sessions                                                                    |
 
 **AI Providers** — Gemini · OpenAI · Claude · Grok · DeepSeek · Kimi · Doubao · Qwen · Wenxin Yiyan (multi-provider routing, switchable from settings)
 
@@ -41,7 +44,7 @@ Upload documents, YouTube videos, Bilibili videos, uploaded video files, podcast
 
 **Backend** — .NET 10 · ASP.NET Core · EF Core 9 · MediatR · FluentValidation · SignalR · PostgreSQL · Redis · Amazon S3 · yt-dlp · ffmpeg · Whisper.net · MailKit · JWT
 
-**Frontend** — React 19 · TypeScript 5.8 · Vite 6 · TailwindCSS 4 · React Router 7 · Tiptap · D3.js + Markmap · Axios
+**Frontend** — React 19 · TypeScript 5.8 · Vite 6 · TailwindCSS 4 · React Router 7 · Tiptap · D3.js + Markmap · Axios · Service Worker + idb-keyval (offline PWA)
 
 **Architecture** — Clean Architecture · CQRS · Repository + Unit of Work · SSE streaming
 

@@ -1,25 +1,25 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   XCircle, BookMarked, BrainCircuit,
-  Loader2, ChevronRight, Play,
+  ChevronRight, Play,
 } from 'lucide-react';
-import { Flashcard, GlossaryTerm, QuizQuestion } from '../types';
-import { flashcardService } from '../services/flashcardService';
-import { glossaryService } from '../services/glossaryService';
-import { masteredService } from '../services/masteredService';
-import { questionBankService, QuestionBankQuestion } from '../services/questionBankService';
-import { documentService, quizSubmissionService, QuizSubmission } from '../services/documentService';
-import { videoService } from '../services/videoService';
-import { isQuizOptionCorrect } from '../utils/quizAnswers';
-import { TimedExamModal } from '../components/quiz/TimedExamModal';
-import { HardFlashcardReview } from '../components/study/HardFlashcardCard';
-import { SessionRating } from '../components/study/FlashcardSessionCard';
-import { QuizMistakeCard } from '../components/quiz/QuizMistakeCard';
-import { GlossaryTermCard } from '../components/common/GlossaryTermCard';
-import { ReinforcementModuleCard } from '../components/reinforcement/ReinforcementModuleCard';
+import { Flashcard, GlossaryTerm, QuizQuestion } from '../../types';
+import { flashcardService } from '../../services/flashcardService';
+import { glossaryService } from '../../services/glossaryService';
+import { masteredService } from '../../services/masteredService';
+import { questionBankService, QuestionBankQuestion } from '../../services/questionBankService';
+import { documentService, quizSubmissionService, QuizSubmission } from '../../services/documentService';
+import { videoService } from '../../services/videoService';
+import { isQuizOptionCorrect } from '../../utils/quizAnswers';
+import { TimedExamModal } from '../quiz/TimedExamModal';
+import { HardFlashcardReview } from '../study/HardFlashcardCard';
+import { SessionRating } from '../study/FlashcardSessionCard';
+import { QuizMistakeCard } from '../quiz/QuizMistakeCard';
+import { GlossaryTermCard } from '../common/GlossaryTermCard';
+import { ReinforcementModuleCard } from './ReinforcementModuleCard';
 
 type ActiveModule = 'quiz' | 'glossary' | 'flashcards';
 
@@ -82,15 +82,15 @@ const getAnsweredQuestionsForSubmission = (
   return candidates.filter(question => answeredQuestionIds.has(question.quizId));
 };
 
-export const ReinforcementCenterPage: React.FC = () => {
+export const ReinforcementPanel: React.FC = () => {
   const { user } = useAuth();
   const userId = user?.id ?? 'guest';
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
   const [activeModule, setActiveModule] = useState<ActiveModule>(() => {
-    const tab = searchParams.get('tab');
-    return (tab === 'quiz' || tab === 'glossary' || tab === 'flashcards') ? tab : 'quiz';
+    const mod = searchParams.get('module');
+    return (mod === 'quiz' || mod === 'glossary' || mod === 'flashcards') ? mod : 'quiz';
   });
 
   const [bankQuestions, setBankQuestions] = useState<QuestionBankQuestion[]>([]);
@@ -327,21 +327,11 @@ export const ReinforcementCenterPage: React.FC = () => {
     },
   ];
 
-  const active = modules.find(m => m.id === activeModule)!;
-
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-4xl font-black text-text-main">
-            Reinforcement <span className="text-primary">Center</span>
-          </h1>
-          <p className="text-zinc-500 font-medium">
-            Strengthen weak areas by combining quiz mistakes, hard flashcards, and unmastered glossary terms.
-          </p>
-        </div>
-      </div>
+      <p className="text-sm text-zinc-500 font-medium -mt-1">
+        Strengthen weak areas by combining quiz mistakes, hard flashcards, and unmastered glossary terms.
+      </p>
 
       {/* Module selector cards */}
       <div className="grid grid-cols-3 gap-3">

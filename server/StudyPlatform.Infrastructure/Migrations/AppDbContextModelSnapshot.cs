@@ -993,6 +993,39 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.ToTable("StudyGroupSharedCourses");
                 });
 
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.StudySession", b =>
+                {
+                    b.Property<Guid>("StudySessionId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ContextId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ContextType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<Guid?>("CourseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("DurationSeconds")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("OccurredAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("StudySessionId");
+
+                    b.HasIndex("UserId", "OccurredAt");
+
+                    b.ToTable("StudySessions");
+                });
+
             modelBuilder.Entity("StudyPlatform.Domain.Entities.User", b =>
                 {
                     b.Property<Guid>("UserId")
@@ -1001,6 +1034,11 @@ namespace StudyPlatform.Infrastructure.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("DailyStudyGoalMinutes")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(30);
 
                     b.Property<string>("Email")
                         .IsRequired()
@@ -1537,6 +1575,17 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Navigation("Group");
 
                     b.Navigation("SharedBy");
+                });
+
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.StudySession", b =>
+                {
+                    b.HasOne("StudyPlatform.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.WorkedProblem", b =>

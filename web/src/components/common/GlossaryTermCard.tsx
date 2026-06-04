@@ -1,5 +1,5 @@
 import React from 'react';
-import { Loader2, CheckCircle2, Circle, Pencil, Trash2, Check, X } from 'lucide-react';
+import { Loader2, CheckCircle2, Circle, Pencil, Trash2, Check, X, CheckSquare, Square } from 'lucide-react';
 import { CONTENT_TYPE_ICONS } from '../../constants/contentTypeIcons';
 import { cn } from '../../utils/cn';
 import { GlossaryTerm } from '../../types';
@@ -18,6 +18,8 @@ interface GlossaryTermCardProps {
   isSaving?: boolean;
   onSave?: (id: string) => void;
   onCancelEdit?: () => void;
+  isSelected?: boolean;
+  onToggleSelect?: (id: string) => void;
 }
 
 export const GlossaryTermCard: React.FC<GlossaryTermCardProps> = ({
@@ -34,26 +36,44 @@ export const GlossaryTermCard: React.FC<GlossaryTermCardProps> = ({
   isSaving,
   onSave,
   onCancelEdit,
+  isSelected,
+  onToggleSelect,
 }) => (
   <div
     className={cn(
       'rounded-2xl border p-4 transition-all group',
-      isMastered
-        ? 'border-emerald-200 bg-emerald-50/40 hover:border-emerald-300'
-        : 'border-[var(--border-color)] bg-[var(--bg-sidebar)] hover:border-primary/30',
+      isSelected
+        ? 'border-primary bg-primary/5 ring-1 ring-primary/40'
+        : isMastered
+          ? 'border-emerald-200 bg-emerald-50/40 hover:border-emerald-300'
+          : 'border-[var(--border-color)] bg-[var(--bg-sidebar)] hover:border-primary/30',
     )}
   >
     <div className="flex items-start justify-between gap-2 mb-2">
-      {isEditing && editDraft ? (
-        <input
-          autoFocus
-          value={editDraft.term}
-          onChange={e => onEditDraftChange?.({ ...editDraft, term: e.target.value })}
-          className="flex-1 rounded-lg border border-primary/50 bg-[var(--bg-app)] px-2 py-1 text-sm font-bold text-text-main outline-none"
-        />
-      ) : (
-        <h3 className="font-bold text-text-main leading-snug">{term.term}</h3>
-      )}
+      <div className="flex items-start gap-2 flex-1 min-w-0">
+        {onToggleSelect && !isEditing && (
+          <button
+            onClick={() => onToggleSelect(term.id)}
+            title={isSelected ? 'Deselect term' : 'Select term'}
+            className={cn(
+              'mt-0.5 shrink-0 transition-all',
+              isSelected ? 'text-primary' : 'text-zinc-300 hover:text-primary',
+            )}
+          >
+            {isSelected ? <CheckSquare size={16} /> : <Square size={16} />}
+          </button>
+        )}
+        {isEditing && editDraft ? (
+          <input
+            autoFocus
+            value={editDraft.term}
+            onChange={e => onEditDraftChange?.({ ...editDraft, term: e.target.value })}
+            className="flex-1 rounded-lg border border-primary/50 bg-[var(--bg-app)] px-2 py-1 text-sm font-bold text-text-main outline-none"
+          />
+        ) : (
+          <h3 className="font-bold text-text-main leading-snug">{term.term}</h3>
+        )}
+      </div>
       <div className="flex items-center gap-1 shrink-0">
         {!isEditing && term.sourceName && (
           <span className="flex items-center gap-1 text-[10px] text-text-muted bg-zinc-100 rounded-full px-2 py-0.5">

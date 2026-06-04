@@ -19,6 +19,7 @@ import { FlashcardClassifyModal, DIFFICULTY_COLORS } from '../components/study/F
 import { ReviewQueueTab } from '../components/study/ReviewQueueTab';
 import { ClassifyFilterBar } from '../components/study/ClassifyFilterBar';
 import { FlashcardSetCard, UnifiedSet } from '../components/study/FlashcardSetCard';
+import { useStudyTimer } from '../hooks/useStudyTimer';
 
 type VideoRecord = Pick<VideoListItem, 'id' | 'title' | 'thumbnailUrl' | 'courseId' | 'courseName' | 'courseColor'>;
 
@@ -42,6 +43,7 @@ function getVideoSetPreview(video?: VideoListItem) {
 export const FlashcardsPage: React.FC = () => {
   const { documents, courses, flashcards, totalMaterials, isLoading: contextLoading, refreshFlashcards, refreshStats, refreshDocuments } = useStudy();
   const navigate = useNavigate();
+  useStudyTimer({ contextType: 'flashcards' });
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
 
   const [videoList, setVideoList] = useState<VideoListItem[]>([]);
@@ -62,7 +64,9 @@ export const FlashcardsPage: React.FC = () => {
   const [classifyCard, setClassifyCard] = useState<Flashcard | null>(null);
   const [flippedCards, setFlippedCards] = useState<Set<string>>(new Set());
 
-  const [activeTab, setActiveTab] = useState<'sets' | 'review'>('sets');
+  const [activeTab, setActiveTab] = useState<'sets' | 'review'>(
+    () => (new URLSearchParams(window.location.search).get('tab') === 'review' ? 'review' : 'sets'),
+  );
 
   // Classification filters
   const [filterDifficulty, setFilterDifficulty] = useState<'easy' | 'medium' | 'hard' | null>(null);

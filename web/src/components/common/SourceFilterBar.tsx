@@ -15,6 +15,7 @@ interface SourceFilterBarProps {
   counts?: { all: number; document: number; video: number; article: number; audio: number };
   courseCounts?: Record<string, number>;
   hideTypeTabs?: boolean;
+  hideAllCoursesTab?: boolean;
 }
 
 const SOURCE_TABS: TypeTab<SourceType>[] = [
@@ -34,6 +35,7 @@ export const SourceFilterBar: React.FC<SourceFilterBarProps> = ({
   counts,
   courseCounts,
   hideTypeTabs,
+  hideAllCoursesTab,
 }) => {
   const tabs = SOURCE_TABS.map(t => ({
     ...t,
@@ -46,17 +48,19 @@ export const SourceFilterBar: React.FC<SourceFilterBarProps> = ({
       {/* Course filter pills */}
       {courses.length > 0 && (
         <div className="flex gap-2 overflow-x-auto no-scrollbar">
-          <button
-            onClick={() => onSelectCourse(null)}
-            className={cn(
-              'shrink-0 rounded-full px-3 py-1 text-xs font-semibold border transition-all',
-              selectedCourseId === null
-                ? 'bg-zinc-800 text-white border-zinc-800'
-                : 'text-zinc-500 border-zinc-200 hover:border-zinc-400'
-            )}
-          >
-            All Courses
-          </button>
+          {!hideAllCoursesTab && (
+            <button
+              onClick={() => onSelectCourse(null)}
+              className={cn(
+                'shrink-0 rounded-full px-3 py-1 text-xs font-semibold border transition-all',
+                selectedCourseId === null
+                  ? 'bg-zinc-800 text-white border-zinc-800'
+                  : 'text-zinc-500 border-zinc-200 hover:border-zinc-400'
+              )}
+            >
+              All Courses
+            </button>
+          )}
           {courses.map(c => (
             <button
               key={c.id}

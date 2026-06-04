@@ -6,10 +6,11 @@ import { motion } from 'motion/react';
 import {
   BookMarked, Search, Sparkles, Loader2, Play,
   FileText, Youtube, Globe, Mic,
-  CheckCircle2, Circle, Share2,
+  CheckCircle2, Circle, Share2, X, Download,
 } from 'lucide-react';
 import { GlossaryTerm } from '../types';
 import { glossaryService } from '../services/glossaryService';
+import { synthesizeToBlob, downloadAudioBlob } from '../services/edgeTtsService';
 import { masteredService } from '../services/masteredService';
 import { videoService, VideoListItem } from '../services/videoService';
 import { cn } from '../utils/cn';
@@ -20,6 +21,7 @@ import { GlossaryShareModal } from '../components/common/GlossaryShareModal';
 import { GlossaryTermCard } from '../components/common/GlossaryTermCard';
 import { Pagination } from '../components/common/Pagination';
 import { Select } from '../components/common/Select';
+import { useStudyTimer } from '../hooks/useStudyTimer';
 
 function getDocKind(doc: { type?: string; name: string; originalUrl?: string }): 'audio' | 'article' | 'document' {
   if (doc.type === 'audio' || doc.type === 'podcast') return 'audio';
@@ -35,6 +37,7 @@ export const GlossaryPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const userId = user?.id ?? 'guest';
+  useStudyTimer({ contextType: 'glossary' });
 
   const [allTerms, setAllTerms] = useState<GlossaryTerm[]>([]);
   const [videos, setVideos] = useState<VideoListItem[]>([]);
@@ -54,6 +57,8 @@ export const GlossaryPage: React.FC = () => {
   const [editDraft, setEditDraft] = useState({ term: '', definition: '' });
   const [savingId, setSavingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [downloadingMp3, setDownloadingMp3] = useState(false);
 
   const GENERATE_PAGE_SIZE = 6;
 
@@ -197,6 +202,39 @@ export const GlossaryPage: React.FC = () => {
     return terms.sort((a, b) => a.term.localeCompare(b.term));
   }, [allTerms, sourceType, selectedSourceId, selectedCourseId, search, masteryFilter, masteredIds]);
 
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  // Prune selections that no longer match the active filters
+  useEffect(() => {
+    setSelectedIds(prev => {
+      if (prev.size === 0) return prev;
+      const visible = new Set(filtered.map(t => t.id));
+      const next = new Set([...prev].filter(id => visible.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [filtered]);
+
+  const allVisibleSelected = filtered.length > 0 && filtered.every(t => selectedIds.has(t.id));
+
+  const toggleSelectAll = useCallback(() => {
+    setSelectedIds(prev => {
+      const allSelected = filtered.length > 0 && filtered.every(t => prev.has(t.id));
+      return allSelected ? new Set() : new Set(filtered.map(t => t.id));
+    });
+  }, [filtered]);
+
+  // The terms that Play will read: the current selection, or the full filtered list when nothing is selected
+  const playTerms = useMemo(
+    () => (selectedIds.size > 0 ? filtered.filter(t => selectedIds.has(t.id)) : filtered),
+    [filtered, selectedIds],
+  );
+
   const grouped = useMemo(() => {
     const map = new Map<string, GlossaryTerm[]>();
     for (const term of filtered) {
@@ -214,10 +252,10 @@ export const GlossaryPage: React.FC = () => {
     setActiveLetter(letter);
   };
 
-  // ttsItems derives from filtered — mastery filter automatically applies to playback
+  // ttsItems derives from playTerms — selection (or, when empty, the filtered list) drives playback
   const ttsItems = useMemo(
-    () => filtered.map(t => ({ text: `${t.term}. ${t.definition}`, title: t.term })),
-    [filtered],
+    () => playTerms.map(t => ({ text: `${t.term}. ${t.definition}`, title: t.term })),
+    [playTerms],
   );
 
   const getTtsSubtitle = useCallback(
@@ -229,6 +267,35 @@ export const GlossaryPage: React.FC = () => {
   const { playerState, play } = usePersistentTts('glossary', ttsItems, {
     getSubtitle: getTtsSubtitle,
   });
+
+  const handleDownloadTxt = useCallback(() => {
+    if (playTerms.length === 0) return;
+    const text = playTerms.map(t => `${t.term}\n${t.definition}`).join('\n\n');
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${selectedIds.size > 0 ? 'glossary_selected' : 'glossary'}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, [playTerms, selectedIds]);
+
+  const handleDownloadMp3 = useCallback(async () => {
+    if (playTerms.length === 0 || downloadingMp3) return;
+    setDownloadingMp3(true);
+    try {
+      const text = playTerms.map(t => `${t.term}. ${t.definition}`).join('\n\n');
+      const blob = await synthesizeToBlob(text);
+      const name = selectedIds.size > 0 ? 'glossary_selected' : 'glossary';
+      downloadAudioBlob(blob, name);
+    } catch {
+      // Surface nothing intrusive; synthesis errors are rare and retryable
+    } finally {
+      setDownloadingMp3(false);
+    }
+  }, [playTerms, selectedIds, downloadingMp3]);
 
   const masteredCount = useMemo(() => allTerms.filter(t => masteredIds.has(t.id)).length, [allTerms, masteredIds]);
 
@@ -365,7 +432,32 @@ export const GlossaryPage: React.FC = () => {
                 className="flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-white shadow hover:opacity-90 transition-opacity"
               >
                 <Play size={13} className="fill-current" />
-                Play {masteryFilter !== 'all' ? `(${filtered.length})` : 'All'}
+                {selectedIds.size > 0
+                  ? `Play Selected (${playTerms.length})`
+                  : `Play ${masteryFilter !== 'all' ? `(${filtered.length})` : 'All'}`}
+              </button>
+            )}
+            {filtered.length > 0 && (
+              <button
+                onClick={handleDownloadTxt}
+                title="Download as TXT"
+                className="flex items-center gap-1.5 rounded-xl border border-[var(--border-color)] px-4 py-2 text-xs font-bold text-text-muted hover:border-primary/50 hover:text-primary transition-all"
+              >
+                <Download size={13} />
+                {`TXT${selectedIds.size > 0 ? ` (${playTerms.length})` : ''}`}
+              </button>
+            )}
+            {filtered.length > 0 && (
+              <button
+                onClick={handleDownloadMp3}
+                disabled={downloadingMp3}
+                title="Download as MP3"
+                className="flex items-center gap-1.5 rounded-xl border border-[var(--border-color)] px-4 py-2 text-xs font-bold text-text-muted hover:border-primary/50 hover:text-primary transition-all disabled:opacity-50"
+              >
+                {downloadingMp3 ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
+                {downloadingMp3
+                  ? 'Generating…'
+                  : `MP3${selectedIds.size > 0 ? ` (${playTerms.length})` : ''}`}
               </button>
             )}
           </div>
@@ -511,6 +603,29 @@ export const GlossaryPage: React.FC = () => {
             </span>
           )}
         </div>
+
+        {/* Selection toolbar */}
+        {filtered.length > 0 && (
+          <div className="flex items-center gap-3">
+            <button
+              onClick={toggleSelectAll}
+              className="text-xs font-bold text-primary hover:underline"
+            >
+              {allVisibleSelected ? 'Deselect all' : 'Select all'}
+            </button>
+            {selectedIds.size > 0 && (
+              <span className="flex items-center gap-2 text-xs text-text-muted">
+                {selectedIds.size} selected
+                <button
+                  onClick={() => setSelectedIds(new Set())}
+                  className="flex items-center gap-1 rounded-lg border border-[var(--border-color)] px-2 py-0.5 font-bold text-text-muted hover:border-zinc-400"
+                >
+                  <X size={11} /> Clear
+                </button>
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Terms + A-Z nav */}
@@ -561,6 +676,8 @@ export const GlossaryPage: React.FC = () => {
                       isSaving={savingId === term.id}
                       onSave={saveEdit}
                       onCancelEdit={cancelEdit}
+                      isSelected={selectedIds.has(term.id)}
+                      onToggleSelect={toggleSelect}
                     />
                   ))}
                 </div>

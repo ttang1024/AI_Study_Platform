@@ -32,6 +32,33 @@ export interface KnowledgeGraph {
   stats: KnowledgeGraphStats;
 }
 
+export type GapSeverity = 'high' | 'medium' | 'low';
+
+export interface ConceptGap {
+  id: string;
+  concept: string;
+  reason: string;
+  severity: GapSeverity;
+  referenceCount: number;
+  defined: boolean;
+  mastered: boolean;
+  courseIds: string[];
+  url: string | null;
+}
+
+export interface KnowledgeGapStats {
+  totalConcepts: number;
+  gaps: number;
+  unmastered: number;
+  undefined: number;
+  crossCourse: number;
+}
+
+export interface KnowledgeGaps {
+  gaps: ConceptGap[];
+  stats: KnowledgeGapStats;
+}
+
 const stripHtml = (html: string): string => {
   const div = document.createElement('div');
   div.innerHTML = html;
@@ -44,5 +71,10 @@ export const knowledgeGraphService = {
     const data = response.data.data as KnowledgeGraph;
     data.nodes = data.nodes.map(n => ({ ...n, title: stripHtml(n.title) }));
     return data;
+  },
+
+  async getKnowledgeGaps(): Promise<KnowledgeGaps> {
+    const response = await apiClient.get('/api/concept-links/gaps');
+    return response.data.data as KnowledgeGaps;
   },
 };

@@ -36,6 +36,7 @@ public class UnitOfWork : IUnitOfWork
     private IGroupChatMessageRepository? _groupChatMessages;
     private IConceptLinkRepository? _conceptLinks;
     private IFlashcardSrsDataRepository? _flashcardSrs;
+    private IStudySessionRepository? _studySessions;
 
     public UnitOfWork(AppDbContext context)
     {
@@ -68,6 +69,7 @@ public class UnitOfWork : IUnitOfWork
     public IGroupChatMessageRepository GroupChatMessages => _groupChatMessages ??= new GroupChatMessageRepository(_context);
     public IConceptLinkRepository ConceptLinks => _conceptLinks ??= new ConceptLinkRepository(_context);
     public IFlashcardSrsDataRepository FlashcardSrs => _flashcardSrs ??= new FlashcardSrsDataRepository(_context);
+    public IStudySessionRepository StudySessions => _studySessions ??= new StudySessionRepository(_context);
 
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         => await _context.SaveChangesAsync(cancellationToken);
