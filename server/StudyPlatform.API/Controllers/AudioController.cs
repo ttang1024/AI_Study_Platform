@@ -49,7 +49,7 @@ public class AudioController : ControllerBase
     [ProducesResponseType(typeof(BaseResponse<DocumentDto>), 201)]
     [ProducesResponseType(typeof(BaseResponse), 400)]
     [RequestSizeLimit(104857600)] // 100 MB
-    public async Task<IActionResult> UploadAudio(Guid courseId, [FromForm] IFormFile file)
+    public async Task<IActionResult> UploadAudio(Guid courseId, IFormFile file)
     {
         if (file == null || file.Length == 0)
             return BadRequest(BaseResponse<DocumentDto>.Fail("No file provided.", "NO_FILE"));

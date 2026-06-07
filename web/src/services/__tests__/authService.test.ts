@@ -20,12 +20,11 @@ describe('authService', () => {
   // ─── login ─────────────────────────────────────────────────────────────────
 
   describe('login', () => {
-    it('returns mapped user and tokens on success', async () => {
+    it('returns mapped user and access token on success', async () => {
       mockApiClient.post.mockResolvedValueOnce({
         data: {
           data: {
             accessToken: 'access-token',
-            refreshToken: 'refresh-token',
             expiresAt: '2026-01-01T00:00:00Z',
             userId: 'user-123',
             email: 'user@example.com',
@@ -41,7 +40,6 @@ describe('authService', () => {
         password: 'password',
       })
       expect(result.accessToken).toBe('access-token')
-      expect(result.refreshToken).toBe('refresh-token')
       expect(result.user).toEqual({
         id: 'user-123',
         email: 'user@example.com',
@@ -74,21 +72,17 @@ describe('authService', () => {
   // ─── refreshToken ──────────────────────────────────────────────────────────
 
   describe('refreshToken', () => {
-    it('returns new token pair', async () => {
+    it('returns a new access token (refresh token comes from the HttpOnly cookie)', async () => {
       mockApiClient.post.mockResolvedValueOnce({
         data: {
           data: {
             accessToken: 'new-access',
-            refreshToken: 'new-refresh',
           },
         },
       })
-      const result = await authService.refreshToken('old-refresh')
-      expect(mockApiClient.post).toHaveBeenCalledWith('/api/auth/refresh-token', {
-        refreshToken: 'old-refresh',
-      })
+      const result = await authService.refreshToken()
+      expect(mockApiClient.post).toHaveBeenCalledWith('/api/auth/refresh-token', {})
       expect(result.accessToken).toBe('new-access')
-      expect(result.refreshToken).toBe('new-refresh')
     })
   })
 
@@ -119,12 +113,10 @@ describe('authService', () => {
   // ─── logout ────────────────────────────────────────────────────────────────
 
   describe('logout', () => {
-    it('posts refresh token to logout endpoint', async () => {
+    it('posts to the logout endpoint (refresh token comes from the HttpOnly cookie)', async () => {
       mockApiClient.post.mockResolvedValueOnce({ data: {} })
-      await authService.logout('some-refresh-token')
-      expect(mockApiClient.post).toHaveBeenCalledWith('/api/auth/logout', {
-        refreshToken: 'some-refresh-token',
-      })
+      await authService.logout()
+      expect(mockApiClient.post).toHaveBeenCalledWith('/api/auth/logout', {})
     })
   })
 

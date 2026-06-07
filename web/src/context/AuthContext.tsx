@@ -36,24 +36,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = async (email: string, password: string): Promise<void> => {
-    const { accessToken, refreshToken, user: apiUser } = await authService.login(email, password);
+    const { accessToken, user: apiUser } = await authService.login(email, password);
     localStorage.setItem('sp_access_token', accessToken);
-    localStorage.setItem('sp_refresh_token', refreshToken);
     localStorage.setItem('sp_user', JSON.stringify(apiUser));
     setUser(apiUser);
   };
 
   const logout = async (): Promise<void> => {
-    const refreshToken = localStorage.getItem('sp_refresh_token');
     try {
-      if (refreshToken) {
-        await authService.logout(refreshToken);
-      }
+      // The refresh token is in an HttpOnly cookie; the server reads and revokes it.
+      await authService.logout();
     } catch {
-      // Ignore errors on logout — clear tokens regardless
+      // Ignore errors on logout — clear local state regardless
     } finally {
       localStorage.removeItem('sp_access_token');
-      localStorage.removeItem('sp_refresh_token');
       localStorage.removeItem('sp_user');
       setUser(null);
     }
@@ -81,17 +77,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const loginWithOAuth = async (provider: string, code: string, redirectUri: string): Promise<void> => {
-    const { accessToken, refreshToken, user: apiUser } = await authService.loginWithOAuth(provider, code, redirectUri);
+    const { accessToken, user: apiUser } = await authService.loginWithOAuth(provider, code, redirectUri);
     localStorage.setItem('sp_access_token', accessToken);
-    localStorage.setItem('sp_refresh_token', refreshToken);
     localStorage.setItem('sp_user', JSON.stringify(apiUser));
     setUser(apiUser);
   };
 
   const loginWithGoogleCredential = async (credential: string): Promise<void> => {
-    const { accessToken, refreshToken, user: apiUser } = await authService.loginWithGoogleCredential(credential);
+    const { accessToken, user: apiUser } = await authService.loginWithGoogleCredential(credential);
     localStorage.setItem('sp_access_token', accessToken);
-    localStorage.setItem('sp_refresh_token', refreshToken);
     localStorage.setItem('sp_user', JSON.stringify(apiUser));
     setUser(apiUser);
   };

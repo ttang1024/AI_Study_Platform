@@ -13,11 +13,50 @@ namespace StudyPlatform.API.Controllers;
 [Produces("application/json")]
 public class AuthController : ControllerBase
 {
+    private const string RefreshTokenCookieName = "refresh_token";
+    private static readonly TimeSpan RefreshTokenLifetime = TimeSpan.FromDays(7);
+
     private readonly IMediator _mediator;
 
     public AuthController(IMediator mediator)
     {
         _mediator = mediator;
+    }
+
+    /// <summary>
+    /// Stores the refresh token in an HttpOnly cookie so it is never exposed to JavaScript.
+    /// </summary>
+    private void SetRefreshTokenCookie(string refreshToken)
+    {
+        Response.Cookies.Append(RefreshTokenCookieName, refreshToken, new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = true,
+            SameSite = SameSiteMode.None,
+            Path = "/api/auth",
+            Expires = DateTimeOffset.UtcNow.Add(RefreshTokenLifetime)
+        });
+    }
+
+    private void ClearRefreshTokenCookie()
+    {
+        Response.Cookies.Append(RefreshTokenCookieName, string.Empty, new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = true,
+            SameSite = SameSiteMode.None,
+            Path = "/api/auth",
+            Expires = DateTimeOffset.UnixEpoch
+        });
+    }
+
+    /// <summary>
+    /// Moves the refresh token from the response body into an HttpOnly cookie.
+    /// </summary>
+    private AuthResponse IssueRefreshTokenCookie(AuthResponse response)
+    {
+        SetRefreshTokenCookie(response.RefreshToken);
+        return response with { RefreshToken = string.Empty };
     }
 
     /// <summary>
@@ -47,7 +86,7 @@ public class AuthController : ControllerBase
         if (!result.IsSuccess)
             return BadRequest(BaseResponse<AuthResponse>.Fail(result.Message, result.ErrorCode, result.Errors));
 
-        return CreatedAtAction(nameof(Register), BaseResponse<AuthResponse>.Ok(result.Data!, result.Message));
+        return CreatedAtAction(nameof(Register), BaseResponse<AuthResponse>.Ok(IssueRefreshTokenCookie(result.Data!), result.Message));
     }
 
     /// <summary>
@@ -62,22 +101,29 @@ public class AuthController : ControllerBase
         if (!result.IsSuccess)
             return Unauthorized(BaseResponse<AuthResponse>.Fail(result.Message, result.ErrorCode, result.Errors));
 
-        return Ok(BaseResponse<AuthResponse>.Ok(result.Data!, result.Message));
+        return Ok(BaseResponse<AuthResponse>.Ok(IssueRefreshTokenCookie(result.Data!), result.Message));
     }
 
     /// <summary>
-    /// Refresh access token using refresh token
+    /// Refresh access token using the refresh token stored in the HttpOnly cookie
     /// </summary>
     [HttpPost("refresh-token")]
     [ProducesResponseType(typeof(BaseResponse<AuthResponse>), 200)]
     [ProducesResponseType(typeof(BaseResponse), 401)]
-    public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request)
+    public async Task<IActionResult> RefreshToken()
     {
-        var result = await _mediator.Send(new RefreshTokenCommand(request.RefreshToken));
-        if (!result.IsSuccess)
-            return Unauthorized(BaseResponse<AuthResponse>.Fail(result.Message, result.ErrorCode, result.Errors));
+        var refreshToken = Request.Cookies[RefreshTokenCookieName];
+        if (string.IsNullOrEmpty(refreshToken))
+            return Unauthorized(BaseResponse<AuthResponse>.Fail("Refresh token is missing.", "INVALID_REFRESH_TOKEN"));
 
-        return Ok(BaseResponse<AuthResponse>.Ok(result.Data!, result.Message));
+        var result = await _mediator.Send(new RefreshTokenCommand(refreshToken));
+        if (!result.IsSuccess)
+        {
+            ClearRefreshTokenCookie();
+            return Unauthorized(BaseResponse<AuthResponse>.Fail(result.Message, result.ErrorCode, result.Errors));
+        }
+
+        return Ok(BaseResponse<AuthResponse>.Ok(IssueRefreshTokenCookie(result.Data!), result.Message));
     }
 
     /// <summary>
@@ -143,7 +189,7 @@ public class AuthController : ControllerBase
         if (!result.IsSuccess)
             return BadRequest(BaseResponse<AuthResponse>.Fail(result.Message, result.ErrorCode, result.Errors));
 
-        return Ok(BaseResponse<AuthResponse>.Ok(result.Data!, result.Message));
+        return Ok(BaseResponse<AuthResponse>.Ok(IssueRefreshTokenCookie(result.Data!), result.Message));
     }
 
     /// <summary>
@@ -158,17 +204,19 @@ public class AuthController : ControllerBase
         if (!result.IsSuccess)
             return BadRequest(BaseResponse<AuthResponse>.Fail(result.Message, result.ErrorCode, result.Errors));
 
-        return Ok(BaseResponse<AuthResponse>.Ok(result.Data!, result.Message));
+        return Ok(BaseResponse<AuthResponse>.Ok(IssueRefreshTokenCookie(result.Data!), result.Message));
     }
 
     /// <summary>
-    /// Logout and revoke refresh token
+    /// Logout and revoke the refresh token stored in the HttpOnly cookie
     /// </summary>
     [HttpPost("logout")]
     [ProducesResponseType(typeof(BaseResponse), 200)]
-    public async Task<IActionResult> Logout([FromBody] RefreshTokenRequest request)
+    public async Task<IActionResult> Logout()
     {
-        var result = await _mediator.Send(new LogoutCommand(request.RefreshToken));
+        var refreshToken = Request.Cookies[RefreshTokenCookieName];
+        var result = await _mediator.Send(new LogoutCommand(refreshToken ?? string.Empty));
+        ClearRefreshTokenCookie();
         return Ok(new BaseResponse { Success = true, Message = result.Message });
     }
 }
