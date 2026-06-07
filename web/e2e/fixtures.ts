@@ -172,7 +172,6 @@ const json = (route: Route, data: unknown) =>
 export async function signInForE2E(page: Page) {
   await page.addInitScript(() => {
     window.localStorage.setItem('sp_access_token', 'e2e-access-token')
-    window.localStorage.setItem('sp_refresh_token', 'e2e-refresh-token')
     window.localStorage.setItem(
       'sp_user',
       JSON.stringify({ id: 'user-e2e', email: 'student@example.com', name: 'Test Student' }),

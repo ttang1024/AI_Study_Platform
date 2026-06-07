@@ -119,7 +119,7 @@ public class UserDocumentsController : ControllerBase
     [ProducesResponseType(typeof(BaseResponse<DocumentDto>), 201)]
     [ProducesResponseType(typeof(BaseResponse), 400)]
     public async Task<IActionResult> OcrImage(
-        [FromForm] IFormFile imageFile,
+        IFormFile imageFile,
         [FromForm] Guid? courseId,
         CancellationToken cancellationToken)
     {

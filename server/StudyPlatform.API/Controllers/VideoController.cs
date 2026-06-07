@@ -943,8 +943,8 @@ public class VideoController : ControllerBase
     [RequestSizeLimit(524288000)] // 500 MB
     public async Task<IActionResult> UploadVideo(
         [FromForm] Guid courseId,
-        [FromForm] IFormFile file,
-        [FromForm] IFormFile? thumbnail,
+        IFormFile file,
+        IFormFile? thumbnail,
         CancellationToken cancellationToken)
     {
         if (file == null || file.Length == 0)
