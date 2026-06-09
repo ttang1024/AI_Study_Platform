@@ -41,13 +41,11 @@ function getVideoSetPreview(video?: VideoListItem) {
 }
 
 export const FlashcardsPage: React.FC = () => {
-  const { documents, courses, flashcards, totalMaterials, isLoading: contextLoading, refreshFlashcards, refreshStats, refreshDocuments } = useStudy();
+  const { documents, courses, flashcards, totalMaterials, isLoading: contextLoading, refreshFlashcards, refreshStats, refreshDocuments, videos: videoList, videosLoading, refreshVideos } = useStudy();
   const navigate = useNavigate();
   useStudyTimer({ contextType: 'flashcards' });
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
 
-  const [videoList, setVideoList] = useState<VideoListItem[]>([]);
-  const [videosLoading, setVideosLoading] = useState(true);
   const [coverageLoading, setCoverageLoading] = useState(true);
   const [coverage, setCoverage] = useState({ documentIds: [] as string[], youTubeVideoIds: [] as string[] });
   const [pendingLoading, setPendingLoading] = useState(true);
@@ -73,15 +71,8 @@ export const FlashcardsPage: React.FC = () => {
   const [filterChapter, setFilterChapter] = useState('');
   const [filterTags, setFilterTags] = useState<string[]>([]);
 
-  const refreshVideos = React.useCallback(() => {
-    setVideosLoading(true);
-    return videoService.getVideos({ page: 1, pageSize: 500 })
-      .then(data => setVideoList(data.items))
-      .catch(() => { })
-      .finally(() => setVideosLoading(false));
-  }, []);
-
-  useEffect(() => { void refreshVideos(); }, [refreshVideos]);
+  // `videoList`/`videosLoading`/`refreshVideos` come from StudyContext, which loads
+  // the lightweight video list once and shares it across pages.
 
   const refreshCoverage = React.useCallback(() => {
     setCoverageLoading(true);

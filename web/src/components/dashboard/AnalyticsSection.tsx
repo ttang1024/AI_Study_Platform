@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
-import { Clock, Target, GraduationCap, Loader2, BarChart3, Sparkles } from 'lucide-react';
+import { Clock, Target, GraduationCap, Loader2, Sparkles } from 'lucide-react';
 import {
   analyticsService,
   type QuizAccuracyData,
@@ -9,7 +9,8 @@ import {
 } from '../../services/analyticsService';
 import { useDashboardSummary } from '../../hooks/useDashboardSummary';
 import { DashboardTodayStrip } from './DashboardTodayStrip';
-import { RecommendationsPanel } from './RecommendationsPanel';
+import { TodayPlanList } from '../today/TodayPlanList';
+import { NextBestContent } from './NextBestContent';
 
 const CARD_SHADOW = '0 1px 3px rgba(0,0,0,0.06), 0 6px 20px rgba(0,0,0,0.05)';
 const PRIMARY = 'var(--primary)';
@@ -275,14 +276,20 @@ export const AnalyticsSection: React.FC = () => {
 
   const { summary, loading: summaryLoading } = useDashboardSummary();
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
+  // Compute the range once per `days`. Using `new Date()` inside the effect would
+  // produce millisecond-different from/to on each run, so the two effect invocations
+  // React 18 StrictMode fires (mount→cleanup→mount) would hit distinct URLs and slip
+  // past apiClient's in-flight GET dedupe — double-fetching time-on-task/quiz-accuracy.
+  const { fromStr, toStr } = useMemo(() => {
     const to = new Date();
     const from = new Date();
     from.setDate(from.getDate() - days);
-    const fromStr = from.toISOString();
-    const toStr = to.toISOString();
+    return { fromStr: from.toISOString(), toStr: to.toISOString() };
+  }, [days]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
 
     Promise.all([
       analyticsService.getQuizAccuracy(fromStr, toStr),
@@ -299,7 +306,7 @@ export const AnalyticsSection: React.FC = () => {
       .finally(() => { if (!cancelled) setLoading(false); });
 
     return () => { cancelled = true; };
-  }, [days]);
+  }, [fromStr, toStr]);
 
   const avgAccuracy = useMemo(() => {
     if (accuracy.length === 0) return '—';
@@ -317,6 +324,9 @@ export const AnalyticsSection: React.FC = () => {
       {/* ── Today ────────────────────────────────────────────────────────── */}
       <DashboardTodayStrip summary={summary} loading={summaryLoading} />
 
+      {/* ── Today's plan (focus + stretch) ───────────────────────────────── */}
+      <TodayPlanList />
+
       {/* ── Range selector ───────────────────────────────────────────────── */}
       <div className="flex items-center justify-between px-0.5">
         <p className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">Trends</p>
@@ -325,9 +335,8 @@ export const AnalyticsSection: React.FC = () => {
             <button
               key={r.days}
               onClick={() => setDays(r.days)}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-                days === r.days ? 'bg-[var(--primary)] text-white' : 'text-text-muted hover:bg-zinc-100'
-              }`}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${days === r.days ? 'bg-[var(--primary)] text-white' : 'text-text-muted hover:bg-zinc-100'
+                }`}
             >
               {r.label}
             </button>
@@ -370,14 +379,8 @@ export const AnalyticsSection: React.FC = () => {
         </>
       )}
 
-      {/* ── Recommendations ──────────────────────────────────────────────── */}
-      <div>
-        <div className="flex items-center gap-2 mb-3 px-0.5">
-          <BarChart3 size={14} className="text-text-muted" />
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">Recommended for you</p>
-        </div>
-        <RecommendationsPanel />
-      </div>
+      {/* ── Explore next: new material worth a look (review queue lives in the Today plan) ── */}
+      <NextBestContent />
     </div>
   );
 };

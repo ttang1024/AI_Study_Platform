@@ -8,7 +8,7 @@ import { cn } from '../utils/cn';
 import { getDocDisplayName } from '../utils/docName';
 import { Button } from '../components/common/Button';
 import { RichTextEditor } from '../components/common/RichTextEditor';
-import { videoService, VideoListItem } from '../services/videoService';
+import { videoService } from '../services/videoService';
 import { noteService } from '../services/noteService';
 import { Note } from '../types';
 import { SourceFilterBar, SourceType } from '../components/common/SourceFilterBar';
@@ -131,7 +131,7 @@ const NoteCard: React.FC<NoteCardProps> = ({
 
 export const NotesPage: React.FC = () => {
   const navigate = useNavigate();
-  const { documents, courses, allNotes, isLoading: contextLoading, deleteNote, updateNote, refreshNotes } = useStudy();
+  const { documents, courses, allNotes, isLoading: contextLoading, deleteNote, updateNote, refreshNotes, videos: videoList } = useStudy();
 
   useEffect(() => { refreshNotes(); }, []);
 
@@ -142,7 +142,6 @@ export const NotesPage: React.FC = () => {
   const [videoNotes, setVideoNotes] = useState<VideoNoteEntry[]>([]);
   const [editingVideoId, setEditingVideoId] = useState<string | null>(null);
   const [editVideoContent, setEditVideoContent] = useState('');
-  const [videoList, setVideoList] = useState<VideoListItem[]>([]);
 
   const [sourceType, setSourceType] = useState<SourceType>('all');
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
@@ -157,11 +156,8 @@ export const NotesPage: React.FC = () => {
     originalArticleUrl?: string | null;
   } | null>(null);
 
-  useEffect(() => {
-    videoService.getVideos({ page: 1 })
-      .then(data => setVideoList(data.items))
-      .catch(() => { });
-  }, []);
+  // `videoList` (used to resolve each video-sourced note's title/course) comes
+  // from StudyContext, which loads the lightweight list once and shares it.
 
   useEffect(() => {
     const entries: VideoNoteEntry[] = allNotes

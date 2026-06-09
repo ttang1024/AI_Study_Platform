@@ -5,6 +5,7 @@ import { StudyProvider } from './context/StudyContext';
 import { TtsProvider } from './context/TtsContext';
 import { MainLayout } from './components/layout/MainLayout';
 import { PromptProvider } from './components/common/PromptBox';
+import { PomodoroTimer } from './components/common/PomodoroTimer';
 import { DashboardPage } from './pages/DashboardPage';
 import { LibraryPage } from './pages/LibraryPage';
 import { QuizManagementPage } from './pages/QuizManagementPage';
@@ -28,8 +29,6 @@ import { StudyGroupDetailPage } from './pages/StudyGroupDetailPage';
 import { ChatListPage } from './pages/ChatListPage';
 import { KnowledgeGraphPage } from './pages/KnowledgeGraphPage';
 import { InsightsPage } from './pages/InsightsPage';
-import { TodayPage } from './pages/TodayPage';
-import { PracticePage } from './pages/PracticePage';
 import { OfflinePage } from './pages/OfflinePage';
 
 const DocumentDetailsPage = lazy(() =>
@@ -83,8 +82,10 @@ export default function App() {
                     </ProtectedRoute>
                   }>
                     <Route path="dashboard" element={<DashboardPage />} />
-                    <Route path="today" element={<TodayPage />} />
-                    <Route path="practice" element={<PracticePage />} />
+                    {/* The Today plan now lives as the dashboard hero + the Insights → Analytics tab. */}
+                    <Route path="today" element={<Navigate to="/dashboard" replace />} />
+                    {/* Practice was merged into the Insights page as a tab. Preserve old links. */}
+                    <Route path="practice" element={<Navigate to="/insights?tab=practice" replace />} />
                     <Route path="library" element={<LibraryPage />} />
                     <Route path="documents" element={<Navigate to="/library" replace />} />
                     <Route path="videos" element={<Navigate to="/library?type=videos" replace />} />
@@ -142,6 +143,7 @@ export default function App() {
                   <Route path="/share/:token" element={<SharedContentPage />} />
                 </Routes>
               </Suspense>
+              <PomodoroTimer />
             </BrowserRouter>
           </TtsProvider>
         </PromptProvider>

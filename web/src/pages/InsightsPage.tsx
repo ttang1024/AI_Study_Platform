@@ -1,22 +1,24 @@
 import React from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { BarChart3, Target } from 'lucide-react';
+import { BarChart3, Target, GraduationCap } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { AnalyticsSection } from '../components/dashboard/AnalyticsSection';
 import { ReinforcementPanel } from '../components/reinforcement/ReinforcementPanel';
+import { PracticeSection } from '../components/practice/PracticeSection';
 
-type Tab = 'analytics' | 'reinforcement';
+type Tab = 'analytics' | 'reinforcement' | 'practice';
 
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: 'analytics', label: 'Analytics', icon: BarChart3 },
   { id: 'reinforcement', label: 'Reinforcement', icon: Target },
+  { id: 'practice', label: 'Practice', icon: GraduationCap },
 ];
 
 export const InsightsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const param = searchParams.get('tab');
-  const activeTab: Tab = param === 'reinforcement' ? 'reinforcement' : 'analytics';
+  const activeTab: Tab = param === 'reinforcement' ? 'reinforcement' : param === 'practice' ? 'practice' : 'analytics';
 
   const selectTab = (tab: Tab) => {
     const next = new URLSearchParams(searchParams);
@@ -31,7 +33,6 @@ export const InsightsPage: React.FC = () => {
 
       {/* ── Header ───────────────────────────────────────────────────────── */}
       <div>
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-text-muted mb-1">Progress &amp; history</p>
         <h1 className="text-4xl font-semibold tracking-tight text-text-main leading-tight">
           Your <span className="text-[var(--primary)]">Insights</span>
         </h1>
@@ -74,6 +75,7 @@ export const InsightsPage: React.FC = () => {
         >
           {activeTab === 'analytics' && <AnalyticsSection />}
           {activeTab === 'reinforcement' && <ReinforcementPanel />}
+          {activeTab === 'practice' && <PracticeSection />}
         </motion.div>
       </AnimatePresence>
 

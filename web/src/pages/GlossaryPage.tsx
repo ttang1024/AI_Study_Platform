@@ -12,7 +12,6 @@ import { GlossaryTerm } from '../types';
 import { glossaryService } from '../services/glossaryService';
 import { synthesizeToBlob, downloadAudioBlob } from '../services/edgeTtsService';
 import { masteredService } from '../services/masteredService';
-import { videoService, VideoListItem } from '../services/videoService';
 import { cn } from '../utils/cn';
 import { getDocDisplayName } from '../utils/docName';
 import { usePersistentTts } from '../context/TtsContext';
@@ -32,7 +31,7 @@ function getDocKind(doc: { type?: string; name: string; originalUrl?: string }):
 type MasteryFilter = 'all' | 'unmastered' | 'mastered';
 
 export const GlossaryPage: React.FC = () => {
-  const { documents, courses } = useStudy();
+  const { documents, courses, videos } = useStudy();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
@@ -40,7 +39,6 @@ export const GlossaryPage: React.FC = () => {
   useStudyTimer({ contextType: 'glossary' });
 
   const [allTerms, setAllTerms] = useState<GlossaryTerm[]>([]);
-  const [videos, setVideos] = useState<VideoListItem[]>([]);
   const [selectedSourceId, setSelectedSourceId] = useState('');
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [generateCourseId, setGenerateCourseId] = useState<string | null>(null);
@@ -98,12 +96,8 @@ export const GlossaryPage: React.FC = () => {
     masteredService.loadFromServer(userId).then(setMasteredIds).catch(() => { });
   }, [userId]);
 
-  // Load videos once
-  useEffect(() => {
-    videoService.getVideos({ page: 1, pageSize: 500 })
-      .then(d => setVideos(d.items))
-      .catch(() => { });
-  }, []);
+  // `videos` (used only to label video-sourced glossary terms) comes from
+  // StudyContext, which loads the lightweight list once and shares it.
 
   // Load cached glossary terms in one request. Per-source endpoints are only used for refresh/generate.
   useEffect(() => {

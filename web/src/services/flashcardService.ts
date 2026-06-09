@@ -69,23 +69,41 @@ export interface FlashcardCoverage {
 }
 
 const inflightRequests = new Map<string, Promise<unknown>>();
+const flashcardListCache = new Map<string, { value: PagedFlashcards; expiresAt: number }>();
+const FLASHCARD_LIST_CACHE_MS = 30_000;
+
+/**
+ * Drop cached flashcard-list responses. Called after any list mutation, and on
+ * auth changes (so one user's deck never leaks to the next).
+ */
+export const invalidateFlashcardListCache = (): void => {
+  flashcardListCache.clear();
+};
 
 export const flashcardService = {
   async getAllFlashcards(page = 1, pageSize = 20): Promise<PagedFlashcards> {
     const url = `/api/flashcards?page=${page}&pageSize=${pageSize}`;
+
+    // Serve a fresh cached response — collapses the duplicate fetches the
+    // deferred context load and the page's visibility-refresh would make.
+    const cached = flashcardListCache.get(url);
+    if (cached && cached.expiresAt > Date.now()) return cached.value;
+
     const pending = inflightRequests.get(url) as Promise<PagedFlashcards> | undefined;
     if (pending) return pending;
 
     const request = apiClient.get(url)
       .then(response => {
         const d = response.data.data
-        return {
+        const result = {
           items: (d.items as BackendFlashcard[]).map(mapFlashcard),
           totalCount: d.totalCount,
           page: d.page,
           pageSize: d.pageSize,
           totalPages: d.totalPages,
         }
+        flashcardListCache.set(url, { value: result, expiresAt: Date.now() + FLASHCARD_LIST_CACHE_MS });
+        return result
       })
       .finally(() => inflightRequests.delete(url));
 
@@ -127,15 +145,18 @@ export const flashcardService = {
 
   async createFlashcard(data: { front: string; back: string; documentId?: string }): Promise<Flashcard> {
     const response = await apiClient.post('/api/flashcards', data);
+    invalidateFlashcardListCache();
     return mapFlashcard(response.data.data);
   },
 
   async deleteFlashcard(flashcardId: string): Promise<void> {
     await apiClient.delete(`/api/flashcards/${flashcardId}`);
+    invalidateFlashcardListCache();
   },
 
   async deleteFlashcardsBulk(flashcardIds: string[]): Promise<void> {
     await apiClient.delete('/api/flashcards/bulk', { data: { flashcardIds } });
+    invalidateFlashcardListCache();
   },
 
   /** Submit FSRS review. rating: 1=Again, 2=Hard, 3=Good, 4=Easy */
@@ -155,6 +176,7 @@ export const flashcardService = {
     data: { front?: string; back?: string; difficulty?: 'easy' | 'medium' | 'hard'; chapter?: string; tags?: string[] },
   ): Promise<Flashcard> {
     const response = await apiClient.patch(`/api/flashcards/${flashcardId}/classify`, data);
+    invalidateFlashcardListCache();
     return mapFlashcard(response.data.data);
   },
 

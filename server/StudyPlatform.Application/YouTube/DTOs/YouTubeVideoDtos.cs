@@ -37,3 +37,24 @@ public record YouTubeVideoPagedResult(
     int Page,
     int PageSize,
     int TotalPages);
+
+// Lightweight list shape — no Summary/MindMapText. Used by callers that fetch all
+// of a user's videos only to label other content (glossary/flashcards/notes).
+public record YouTubeVideoLiteDto(
+    Guid Id,
+    Guid CourseId,
+    string CourseName,
+    string CourseColor,
+    string VideoId,
+    string VideoUrl,
+    string SourceType,
+    string Title,
+    string ThumbnailUrl,
+    DateTime CreatedAt);
+
+public record YouTubeVideoLitePagedResult(
+    IEnumerable<YouTubeVideoLiteDto> Items,
+    int TotalCount,
+    int Page,
+    int PageSize,
+    int TotalPages);

@@ -190,6 +190,9 @@ export const ArticlePage: React.FC<{ embedded?: boolean; id?: string; courseId?:
   const [noteId, setNoteId] = useState<string | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareQuizzesAvailable, setShareQuizzesAvailable] = useState(false);
+  // Cache the quizzes fetched for the availability check so sharing reuses them
+  // instead of refetching the same list.
+  const shareQuizzesRef = useRef<Awaited<ReturnType<typeof documentService.getQuiz>> | null>(null);
 
   const [toolbar, setToolbar] = useState<{ x: number; y: number; text: string } | null>(null);
   const [summaryToolbar, setSummaryToolbar] = useState<{ x: number; y: number; text: string } | null>(null);
@@ -259,8 +262,8 @@ export const ArticlePage: React.FC<{ embedded?: boolean; id?: string; courseId?:
     if (!showShareModal || !currentDocument?.courseId || !currentDocument?.id) return;
     let cancelled = false;
     documentService.getQuiz(currentDocument.courseId, currentDocument.id)
-      .then(qs => { if (!cancelled) setShareQuizzesAvailable(qs.length > 0); })
-      .catch(() => { if (!cancelled) setShareQuizzesAvailable(false); });
+      .then(qs => { if (!cancelled) { shareQuizzesRef.current = qs; setShareQuizzesAvailable(qs.length > 0); } })
+      .catch(() => { if (!cancelled) { shareQuizzesRef.current = null; setShareQuizzesAvailable(false); } });
     return () => { cancelled = true; };
   }, [showShareModal, currentDocument?.courseId, currentDocument?.id]);
 
@@ -532,7 +535,7 @@ export const ArticlePage: React.FC<{ embedded?: boolean; id?: string; courseId?:
         sourceUrl={currentDocument.courseId && currentDocument.id ? `${currentDocument.courseId}/${currentDocument.id}` : null}
         originalArticleUrl={currentDocument.originalUrl || null}
         fetchQuizzes={currentDocument.courseId && shareQuizzesAvailable ? async () => {
-          const qs = await documentService.getQuiz(currentDocument.courseId!, currentDocument.id);
+          const qs = shareQuizzesRef.current ?? await documentService.getQuiz(currentDocument.courseId!, currentDocument.id);
           return qs.map(q => ({
             question: q.question,
             options: q.options ?? [],

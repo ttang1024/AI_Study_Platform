@@ -99,7 +99,18 @@ export interface GetVideosParams {
 // --- Service ---
 
 const inflightVideoListRequests = new Map<string, Promise<PagedVideos>>()
+const videoListCache = new Map<string, { ts: number; data: PagedVideos }>()
+const VIDEO_LIST_TTL_MS = 30_000
 const VIDEO_API = '/api/videos'
+
+/**
+ * Drop all cached video-list responses. Call after any mutation that changes the
+ * list, and on auth changes (so one user's list never leaks to the next).
+ */
+export const invalidateVideoListCache = (): void => {
+	videoListCache.clear()
+	inflightVideoListRequests.clear()
+}
 
 export const videoService = {
 	async getVideos(params: GetVideosParams = {}): Promise<PagedVideos> {
@@ -110,12 +121,65 @@ export const videoService = {
 		if (params.courseId) p.set('courseId', params.courseId)
 		if (params.search) p.set('search', params.search)
 		const url = `${VIDEO_API}?${p}`
+
+		// Serve a fresh cached response — this collapses the repeated identical
+		// fetches different pages fire on mount when navigating between them.
+		const cached = videoListCache.get(url)
+		if (cached && Date.now() - cached.ts < VIDEO_LIST_TTL_MS) return cached.data
+
+		// In-flight dedupe for concurrent callers of the same query.
 		const pending = inflightVideoListRequests.get(url)
 		if (pending) return pending
 
 		const request = apiClient
 			.get<{ data: PagedVideos }>(url)
-			.then(res => res.data.data)
+			.then(res => {
+				videoListCache.set(url, { ts: Date.now(), data: res.data.data })
+				return res.data.data
+			})
+			.finally(() => inflightVideoListRequests.delete(url))
+
+		inflightVideoListRequests.set(url, request)
+		return request
+	},
+
+	/**
+	 * Lightweight video list (no summary/mind-map blobs) for "fetch all videos to
+	 * label content" callers. Shares the list cache/dedupe with getVideos — keyed by
+	 * URL, so /api/videos/lite is a distinct entry and invalidateVideoListCache clears
+	 * both. Returns the same PagedVideos shape with the heavy fields nulled, so callers
+	 * typed against VideoListItem need no changes.
+	 */
+	async getVideosLite(params: { page?: number; pageSize?: number } = {}): Promise<PagedVideos> {
+		const p = new URLSearchParams({
+			page: String(params.page ?? 1),
+			pageSize: String(params.pageSize ?? 500),
+		})
+		const url = `${VIDEO_API}/lite?${p}`
+
+		const cached = videoListCache.get(url)
+		if (cached && Date.now() - cached.ts < VIDEO_LIST_TTL_MS) return cached.data
+
+		const pending = inflightVideoListRequests.get(url)
+		if (pending) return pending
+
+		const request = apiClient
+			.get<{ data: PagedVideos }>(url)
+			.then(res => {
+				const raw = res.data.data
+				const data: PagedVideos = {
+					...raw,
+					items: raw.items.map(v => ({
+						...v,
+						summary: null,
+						noteContent: null,
+						flashcardsJson: null,
+						quizJson: null,
+					})),
+				}
+				videoListCache.set(url, { ts: Date.now(), data })
+				return data
+			})
 			.finally(() => inflightVideoListRequests.delete(url))
 
 		inflightVideoListRequests.set(url, request)
@@ -129,6 +193,7 @@ export const videoService = {
 
 	async createVideo(data: CreateVideoData): Promise<VideoDetail> {
 		const res = await apiClient.post<{ data: VideoDetail }>(VIDEO_API, data)
+		invalidateVideoListCache()
 		return res.data.data
 	},
 
@@ -144,6 +209,7 @@ export const videoService = {
 			formData,
 			{ headers: { 'Content-Type': 'multipart/form-data' } },
 		)
+		invalidateVideoListCache()
 		return res.data.data
 	},
 
@@ -197,15 +263,18 @@ export const videoService = {
 
 	async updateVideo(id: string, data: Record<string, unknown>): Promise<VideoListItem> {
 		const res = await apiClient.patch<{ data: VideoListItem }>(`${VIDEO_API}/${id}`, data)
+		invalidateVideoListCache()
 		return res.data.data
 	},
 
 	async deleteVideo(id: string): Promise<void> {
 		await apiClient.delete(`${VIDEO_API}/${id}`)
+		invalidateVideoListCache()
 	},
 
 	async moveVideo(id: string, targetCourseId: string): Promise<void> {
 		await apiClient.patch(`${VIDEO_API}/${id}/move`, { targetCourseId })
+		invalidateVideoListCache()
 	},
 
 	async getFlashcards(videoId: string): Promise<VideoFlashcard[]> {

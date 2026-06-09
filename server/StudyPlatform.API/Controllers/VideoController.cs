@@ -1106,6 +1106,19 @@ public class VideoController : ControllerBase
         return Ok(BaseResponse<YouTubeVideoPagedResult>.Ok(result.Data!));
     }
 
+    // Lightweight list (no summary/mind-map) for callers that fetch all of a user's
+    // videos just to label other content. Far smaller payload than GET /api/videos.
+    [HttpGet("lite")]
+    public async Task<IActionResult> GetVideosLite(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 500,
+        CancellationToken cancellationToken = default)
+    {
+        var userId = User.GetUserId();
+        var result = await _mediator.Send(new GetYouTubeVideosLiteQuery(userId, page, pageSize), cancellationToken);
+        return Ok(BaseResponse<YouTubeVideoLitePagedResult>.Ok(result.Data!));
+    }
+
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetVideo(Guid id, CancellationToken cancellationToken)
     {

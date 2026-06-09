@@ -8,17 +8,17 @@ import {
 import {
   practiceService, type PracticeQuestion, type PracticeSource,
   type PracticeResultItem, type PracticeTestSummary,
-} from '../services/practiceService';
-import { useStudy } from '../context/StudyContext';
-import { useStudyTimer } from '../hooks/useStudyTimer';
+} from '../../services/practiceService';
+import { useStudy } from '../../context/StudyContext';
+import { useStudyTimer } from '../../hooks/useStudyTimer';
 
 const CARD_SHADOW = '0 1px 3px rgba(0,0,0,0.06), 0 6px 20px rgba(0,0,0,0.05)';
 
 const SOURCE_META: Record<PracticeSource, { label: string; desc: string; icon: React.ElementType; color: string }> = {
-  quiz:      { label: 'Quiz bank',       desc: 'Multiple choice, auto-graded', icon: Award,        color: '#d97706' },
-  flashcard: { label: 'Flashcards',      desc: 'Front → back recall',          icon: BrainCircuit, color: '#0d9488' },
-  glossary:  { label: 'Glossary',        desc: 'Term → definition',            icon: BookMarked,   color: '#2563eb' },
-  problem:   { label: 'Worked problems', desc: 'Solve & self-check',           icon: Sigma,        color: '#7c3aed' },
+  quiz: { label: 'Quiz bank', desc: 'Multiple choice, auto-graded', icon: Award, color: '#d97706' },
+  flashcard: { label: 'Flashcards', desc: 'Front → back recall', icon: BrainCircuit, color: '#0d9488' },
+  glossary: { label: 'Glossary', desc: 'Term → definition', icon: BookMarked, color: '#2563eb' },
+  problem: { label: 'Worked problems', desc: 'Solve & self-check', icon: Sigma, color: '#7c3aed' },
 };
 const ALL_SOURCES = Object.keys(SOURCE_META) as PracticeSource[];
 
@@ -26,7 +26,7 @@ const formatTime = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padSta
 
 type Phase = 'setup' | 'running' | 'report';
 
-export const PracticePage: React.FC = () => {
+export const PracticeSection: React.FC = () => {
   const { courses } = useStudy();
   const [phase, setPhase] = useState<Phase>('setup');
 
@@ -137,11 +137,7 @@ export const PracticePage: React.FC = () => {
     return (
       <div className="w-full space-y-8">
         <div>
-          <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--primary)] mb-1">
-            <Layers size={13} /> Practice & Exam
-          </div>
-          <h1 className="text-4xl font-semibold tracking-tight text-text-main leading-tight">Test yourself</h1>
-          <p className="text-text-muted mt-2 text-[15px]">One timed test, mixed from everything you’ve studied. Results feed your mastery and streak.</p>
+          <p className="text-text-muted mt-1 text-[14px]">One timed test, mixed from everything you’ve studied. Results feed your mastery and streak.</p>
         </div>
 
         <div className="grid lg:grid-cols-[1fr_340px] gap-6 items-start">
@@ -338,7 +334,7 @@ export const PracticePage: React.FC = () => {
           <button onClick={restart} className="flex-1 flex items-center justify-center gap-2 rounded-2xl bg-[var(--primary)] text-white py-3.5 text-[15px] font-bold hover:opacity-90 transition-opacity">
             <RotateCcw size={16} /> New test
           </button>
-          <Link to="/today" className="flex-1 flex items-center justify-center gap-2 rounded-2xl bg-white text-text-main py-3.5 text-[15px] font-bold hover:-translate-y-px transition-transform" style={{ boxShadow: CARD_SHADOW }}>
+          <Link to="/dashboard" className="flex-1 flex items-center justify-center gap-2 rounded-2xl bg-white text-text-main py-3.5 text-[15px] font-bold hover:-translate-y-px transition-transform" style={{ boxShadow: CARD_SHADOW }}>
             Today’s plan <ArrowRight size={16} />
           </Link>
         </div>

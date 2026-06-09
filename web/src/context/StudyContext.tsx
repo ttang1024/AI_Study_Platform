@@ -1,18 +1,26 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Document, Note, ChatMessage, Course, Flashcard, LearningProgress } from '../types';
 import { courseService } from '../services/courseService';
-import { documentService, quizSubmissionService, QuizSubmission } from '../services/documentService';
-import { VideoListItem } from '../services/videoService';
+import { documentService, quizSubmissionService, QuizSubmission, invalidateDocumentListCache } from '../services/documentService';
+import { VideoListItem, invalidateVideoListCache, videoService } from '../services/videoService';
 import { noteService } from '../services/noteService';
-import { flashcardService } from '../services/flashcardService';
+import { flashcardService, invalidateFlashcardListCache } from '../services/flashcardService';
 import { AchievementStats as ServerAchievementStats, CourseMaterialStats, statsService } from '../services/statsService';
 import { offlineCacheService, isOffline } from '../services/offlineCacheService';
 import { useAuth } from './AuthContext';
+
+// "Fetch all" pages have no real page boundary — we want the whole set in one
+// request. Sizing by the known total (from stats) avoids both truncation when
+// the user has more than a fixed cap and over-fetching when they have few.
+// The floor keeps the first request useful before/if stats are unavailable.
+const FETCH_ALL_FLOOR = 50;
+const fetchAllSize = (total: number) => Math.max(total, FETCH_ALL_FLOOR);
 
 interface StudyContextType {
   isLoading: boolean;
   documents: Document[];
   videos: VideoListItem[];
+  videosLoading: boolean;
   totalDocuments: number;
   totalArticles: number;
   totalAudio: number;
@@ -56,6 +64,7 @@ interface StudyContextType {
   refreshFlashcards: () => Promise<void>;
   refreshQuizSubmissions: () => Promise<void>;
   refreshDocuments: () => Promise<void>;
+  refreshVideos: () => Promise<void>;
   resetData: () => void;
 }
 
@@ -88,6 +97,7 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isLoading, setIsLoading] = useState(true);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [videos, setVideos] = useState<VideoListItem[]>([]);
+  const [videosLoading, setVideosLoading] = useState(true);
   const [totalDocuments, setTotalDocuments] = useState(0);
   const [totalArticles, setTotalArticles] = useState(0);
   const [totalAudio, setTotalAudio] = useState(0);
@@ -114,7 +124,12 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Load courses and flashcards on mount when authenticated
   useEffect(() => {
     if (!isAuthenticated) {
+      invalidateVideoListCache();
+      invalidateDocumentListCache();
+      invalidateFlashcardListCache();
       setDocuments([]);
+      setVideos([]);
+      setVideosLoading(false);
       setTotalDocuments(0);
       setTotalArticles(0);
       setTotalAudio(0);
@@ -139,28 +154,62 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return;
     }
 
+    let cancelled = false;
+
+    // Heavy / secondary lists. Fetched in the background after the first paint so
+    // the initial render isn't blocked on them. The Library and Flashcards pages
+    // also (re)load these on mount, and other readers (search, notes) populate as
+    // they resolve — so deferring them is safe.
+    const emptyVideos = { items: [] as VideoListItem[], totalCount: 0, page: 1, pageSize: 1, totalPages: 0 };
+    const loadDeferredData = async (flashcardCount: number, documentCount: number, videoCount: number) => {
+      const flashcardSize = fetchAllSize(flashcardCount);
+      const documentSize = fetchAllSize(documentCount);
+      setVideosLoading(true);
+      const [fetchedFlashcards, docsResult, fetchedSubmissions, fetchedNotes, fetchedVideos] = await Promise.all([
+        flashcardService.getAllFlashcards(1, flashcardSize).catch(() => ({ items: [] as Flashcard[], totalCount: 0, page: 1, pageSize: flashcardSize, totalPages: 0 })),
+        documentService.getAllDocuments(1, documentSize).catch(() => ({ items: [] as Document[], totalCount: 0, page: 1, pageSize: documentSize, totalPages: 0 })),
+        quizSubmissionService.getAllSubmissions(1, 10).catch(() => ({ items: [] as QuizSubmission[], totalCount: 0, page: 1, pageSize: 10, totalPages: 0 })),
+        noteService.getAllNotes(1, 10).catch(() => ({ items: [] as Note[], totalCount: 0, page: 1, pageSize: 10, totalPages: 0 })),
+        // Only fetch the (lite) video list when the user actually has videos; it's
+        // used solely to label glossary/flashcard/note sources.
+        videoCount > 0
+          ? videoService.getVideosLite({ page: 1, pageSize: fetchAllSize(videoCount) }).catch(() => emptyVideos)
+          : Promise.resolve(emptyVideos),
+      ]);
+      if (cancelled) return;
+
+      if (fetchedFlashcards.items.length > 0) {
+        setFlashcards(fetchedFlashcards.items);
+        void offlineCacheService.cacheFlashcards(fetchedFlashcards.items);
+      } else if (isOffline()) {
+        // Offline with no fresh data — fall back to the last cached deck.
+        const cached = await offlineCacheService.getCachedFlashcards();
+        if (!cancelled) setFlashcards(cached);
+      } else {
+        setFlashcards(fetchedFlashcards.items);
+      }
+      setDocuments(docsResult.items);
+      setQuizSubmissions(fetchedSubmissions.items);
+      setAllNotes(fetchedNotes.items);
+      setVideos(fetchedVideos.items);
+      setVideosLoading(false);
+    };
+
+    // Critical: counts (stats) + courses power the dashboard — the post-login
+    // landing page — and give other pages the totals they use to decide their
+    // own fetches. Both are small, so the first paint stays fast.
     const loadInitialData = async () => {
       setIsLoading(true);
+      let flashcardCount = 0;
+      let documentCount = 0;
+      let videoCount = 0;
       try {
-        const [fetchedCourses, fetchedFlashcards, fetchedSubmissions, stats, docsResult, fetchedNotes] = await Promise.all([
+        const [fetchedCourses, stats] = await Promise.all([
           courseService.getCourses().catch(() => [] as Course[]),
-          flashcardService.getAllFlashcards(1, 500).catch(() => ({ items: [] as Flashcard[], totalCount: 0, page: 1, pageSize: 500, totalPages: 0 })),
-          quizSubmissionService.getAllSubmissions(1, 10).catch(() => ({ items: [] as QuizSubmission[], totalCount: 0, page: 1, pageSize: 10, totalPages: 0 })),
           statsService.getUserStats().catch(() => EMPTY_STATS),
-          documentService.getAllDocuments(1, 500).catch(() => ({ items: [] as Document[], totalCount: 0, page: 1, pageSize: 500, totalPages: 0 })),
-          noteService.getAllNotes(1, 10).catch(() => ({ items: [] as Note[], totalCount: 0, page: 1, pageSize: 10, totalPages: 0 })),
         ]);
+        if (cancelled) return;
         setCourses(fetchedCourses);
-        if (fetchedFlashcards.items.length > 0) {
-          setFlashcards(fetchedFlashcards.items);
-          void offlineCacheService.cacheFlashcards(fetchedFlashcards.items);
-        } else if (isOffline()) {
-          // Offline with no fresh data — fall back to the last cached deck.
-          setFlashcards(await offlineCacheService.getCachedFlashcards());
-        } else {
-          setFlashcards(fetchedFlashcards.items);
-        }
-        setQuizSubmissions(fetchedSubmissions.items);
         setTotalDocuments(stats.totalDocuments);
         setTotalArticles(stats.totalArticles);
         setTotalAudio(stats.totalAudio);
@@ -173,17 +222,24 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setTotalVideos(stats.totalVideos);
         setCourseMaterialCounts(stats.courseMaterialCounts);
         setAchievementStats(stats.achievements);
-        setDocuments(docsResult.items);
-        setAllNotes(fetchedNotes.items);
-        setVideos([]);
+        flashcardCount = stats.totalFlashcards;
+        documentCount = stats.totalDocuments;
+        videoCount = stats.totalVideos;
       } catch (error) {
-        console.error('Failed to load initial data:', error);
+        if (!cancelled) console.error('Failed to load initial data:', error);
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
+
+      // Kick off the heavy lists in the background once the critical data is in.
+      // Pass the freshly-fetched stats counts directly — the setTotal* state
+      // setters above won't be visible in this closure yet.
+      if (!cancelled) void loadDeferredData(flashcardCount, documentCount, videoCount);
     };
 
     loadInitialData();
+
+    return () => { cancelled = true; };
   }, [isAuthenticated]);
 
   // Load notes when currentDocument changes
@@ -243,12 +299,12 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const refreshFlashcards = React.useCallback(async (): Promise<void> => {
     try {
-      const result = await flashcardService.getAllFlashcards(1, 500);
+      const result = await flashcardService.getAllFlashcards(1, fetchAllSize(totalFlashcards));
       setFlashcards(result.items);
     } catch (error) {
       console.error('Failed to refresh flashcards:', error);
     }
-  }, []);
+  }, [totalFlashcards]);
 
   const refreshQuizSubmissions = React.useCallback(async (): Promise<void> => {
     try {
@@ -261,12 +317,25 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const refreshDocuments = React.useCallback(async (): Promise<void> => {
     try {
-      const result = await documentService.getAllDocuments(1, 500);
+      const result = await documentService.getAllDocuments(1, fetchAllSize(totalDocuments));
       setDocuments(result.items);
     } catch (error) {
       console.error('Failed to refresh documents:', error);
     }
-  }, []);
+  }, [totalDocuments]);
+
+  const refreshVideos = React.useCallback(async (): Promise<void> => {
+    if (totalVideos === 0) { setVideos([]); return; }
+    setVideosLoading(true);
+    try {
+      const result = await videoService.getVideosLite({ page: 1, pageSize: fetchAllSize(totalVideos) });
+      setVideos(result.items);
+    } catch (error) {
+      console.error('Failed to refresh videos:', error);
+    } finally {
+      setVideosLoading(false);
+    }
+  }, [totalVideos]);
 
   const refreshStats = React.useCallback(async (): Promise<void> => {
     try {
@@ -447,6 +516,9 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const resetData = () => {
+    invalidateVideoListCache();
+    invalidateDocumentListCache();
+    invalidateFlashcardListCache();
     setDocuments([]);
     setVideos([]);
     setTotalDocuments(0);
@@ -476,6 +548,7 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         isLoading,
         documents,
         videos,
+        videosLoading,
         totalDocuments,
         totalArticles,
         totalAudio,
@@ -518,6 +591,7 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         refreshNotes,
         refreshFlashcards,
         refreshDocuments,
+        refreshVideos,
         refreshQuizSubmissions,
         resetData,
       }}

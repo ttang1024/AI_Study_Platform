@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { FileText, Sparkles, ChevronLeft, Share2 } from 'lucide-react';
+import { FileText, Sparkles, ChevronLeft, Share2, Highlighter } from 'lucide-react';
 import { useStudy } from '../context/StudyContext';
 import { DocumentViewer } from '../components/document/DocumentViewer';
+import { AnnotatedPdfViewer } from '../components/AnnotatedPdfViewer';
 import { ChatPanel, ChatPanelRef } from '../components/ai/ChatPanel';
 import { MindMapViewer } from '../components/mindmap/MindMapViewer';
 import { Flashcards } from '../components/study/Flashcards';
@@ -41,6 +42,9 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
   const [noteId, setNoteId] = useState<string | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareQuizzesAvailable, setShareQuizzesAvailable] = useState(false);
+  // Cache the quizzes fetched for the availability check so sharing reuses them
+  // instead of refetching the same list.
+  const shareQuizzesRef = useRef<Awaited<ReturnType<typeof documentService.getQuiz>> | null>(null);
 
   // Ref to note editor for append-from-outside
   const noteEditorRef = useRef<VideoNoteEditorRef>(null);
@@ -111,8 +115,8 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
     if (!showShareModal || !currentDocument?.courseId || !currentDocument?.id) return;
     let cancelled = false;
     documentService.getQuiz(currentDocument.courseId, currentDocument.id)
-      .then(qs => { if (!cancelled) setShareQuizzesAvailable(qs.length > 0); })
-      .catch(() => { if (!cancelled) setShareQuizzesAvailable(false); });
+      .then(qs => { if (!cancelled) { shareQuizzesRef.current = qs; setShareQuizzesAvailable(qs.length > 0); } })
+      .catch(() => { if (!cancelled) { shareQuizzesRef.current = null; setShareQuizzesAvailable(false); } });
     return () => { cancelled = true; };
   }, [showShareModal, currentDocument?.courseId, currentDocument?.id]);
 
@@ -186,6 +190,7 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
 
 
   const [activeView, setActiveView] = useState<'study' | 'document'>('document');
+  const [markupMode, setMarkupMode] = useState(false);
 
   // Text selection toolbar for summary
   const summaryRef = useRef<HTMLDivElement>(null);
@@ -269,29 +274,55 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
       <div className="flex flex-1 overflow-hidden relative">
         {/* Left Panel - Document Viewer */}
         <div className={cn(
-          "flex-1 overflow-hidden transition-opacity duration-300",
+          "relative flex-1 overflow-hidden transition-opacity duration-300",
           activeView === 'document' ? "opacity-100" : "opacity-0 lg:opacity-100"
         )}>
-          <DocumentViewer
-            key={currentDocument.id}
-            fileUrl={viewUrl}
-            fileType={currentDocument.type as 'pdf' | 'docx' | 'txt' | 'md'}
-            httpHeaders={authHeaders}
-            onAskAI={(text) => {
-              chatPanelRef.current?.setInput(text);
-              setActiveTab('chat');
-              setActiveView('study');
-            }}
-            onAddNoteText={(text) => {
-              noteEditorRef.current?.appendContent(`<p>${text}</p>`);
-              setActiveTab('notes');
-              setActiveView('study');
-            }}
-            onAddNote={() => {
-              setActiveTab('notes');
-              setActiveView('study');
-            }}
-          />
+          {currentDocument.type === 'pdf' && markupMode ? (
+            <AnnotatedPdfViewer
+              key={currentDocument.id}
+              documentId={currentDocument.id}
+              pdfUrl={viewUrl}
+              httpHeaders={authHeaders}
+            />
+          ) : (
+            <DocumentViewer
+              key={currentDocument.id}
+              fileUrl={viewUrl}
+              fileType={currentDocument.type as 'pdf' | 'docx' | 'txt' | 'md'}
+              httpHeaders={authHeaders}
+              onAskAI={(text) => {
+                chatPanelRef.current?.setInput(text);
+                setActiveTab('chat');
+                setActiveView('study');
+              }}
+              onAddNoteText={(text) => {
+                noteEditorRef.current?.appendContent(`<p>${text}</p>`);
+                setActiveTab('notes');
+                setActiveView('study');
+              }}
+              onAddNote={() => {
+                setActiveTab('notes');
+                setActiveView('study');
+              }}
+            />
+          )}
+
+          {/* Markup toggle (PDF only) */}
+          {currentDocument.type === 'pdf' && (
+            <button
+              onClick={() => setMarkupMode((m) => !m)}
+              title={markupMode ? 'Exit markup mode' : 'Mark up PDF (highlight & annotate)'}
+              className={cn(
+                "absolute top-3 right-3 z-30 flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-medium shadow-sm transition-all",
+                markupMode
+                  ? "border-[var(--primary)] bg-[var(--primary)] text-white"
+                  : "border-[var(--border-color)] bg-white/90 text-text-muted hover:border-primary/30 hover:text-primary"
+              )}
+            >
+              <Highlighter size={14} />
+              <span>{markupMode ? 'Markup on' : 'Markup'}</span>
+            </button>
+          )}
         </div>
 
         {/* Right Panel - Study Tools */}
@@ -463,7 +494,7 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
         sourceUrl={currentDocument.courseId ? `${currentDocument.courseId}/${currentDocument.id}` : undefined}
         notesHtml={noteContent || null}
         fetchQuizzes={currentDocument.courseId && shareQuizzesAvailable ? async () => {
-          const qs = await documentService.getQuiz(currentDocument.courseId!, currentDocument.id);
+          const qs = shareQuizzesRef.current ?? await documentService.getQuiz(currentDocument.courseId!, currentDocument.id);
           return qs.map((q) => ({
             question: q.question,
             options: q.options ?? [],

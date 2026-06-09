@@ -23,15 +23,15 @@ type GraphNode = KnowledgeGraphNode & d3.SimulationNodeDatum;
 type GraphLink = Omit<KnowledgeGraphEdge, 'source' | 'target'> & d3.SimulationLinkDatum<GraphNode>;
 
 const nodeStyles: Record<string, { color: string; bg: string; icon: React.ElementType; label: string }> = {
-  concept:  { color: '#0d9488', bg: '#ccfbf1', icon: BrainCircuit,                                                            label: 'Concept'   }, // teal    ~160°
-  document: { color: '#2563eb', bg: '#dbeafe', icon: CONTENT_TYPE_ICONS.document.icon,                                        label: 'Document'  }, // blue    ~240°
-  article:  { color: '#65a30d', bg: '#ecfccb', icon: CONTENT_TYPE_ICONS.article.icon,                                         label: 'Article'   }, // lime    ~80°
-  audio:    { color: '#0284c7', bg: '#e0f2fe', icon: CONTENT_TYPE_ICONS.audio.icon,                                           label: 'Audio'     }, // sky     ~200°
-  podcast:  { color: '#c026d3', bg: '#fae8ff', icon: CONTENT_TYPE_ICONS.podcast.icon,                                         label: 'Podcast'   }, // fuchsia ~300°
-  video:    { color: '#dc2626', bg: '#fee2e2', icon: CONTENT_TYPE_ICONS.video.icon,                                           label: 'Video'     }, // red     ~0°
-  note:     { color: STUDY_TYPE_ICONS.notes.color,     bg: STUDY_TYPE_ICONS.notes.bg,     icon: STUDY_TYPE_ICONS.notes.icon,     label: 'Note'      }, // violet  ~280°
-  quiz:     { color: STUDY_TYPE_ICONS.quiz.color,      bg: STUDY_TYPE_ICONS.quiz.bg,      icon: STUDY_TYPE_ICONS.quiz.icon,      label: 'Quiz'      }, // green   ~140°
-  flashcard:{ color: STUDY_TYPE_ICONS.flashcard.color, bg: STUDY_TYPE_ICONS.flashcard.bg, icon: STUDY_TYPE_ICONS.flashcard.icon, label: 'Flashcard' }, // amber   ~40°
+  concept: { color: '#0d9488', bg: '#ccfbf1', icon: BrainCircuit, label: 'Concept' }, // teal    ~160°
+  document: { color: '#2563eb', bg: '#dbeafe', icon: CONTENT_TYPE_ICONS.document.icon, label: 'Document' }, // blue    ~240°
+  article: { color: '#65a30d', bg: '#ecfccb', icon: CONTENT_TYPE_ICONS.article.icon, label: 'Article' }, // lime    ~80°
+  audio: { color: '#0284c7', bg: '#e0f2fe', icon: CONTENT_TYPE_ICONS.audio.icon, label: 'Audio' }, // sky     ~200°
+  podcast: { color: '#c026d3', bg: '#fae8ff', icon: CONTENT_TYPE_ICONS.podcast.icon, label: 'Podcast' }, // fuchsia ~300°
+  video: { color: '#dc2626', bg: '#fee2e2', icon: CONTENT_TYPE_ICONS.video.icon, label: 'Video' }, // red     ~0°
+  note: { color: STUDY_TYPE_ICONS.notes.color, bg: STUDY_TYPE_ICONS.notes.bg, icon: STUDY_TYPE_ICONS.notes.icon, label: 'Note' }, // violet  ~280°
+  quiz: { color: STUDY_TYPE_ICONS.quiz.color, bg: STUDY_TYPE_ICONS.quiz.bg, icon: STUDY_TYPE_ICONS.quiz.icon, label: 'Quiz' }, // green   ~140°
+  flashcard: { color: STUDY_TYPE_ICONS.flashcard.color, bg: STUDY_TYPE_ICONS.flashcard.bg, icon: STUDY_TYPE_ICONS.flashcard.icon, label: 'Flashcard' }, // amber   ~40°
 };
 
 const getNodeStyle = (type: string) => nodeStyles[type] ?? nodeStyles.concept;
@@ -65,8 +65,28 @@ export const KnowledgeGraphPage: React.FC = () => {
   const [noteModalOpen, setNoteModalOpen] = useState(false);
   const [gaps, setGaps] = useState<ConceptGap[]>([]);
   const [showGaps, setShowGaps] = useState(true);
+  const [dims, setDims] = useState({ width: 0, height: 0 });
 
   const gapById = useMemo(() => new Map(gaps.map(g => [g.id, g])), [gaps]);
+
+  // Track the graph wrapper's real size. It now fills the section (which stretches to
+  // match the taller sidebar on large screens), so the size is layout-driven rather
+  // than fixed — re-layout whenever it changes so the SVG fills the area without
+  // leaving dead space or scaling/letterboxing.
+  useEffect(() => {
+    const el = wrapperRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(entries => {
+      const { width, height } = entries[0].contentRect;
+      setDims(prev =>
+        Math.abs(prev.width - width) < 1 && Math.abs(prev.height - height) < 1
+          ? prev
+          : { width: Math.round(width), height: Math.round(height) },
+      );
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     if (selected?.type !== 'quiz') setQuizModalOpen(false);
@@ -130,8 +150,8 @@ export const KnowledgeGraphPage: React.FC = () => {
     const svg = d3.select(svgRef.current);
     svg.selectAll('*').remove();
 
-    const width = wrapperRef.current.clientWidth || 960;
-    const height = wrapperRef.current.clientHeight || 620;
+    const width = dims.width || wrapperRef.current.clientWidth || 960;
+    const height = dims.height || wrapperRef.current.clientHeight || 620;
     svg.attr('viewBox', `0 0 ${width} ${height}`);
 
     const nodes: GraphNode[] = filtered.nodes.map(node => ({ ...node }));
@@ -224,7 +244,7 @@ export const KnowledgeGraphPage: React.FC = () => {
     return () => {
       simulation.stop();
     };
-  }, [filtered, gapById, showGaps]);
+  }, [filtered, gapById, showGaps, dims]);
 
   const selectGap = (gap: ConceptGap) => {
     setSearch('');
@@ -281,7 +301,7 @@ export const KnowledgeGraphPage: React.FC = () => {
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <section className="min-h-[640px] overflow-hidden rounded-2xl border border-black/[0.06] bg-white shadow-sm">
+        <section className="flex min-h-[640px] flex-col overflow-hidden rounded-2xl border border-black/[0.06] bg-white shadow-sm">
           <div className="flex flex-col gap-3 border-b border-black/[0.06] p-4">
             <SourceFilterBar
               courses={coursesWithMaterials}
@@ -302,7 +322,7 @@ export const KnowledgeGraphPage: React.FC = () => {
               />
             </div>
           </div>
-          <div ref={wrapperRef} className="relative h-[620px] bg-[radial-gradient(circle_at_1px_1px,rgba(15,23,42,0.09)_1px,transparent_0)] [background-size:22px_22px]">
+          <div ref={wrapperRef} className="relative min-h-[480px] flex-1 bg-[radial-gradient(circle_at_1px_1px,rgba(15,23,42,0.09)_1px,transparent_0)] [background-size:22px_22px]">
             {loading ? (
               <div className="flex h-full items-center justify-center gap-2 text-sm text-text-muted">
                 <Loader2 size={18} className="animate-spin" />

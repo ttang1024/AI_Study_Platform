@@ -168,25 +168,44 @@ export interface PagedDocuments {
 }
 
 const inflightDocumentListRequests = new Map<string, Promise<PagedDocuments>>()
+const documentListCache = new Map<string, { value: PagedDocuments; expiresAt: number }>()
+const DOCUMENT_LIST_CACHE_MS = 30_000
+
+/**
+ * Drop cached document-list responses. Called after any list mutation, and on
+ * auth changes (so one user's list never leaks to the next).
+ */
+export const invalidateDocumentListCache = (): void => {
+	documentListCache.clear()
+	inflightDocumentListRequests.clear()
+}
 
 export const documentService = {
 	async getAllDocuments(page = 1, pageSize = 3, courseId?: string): Promise<PagedDocuments> {
 		const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) })
 		if (courseId) params.set('courseId', courseId)
 		const url = `/api/documents?${params}`
+
+		// Serve a fresh cached response — collapses the duplicate fetches that the
+		// deferred context load and a page's own self-fetch would otherwise make.
+		const cached = documentListCache.get(url)
+		if (cached && cached.expiresAt > Date.now()) return cached.value
+
 		const pending = inflightDocumentListRequests.get(url)
 		if (pending) return pending
 
 		const request = apiClient.get(url)
 			.then(response => {
 				const data = response.data.data
-				return {
+				const result = {
 					items: (data.items as BackendDocument[]).map(mapDocument),
 					totalCount: data.totalCount,
 					page: data.page,
 					pageSize: data.pageSize,
 					totalPages: data.totalPages,
 				}
+				documentListCache.set(url, { value: result, expiresAt: Date.now() + DOCUMENT_LIST_CACHE_MS })
+				return result
 			})
 			.finally(() => inflightDocumentListRequests.delete(url))
 
@@ -212,11 +231,13 @@ export const documentService = {
 			formData,
 			{ headers: { 'Content-Type': 'multipart/form-data' } },
 		)
+		invalidateDocumentListCache()
 		return mapDocument(response.data.data)
 	},
 
 	async deleteDocument(courseId: string, documentId: string): Promise<void> {
 		await apiClient.delete(`/api/courses/${courseId}/documents/${documentId}`)
+		invalidateDocumentListCache()
 	},
 
 	async moveDocument(courseId: string, documentId: string, targetCourseId: string): Promise<Document> {
@@ -224,6 +245,7 @@ export const documentService = {
 			`/api/courses/${courseId}/documents/${documentId}/move`,
 			{ targetCourseId },
 		)
+		invalidateDocumentListCache()
 		return mapDocument(response.data.data)
 	},
 
@@ -232,6 +254,7 @@ export const documentService = {
 			`/api/courses/${courseId}/documents/${documentId}`,
 			data,
 		)
+		invalidateDocumentListCache()
 		return mapDocument(response.data.data)
 	},
 

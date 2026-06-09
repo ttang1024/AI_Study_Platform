@@ -2,12 +2,13 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   WifiOff, Wifi, Download, Loader2, BrainCircuit, BookMarked,
-  ChevronLeft, ChevronRight, RotateCcw, Search, CheckCircle2,
+  ChevronLeft, ChevronRight, RotateCcw, Search, CheckCircle2, NotebookPen,
 } from 'lucide-react';
-import type { Flashcard, GlossaryTerm } from '../types';
+import type { Flashcard, GlossaryTerm, Note } from '../types';
 import { offlineCacheService } from '../services/offlineCacheService';
 import { flashcardService } from '../services/flashcardService';
 import { glossaryService } from '../services/glossaryService';
+import { noteService } from '../services/noteService';
 
 const CARD_SHADOW = '0 1px 3px rgba(0,0,0,0.06), 0 6px 20px rgba(0,0,0,0.05)';
 
@@ -108,6 +109,52 @@ const OfflineGlossary: React.FC<{ terms: GlossaryTerm[] }> = ({ terms }) => {
   );
 };
 
+// ─── Offline notes list ──────────────────────────────────────────────────────────
+const OfflineNotes: React.FC<{ notes: Note[] }> = ({ notes }) => {
+  const [search, setSearch] = useState('');
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return notes;
+    return notes.filter(n =>
+      n.content.toLowerCase().includes(q) ||
+      (n.documentName ?? n.videoName ?? '').toLowerCase().includes(q),
+    );
+  }, [notes, search]);
+
+  if (notes.length === 0) {
+    return <Empty icon={NotebookPen} label="No notes saved offline yet." />;
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="relative">
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+        <input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search notes"
+          className="h-10 w-full rounded-xl border border-black/[0.08] bg-white pl-9 pr-3 text-sm outline-none focus:border-[var(--primary)]"
+        />
+      </div>
+      <div className="space-y-2">
+        {filtered.map(note => (
+          <div key={note.id} className="rounded-2xl bg-white p-4" style={{ boxShadow: CARD_SHADOW }}>
+            {(note.documentName || note.videoName) && (
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-text-muted mb-1.5 truncate">
+                {note.documentName ?? note.videoName}
+              </p>
+            )}
+            <div
+              className="text-sm text-text-main leading-relaxed prose prose-sm max-w-none"
+              dangerouslySetInnerHTML={{ __html: note.content }}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 const Empty: React.FC<{ icon: React.ElementType; label: string }> = ({ icon: Icon, label }) => (
   <div className="flex flex-col items-center justify-center py-12 text-center">
     <Icon size={28} className="text-zinc-300 mb-2" />
@@ -117,22 +164,25 @@ const Empty: React.FC<{ icon: React.ElementType; label: string }> = ({ icon: Ico
 
 // ─── Page ────────────────────────────────────────────────────────────────────────
 export const OfflinePage: React.FC = () => {
-  const [tab, setTab] = useState<'flashcards' | 'glossary'>('flashcards');
+  const [tab, setTab] = useState<'flashcards' | 'glossary' | 'notes'>('flashcards');
   const [cards, setCards] = useState<Flashcard[]>([]);
   const [terms, setTerms] = useState<GlossaryTerm[]>([]);
+  const [notes, setNotes] = useState<Note[]>([]);
   const [lastSync, setLastSync] = useState<Date | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [online, setOnline] = useState(navigator.onLine);
 
   const loadFromCache = async () => {
-    const [c, t, s] = await Promise.all([
+    const [c, t, n, s] = await Promise.all([
       offlineCacheService.getCachedFlashcards(),
       offlineCacheService.getCachedGlossary(),
+      offlineCacheService.getCachedNotes(),
       offlineCacheService.getLastSync(),
     ]);
     setCards(c);
     setTerms(t);
+    setNotes(n);
     setLastSync(s);
   };
 
@@ -152,11 +202,13 @@ export const OfflinePage: React.FC = () => {
     if (!online) return;
     setSyncing(true);
     try {
-      const [paged] = await Promise.all([
+      const [paged, , pagedNotes] = await Promise.all([
         flashcardService.getAllFlashcards(1, 1000),
         glossaryService.getAllGlossary(), // caches internally
+        noteService.getAllNotes(1, 1000),
       ]);
       await offlineCacheService.cacheFlashcards(paged.items);
+      await offlineCacheService.cacheNotes(pagedNotes.items);
       await loadFromCache();
     } catch {
       /* leave existing cache intact on failure */
@@ -179,7 +231,7 @@ export const OfflinePage: React.FC = () => {
         <div>
           <h1 className="text-4xl font-semibold tracking-tight text-text-main leading-tight">Offline study</h1>
           <p className="text-sm text-text-muted mt-1">
-            Your saved flashcards and glossary, available without a connection.
+            Your saved flashcards, glossary and notes, available without a connection.
           </p>
         </div>
         <button
@@ -201,11 +253,11 @@ export const OfflinePage: React.FC = () => {
           <CheckCircle2 size={13} className="text-[var(--primary)]" />
           Last saved: {formatSync(lastSync)}
         </span>
-        <span className="text-xs text-text-muted">{cards.length} cards · {terms.length} terms cached</span>
+        <span className="text-xs text-text-muted">{cards.length} cards · {terms.length} terms · {notes.length} notes cached</span>
       </div>
 
       <div className="flex items-center gap-1 bg-white rounded-xl p-1 w-fit" style={{ boxShadow: CARD_SHADOW }}>
-        {([['flashcards', BrainCircuit, 'Flashcards'], ['glossary', BookMarked, 'Glossary']] as const).map(([key, Icon, label]) => (
+        {([['flashcards', BrainCircuit, 'Flashcards'], ['glossary', BookMarked, 'Glossary'], ['notes', NotebookPen, 'Notes']] as const).map(([key, Icon, label]) => (
           <button
             key={key}
             onClick={() => setTab(key)}
@@ -219,7 +271,9 @@ export const OfflinePage: React.FC = () => {
         ))}
       </div>
 
-      {tab === 'flashcards' ? <OfflineFlashcards cards={cards} /> : <OfflineGlossary terms={terms} />}
+      {tab === 'flashcards' && <OfflineFlashcards cards={cards} />}
+      {tab === 'glossary' && <OfflineGlossary terms={terms} />}
+      {tab === 'notes' && <OfflineNotes notes={notes} />}
     </div>
   );
 };

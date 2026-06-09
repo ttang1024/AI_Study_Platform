@@ -10,7 +10,7 @@ import { useAuth } from '../context/AuthContext';
 import { useStudy } from '../context/StudyContext';
 import { StudyCalendar } from '../components/common/StudyCalendar';
 import { ReinforcementSummaryCards } from '../components/dashboard/ReinforcementSummaryCards';
-import { TodayActionHub } from '../components/dashboard/TodayActionHub';
+import { TodayProgressHero } from '../components/today/TodayProgressHero';
 
 const container = {
   hidden: { opacity: 0 },
@@ -189,9 +189,9 @@ export const DashboardPage: React.FC = () => {
         </h1>
       </motion.div>
 
-      {/* ── Action hub: what to do right now ─────────────────────────────── */}
+      {/* ── Today's plan hero: progress, streak & next action ────────────── */}
       <motion.div variants={item}>
-        <TodayActionHub />
+        <TodayProgressHero />
       </motion.div>
 
       {/* ── Content Library ──────────────────────────────────────────────── */}

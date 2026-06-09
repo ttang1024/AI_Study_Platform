@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
+using StudyPlatform.Domain.Projections;
 using StudyPlatform.Infrastructure.Data;
 
 namespace StudyPlatform.Infrastructure.Repositories;
@@ -28,6 +29,34 @@ public class YouTubeVideoRepository : Repository<YouTubeVideo>, IYouTubeVideoRep
             .OrderByDescending(v => v.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return (items, totalCount);
+    }
+
+    public async Task<(IEnumerable<YouTubeVideoListItem> Items, int TotalCount)> GetPagedLiteAsync(
+        Guid userId, int page, int pageSize, CancellationToken cancellationToken = default)
+    {
+        var query = _dbSet.Where(v => v.UserId == userId);
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        // Projecting in the query keeps the heavy text columns (Summary, MindMapText,
+        // Transcript) out of the SQL SELECT entirely — only the labeling fields are read.
+        var items = await query
+            .OrderByDescending(v => v.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(v => new YouTubeVideoListItem(
+                v.YouTubeVideoId,
+                v.CourseId,
+                v.Course.CourseName,
+                v.Course.CourseColor,
+                v.VideoId,
+                v.VideoUrl,
+                string.IsNullOrWhiteSpace(v.SourceType) ? "youtube" : v.SourceType,
+                v.Title,
+                v.ThumbnailUrl,
+                v.CreatedAt))
             .ToListAsync(cancellationToken);
 
         return (items, totalCount);

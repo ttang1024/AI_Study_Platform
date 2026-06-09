@@ -4,13 +4,17 @@ import { Search, FileText, X } from 'lucide-react';
 import { STUDY_TYPE_ICONS } from '../../constants/contentTypeIcons';
 import { useNavigate } from 'react-router-dom';
 import { useStudy } from '../../context/StudyContext';
+import { glossaryService } from '../../services/glossaryService';
+import { questionBankService, type QuestionBankQuestion } from '../../services/questionBankService';
+import { aiService, type ChatSessionSummary } from '../../services/aiService';
+import type { GlossaryTerm } from '../../types';
 import { cn } from '../../utils/cn';
 
 interface SearchResult {
   id: string;
   title: string;
   subtitle?: string;
-  type: 'document' | 'flashcard' | 'note' | 'glossary';
+  type: 'document' | 'flashcard' | 'note' | 'glossary' | 'quiz' | 'chat';
   href: string;
 }
 
@@ -24,6 +28,8 @@ const TYPE_ICONS: Record<SearchResult['type'], React.ReactNode> = {
   flashcard: <STUDY_TYPE_ICONS.flashcard.icon size={14} />,
   note:      <STUDY_TYPE_ICONS.notes.icon     size={14} />,
   glossary:  <STUDY_TYPE_ICONS.glossary.icon  size={14} />,
+  quiz:      <STUDY_TYPE_ICONS.quiz.icon      size={14} />,
+  chat:      <STUDY_TYPE_ICONS.chat.icon      size={14} />,
 };
 
 const TYPE_LABELS: Record<SearchResult['type'], string> = {
@@ -31,6 +37,8 @@ const TYPE_LABELS: Record<SearchResult['type'], string> = {
   flashcard: 'Flashcard',
   note: 'Note',
   glossary: 'Glossary',
+  quiz: 'Quiz',
+  chat: 'AI Chat',
 };
 
 const TYPE_COLORS: Record<SearchResult['type'], string> = {
@@ -38,6 +46,8 @@ const TYPE_COLORS: Record<SearchResult['type'], string> = {
   flashcard: 'text-teal-500',
   note: 'text-amber-500',
   glossary: 'text-emerald-500',
+  quiz: 'text-green-600',
+  chat: 'text-pink-500',
 };
 
 export const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) => {
@@ -45,13 +55,26 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) =
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
+  const [glossary, setGlossary] = useState<GlossaryTerm[]>([]);
+  const [quizzes, setQuizzes] = useState<QuestionBankQuestion[]>([]);
+  const [chats, setChats] = useState<ChatSessionSummary[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
+  const extrasLoadedRef = useRef(false);
 
   useEffect(() => {
     if (isOpen) {
       setQuery('');
       setActiveIndex(0);
       setTimeout(() => inputRef.current?.focus(), 50);
+      // Glossary terms, quiz questions and chat sessions aren't kept in
+      // StudyContext (only counts are), so fetch them lazily the first time
+      // search is opened.
+      if (!extrasLoadedRef.current) {
+        extrasLoadedRef.current = true;
+        glossaryService.getAllGlossary().then(setGlossary).catch(() => {});
+        questionBankService.getQuestions().then(setQuizzes).catch(() => {});
+        aiService.getChatSessions().then(setChats).catch(() => {});
+      }
     }
   }, [isOpen]);
 
@@ -91,8 +114,45 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) =
       }
     }
 
+    for (const term of glossary) {
+      if (term.term.toLowerCase().includes(q) || term.definition.toLowerCase().includes(q)) {
+        results.push({
+          id: term.id,
+          title: term.term,
+          subtitle: term.definition,
+          type: 'glossary',
+          href: '/glossary',
+        });
+      }
+    }
+
+    for (const quiz of quizzes) {
+      const hay = `${quiz.question} ${quiz.correctAnswer} ${quiz.explanation} ${quiz.options.join(' ')}`.toLowerCase();
+      if (hay.includes(q)) {
+        results.push({
+          id: quiz.quizId,
+          title: quiz.question,
+          subtitle: quiz.correctAnswer,
+          type: 'quiz',
+          href: '/quizzes',
+        });
+      }
+    }
+
+    for (const chat of chats) {
+      if (chat.sourceName.toLowerCase().includes(q) || chat.lastMessage.toLowerCase().includes(q)) {
+        results.push({
+          id: chat.sourceId,
+          title: chat.sourceName,
+          subtitle: chat.lastMessage,
+          type: 'chat',
+          href: '/chat',
+        });
+      }
+    }
+
     return results.slice(0, 12);
-  }, [query, documents, flashcards, allNotes]);
+  }, [query, documents, flashcards, allNotes, glossary, quizzes, chats]);
 
   const handleSelect = useCallback((result: SearchResult) => {
     navigate(result.href);
@@ -126,7 +186,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) =
             value={query}
             onChange={e => { setQuery(e.target.value); setActiveIndex(0); }}
             onKeyDown={handleKeyDown}
-            placeholder="Search documents, flashcards, notes..."
+            placeholder="Search documents, flashcards, quizzes, notes, glossary, chats..."
             className="flex-1 bg-transparent text-sm text-text-main placeholder:text-text-muted outline-none"
           />
           {query && (
