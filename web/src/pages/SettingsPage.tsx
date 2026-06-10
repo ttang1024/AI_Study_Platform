@@ -10,6 +10,7 @@ import { aiSettingsService, DEFAULT_MODELS, type AIProvider, type AISettings } f
 import { apiClient } from '../services/apiClient';
 import { ttsSettingsService, type TtsSettings } from '../services/ttsSettingsService';
 import { glossaryService } from '../services/glossaryService';
+import { gamificationService } from '../services/gamificationService';
 import { documentService } from '../services/documentService';
 import { videoService } from '../services/videoService';
 import {
@@ -398,7 +399,7 @@ export const SettingsPage: React.FC = () => {
       }
 
       const pack = await buildStudyPack();
-      if (kind === 'pdf') downloadStudyPackPdf(pack, 'study_platform_study_pack');
+      if (kind === 'pdf') await downloadStudyPackPdf(pack, 'study_platform_study_pack');
       else await downloadObsidianVault(pack, 'study_platform_vault');
     } finally {
       setExporting(null);
@@ -854,6 +855,58 @@ export const SettingsPage: React.FC = () => {
                 <p className="text-[10px] leading-relaxed text-zinc-500">
                   LMS packages include quiz questions that can be reloaded from submitted quiz sources. Sources without available generated questions are skipped.
                 </p>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-bold text-text-main">Capture & Calendar</h3>
+                <p className="text-sm text-text-muted mt-1">
+                  Clip web pages into your library from anywhere, and see your study schedule in your calendar app.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-app)] p-4">
+                  <h4 className="font-semibold text-text-main">Web Clipper bookmarklet</h4>
+                  <p className="mt-1 text-xs leading-relaxed text-text-muted">
+                    Drag this button to your bookmarks bar. On any article, click it to clip the page into your library.
+                  </p>
+                  <a
+                    href={`javascript:(function(){window.open('${window.location.origin}/summarizer?tab=web&clip='+encodeURIComponent(location.href),'_blank');})();`}
+                    onClick={(e) => e.preventDefault()}
+                    draggable
+                    className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[var(--primary)] px-3 py-2 text-xs font-semibold text-white cursor-grab"
+                    title="Drag me to your bookmarks bar"
+                  >
+                    📎 Clip to Easy Study
+                  </a>
+                  <p className="mt-2 text-[10px] text-zinc-400">
+                    A browser-extension version lives in the repo's <code>extension/</code> folder.
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-app)] p-4">
+                  <h4 className="font-semibold text-text-main">Calendar feed (.ics)</h4>
+                  <p className="mt-1 text-xs leading-relaxed text-text-muted">
+                    Flashcards due per day, planned study blocks, and exam dates for the next two weeks — importable into Google, Apple, or Outlook calendars.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        const blob = await gamificationService.downloadCalendarIcs();
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'easy-study.ics';
+                        a.click();
+                        URL.revokeObjectURL(url);
+                      } catch { /* best-effort download */ }
+                    }}
+                    className="mt-4 inline-flex items-center gap-2 rounded-xl border border-[var(--border-color)] px-3 py-2 text-xs font-semibold text-text-main hover:border-[var(--primary)] hover:text-[var(--primary)]"
+                  >
+                    <Download size={13} /> Download .ics
+                  </button>
+                </div>
               </div>
             </div>
           )}

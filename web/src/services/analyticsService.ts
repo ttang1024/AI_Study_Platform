@@ -66,6 +66,14 @@ export interface DashboardSummary {
   dailyGoalMinutes: number;
 }
 
+const SUMMARY_TTL_MS = 30_000;
+let summaryCache: { data: DashboardSummary; ts: number } | null = null;
+let summaryInflight: Promise<DashboardSummary> | null = null;
+
+export function invalidateDashboardSummaryCache(): void {
+  summaryCache = null;
+}
+
 export const analyticsService = {
   async getQuizAccuracy(from?: string, to?: string): Promise<QuizAccuracyData[]> {
     const params = new URLSearchParams();
@@ -88,13 +96,27 @@ export const analyticsService = {
     return response.data.data;
   },
 
+  // Several widgets (dashboard cards, Pomodoro timer, insights strip) want the
+  // summary around the same moment; a short-lived cache + in-flight dedupe
+  // collapses those into one request without making the data noticeably stale.
   async getDashboardSummary(): Promise<DashboardSummary> {
-    const response = await apiClient.get('/api/analytics/dashboard-summary');
-    return response.data.data;
+    const now = Date.now();
+    if (summaryCache && now - summaryCache.ts < SUMMARY_TTL_MS) return summaryCache.data;
+    if (!summaryInflight) {
+      summaryInflight = apiClient.get('/api/analytics/dashboard-summary')
+        .then(response => {
+          const data = response.data.data as DashboardSummary;
+          summaryCache = { data, ts: Date.now() };
+          return data;
+        })
+        .finally(() => { summaryInflight = null; });
+    }
+    return summaryInflight;
   },
 
   async updateDailyGoal(minutes: number): Promise<void> {
     await apiClient.put('/api/analytics/daily-goal', { minutes });
+    summaryCache = null; // dailyGoalMinutes is part of the summary
   },
 
   async recordStudySession(heartbeat: StudySessionHeartbeat): Promise<void> {

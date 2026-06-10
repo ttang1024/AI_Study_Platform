@@ -254,6 +254,8 @@ public class SaveQuizSubmissionCommandHandlerTests
     private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IDocumentRepository> _documents = new();
     private readonly Mock<IQuizSubmissionRepository> _submissions = new();
+    private readonly Mock<IQuizRepository> _quizzes = new();
+    private readonly Mock<IMistakeEntryRepository> _mistakes = new();
     private readonly SaveQuizSubmissionCommandHandler _handler;
     private readonly Guid _userId = Guid.NewGuid();
 
@@ -261,6 +263,12 @@ public class SaveQuizSubmissionCommandHandlerTests
     {
         _uow.Setup(u => u.Documents).Returns(_documents.Object);
         _uow.Setup(u => u.QuizSubmissions).Returns(_submissions.Object);
+        _uow.Setup(u => u.Quizzes).Returns(_quizzes.Object);
+        _uow.Setup(u => u.MistakeEntries).Returns(_mistakes.Object);
+        _quizzes.Setup(r => r.FindAsync(It.IsAny<System.Linq.Expressions.Expression<Func<Quiz, bool>>>(), default))
+            .ReturnsAsync(Array.Empty<Quiz>());
+        _mistakes.Setup(r => r.FindAsync(It.IsAny<System.Linq.Expressions.Expression<Func<MistakeEntry, bool>>>(), default))
+            .ReturnsAsync(Array.Empty<MistakeEntry>());
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
         _handler = new SaveQuizSubmissionCommandHandler(_uow.Object);
     }

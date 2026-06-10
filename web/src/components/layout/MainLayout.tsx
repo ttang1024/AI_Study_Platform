@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { Suspense, useState, useCallback } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Menu, Search, Keyboard } from 'lucide-react';
@@ -99,7 +99,10 @@ export const MainLayout: React.FC = () => {
 
         <main className="flex-1 overflow-hidden flex flex-col p-4 sm:p-6 lg:p-8 min-w-0">
           <div id="main-scroll" className="mx-auto w-full max-w-7xl flex-1 min-h-0 overflow-y-auto">
-            <Outlet />
+            {/* Pages are lazy-loaded; keep the shell visible while a chunk loads. */}
+            <Suspense fallback={null}>
+              <Outlet />
+            </Suspense>
           </div>
         </main>
       </div>

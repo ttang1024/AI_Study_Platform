@@ -1,5 +1,5 @@
-import JSZip from 'jszip'
-import { jsPDF } from 'jspdf'
+// jszip and jspdf are loaded on demand inside the export functions so these
+// heavyweight libraries stay out of the page chunks until an export is run.
 
 export interface ExportNoteRecord {
   title: string
@@ -133,6 +133,7 @@ export function downloadMoodleGift(quizzes: ExportQuizRecord[], name = 'quizzes'
 }
 
 export async function downloadQtiZip(quizzes: ExportQuizRecord[], name = 'quizzes'): Promise<void> {
+  const { default: JSZip } = await import('jszip')
   const zip = new JSZip()
   const identifier = sanitizeFileName(name)
   const items = quizzes.flatMap((quiz, quizIndex) => quiz.questions.map((q, questionIndex) => {
@@ -182,7 +183,8 @@ export async function downloadQtiZip(quizzes: ExportQuizRecord[], name = 'quizze
   downloadBlob(blob, `${identifier}_qti.zip`)
 }
 
-export function downloadStudyPackPdf(pack: StudyPackExport, name = 'study_pack'): void {
+export async function downloadStudyPackPdf(pack: StudyPackExport, name = 'study_pack'): Promise<void> {
+  const { jsPDF } = await import('jspdf')
   const pdf = new jsPDF()
   const pageWidth = pdf.internal.pageSize.getWidth()
   const margin = 14
@@ -244,6 +246,7 @@ export function downloadStudyPackPdf(pack: StudyPackExport, name = 'study_pack')
 }
 
 export async function downloadObsidianVault(pack: StudyPackExport, name = 'study_vault'): Promise<void> {
+  const { default: JSZip } = await import('jszip')
   const zip = new JSZip()
   const root = zip.folder(sanitizeFileName(name))!
 

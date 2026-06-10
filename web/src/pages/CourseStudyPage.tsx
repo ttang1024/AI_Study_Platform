@@ -9,13 +9,14 @@ import { documentService } from '../services/documentService';
 import { videoService, VideoListItem } from '../services/videoService';
 import { courseService } from '../services/courseService';
 import { glossaryService } from '../services/glossaryService';
+import { noteService } from '../services/noteService';
 import { workedProblemsService, WorkedProblem } from '../services/workedProblemsService';
-import type { QuestionBankQuestion } from '../services/questionBankService';
+import { questionBankService, QuestionBankQuestion } from '../services/questionBankService';
 import { DocumentDetailsPage } from './DocumentDetailsPage';
 import { VideoDetailPage } from './VideoDetailPage';
 import { AudioDetailPage } from './AudioDetailPage';
 import { ArticlePage } from './ArticlePage';
-import { Document, Course, Flashcard, GlossaryTerm, Note } from '../types';
+import { Document, Course, GlossaryTerm, Note } from '../types';
 import { cn } from '../utils/cn';
 import { CourseArtifacts, CourseArtifactsWorkspace, CourseStudySelected } from '../components/course/CourseArtifactsWorkspace';
 import { useStudyTimer } from '../hooks/useStudyTimer';
@@ -99,7 +100,7 @@ const EmbeddedPage: React.FC<{ selected: Selected }> = ({ selected }) => {
 export const CourseStudyPage: React.FC = () => {
   const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
-  const { courses } = useStudy();
+  const { courses, flashcards: contextFlashcards, totalNotes } = useStudy();
   useStudyTimer({ contextType: 'course', courseId, contextId: courseId, enabled: !!courseId });
 
   // Course + materials
@@ -167,6 +168,11 @@ export const CourseStudyPage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [courseId]);
 
+  // Bulk endpoints replace the old per-material fan-out: one notes page, one
+  // course-scoped question-bank query and one glossary fetch cover every
+  // document and video. Worked problems have no bulk endpoint yet, so they
+  // remain per-material. Flashcards come straight from StudyContext (which
+  // already holds the user's full deck) — see courseFlashcards below.
   useEffect(() => {
     if (!courseId || (documents.length === 0 && videos.length === 0)) {
       setArtifacts({ notes: [], flashcards: [], questions: [], glossary: [], workedProblems: [] });
@@ -177,52 +183,9 @@ export const CourseStudyPage: React.FC = () => {
     const loadArtifacts = async () => {
       setIsLoadingArtifacts(true);
       try {
-        const [docNotes, videoNotes, docFlashcards, videoFlashcards, docQuestions, videoQuestions, glossary, docProblems, videoProblems] = await Promise.all([
-          Promise.all(documents.map(doc => documentService.getNotes(doc.courseId || courseId, doc.id).catch(() => [] as Note[]))),
-          Promise.all(videos.map(video => videoService.getVideoNotes(video.id).catch(() => []))),
-          Promise.all(documents.map(doc => documentService.getFlashcards(doc.courseId || courseId, doc.id).catch(() => [] as Flashcard[]))),
-          Promise.all(videos.map(video => videoService.getFlashcards(video.id).then(cards => cards.map(card => ({
-            id: card.flashcardId,
-            front: card.front,
-            back: card.back,
-            cardType: card.cardType ?? 'basic',
-            difficulty: card.difficulty ?? 'medium',
-            chapter: card.chapter,
-            tags: card.tags ?? [],
-            documentId: '',
-            youTubeVideoId: video.id,
-            videoName: video.title,
-          } as Flashcard))).catch(() => [] as Flashcard[]))),
-          Promise.all(documents.map(doc => documentService.getQuiz(doc.courseId || courseId, doc.id).then(items => items.map(item => ({
-            quizId: item.id,
-            documentId: doc.id,
-            courseId,
-            sourceType: 'document',
-            sourceName: doc.name,
-            courseName: course?.name,
-            courseColor: course?.color,
-            question: item.question,
-            options: item.options,
-            correctAnswer: item.answer,
-            explanation: item.explanation,
-            difficulty: item.difficulty ?? 'medium',
-            createdAt: '',
-          } as QuestionBankQuestion))).catch(() => [] as QuestionBankQuestion[]))),
-          Promise.all(videos.map(video => videoService.getQuiz(video.id).then(items => items.map(item => ({
-            quizId: item.quizId,
-            youTubeVideoId: video.id,
-            courseId,
-            sourceType: 'video',
-            sourceName: video.title,
-            courseName: course?.name,
-            courseColor: course?.color,
-            question: item.question,
-            options: item.options,
-            correctAnswer: item.correctAnswer,
-            explanation: item.explanation,
-            difficulty: item.difficulty ?? 'medium',
-            createdAt: '',
-          } as QuestionBankQuestion))).catch(() => [] as QuestionBankQuestion[]))),
+        const [notesPage, questions, glossary, docProblems, videoProblems] = await Promise.all([
+          noteService.getAllNotes(1, Math.max(totalNotes, 50)).catch(() => ({ items: [] as Note[], totalCount: 0, page: 1, pageSize: 50, totalPages: 0 })),
+          questionBankService.getQuestions({ courseId }).catch(() => [] as QuestionBankQuestion[]),
           glossaryService.getAllGlossary().catch(() => [] as GlossaryTerm[]),
           Promise.all(documents.map(doc => workedProblemsService.getProblems(doc.id).catch(() => [] as WorkedProblem[]))),
           Promise.all(videos.map(video => workedProblemsService.getVideoProblems(video.id).catch(() => [] as WorkedProblem[]))),
@@ -231,23 +194,14 @@ export const CourseStudyPage: React.FC = () => {
         if (cancelled) return;
         const documentIds = new Set(documents.map(d => d.id));
         const videoIds = new Set(videos.map(v => v.id));
+        const inCourse = (docId?: string | null, videoId?: string | null) =>
+          (!!docId && documentIds.has(docId)) || (!!videoId && videoIds.has(videoId));
         setArtifacts({
-          notes: [
-            ...docNotes.flat(),
-            ...videoNotes.flat().map(n => ({
-              id: n.noteId,
-              documentId: '',
-              youTubeVideoId: n.youTubeVideoId,
-              content: n.content,
-              createdAt: n.createdAt,
-            } as Note)),
-          ],
-          flashcards: [...docFlashcards.flat(), ...videoFlashcards.flat()],
-          questions: [...docQuestions.flat(), ...videoQuestions.flat()],
+          notes: notesPage.items.filter(n => inCourse(n.documentId, n.youTubeVideoId)),
+          flashcards: [],
+          questions, // already course-scoped (and source-labeled) server-side
           glossary: glossary.filter(g =>
-            (g.documentId && documentIds.has(g.documentId)) ||
-            (g.youTubeVideoId && videoIds.has(g.youTubeVideoId)) ||
-            g.courseId === courseId,
+            inCourse(g.documentId, g.youTubeVideoId) || g.courseId === courseId,
           ),
           workedProblems: [...docProblems.flat(), ...videoProblems.flat()],
         });
@@ -258,7 +212,24 @@ export const CourseStudyPage: React.FC = () => {
 
     void loadArtifacts();
     return () => { cancelled = true; };
-  }, [courseId, course?.color, course?.name, documents, videos]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [courseId, documents, videos]);
+
+  // The full flashcard deck already lives in StudyContext; filtering it locally
+  // avoids one request per material and keeps cards in sync as the deferred
+  // context load resolves.
+  const courseFlashcards = useMemo(() => {
+    const documentIds = new Set(documents.map(d => d.id));
+    const videoIds = new Set(videos.map(v => v.id));
+    return contextFlashcards.filter(f =>
+      (!!f.documentId && documentIds.has(f.documentId)) ||
+      (!!f.youTubeVideoId && videoIds.has(f.youTubeVideoId)));
+  }, [contextFlashcards, documents, videos]);
+
+  const artifactsWithFlashcards = useMemo(
+    () => ({ ...artifacts, flashcards: courseFlashcards }),
+    [artifacts, courseFlashcards],
+  );
 
   // ─── Derived values ──────────────────────────────────────────────────────
 
@@ -550,7 +521,7 @@ export const CourseStudyPage: React.FC = () => {
                 setSelected(next);
                 setWorkspaceMode('study');
               }}
-              artifacts={artifacts}
+              artifacts={artifactsWithFlashcards}
               loading={isLoadingArtifacts}
             />
           )}

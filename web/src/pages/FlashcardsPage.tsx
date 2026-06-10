@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useStudy } from '../context/StudyContext';
-import { BrainCircuit, Search, Loader2, Pencil, CalendarDays } from 'lucide-react';
+import { BrainCircuit, Search, Loader2, Pencil, CalendarDays, Upload } from 'lucide-react';
+import { FlashcardImportModal } from '../components/study/FlashcardImportModal';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '../utils/cn';
 import { getDocDisplayName } from '../utils/docName';
@@ -60,6 +61,7 @@ export const FlashcardsPage: React.FC = () => {
   const [cardPage, setCardPage] = useState(1);
   const [mobileReview, setMobileReview] = useState<{ cards: { id: string; front: string; back: string; cardType?: 'basic' | 'cloze' | 'chart' }[]; title: string } | null>(null);
   const [classifyCard, setClassifyCard] = useState<Flashcard | null>(null);
+  const [showImport, setShowImport] = useState(false);
   const [flippedCards, setFlippedCards] = useState<Set<string>>(new Set());
 
   const [activeTab, setActiveTab] = useState<'sets' | 'review'>(
@@ -110,7 +112,9 @@ export const FlashcardsPage: React.FC = () => {
     refreshCoverage,
     refreshPendingItems,
     refreshVideos,
-  ]));
+    // This burst is 6 requests (including the full flashcard and document
+    // lists), so cap it to once a minute rather than on every quick tab switch.
+  ]), 60_000);
 
   // Derived tag/chapter lists for autocomplete
   const allTags = useMemo(() => {
@@ -333,15 +337,25 @@ export const FlashcardsPage: React.FC = () => {
           </p>
         </div>
         {activeTab === 'sets' && (
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={16} />
-            <input
-              type="text"
-              placeholder="Search sets..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-sidebar)] py-2 pl-9 pr-4 text-sm outline-none focus:border-[var(--primary)] transition-all"
-            />
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="relative flex-1 sm:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={16} />
+              <input
+                type="text"
+                placeholder="Search sets..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-sidebar)] py-2 pl-9 pr-4 text-sm outline-none focus:border-[var(--primary)] transition-all"
+              />
+            </div>
+            <button
+              onClick={() => setShowImport(true)}
+              className="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-[var(--border-color)] bg-[var(--bg-sidebar)] px-3 py-2 text-sm font-medium text-text-muted hover:text-text-main hover:border-[var(--primary)]/40 transition-all"
+              title="Import from Anki / CSV"
+            >
+              <Upload size={15} />
+              <span className="hidden sm:inline">Import</span>
+            </button>
           </div>
         )}
       </div>
@@ -597,6 +611,13 @@ export const FlashcardsPage: React.FC = () => {
             await refreshFlashcards();
           }}
           onClose={() => setClassifyCard(null)}
+        />
+      )}
+
+      {showImport && (
+        <FlashcardImportModal
+          onClose={() => setShowImport(false)}
+          onImported={() => { void refreshFlashcards(); void refreshStats(); }}
         />
       )}
     </motion.div>

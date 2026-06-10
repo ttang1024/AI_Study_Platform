@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using StudyPlatform.API.Extensions;
@@ -15,6 +16,14 @@ public record GeneralChatRequest(
     IEnumerable<ChatHistoryEntry> History);
 
 public record CreateGeneralChatConversationRequest(string? Title);
+
+public record EvaluateExplanationRequest(string Topic, string Reference, string Explanation);
+
+public record ExplanationEvaluationDto(
+    int Score,
+    IReadOnlyList<string> Strengths,
+    IReadOnlyList<string> Gaps,
+    string Suggestion);
 
 public record GeneralChatConversationDto(
     Guid ConversationId,
@@ -104,6 +113,55 @@ public class AiController : ControllerBase
         var history = (request.History ?? []).Select(h => (h.Role, h.Content));
         var reply = await _aiService.GeneralChatAsync(history, request.Message, cancellationToken);
         return Ok(BaseResponse<string>.Ok(reply));
+    }
+
+    /// <summary>
+    /// Grade a learner's own-words explanation of a concept against reference content
+    /// (Feynman-technique teach-back). Stateless: nothing is persisted.
+    /// </summary>
+    [HttpPost("evaluate-explanation")]
+    [ProducesResponseType(typeof(BaseResponse<ExplanationEvaluationDto>), 200)]
+    public async Task<IActionResult> EvaluateExplanation([FromBody] EvaluateExplanationRequest request, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.Topic) ||
+            string.IsNullOrWhiteSpace(request.Reference) ||
+            string.IsNullOrWhiteSpace(request.Explanation))
+        {
+            return BadRequest(BaseResponse<ExplanationEvaluationDto>.Fail(
+                "topic, reference and explanation are required.", "MISSING_FIELDS"));
+        }
+
+        try
+        {
+            var json = await _aiService.EvaluateExplanationAsync(
+                request.Topic, request.Reference, request.Explanation, cancellationToken);
+            var dto = JsonSerializer.Deserialize<ExplanationEvaluationDto>(json,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            if (dto is null)
+                return StatusCode(502, BaseResponse<ExplanationEvaluationDto>.Fail(
+                    "The AI returned an unreadable evaluation.", "AI_BAD_RESPONSE"));
+
+            var safe = dto with
+            {
+                Score = Math.Clamp(dto.Score, 0, 100),
+                Strengths = dto.Strengths ?? [],
+                Gaps = dto.Gaps ?? [],
+                Suggestion = dto.Suggestion ?? string.Empty,
+            };
+            return Ok(BaseResponse<ExplanationEvaluationDto>.Ok(safe));
+        }
+        catch (JsonException)
+        {
+            return StatusCode(502, BaseResponse<ExplanationEvaluationDto>.Fail(
+                "The AI returned an unreadable evaluation.", "AI_BAD_RESPONSE"));
+        }
+        catch (Exception ex)
+        {
+            if (AiErrorMapper.TryGetAiError(ex.Message, out var statusCode, out var errorCode))
+                return StatusCode(statusCode, BaseResponse<ExplanationEvaluationDto>.Fail(ex.Message, errorCode));
+
+            return BadRequest(BaseResponse<ExplanationEvaluationDto>.Fail(ex.Message));
+        }
     }
 
     /// <summary>Test connection to the configured AI provider.</summary>

@@ -32,6 +32,7 @@ public interface IAiService
     Task<string> GenerateWorkedProblemsAsync(string content, string difficulty, int count, CancellationToken cancellationToken = default);
     Task<string> EvaluateProblemAttemptAsync(string problem, string solution, string userAnswer, CancellationToken cancellationToken = default);
     Task<string> AnswerQuestionAsync(string documentContent, string question, CancellationToken cancellationToken = default);
+    Task<string> EvaluateExplanationAsync(string topic, string reference, string explanation, CancellationToken cancellationToken = default);
 
     // Phase 3 additions
     Task<string> GenerateFlashcardBackAsync(string frontText, CancellationToken cancellationToken = default);

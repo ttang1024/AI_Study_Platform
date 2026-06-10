@@ -149,6 +149,13 @@ export const flashcardService = {
     return mapFlashcard(response.data.data);
   },
 
+  /** Bulk-import cards parsed from an Anki TSV/CSV export. */
+  async importFlashcards(rows: { front: string; back: string; cardType?: string; tags?: string[] }[]): Promise<{ importedCount: number; skippedCount: number }> {
+    const response = await apiClient.post('/api/flashcards/import', { rows });
+    invalidateFlashcardListCache();
+    return response.data.data;
+  },
+
   async deleteFlashcard(flashcardId: string): Promise<void> {
     await apiClient.delete(`/api/flashcards/${flashcardId}`);
     invalidateFlashcardListCache();

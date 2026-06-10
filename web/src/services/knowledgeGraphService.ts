@@ -77,4 +77,26 @@ export const knowledgeGraphService = {
     const response = await apiClient.get('/api/concept-links/gaps');
     return response.data.data as KnowledgeGaps;
   },
+
+  async getLearningPath(): Promise<LearningPath> {
+    const response = await apiClient.get('/api/concept-links/learning-path');
+    return response.data.data as LearningPath;
+  },
 };
+
+export interface LearningPathStep {
+  order: number;
+  termId: string;
+  concept: string;
+  status: 'next' | 'ready' | 'blocked' | 'mastered';
+  reason: string;
+  prerequisiteDepth: number;
+  prerequisites: string[];
+  url?: string;
+}
+
+export interface LearningPath {
+  steps: LearningPathStep[];
+  masteredCount: number;
+  totalCount: number;
+}

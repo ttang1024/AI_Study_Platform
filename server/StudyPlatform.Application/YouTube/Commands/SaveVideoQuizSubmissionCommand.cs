@@ -2,6 +2,7 @@ using System.Text.Json;
 using MediatR;
 using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Documents.DTOs;
+using StudyPlatform.Application.Mistakes;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
 
@@ -56,6 +57,9 @@ public class SaveVideoQuizSubmissionCommandHandler : IRequestHandler<SaveVideoQu
             };
             await _unitOfWork.QuizSubmissions.AddAsync(existing, cancellationToken);
         }
+
+        await MistakeCapture.CaptureAsync(
+            _unitOfWork, request.UserId, "video", null, request.VideoId, request.Answers, cancellationToken);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 

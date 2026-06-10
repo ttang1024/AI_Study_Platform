@@ -8,19 +8,22 @@ import studyGroupService, {
   type GroupChatMessage,
 } from '../services/studyGroupService';
 import { useAuth } from '../context/AuthContext';
-import { apiClient } from '../services/apiClient';
+import { useStudy } from '../context/StudyContext';
 import { getApiUrl } from '../utils/env';
 import { Select } from '../components/common/Select';
+import { GroupLeaderboard } from '../components/groups/GroupLeaderboard';
+import { GroupBattles } from '../components/groups/GroupBattles';
+import { GroupAssignments } from '../components/groups/GroupAssignments';
+import { cn } from '../utils/cn';
 
-interface Course {
-  courseId: string;
-  courseName: string;
-}
+type GroupTab = 'chat' | 'leaderboard' | 'battles' | 'assignments';
 
 export const StudyGroupDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  // The user's courses are already loaded app-wide by StudyContext.
+  const { courses: availableCourses } = useStudy();
   const [group, setGroup] = useState<StudyGroupDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [messages, setMessages] = useState<GroupChatMessage[]>([]);
@@ -33,8 +36,8 @@ export const StudyGroupDetailPage: React.FC = () => {
   const [deleting, setDeleting] = useState(false);
   const [memberToRemove, setMemberToRemove] = useState<{ userId: string; userName: string } | null>(null);
   const [removingMember, setRemovingMember] = useState(false);
-  const [availableCourses, setAvailableCourses] = useState<Course[]>([]);
   const [selectedCourseId, setSelectedCourseId] = useState('');
+  const [activeTab, setActiveTab] = useState<GroupTab>('chat');
   const chatEndRef = useRef<HTMLDivElement>(null);
   const hubRef = useRef<signalR.HubConnection | null>(null);
 
@@ -47,10 +50,6 @@ export const StudyGroupDetailPage: React.FC = () => {
 
     studyGroupService.getChat(id)
       .then((res) => setMessages(res.data?.data ?? []))
-      .catch(() => {});
-
-    apiClient.get<{ data: Course[] }>('/api/courses')
-      .then((res) => setAvailableCourses(res.data?.data ?? []))
       .catch(() => {});
   }, [id]);
 
@@ -318,7 +317,7 @@ export const StudyGroupDetailPage: React.FC = () => {
                 >
                   <option value="">Add a course...</option>
                   {availableCourses.map((c) => (
-                    <option key={c.courseId} value={c.courseId}>{c.courseName}</option>
+                    <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </Select>
                 <button
@@ -333,8 +332,31 @@ export const StudyGroupDetailPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Right column: chat */}
-        <div className="lg:col-span-2 bg-white border border-gray-200 rounded-xl flex flex-col" style={{ minHeight: '500px' }}>
+        {/* Right column: chat / leaderboard / battles / assignments */}
+        <div className="lg:col-span-2 flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            {([['chat', 'Chat'], ['leaderboard', 'Leaderboard'], ['battles', 'Battles'], ['assignments', 'Assignments']] as [GroupTab, string][]).map(([tab, label]) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={cn(
+                  'text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors',
+                  activeTab === tab
+                    ? 'bg-teal-600 text-white border-teal-600'
+                    : 'border-gray-200 text-gray-600 hover:bg-gray-50',
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <div className="bg-white border border-gray-200 rounded-xl flex flex-col flex-1 overflow-hidden" style={{ minHeight: '500px' }}>
+          {activeTab === 'leaderboard' && id && <GroupLeaderboard groupId={id} />}
+          {activeTab === 'battles' && id && <GroupBattles groupId={id} />}
+          {activeTab === 'assignments' && id && <GroupAssignments groupId={id} isOwner={isOwner} />}
+          {activeTab === 'chat' && (
+          <>
           <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2 shrink-0">
             <Send size={15} className="text-gray-400" />
             <h2 className="text-sm font-semibold text-gray-700">Group Chat</h2>
@@ -393,6 +415,9 @@ export const StudyGroupDetailPage: React.FC = () => {
             >
               <Send size={16} />
             </button>
+          </div>
+          </>
+          )}
           </div>
         </div>
       </div>

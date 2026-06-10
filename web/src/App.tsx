@@ -6,40 +6,44 @@ import { TtsProvider } from './context/TtsContext';
 import { MainLayout } from './components/layout/MainLayout';
 import { PromptProvider } from './components/common/PromptBox';
 import { PomodoroTimer } from './components/common/PomodoroTimer';
-import { DashboardPage } from './pages/DashboardPage';
-import { LibraryPage } from './pages/LibraryPage';
-import { QuizManagementPage } from './pages/QuizManagementPage';
-import { FlashcardsPage } from './pages/FlashcardsPage';
-import { NotesPage } from './pages/NotesPage';
-import { SettingsPage } from './pages/SettingsPage';
-import { VideoDetailPage } from './pages/VideoDetailPage';
-import { AISummarizerPage } from './pages/AISummarizerPage';
+// Public/auth pages stay eager so first paint never waits on a second request.
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { EmailVerificationPage } from './pages/EmailVerificationPage';
 import { LandingPage } from './pages/LandingPage';
-import { GlossaryPage } from './pages/GlossaryPage';
-import { FeedbackPage } from './pages/FeedbackPage';
-import { ArticlePage } from './pages/ArticlePage';
-import { AudioDetailPage } from './pages/AudioDetailPage';
 import { OAuthCallbackPage } from './pages/OAuthCallbackPage';
-import { SearchResultsPage } from './pages/SearchResultsPage';
-import { StudyGroupsPage } from './pages/StudyGroupsPage';
-import { StudyGroupDetailPage } from './pages/StudyGroupDetailPage';
-import { ChatListPage } from './pages/ChatListPage';
-import { KnowledgeGraphPage } from './pages/KnowledgeGraphPage';
-import { InsightsPage } from './pages/InsightsPage';
-import { OfflinePage } from './pages/OfflinePage';
 
-const DocumentDetailsPage = lazy(() =>
-  import('./pages/DocumentDetailsPage').then((mod) => ({ default: mod.DocumentDetailsPage })),
-);
-const CourseStudyPage = lazy(() =>
-  import('./pages/CourseStudyPage').then((mod) => ({ default: mod.CourseStudyPage })),
-);
-const SharedContentPage = lazy(() =>
-  import('./pages/SharedContentPage').then((mod) => ({ default: mod.SharedContentPage })),
-);
+// All authenticated pages are lazy so heavy dependencies (d3/markmap, katex,
+// tiptap, pdf/docx viewers, export libs) load with the page that uses them
+// instead of in the entry chunk.
+const lazyPage = <T extends Record<string, React.ComponentType<any>>, K extends keyof T>(
+  loader: () => Promise<T>,
+  name: K,
+) => lazy(() => loader().then((mod) => ({ default: mod[name] })));
+
+const DashboardPage = lazyPage(() => import('./pages/DashboardPage'), 'DashboardPage');
+const LibraryPage = lazyPage(() => import('./pages/LibraryPage'), 'LibraryPage');
+const QuizManagementPage = lazyPage(() => import('./pages/QuizManagementPage'), 'QuizManagementPage');
+const FlashcardsPage = lazyPage(() => import('./pages/FlashcardsPage'), 'FlashcardsPage');
+const NotesPage = lazyPage(() => import('./pages/NotesPage'), 'NotesPage');
+const SettingsPage = lazyPage(() => import('./pages/SettingsPage'), 'SettingsPage');
+const VideoDetailPage = lazyPage(() => import('./pages/VideoDetailPage'), 'VideoDetailPage');
+const AISummarizerPage = lazyPage(() => import('./pages/AISummarizerPage'), 'AISummarizerPage');
+const GlossaryPage = lazyPage(() => import('./pages/GlossaryPage'), 'GlossaryPage');
+const FeedbackPage = lazyPage(() => import('./pages/FeedbackPage'), 'FeedbackPage');
+const ArticlePage = lazyPage(() => import('./pages/ArticlePage'), 'ArticlePage');
+const AudioDetailPage = lazyPage(() => import('./pages/AudioDetailPage'), 'AudioDetailPage');
+const SearchResultsPage = lazyPage(() => import('./pages/SearchResultsPage'), 'SearchResultsPage');
+const StudyGroupsPage = lazyPage(() => import('./pages/StudyGroupsPage'), 'StudyGroupsPage');
+const StudyGroupDetailPage = lazyPage(() => import('./pages/StudyGroupDetailPage'), 'StudyGroupDetailPage');
+const ChatListPage = lazyPage(() => import('./pages/ChatListPage'), 'ChatListPage');
+const KnowledgeGraphPage = lazyPage(() => import('./pages/KnowledgeGraphPage'), 'KnowledgeGraphPage');
+const InsightsPage = lazyPage(() => import('./pages/InsightsPage'), 'InsightsPage');
+const OfflinePage = lazyPage(() => import('./pages/OfflinePage'), 'OfflinePage');
+const DocumentDetailsPage = lazyPage(() => import('./pages/DocumentDetailsPage'), 'DocumentDetailsPage');
+const CourseStudyPage = lazyPage(() => import('./pages/CourseStudyPage'), 'CourseStudyPage');
+const SharedContentPage = lazyPage(() => import('./pages/SharedContentPage'), 'SharedContentPage');
+const PlannerPage = lazyPage(() => import('./pages/PlannerPage'), 'PlannerPage');
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -105,6 +109,10 @@ export default function App() {
                     <Route path="search" element={<SearchResultsPage />} />
                     <Route path="groups" element={<StudyGroupsPage />} />
                     <Route path="chat" element={<ChatListPage />} />
+                    {/* The mistake notebook lives in the Quiz Center; the tutor lives in AI Chat. */}
+                    <Route path="mistakes" element={<Navigate to="/quizzes?tab=mistakes" replace />} />
+                    <Route path="planner" element={<PlannerPage />} />
+                    <Route path="tutor" element={<Navigate to="/chat?tab=teach-back" replace />} />
                   </Route>
 
                   <Route path="/documents/:id" element={

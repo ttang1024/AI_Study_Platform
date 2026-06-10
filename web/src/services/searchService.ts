@@ -29,4 +29,22 @@ export const searchService = {
     const res = await apiClient.get<{ data: SearchResults }>(`/api/search?${params}`);
     return res.data.data;
   },
+
+  async askLibrary(question: string): Promise<AskLibraryAnswer> {
+    const res = await apiClient.post<{ data: AskLibraryAnswer }>('/api/search/ask', { question });
+    return res.data.data;
+  },
 };
+
+export interface LibraryCitation {
+  index: number;
+  type: string;
+  id: string;
+  title: string;
+  url?: string;
+}
+
+export interface AskLibraryAnswer {
+  answer: string;
+  citations: LibraryCitation[];
+}

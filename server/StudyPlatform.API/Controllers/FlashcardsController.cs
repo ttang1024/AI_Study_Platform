@@ -9,6 +9,8 @@ using StudyPlatform.Application.Flashcards.DTOs;
 
 namespace StudyPlatform.API.Controllers;
 
+public record ImportFlashcardsRequest(List<ImportFlashcardRow> Rows);
+
 [ApiController]
 [Route("api/flashcards")]
 [Authorize]
@@ -72,6 +74,21 @@ public class FlashcardsController : ControllerBase
             return BadRequest(BaseResponse<FlashcardDto>.Fail(result.Message, result.ErrorCode));
 
         return CreatedAtAction(nameof(GetAllFlashcards), BaseResponse<FlashcardDto>.Ok(result.Data!, result.Message));
+    }
+
+    /// <summary>
+    /// Bulk-import flashcards (e.g. parsed from an Anki TSV/CSV export)
+    /// </summary>
+    [HttpPost("import")]
+    [ProducesResponseType(typeof(BaseResponse<ImportFlashcardsResultDto>), 200)]
+    [ProducesResponseType(typeof(BaseResponse), 400)]
+    public async Task<IActionResult> ImportFlashcards([FromBody] ImportFlashcardsRequest request)
+    {
+        var userId = User.GetUserId();
+        var result = await _mediator.Send(new ImportFlashcardsCommand(userId, request.Rows));
+        if (!result.IsSuccess)
+            return BadRequest(BaseResponse<ImportFlashcardsResultDto>.Fail(result.Message, result.ErrorCode));
+        return Ok(BaseResponse<ImportFlashcardsResultDto>.Ok(result.Data!, result.Message));
     }
 
     /// <summary>

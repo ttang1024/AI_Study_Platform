@@ -9,7 +9,6 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toPng } from 'html-to-image';
-import jsPDF from 'jspdf';
 import { cn } from '../../utils/cn';
 import { useStudy } from '../../context/StudyContext';
 import { documentService } from '../../services/documentService';
@@ -332,6 +331,7 @@ export const MindMapViewer: React.FC<MindMapViewerProps> = ({
     const img = new window.Image();
     img.src = dataUrl;
     await new Promise(r => { img.onload = r; });
+    const { default: jsPDF } = await import('jspdf');
     const pdf = new jsPDF({
       orientation: img.width > img.height ? 'landscape' : 'portrait',
       unit: 'px',

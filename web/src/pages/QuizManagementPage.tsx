@@ -1,29 +1,33 @@
 import React, { useState } from 'react';
 import { useStudy } from '../context/StudyContext';
-import { Loader2, Download, Plus, RotateCcw } from 'lucide-react';
+import { Loader2, Download, Plus } from 'lucide-react';
 import { TimedExamModal } from '../components/quiz/TimedExamModal';
 import { ShareModal } from '../components/common/ShareModal';
 import { EditQuestionModal } from '../components/quiz/EditQuestionModal';
-import { FailedQuestionsTab } from '../components/quiz/FailedQuestionsTab';
+import { MistakesNotebook } from '../components/quiz/MistakesNotebook';
 import { QuestionBankTab } from '../components/quiz/QuestionBankTab';
 import { Pagination } from '../components/common/Pagination';
 import { useRefreshOnVisible } from '../hooks/useRefreshOnVisible';
 import { cn } from '../utils/cn';
 import { MainTab } from './quizManagement/types';
 import { useQuizHistory } from './quizManagement/useQuizHistory';
-import { useFailedQuizzes } from './quizManagement/useFailedQuizzes';
 import { useQuestionBank } from './quizManagement/useQuestionBank';
 import { QuizHistoryTab } from './quizManagement/QuizHistoryTab';
 
 export const QuizManagementPage: React.FC = () => {
   const { isLoading: contextLoading } = useStudy();
-  const [mainTab, setMainTab] = useState<MainTab>('history');
+  const [mainTab, setMainTab] = useState<MainTab>(() => {
+    // /mistakes redirects here with ?tab=mistakes.
+    const t = new URLSearchParams(window.location.search).get('tab');
+    if (t === 'mistakes' || t === 'failed') return 'failed';
+    if (t === 'bank') return 'bank';
+    return 'history';
+  });
 
   const history = useQuizHistory();
-  const failed = useFailedQuizzes(mainTab);
   const bank = useQuestionBank(mainTab);
 
-  // Reveal-answer toggle is shared by the Review-Mistakes and Question-Bank tabs.
+  // Reveal-answer toggle for the Question-Bank tab.
   const [revealedAnswers, setRevealedAnswers] = useState<Set<string>>(new Set());
   const toggleAnswer = (id: string) => {
     setRevealedAnswers(prev => {
@@ -43,8 +47,8 @@ export const QuizManagementPage: React.FC = () => {
       history.refreshPendingItems(),
       history.refreshVideos(),
     ]);
-    if (mainTab === 'failed') await failed.loadFailedQuizData();
-  }, [history, failed, mainTab]));
+    // 7+ requests per burst — cap to once a minute rather than every tab switch.
+  }, [history]), 60_000);
 
   return (
     <div className="space-y-8">
@@ -110,22 +114,6 @@ export const QuizManagementPage: React.FC = () => {
             ))}
           </div>
         )}
-        {mainTab === 'failed' && (
-          <div className="flex flex-wrap items-center gap-3 shrink-0">
-            <button
-              onClick={failed.handleStartFailedExam}
-              disabled={failed.failedFiltered.length === 0}
-              className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-bold text-white disabled:opacity-40"
-            >
-              <RotateCcw size={15} />
-              Retry Failed
-            </button>
-            <div className="rounded-2xl border border-red-400/30 bg-red-50/50 px-4 py-2 text-center">
-              <p className="text-xl font-bold text-red-600">{failed.failedFiltered.length}</p>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-red-500/70">wrong</p>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Tab switcher */}
@@ -150,21 +138,8 @@ export const QuizManagementPage: React.FC = () => {
         <QuizHistoryTab history={history} contextLoading={contextLoading} />
       )}
 
-      {/* ── Review Mistakes tab ── */}
-      {mainTab === 'failed' && (
-        <FailedQuestionsTab
-          courses={history.courses}
-          loading={failed.failedLoading}
-          search={failed.failedSearch}
-          onSearchChange={failed.setFailedSearch}
-          courseId={failed.failedCourseId}
-          onCourseChange={failed.setFailedCourseId}
-          questions={failed.failedFiltered}
-          revealedAnswers={revealedAnswers}
-          onToggleAnswer={toggleAnswer}
-          onRefresh={() => void failed.loadFailedQuizData()}
-        />
-      )}
+      {/* ── Review Mistakes tab (server-backed mistake notebook) ── */}
+      {mainTab === 'failed' && <MistakesNotebook />}
 
       {/* ── Question Bank tab ── */}
       {mainTab === 'bank' && (
@@ -221,13 +196,6 @@ export const QuizManagementPage: React.FC = () => {
         questions={bank.bankExamQuestions}
         sourceTitle={bank.bankExamTitle}
         timeLimitMinutes={Math.max(5, Math.ceil(bank.bankExamQuestions.length * 1.5))}
-      />
-      <TimedExamModal
-        isOpen={failed.failedExamQuestions.length > 0}
-        onClose={() => failed.setFailedExamQuestions([])}
-        questions={failed.failedExamQuestions}
-        sourceTitle="Failed Questions"
-        timeLimitMinutes={Math.max(5, Math.ceil(failed.failedExamQuestions.length * 1.5))}
       />
       {history.shareTarget && (
         <ShareModal

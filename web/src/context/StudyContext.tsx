@@ -6,6 +6,7 @@ import { VideoListItem, invalidateVideoListCache, videoService } from '../servic
 import { noteService } from '../services/noteService';
 import { flashcardService, invalidateFlashcardListCache } from '../services/flashcardService';
 import { AchievementStats as ServerAchievementStats, CourseMaterialStats, statsService } from '../services/statsService';
+import { invalidateDashboardSummaryCache } from '../services/analyticsService';
 import { offlineCacheService, isOffline } from '../services/offlineCacheService';
 import { useAuth } from './AuthContext';
 
@@ -38,7 +39,6 @@ interface StudyContextType {
   addDocument: (file: File, courseId: string) => Promise<string>;
   deleteDocument: (courseId: string, documentId: string) => Promise<void>;
   updateDocumentInList: (doc: Document) => void;
-  notes: Note[];
   allNotes: Note[];
   addNote: (content: string) => Promise<void>;
   updateNote: (id: string, content: string) => Promise<void>;
@@ -111,7 +111,6 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [courseMaterialCounts, setCourseMaterialCounts] = useState<CourseMaterialStats[]>([]);
   const [achievementStats, setAchievementStats] = useState<ServerAchievementStats>(EMPTY_ACHIEVEMENT_STATS);
   const [currentDocument, setCurrentDocument] = useState<Document | null>(null);
-  const [notes, setNotes] = useState<Note[]>([]);
   const [allNotes, setAllNotes] = useState<Note[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [aiInput, setAiInput] = useState('');
@@ -127,6 +126,7 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       invalidateVideoListCache();
       invalidateDocumentListCache();
       invalidateFlashcardListCache();
+      invalidateDashboardSummaryCache();
       setDocuments([]);
       setVideos([]);
       setVideosLoading(false);
@@ -143,7 +143,6 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setCourseMaterialCounts([]);
       setAchievementStats(EMPTY_ACHIEVEMENT_STATS);
       setCurrentDocument(null);
-      setNotes([]);
       setAllNotes([]);
       setChatMessages([]);
       setCourses([]);
@@ -242,32 +241,13 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return () => { cancelled = true; };
   }, [isAuthenticated]);
 
-  // Load notes when currentDocument changes
+  // Load chat history when the current document changes. Keyed on the document
+  // id (not the object) so re-setting the same document with fresh data — e.g.
+  // after getDocument resolves or a summary/mind-map merge — doesn't refetch.
+  const currentDocumentId = currentDocument?.id;
+  const currentDocumentCourseId = currentDocument?.courseId;
   useEffect(() => {
-    if (!currentDocument || !isAuthenticated) {
-      setNotes([]);
-      return;
-    }
-
-    const loadNotes = async () => {
-      try {
-        const fetchedNotes = await documentService.getNotes(
-          currentDocument.courseId || '',
-          currentDocument.id
-        );
-        setNotes(fetchedNotes);
-      } catch (error) {
-        console.error('Failed to load notes:', error);
-        setNotes([]);
-      }
-    };
-
-    loadNotes();
-  }, [currentDocument, isAuthenticated]);
-
-  // Load chat history when currentDocument changes
-  useEffect(() => {
-    if (!currentDocument || !isAuthenticated) {
+    if (!currentDocumentId || !isAuthenticated) {
       setChatMessages([]);
       return;
     }
@@ -275,8 +255,8 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const loadChatHistory = async () => {
       try {
         const history = await documentService.getChatHistory(
-          currentDocument.courseId || '',
-          currentDocument.id
+          currentDocumentCourseId || '',
+          currentDocumentId
         );
         setChatMessages(history);
       } catch (error) {
@@ -286,7 +266,8 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
 
     loadChatHistory();
-  }, [currentDocument, isAuthenticated]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentDocumentId, isAuthenticated]);
 
   const refreshNotes = React.useCallback(async (): Promise<void> => {
     try {
@@ -440,29 +421,26 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       currentDocument.id,
       content
     );
-    setNotes((prev) => [newNote, ...prev]);
     setAllNotes((prev) => [newNote, ...prev]);
     setTotalNotes(prev => prev + 1);
   };
 
   const deleteNote = async (id: string): Promise<void> => {
-    const note = notes.find((n) => n.id === id) || allNotes.find((n) => n.id === id);
+    const note = allNotes.find((n) => n.id === id);
     if (!note) return;
     const doc = documents.find((d) => d.id === note.documentId);
     if (!doc) return;
     await documentService.deleteNote(doc.courseId || '', doc.id, id);
-    setNotes((prev) => prev.filter((n) => n.id !== id));
     setAllNotes((prev) => prev.filter((n) => n.id !== id));
     setTotalNotes(prev => Math.max(0, prev - 1));
   };
 
   const updateNote = async (id: string, content: string): Promise<void> => {
-    const note = notes.find((n) => n.id === id) || allNotes.find((n) => n.id === id);
+    const note = allNotes.find((n) => n.id === id);
     if (!note) return;
     const doc = documents.find((d) => d.id === note.documentId);
     if (!doc) return;
     const updated = await documentService.updateNote(doc.courseId || '', doc.id, id, content);
-    setNotes((prev) => prev.map((n) => (n.id === id ? updated : n)));
     setAllNotes((prev) => prev.map((n) => (n.id === id ? updated : n)));
   };
 
@@ -519,6 +497,7 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     invalidateVideoListCache();
     invalidateDocumentListCache();
     invalidateFlashcardListCache();
+    invalidateDashboardSummaryCache();
     setDocuments([]);
     setVideos([]);
     setTotalDocuments(0);
@@ -533,7 +512,6 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setTotalVideos(0);
     setCourseMaterialCounts([]);
     setAchievementStats(EMPTY_ACHIEVEMENT_STATS);
-    setNotes([]);
     setAllNotes([]);
     setCourses([]);
     setFlashcards([]);
@@ -566,7 +544,6 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         addDocument,
         deleteDocument,
         updateDocumentInList,
-        notes,
         allNotes,
         addNote,
         updateNote,

@@ -29,6 +29,10 @@ public interface IUnitOfWork : IDisposable
     IConceptLinkRepository ConceptLinks { get; }
     IFlashcardSrsDataRepository FlashcardSrs { get; }
     IStudySessionRepository StudySessions { get; }
+    IMistakeEntryRepository MistakeEntries { get; }
+    IExamPlanRepository ExamPlans { get; }
+    IQuizBattleRepository QuizBattles { get; }
+    IGroupAssignmentRepository GroupAssignments { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     Task BeginTransactionAsync(CancellationToken cancellationToken = default);
     Task CommitTransactionAsync(CancellationToken cancellationToken = default);

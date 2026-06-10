@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Globe, Loader2 } from 'lucide-react';
 import { DocumentCard } from '../common/DocumentCard';
@@ -14,12 +14,21 @@ export interface WebTabProps {
 
 export const WebTab: React.FC<WebTabProps> = ({ selectedCourseId, onCourseError }) => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { documents, courses, refreshDocuments, refreshStats } = useStudy();
-  const [webUrl, setWebUrl] = useState('');
+  // The web-clipper bookmarklet/extension deep-links here with ?clip=<url>.
+  const [webUrl, setWebUrl] = useState(() => searchParams.get('clip') ?? '');
   const [clippingUrl, setClippingUrl] = useState(false);
   const [clipError, setClipError] = useState('');
 
   useEffect(() => { refreshDocuments(); }, []);
+
+  useEffect(() => {
+    if (searchParams.has('clip')) {
+      setSearchParams((p) => { p.delete('clip'); return p; }, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const recentArticles = documents.filter(d => d.originalUrl && d.type !== 'audio' && d.type !== 'podcast').slice(0, 3);
   const getCourse = (id?: string) => courses.find(c => c.id === id);

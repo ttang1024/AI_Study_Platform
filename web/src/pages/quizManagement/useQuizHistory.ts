@@ -3,7 +3,7 @@ import { useStudy } from '../../context/StudyContext';
 import { getDocDisplayName } from '../../utils/docName';
 import { SourceType } from '../../components/common/SourceFilterBar';
 import { PendingItem } from '../../components/common/PendingItemsGrid';
-import { videoService, VideoListItem } from '../../services/videoService';
+import { videoService } from '../../services/videoService';
 import { ShareableQuiz } from '../../services/shareContentService';
 import { documentService, quizSubmissionService } from '../../services/documentService';
 import { QuizQuestion } from '../../types';
@@ -35,13 +35,13 @@ export function useQuizHistory() {
   const {
     documents, courses, quizSubmissions, totalMaterials, totalQuizSubmissions,
     achievementStats, refreshQuizSubmissions, refreshStats, refreshDocuments,
+    videos: videoList, refreshVideos,
   } = useStudy();
   const { showPrompt } = usePrompt();
 
   const [sourceType, setSourceType] = useState<SourceType>('all');
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
-  const [videoList, setVideoList] = useState<VideoListItem[]>([]);
   const [shareTarget, setShareTarget] = useState<ShareTarget>(null);
   const [timedExamDocId, setTimedExamDocId] = useState<string | null>(null);
   const [timedExamDocName, setTimedExamDocName] = useState('');
@@ -61,18 +61,13 @@ export function useQuizHistory() {
     setGeneratedPending(prev => prev.filter(p => p.type === 'video' ? !submittedVideoIds.has(p.id) : p.docId && !submittedDocIds.has(p.docId)));
   }, [quizSubmissions]);
 
-  const refreshVideos = React.useCallback(() => {
-    return videoService.getVideos({ page: 1, pageSize: 10 })
-      .then(data => setVideoList(data.items))
-      .catch(() => { });
-  }, []);
-
+  // Documents and videos come from StudyContext, which already holds the full
+  // lists — only submissions and stats can have gone stale since a quiz was
+  // taken elsewhere in the app, so those are the only mount-time refreshes.
   useEffect(() => {
     void refreshQuizSubmissions();
     void refreshStats();
-    void refreshDocuments();
-    void refreshVideos();
-  }, [refreshQuizSubmissions, refreshStats, refreshDocuments, refreshVideos]);
+  }, [refreshQuizSubmissions, refreshStats]);
 
   const generatedMaterialToQuizItem = React.useCallback((material: PendingMaterial): UnifiedQuizItem => {
     if (material.kind === 'video') {

@@ -2,7 +2,10 @@ import React, { useState, useCallback, useEffect } from 'react';
 import {
   MessageSquare, Trash2, Sparkles, ArrowLeft,
   Bot, FileText, Youtube, Loader2, ExternalLink, Share2, Check, AlertCircle, Plus,
+  GraduationCap, Mic,
 } from 'lucide-react';
+import { TeachBackMode } from '../components/tutor/TeachBackMode';
+import { VoiceTutorMode } from '../components/tutor/VoiceTutorMode';
 import { Link } from 'react-router-dom';
 import { ChatPanel } from '../components/ai/ChatPanel';
 import { aiService, type ChatSessionSummary } from '../services/aiService';
@@ -26,6 +29,9 @@ type ActiveItem =
   | { kind: 'general'; sourceId: string; name: string }
   | { kind: 'document'; sourceId: string; courseId: string; name: string }
   | { kind: 'video'; sourceId: string; name: string };
+
+/** Page-level mode: regular conversations, Feynman teach-back, or the spoken voice tutor. */
+type PageTab = 'chats' | 'teach-back' | 'voice';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -78,6 +84,11 @@ function formatConversationForShare(messages: PanelMessage[]): string {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export const ChatListPage: React.FC = () => {
+  const [pageTab, setPageTab] = useState<PageTab>(() => {
+    // /tutor redirects here with ?tab=teach-back or ?tab=voice.
+    const t = new URLSearchParams(window.location.search).get('tab');
+    return t === 'teach-back' || t === 'voice' ? t : 'chats';
+  });
   const [backendSessions, setBackendSessions] = useState<ChatSessionSummary[]>([]);
   const [activeItem, setActiveItem] = useState<ActiveItem | null>(null);
   const [panelMessages, setPanelMessages] = useState<PanelMessage[]>([]);
@@ -397,7 +408,43 @@ export const ChatListPage: React.FC = () => {
   const activeKey = activeItem ? activeItemKey(activeItem) : null;
 
   return (
-    <div className="flex h-full rounded-2xl border border-[var(--border-color)] overflow-hidden bg-[var(--bg-sidebar)] shadow-sm">
+    <div className="flex h-full flex-col gap-3">
+      {/* ── Mode tabs: conversations / teach-back / voice tutor ── */}
+      <div className="flex items-center gap-2 shrink-0">
+        {([
+          ['chats', 'Conversations', MessageSquare],
+          ['teach-back', 'Teach-back', GraduationCap],
+          ['voice', 'Voice tutor', Mic],
+        ] as [PageTab, string, React.ElementType][]).map(([tab, label, Icon]) => (
+          <button
+            key={tab}
+            onClick={() => setPageTab(tab)}
+            className={cn(
+              'inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border transition-colors',
+              pageTab === tab
+                ? 'bg-[var(--primary)] text-white border-[var(--primary)]'
+                : 'border-[var(--border-color)] bg-[var(--bg-sidebar)] text-text-muted hover:text-text-main',
+            )}
+          >
+            <Icon size={13} />
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {pageTab === 'teach-back' && (
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          <TeachBackMode />
+        </div>
+      )}
+      {pageTab === 'voice' && (
+        <div className="flex-1 min-h-0 overflow-y-auto [&>div]:h-full">
+          <VoiceTutorMode />
+        </div>
+      )}
+
+      {pageTab === 'chats' && (
+    <div className="flex flex-1 min-h-0 rounded-2xl border border-[var(--border-color)] overflow-hidden bg-[var(--bg-sidebar)] shadow-sm">
       {/* ── Left panel: session list ── */}
       <div
         className={cn(
@@ -647,6 +694,8 @@ export const ChatListPage: React.FC = () => {
           if (deleteTarget) void deleteConversation(deleteTarget);
         }}
       />
+    </div>
+      )}
     </div>
   );
 };

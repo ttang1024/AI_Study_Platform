@@ -38,6 +38,12 @@ public class AppDbContext : DbContext
     public DbSet<CacheEntry> CacheEntries => Set<CacheEntry>();
     public DbSet<YouTubeTranscriptEntry> YouTubeTranscriptEntries => Set<YouTubeTranscriptEntry>();
     public DbSet<StudySession> StudySessions => Set<StudySession>();
+    public DbSet<MistakeEntry> MistakeEntries => Set<MistakeEntry>();
+    public DbSet<ExamPlan> ExamPlans => Set<ExamPlan>();
+    public DbSet<QuizBattle> QuizBattles => Set<QuizBattle>();
+    public DbSet<QuizBattleEntry> QuizBattleEntries => Set<QuizBattleEntry>();
+    public DbSet<GroupAssignment> GroupAssignments => Set<GroupAssignment>();
+    public DbSet<GroupAssignmentCompletion> GroupAssignmentCompletions => Set<GroupAssignmentCompletion>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

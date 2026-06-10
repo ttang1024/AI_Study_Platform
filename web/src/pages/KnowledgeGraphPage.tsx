@@ -12,7 +12,7 @@ import {
   TriangleAlert,
 } from 'lucide-react';
 import { CONTENT_TYPE_ICONS, STUDY_TYPE_ICONS } from '../constants/contentTypeIcons';
-import { knowledgeGraphService, KnowledgeGraph, KnowledgeGraphEdge, KnowledgeGraphNode, ConceptGap, GapSeverity } from '../services/knowledgeGraphService';
+import { knowledgeGraphService, KnowledgeGraph, KnowledgeGraphEdge, KnowledgeGraphNode, ConceptGap, GapSeverity, LearningPath } from '../services/knowledgeGraphService';
 import { QuizPreviewModal } from '../components/quiz/QuizPreviewModal';
 import { ConceptPreviewModal } from '../components/knowledge-graph/ConceptPreviewModal';
 import { NotePreviewModal } from '../components/knowledge-graph/NotePreviewModal';
@@ -65,6 +65,7 @@ export const KnowledgeGraphPage: React.FC = () => {
   const [noteModalOpen, setNoteModalOpen] = useState(false);
   const [gaps, setGaps] = useState<ConceptGap[]>([]);
   const [showGaps, setShowGaps] = useState(true);
+  const [learningPath, setLearningPath] = useState<LearningPath | null>(null);
   const [dims, setDims] = useState({ width: 0, height: 0 });
 
   const gapById = useMemo(() => new Map(gaps.map(g => [g.id, g])), [gaps]);
@@ -113,6 +114,9 @@ export const KnowledgeGraphPage: React.FC = () => {
     knowledgeGraphService.getKnowledgeGaps()
       .then(data => { if (!cancelled) setGaps(data.gaps); })
       .catch(() => { /* gaps are non-critical */ });
+    knowledgeGraphService.getLearningPath()
+      .then(data => { if (!cancelled) setLearningPath(data); })
+      .catch(() => { /* learning path is non-critical */ });
     return () => { cancelled = true; };
   }, []);
 
@@ -301,7 +305,7 @@ export const KnowledgeGraphPage: React.FC = () => {
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <section className="flex min-h-[640px] flex-col overflow-hidden rounded-2xl border border-black/[0.06] bg-white shadow-sm">
+        <section className="flex h-[calc(100vh-10rem)] min-h-[480px] flex-col overflow-hidden rounded-2xl border border-black/[0.06] bg-white shadow-sm">
           <div className="flex flex-col gap-3 border-b border-black/[0.06] p-4">
             <SourceFilterBar
               courses={coursesWithMaterials}
@@ -322,7 +326,7 @@ export const KnowledgeGraphPage: React.FC = () => {
               />
             </div>
           </div>
-          <div ref={wrapperRef} className="relative min-h-[480px] flex-1 bg-[radial-gradient(circle_at_1px_1px,rgba(15,23,42,0.09)_1px,transparent_0)] [background-size:22px_22px]">
+          <div ref={wrapperRef} className="relative min-h-0 flex-1 bg-[radial-gradient(circle_at_1px_1px,rgba(15,23,42,0.09)_1px,transparent_0)] [background-size:22px_22px]">
             {loading ? (
               <div className="flex h-full items-center justify-center gap-2 text-sm text-text-muted">
                 <Loader2 size={18} className="animate-spin" />
@@ -446,6 +450,46 @@ export const KnowledgeGraphPage: React.FC = () => {
                     </div>
                     <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-text-muted">{gap.reason}</p>
                   </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-2xl border border-black/[0.06] bg-white p-4 shadow-sm">
+            <div className="flex items-center gap-2">
+              <ArrowRight size={16} className="text-[var(--primary)]" />
+              <p className="text-sm font-bold text-text-main">Learning path</p>
+              {learningPath && learningPath.totalCount > 0 && (
+                <span className="rounded-full bg-teal-100 px-2 py-0.5 text-[11px] font-bold text-teal-700">
+                  {learningPath.masteredCount}/{learningPath.totalCount}
+                </span>
+              )}
+            </div>
+            <p className="mt-1 text-xs text-text-muted">Your concepts, ordered so prerequisites come first.</p>
+            {!learningPath || learningPath.steps.length === 0 ? (
+              <p className="mt-3 text-sm text-text-muted">Add glossary terms and concept links to build a path.</p>
+            ) : (
+              <div className="mt-3 max-h-72 space-y-1.5 overflow-y-auto pr-1">
+                {learningPath.steps.filter(s => s.status !== 'mastered').slice(0, 20).map(step => (
+                  <Link
+                    key={step.termId}
+                    to={step.url ?? '/glossary'}
+                    className="block rounded-xl border border-black/[0.06] p-2.5 transition hover:border-[var(--primary)]/40 hover:bg-[var(--bg-app)]"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className={
+                        step.status === 'next'
+                          ? 'rounded-full bg-teal-600 px-2 py-0.5 text-[10px] font-bold text-white'
+                          : step.status === 'blocked'
+                            ? 'rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700'
+                            : 'rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-bold text-gray-500'
+                      }>
+                        {step.status === 'next' ? 'NEXT' : step.status === 'blocked' ? 'BLOCKED' : 'READY'}
+                      </span>
+                      <span className="truncate text-[13px] font-semibold text-text-main">{step.concept}</span>
+                    </div>
+                    <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-text-muted">{step.reason}</p>
+                  </Link>
                 ))}
               </div>
             )}

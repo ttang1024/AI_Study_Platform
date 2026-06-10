@@ -996,6 +996,28 @@ Return ONLY the JSON object, no other text.";
         return SendTextAsync(null, [("user", prompt)], 0.3, 1024, cleanJson: true, cancellationToken);
     }
 
+    public Task<string> EvaluateExplanationAsync(string topic, string reference, string explanation, CancellationToken cancellationToken = default)
+    {
+        var prompt = $@"A learner is practicing the Feynman technique: explaining a concept in their own words from memory. Grade their explanation against the reference. Be encouraging but honest — reward correct ideas expressed in the learner's own words, and call out genuinely missing or wrong points. Do not penalize informal wording.
+
+Return a JSON object with:
+- score: integer 0-100 (how completely and correctly the explanation covers the reference)
+- strengths: array of short strings (ideas the learner got right; empty if none)
+- gaps: array of short strings (important points that are missing or wrong; empty if none)
+- suggestion: one short, actionable sentence telling the learner what to focus on next
+
+Concept: {topic}
+
+Reference explanation:
+{TruncateContent(reference, 3000)}
+
+Learner's explanation:
+{TruncateContent(explanation, 3000)}
+
+Return ONLY the JSON object, no other text.";
+        return SendTextAsync(null, [("user", prompt)], 0.3, 1024, cleanJson: true, cancellationToken);
+    }
+
     public Task<string> AnswerQuestionAsync(string documentContent, string question, CancellationToken cancellationToken = default)
     {
         var prompt = $@"Answer the following question using the supplied source context when relevant. Give a clear, accurate, and helpful answer. Do not mention the source format or use meta phrases such as ""this document"", ""the document"", ""this video"", ""the video"", ""the transcript"", ""the source material"", ""the content"", or similar wording unless quoting the user.

@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "Easy Study Web Clipper",
+  "version": "1.0.0",
+  "description": "Clip the current page into your Easy Study library.",
+  "action": {
+    "default_title": "Clip to Easy Study"
+  },
+  "permissions": ["activeTab"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "128": "icon128.png"
+  }
+}

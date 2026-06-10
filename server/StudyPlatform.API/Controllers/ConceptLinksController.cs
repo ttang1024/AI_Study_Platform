@@ -41,6 +41,18 @@ public class ConceptLinksController : ControllerBase
         return Ok(BaseResponse<KnowledgeGapsDto>.Ok(result.Data!));
     }
 
+    /// <summary>
+    /// Prerequisite-ordered learning path over the user's concepts ("what should I learn next").
+    /// </summary>
+    [HttpGet("learning-path")]
+    [ProducesResponseType(typeof(BaseResponse<LearningPathDto>), 200)]
+    public async Task<IActionResult> GetLearningPath(CancellationToken cancellationToken)
+    {
+        var userId = User.GetUserId();
+        var result = await _mediator.Send(new GetLearningPathQuery(userId), cancellationToken);
+        return Ok(BaseResponse<LearningPathDto>.Ok(result.Data!));
+    }
+
     [HttpPost]
     [ProducesResponseType(typeof(BaseResponse<ConceptLinkDto>), 201)]
     [ProducesResponseType(typeof(BaseResponse), 400)]

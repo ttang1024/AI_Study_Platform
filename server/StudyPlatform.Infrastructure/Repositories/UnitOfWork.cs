@@ -37,6 +37,10 @@ public class UnitOfWork : IUnitOfWork
     private IConceptLinkRepository? _conceptLinks;
     private IFlashcardSrsDataRepository? _flashcardSrs;
     private IStudySessionRepository? _studySessions;
+    private IMistakeEntryRepository? _mistakeEntries;
+    private IExamPlanRepository? _examPlans;
+    private IQuizBattleRepository? _quizBattles;
+    private IGroupAssignmentRepository? _groupAssignments;
 
     public UnitOfWork(AppDbContext context)
     {
@@ -70,6 +74,10 @@ public class UnitOfWork : IUnitOfWork
     public IConceptLinkRepository ConceptLinks => _conceptLinks ??= new ConceptLinkRepository(_context);
     public IFlashcardSrsDataRepository FlashcardSrs => _flashcardSrs ??= new FlashcardSrsDataRepository(_context);
     public IStudySessionRepository StudySessions => _studySessions ??= new StudySessionRepository(_context);
+    public IMistakeEntryRepository MistakeEntries => _mistakeEntries ??= new MistakeEntryRepository(_context);
+    public IExamPlanRepository ExamPlans => _examPlans ??= new ExamPlanRepository(_context);
+    public IQuizBattleRepository QuizBattles => _quizBattles ??= new QuizBattleRepository(_context);
+    public IGroupAssignmentRepository GroupAssignments => _groupAssignments ??= new GroupAssignmentRepository(_context);
 
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         => await _context.SaveChangesAsync(cancellationToken);
