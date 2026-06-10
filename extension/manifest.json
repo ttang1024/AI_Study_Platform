@@ -4,7 +4,10 @@
   "version": "1.0.0",
   "description": "Clip the current page into your Easy Study library.",
   "action": {
-    "default_title": "Clip to Easy Study"
+    "default_title": "Clip to Easy Study",
+    "default_icon": {
+      "128": "icon128.png"
+    }
   },
   "permissions": ["activeTab"],
   "background": {
