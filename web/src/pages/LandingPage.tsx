@@ -1,11 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import {
-  BrainCircuit as _BrainCircuit, BookOpen, Sparkles, Map,
-  Trophy, ArrowRight,
+  BrainCircuit as _BrainCircuit, BookOpen, Sparkles,
+  ArrowRight,
   Zap, ChevronRight, GraduationCap, Bot,
-  Share2,
-  Search,
   Globe,
   Award as _Award,
   Github, Key, ExternalLink, Unlock,
@@ -17,7 +15,6 @@ import { Typewriter, Counter, Particles, FadeIn } from '../components/landing/La
 import { Logo, LOGO_STYLES } from '../components/landing/Logo';
 import { Badge } from '../components/landing/Badge';
 import { TerminalCard } from '../components/landing/TerminalCard';
-import { BentoCard } from '../components/landing/BentoCard';
 import {
   BentoFlashcardCard,
   BentoNoteCard,
@@ -25,7 +22,15 @@ import {
   BentoGlossaryCard,
   BentoProblemCard,
   BentoStudyGroupCard,
-} from '../components/landing/BentoCards';
+  BentoChatCard,
+  BentoMindMapCard,
+  BentoQuizCard,
+  BentoPlannerCard,
+  BentoTutorCard,
+  BentoInsightsCard,
+  BentoSearchCard,
+  BentoShareCard,
+} from '../components/landing/bento';
 
 const GOOGLE_CLIENT_ID = getPublicEnv('NEXT_PUBLIC_GOOGLE_CLIENT_ID') ?? getPublicEnv('VITE_GOOGLE_CLIENT_ID');
 const GOOGLE_SCRIPT_SRC = 'https://accounts.google.com/gsi/client';
@@ -234,8 +239,8 @@ export const LandingPage: React.FC = () => {
         <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.52 }}
           className="max-w-2xl text-lg sm:text-xl text-white/45 leading-relaxed mb-10">
-          Turn documents, YouTube videos, podcasts, audio lectures, and web articles into AI summaries,
-          mind maps, flashcards, quizzes — and track your mastery with spaced repetition.
+          Turn documents, YouTube &amp; Bilibili videos, podcasts, audio lectures, and web articles into AI summaries,
+          mind maps, flashcards, quizzes — then master it all with spaced repetition, timed mock exams, and an AI tutor.
         </motion.p>
 
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
@@ -263,7 +268,7 @@ export const LandingPage: React.FC = () => {
           transition={{ duration: 0.8, delay: 0.9 }}
           className="flex flex-wrap justify-center gap-5 mt-14">
           {[
-            { to: 10, suffix: '+', label: 'AI-powered tools' },
+            { to: 15, suffix: '+', label: 'AI-powered tools' },
             { to: 100, suffix: '%', label: 'Free to start' },
             { to: 7, suffix: ' content types', label: '' },
           ].map((s, i) => (
@@ -307,18 +312,18 @@ export const LandingPage: React.FC = () => {
             <span style={{ background: 'linear-gradient(135deg, #e0f7ff, #a5f3fc)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Your Complete</span>{' '}
             <span style={{ background: 'linear-gradient(135deg, #14b8a6, #0891b2)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Study Suite</span>
           </h2>
-          <p className="mt-4 text-white/40 max-w-lg mx-auto">10+ AI-powered tools working together for every study session.</p>
+          <p className="mt-4 text-white/40 max-w-lg mx-auto">15+ AI-powered tools working together for every study session.</p>
         </FadeIn>
 
         <div className="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-auto">
           <FadeIn delay={0}>
-            <BentoCard gradient="from-teal-500 via-cyan-500 to-sky-600" glow="rgba(20,184,166,0.3)" icon={Bot} title="AI Chat & Summaries" desc="Chat with your documents, videos, audio, podcasts, and web articles using AI. Get streaming summaries, ask questions." />
+            <BentoChatCard />
           </FadeIn>
           <FadeIn delay={0.05}>
-            <BentoCard gradient="from-emerald-400 via-teal-500 to-cyan-600" glow="rgba(52,211,153,0.3)" icon={Map} title="Mind Maps" desc="Visualize any document as an interactive mind map — grasp structure at a glance." />
+            <BentoMindMapCard />
           </FadeIn>
           <FadeIn delay={0.05}>
-            <BentoCard gradient="from-fuchsia-500 to-pink-600" glow="rgba(217,70,239,0.3)" icon={Trophy} title="AI Quizzes" desc="Question Bank with filtering & pagination, Review Mistakes tab, timed mock exam, and shareable quiz links." />
+            <BentoQuizCard />
           </FadeIn>
           <FadeIn delay={0.18}>
             <BentoFlashcardCard />
@@ -328,6 +333,15 @@ export const LandingPage: React.FC = () => {
           </FadeIn>
           <FadeIn delay={0.18}>
             <BentoGlossaryCard />
+          </FadeIn>
+          <FadeIn delay={0.24}>
+            <BentoPlannerCard />
+          </FadeIn>
+          <FadeIn delay={0.24}>
+            <BentoTutorCard />
+          </FadeIn>
+          <FadeIn delay={0.24}>
+            <BentoInsightsCard />
           </FadeIn>
           <FadeIn delay={0.30}>
             <BentoProblemCard />
@@ -339,10 +353,10 @@ export const LandingPage: React.FC = () => {
             <BentoStudyGroupCard />
           </FadeIn>
           <FadeIn delay={0.34}>
-            <BentoCard gradient="from-cyan-400 to-blue-600" glow="rgba(34,211,238,0.3)" icon={Search} title="Global Search" desc="Instant full-text search across all documents, videos, notes, and flashcards." />
+            <BentoSearchCard />
           </FadeIn>
           <FadeIn delay={0.42} className="lg:col-span-2 lg:row-span-1">
-            <BentoCard gradient="from-teal-500 via-cyan-600 to-sky-700" glow="rgba(13,148,136,0.35)" icon={Share2} title="Share Content Publicly" desc="Share summaries, mind maps, quizzes, flashcard sets, article clips, YouTube and Bilibili videos, uploaded videos, and Apple Podcasts with a single public link. Anyone can study from them — no account needed." wide />
+            <BentoShareCard />
           </FadeIn>
         </div>
       </section>
