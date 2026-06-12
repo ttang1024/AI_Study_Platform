@@ -44,7 +44,6 @@ function getVideoSetPreview(video?: VideoListItem) {
 export const FlashcardsPage: React.FC = () => {
   const { documents, courses, flashcards, totalMaterials, isLoading: contextLoading, refreshFlashcards, refreshStats, refreshDocuments, videos: videoList, videosLoading, refreshVideos } = useStudy();
   const navigate = useNavigate();
-  useStudyTimer({ contextType: 'flashcards' });
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
 
   const [coverageLoading, setCoverageLoading] = useState(true);
@@ -56,6 +55,12 @@ export const FlashcardsPage: React.FC = () => {
 
   const [sourceType, setSourceType] = useState<SourceType>('all');
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
+  // Attribute flashcard time to the course of the set being studied, falling back to the
+  // course filter when browsing the set list.
+  const openSetCourseId = selectedDocId
+    ? documents.find(d => d.id === selectedDocId)?.courseId ?? null
+    : selectedVideo?.courseId || null;
+  useStudyTimer({ contextType: 'flashcards', courseId: openSetCourseId ?? selectedCourseId });
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
   const [cardPage, setCardPage] = useState(1);

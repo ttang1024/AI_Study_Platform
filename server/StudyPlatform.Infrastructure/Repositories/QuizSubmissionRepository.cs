@@ -25,6 +25,11 @@ public class QuizSubmissionRepository : Repository<QuizSubmission>, IQuizSubmiss
             .OrderByDescending(s => s.SubmittedAt)
             .ToListAsync(cancellationToken);
 
+    public async Task<IEnumerable<QuizSubmission>> GetByDateRangeAsync(Guid userId, DateTime from, DateTime to, CancellationToken cancellationToken = default)
+        => await _dbSet
+            .Where(s => s.UserId == userId && s.SubmittedAt >= from.Date && s.SubmittedAt < to.Date.AddDays(1))
+            .ToListAsync(cancellationToken);
+
     public async Task<(IEnumerable<QuizSubmission> Items, int TotalCount)> GetPagedByUserAsync(Guid userId, int page, int pageSize, CancellationToken cancellationToken = default)
     {
         var query = _dbSet

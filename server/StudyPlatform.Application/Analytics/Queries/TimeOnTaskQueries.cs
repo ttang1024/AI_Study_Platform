@@ -77,7 +77,7 @@ public class GetTimeOnTaskQueryHandler : IRequestHandler<GetTimeOnTaskQuery, Res
             {
                 var sessions = (await _unitOfWork.StudySessions.GetByDateRangeAsync(request.UserId, request.From, request.To, ct)).ToList();
                 var courses = await _unitOfWork.Courses.GetByUserIdAsync(request.UserId, ct);
-                var courseNames = courses.ToDictionary(c => c.CourseId, c => c.CourseName);
+                var coursesById = courses.ToDictionary(c => c.CourseId);
 
                 var daily = sessions
                     .GroupBy(s => s.OccurredAt.Date)
@@ -91,10 +91,15 @@ public class GetTimeOnTaskQueryHandler : IRequestHandler<GetTimeOnTaskQuery, Res
 
                 var byCourse = sessions
                     .GroupBy(s => s.CourseId)
-                    .Select(g => new CourseTimeDto(
-                        g.Key,
-                        g.Key.HasValue && courseNames.TryGetValue(g.Key.Value, out var name) ? name : "Unattributed",
-                        g.Sum(s => s.DurationSeconds)))
+                    .Select(g =>
+                    {
+                        var course = g.Key.HasValue && coursesById.TryGetValue(g.Key.Value, out var c) ? c : null;
+                        return new CourseTimeDto(
+                            g.Key,
+                            course?.CourseName ?? "Unattributed",
+                            string.IsNullOrWhiteSpace(course?.CourseColor) ? null : course.CourseColor,
+                            g.Sum(s => s.DurationSeconds));
+                    })
                     .OrderByDescending(c => c.TotalSeconds)
                     .ToArray();
 

@@ -6,6 +6,7 @@ import { VideoNoteEditorRef } from '../../components/youtube/VideoNoteEditor';
 import { ChatPanelRef } from '../../components/ai/ChatPanel';
 import { QuizQuestion } from '../../types';
 import { getApiErrorCode } from '../../utils/apiError';
+import { useStudyTimer } from '../../hooks/useStudyTimer';
 import {
   parseVideoId, parseBilibiliVideo, isOptionCorrect, fmtTime, fmtSrtTime,
 } from './helpers';
@@ -46,6 +47,10 @@ export function useVideoDetail(propId?: string) {
   const videoId = videoUrl ? (sourceType === 'bilibili' ? bilibiliVideo?.key ?? null : sourceType === 'upload' ? id ?? null : parseVideoId(videoUrl)) : null;
 
   const [isLoadingVideo, setIsLoadingVideo] = useState(true);
+  const [courseId, setCourseId] = useState<string | null>(null);
+
+  // Attribute watching/studying time on this video to its course in analytics.
+  useStudyTimer({ contextType: 'video', courseId, contextId: id, enabled: !isLoadingVideo });
 
   // Layout
   const initialTab = locationState?.activeTab ?? 'summary';
@@ -129,6 +134,7 @@ export function useVideoDetail(propId?: string) {
     setIsLoadingVideo(true);
     try {
       const v = await videoService.getVideo(videoRecordId);
+      setCourseId(v.courseId ?? null);
       setSummary(v.summary ?? null);
       setMindMapText(v.mindMapText ?? null);
       setVideoUrl(v.videoUrl);

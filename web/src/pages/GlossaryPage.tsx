@@ -36,11 +36,17 @@ export const GlossaryPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const userId = user?.id ?? 'guest';
-  useStudyTimer({ contextType: 'glossary' });
-
   const [allTerms, setAllTerms] = useState<GlossaryTerm[]>([]);
   const [selectedSourceId, setSelectedSourceId] = useState('');
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
+  // Attribute glossary time to the course of the selected source, falling back to the
+  // course filter when browsing all terms.
+  const sourceCourseId = selectedSourceId
+    ? (documents.find(d => d.id === selectedSourceId)?.courseId
+      ?? videos.find(v => v.id === selectedSourceId)?.courseId
+      ?? null)
+    : null;
+  useStudyTimer({ contextType: 'glossary', courseId: sourceCourseId ?? selectedCourseId });
   const [generateCourseId, setGenerateCourseId] = useState<string | null>(null);
   const [sourceType, setSourceType] = useState<SourceType>('all');
   const [search, setSearch] = useState('');

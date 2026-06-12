@@ -21,10 +21,12 @@ const RANGES = [
   { label: '90 days', days: 90 },
 ];
 
+// Round to whole minutes first so 3599s reads "1h", not "60m" (and 7170s "2h", not "1h 60m").
 const formatDuration = (seconds: number): string => {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.round((seconds % 3600) / 60);
-  if (h === 0 && m === 0) return seconds > 0 ? '<1m' : '0m';
+  const totalMinutes = Math.round(seconds / 60);
+  if (totalMinutes === 0) return seconds > 0 ? '<1m' : '0m';
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
   return [h > 0 ? `${h}h` : null, m > 0 ? `${m}m` : null].filter(Boolean).join(' ');
 };
 
@@ -55,9 +57,12 @@ const StatTile: React.FC<{ icon: React.ElementType; label: string; value: string
   </div>
 );
 
-const ChartCard: React.FC<{ title: string; children: React.ReactNode; className?: string }> = ({ title, children, className }) => (
+const ChartCard: React.FC<{ title: string; meta?: React.ReactNode; children: React.ReactNode; className?: string }> = ({ title, meta, children, className }) => (
   <div className={`bg-white rounded-2xl p-5 ${className ?? ''}`} style={{ boxShadow: CARD_SHADOW }}>
-    <p className="text-[11px] font-semibold uppercase tracking-wider text-text-muted mb-4">{title}</p>
+    <div className="flex items-center justify-between gap-2 mb-4">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">{title}</p>
+      {meta}
+    </div>
     {children}
   </div>
 );
@@ -137,43 +142,90 @@ const StudyActivityChart: React.FC<{ daily: TimeOnTask['daily']; days: number }>
 };
 
 // ─── Quiz-accuracy trend ────────────────────────────────────────────────────────────
-const AccuracyTrend: React.FC<{ data: QuizAccuracyData[] }> = ({ data }) => {
-  const points = useMemo(
-    () => [...data].sort((a, b) => a.date.localeCompare(b.date)),
-    [data],
-  );
+const accuracyTint = (pct: number): string => (pct >= 80 ? '#059669' : pct >= 50 ? '#d97706' : '#dc2626');
 
-  if (points.length === 0) return <EmptyState>No quiz attempts in this window — take a quiz to track your accuracy over time.</EmptyState>;
+const AccuracyLegend: React.FC = () => (
+  <div className="flex items-center gap-2.5">
+    {([['≥80%', 80], ['50–79%', 50], ['<50%', 0]] as const).map(([label, pct]) => (
+      <span key={label} className="flex items-center gap-1 text-[10px] text-text-muted tabular-nums">
+        <span className="w-2 h-2 rounded-sm shrink-0" style={{ background: accuracyTint(pct) }} />
+        {label}
+      </span>
+    ))}
+  </div>
+);
 
-  const labelEvery = Math.ceil(points.length / 6);
+// Same continuous-window bucketing as the study-activity chart (daily for ≤31 days, weekly
+// beyond) so quiet stretches read as gaps instead of compressing the time axis. Day keys are
+// matched on the raw YYYY-MM-DD from the API rather than `new Date(iso)`, which would shift
+// midnight-UTC dates onto the previous local day west of UTC. Bucket accuracy is
+// attempt-weighted: total correct / total attempts.
+const AccuracyTrend: React.FC<{ data: QuizAccuracyData[]; days: number }> = ({ data, days }) => {
+  const buckets = useMemo(() => {
+    const byDay = new Map(data.map(d => [d.date.slice(0, 10), d]));
+    const today = new Date();
+    const weekly = days > 31;
+    const out: { key: string; label: string; total: number; correct: number }[] = [];
+
+    if (weekly) {
+      const weeks = Math.ceil(days / 7);
+      for (let w = weeks - 1; w >= 0; w--) {
+        const end = addDays(today, -w * 7);
+        let total = 0;
+        let correct = 0;
+        for (let i = 0; i < 7; i++) {
+          const d = byDay.get(dayKey(addDays(end, -i)));
+          if (d) {
+            total += d.totalAttempts;
+            correct += d.correctAttempts;
+          }
+        }
+        out.push({ key: dayKey(end), label: shortLabel(addDays(end, -6)), total, correct });
+      }
+      return out;
+    }
+
+    for (let i = days - 1; i >= 0; i--) {
+      const d = addDays(today, -i);
+      const entry = byDay.get(dayKey(d));
+      out.push({ key: dayKey(d), label: shortLabel(d), total: entry?.totalAttempts ?? 0, correct: entry?.correctAttempts ?? 0 });
+    }
+    return out;
+  }, [data, days]);
+
+  const hasData = buckets.some(b => b.total > 0);
+  if (!hasData) return <EmptyState>No quiz attempts in this window — take a quiz to track your accuracy over time.</EmptyState>;
+
+  const labelEvery = Math.ceil(buckets.length / 7);
 
   return (
     <div>
-      <div className="flex items-end gap-1.5 h-40">
-        {points.map((p, i) => {
-          const pct = Math.round(p.accuracyPercentage);
-          const tint = pct >= 80 ? '#059669' : pct >= 50 ? '#d97706' : '#dc2626';
+      <div className="flex items-end gap-1 h-40">
+        {buckets.map((b, i) => {
+          const pct = b.total > 0 ? Math.round((b.correct / b.total) * 100) : 0;
           return (
-            <div key={p.date} className="flex-1 min-w-0 h-full flex flex-col justify-end group relative">
+            <div key={b.key} className="flex-1 min-w-0 h-full flex flex-col justify-end group relative">
               <motion.div
                 className="w-full rounded-t-md"
-                style={{ background: tint }}
+                style={{ background: b.total > 0 ? accuracyTint(pct) : 'rgba(0,0,0,0.05)' }}
                 initial={{ height: 0 }}
-                animate={{ height: `${Math.max(4, pct)}%` }}
-                transition={{ duration: 0.5, delay: i * 0.02, ease: [0.16, 1, 0.3, 1] }}
+                animate={{ height: `${b.total > 0 ? Math.max(4, pct) : 2}%` }}
+                transition={{ duration: 0.5, delay: i * 0.01, ease: [0.16, 1, 0.3, 1] }}
               />
-              <div className="pointer-events-none absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-zinc-900 px-2 py-1 text-[10px] font-semibold text-white opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                {pct}% · {p.correctAttempts}/{p.totalAttempts}
-              </div>
+              {b.total > 0 && (
+                <div className="pointer-events-none absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-zinc-900 px-2 py-1 text-[10px] font-semibold text-white opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                  {b.label} · {pct}% · {b.correct}/{b.total}
+                </div>
+              )}
             </div>
           );
         })}
       </div>
-      <div className="flex gap-1.5 mt-2">
-        {points.map((p, i) => (
-          <div key={p.date} className="flex-1 min-w-0 text-center">
+      <div className="flex gap-1 mt-2">
+        {buckets.map((b, i) => (
+          <div key={b.key} className="flex-1 min-w-0 text-center">
             <span className="text-[9px] text-text-muted tabular-nums">
-              {i % labelEvery === 0 ? shortLabel(new Date(p.date)) : ''}
+              {i % labelEvery === 0 ? b.label : ''}
             </span>
           </div>
         ))}
@@ -183,34 +235,60 @@ const AccuracyTrend: React.FC<{ data: QuizAccuracyData[] }> = ({ data }) => {
 };
 
 // ─── Time by course ─────────────────────────────────────────────────────────────────
+// Bars are each course's true share of the window's total (not relative to the largest
+// course), so widths and the printed percentages agree. Courses past the top six are
+// rolled into "Other" instead of silently dropped.
+const MUTED_BAR = '#a1a1aa';
+
 const TimeByCourse: React.FC<{ byCourse: TimeOnTask['byCourse'] }> = ({ byCourse }) => {
-  const rows = useMemo(
-    () => [...byCourse].filter(c => c.totalSeconds > 0).sort((a, b) => b.totalSeconds - a.totalSeconds).slice(0, 6),
-    [byCourse],
-  );
-  const max = Math.max(1, ...rows.map(r => r.totalSeconds));
+  const { rows, totalSeconds } = useMemo(() => {
+    const active = [...byCourse].filter(c => c.totalSeconds > 0).sort((a, b) => b.totalSeconds - a.totalSeconds);
+    const total = active.reduce((s, c) => s + c.totalSeconds, 0);
+    const top = active.slice(0, 6).map(c => ({ ...c, muted: c.courseId == null }));
+    const rest = active.slice(6);
+    if (rest.length > 0) {
+      top.push({
+        courseId: null,
+        courseName: `Other (${rest.length} course${rest.length === 1 ? '' : 's'})`,
+        courseColor: null,
+        totalSeconds: rest.reduce((s, c) => s + c.totalSeconds, 0),
+        muted: true,
+      });
+    }
+    return { rows: top, totalSeconds: total };
+  }, [byCourse]);
 
   if (rows.length === 0) return <EmptyState>No course study time logged yet in this window.</EmptyState>;
 
   return (
-    <div className="space-y-3">
-      {rows.map((c, i) => (
-        <div key={c.courseId ?? c.courseName}>
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-xs font-medium text-text-main truncate pr-2">{c.courseName}</span>
-            <span className="text-[11px] font-semibold text-text-muted tabular-nums shrink-0">{formatDuration(c.totalSeconds)}</span>
+    <div className="space-y-3.5">
+      {rows.map((c, i) => {
+        const share = (c.totalSeconds / Math.max(1, totalSeconds)) * 100;
+        const color = c.muted ? MUTED_BAR : c.courseColor || PRIMARY;
+        return (
+          <div key={c.courseId ?? c.courseName}>
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
+                <span className={`text-xs font-medium truncate ${c.muted ? 'text-text-muted' : 'text-text-main'}`}>{c.courseName}</span>
+              </div>
+              <span className="text-[11px] text-text-muted tabular-nums shrink-0">
+                <span className="font-semibold text-text-main">{formatDuration(c.totalSeconds)}</span>
+                {' · '}{Math.round(share)}%
+              </span>
+            </div>
+            <div className="h-2 rounded-full bg-zinc-100 overflow-hidden">
+              <motion.div
+                className="h-full rounded-full"
+                style={{ background: color }}
+                initial={{ width: 0 }}
+                animate={{ width: `${Math.max(share, 1.5)}%` }}
+                transition={{ duration: 0.6, delay: i * 0.05, ease: [0.16, 1, 0.3, 1] }}
+              />
+            </div>
           </div>
-          <div className="h-2 rounded-full bg-zinc-100 overflow-hidden">
-            <motion.div
-              className="h-full rounded-full"
-              style={{ background: PRIMARY }}
-              initial={{ width: 0 }}
-              animate={{ width: `${(c.totalSeconds / max) * 100}%` }}
-              transition={{ duration: 0.6, delay: i * 0.05, ease: [0.16, 1, 0.3, 1] }}
-            />
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 };
@@ -308,9 +386,13 @@ export const AnalyticsSection: React.FC = () => {
     return () => { cancelled = true; };
   }, [fromStr, toStr]);
 
+  // Attempt-weighted: total correct over total attempts. A plain mean of the daily
+  // percentages would let a 1-question day count as much as a 50-question day.
   const avgAccuracy = useMemo(() => {
-    if (accuracy.length === 0) return '—';
-    return `${Math.round(accuracy.reduce((s, d) => s + d.accuracyPercentage, 0) / accuracy.length)}%`;
+    const total = accuracy.reduce((s, d) => s + d.totalAttempts, 0);
+    if (total === 0) return '—';
+    const correct = accuracy.reduce((s, d) => s + d.correctAttempts, 0);
+    return `${Math.round((correct / total) * 100)}%`;
   }, [accuracy]);
 
   const avgMastery = useMemo(() => {
@@ -364,8 +446,8 @@ export const AnalyticsSection: React.FC = () => {
 
           {/* Accuracy trend + time by course */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <ChartCard title="Quiz accuracy">
-              <AccuracyTrend data={accuracy} />
+            <ChartCard title="Quiz accuracy" meta={<AccuracyLegend />}>
+              <AccuracyTrend data={accuracy} days={days} />
             </ChartCard>
             <ChartCard title="Time by course">
               <TimeByCourse byCourse={timeOnTask?.byCourse ?? []} />

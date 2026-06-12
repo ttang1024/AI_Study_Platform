@@ -31,20 +31,34 @@ public class GetDailyQuizAccuracyQueryHandler : IRequestHandler<GetDailyQuizAccu
             cacheKey,
             async ct =>
             {
+                // Quiz activity lives in two stores: per-question QuizAttempt rows (practice/mock
+                // tests) and per-quiz QuizSubmission rows with Score/Total (document & video
+                // quizzes). The two are disjoint — practice tests never write submissions and
+                // vice versa — so merging their per-day counts gives the complete picture.
                 var attempts = await _unitOfWork.Analytics.GetQuizAttemptsByDateRangeAsync(request.UserId, request.From, request.To, ct);
+                var submissions = await _unitOfWork.QuizSubmissions.GetByDateRangeAsync(request.UserId, request.From, request.To, ct);
 
-                return attempts
-                    .GroupBy(a => a.AttemptedAt.Date)
-                    .Select(g =>
-                    {
-                        var total = g.Count();
-                        var correct = g.Count(a => a.IsCorrect);
-                        return new DailyQuizAccuracyDto(
-                            g.Key,
-                            total,
-                            correct,
-                            total > 0 ? Math.Round((double)correct / total * 100, 2) : 0);
-                    })
+                var byDay = new Dictionary<DateTime, (int Total, int Correct)>();
+
+                foreach (var group in attempts.GroupBy(a => a.AttemptedAt.Date))
+                {
+                    byDay.TryGetValue(group.Key, out var day);
+                    byDay[group.Key] = (day.Total + group.Count(), day.Correct + group.Count(a => a.IsCorrect));
+                }
+
+                foreach (var submission in submissions.Where(s => s.Total > 0))
+                {
+                    var date = submission.SubmittedAt.Date;
+                    byDay.TryGetValue(date, out var day);
+                    byDay[date] = (day.Total + submission.Total, day.Correct + Math.Min(submission.Score, submission.Total));
+                }
+
+                return byDay
+                    .Select(kv => new DailyQuizAccuracyDto(
+                        kv.Key,
+                        kv.Value.Total,
+                        kv.Value.Correct,
+                        kv.Value.Total > 0 ? Math.Round((double)kv.Value.Correct / kv.Value.Total * 100, 2) : 0))
                     .OrderBy(d => d.Date)
                     .ToArray();
             },

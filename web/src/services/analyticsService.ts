@@ -16,6 +16,7 @@ export interface DailyStudyDuration {
 export interface CourseTime {
   courseId: string | null;
   courseName: string;
+  courseColor?: string | null;
   totalSeconds: number;
 }
 

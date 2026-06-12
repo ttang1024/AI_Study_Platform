@@ -47,7 +47,8 @@ export const PracticeSection: React.FC = () => {
   const [summary, setSummary] = useState<PracticeTestSummary | null>(null);
   const startRef = useRef(0);
 
-  useStudyTimer({ contextType: 'practice', enabled: phase === 'running' });
+  // Attribute the run to the course the test was scoped to (empty = all courses).
+  useStudyTimer({ contextType: 'practice', courseId: courseId || null, enabled: phase === 'running' });
 
   // Tick the elapsed timer while running.
   useEffect(() => {

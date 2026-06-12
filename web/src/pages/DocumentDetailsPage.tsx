@@ -23,6 +23,7 @@ import { cn } from '../utils/cn';
 import { Document } from '../types';
 import { getApiErrorCode } from '../utils/apiError';
 import { getApiUrl } from '../utils/env';
+import { useStudyTimer } from '../hooks/useStudyTimer';
 
 export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; initialDoc?: Document }> = ({ embedded, id: propId, initialDoc }) => {
   const { id: paramId } = useParams();
@@ -49,6 +50,14 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
   // Ref to note editor for append-from-outside
   const noteEditorRef = useRef<VideoNoteEditorRef>(null);
   const chatPanelRef = useRef<ChatPanelRef>(null);
+
+  // Attribute reading/quizzing time on this document to its course in analytics.
+  useStudyTimer({
+    contextType: 'document',
+    courseId: currentDocument?.courseId,
+    contextId: currentDocument?.id,
+    enabled: !!currentDocument && currentDocument.id === id,
+  });
 
   // Set current document on navigation and fetch fresh data for latest AI-generated content
   useEffect(() => {

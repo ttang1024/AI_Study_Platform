@@ -10,7 +10,7 @@ public record RecordQuizAttemptRequest(Guid QuizId, bool IsCorrect);
 
 public record RecordStudySessionRequest(Guid? CourseId, string ContextType, Guid? ContextId, int DurationSeconds);
 
-public record CourseTimeDto(Guid? CourseId, string CourseName, int TotalSeconds);
+public record CourseTimeDto(Guid? CourseId, string CourseName, string? CourseColor, int TotalSeconds);
 
 public record TimeOnTaskDto(int TotalSeconds, IEnumerable<DailyStudyDurationDto> Daily, IEnumerable<CourseTimeDto> ByCourse);
 
