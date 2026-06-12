@@ -227,7 +227,7 @@ public class SubmitBattleEntryCommandHandler : IRequestHandler<SubmitBattleEntry
             DurationSeconds = Math.Max(0, request.DurationSeconds),
             CompletedAt = DateTime.UtcNow,
         };
-        battle.Entries.Add(entry);
+        await _unitOfWork.QuizBattles.AddEntryAsync(entry, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // Re-read so the returned standings include the new entry with its User loaded.

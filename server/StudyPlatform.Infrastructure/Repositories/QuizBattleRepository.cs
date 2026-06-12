@@ -26,4 +26,11 @@ public class QuizBattleRepository : Repository<QuizBattle>, IQuizBattleRepositor
         => await _context.QuizBattles
             .Include(b => b.Entries).ThenInclude(e => e.User)
             .FirstOrDefaultAsync(b => b.QuizBattleId == battleId, cancellationToken);
+
+    // Entries must be added through the DbSet, not a tracked battle's navigation
+    // collection: their Guid key is pre-set, so DetectChanges would classify a
+    // navigation-discovered entry as Modified and issue an UPDATE that matches
+    // no row (DbUpdateConcurrencyException).
+    public async Task AddEntryAsync(QuizBattleEntry entry, CancellationToken cancellationToken = default)
+        => await _context.QuizBattleEntries.AddAsync(entry, cancellationToken);
 }

@@ -93,7 +93,7 @@ export const MainLayout: React.FC = () => {
         </div>
 
         {/* Desktop floating notification bell */}
-        <div className="hidden lg:block absolute top-4 right-6 z-30">
+        <div className="hidden lg:block absolute top-2 right-4 z-30">
           <NotificationBell className="bg-[var(--bg-sidebar)]/80 backdrop-blur shadow-sm border border-[var(--border-color)]" />
         </div>
 

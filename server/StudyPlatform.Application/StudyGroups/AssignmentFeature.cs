@@ -134,13 +134,13 @@ public class SetAssignmentCompletionCommandHandler : IRequestHandler<SetAssignme
         var existing = assignment.Completions.FirstOrDefault(c => c.UserId == request.UserId);
         if (request.Completed && existing == null)
         {
-            assignment.Completions.Add(new GroupAssignmentCompletion
+            await _unitOfWork.GroupAssignments.AddCompletionAsync(new GroupAssignmentCompletion
             {
                 GroupAssignmentCompletionId = Guid.NewGuid(),
                 AssignmentId = assignment.GroupAssignmentId,
                 UserId = request.UserId,
                 CompletedAt = DateTime.UtcNow,
-            });
+            }, cancellationToken);
         }
         else if (!request.Completed && existing != null)
         {

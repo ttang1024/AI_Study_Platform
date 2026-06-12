@@ -26,4 +26,11 @@ public class GroupAssignmentRepository : Repository<GroupAssignment>, IGroupAssi
         => await _context.GroupAssignments
             .Include(a => a.Completions)
             .FirstOrDefaultAsync(a => a.GroupAssignmentId == assignmentId, cancellationToken);
+
+    // Completions must be added through the DbSet, not a tracked assignment's
+    // navigation collection: their Guid key is pre-set, so DetectChanges would
+    // classify a navigation-discovered completion as Modified and issue an
+    // UPDATE that matches no row (DbUpdateConcurrencyException).
+    public async Task AddCompletionAsync(GroupAssignmentCompletion completion, CancellationToken cancellationToken = default)
+        => await _context.GroupAssignmentCompletions.AddAsync(completion, cancellationToken);
 }

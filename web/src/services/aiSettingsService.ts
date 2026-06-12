@@ -32,6 +32,9 @@ export const DEFAULT_MODELS: Record<AIProvider, string> = {
 
 const STORAGE_KEY = 'sp_ai_settings';
 
+/** Fired on window after save() — the `storage` event only fires in other tabs. */
+export const AI_SETTINGS_CHANGED_EVENT = 'sp-ai-settings-changed';
+
 const DEFAULT_SETTINGS: AISettings = {
   provider: 'gemini',
   keys: {},
@@ -49,6 +52,7 @@ export const aiSettingsService = {
 
   save(settings: AISettings): void {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    window.dispatchEvent(new Event(AI_SETTINGS_CHANGED_EVENT));
   },
 
   getActiveKey(): string | undefined {

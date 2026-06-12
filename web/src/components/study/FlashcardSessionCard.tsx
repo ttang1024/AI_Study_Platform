@@ -138,10 +138,10 @@ export const FlashcardSessionDeck: React.FC<FlashcardSessionDeckProps> = ({
   const isModal = variant === 'modal';
   const rootClassName = isModal
     ? 'fixed inset-0 z-[150] flex items-center justify-center bg-black/40 md:p-8'
-    : 'flex h-full min-h-[560px] items-center justify-center bg-[var(--bg-sidebar)] p-3 sm:p-6';
+    : 'flex h-full min-h-[560px] items-center justify-center p-3 sm:p-6';
   const shellClassName = isModal
     ? 'flex flex-col bg-[var(--bg-app)] w-full h-full md:h-auto md:max-h-[90vh] md:max-w-lg md:rounded-3xl md:shadow-2xl md:border md:border-[var(--border-color)] overflow-hidden'
-    : 'flex h-full min-h-[540px] w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-[var(--border-color)] bg-[var(--bg-app)] shadow-xl';
+    : 'flex h-full min-h-[540px] w-full max-w-lg flex-col overflow-hidden';
 
   const reset = () => {
     setIndex(0);
@@ -188,12 +188,12 @@ export const FlashcardSessionDeck: React.FC<FlashcardSessionDeckProps> = ({
           'flex flex-col items-center justify-center bg-[var(--bg-app)] p-6 w-full',
           isModal
             ? 'h-full md:h-auto md:max-w-lg md:rounded-3xl md:shadow-2xl md:border md:border-[var(--border-color)]'
-            : 'min-h-[420px] max-w-lg rounded-3xl border border-[var(--border-color)] shadow-xl',
+            : 'min-h-[420px] max-w-lg rounded-3xl',
         )}>
           <Trophy size={48} className={cn('mb-4', pct >= 80 ? 'text-emerald-500' : pct >= 50 ? 'text-amber-500' : 'text-red-500')} />
           <p className={cn('text-5xl font-black mb-2', pct >= 80 ? 'text-emerald-600' : pct >= 50 ? 'text-amber-600' : 'text-red-600')}>{pct}%</p>
-          <p className="text-text-muted mb-1">{goodCount} good · {hardCount} need review</p>
-          <p className="text-sm text-text-muted mb-8">{title}</p>
+          <p className={cn('text-text-muted', isModal ? 'mb-1' : 'mb-8')}>{goodCount} good · {hardCount} need review</p>
+          {isModal && <p className="text-sm text-text-muted mb-8">{title}</p>}
           <div className="flex gap-3">
             <button
               onClick={reset}
@@ -216,7 +216,7 @@ export const FlashcardSessionDeck: React.FC<FlashcardSessionDeckProps> = ({
   return (
     <div className={rootClassName}>
       <div className={shellClassName}>
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-[var(--border-color)]">
+        <div className={cn('flex items-center gap-3 px-4 py-3', isModal && 'border-b border-[var(--border-color)]')}>
           {onClose ? (
             <button onClick={onClose} className="rounded-lg p-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-600 transition-colors shrink-0"><X size={20} /></button>
           ) : (
@@ -229,7 +229,7 @@ export const FlashcardSessionDeck: React.FC<FlashcardSessionDeckProps> = ({
             </button>
           )}
           <div className="flex-1 text-center">
-            <p className="text-xs font-bold text-text-muted truncate">{title}</p>
+            {isModal && <p className="text-xs font-bold text-text-muted truncate">{title}</p>}
             <p className="text-sm font-black text-text-main">{index + 1} / {cards.length}</p>
           </div>
           <div className="flex items-center gap-3 text-xs font-bold shrink-0">
@@ -259,7 +259,12 @@ export const FlashcardSessionDeck: React.FC<FlashcardSessionDeckProps> = ({
                 onFlip={() => setFlipped(f => !f)}
                 variant="review"
                 hint="Tap to reveal"
-                className="w-full max-w-md rounded-3xl border-[var(--border-color)] bg-[var(--bg-sidebar)] shadow-2xl"
+                className={cn(
+                  'w-full max-w-md rounded-3xl',
+                  isModal
+                    ? 'border-[var(--border-color)] bg-[var(--bg-sidebar)] shadow-2xl'
+                    : 'border-0 bg-[var(--bg-app)] shadow-xl',
+                )}
                 style={{ minHeight: 280 }}
               />
             </motion.div>

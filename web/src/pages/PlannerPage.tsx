@@ -171,7 +171,7 @@ export const PlannerPage: React.FC = () => {
         setPlans(p);
         setSelectedPlanId((cur) => cur ?? p[0]?.id ?? null);
       })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoading(false));
   }, []);
 
@@ -271,18 +271,19 @@ export const PlannerPage: React.FC = () => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="h-10 w-10 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center">
-          <CalendarClock size={20} />
-        </div>
-        <div className="flex-1">
-          <h1 className="text-xl font-bold text-text-main">Study Planner</h1>
-          <p className="text-sm text-text-muted">Set an exam date — your daily plan blends due reviews, knowledge gaps and practice.</p>
+    <div className="space-y-8">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+        <div className="flex flex-col gap-3">
+          <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-text-main">
+            Study <span className="text-primary">Planner</span>
+          </h1>
+          <p className="text-base sm:text-lg text-zinc-500 font-medium max-w-3xl">
+            Set an exam date — your daily plan blends due reviews, knowledge gaps and practice.
+          </p>
         </div>
         <button
           onClick={handleDownloadIcs}
-          className="inline-flex items-center gap-1.5 text-xs font-medium border border-gray-200 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50"
+          className="inline-flex items-center gap-1.5 text-xs font-medium border border-gray-200 px-3 py-2 rounded-lg text-gray-600 bg-white hover:text-black"
           title="Download .ics calendar with due cards, study blocks and exam dates"
         >
           <Download size={13} /> Calendar (.ics)

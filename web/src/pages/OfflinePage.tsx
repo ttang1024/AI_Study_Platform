@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
 import {
   WifiOff, Wifi, Download, Loader2, BrainCircuit, BookMarked,
-  ChevronLeft, ChevronRight, RotateCcw, Search, CheckCircle2, NotebookPen,
+  ChevronLeft, ChevronRight, Search, CheckCircle2, NotebookPen,
 } from 'lucide-react';
 import type { Flashcard, GlossaryTerm, Note } from '../types';
+import { FlashcardFlipCard, getFlashcardCardType } from '../components/study/FlashcardFlipCard';
 import { offlineCacheService } from '../services/offlineCacheService';
 import { flashcardService } from '../services/flashcardService';
 import { glossaryService } from '../services/glossaryService';
@@ -37,27 +37,17 @@ const OfflineFlashcards: React.FC<{ cards: Flashcard[] }> = ({ cards }) => {
         <span>Card {index + 1} of {cards.length}</span>
         {card.documentName && <span className="truncate max-w-[50%]">{card.documentName}</span>}
       </div>
-      <button
-        onClick={() => setFlipped(f => !f)}
-        className="relative w-full min-h-[220px] rounded-2xl bg-white p-8 text-center flex items-center justify-center"
-        style={{ boxShadow: CARD_SHADOW }}
-      >
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={flipped ? 'back' : 'front'}
-            initial={{ opacity: 0, rotateY: -90 }}
-            animate={{ opacity: 1, rotateY: 0 }}
-            exit={{ opacity: 0, rotateY: 90 }}
-            transition={{ duration: 0.18 }}
-          >
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-text-muted mb-3">{flipped ? 'Answer' : 'Question'}</p>
-            <p className="text-lg font-medium text-text-main whitespace-pre-wrap">{flipped ? card.back : card.front}</p>
-          </motion.div>
-        </AnimatePresence>
-        <span className="absolute bottom-3 right-4 flex items-center gap-1 text-[11px] text-text-muted">
-          <RotateCcw size={11} /> tap to flip
-        </span>
-      </button>
+      <FlashcardFlipCard
+        front={card.front}
+        back={card.back}
+        cardType={getFlashcardCardType(card)}
+        isFlipped={flipped}
+        onFlip={() => setFlipped(f => !f)}
+        variant="review"
+        hint="Tap to flip"
+        className="border-0 bg-white"
+        style={{ minHeight: 220, boxShadow: CARD_SHADOW }}
+      />
       <div className="flex items-center justify-center gap-3">
         <button onClick={() => go(-1)} className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-text-muted hover:text-text-main" style={{ boxShadow: CARD_SHADOW }}>
           <ChevronLeft size={18} />
