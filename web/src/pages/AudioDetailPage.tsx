@@ -155,6 +155,7 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string; course
             ref={chatPanelRef}
             externalMessages={chatMessages}
             onExternalStreamSend={streamChat}
+            enableAttachments
             onExternalAddToNote={(html) => {
               noteEditorRef.current?.appendContent(html);
               setActiveTab('notes');

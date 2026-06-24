@@ -35,6 +35,30 @@ async function post<T>(url: string, body: unknown): Promise<T> {
 	}
 }
 
+/** An image/PDF attachment uploaded with a chat turn. `data` is raw base64 (no data: URL prefix). */
+export interface ChatAttachment {
+	mimeType: string;
+	data: string;
+	fileName?: string;
+}
+
+/** An attachment as displayed on a message. `url` is a presigned URL (history) or data: URL (optimistic). */
+export interface ChatMessageAttachment {
+	url: string;
+	mimeType: string;
+	fileName?: string;
+}
+
+/** Builds inline data: URLs from staged attachments so an optimistic user message can show thumbnails immediately. */
+export function attachmentsToDisplay(attachments?: ChatAttachment[]): ChatMessageAttachment[] | undefined {
+	if (!attachments || attachments.length === 0) return undefined
+	return attachments.map(a => ({
+		url: `data:${a.mimeType};base64,${a.data}`,
+		mimeType: a.mimeType,
+		fileName: a.fileName,
+	}))
+}
+
 export interface ChatSessionSummary {
 	sourceType: 'document' | 'video' | 'general';
 	sourceId: string;
@@ -61,6 +85,7 @@ export interface ChatMessageDto {
 	role: 'user' | 'assistant' | 'model';
 	content: string;
 	createdAt: string;
+	attachments?: ChatMessageAttachment[] | null;
 }
 
 export const aiService = {
@@ -98,10 +123,11 @@ export const aiService = {
 		message: string,
 		onChunk: (chunk: string) => void,
 		signal?: AbortSignal,
+		attachments?: ChatAttachment[],
 	): Promise<void> {
 		return streamSse(
 			`/api/ai/chat/conversations/${conversationId}/stream`,
-			{ message },
+			attachments && attachments.length > 0 ? { message, attachments } : { message },
 			onChunk,
 			signal,
 		)

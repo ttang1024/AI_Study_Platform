@@ -36,6 +36,13 @@ public static class AiErrorMapper
     public static ObjectResult ToObjectResult(ControllerBase controller, string message)
         => ToObjectResult<string>(controller, message);
 
+    /// <summary>
+    /// Maps an exception thrown mid-stream to an AI error <see cref="ObjectResult"/>.
+    /// Shared by SSE streaming endpoints across controllers.
+    /// </summary>
+    public static ObjectResult AiStreamError(this ControllerBase controller, Exception ex)
+        => ToObjectResult(controller, ex.Message);
+
     public static ObjectResult ToObjectResult<T>(ControllerBase controller, string message)
     {
         if (!TryGetAiError(message, out var statusCode, out var errorCode))

@@ -102,10 +102,12 @@ public record GetVideoChatHistoryQuery(Guid VideoId, Guid UserId) : IRequest<Res
 public class GetVideoChatHistoryQueryHandler : IRequestHandler<GetVideoChatHistoryQuery, Result<IEnumerable<ChatMessageDto>>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IBlobStorageService _blobStorageService;
 
-    public GetVideoChatHistoryQueryHandler(IUnitOfWork unitOfWork)
+    public GetVideoChatHistoryQueryHandler(IUnitOfWork unitOfWork, IBlobStorageService blobStorageService)
     {
         _unitOfWork = unitOfWork;
+        _blobStorageService = blobStorageService;
     }
 
     public async Task<Result<IEnumerable<ChatMessageDto>>> Handle(GetVideoChatHistoryQuery request, CancellationToken cancellationToken)
@@ -115,7 +117,12 @@ public class GetVideoChatHistoryQueryHandler : IRequestHandler<GetVideoChatHisto
             return Result<IEnumerable<ChatMessageDto>>.Failure("Video not found.", "VIDEO_NOT_FOUND");
 
         var messages = await _unitOfWork.ChatMessages.GetByYouTubeVideoIdAsync(request.VideoId, request.UserId, cancellationToken);
-        var dtos = messages.Select(m => new ChatMessageDto(m.MessageId, m.DocumentId, m.YouTubeVideoId, m.SourceType, m.Role, m.Content, m.CreatedAt));
+        var dtos = new List<ChatMessageDto>();
+        foreach (var m in messages)
+        {
+            var attachments = await ChatAttachmentStore.LoadAsync(_blobStorageService, m.AttachmentsJson, cancellationToken);
+            dtos.Add(new ChatMessageDto(m.MessageId, m.DocumentId, m.YouTubeVideoId, m.SourceType, m.Role, m.Content, m.CreatedAt, attachments.Count > 0 ? attachments : null));
+        }
 
         return Result<IEnumerable<ChatMessageDto>>.Success(dtos);
     }

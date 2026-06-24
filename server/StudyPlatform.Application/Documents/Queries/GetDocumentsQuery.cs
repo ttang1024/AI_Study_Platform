@@ -156,10 +156,12 @@ public record GetAIChatHistoryQuery(Guid DocumentId, Guid UserId) : IRequest<Res
 public class GetAIChatHistoryQueryHandler : IRequestHandler<GetAIChatHistoryQuery, Result<IEnumerable<ChatMessageDto>>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IBlobStorageService _blobStorageService;
 
-    public GetAIChatHistoryQueryHandler(IUnitOfWork unitOfWork)
+    public GetAIChatHistoryQueryHandler(IUnitOfWork unitOfWork, IBlobStorageService blobStorageService)
     {
         _unitOfWork = unitOfWork;
+        _blobStorageService = blobStorageService;
     }
 
     public async Task<Result<IEnumerable<ChatMessageDto>>> Handle(GetAIChatHistoryQuery request, CancellationToken cancellationToken)
@@ -173,7 +175,12 @@ public class GetAIChatHistoryQueryHandler : IRequestHandler<GetAIChatHistoryQuer
 
         var chatUserId = document.UserId == request.UserId ? request.UserId : document.UserId;
         var messages = await _unitOfWork.ChatMessages.GetByDocumentIdAsync(request.DocumentId, chatUserId, cancellationToken);
-        var dtos = messages.Select(m => new ChatMessageDto(m.MessageId, m.DocumentId, m.YouTubeVideoId, m.SourceType, m.Role, m.Content, m.CreatedAt));
+        var dtos = new List<ChatMessageDto>();
+        foreach (var m in messages)
+        {
+            var attachments = await ChatAttachmentStore.LoadAsync(_blobStorageService, m.AttachmentsJson, cancellationToken);
+            dtos.Add(new ChatMessageDto(m.MessageId, m.DocumentId, m.YouTubeVideoId, m.SourceType, m.Role, m.Content, m.CreatedAt, attachments.Count > 0 ? attachments : null));
+        }
 
         return Result<IEnumerable<ChatMessageDto>>.Success(dtos);
     }

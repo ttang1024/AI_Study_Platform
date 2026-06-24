@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useStudy } from '../../context/StudyContext';
 import { documentService } from '../../services/documentService';
+import { attachmentsToDisplay, type ChatAttachment, type ChatMessageAttachment } from '../../services/aiService';
 import { audioService } from '../../services/audioService';
 import { VideoNoteEditorRef } from '../../components/youtube/VideoNoteEditor';
 import { ChatPanelRef } from '../../components/ai/ChatPanel';
@@ -10,7 +11,7 @@ import { getApiErrorCode } from '../../utils/apiError';
 import { parseTranscript, formatTime, fmtSrtTime } from './transcript';
 
 export interface SimpleCard { id: string; front: string; back: string; cardType?: 'basic' | 'cloze' | 'chart'; }
-export interface ChatMsg { id: string; role: 'user' | 'model'; content: string; isError?: boolean; }
+export interface ChatMsg { id: string; role: 'user' | 'model'; content: string; isError?: boolean; attachments?: ChatMessageAttachment[]; }
 export type AudioStudyTab = 'summary' | 'mindmap' | 'notes' | 'flashcards' | 'quiz' | 'problems' | 'chat';
 export type QuizDifficulty = 'easy' | 'medium' | 'hard';
 
@@ -206,7 +207,7 @@ export function useAudioDetail(propId?: string, propCourseId?: string) {
       // Load chat
       try {
         const history = await documentService.getChatHistory(cId, docId);
-        setChatMessages(history.map(m => ({ id: m.id, role: m.role as 'user' | 'model', content: m.content })));
+        setChatMessages(history.map(m => ({ id: m.id, role: m.role as 'user' | 'model', content: m.content, attachments: m.attachments })));
       } catch { }
     } catch {
       navigate(-1);
@@ -452,16 +453,16 @@ export function useAudioDetail(propId?: string, propCourseId?: string) {
     }));
   };
 
-  const streamChat = async (message: string, onChunk: (chunk: string) => void) => {
+  const streamChat = async (message: string, onChunk: (chunk: string) => void, attachments?: ChatAttachment[]) => {
     if (!id || !courseId) return;
-    const userMsg: ChatMsg = { id: Date.now().toString(), role: 'user', content: message };
+    const userMsg: ChatMsg = { id: Date.now().toString(), role: 'user', content: message, attachments: attachmentsToDisplay(attachments) };
     setChatMessages(prev => [...prev, userMsg]);
     let accumulated = '';
     try {
       await documentService.streamChat(courseId, id, message, (chunk) => {
         accumulated += chunk;
         onChunk(chunk);
-      });
+      }, undefined, attachments);
       setChatMessages(prev => [...prev, { id: String(Date.now() + 1), role: 'model', content: accumulated }]);
     } catch (err) {
       setChatMessages(prev => [...prev, { id: String(Date.now() + 1), role: 'model', content: getApiErrorCode(err), isError: true }]);

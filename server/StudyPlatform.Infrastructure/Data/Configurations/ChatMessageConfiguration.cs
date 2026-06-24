@@ -11,6 +11,7 @@ public class ChatMessageConfiguration : IEntityTypeConfiguration<ChatMessage>
         builder.HasKey(c => c.MessageId);
         builder.Property(c => c.Role).IsRequired().HasMaxLength(20);
         builder.Property(c => c.Content).IsRequired().HasColumnType("text");
+        builder.Property(c => c.AttachmentsJson).HasColumnType("jsonb");
         builder.Property(c => c.SourceType).IsRequired().HasMaxLength(20).HasDefaultValue("document");
         builder.Property(c => c.CreatedAt).IsRequired();
 

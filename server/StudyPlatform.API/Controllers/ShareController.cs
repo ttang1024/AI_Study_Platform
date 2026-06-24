@@ -204,7 +204,7 @@ public class ShareController : ControllerBase
             return NotFound();
 
         var stream = await _blobStorage.DownloadAsync(video.VideoUrl, cancellationToken);
-        return File(stream, GetVideoContentType(video.VideoUrl), enableRangeProcessing: true);
+        return File(stream, MediaFormatting.GetVideoContentType(video.VideoUrl), enableRangeProcessing: true);
     }
 
     private static bool TryParseDocPath(string sourceUrl, out Guid docId)
@@ -219,23 +219,6 @@ public class ShareController : ControllerBase
         videoId = Guid.Empty;
         var parts = sourceUrl.Split('/');
         return parts.Length == 2 && parts[0] == "video" && Guid.TryParse(parts[1], out videoId);
-    }
-
-    private static string GetVideoContentType(string blobUrl)
-    {
-        var path = blobUrl;
-        if (Uri.TryCreate(blobUrl, UriKind.Absolute, out var uri))
-            path = uri.AbsolutePath;
-
-        return Path.GetExtension(Uri.UnescapeDataString(path)).ToLowerInvariant() switch
-        {
-            ".mp4" or ".m4v" => "video/mp4",
-            ".mov" => "video/quicktime",
-            ".webm" => "video/webm",
-            ".mkv" => "video/x-matroska",
-            ".avi" => "video/x-msvideo",
-            _ => "application/octet-stream"
-        };
     }
 
     private static string GenerateToken()

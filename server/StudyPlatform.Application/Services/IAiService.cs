@@ -47,6 +47,9 @@ public interface IAiService
     IAsyncEnumerable<string> StreamMindMapAsync(string textContent, CancellationToken cancellationToken = default);
     IAsyncEnumerable<string> StreamMindMapFromYouTubeAsync(string transcriptText, CancellationToken cancellationToken = default);
     IAsyncEnumerable<string> StreamChatAsync(string documentContent, string userMessage, IEnumerable<(string role, string content)> history, CancellationToken cancellationToken = default);
+    IAsyncEnumerable<string> StreamChatAsync(string documentContent, string userMessage, IEnumerable<(string role, string content)> history, IReadOnlyList<(byte[] data, string mimeType)> attachments, CancellationToken cancellationToken = default);
     IAsyncEnumerable<string> StreamChatWithYouTubeAsync(string transcriptText, IEnumerable<(string role, string content)> history, string message, CancellationToken cancellationToken = default);
+    IAsyncEnumerable<string> StreamChatWithYouTubeAsync(string transcriptText, IEnumerable<(string role, string content)> history, string message, IReadOnlyList<(byte[] data, string mimeType)> attachments, CancellationToken cancellationToken = default);
     IAsyncEnumerable<string> StreamGeneralChatAsync(IEnumerable<(string role, string content)> history, string message, CancellationToken cancellationToken = default);
+    IAsyncEnumerable<string> StreamGeneralChatAsync(IEnumerable<(string role, string content)> history, string message, IReadOnlyList<(byte[] data, string mimeType)> attachments, CancellationToken cancellationToken = default);
 }

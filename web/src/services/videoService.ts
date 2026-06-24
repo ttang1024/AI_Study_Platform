@@ -1,6 +1,7 @@
 import { apiClient } from './apiClient'
 import { streamSse } from './streamSse'
 import { getApiUrl } from '../utils/env'
+import type { ChatAttachment, ChatMessageAttachment } from './aiService'
 
 // --- Types ---
 
@@ -417,12 +418,13 @@ export const videoService = {
 
 	async getChatHistory(
 		videoId: string,
-	): Promise<Array<{ id: string; role: 'user' | 'model'; content: string }>> {
+	): Promise<Array<{ id: string; role: 'user' | 'model'; content: string; attachments?: ChatMessageAttachment[] }>> {
 		const res = await apiClient.get<{ data: any[] }>(`${VIDEO_API}/${videoId}/chat`)
 		return (res.data?.data ?? []).map((m: any) => ({
 			id: m.messageId,
 			role: m.role === 'assistant' ? 'model' : (m.role as 'user' | 'model'),
 			content: m.content,
+			attachments: m.attachments ?? undefined,
 		}))
 	},
 
@@ -470,7 +472,13 @@ export const videoService = {
 		message: string,
 		onChunk: (chunk: string) => void,
 		signal?: AbortSignal,
+		attachments?: ChatAttachment[],
 	): Promise<void> {
-		return streamSse(`${VIDEO_API}/${videoId}/chat/stream`, { message }, onChunk, signal)
+		return streamSse(
+			`${VIDEO_API}/${videoId}/chat/stream`,
+			attachments && attachments.length > 0 ? { message, attachments } : { message },
+			onChunk,
+			signal,
+		)
 	},
 }

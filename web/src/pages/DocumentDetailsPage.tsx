@@ -5,6 +5,7 @@ import { useStudy } from '../context/StudyContext';
 import { DocumentViewer } from '../components/document/DocumentViewer';
 import { AnnotatedPdfViewer } from '../components/AnnotatedPdfViewer';
 import { ChatPanel, ChatPanelRef } from '../components/ai/ChatPanel';
+import { attachmentsToDisplay, type ChatMessageAttachment } from '../services/aiService';
 import { MindMapViewer } from '../components/mindmap/MindMapViewer';
 import { Flashcards } from '../components/study/Flashcards';
 import { DocumentQuiz } from '../components/quiz/DocumentQuiz';
@@ -38,7 +39,7 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [summaryStreamText, setSummaryStreamText] = useState('');
   const [summaryError, setSummaryError] = useState<string | null>(null);
-  const [docChatMessages, setDocChatMessages] = useState<Array<{ id: string; role: 'user' | 'model'; content: string; isError?: boolean }>>([]);
+  const [docChatMessages, setDocChatMessages] = useState<Array<{ id: string; role: 'user' | 'model'; content: string; isError?: boolean; attachments?: ChatMessageAttachment[] }>>([]);
   const [noteContent, setNoteContent] = useState('');
   const [noteId, setNoteId] = useState<string | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
@@ -94,7 +95,7 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
 
   // Seed local chat messages from StudyContext when document changes
   useEffect(() => {
-    setDocChatMessages(chatMessages.map(m => ({ id: m.id, role: m.role as 'user' | 'model', content: m.content })));
+    setDocChatMessages(chatMessages.map(m => ({ id: m.id, role: m.role as 'user' | 'model', content: m.content, attachments: m.attachments })));
   }, [currentDocument?.id, chatMessages]);
 
   useEffect(() => {
@@ -413,8 +414,9 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
                   ref={chatPanelRef}
                   onTabChange={setActiveTab}
                   externalMessages={docChatMessages}
-                  onExternalStreamSend={async (message, onChunk) => {
-                    const userMsg = { id: Date.now().toString(), role: 'user' as const, content: message };
+                  enableAttachments
+                  onExternalStreamSend={async (message, onChunk, attachments) => {
+                    const userMsg = { id: Date.now().toString(), role: 'user' as const, content: message, attachments: attachmentsToDisplay(attachments) };
                     setDocChatMessages(prev => [...prev, userMsg]);
                     let accumulated = '';
                     try {
@@ -423,6 +425,8 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
                         currentDocument.id,
                         message,
                         (chunk) => { accumulated += chunk; onChunk(chunk); },
+                        undefined,
+                        attachments,
                       );
                       setDocChatMessages(prev => [...prev, { id: String(Date.now() + 1), role: 'model', content: accumulated }]);
                     } catch (err) {

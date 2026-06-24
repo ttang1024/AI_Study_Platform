@@ -37,11 +37,18 @@ export interface Note {
 	createdAt: string
 }
 
+export interface ChatMessageAttachment {
+	url: string
+	mimeType: string
+	fileName?: string
+}
+
 export interface ChatMessage {
 	id: string
 	role: 'user' | 'model'
 	content: string
 	timestamp: string
+	attachments?: ChatMessageAttachment[]
 }
 
 export interface QuizQuestion {

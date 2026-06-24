@@ -1,8 +1,9 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Timer, Play, Pause, RotateCcw, X, Minus, Plus, Coffee, Brain } from 'lucide-react';
+import { Timer, Play, Pause, RotateCcw, X, Minus, Plus, Coffee, Brain, ChevronDown, GripVertical } from 'lucide-react';
 import { analyticsService } from '../../services/analyticsService';
+import { pomodoroSettings } from '../../services/pomodoroSettings';
 import { cn } from '../../utils/cn';
 
 type Mode = 'focus' | 'break';
@@ -13,6 +14,8 @@ const isHiddenPath = (path: string) =>
   HIDDEN_PATHS.includes(path) || path.startsWith('/share/');
 
 const STORAGE_KEY = 'pomodoro-v1';
+const POS_KEY = 'pomodoro-pos';
+const EDGE = 8; // viewport gap when clamping the dragged window
 const DEFAULT_FOCUS_MIN = 25;
 const BREAK_MIN = 5;
 const MIN_FOCUS = 5;
@@ -31,6 +34,17 @@ const loadPersisted = (): Persisted | null => {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     return raw ? (JSON.parse(raw) as Persisted) : null;
+  } catch {
+    return null;
+  }
+};
+
+interface Pos { x: number; y: number }
+
+const loadPos = (): Pos | null => {
+  try {
+    const raw = localStorage.getItem(POS_KEY);
+    return raw ? (JSON.parse(raw) as Pos) : null;
   } catch {
     return null;
   }
@@ -74,6 +88,10 @@ export const PomodoroTimer: React.FC = () => {
   const fetchedRef = useRef(false);
 
   const [open, setOpen] = useState(false);
+  const [enabled, setEnabled] = useState(() => pomodoroSettings.isEnabled());
+  const [pos, setPos] = useState<Pos | null>(() => loadPos());
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const movedRef = useRef(false);
   const [mode, setMode] = useState<Mode>(persisted?.mode ?? 'focus');
   const [focusMinutes, setFocusMinutes] = useState(persisted?.focusMinutes ?? DEFAULT_FOCUS_MIN);
   const [customized, setCustomized] = useState(persisted?.customized ?? false);
@@ -135,6 +153,73 @@ export const PomodoroTimer: React.FC = () => {
     } catch { /* ignore */ }
   }, [mode, focusMinutes, customized, running, endsAt, remaining]);
 
+  // Re-show when the user toggles the timer back on from Settings.
+  useEffect(() => pomodoroSettings.subscribe(setEnabled), []);
+
+  // Persist the dragged position.
+  useEffect(() => {
+    try {
+      if (pos) localStorage.setItem(POS_KEY, JSON.stringify(pos));
+      else localStorage.removeItem(POS_KEY);
+    } catch { /* ignore */ }
+  }, [pos]);
+
+  // Keep the window inside the viewport when it resizes or changes size
+  // (collapsed bubble ↔ expanded panel).
+  const clampIntoView = useCallback(() => {
+    setPos((p) => {
+      const el = containerRef.current;
+      if (!p || !el) return p;
+      const x = Math.min(Math.max(EDGE, p.x), window.innerWidth - el.offsetWidth - EDGE);
+      const y = Math.min(Math.max(EDGE, p.y), window.innerHeight - el.offsetHeight - EDGE);
+      return x === p.x && y === p.y ? p : { x, y };
+    });
+  }, []);
+
+  useEffect(() => { clampIntoView(); }, [open, enabled, clampIntoView]);
+  useEffect(() => {
+    window.addEventListener('resize', clampIntoView);
+    return () => window.removeEventListener('resize', clampIntoView);
+  }, [clampIntoView]);
+
+  // Pointer-based dragging from a handle. Buttons opt out via [data-no-drag].
+  const startDrag = (e: React.PointerEvent) => {
+    if ((e.target as HTMLElement).closest('[data-no-drag]')) return;
+    const el = containerRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    movedRef.current = false;
+
+    const move = (ev: PointerEvent) => {
+      const dx = ev.clientX - startX;
+      const dy = ev.clientY - startY;
+      if (!movedRef.current && Math.hypot(dx, dy) < 4) return;
+      movedRef.current = true;
+      setPos({
+        x: Math.min(Math.max(EDGE, rect.left + dx), window.innerWidth - el.offsetWidth - EDGE),
+        y: Math.min(Math.max(EDGE, rect.top + dy), window.innerHeight - el.offsetHeight - EDGE),
+      });
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+
+  const close = () => {
+    setOpen(false);
+    pomodoroSettings.setEnabled(false);
+  };
+
+  // When anchored by a drag, inline coordinates override the default corner.
+  const posStyle: React.CSSProperties | undefined = pos
+    ? { left: pos.x, top: pos.y, right: 'auto', bottom: 'auto' }
+    : undefined;
+
   const toggle = () => {
     if (running) {
       setRunning(false);
@@ -176,24 +261,39 @@ export const PomodoroTimer: React.FC = () => {
   const progress = totalSeconds > 0 ? 1 - Math.min(1, Math.max(0, remaining / totalSeconds)) : 0;
   const isActive = running || remaining !== totalSeconds;
 
-  // Hidden on public/auth pages — the timer keeps ticking in the background.
-  if (hidden) return null;
+  // Hidden on public/auth pages, or closed by the user (re-enable in Settings).
+  // The timer keeps ticking in the background either way.
+  if (hidden || !enabled) return null;
 
   // ── Collapsed floating button ──
   if (!open) {
     return (
-      <button
-        onClick={() => setOpen(true)}
-        title="Pomodoro timer"
-        className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-white shadow-lg border border-[var(--border-color)] hover:scale-105 transition-transform"
-        style={isActive ? { boxShadow: `0 0 0 2px ${accent}33, 0 8px 24px rgba(0,0,0,0.12)` } : undefined}
-      >
-        {running ? (
-          <span className="text-[12px] font-bold tabular-nums" style={{ color: accent }}>{fmt(remaining)}</span>
-        ) : (
-          <Timer size={22} style={{ color: isActive ? accent : 'var(--text-muted)' }} />
-        )}
-      </button>
+      <div ref={containerRef} className="group fixed bottom-6 right-6 z-40" style={posStyle}>
+        <button
+          onClick={() => {
+            if (movedRef.current) { movedRef.current = false; return; }
+            setOpen(true);
+          }}
+          onPointerDown={startDrag}
+          title="Pomodoro timer (drag to move)"
+          className="flex h-14 w-14 touch-none items-center justify-center rounded-full bg-white shadow-lg border border-[var(--border-color)] transition-transform hover:scale-105 active:cursor-grabbing"
+          style={isActive ? { boxShadow: `0 0 0 2px ${accent}33, 0 8px 24px rgba(0,0,0,0.12)` } : undefined}
+        >
+          {running ? (
+            <span className="text-[12px] font-bold tabular-nums" style={{ color: accent }}>{fmt(remaining)}</span>
+          ) : (
+            <Timer size={22} style={{ color: isActive ? accent : 'var(--text-muted)' }} />
+          )}
+        </button>
+        <button
+          data-no-drag
+          onClick={close}
+          title="Close timer"
+          className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full border border-[var(--border-color)] bg-white text-text-muted opacity-0 shadow transition-opacity hover:text-red-500 group-hover:opacity-100"
+        >
+          <X size={12} />
+        </button>
+      </div>
     );
   }
 
@@ -204,15 +304,17 @@ export const PomodoroTimer: React.FC = () => {
   return (
     <AnimatePresence>
       <motion.div
+        ref={containerRef}
         initial={{ opacity: 0, y: 12, scale: 0.96 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 12, scale: 0.96 }}
         transition={{ duration: 0.16 }}
+        style={posStyle}
         className="fixed bottom-6 right-6 z-40 w-64 rounded-2xl bg-white p-4 shadow-2xl border border-[var(--border-color)]"
       >
-        {/* Header */}
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-1 rounded-lg bg-zinc-100 p-0.5">
+        {/* Header (drag handle) */}
+        <div onPointerDown={startDrag} className="mb-3 flex touch-none cursor-grab items-center justify-between active:cursor-grabbing">
+          <div data-no-drag className="flex items-center gap-1 rounded-lg bg-zinc-100 p-0.5">
             {(['focus', 'break'] as const).map((m) => (
               <button
                 key={m}
@@ -227,9 +329,15 @@ export const PomodoroTimer: React.FC = () => {
               </button>
             ))}
           </div>
-          <button onClick={() => setOpen(false)} className="text-text-muted hover:text-text-main transition-colors" title="Minimize">
-            <X size={16} />
-          </button>
+          <div className="flex items-center gap-0.5">
+            <GripVertical size={14} className="text-zinc-300" />
+            <button data-no-drag onClick={() => setOpen(false)} className="text-text-muted hover:text-text-main transition-colors" title="Minimize">
+              <ChevronDown size={16} />
+            </button>
+            <button data-no-drag onClick={close} className="text-text-muted hover:text-red-500 transition-colors" title="Close timer">
+              <X size={16} />
+            </button>
+          </div>
         </div>
 
         {/* Ring */}

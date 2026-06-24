@@ -1,18 +1,19 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { aiService } from '../../services/aiService';
+import { aiService, attachmentsToDisplay, type ChatAttachment, type ChatMessageAttachment } from '../../services/aiService';
 import { videoService, TranscriptSegment } from '../../services/videoService';
 import { VideoNoteEditorRef } from '../../components/youtube/VideoNoteEditor';
 import { ChatPanelRef } from '../../components/ai/ChatPanel';
 import { QuizQuestion } from '../../types';
 import { getApiErrorCode } from '../../utils/apiError';
 import { useStudyTimer } from '../../hooks/useStudyTimer';
+import { useSelectionToolbar } from './useSelectionToolbar';
 import {
   parseVideoId, parseBilibiliVideo, isOptionCorrect, fmtTime, fmtSrtTime,
 } from './helpers';
 
 export interface SimpleCard { id: string; front: string; back: string; cardType?: 'basic' | 'cloze' | 'chart'; }
-export interface ChatMsg { id: string; role: 'user' | 'model'; content: string; isError?: boolean; }
+export interface ChatMsg { id: string; role: 'user' | 'model'; content: string; isError?: boolean; attachments?: ChatMessageAttachment[]; }
 export type VideoStudyTab = 'summary' | 'mindmap' | 'notes' | 'flashcards' | 'quiz' | 'problems' | 'chat';
 export type QuizDifficulty = 'easy' | 'medium' | 'hard';
 export interface SelectionToolbar { x: number; y: number; text: string; }
@@ -75,9 +76,9 @@ export function useVideoDetail(propId?: string) {
 
   // Text selection toolbars
   const summaryRef = useRef<HTMLDivElement>(null);
-  const [summaryToolbar, setSummaryToolbar] = useState<SelectionToolbar | null>(null);
+  const { toolbar: summaryToolbar, setToolbar: setSummaryToolbar, onMouseUp: handleSummaryMouseUp } = useSelectionToolbar();
   const transcriptRef = useRef<HTMLDivElement>(null);
-  const [transcriptToolbar, setTranscriptToolbar] = useState<SelectionToolbar | null>(null);
+  const { toolbar: transcriptToolbar, setToolbar: setTranscriptToolbar, onMouseUp: handleTranscriptMouseUp } = useSelectionToolbar();
 
   // Center panel view: transcript or subtitles
   const [centerView, setCenterView] = useState<'transcript' | 'subtitles'>('transcript');
@@ -584,38 +585,22 @@ export function useVideoDetail(propId?: string) {
     }));
   };
 
-  const streamChat = async (message: string, onChunk: (chunk: string) => void) => {
+  const streamChat = async (message: string, onChunk: (chunk: string) => void, attachments?: ChatAttachment[]) => {
     if (!id) return;
-    const userMsg: ChatMsg = { id: Date.now().toString(), role: 'user', content: message };
+    const userMsg: ChatMsg = { id: Date.now().toString(), role: 'user', content: message, attachments: attachmentsToDisplay(attachments) };
     setChatMessages(prev => [...prev, userMsg]);
     let accumulated = '';
     try {
       await videoService.streamChat(id, message, (chunk) => {
         accumulated += chunk;
         onChunk(chunk);
-      });
+      }, undefined, attachments);
       setChatMessages(prev => [...prev, { id: String(Date.now() + 1), role: 'model', content: accumulated }]);
     } catch (err) {
       setChatMessages(prev => [...prev, { id: String(Date.now() + 1), role: 'model', content: getApiErrorCode(err), isError: true }]);
       throw err;
     }
   };
-
-  const handleSummaryMouseUp = useCallback(() => {
-    const selection = window.getSelection();
-    const text = selection?.toString().trim();
-    if (!text || !selection?.rangeCount) { setSummaryToolbar(null); return; }
-    const rect = selection.getRangeAt(0).getBoundingClientRect();
-    setSummaryToolbar({ x: rect.left + rect.width / 2, y: rect.top - 12, text });
-  }, []);
-
-  const handleTranscriptMouseUp = useCallback(() => {
-    const selection = window.getSelection();
-    const text = selection?.toString().trim();
-    if (!text || !selection?.rangeCount) { setTranscriptToolbar(null); return; }
-    const rect = selection.getRangeAt(0).getBoundingClientRect();
-    setTranscriptToolbar({ x: rect.left + rect.width / 2, y: rect.top - 12, text });
-  }, []);
 
   return {
     id, videoUrl, playbackUrl, videoTitle, sourceType, bilibiliVideo, videoId,

@@ -65,9 +65,16 @@ public record ChatMessageDto(
     string SourceType,
     string Role,
     string Content,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    IEnumerable<ChatMessageAttachmentDto>? Attachments = null);
 
-public record AIChatRequest(string Message);
+/// <summary>A stored chat attachment surfaced to clients. <see cref="Url"/> is a time-limited presigned GET URL.</summary>
+public record ChatMessageAttachmentDto(string Url, string MimeType, string? FileName);
+
+/// <summary>An image/PDF attachment for a chat turn. <see cref="Data"/> is raw base64 (no data: URL prefix).</summary>
+public record ChatAttachmentDto(string MimeType, string Data, string? FileName);
+
+public record AIChatRequest(string Message, IEnumerable<ChatAttachmentDto>? Attachments = null);
 
 public record QuizSubmissionDto(
     Guid SubmissionId,

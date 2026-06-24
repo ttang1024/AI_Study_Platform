@@ -82,6 +82,9 @@ namespace StudyPlatform.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("AttachmentsJson")
+                        .HasColumnType("jsonb");
+
                     b.Property<Guid?>("ChatConversationId")
                         .HasColumnType("uuid");
 

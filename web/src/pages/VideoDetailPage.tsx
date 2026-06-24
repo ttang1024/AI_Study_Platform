@@ -170,6 +170,7 @@ export const VideoDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
             ref={chatPanelRef}
             externalMessages={chatMessages}
             onExternalStreamSend={streamChat}
+            enableAttachments
             onExternalAddToNote={(html) => {
               noteEditorRef.current?.appendContent(html);
               setActiveTab('notes');

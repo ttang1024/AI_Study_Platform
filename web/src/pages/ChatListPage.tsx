@@ -2,36 +2,37 @@ import React, { useState, useCallback, useEffect } from 'react';
 import {
   MessageSquare, Trash2, Sparkles, ArrowLeft,
   Bot, FileText, Youtube, Loader2, ExternalLink, Share2, Check, AlertCircle, Plus,
-  GraduationCap, Mic,
+  GraduationCap,
 } from 'lucide-react';
 import { TeachBackMode } from '../components/tutor/TeachBackMode';
-import { VoiceTutorMode } from '../components/tutor/VoiceTutorMode';
 import { Link } from 'react-router-dom';
 import { ChatPanel } from '../components/ai/ChatPanel';
-import { aiService, type ChatSessionSummary } from '../services/aiService';
+import { aiService, attachmentsToDisplay, type ChatSessionSummary, type ChatAttachment, type ChatMessageAttachment } from '../services/aiService';
 import { documentService } from '../services/documentService';
 import { videoService } from '../services/videoService';
 import { STREAM_ERROR_MESSAGE } from '../services/streamSse';
 import { DeleteModal } from '../components/common/DeleteModal';
 import { createShare } from '../services/shareContentService';
 import { cn } from '../utils/cn';
+import { ChatActivePanel } from '../components/chat/ChatActivePanel';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
-interface PanelMessage {
+export interface PanelMessage {
   id: string;
   role: 'user' | 'model';
   content: string;
   isError?: boolean;
+  attachments?: ChatMessageAttachment[];
 }
 
-type ActiveItem =
+export type ActiveItem =
   | { kind: 'general'; sourceId: string; name: string }
   | { kind: 'document'; sourceId: string; courseId: string; name: string }
   | { kind: 'video'; sourceId: string; name: string };
 
-/** Page-level mode: regular conversations, Feynman teach-back, or the spoken voice tutor. */
-type PageTab = 'chats' | 'teach-back' | 'voice';
+/** Page-level mode: regular conversations or Feynman teach-back. */
+type PageTab = 'chats' | 'teach-back';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -85,9 +86,9 @@ function formatConversationForShare(messages: PanelMessage[]): string {
 
 export const ChatListPage: React.FC = () => {
   const [pageTab, setPageTab] = useState<PageTab>(() => {
-    // /tutor redirects here with ?tab=teach-back or ?tab=voice.
+    // /tutor redirects here with ?tab=teach-back.
     const t = new URLSearchParams(window.location.search).get('tab');
-    return t === 'teach-back' || t === 'voice' ? t : 'chats';
+    return t === 'teach-back' ? t : 'chats';
   });
   const [backendSessions, setBackendSessions] = useState<ChatSessionSummary[]>([]);
   const [activeItem, setActiveItem] = useState<ActiveItem | null>(null);
@@ -159,13 +160,14 @@ export const ChatListPage: React.FC = () => {
           id: m.messageId,
           role: m.role === 'user' ? 'user' : 'model',
           content: m.content,
+          attachments: m.attachments ?? undefined,
         })));
       } else if (item.kind === 'document') {
         const msgs = await documentService.getChatHistory(item.courseId, item.sourceId);
-        setPanelMessages(msgs.map(m => ({ id: m.id, role: m.role as 'user' | 'model', content: m.content })));
+        setPanelMessages(msgs.map(m => ({ id: m.id, role: m.role as 'user' | 'model', content: m.content, attachments: m.attachments })));
       } else {
         const msgs = await videoService.getChatHistory(item.sourceId);
-        setPanelMessages(msgs.map(m => ({ id: m.id, role: m.role, content: m.content })));
+        setPanelMessages(msgs.map(m => ({ id: m.id, role: m.role, content: m.content, attachments: m.attachments })));
       }
     } catch {
       setPanelMessages([]);
@@ -296,11 +298,19 @@ export const ChatListPage: React.FC = () => {
   // ── Send handler (unified for all session types) ─────────────────────────
 
   const handleStreamSend = useCallback(
-    async (message: string, onChunk: (chunk: string) => void) => {
+    async (message: string, onChunk: (chunk: string) => void, attachments?: ChatAttachment[]) => {
       if (!activeItem) return;
 
-      // Optimistically add user message to the panel
-      const userMessage: PanelMessage = { id: createMessageId(), role: 'user', content: message };
+      const turnAttachments = attachments && attachments.length > 0 ? attachments : undefined;
+      // Title source falls back to the first file name when the turn is attachments-only.
+      const titleSource = message.trim() || turnAttachments?.[0]?.fileName || 'Attachment';
+      // Optimistically add user message to the panel, with inline thumbnails for any attachments.
+      const userMessage: PanelMessage = {
+        id: createMessageId(),
+        role: 'user',
+        content: message,
+        attachments: attachmentsToDisplay(turnAttachments),
+      };
       setPanelMessages(prev => [
         ...prev,
         userMessage,
@@ -314,13 +324,13 @@ export const ChatListPage: React.FC = () => {
           await aiService.streamGeneralChatConversation(activeItem.sourceId, message, chunk => {
             accumulated += chunk;
             onChunk(chunk);
-          });
+          }, undefined, turnAttachments);
           completed = true;
         } else if (activeItem.kind === 'document') {
           await documentService.streamChat(activeItem.courseId, activeItem.sourceId, message, chunk => {
             accumulated += chunk;
             onChunk(chunk);
-          });
+          }, undefined, turnAttachments);
           completed = true;
 
           setBackendSessions(prev =>
@@ -335,7 +345,7 @@ export const ChatListPage: React.FC = () => {
           await videoService.streamChat(activeItem.sourceId, message, chunk => {
             accumulated += chunk;
             onChunk(chunk);
-          });
+          }, undefined, turnAttachments);
           completed = true;
 
           setBackendSessions(prev =>
@@ -358,7 +368,7 @@ export const ChatListPage: React.FC = () => {
             session.sourceType === 'general' && session.sourceId === activeItem.sourceId
               ? {
                 ...session,
-                sourceName: session.messageCount === 0 ? titleFromMessage(message) : session.sourceName,
+                sourceName: session.messageCount === 0 ? titleFromMessage(titleSource) : session.sourceName,
                 lastMessage: STREAM_ERROR_MESSAGE,
                 lastMessageRole: 'assistant',
                 updatedAt,
@@ -377,7 +387,7 @@ export const ChatListPage: React.FC = () => {
           ]);
           if (activeItem.kind === 'general') {
             const updatedAt = new Date().toISOString();
-            const nextTitle = titleFromMessage(message);
+            const nextTitle = titleFromMessage(titleSource);
             const shouldRetitle = backendSessions.find(session =>
               session.sourceType === 'general' && session.sourceId === activeItem.sourceId,
             )?.messageCount === 0;
@@ -409,12 +419,11 @@ export const ChatListPage: React.FC = () => {
 
   return (
     <div className="flex h-full flex-col gap-3">
-      {/* ── Mode tabs: conversations / teach-back / voice tutor ── */}
+      {/* ── Mode tabs: conversations / teach-back ── */}
       <div className="flex items-center gap-2 shrink-0">
         {([
           ['chats', 'Conversations', MessageSquare],
           ['teach-back', 'Teach-back', GraduationCap],
-          ['voice', 'Voice tutor', Mic],
         ] as [PageTab, string, React.ElementType][]).map(([tab, label, Icon]) => (
           <button
             key={tab}
@@ -435,11 +444,6 @@ export const ChatListPage: React.FC = () => {
       {pageTab === 'teach-back' && (
         <div className="flex-1 min-h-0 overflow-y-auto">
           <TeachBackMode />
-        </div>
-      )}
-      {pageTab === 'voice' && (
-        <div className="flex-1 min-h-0 overflow-y-auto [&>div]:h-full">
-          <VoiceTutorMode />
         </div>
       )}
 
@@ -531,149 +535,21 @@ export const ChatListPage: React.FC = () => {
       </div>
 
       {/* ── Right panel: active chat ── */}
-      <div
-        className={cn(
-          'flex-1 flex flex-col min-w-0',
-          !showList ? 'flex' : 'hidden md:flex',
-        )}
-      >
-        <div className="flex items-center justify-between gap-3 border-b border-[var(--border-color)] px-4 py-3 bg-[var(--bg-sidebar)] shrink-0">
-          <div className="flex items-center gap-2 min-w-0 md:hidden">
-            <button
-              onClick={() => setShowList(true)}
-              className="flex items-center gap-1.5 text-sm text-text-muted hover:text-text-main transition-colors shrink-0"
-            >
-              <ArrowLeft size={15} />
-            </button>
-            <p className="truncate text-sm font-semibold text-text-main">
-              {activeItem ? getConversationTitle(activeItem) : 'AI Chat'}
-            </p>
-          </div>
-          <div className="hidden min-w-0 md:block">
-            <p className="truncate text-sm font-semibold text-text-main">
-              {activeItem ? getConversationTitle(activeItem) : 'AI Chat'}
-            </p>
-          </div>
-          {!activeItem && (
-            <button
-              onClick={handleNewConversation}
-              className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-color)] bg-white px-3 py-1.5 text-xs font-semibold text-text-main transition-colors hover:border-[var(--primary)] hover:text-[var(--primary)]"
-            >
-              <Plus size={14} />
-              New
-            </button>
-          )}
-          {activeItem && (
-            <div className="ml-auto flex items-center gap-1.5">
-              <button
-                onClick={handleNewConversation}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-color)] bg-white px-3 py-1.5 text-xs font-semibold text-text-main transition-colors hover:border-[var(--primary)] hover:text-[var(--primary)]"
-              >
-                <Plus size={14} />
-                <span className="hidden sm:inline">New</span>
-              </button>
-              <button
-                onClick={handleShareActive}
-                disabled={shareStatus === 'creating'}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-color)] bg-white px-3 py-1.5 text-xs font-semibold text-text-main hover:border-[var(--primary)] hover:text-[var(--primary)] transition-colors disabled:cursor-not-allowed disabled:opacity-60"
-                title={shareStatus === 'creating' ? 'Creating link…' : shareStatus === 'copied' ? 'Link copied!' : shareStatus === 'error' ? 'Unable to share' : 'Share conversation'}
-              >
-                {shareStatus === 'creating'
-                  ? <Loader2 size={14} className="animate-spin" />
-                  : shareStatus === 'idle'
-                    ? <Share2 size={14} />
-                    : shareStatus === 'error'
-                      ? <AlertCircle size={14} />
-                      : <Check size={14} />}
-                <span className="hidden sm:inline">
-                  {shareStatus === 'creating'
-                    ? 'Creating'
-                    : shareStatus === 'copied'
-                      ? 'Link copied'
-                      : shareStatus === 'error'
-                        ? 'Unable to share'
-                        : 'Share'}
-                </span>
-              </button>
-              <button
-                onClick={() => handleDeleteConversation(activeItem)}
-                disabled={deletingKey === activeKey}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {deletingKey === activeKey ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-                Delete
-              </button>
-            </div>
-          )}
-        </div>
-
-        {loadingMessages ? (
-          <div className="flex flex-col items-center justify-center flex-1 text-center">
-            <Loader2 size={28} className="animate-spin text-[var(--primary)] mb-3" />
-            <p className="text-sm text-text-muted">Loading messages…</p>
-          </div>
-        ) : activeItem ? (
-          <div className="flex-1 min-h-0 flex flex-col">
-            {/* Source label */}
-            {activeItem.kind !== 'general' && (
-              <div className="flex items-center gap-2 border-b border-[var(--border-color)] px-4 py-2 bg-[var(--bg-app)] shrink-0">
-                {activeItem.kind === 'document'
-                  ? <FileText size={14} className="text-[var(--primary)] shrink-0" />
-                  : <Youtube size={14} className="text-[var(--primary)] shrink-0" />}
-                <span className="text-xs text-text-muted flex-1 min-w-0">
-                  {activeItem.kind === 'document' ? 'Document' : 'YouTube'} ·{' '}
-                  <Link
-                    to={activeItem.kind === 'document'
-                      ? `/documents/${activeItem.sourceId}`
-                      : `/videos/${activeItem.sourceId}`}
-                    state={{ activeTab: 'chat' }}
-                    className="font-medium text-text-main hover:text-[var(--primary)] hover:underline transition-colors"
-                  >
-                    {activeItem.name}
-                  </Link>
-                </span>
-                <Link
-                  to={activeItem.kind === 'document'
-                    ? `/documents/${activeItem.sourceId}`
-                    : `/videos/${activeItem.sourceId}`}
-                  state={{ activeTab: 'chat' }}
-                  title="Open detail page"
-                  className="shrink-0 text-text-muted hover:text-[var(--primary)] transition-colors"
-                >
-                  <ExternalLink size={13} />
-                </Link>
-              </div>
-            )}
-            <div className="flex-1 min-h-0">
-              <ChatPanel
-                key={activeKey!}
-                externalMessages={panelMessages}
-                onExternalStreamSend={handleStreamSend}
-                placeholder={activeItem.kind === 'general' ? 'Start a new study conversation...' : 'Ask anything…'}
-                hideHeader
-                hideAddToNotes
-              />
-            </div>
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center flex-1 text-center p-10">
-            <div className="mb-5 rounded-2xl bg-[var(--primary)]/10 p-5 text-[var(--primary)]">
-              <Sparkles size={36} />
-            </div>
-            <h3 className="text-lg font-semibold text-text-main mb-2">Select a Conversation</h3>
-            <p className="text-sm text-text-muted max-w-xs leading-relaxed">
-              Select a chat from the list, or start a new conversation.
-            </p>
-            <button
-              onClick={handleNewConversation}
-              className="mt-5 inline-flex items-center gap-2 rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
-            >
-              <Plus size={16} />
-              New conversation
-            </button>
-          </div>
-        )}
-      </div>
+      <ChatActivePanel
+        showList={showList}
+        setShowList={setShowList}
+        activeItem={activeItem}
+        activeKey={activeKey}
+        getConversationTitle={getConversationTitle}
+        handleNewConversation={handleNewConversation}
+        handleShareActive={handleShareActive}
+        shareStatus={shareStatus}
+        handleDeleteConversation={handleDeleteConversation}
+        deletingKey={deletingKey}
+        loadingMessages={loadingMessages}
+        panelMessages={panelMessages}
+        handleStreamSend={handleStreamSend}
+      />
 
       <DeleteModal
         isOpen={!!deleteTarget}

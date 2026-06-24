@@ -10,17 +10,17 @@ import {
 } from 'lucide-react';
 import { GlossaryTerm } from '../types';
 import { glossaryService } from '../services/glossaryService';
-import { synthesizeToBlob, downloadAudioBlob } from '../services/edgeTtsService';
 import { masteredService } from '../services/masteredService';
 import { cn } from '../utils/cn';
 import { getDocDisplayName } from '../utils/docName';
-import { usePersistentTts } from '../context/TtsContext';
 import { SourceFilterBar, SourceType } from '../components/common/SourceFilterBar';
 import { GlossaryShareModal } from '../components/common/GlossaryShareModal';
 import { GlossaryTermCard } from '../components/common/GlossaryTermCard';
 import { Pagination } from '../components/common/Pagination';
 import { Select } from '../components/common/Select';
+import { GlossaryGeneratePanel } from '../components/glossary/GlossaryGeneratePanel';
 import { useStudyTimer } from '../hooks/useStudyTimer';
+import { useGlossaryAudio } from '../hooks/useGlossaryAudio';
 
 function getDocKind(doc: { type?: string; name: string; originalUrl?: string }): 'audio' | 'article' | 'document' {
   if (doc.type === 'audio' || doc.type === 'podcast') return 'audio';
@@ -62,7 +62,6 @@ export const GlossaryPage: React.FC = () => {
   const [savingId, setSavingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [downloadingMp3, setDownloadingMp3] = useState(false);
 
   const GENERATE_PAGE_SIZE = 6;
 
@@ -235,6 +234,9 @@ export const GlossaryPage: React.FC = () => {
     [filtered, selectedIds],
   );
 
+  const { playerState, play, downloadingMp3, handleDownloadTxt, handleDownloadMp3 } =
+    useGlossaryAudio(playTerms, selectedIds, masteryFilter);
+
   const grouped = useMemo(() => {
     const map = new Map<string, GlossaryTerm[]>();
     for (const term of filtered) {
@@ -252,50 +254,6 @@ export const GlossaryPage: React.FC = () => {
     setActiveLetter(letter);
   };
 
-  // ttsItems derives from playTerms — selection (or, when empty, the filtered list) drives playback
-  const ttsItems = useMemo(
-    () => playTerms.map(t => ({ text: `${t.term}. ${t.definition}`, title: t.term })),
-    [playTerms],
-  );
-
-  const getTtsSubtitle = useCallback(
-    (index: number, itemCount: number) =>
-      `Term ${index + 1} / ${itemCount}${masteryFilter !== 'all' ? ` · ${masteryFilter}` : ''}`,
-    [masteryFilter],
-  );
-
-  const { playerState, play } = usePersistentTts('glossary', ttsItems, {
-    getSubtitle: getTtsSubtitle,
-  });
-
-  const handleDownloadTxt = useCallback(() => {
-    if (playTerms.length === 0) return;
-    const text = playTerms.map(t => `${t.term}\n${t.definition}`).join('\n\n');
-    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${selectedIds.size > 0 ? 'glossary_selected' : 'glossary'}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }, [playTerms, selectedIds]);
-
-  const handleDownloadMp3 = useCallback(async () => {
-    if (playTerms.length === 0 || downloadingMp3) return;
-    setDownloadingMp3(true);
-    try {
-      const text = playTerms.map(t => `${t.term}. ${t.definition}`).join('\n\n');
-      const blob = await synthesizeToBlob(text);
-      const name = selectedIds.size > 0 ? 'glossary_selected' : 'glossary';
-      downloadAudioBlob(blob, name);
-    } catch {
-      // Surface nothing intrusive; synthesis errors are rare and retryable
-    } finally {
-      setDownloadingMp3(false);
-    }
-  }, [playTerms, selectedIds, downloadingMp3]);
 
   const masteredCount = useMemo(() => allTerms.filter(t => masteredIds.has(t.id)).length, [allTerms, masteredIds]);
 
@@ -380,13 +338,6 @@ export const GlossaryPage: React.FC = () => {
     setGeneratePage(page => Math.min(page, totalPages));
   }, [visibleSources.length]);
 
-  const kindIcon = (kind: string) => {
-    if (kind === 'video') return <Youtube size={13} className="text-red-500 shrink-0" />;
-    if (kind === 'article') return <Globe size={13} className="text-teal-500 shrink-0" />;
-    if (kind === 'audio') return <Mic size={13} className="text-amber-500 shrink-0" />;
-    return <FileText size={13} className="text-primary shrink-0" />;
-  };
-
   const masteryTabs: { id: MasteryFilter; label: string }[] = [
     { id: 'all', label: 'All' },
     { id: 'unmastered', label: 'Learning' },
@@ -465,80 +416,18 @@ export const GlossaryPage: React.FC = () => {
       </div>
 
       {/* Generate panel */}
-      {allSources.length > 0 && (() => {
-        const totalPages = Math.ceil(visibleSources.length / GENERATE_PAGE_SIZE);
-        const pageSources = visibleSources.slice(
-          (generatePage - 1) * GENERATE_PAGE_SIZE,
-          generatePage * GENERATE_PAGE_SIZE,
-        );
-        return (
-          <div className="rounded-3xl border border-[var(--border-color)] bg-[var(--bg-sidebar)] p-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-3">
-              <div className="flex items-center gap-4">
-                <h2 className="text-sm font-bold text-text-main">Generate Glossary</h2>
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                  {courses.length > 0 && (
-                    <Select
-                      value={generateCourseId ?? ''}
-                      onChange={e => handleSelectGenerateCourse(e.target.value || null)}
-                      size="xs"
-                      selectClassName="py-2 font-semibold"
-                      aria-label="Filter glossary generation by course"
-                    >
-                      <option value="">All Courses</option>
-                      {courses.map(course => (
-                        <option key={course.id} value={course.id}>{course.name}</option>
-                      ))}
-                    </Select>
-                  )}
-                </div>
-              </div>
-              {totalPages > 1 && (
-                <div className="flex items-center justify-end gap-3">
-                  <span className="text-xs text-text-muted">
-                    {(generatePage - 1) * GENERATE_PAGE_SIZE + 1}–{Math.min(generatePage * GENERATE_PAGE_SIZE, visibleSources.length)} of {visibleSources.length}
-                  </span>
-                  <Pagination
-                    page={generatePage}
-                    totalPages={totalPages}
-                    onPageChange={setGeneratePage}
-                    className="pt-0"
-                    size="sm"
-                  />
-                </div>
-              )}
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {pageSources.length === 0 ? (
-                <div className="sm:col-span-2 lg:col-span-3 rounded-xl border border-dashed border-[var(--border-color)] bg-[var(--bg-app)] p-6 text-center text-sm font-medium text-text-muted">
-                  No sources available for glossary generation.
-                </div>
-              ) : pageSources.map(src => {
-                const isLoading = generating.has(src.id);
-                return (
-                  <div key={src.id} className="flex items-center justify-between rounded-xl border border-[var(--border-color)] bg-[var(--bg-app)] p-3">
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                      {kindIcon(src.kind)}
-                      <p className="text-xs font-medium text-text-main truncate">{src.name}</p>
-                    </div>
-                    <button
-                      onClick={src.onGenerate}
-                      disabled={isLoading}
-                      className={cn(
-                        'ml-2 flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold transition-all',
-                        'bg-primary text-white hover:opacity-90'
-                      )}
-                    >
-                      {isLoading ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
-                      {isLoading ? '...' : 'Generate'}
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        );
-      })()}
+      {allSources.length > 0 && (
+        <GlossaryGeneratePanel
+          sources={visibleSources}
+          page={generatePage}
+          pageSize={GENERATE_PAGE_SIZE}
+          onPageChange={setGeneratePage}
+          courses={courses}
+          generateCourseId={generateCourseId}
+          onSelectCourse={handleSelectGenerateCourse}
+          generating={generating}
+        />
+      )}
 
       {/* Source type tabs + course pills */}
       <SourceFilterBar

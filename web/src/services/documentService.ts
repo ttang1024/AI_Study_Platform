@@ -2,6 +2,7 @@ import { apiClient } from './apiClient'
 import { streamSse } from './streamSse'
 import { Document, Note, ChatMessage, QuizQuestion, Flashcard } from '../types'
 import { PendingMaterial } from './pendingMaterialService'
+import type { ChatAttachment } from './aiService'
 
 export interface QuizSubmission {
 	submissionId: string
@@ -45,6 +46,7 @@ interface BackendChatMessage {
 	role: 'user' | 'model' | 'assistant'
 	content: string
 	createdAt: string
+	attachments?: { url: string; mimeType: string; fileName?: string }[] | null
 }
 
 interface BackendQuiz {
@@ -123,6 +125,7 @@ const mapChatMessage = (bm: BackendChatMessage): ChatMessage => ({
 	role: bm.role === 'assistant' ? 'model' : bm.role,
 	content: bm.content,
 	timestamp: bm.createdAt,
+	attachments: bm.attachments ?? undefined,
 })
 
 const mapQuiz = (bq: BackendQuiz): QuizQuestion => ({
@@ -365,10 +368,11 @@ export const documentService = {
 		message: string,
 		onChunk: (chunk: string) => void,
 		signal?: AbortSignal,
+		attachments?: ChatAttachment[],
 	): Promise<void> {
 		return streamSse(
 			`/api/courses/${courseId}/documents/${documentId}/chat/stream`,
-			{ message },
+			attachments && attachments.length > 0 ? { message, attachments } : { message },
 			onChunk,
 			signal,
 		)
