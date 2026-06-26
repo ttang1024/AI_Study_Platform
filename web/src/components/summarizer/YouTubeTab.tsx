@@ -76,7 +76,13 @@ export const YouTubeTab: React.FC<YouTubeTabProps> = ({ selectedCourseId, onCour
   const navigate = useNavigate();
   const { refreshStats } = useStudy();
   const { showPrompt } = usePrompt();
-  const [urlInput, setUrlInput] = useState('');
+  const [urlInput, setUrlInput] = useState(() => {
+    // Allow deep-linking a video to analyze, e.g. from the browser extension:
+    //   /summarizer?tab=youtube&url=<encoded youtube url>
+    if (typeof window === 'undefined') return '';
+    const u = new URLSearchParams(window.location.search).get('url');
+    return u ?? '';
+  });
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const [allVideos, setAllVideos] = useState<VideoListItem[]>([]);

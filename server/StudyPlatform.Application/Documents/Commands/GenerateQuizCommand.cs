@@ -33,21 +33,11 @@ public class GenerateQuizCommandHandler : IRequestHandler<GenerateQuizCommand, R
         if (document == null || document.UserId != request.UserId)
             return Result<IEnumerable<QuizDto>>.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
 
-        var difficulty = NormalizeDifficulty(request.Difficulty);
+        var difficulty = QuizDifficulty.Normalize(request.Difficulty);
         var existing = await _unitOfWork.Quizzes.GetByDocumentIdAndDifficultyAsync(request.DocumentId, difficulty, cancellationToken);
         if (existing.Any())
         {
-            var cachedDtos = existing.Select(q => new QuizDto(
-                q.QuizId,
-                q.DocumentId,
-                q.YouTubeVideoId,
-                q.SourceType,
-                q.Question,
-                JsonSerializer.Deserialize<string[]>(q.OptionsJson) ?? Array.Empty<string>(),
-                q.CorrectAnswer,
-                q.Explanation,
-                q.CreatedAt,
-                q.Difficulty));
+            var cachedDtos = existing.Select(q => q.ToQuizDto());
 
             return Result<IEnumerable<QuizDto>>.Success(cachedDtos, "Quiz retrieved successfully.");
         }
@@ -85,17 +75,7 @@ public class GenerateQuizCommandHandler : IRequestHandler<GenerateQuizCommand, R
         await _unitOfWork.Quizzes.AddRangeAsync(quizzes, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        var dtos = quizzes.Select(q => new QuizDto(
-            q.QuizId,
-            q.DocumentId,
-            q.YouTubeVideoId,
-            q.SourceType,
-            q.Question,
-            JsonSerializer.Deserialize<string[]>(q.OptionsJson) ?? Array.Empty<string>(),
-            q.CorrectAnswer,
-            q.Explanation,
-            q.CreatedAt,
-            q.Difficulty));
+        var dtos = quizzes.Select(q => q.ToQuizDto());
 
         return Result<IEnumerable<QuizDto>>.Success(dtos, "Quiz generated successfully.");
     }
@@ -114,13 +94,6 @@ public class GenerateQuizCommandHandler : IRequestHandler<GenerateQuizCommand, R
 
         return trimmed;
     }
-
-    private static string NormalizeDifficulty(string difficulty) => difficulty.ToLowerInvariant() switch
-    {
-        "easy" => "easy",
-        "hard" => "hard",
-        _ => "medium"
-    };
 
     private static bool AnswersMatch(string option, string answer)
     {
@@ -144,5 +117,4 @@ public class GenerateQuizCommandHandler : IRequestHandler<GenerateQuizCommand, R
         return Regex.Replace(alphanumeric, "\\s+", " ").Trim();
     }
 
-    private record AiQuizItem(string Question, string[] Options, string CorrectAnswer, string Explanation);
 }

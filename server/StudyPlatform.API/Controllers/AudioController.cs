@@ -7,7 +7,6 @@ using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Documents.Commands;
 using StudyPlatform.Application.Documents.DTOs;
 using StudyPlatform.Application.Documents.Queries;
-using StudyPlatform.Application.Podcasts.Commands;
 using StudyPlatform.Application.Services;
 
 namespace StudyPlatform.API.Controllers;

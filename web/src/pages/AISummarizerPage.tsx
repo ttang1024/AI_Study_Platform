@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Upload, Files, Youtube, FileVideo } from 'lucide-react';
+import { Upload, Files, Youtube, FileVideo, ClipboardPaste } from 'lucide-react';
 import { CONTENT_TYPE_ICONS } from '../constants/contentTypeIcons';
 import { BulkUploadSection } from '../components/common/BulkUploadSection';
 import { cn } from '../utils/cn';
@@ -12,8 +12,9 @@ import { UploadVideoTab } from '../components/summarizer/UploadVideoTab';
 import { AudioTab } from '../components/summarizer/AudioTab';
 import { PodcastTab } from '../components/summarizer/PodcastTab';
 import { WebTab } from '../components/summarizer/WebTab';
+import { PasteTextTab } from '../components/summarizer/PasteTextTab';
 
-type Tab = 'document' | 'video' | 'web' | 'audio';
+type Tab = 'document' | 'video' | 'web' | 'audio' | 'text';
 type DocSubTab = 'single' | 'bulk';
 type AudioSubTab = 'lecture' | 'podcast';
 type VideoSubTab = 'youtube' | 'bilibili' | 'upload';
@@ -25,6 +26,7 @@ export const AISummarizerPage: React.FC = () => {
     if (t === 'youtube' || t === 'bilibili' || t === 'video' || t === 'upload-video') return 'video';
     if (t === 'web') return 'web';
     if (t === 'audio' || t === 'podcast') return 'audio';
+    if (t === 'text' || t === 'paste') return 'text';
     return 'document';
   });
   const [docSubTab, setDocSubTab] = useState<DocSubTab>(() =>
@@ -110,6 +112,16 @@ export const AISummarizerPage: React.FC = () => {
                 ? <><CONTENT_TYPE_ICONS.podcast.icon size={13} className="sm:hidden" /><CONTENT_TYPE_ICONS.podcast.icon size={15} className="hidden sm:block" /></>
                 : <><CONTENT_TYPE_ICONS.audio.icon size={13} className="sm:hidden" /><CONTENT_TYPE_ICONS.audio.icon size={15} className="hidden sm:block" /></>}
               Audio
+            </button>
+            <button
+              onClick={() => handleTabChange('text')}
+              className={cn(
+                'flex-1 flex items-center justify-center gap-1 sm:gap-2 rounded-lg py-2 sm:py-2.5 text-[11px] sm:text-sm font-bold transition-all duration-200 whitespace-nowrap',
+                activeTab === 'text' ? 'bg-white text-primary shadow-sm' : 'text-zinc-500 hover:text-zinc-700',
+              )}
+            >
+              <ClipboardPaste size={13} className="sm:hidden" /><ClipboardPaste size={15} className="hidden sm:block" />
+              <span className="hidden sm:inline">Paste Text</span><span className="sm:hidden">Text</span>
             </button>
           </div>
 
@@ -239,6 +251,12 @@ export const AISummarizerPage: React.FC = () => {
                     </motion.div>
                   )}
                 </AnimatePresence>
+              </motion.div>
+            )}
+
+            {activeTab === 'text' && (
+              <motion.div key="text" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.15 }}>
+                <PasteTextTab selectedCourseId={selectedCourseId} onCourseError={setCourseError} />
               </motion.div>
             )}
           </AnimatePresence>

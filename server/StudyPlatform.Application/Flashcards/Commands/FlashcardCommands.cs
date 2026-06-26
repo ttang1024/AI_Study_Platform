@@ -47,24 +47,8 @@ public class CreateFlashcardCommandHandler : IRequestHandler<CreateFlashcardComm
         await _unitOfWork.Flashcards.AddAsync(flashcard, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return Result<FlashcardDto>.Success(ToDto(flashcard), "Flashcard created successfully.");
+        return Result<FlashcardDto>.Success(flashcard.ToFlashcardDto(), "Flashcard created successfully.");
     }
-
-    internal static FlashcardDto ToDto(Flashcard f, FlashcardSrsData? srs = null) =>
-        new(f.FlashcardId, f.DocumentId, f.YouTubeVideoId, f.SourceType, f.UserId, f.Front, f.Back, f.CreatedAt, f.UpdatedAt,
-            Title: f.Document?.FileName ?? f.YouTubeVideo?.Title,
-            Document: f.Document?.FileName,
-            Video: f.YouTubeVideo?.Title,
-            Srs: srs == null ? null : ToSrsDto(srs),
-            CardType: f.CardType,
-            Difficulty: f.Difficulty,
-            Chapter: f.Chapter,
-            Tags: f.Tags);
-
-    internal static FlashcardSrsDto ToSrsDto(FlashcardSrsData srs) =>
-        new(srs.FlashcardId, srs.State, srs.Stability, srs.Difficulty, srs.Reps, srs.Lapses,
-            srs.Due, srs.LastReview,
-            FsrsService.ComputeRetrievability(srs.Stability, srs.LastReview));
 }
 
 public record GetAllFlashcardsQuery(Guid UserId) : IRequest<Result<IEnumerable<FlashcardDto>>>;
@@ -85,7 +69,7 @@ public class GetAllFlashcardsPagedQueryHandler : IRequestHandler<GetAllFlashcard
         var (flashcards, totalCount) = await _unitOfWork.Flashcards.GetPagedByUserIdAsync(request.UserId, request.Page, request.PageSize, cancellationToken);
         var srsData = await _unitOfWork.FlashcardSrs.GetByUserIdAsync(request.UserId, cancellationToken);
         var srsMap = srsData.ToDictionary(s => s.FlashcardId);
-        var dtos = flashcards.Select(f => CreateFlashcardCommandHandler.ToDto(f, srsMap.GetValueOrDefault(f.FlashcardId)));
+        var dtos = flashcards.Select(f => f.ToFlashcardDto(srsMap.GetValueOrDefault(f.FlashcardId)));
         return Result<PaginatedList<FlashcardDto>>.Success(new PaginatedList<FlashcardDto>(dtos, totalCount, request.Page, request.PageSize));
     }
 }
@@ -100,7 +84,7 @@ public class GetAllFlashcardsQueryHandler : IRequestHandler<GetAllFlashcardsQuer
         var flashcards = await _unitOfWork.Flashcards.GetByUserIdAsync(request.UserId, cancellationToken);
         var srsData = await _unitOfWork.FlashcardSrs.GetByUserIdAsync(request.UserId, cancellationToken);
         var srsMap = srsData.ToDictionary(s => s.FlashcardId);
-        return Result<IEnumerable<FlashcardDto>>.Success(flashcards.Select(f => CreateFlashcardCommandHandler.ToDto(f, srsMap.GetValueOrDefault(f.FlashcardId))));
+        return Result<IEnumerable<FlashcardDto>>.Success(flashcards.Select(f => f.ToFlashcardDto(srsMap.GetValueOrDefault(f.FlashcardId))));
     }
 }
 
@@ -258,7 +242,7 @@ public class ReviewFlashcardCommandHandler : IRequestHandler<ReviewFlashcardComm
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        var srsDto = CreateFlashcardCommandHandler.ToSrsDto(srs);
+        var srsDto = srs.ToSrsDto();
         return Result<ReviewFlashcardResponse>.Success(
             new ReviewFlashcardResponse(result.ScheduledDays, result.Retrievability, srsDto));
     }
@@ -276,7 +260,7 @@ public class GetFlashcardSrsQueryHandler : IRequestHandler<GetFlashcardSrsQuery,
     public async Task<Result<IEnumerable<FlashcardSrsDto>>> Handle(GetFlashcardSrsQuery request, CancellationToken cancellationToken)
     {
         var all = await _unitOfWork.FlashcardSrs.GetByUserIdAsync(request.UserId, cancellationToken);
-        var dtos = all.Select(CreateFlashcardCommandHandler.ToSrsDto);
+        var dtos = all.Select(s => s.ToSrsDto());
         return Result<IEnumerable<FlashcardSrsDto>>.Success(dtos);
     }
 }
@@ -325,6 +309,6 @@ public class ClassifyFlashcardCommandHandler : IRequestHandler<ClassifyFlashcard
         flashcard.UpdatedAt = DateTime.UtcNow;
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return Result<FlashcardDto>.Success(CreateFlashcardCommandHandler.ToDto(flashcard));
+        return Result<FlashcardDto>.Success(flashcard.ToFlashcardDto());
     }
 }

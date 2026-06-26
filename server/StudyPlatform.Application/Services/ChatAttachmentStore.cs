@@ -1,5 +1,6 @@
 using System.Text.Json;
 using StudyPlatform.Application.Documents.DTOs;
+using StudyPlatform.Domain.Entities;
 
 namespace StudyPlatform.Application.Services;
 
@@ -58,6 +59,19 @@ public static class ChatAttachmentStore
             result.Add(new ChatMessageAttachmentDto(url, s.MimeType, s.FileName));
         }
         return result;
+    }
+
+    /// <summary>
+    /// Projects a stored <see cref="ChatMessage"/> to its DTO, loading any attachments
+    /// (as presigned URLs). Messages with no attachments incur no blob calls.
+    /// </summary>
+    public static async Task<ChatMessageDto> ToDtoAsync(this ChatMessage message, IBlobStorageService blob, CancellationToken cancellationToken)
+    {
+        var attachments = await LoadAsync(blob, message.AttachmentsJson, cancellationToken);
+        return new ChatMessageDto(
+            message.MessageId, message.DocumentId, message.YouTubeVideoId, message.SourceType,
+            message.Role, message.Content, message.CreatedAt,
+            attachments.Count > 0 ? attachments : null);
     }
 
     private static string ExtensionFor(string mimeType) => mimeType switch

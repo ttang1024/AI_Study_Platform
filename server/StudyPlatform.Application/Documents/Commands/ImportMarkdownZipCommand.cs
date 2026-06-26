@@ -2,7 +2,6 @@ using System.IO.Compression;
 using System.Text.RegularExpressions;
 using MediatR;
 using StudyPlatform.Application.Common;
-using StudyPlatform.Application.Documents.DTOs;
 using StudyPlatform.Application.Services;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;

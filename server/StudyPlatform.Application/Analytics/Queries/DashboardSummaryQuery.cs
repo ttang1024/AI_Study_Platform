@@ -5,7 +5,6 @@ using StudyPlatform.Application.Analytics.DTOs;
 using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Services;
 using StudyPlatform.Application.Settings;
-using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
 
 namespace StudyPlatform.Application.Analytics.Queries;

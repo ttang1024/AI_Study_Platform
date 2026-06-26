@@ -11,6 +11,7 @@ public class StudySessionRepository : Repository<StudySession>, IStudySessionRep
 
     public async Task<IEnumerable<StudySession>> GetByDateRangeAsync(Guid userId, DateTime from, DateTime to, CancellationToken cancellationToken = default)
         => await _dbSet
+            .AsNoTracking()
             .Where(s => s.UserId == userId && s.OccurredAt >= from.Date && s.OccurredAt < to.Date.AddDays(1))
             .ToListAsync(cancellationToken);
 }

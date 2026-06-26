@@ -35,10 +35,7 @@ public class GenerateFlashcardsCommandHandler : IRequestHandler<GenerateFlashcar
         var existing = await _unitOfWork.Flashcards.GetByDocumentIdAsync(request.DocumentId, cancellationToken);
         if (existing.Any())
         {
-            var cachedDtos = existing.Select(f => new FlashcardDto(
-                f.FlashcardId, f.DocumentId, f.YouTubeVideoId, f.SourceType, f.UserId,
-                f.Front, f.Back, f.CreatedAt, f.UpdatedAt,
-                CardType: f.CardType, Difficulty: f.Difficulty, Chapter: f.Chapter, Tags: f.Tags));
+            var cachedDtos = existing.Select(f => f.ToFlashcardDto());
 
             return Result<IEnumerable<FlashcardDto>>.Success(cachedDtos, "Flashcards retrieved successfully.");
         }
@@ -82,10 +79,7 @@ public class GenerateFlashcardsCommandHandler : IRequestHandler<GenerateFlashcar
         await _unitOfWork.Flashcards.AddRangeAsync(flashcards, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        var dtos = flashcards.Select(f => new FlashcardDto(
-            f.FlashcardId, f.DocumentId, f.YouTubeVideoId, f.SourceType, f.UserId,
-            f.Front, f.Back, f.CreatedAt, f.UpdatedAt,
-            CardType: f.CardType, Difficulty: f.Difficulty, Chapter: f.Chapter, Tags: f.Tags));
+        var dtos = flashcards.Select(f => f.ToFlashcardDto());
 
         return Result<IEnumerable<FlashcardDto>>.Success(dtos, "Flashcards generated successfully.");
     }
@@ -177,5 +171,4 @@ public class GenerateFlashcardsCommandHandler : IRequestHandler<GenerateFlashcar
         return null;
     }
 
-    private record AiFlashcardItem(string Front, string Back, string? Type = null, JsonElement? ChartData = null);
 }

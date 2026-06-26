@@ -1,7 +1,3 @@
-using System.Text;
-using System.Text.Json;
-using MediatR;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using StudyPlatform.API.Extensions;
 using StudyPlatform.Application.Common;
@@ -10,9 +6,6 @@ using StudyPlatform.Application.Documents.DTOs;
 using StudyPlatform.Application.Documents.Queries;
 using StudyPlatform.Application.Notes.Commands;
 using StudyPlatform.Application.Notes.DTOs;
-using StudyPlatform.Application.Services;
-using StudyPlatform.Domain.Entities;
-using StudyPlatform.Domain.Interfaces;
 
 namespace StudyPlatform.API.Controllers;
 
@@ -259,6 +252,22 @@ public partial class DocumentsController
         }
 
         return Ok(BaseResponse<IEnumerable<GlossaryTermDto>>.Ok(result.Data!, result.Message));
+    }
+
+    /// <summary>
+    /// Persist user edits to a document's AI-generated content (summary / mind map)
+    /// </summary>
+    [HttpPatch("{documentId:guid}/content")]
+    [ProducesResponseType(typeof(BaseResponse<DocumentDto>), 200)]
+    [ProducesResponseType(typeof(BaseResponse), 404)]
+    public async Task<IActionResult> UpdateDocumentContent(Guid courseId, Guid documentId, [FromBody] UpdateDocumentContentRequest request)
+    {
+        var userId = User.GetUserId();
+        var result = await _mediator.Send(new UpdateDocumentContentCommand(documentId, userId, request.Summary, request.MindMapText));
+        if (!result.IsSuccess)
+            return NotFound(BaseResponse<DocumentDto>.Fail(result.Message, result.ErrorCode));
+
+        return Ok(BaseResponse<DocumentDto>.Ok(result.Data!, result.Message));
     }
 
     /// <summary>

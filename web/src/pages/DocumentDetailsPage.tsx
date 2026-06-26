@@ -199,6 +199,23 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
   };
 
 
+  const handleSaveSummary = useCallback(async (markdown: string) => {
+    if (!currentDocument) return;
+    await documentService.updateSummary(currentDocument.courseId || '', currentDocument.id, markdown);
+    setSummary(markdown);
+    const updated = { ...currentDocument, summary: markdown };
+    setCurrentDocument(updated);
+    updateDocumentInList(updated);
+  }, [currentDocument, setCurrentDocument, updateDocumentInList]);
+
+  const handleSaveMindMap = useCallback(async (text: string) => {
+    if (!currentDocument) return;
+    await documentService.updateMindMap(currentDocument.courseId || '', currentDocument.id, text);
+    const updated = { ...currentDocument, mindMapText: text };
+    setCurrentDocument(updated);
+    updateDocumentInList(updated);
+  }, [currentDocument, setCurrentDocument, updateDocumentInList]);
+
   const [activeView, setActiveView] = useState<'study' | 'document'>('document');
   const [markupMode, setMarkupMode] = useState(false);
 
@@ -231,8 +248,11 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
 
   // For real documents, stream through the API to avoid CORS issues with blob storage.
   // For the mock document (id === '123'), use the direct public URL.
+  // PPTX/EPUB cannot be rendered raw in the browser, so the viewer reads the
+  // server-extracted plain text instead of the original file.
+  const usesExtractedText = currentDocument?.type === 'ppt' || currentDocument?.type === 'epub';
   const viewUrl = currentDocument?.courseId
-    ? `${API_URL}/api/courses/${currentDocument.courseId}/documents/${currentDocument.id}/file`
+    ? `${API_URL}/api/courses/${currentDocument.courseId}/documents/${currentDocument.id}/${usesExtractedText ? 'text' : 'file'}`
     : currentDocument?.url ?? '';
 
   if (!currentDocument) {
@@ -298,7 +318,7 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
             <DocumentViewer
               key={currentDocument.id}
               fileUrl={viewUrl}
-              fileType={currentDocument.type as 'pdf' | 'docx' | 'txt' | 'md'}
+              fileType={currentDocument.type as 'pdf' | 'docx' | 'txt' | 'md' | 'image' | 'ppt' | 'epub'}
               httpHeaders={authHeaders}
               onAskAI={(text) => {
                 chatPanelRef.current?.setInput(text);
@@ -376,11 +396,12 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
                     streamingText={summaryStreamText}
                     summaryRef={summaryRef}
                     onMouseUp={handleSummaryMouseUp}
+                    onSaveSummary={handleSaveSummary}
                   />
                 </div>
 
                 <div className={cn("h-full", activeTab !== 'mindmap' && "hidden")}>
-                  <MindMapViewer />
+                  <MindMapViewer onSaveEdit={handleSaveMindMap} />
                 </div>
 
                 <div className={cn("h-full", activeTab !== 'notes' && "hidden")}>

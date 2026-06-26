@@ -12,4 +12,5 @@ public interface IDocumentRepository : IRepository<Document>
     Task<(IEnumerable<Document> Items, int TotalCount)> GetAllByUserIdAsync(Guid userId, int page, int pageSize, Guid? courseId, CancellationToken cancellationToken = default);
     Task<Document?> GetByUserIdAndFileHashAsync(Guid userId, string fileHash, CancellationToken cancellationToken = default);
     Task<int> CountByUserIdAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<IEnumerable<Document>> SearchByUserAsync(Guid userId, string query, int limit, CancellationToken cancellationToken = default);
 }

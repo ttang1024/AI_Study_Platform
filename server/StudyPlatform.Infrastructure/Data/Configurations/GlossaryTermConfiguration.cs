@@ -25,6 +25,10 @@ public class GlossaryTermConfiguration : IEntityTypeConfiguration<GlossaryTerm>
             .OnDelete(DeleteBehavior.Cascade)
             .IsRequired(false);
 
+        // Serves per-user glossary listing and search: WHERE UserId = @u ORDER BY Term.
+        // GlossaryTerm previously had no UserId-prefixed index at all.
+        builder.HasIndex(t => new { t.UserId, t.Term });
+
         builder.ToTable("GlossaryTerms");
     }
 }

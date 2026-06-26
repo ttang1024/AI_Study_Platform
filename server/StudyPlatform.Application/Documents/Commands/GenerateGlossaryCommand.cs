@@ -66,7 +66,7 @@ public class GenerateGlossaryCommandHandler : IRequestHandler<GenerateGlossaryCo
             await _unitOfWork.GlossaryTerms.AddRangeAsync(terms, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            var dtos = terms.Select(t => new GlossaryTermDto(t.GlossaryTermId, t.DocumentId, t.Term, t.Definition, t.CreatedAt));
+            var dtos = terms.Select(t => t.ToGlossaryTermDto());
             return Result<IEnumerable<GlossaryTermDto>>.Success(dtos, "Glossary generated successfully.");
         }
         catch (Exception ex)
@@ -76,5 +76,4 @@ public class GenerateGlossaryCommandHandler : IRequestHandler<GenerateGlossaryCo
         }
     }
 
-    private record AiGlossaryItem(string Term, string Definition);
 }

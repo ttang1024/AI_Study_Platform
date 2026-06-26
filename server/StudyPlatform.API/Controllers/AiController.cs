@@ -1,4 +1,3 @@
-using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -87,7 +86,7 @@ public class AiController : ControllerBase
         var messages = await _unitOfWork.ChatMessages.GetByConversationIdAsync(conversationId, userId, cancellationToken);
         var dtos = new List<ChatMessageDto>();
         foreach (var m in messages)
-            dtos.Add(await ToChatMessageDtoAsync(m, cancellationToken));
+            dtos.Add(await m.ToDtoAsync(_blobStorageService, cancellationToken));
         return Ok(BaseResponse<IEnumerable<ChatMessageDto>>.Ok(dtos));
     }
 
@@ -201,44 +200,7 @@ public class AiController : ControllerBase
 
         var history = (request.History ?? []).Select(h => (h.Role, h.Content));
         var stream = _aiService.StreamGeneralChatAsync(history, request.Message, cancellationToken);
-        await using var enumerator = stream.GetAsyncEnumerator(cancellationToken);
-
-        string? firstChunk;
-        try
-        {
-            if (!await enumerator.MoveNextAsync())
-                return NoContent();
-
-            firstChunk = enumerator.Current;
-        }
-        catch (OperationCanceledException)
-        {
-            return new EmptyResult();
-        }
-        catch (Exception ex)
-        {
-            return AiErrorMapper.ToObjectResult(this, ex.Message);
-        }
-
-        Response.SetSseHeaders();
-
-        try
-        {
-            await Response.WriteSseDataAsync(firstChunk, cancellationToken);
-
-            while (await enumerator.MoveNextAsync())
-            {
-                await Response.WriteSseDataAsync(enumerator.Current, cancellationToken);
-            }
-        }
-        catch (OperationCanceledException) { return new EmptyResult(); }
-        catch (Exception ex)
-        {
-            await Response.WriteSseDataAsync("[ERROR] " + ex.Message, cancellationToken);
-        }
-
-        await Response.WriteSseDoneAsync(cancellationToken);
-        return new EmptyResult();
+        return await this.StreamAiToSseAsync(stream, cancellationToken);
     }
 
     /// <summary>Streaming standalone AI chat, saving messages to DB on completion.</summary>
@@ -280,60 +242,29 @@ public class AiController : ControllerBase
 
         var history = await _unitOfWork.ChatMessages.GetByConversationIdAsync(conversationId, userId, cancellationToken);
         var stream = _aiService.StreamGeneralChatAsync(history.Select(m => (m.Role, m.Content)), promptMessage, ChatAttachments.ToModelInputs(attachments), cancellationToken);
-        await using var enumerator = stream.GetAsyncEnumerator(cancellationToken);
-
-        string? firstChunk;
-        try
-        {
-            if (!await enumerator.MoveNextAsync())
-                return NoContent();
-
-            firstChunk = enumerator.Current;
-        }
-        catch (OperationCanceledException)
-        {
-            return new EmptyResult();
-        }
-        catch (Exception ex)
-        {
-            return AiErrorMapper.ToObjectResult(this, ex.Message);
-        }
-
-        var now = DateTime.UtcNow;
-        await _unitOfWork.ChatMessages.AddAsync(new ChatMessage
-        {
-            MessageId = Guid.NewGuid(),
-            ChatConversationId = conversationId,
-            SourceType = "general",
-            UserId = userId,
-            Role = "user",
-            Content = savedMessage,
-            AttachmentsJson = attachmentsJson,
-            CreatedAt = now
-        }, cancellationToken);
-
-        if (!history.Any())
-            conversation.Title = CreateTitle(titleSource);
-        conversation.UpdatedAt = now;
-        _unitOfWork.ChatMessages.UpdateConversation(conversation);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-        Response.SetSseHeaders();
-
-        var fullResponse = new StringBuilder();
-        try
-        {
-            fullResponse.Append(firstChunk);
-            await Response.WriteSseDataAsync(firstChunk, cancellationToken);
-
-            while (await enumerator.MoveNextAsync())
+        return await this.StreamAiToSseAsync(stream, cancellationToken,
+            beforeStream: async ct =>
             {
-                var chunk = enumerator.Current;
-                fullResponse.Append(chunk);
-                await Response.WriteSseDataAsync(chunk, cancellationToken);
-            }
+                var now = DateTime.UtcNow;
+                await _unitOfWork.ChatMessages.AddAsync(new ChatMessage
+                {
+                    MessageId = Guid.NewGuid(),
+                    ChatConversationId = conversationId,
+                    SourceType = "general",
+                    UserId = userId,
+                    Role = "user",
+                    Content = savedMessage,
+                    AttachmentsJson = attachmentsJson,
+                    CreatedAt = now
+                }, ct);
 
-            if (fullResponse.Length > 0)
+                if (!history.Any())
+                    conversation.Title = CreateTitle(titleSource);
+                conversation.UpdatedAt = now;
+                _unitOfWork.ChatMessages.UpdateConversation(conversation);
+                await _unitOfWork.SaveChangesAsync(ct);
+            },
+            onCompleted: async (text, ct) =>
             {
                 var completedAt = DateTime.UtcNow;
                 await _unitOfWork.ChatMessages.AddAsync(new ChatMessage
@@ -343,41 +274,18 @@ public class AiController : ControllerBase
                     SourceType = "general",
                     UserId = userId,
                     Role = "assistant",
-                    Content = fullResponse.ToString(),
+                    Content = text,
                     CreatedAt = completedAt
-                }, cancellationToken);
+                }, ct);
 
                 conversation.UpdatedAt = completedAt;
                 _unitOfWork.ChatMessages.UpdateConversation(conversation);
-                await _unitOfWork.SaveChangesAsync(cancellationToken);
-            }
-        }
-        catch (OperationCanceledException) { return new EmptyResult(); }
-        catch (Exception ex)
-        {
-            await Response.WriteSseDataAsync("[ERROR] " + ex.Message, cancellationToken);
-        }
-
-        await Response.WriteSseDoneAsync(cancellationToken);
-        return new EmptyResult();
+                await _unitOfWork.SaveChangesAsync(ct);
+            });
     }
 
     private static GeneralChatConversationDto ToConversationDto(ChatConversation conversation)
         => new(conversation.ConversationId, conversation.Title, conversation.CreatedAt, conversation.UpdatedAt);
-
-    private async Task<ChatMessageDto> ToChatMessageDtoAsync(ChatMessage message, CancellationToken cancellationToken)
-    {
-        var attachments = await ChatAttachmentStore.LoadAsync(_blobStorageService, message.AttachmentsJson, cancellationToken);
-        return new ChatMessageDto(
-            message.MessageId,
-            message.DocumentId,
-            message.YouTubeVideoId,
-            message.SourceType,
-            message.Role,
-            message.Content,
-            message.CreatedAt,
-            attachments.Count > 0 ? attachments : null);
-    }
 
     private static string CreateTitle(string message)
     {

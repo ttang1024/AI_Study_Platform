@@ -35,6 +35,7 @@ public class NoteRepository : Repository<Note>, INoteRepository
     public async Task<(IEnumerable<Note> Items, int TotalCount)> GetPagedByUserIdAsync(Guid userId, int page, int pageSize, CancellationToken cancellationToken = default)
     {
         var query = _dbSet
+            .AsNoTracking()
             .Include(n => n.Document)
             .Include(n => n.YouTubeVideo)
             .Where(n => n.UserId == userId);
@@ -45,5 +46,18 @@ public class NoteRepository : Repository<Note>, INoteRepository
             .Take(pageSize)
             .ToListAsync(cancellationToken);
         return (items, totalCount);
+    }
+
+    public async Task<IEnumerable<Note>> SearchByUserAsync(Guid userId, string query, int limit, CancellationToken cancellationToken = default)
+    {
+        var pattern = $"%{query}%";
+        return await _dbSet
+            .AsNoTracking()
+            .Where(n => n.UserId == userId &&
+                        ((n.Title != null && EF.Functions.ILike(n.Title, pattern)) ||
+                         EF.Functions.ILike(n.Content, pattern)))
+            .OrderByDescending(n => n.UpdatedAt)
+            .Take(limit)
+            .ToListAsync(cancellationToken);
     }
 }

@@ -86,7 +86,7 @@ export const FeedbackDetailPage: React.FC = () => {
     return (
       <div className="flex flex-col items-center justify-center py-32 text-center">
         <p className="text-sm text-[var(--text-secondary)]">{error}</p>
-        <Link to="/feedback" className="mt-4 text-sm text-indigo-400 hover:underline">Back to feedback</Link>
+        <Link to="/feedback" className="mt-4 text-sm text-emerald-700 hover:underline">Back to feedback</Link>
       </div>
     );
   }
@@ -94,8 +94,8 @@ export const FeedbackDetailPage: React.FC = () => {
   if (!item) {
     return (
       <div className="space-y-4">
-        <div className="h-8 w-48 rounded-xl bg-white/5 animate-pulse" />
-        <div className="h-48 rounded-2xl bg-white/5 animate-pulse" />
+        <div className="h-8 w-48 rounded-xl bg-black/5 animate-pulse" />
+        <div className="h-48 rounded-2xl bg-black/5 animate-pulse" />
       </div>
     );
   }
@@ -116,7 +116,7 @@ export const FeedbackDetailPage: React.FC = () => {
       </div>
 
       {error && (
-        <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+        <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-600">
           {error}
         </div>
       )}
@@ -130,8 +130,8 @@ export const FeedbackDetailPage: React.FC = () => {
               <TypeBadge type={item.type} />
               <StatusBadge status={item.status} />
               {item.rating != null && (
-                <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-400">
-                  <Star size={10} className="fill-amber-400" />
+                <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-700">
+                  <Star size={10} className="fill-amber-500 text-amber-500" />
                   {item.rating}/5
                 </span>
               )}
@@ -155,7 +155,7 @@ export const FeedbackDetailPage: React.FC = () => {
               {formatDate(item.submittedAt)}
             </span>
             {item.resolvedAt && (
-              <span className="flex items-center gap-1.5 text-emerald-400">
+              <span className="flex items-center gap-1.5 text-emerald-700">
                 <Calendar size={12} />
                 Resolved {formatDate(item.resolvedAt)}
               </span>
@@ -175,8 +175,8 @@ export const FeedbackDetailPage: React.FC = () => {
                 className={cn(
                   'rounded-xl border px-3 py-1.5 text-xs font-medium transition-all disabled:opacity-50',
                   item.status === value
-                    ? 'border-indigo-500 bg-indigo-600/20 text-indigo-300'
-                    : 'border-[var(--border-color)] bg-transparent text-[var(--text-secondary)] hover:border-indigo-500/40 hover:text-[var(--text-primary)]',
+                    ? 'border-emerald-500 bg-emerald-600/10 text-emerald-700'
+                    : 'border-[var(--border-color)] bg-transparent text-[var(--text-secondary)] hover:border-emerald-500/40 hover:text-[var(--text-primary)]',
                 )}
               >
                 {label}
@@ -193,7 +193,7 @@ export const FeedbackDetailPage: React.FC = () => {
             onChange={(e) => setAdminNote(e.target.value)}
             rows={4}
             placeholder="Add a private note visible only to admins…"
-            className="w-full resize-y rounded-xl border border-[var(--border-color)] bg-[var(--bg-app)] px-4 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
+            className="w-full resize-y rounded-xl border border-[var(--border-color)] bg-[var(--bg-app)] px-4 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
           />
           <div className="mt-3 flex justify-end">
             <Button
@@ -210,7 +210,7 @@ export const FeedbackDetailPage: React.FC = () => {
 
         {/* Danger zone */}
         <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-7">
-          <h3 className="mb-3 text-sm font-semibold text-red-400">Danger Zone</h3>
+          <h3 className="mb-3 text-sm font-semibold text-red-600">Danger Zone</h3>
           <div className="flex items-center justify-between">
             <p className="text-xs text-[var(--text-secondary)]">
               {deleteConfirm ? 'This action cannot be undone. Click again to confirm.' : 'Permanently delete this feedback entry.'}

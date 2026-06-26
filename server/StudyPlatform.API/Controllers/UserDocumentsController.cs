@@ -1,7 +1,6 @@
 using System.Text;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using SmartReader;
 using StudyPlatform.API.Extensions;

@@ -30,5 +30,8 @@ public class NoteConfiguration : IEntityTypeConfiguration<Note>
         builder.ToTable(t => t.HasCheckConstraint("chk_notes_source",
             "(\"DocumentId\" IS NOT NULL AND \"YouTubeVideoId\" IS NULL AND \"SourceType\" = 'document') OR " +
             "(\"YouTubeVideoId\" IS NOT NULL AND \"DocumentId\" IS NULL AND \"SourceType\" = 'video')"));
+
+        // Serves the notes list / search: WHERE UserId = @u ORDER BY UpdatedAt DESC.
+        builder.HasIndex(n => new { n.UserId, n.UpdatedAt });
     }
 }

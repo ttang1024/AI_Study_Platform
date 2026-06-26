@@ -9,4 +9,5 @@ public interface IGlossaryTermRepository : IRepository<GlossaryTerm>
     Task DeleteByDocumentIdAsync(Guid documentId, CancellationToken cancellationToken = default);
     Task<IEnumerable<GlossaryTerm>> GetByVideoIdAsync(Guid videoId, CancellationToken cancellationToken = default);
     Task DeleteByVideoIdAsync(Guid videoId, CancellationToken cancellationToken = default);
+    Task<IEnumerable<GlossaryTerm>> SearchByUserAsync(Guid userId, string query, int limit, CancellationToken cancellationToken = default);
 }

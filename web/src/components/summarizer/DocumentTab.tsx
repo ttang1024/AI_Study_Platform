@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Upload, File, X, Loader2, ShieldCheck, Zap, FileText, FileCode, BookOpen, ArrowRight } from 'lucide-react';
+import { Upload, File, X, Loader2, ShieldCheck, Zap, FileText, BookOpen, ArrowRight, Image, Presentation } from 'lucide-react';
 import { Button } from '../common/Button';
 import { DocumentCard } from '../common/DocumentCard';
 import { usePrompt } from '../common/PromptBox';
@@ -22,9 +22,27 @@ const item = {
 
 const FILE_TYPES = [
   { icon: BookOpen, label: 'PDF', color: 'text-red-400 bg-red-50' },
-  { icon: FileText, label: 'DOCX', color: 'text-teal-500 bg-teal-50' },
-  { icon: FileCode, label: 'MD', color: 'text-teal-400 bg-teal-50' },
+  { icon: Image, label: 'Image', color: 'text-violet-500 bg-violet-50' },
+  { icon: Presentation, label: 'PPT', color: 'text-orange-500 bg-orange-50' },
+  { icon: FileText, label: 'Word', color: 'text-blue-500 bg-blue-50' },
   { icon: FileText, label: 'TXT', color: 'text-zinc-400 bg-zinc-50' },
+  { icon: BookOpen, label: 'eBook', color: 'text-emerald-500 bg-emerald-50' },
+];
+
+const ACCEPTED_EXTENSIONS = [
+  '.pdf', '.docx', '.doc', '.txt', '.md', '.markdown',
+  '.ppt', '.pptx', '.epub',
+  '.png', '.jpg', '.jpeg', '.gif', '.webp', '.heic', '.heif', '.bmp',
+];
+const ACCEPTED_MIME_TYPES = [
+  'application/pdf', 'text/plain', 'text/markdown', 'text/x-markdown',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/epub+zip',
+  'image/png', 'image/jpeg', 'image/jpg', 'image/gif',
+  'image/webp', 'image/heic', 'image/heif', 'image/bmp',
 ];
 
 export interface DocumentTabProps {
@@ -68,11 +86,9 @@ export const DocumentTab: React.FC<DocumentTabProps> = ({ selectedCourseId, onCo
       : `/documents/${duplicateDoc?.id}`;
 
   const validateAndSetFile = (f: File) => {
-    const exts = ['.pdf', '.docx', '.txt', '.md'];
-    const types = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain', 'text/markdown'];
     const ext = f.name.substring(f.name.lastIndexOf('.')).toLowerCase();
-    if (!types.includes(f.type) && !exts.includes(ext)) {
-      showPrompt('Unsupported file format. Please upload a PDF, DOCX, TXT, or Markdown file.');
+    if (!ACCEPTED_MIME_TYPES.includes(f.type) && !ACCEPTED_EXTENSIONS.includes(ext)) {
+      showPrompt('Unsupported file format. Please upload a PDF, Image, PPT, Word, TXT, or eBook (EPUB) file.');
       return;
     }
     if (f.size > 50 * 1024 * 1024) {
@@ -129,7 +145,7 @@ export const DocumentTab: React.FC<DocumentTabProps> = ({ selectedCourseId, onCo
           className="absolute inset-0 cursor-pointer opacity-0 z-10"
           onClick={(e) => { (e.target as HTMLInputElement).value = ''; }}
           onChange={(e) => { const f = e.target.files?.[0]; if (f) validateAndSetFile(f); }}
-          accept=".pdf,.docx,.txt,.md"
+          accept=".pdf,.docx,.doc,.txt,.md,.markdown,.ppt,.pptx,.epub,.png,.jpg,.jpeg,.gif,.webp,.heic,.heif,.bmp"
         />
         <AnimatePresence mode="wait">
           {!file ? (

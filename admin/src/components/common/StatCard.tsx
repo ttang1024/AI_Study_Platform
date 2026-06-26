@@ -16,7 +16,7 @@ export const StatCard: React.FC<StatCardProps> = ({
   label,
   value,
   icon: Icon,
-  iconColor = 'text-indigo-400',
+  iconColor = 'text-emerald-600',
   delta,
   deltaPositive,
   className,
@@ -27,7 +27,7 @@ export const StatCard: React.FC<StatCardProps> = ({
   )}>
     <div className="flex items-center justify-between">
       <span className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">{label}</span>
-      <div className={cn('flex h-8 w-8 items-center justify-center rounded-lg bg-white/5', iconColor)}>
+      <div className={cn('flex h-8 w-8 items-center justify-center rounded-lg bg-black/5', iconColor)}>
         <Icon size={16} />
       </div>
     </div>
@@ -36,7 +36,7 @@ export const StatCard: React.FC<StatCardProps> = ({
       {delta && (
         <span className={cn(
           'mb-0.5 text-xs font-medium',
-          deltaPositive ? 'text-emerald-400' : 'text-red-400',
+          deltaPositive ? 'text-emerald-600' : 'text-red-600',
         )}>
           {delta}
         </span>

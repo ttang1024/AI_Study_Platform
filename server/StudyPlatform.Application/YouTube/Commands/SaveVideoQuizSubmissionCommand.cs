@@ -63,15 +63,7 @@ public class SaveVideoQuizSubmissionCommandHandler : IRequestHandler<SaveVideoQu
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        var dto = new QuizSubmissionDto(
-            existing.SubmissionId,
-            existing.DocumentId,
-            existing.YouTubeVideoId,
-            existing.SourceType,
-            request.Answers,
-            existing.Score,
-            existing.Total,
-            existing.SubmittedAt);
+        var dto = existing.ToQuizSubmissionDto();
 
         return Result<QuizSubmissionDto>.Success(dto, "Quiz submission saved.");
     }

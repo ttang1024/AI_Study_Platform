@@ -65,15 +65,3 @@ export const ClozeText: React.FC<ClozeTextProps> = ({ text, revealed, className 
     </span>
   );
 };
-
-/** Extract all cloze answers from a cloze text */
-export const extractClozeAnswers = (text: string): string[] => {
-  const matches: string[] = [];
-  let m: RegExpExecArray | null;
-  const r = new RegExp(CLOZE_REGEX.source, 'g');
-  while ((m = r.exec(text)) !== null) matches.push(m[1]);
-  return matches;
-};
-
-/** True if the text contains at least one {{...}} */
-export const hasCloze = (text: string): boolean => CLOZE_REGEX.test(text);

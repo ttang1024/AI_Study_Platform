@@ -258,6 +258,8 @@ namespace StudyPlatform.Infrastructure.Migrations
 
                     b.HasIndex("CourseId");
 
+                    b.HasIndex("UserId", "CreatedAt");
+
                     b.HasIndex("UserId", "FileHash")
                         .IsUnique()
                         .HasFilter("\"FileHash\" IS NOT NULL");
@@ -466,6 +468,8 @@ namespace StudyPlatform.Infrastructure.Migrations
 
                     b.HasIndex("YouTubeVideoId");
 
+                    b.HasIndex("UserId", "CreatedAt");
+
                     b.ToTable("Flashcards", t =>
                         {
                             t.HasCheckConstraint("chk_flashcards_source", "(\"DocumentId\" IS NOT NULL AND \"YouTubeVideoId\" IS NULL AND \"SourceType\" = 'document') OR (\"YouTubeVideoId\" IS NOT NULL AND \"DocumentId\" IS NULL AND \"SourceType\" = 'video')");
@@ -580,6 +584,8 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.HasIndex("DocumentId");
 
                     b.HasIndex("YouTubeVideoId");
+
+                    b.HasIndex("UserId", "Term");
 
                     b.ToTable("GlossaryTerms", (string)null);
                 });
@@ -784,6 +790,8 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.HasIndex("DocumentId");
 
                     b.HasIndex("YouTubeVideoId");
+
+                    b.HasIndex("UserId", "UpdatedAt");
 
                     b.ToTable("Notes", t =>
                         {
@@ -1036,6 +1044,8 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.HasKey("SubmissionId");
 
                     b.HasIndex("DocumentId", "UserId");
+
+                    b.HasIndex("UserId", "SubmittedAt");
 
                     b.HasIndex("YouTubeVideoId", "UserId");
 

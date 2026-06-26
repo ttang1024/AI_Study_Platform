@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Loader2, RotateCcw, Trophy, X } from 'lucide-react';
+import { Loader2, RotateCcw, Trophy, X, Pencil, Check } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { Flashcard } from '../../types';
 import { useStudy } from '../../context/StudyContext';
@@ -130,8 +130,39 @@ export const FlashcardSessionDeck: React.FC<FlashcardSessionDeckProps> = ({
   const [results, setResults] = useState<Record<string, RatingResult>>({});
   const [done, setDone] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  // Local front/back overrides so edits show immediately even when `cards` is a
+  // prop the deck doesn't own (e.g. video detail's externalCards).
+  const [edits, setEdits] = useState<Record<string, { front: string; back: string }>>({});
+  const [editing, setEditing] = useState(false);
+  const [editDraft, setEditDraft] = useState({ front: '', back: '' });
+  const [savingEdit, setSavingEdit] = useState(false);
 
-  const current = cards[index];
+  const rawCurrent = cards[index];
+  const current = rawCurrent ? { ...rawCurrent, ...edits[rawCurrent.id] } : rawCurrent;
+
+  const startEditing = () => {
+    if (!current) return;
+    setEditDraft({ front: current.front, back: current.back });
+    setEditing(true);
+  };
+
+  const saveEdit = async () => {
+    if (!current || savingEdit) return;
+    const front = editDraft.front.trim();
+    const back = editDraft.back.trim();
+    if (!front || !back) return;
+    setSavingEdit(true);
+    try {
+      await flashcardService.classifyFlashcard(current.id, { front, back });
+      setEdits(prev => ({ ...prev, [current.id]: { front, back } }));
+      setFlashcards(prev => prev.map(f => f.id === current.id ? { ...f, front, back } : f));
+      setEditing(false);
+    } catch {
+      // Keep the editor open so edits aren't lost on failure.
+    } finally {
+      setSavingEdit(false);
+    }
+  };
   const progress = cards.length > 0 ? (index / cards.length) * 100 : 0;
   const goodCount = Object.values(results).filter(r => r.rating >= 3).length;
   const hardCount = Object.values(results).filter(r => r.rating <= 2).length;
@@ -148,10 +179,12 @@ export const FlashcardSessionDeck: React.FC<FlashcardSessionDeckProps> = ({
     setFlipped(false);
     setResults({});
     setDone(false);
+    setEditing(false);
   };
 
   const advance = () => {
     setFlipped(false);
+    setEditing(false);
     if (index + 1 >= cards.length) {
       setDone(true);
     } else {
@@ -233,6 +266,15 @@ export const FlashcardSessionDeck: React.FC<FlashcardSessionDeckProps> = ({
             <p className="text-sm font-black text-text-main">{index + 1} / {cards.length}</p>
           </div>
           <div className="flex items-center gap-3 text-xs font-bold shrink-0">
+            {!editing && (
+              <button
+                onClick={startEditing}
+                title="Edit card"
+                className="rounded-lg p-1.5 text-zinc-400 hover:text-primary hover:bg-zinc-100 transition-colors"
+              >
+                <Pencil size={16} />
+              </button>
+            )}
             <span className="text-emerald-500">{goodCount}✓</span>
             <span className="text-red-500">{hardCount}✗</span>
           </div>
@@ -243,35 +285,75 @@ export const FlashcardSessionDeck: React.FC<FlashcardSessionDeckProps> = ({
         </div>
 
         <div className="flex-1 flex flex-col items-center justify-center px-4 py-6 select-none">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={current.id + (flipped ? '-back' : '-front')}
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="w-full max-w-md"
-            >
-              <FlashcardFlipCard
-                front={current.front}
-                back={current.back}
-                cardType={getFlashcardCardType(current)}
-                isFlipped={flipped}
-                onFlip={() => setFlipped(f => !f)}
-                variant="review"
-                hint="Tap to reveal"
-                className={cn(
-                  'w-full max-w-md rounded-3xl',
-                  isModal
-                    ? 'border-[var(--border-color)] bg-[var(--bg-sidebar)] shadow-2xl'
-                    : 'border-0 bg-[var(--bg-app)] shadow-xl',
-                )}
-                style={{ minHeight: 280 }}
-              />
-            </motion.div>
-          </AnimatePresence>
+          {editing ? (
+            <div className="w-full max-w-md space-y-3">
+              <div>
+                <label className="mb-1 block text-[10px] font-black uppercase tracking-widest text-text-muted">Front</label>
+                <textarea
+                  autoFocus
+                  value={editDraft.front}
+                  onChange={e => setEditDraft(d => ({ ...d, front: e.target.value }))}
+                  rows={3}
+                  className="w-full resize-none rounded-xl border border-[var(--primary)]/40 bg-[var(--bg-app)] p-3 text-sm text-text-main outline-none focus:border-[var(--primary)]"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-[10px] font-black uppercase tracking-widest text-text-muted">Back</label>
+                <textarea
+                  value={editDraft.back}
+                  onChange={e => setEditDraft(d => ({ ...d, back: e.target.value }))}
+                  rows={4}
+                  className="w-full resize-none rounded-xl border border-[var(--primary)]/40 bg-[var(--bg-app)] p-3 text-sm text-text-main outline-none focus:border-[var(--primary)]"
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => setEditing(false)}
+                  disabled={savingEdit}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-text-muted hover:bg-zinc-100 transition-all border border-[var(--border-color)] disabled:opacity-50"
+                >
+                  <X size={13} /> Cancel
+                </button>
+                <button
+                  onClick={saveEdit}
+                  disabled={savingEdit || !editDraft.front.trim() || !editDraft.back.trim()}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-[var(--primary)] hover:opacity-90 transition-all disabled:opacity-50"
+                >
+                  {savingEdit ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />} Save
+                </button>
+              </div>
+            </div>
+          ) : (
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={current.id + (flipped ? '-back' : '-front')}
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className="w-full max-w-md"
+              >
+                <FlashcardFlipCard
+                  front={current.front}
+                  back={current.back}
+                  cardType={getFlashcardCardType(current)}
+                  isFlipped={flipped}
+                  onFlip={() => setFlipped(f => !f)}
+                  variant="review"
+                  hint="Tap to reveal"
+                  className={cn(
+                    'w-full max-w-md rounded-3xl',
+                    isModal
+                      ? 'border-[var(--border-color)] bg-[var(--bg-sidebar)] shadow-2xl'
+                      : 'border-0 bg-[var(--bg-app)] shadow-xl',
+                  )}
+                  style={{ minHeight: 280 }}
+                />
+              </motion.div>
+            </AnimatePresence>
+          )}
         </div>
 
-        {flipped && (
+        {flipped && !editing && (
           <div className="px-4 pb-8 space-y-2">
             <RatingControls
               onRate={(rating) => void rate(rating)}

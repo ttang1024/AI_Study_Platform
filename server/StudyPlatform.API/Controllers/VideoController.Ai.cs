@@ -1,27 +1,9 @@
-using System.Text;
-using System.Text.Json;
-using System.Text.RegularExpressions;
-using System.Security.Cryptography;
-using MediatR;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using StudyPlatform.API.Extensions;
 using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Documents.DTOs;
-using StudyPlatform.Application.Notes.DTOs;
 using StudyPlatform.Application.Services;
-using StudyPlatform.Application.Settings;
-using StudyPlatform.Application.WorkedProblems.Commands;
-using StudyPlatform.Application.WorkedProblems.DTOs;
-using StudyPlatform.Application.WorkedProblems.Queries;
 using StudyPlatform.Application.YouTube.Commands;
-using StudyPlatform.Application.YouTube.DTOs;
-using StudyPlatform.Application.YouTube.Queries;
-using StudyPlatform.Domain.Entities;
-using StudyPlatform.Domain.Interfaces;
-using StudyPlatform.Infrastructure.Data;
 
 namespace StudyPlatform.API.Controllers;
 
@@ -71,63 +53,15 @@ public partial class VideoController
         var cacheKey = MindMapCacheKey(videoId);
         var cached = await _cache.GetAsync<string>(cacheKey, cancellationToken);
         if (!string.IsNullOrEmpty(cached))
-        {
-            Response.SetSseHeaders();
-            await Response.WriteSseDataAsync(cached, cancellationToken);
-            await Response.WriteSseDoneAsync(cancellationToken);
-            return new EmptyResult();
-        }
+            return await this.WriteSseCachedAsync(cached, cancellationToken);
 
         var transcript = await GetTranscriptTextAsync(videoId, cancellationToken);
         if (transcript == null)
             return BadRequest(BaseResponse<string>.Fail("No subtitles available for this video.", "NO_TRANSCRIPT"));
 
         var stream = _aiService.StreamMindMapFromYouTubeAsync(transcript, cancellationToken);
-        await using var enumerator = stream.GetAsyncEnumerator(cancellationToken);
-
-        string? firstChunk;
-        try
-        {
-            if (!await enumerator.MoveNextAsync())
-                return NoContent();
-
-            firstChunk = enumerator.Current;
-        }
-        catch (OperationCanceledException)
-        {
-            return new EmptyResult();
-        }
-        catch (Exception ex)
-        {
-            return this.AiStreamError(ex);
-        }
-
-        Response.SetSseHeaders();
-
-        var fullText = new StringBuilder();
-        try
-        {
-            fullText.Append(firstChunk);
-            await Response.WriteSseDataAsync(firstChunk, cancellationToken);
-
-            while (await enumerator.MoveNextAsync())
-            {
-                var chunk = enumerator.Current;
-                fullText.Append(chunk);
-                await Response.WriteSseDataAsync(chunk, cancellationToken);
-            }
-
-            if (fullText.Length > 0)
-                await _cache.SetAsync(cacheKey, fullText.ToString(), ttl, cancellationToken);
-        }
-        catch (OperationCanceledException) { return new EmptyResult(); }
-        catch (Exception ex)
-        {
-            await Response.WriteSseDataAsync("[ERROR] " + ex.Message, cancellationToken);
-        }
-
-        await Response.WriteSseDoneAsync(cancellationToken);
-        return new EmptyResult();
+        return await this.StreamAiToSseAsync(stream, cancellationToken,
+            onCompleted: (text, ct) => _cache.SetAsync(cacheKey, text, ttl, ct));
     }
 
     [HttpPost("{id:guid}/mindmap/stream")]
@@ -143,44 +77,13 @@ public partial class VideoController
             return BadRequest(BaseResponse<string>.Fail("No subtitles available for this video.", "NO_TRANSCRIPT"));
 
         var stream = _aiService.StreamMindMapFromYouTubeAsync(transcript, cancellationToken);
-        await using var enumerator = stream.GetAsyncEnumerator(cancellationToken);
-
-        string? firstChunk;
-        try
+        return await this.StreamAiToSseAsync(stream, cancellationToken, onCompleted: async (text, ct) =>
         {
-            if (!await enumerator.MoveNextAsync())
-                return NoContent();
-            firstChunk = enumerator.Current;
-        }
-        catch (OperationCanceledException) { return new EmptyResult(); }
-        catch (Exception ex) { return this.AiStreamError(ex); }
-
-        Response.SetSseHeaders();
-        var fullText = new StringBuilder();
-        try
-        {
-            fullText.Append(firstChunk);
-            await Response.WriteSseDataAsync(firstChunk, cancellationToken);
-            while (await enumerator.MoveNextAsync())
-            {
-                var chunk = enumerator.Current;
-                fullText.Append(chunk);
-                await Response.WriteSseDataAsync(chunk, cancellationToken);
-            }
-
-            if (fullText.Length > 0)
-            {
-                video.MindMapText = fullText.ToString();
-                video.UpdatedAt = DateTime.UtcNow;
-                _unitOfWork.YouTubeVideos.Update(video);
-                await _unitOfWork.SaveChangesAsync(cancellationToken);
-            }
-        }
-        catch (OperationCanceledException) { return new EmptyResult(); }
-        catch (Exception ex) { await Response.WriteSseDataAsync("[ERROR] " + ex.Message, cancellationToken); }
-
-        await Response.WriteSseDoneAsync(cancellationToken);
-        return new EmptyResult();
+            video.MindMapText = text;
+            video.UpdatedAt = DateTime.UtcNow;
+            _unitOfWork.YouTubeVideos.Update(video);
+            await _unitOfWork.SaveChangesAsync(ct);
+        });
     }
 
     [HttpPost("quiz")]
@@ -272,10 +175,7 @@ public partial class VideoController
         var messages = await _unitOfWork.ChatMessages.GetByYouTubeVideoIdAsync(id, video.UserId, cancellationToken);
         var dtos = new List<ChatMessageDto>();
         foreach (var m in messages)
-        {
-            var attachments = await ChatAttachmentStore.LoadAsync(_blobStorageService, m.AttachmentsJson, cancellationToken);
-            dtos.Add(new ChatMessageDto(m.MessageId, m.DocumentId, m.YouTubeVideoId, m.SourceType, m.Role, m.Content, m.CreatedAt, attachments.Count > 0 ? attachments : null));
-        }
+            dtos.Add(await m.ToDtoAsync(_blobStorageService, cancellationToken));
         return Ok(BaseResponse<IEnumerable<ChatMessageDto>>.Ok(dtos));
     }
 

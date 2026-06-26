@@ -46,7 +46,7 @@ public class UpdateQuestionBankQuestionCommandHandler : IRequestHandler<UpdateQu
         quiz.OptionsJson = JsonSerializer.Serialize(options);
         quiz.CorrectAnswer = NormalizeCorrectAnswer(options, request.CorrectAnswer);
         quiz.Explanation = request.Explanation.Trim();
-        quiz.Difficulty = NormalizeDifficulty(request.Difficulty);
+        quiz.Difficulty = QuizDifficulty.Normalize(request.Difficulty);
         _unitOfWork.Quizzes.Update(quiz);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -61,13 +61,6 @@ public class UpdateQuestionBankQuestionCommandHandler : IRequestHandler<UpdateQu
             GetQuestionBankQueryHandler.ToDto(quiz, documents, videos, courses),
             "Question updated.");
     }
-
-    private static string NormalizeDifficulty(string difficulty) => difficulty.ToLowerInvariant() switch
-    {
-        "easy" => "easy",
-        "hard" => "hard",
-        _ => "medium"
-    };
 
     private static string NormalizeCorrectAnswer(string[] options, string correctAnswer)
     {

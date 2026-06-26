@@ -33,5 +33,10 @@ public class QuizSubmissionConfiguration : IEntityTypeConfiguration<QuizSubmissi
 
         builder.HasIndex(s => new { s.DocumentId, s.UserId });
         builder.HasIndex(s => new { s.YouTubeVideoId, s.UserId });
+
+        // Serves the submissions history list: WHERE UserId = @u ORDER BY SubmittedAt DESC.
+        // The two indexes above lead with DocumentId/YouTubeVideoId, so a UserId-only filter
+        // can't use them.
+        builder.HasIndex(s => new { s.UserId, s.SubmittedAt });
     }
 }

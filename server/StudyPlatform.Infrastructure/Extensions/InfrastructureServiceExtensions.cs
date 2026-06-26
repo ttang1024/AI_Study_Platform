@@ -30,6 +30,9 @@ public static class InfrastructureServiceExtensions
         // Unit of Work
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
+        // Admin platform-wide analytics (reads across all users; admin-only endpoints)
+        services.AddScoped<IAdminAnalyticsRepository, AdminAnalyticsRepository>();
+
         // Services
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<IEmailService, EmailService>();

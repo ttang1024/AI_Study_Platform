@@ -1,19 +1,37 @@
 {
-  "manifest_version": 3,
-  "name": "Easy Study Web Clipper",
-  "version": "1.0.0",
-  "description": "Clip the current page into your Easy Study library.",
-  "action": {
-    "default_title": "Clip to Easy Study",
-    "default_icon": {
-      "128": "icon128.png"
-    }
-  },
-  "permissions": ["activeTab"],
-  "background": {
-    "service_worker": "background.js"
-  },
-  "icons": {
-    "128": "icon128.png"
-  }
+	"manifest_version": 3,
+	"name": "Easy Study — YouTube AI",
+	"version": "0.0.1",
+	"description": "Summarize, transcribe, and chat with any YouTube video using AI.",
+	"action": {
+		"default_title": "Easy Study",
+		"default_popup": "src/popup/index.html",
+		"default_icon": { "128": "icon128.png" }
+	},
+	"permissions": ["activeTab", "storage", "scripting"],
+	"host_permissions": ["http://localhost:5001/*", "http://localhost:3000/*"],
+	"optional_host_permissions": ["http://*/*", "https://*/*"],
+	"background": {
+		"service_worker": "src/background/index.ts",
+		"type": "module"
+	},
+	"content_scripts": [
+		{
+			"matches": ["https://www.youtube.com/*", "https://m.youtube.com/*"],
+			"js": ["src/content/youtube.tsx"],
+			"run_at": "document_idle"
+		},
+		{
+			"matches": ["http://localhost:3000/*"],
+			"js": ["src/content/bridge.ts"],
+			"run_at": "document_start"
+		}
+	],
+	"icons": { "128": "icon128.png" },
+	"web_accessible_resources": [
+		{
+			"matches": ["https://www.youtube.com/*", "https://m.youtube.com/*"],
+			"resources": ["icon128.png"]
+		}
+	]
 }

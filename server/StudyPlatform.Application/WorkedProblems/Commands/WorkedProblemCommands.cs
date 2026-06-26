@@ -21,18 +21,15 @@ public class GenerateWorkedProblemsCommandHandler : IRequestHandler<GenerateWork
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly IAiService _aiService;
-    private readonly IBlobStorageService _blobStorageService;
     private readonly IDocumentTextExtractor _textExtractor;
 
     public GenerateWorkedProblemsCommandHandler(
         IUnitOfWork unitOfWork,
         IAiService aiService,
-        IBlobStorageService blobStorageService,
         IDocumentTextExtractor textExtractor)
     {
         _unitOfWork = unitOfWork;
         _aiService = aiService;
-        _blobStorageService = blobStorageService;
         _textExtractor = textExtractor;
     }
 

@@ -45,11 +45,7 @@ public class TranscribeAudioCommandHandler : IRequestHandler<TranscribeAudioComm
             await _unitOfWork.SaveChangesAsync(cancellationToken);
         }
 
-        var dto = new DocumentDto(
-            document.DocumentId, document.CourseId, document.UserId,
-            document.FileName, document.BlobUrl, document.ContentType,
-            document.FileSize, document.FileHash, document.Summary, document.MindMapText,
-            document.CreatedAt, document.UpdatedAt, document.Transcript);
+        var dto = document.ToDocumentDto();
 
         return Result<DocumentDto>.Success(dto, "Audio transcribed successfully.");
     }

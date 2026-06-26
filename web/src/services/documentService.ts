@@ -70,28 +70,43 @@ interface BackendFlashcard {
 }
 
 const AUDIO_EXTENSIONS = ['.mp3', '.m4a', '.wav', '.ogg', '.aac', '.flac', '.webm']
+const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.heic', '.heif', '.bmp']
+const PPT_EXTENSIONS = ['.ppt', '.pptx']
 
 const getTypeFromContentTypeOrFileName = (
 	contentType: string,
 	fileName: string,
-): 'pdf' | 'docx' | 'txt' | 'md' | 'audio' | 'podcast' => {
-	if (contentType === 'application/pdf' || fileName.toLowerCase().endsWith('.pdf')) return 'pdf'
+): 'pdf' | 'docx' | 'txt' | 'md' | 'audio' | 'podcast' | 'image' | 'ppt' | 'epub' => {
+	const name = fileName.toLowerCase()
+	if (contentType === 'application/pdf' || name.endsWith('.pdf')) return 'pdf'
 	if (
 		contentType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
-		fileName.toLowerCase().endsWith('.docx')
+		name.endsWith('.docx')
 	)
 		return 'docx'
 	if (
 		contentType === 'text/markdown' ||
 		contentType === 'text/x-markdown' ||
-		fileName.toLowerCase().endsWith('.md') ||
-		fileName.toLowerCase().endsWith('.markdown')
+		name.endsWith('.md') ||
+		name.endsWith('.markdown')
 	)
 		return 'md'
+	if (
+		contentType === 'application/vnd.openxmlformats-officedocument.presentationml.presentation' ||
+		contentType === 'application/vnd.ms-powerpoint' ||
+		PPT_EXTENSIONS.some(ext => name.endsWith(ext))
+	)
+		return 'ppt'
+	if (contentType === 'application/epub+zip' || name.endsWith('.epub')) return 'epub'
+	if (
+		contentType.startsWith('image/') ||
+		IMAGE_EXTENSIONS.some(ext => name.endsWith(ext))
+	)
+		return 'image'
 	if (contentType === 'audio/podcast') return 'podcast'
 	if (
 		contentType.startsWith('audio/') ||
-		AUDIO_EXTENSIONS.some(ext => fileName.toLowerCase().endsWith(ext))
+		AUDIO_EXTENSIONS.some(ext => name.endsWith(ext))
 	)
 		return 'audio'
 	return 'txt'
@@ -256,6 +271,26 @@ export const documentService = {
 		const response = await apiClient.patch(
 			`/api/courses/${courseId}/documents/${documentId}`,
 			data,
+		)
+		invalidateDocumentListCache()
+		return mapDocument(response.data.data)
+	},
+
+	/** Persist a user-edited summary (markdown) back to the document. */
+	async updateSummary(courseId: string, documentId: string, summary: string): Promise<Document> {
+		const response = await apiClient.patch(
+			`/api/courses/${courseId}/documents/${documentId}/content`,
+			{ summary },
+		)
+		invalidateDocumentListCache()
+		return mapDocument(response.data.data)
+	},
+
+	/** Persist a user-edited mind map (XMindMark/markdown source) back to the document. */
+	async updateMindMap(courseId: string, documentId: string, mindMapText: string): Promise<Document> {
+		const response = await apiClient.patch(
+			`/api/courses/${courseId}/documents/${documentId}/content`,
+			{ mindMapText },
 		)
 		invalidateDocumentListCache()
 		return mapDocument(response.data.data)

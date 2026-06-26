@@ -33,6 +33,7 @@ public class QuizSubmissionRepository : Repository<QuizSubmission>, IQuizSubmiss
     public async Task<(IEnumerable<QuizSubmission> Items, int TotalCount)> GetPagedByUserAsync(Guid userId, int page, int pageSize, CancellationToken cancellationToken = default)
     {
         var query = _dbSet
+            .AsNoTracking()
             .Include(s => s.Document)
             .Include(s => s.YouTubeVideo)
             .Where(s => s.UserId == userId);

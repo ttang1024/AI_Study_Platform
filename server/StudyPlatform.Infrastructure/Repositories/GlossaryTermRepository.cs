@@ -23,6 +23,18 @@ public class GlossaryTermRepository : Repository<GlossaryTerm>, IGlossaryTermRep
             .OrderBy(t => t.Term)
             .ToListAsync(cancellationToken);
 
+    public async Task<IEnumerable<GlossaryTerm>> SearchByUserAsync(Guid userId, string query, int limit, CancellationToken cancellationToken = default)
+    {
+        var pattern = $"%{query}%";
+        return await _dbSet
+            .AsNoTracking()
+            .Where(t => t.UserId == userId &&
+                        (EF.Functions.ILike(t.Term, pattern) || EF.Functions.ILike(t.Definition, pattern)))
+            .OrderBy(t => t.Term)
+            .Take(limit)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task DeleteByDocumentIdAsync(Guid documentId, CancellationToken cancellationToken = default)
     {
         var terms = await _dbSet.Where(t => t.DocumentId == documentId).ToListAsync(cancellationToken);

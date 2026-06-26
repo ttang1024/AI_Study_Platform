@@ -1,17 +1,7 @@
-using System.Text;
-using System.Text.Json;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using StudyPlatform.API.Extensions;
-using StudyPlatform.Application.Common;
-using StudyPlatform.Application.Documents.Commands;
-using StudyPlatform.Application.Documents.DTOs;
-using StudyPlatform.Application.Documents.Queries;
-using StudyPlatform.Application.Notes.Commands;
-using StudyPlatform.Application.Notes.DTOs;
 using StudyPlatform.Application.Services;
-using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
 
 namespace StudyPlatform.API.Controllers;

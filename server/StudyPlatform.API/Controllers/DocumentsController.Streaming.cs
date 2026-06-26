@@ -1,18 +1,10 @@
-using System.Text;
 using System.Text.Json;
-using MediatR;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using StudyPlatform.API.Extensions;
 using StudyPlatform.Application.Common;
-using StudyPlatform.Application.Documents.Commands;
 using StudyPlatform.Application.Documents.DTOs;
-using StudyPlatform.Application.Documents.Queries;
-using StudyPlatform.Application.Notes.Commands;
-using StudyPlatform.Application.Notes.DTOs;
 using StudyPlatform.Application.Services;
 using StudyPlatform.Domain.Entities;
-using StudyPlatform.Domain.Interfaces;
 
 namespace StudyPlatform.API.Controllers;
 
@@ -34,9 +26,7 @@ public partial class DocumentsController
         if (document == null || document.UserId != userId)
             return NotFound(BaseResponse<string>.Fail("Document not found.", "DOCUMENT_NOT_FOUND"));
 
-        var fullText = new StringBuilder();
         IAsyncEnumerable<string> stream;
-
         try
         {
             var (bytes, text) = await _contentService.GetContentAsync(document, cancellationToken);
@@ -53,55 +43,13 @@ public partial class DocumentsController
             return this.AiStreamError(ex);
         }
 
-        await using var enumerator = stream.GetAsyncEnumerator(cancellationToken);
-
-        string? firstChunk;
-        try
+        return await this.StreamAiToSseAsync(stream, cancellationToken, onCompleted: async (text, ct) =>
         {
-            if (!await enumerator.MoveNextAsync())
-                return NoContent();
-
-            firstChunk = enumerator.Current;
-        }
-        catch (OperationCanceledException)
-        {
-            return new EmptyResult();
-        }
-        catch (Exception ex)
-        {
-            return this.AiStreamError(ex);
-        }
-
-        Response.SetSseHeaders();
-
-        try
-        {
-            fullText.Append(firstChunk);
-            await Response.WriteSseDataAsync(firstChunk, cancellationToken);
-
-            while (await enumerator.MoveNextAsync())
-            {
-                var chunk = enumerator.Current;
-                fullText.Append(chunk);
-                await Response.WriteSseDataAsync(chunk, cancellationToken);
-            }
-
-            if (fullText.Length > 0)
-            {
-                document.MindMapText = fullText.ToString();
-                document.UpdatedAt = DateTime.UtcNow;
-                _unitOfWork.Documents.Update(document);
-                await _unitOfWork.SaveChangesAsync(cancellationToken);
-            }
-        }
-        catch (OperationCanceledException) { return new EmptyResult(); }
-        catch (Exception ex)
-        {
-            await Response.WriteSseDataAsync("[ERROR] " + ex.Message, cancellationToken);
-        }
-
-        await Response.WriteSseDoneAsync(cancellationToken);
-        return new EmptyResult();
+            document.MindMapText = text;
+            document.UpdatedAt = DateTime.UtcNow;
+            _unitOfWork.Documents.Update(document);
+            await _unitOfWork.SaveChangesAsync(ct);
+        });
     }
 
     /// <summary>
@@ -119,9 +67,7 @@ public partial class DocumentsController
         if (document == null || document.UserId != userId)
             return NotFound(BaseResponse<string>.Fail("Document not found.", "DOCUMENT_NOT_FOUND"));
 
-        var fullText = new StringBuilder();
         IAsyncEnumerable<string> stream;
-
         try
         {
             var (bytes, text) = await _contentService.GetContentAsync(document, cancellationToken);
@@ -144,56 +90,13 @@ public partial class DocumentsController
             return this.AiStreamError(ex);
         }
 
-        await using var enumerator = stream.GetAsyncEnumerator(cancellationToken);
-
-        string? firstChunk;
-        try
+        return await this.StreamAiToSseAsync(stream, cancellationToken, onCompleted: async (text, ct) =>
         {
-            if (!await enumerator.MoveNextAsync())
-                return NoContent();
-
-            firstChunk = enumerator.Current;
-        }
-        catch (OperationCanceledException)
-        {
-            return new EmptyResult();
-        }
-        catch (Exception ex)
-        {
-            return this.AiStreamError(ex);
-        }
-
-        Response.SetSseHeaders();
-
-        try
-        {
-            fullText.Append(firstChunk);
-            await Response.WriteSseDataAsync(firstChunk, cancellationToken);
-
-            while (await enumerator.MoveNextAsync())
-            {
-                var chunk = enumerator.Current;
-                fullText.Append(chunk);
-                await Response.WriteSseDataAsync(chunk, cancellationToken);
-            }
-
-            // Persist the streamed summary
-            if (fullText.Length > 0)
-            {
-                document.Summary = fullText.ToString();
-                document.UpdatedAt = DateTime.UtcNow;
-                _unitOfWork.Documents.Update(document);
-                await _unitOfWork.SaveChangesAsync(cancellationToken);
-            }
-        }
-        catch (OperationCanceledException) { return new EmptyResult(); }
-        catch (Exception ex)
-        {
-            await Response.WriteSseDataAsync("[ERROR] " + ex.Message, cancellationToken);
-        }
-
-        await Response.WriteSseDoneAsync(cancellationToken);
-        return new EmptyResult();
+            document.Summary = text;
+            document.UpdatedAt = DateTime.UtcNow;
+            _unitOfWork.Documents.Update(document);
+            await _unitOfWork.SaveChangesAsync(ct);
+        });
     }
 
     private static string? FormatAudioTranscriptForTimeline(string? transcript)
@@ -293,77 +196,35 @@ public partial class DocumentsController
         }
 
         var stream = _aiService.StreamChatAsync(content, promptMessage, historyTuples, ChatAttachments.ToModelInputs(attachments), cancellationToken);
-        await using var enumerator = stream.GetAsyncEnumerator(cancellationToken);
-
-        string? firstChunk;
-        try
-        {
-            if (!await enumerator.MoveNextAsync())
-                return NoContent();
-
-            firstChunk = enumerator.Current;
-        }
-        catch (OperationCanceledException)
-        {
-            return new EmptyResult();
-        }
-        catch (Exception ex)
-        {
-            return this.AiStreamError(ex);
-        }
-
-        await _unitOfWork.ChatMessages.AddAsync(new ChatMessage
-        {
-            MessageId = Guid.NewGuid(),
-            DocumentId = documentId,
-            SourceType = "document",
-            UserId = userId,
-            Role = "user",
-            Content = savedMessage,
-            AttachmentsJson = attachmentsJson,
-            CreatedAt = DateTime.UtcNow
-        }, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-        Response.SetSseHeaders();
-
-        var fullResponse = new StringBuilder();
-        try
-        {
-            fullResponse.Append(firstChunk);
-            await Response.WriteSseDataAsync(firstChunk, cancellationToken);
-
-            while (await enumerator.MoveNextAsync())
+        return await this.StreamAiToSseAsync(stream, cancellationToken,
+            beforeStream: async ct =>
             {
-                var chunk = enumerator.Current;
-                fullResponse.Append(chunk);
-                await Response.WriteSseDataAsync(chunk, cancellationToken);
-            }
-
-            // Save model message
-            if (fullResponse.Length > 0)
+                await _unitOfWork.ChatMessages.AddAsync(new ChatMessage
+                {
+                    MessageId = Guid.NewGuid(),
+                    DocumentId = documentId,
+                    SourceType = "document",
+                    UserId = userId,
+                    Role = "user",
+                    Content = savedMessage,
+                    AttachmentsJson = attachmentsJson,
+                    CreatedAt = DateTime.UtcNow
+                }, ct);
+                await _unitOfWork.SaveChangesAsync(ct);
+            },
+            onCompleted: async (text, ct) =>
             {
-                var assistantMsg = new ChatMessage
+                await _unitOfWork.ChatMessages.AddAsync(new ChatMessage
                 {
                     MessageId = Guid.NewGuid(),
                     DocumentId = documentId,
                     SourceType = "document",
                     UserId = userId,
                     Role = "assistant",
-                    Content = fullResponse.ToString(),
+                    Content = text,
                     CreatedAt = DateTime.UtcNow
-                };
-                await _unitOfWork.ChatMessages.AddAsync(assistantMsg, cancellationToken);
-                await _unitOfWork.SaveChangesAsync(cancellationToken);
-            }
-        }
-        catch (OperationCanceledException) { return new EmptyResult(); }
-        catch (Exception ex)
-        {
-            await Response.WriteSseDataAsync("[ERROR] " + ex.Message, cancellationToken);
-        }
-
-        await Response.WriteSseDoneAsync(cancellationToken);
-        return new EmptyResult();
+                }, ct);
+                await _unitOfWork.SaveChangesAsync(ct);
+            });
     }
 }

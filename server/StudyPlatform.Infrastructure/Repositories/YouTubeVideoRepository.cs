@@ -15,6 +15,7 @@ public class YouTubeVideoRepository : Repository<YouTubeVideo>, IYouTubeVideoRep
         CancellationToken cancellationToken = default)
     {
         var query = _dbSet
+            .AsNoTracking()
             .Include(v => v.Course)
             .Where(v => v.UserId == userId);
 

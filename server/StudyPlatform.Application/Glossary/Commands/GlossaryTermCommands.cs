@@ -81,7 +81,7 @@ public class UpdateGlossaryTermCommandHandler : IRequestHandler<UpdateGlossaryTe
         _unitOfWork.GlossaryTerms.Update(term);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        var dto = new GlossaryTermDto(term.GlossaryTermId, term.DocumentId, term.Term, term.Definition, term.CreatedAt, term.YouTubeVideoId);
+        var dto = term.ToGlossaryTermDto();
         return Result<GlossaryTermDto>.Success(dto, "Term updated.");
     }
 }

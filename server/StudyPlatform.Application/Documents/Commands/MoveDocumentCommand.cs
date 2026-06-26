@@ -28,19 +28,6 @@ public class MoveDocumentCommandHandler : IRequestHandler<MoveDocumentCommand, R
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return Result<DocumentDto>.Success(new DocumentDto(
-            document.DocumentId,
-            document.CourseId,
-            document.UserId,
-            document.FileName,
-            document.BlobUrl,
-            document.ContentType,
-            document.FileSize,
-            document.FileHash,
-            document.Summary,
-            document.MindMapText,
-            document.CreatedAt,
-            document.UpdatedAt,
-            document.Transcript));
+        return Result<DocumentDto>.Success(document.ToDocumentDto());
     }
 }

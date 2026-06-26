@@ -492,6 +492,18 @@ export function useVideoDetail(propId?: string) {
     }
   }, [videoUrl, isLoadingMindMap, id, generationDisabled]);
 
+  const handleSaveSummary = useCallback(async (markdown: string) => {
+    if (!id) return;
+    await videoService.updateVideo(id, { summary: markdown });
+    setSummary(markdown);
+  }, [id]);
+
+  const handleSaveMindMap = useCallback(async (text: string) => {
+    if (!id) return;
+    await videoService.updateVideo(id, { mindMapText: text });
+    setMindMapText(text);
+  }, [id]);
+
   const generateFlashcards = useCallback(async () => {
     if (!videoUrl || isLoadingFlashcards || !id || generationDisabled) return;
     setFlashcardsError(null);
@@ -608,7 +620,7 @@ export function useVideoDetail(propId?: string) {
     activeTab, setActiveTab, activeView, setActiveView, locationState,
     summaryError, mindMapError, flashcardsError, quizError,
     noteContent, showShareModal, setShowShareModal,
-    summary, isLoadingSummary, summaryStreamText, generateSummary,
+    summary, isLoadingSummary, summaryStreamText, generateSummary, handleSaveSummary,
     summaryRef, summaryToolbar, setSummaryToolbar,
     transcriptRef, transcriptToolbar, setTranscriptToolbar,
     centerView, setCenterView, loadSubtitlesOnDemand,
@@ -616,7 +628,7 @@ export function useVideoDetail(propId?: string) {
     subtitles, subtitlesError, isLoadingSubtitles, refreshSubtitles,
     iframeRef, uploadedVideoRef,
     openMenu, setOpenMenu, copyMenuRef, downloadMenuRef, copyTranscript, downloadTranscript,
-    mindMapText, isLoadingMindMap, mindMapStreamingText, generateMindMap,
+    mindMapText, isLoadingMindMap, mindMapStreamingText, generateMindMap, handleSaveMindMap,
     flashcards, isLoadingFlashcards, generateFlashcards,
     activeQuizDifficulty, quizQuestionSets, quizQuestions, userAnswers, isQuizSubmitted,
     quizScore, isLoadingQuiz, generateQuiz, handleQuizDifficultyChange, submitQuiz, onAnswerQuiz,

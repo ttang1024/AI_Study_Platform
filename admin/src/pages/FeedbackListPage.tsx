@@ -33,7 +33,7 @@ const SORT_OPTIONS = [
 ];
 
 const selectClass =
-  'appearance-none rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] px-3 py-2 pr-8 text-sm text-[var(--text-primary)] outline-none focus:border-indigo-500 transition-all cursor-pointer';
+  'appearance-none rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] px-3 py-2 pr-8 text-sm text-[var(--text-primary)] outline-none focus:border-emerald-500 transition-all cursor-pointer';
 
 export const FeedbackListPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -98,7 +98,7 @@ export const FeedbackListPage: React.FC = () => {
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             placeholder="Search feedback…"
-            className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] py-2 pl-9 pr-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none focus:border-indigo-500 transition-all"
+            className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] py-2 pl-9 pr-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none focus:border-emerald-500 transition-all"
           />
         </form>
 
@@ -135,7 +135,7 @@ export const FeedbackListPage: React.FC = () => {
       </div>
 
       {error && (
-        <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+        <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-600">
           {error}
         </div>
       )}
@@ -146,9 +146,9 @@ export const FeedbackListPage: React.FC = () => {
           <div className="divide-y divide-[var(--border-color)]">
             {Array.from({ length: 8 }).map((_, i) => (
               <div key={i} className="flex items-center gap-4 px-5 py-4">
-                <div className="h-4 w-16 rounded bg-white/5 animate-pulse" />
-                <div className="h-4 flex-1 rounded bg-white/5 animate-pulse" />
-                <div className="h-4 w-20 rounded bg-white/5 animate-pulse" />
+                <div className="h-4 w-16 rounded bg-black/5 animate-pulse" />
+                <div className="h-4 flex-1 rounded bg-black/5 animate-pulse" />
+                <div className="h-4 w-20 rounded bg-black/5 animate-pulse" />
               </div>
             ))}
           </div>
@@ -173,8 +173,8 @@ export const FeedbackListPage: React.FC = () => {
                 key={item.id}
                 to={`/feedback/${item.id}`}
                 className={cn(
-                  'grid grid-cols-[auto_1fr_auto_auto_auto] items-center gap-4 px-6 py-5 text-sm transition-colors hover:bg-white/3',
-                  item.status === 'new' && 'bg-indigo-500/3',
+                  'grid grid-cols-[auto_1fr_auto_auto_auto] items-center gap-4 px-6 py-5 text-sm transition-colors hover:bg-black/[0.03]',
+                  item.status === 'new' && 'bg-emerald-500/5',
                 )}
               >
                 <TypeBadge type={item.type} />
@@ -184,7 +184,7 @@ export const FeedbackListPage: React.FC = () => {
                     item.status === 'new' ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]',
                   )}>
                     {item.status === 'new' && (
-                      <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-indigo-400 align-middle" />
+                      <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-emerald-500 align-middle" />
                     )}
                     {item.subject}
                   </p>
@@ -196,7 +196,7 @@ export const FeedbackListPage: React.FC = () => {
                 <span className="text-xs text-[var(--text-secondary)] tabular-nums">
                   {item.rating != null ? (
                     <span className="flex items-center gap-1">
-                      <Star size={11} className="fill-amber-400 text-amber-400" />
+                      <Star size={11} className="fill-amber-500 text-amber-500" />
                       {item.rating}
                     </span>
                   ) : '—'}

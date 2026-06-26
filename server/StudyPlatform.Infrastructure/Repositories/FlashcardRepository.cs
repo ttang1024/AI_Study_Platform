@@ -35,6 +35,7 @@ public class FlashcardRepository : Repository<Flashcard>, IFlashcardRepository
     public async Task<(IEnumerable<Flashcard> Items, int TotalCount)> GetPagedByUserIdAsync(Guid userId, int page, int pageSize, CancellationToken cancellationToken = default)
     {
         var query = _dbSet
+            .AsNoTracking()
             .Include(f => f.Document)
             .Include(f => f.YouTubeVideo)
             .Where(f => f.UserId == userId);
@@ -62,5 +63,17 @@ public class FlashcardRepository : Repository<Flashcard>, IFlashcardRepository
             .ToListAsync(cancellationToken);
 
         return (documentIds, youTubeVideoIds);
+    }
+
+    public async Task<IEnumerable<Flashcard>> SearchByUserAsync(Guid userId, string query, int limit, CancellationToken cancellationToken = default)
+    {
+        var pattern = $"%{query}%";
+        return await _dbSet
+            .AsNoTracking()
+            .Where(f => f.UserId == userId &&
+                        (EF.Functions.ILike(f.Front, pattern) || EF.Functions.ILike(f.Back, pattern)))
+            .OrderByDescending(f => f.CreatedAt)
+            .Take(limit)
+            .ToListAsync(cancellationToken);
     }
 }

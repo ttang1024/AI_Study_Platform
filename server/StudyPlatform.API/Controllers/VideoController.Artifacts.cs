@@ -1,27 +1,11 @@
-using System.Text;
 using System.Text.Json;
-using System.Text.RegularExpressions;
-using System.Security.Cryptography;
-using MediatR;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using StudyPlatform.API.Extensions;
 using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Documents.DTOs;
 using StudyPlatform.Application.Notes.DTOs;
-using StudyPlatform.Application.Services;
-using StudyPlatform.Application.Settings;
-using StudyPlatform.Application.WorkedProblems.Commands;
-using StudyPlatform.Application.WorkedProblems.DTOs;
-using StudyPlatform.Application.WorkedProblems.Queries;
 using StudyPlatform.Application.YouTube.Commands;
-using StudyPlatform.Application.YouTube.DTOs;
-using StudyPlatform.Application.YouTube.Queries;
 using StudyPlatform.Domain.Entities;
-using StudyPlatform.Domain.Interfaces;
-using StudyPlatform.Infrastructure.Data;
 
 namespace StudyPlatform.API.Controllers;
 
@@ -39,8 +23,7 @@ public partial class VideoController
             return NotFound(BaseResponse<IEnumerable<FlashcardDto>>.Fail("Video not found.", "VIDEO_NOT_FOUND"));
 
         var flashcards = await _unitOfWork.Flashcards.FindAsync(f => f.YouTubeVideoId == id && f.UserId == video.UserId, cancellationToken);
-        var dtos = flashcards.Select(f => new FlashcardDto(f.FlashcardId, f.DocumentId, f.YouTubeVideoId, f.SourceType, f.UserId, f.Front, f.Back, f.CreatedAt, f.UpdatedAt,
-            CardType: f.CardType, Difficulty: f.Difficulty, Chapter: f.Chapter, Tags: f.Tags)).ToList();
+        var dtos = flashcards.Select(f => f.ToFlashcardDto()).ToList();
         return Ok(BaseResponse<IEnumerable<FlashcardDto>>.Ok(dtos));
     }
 
@@ -55,7 +38,7 @@ public partial class VideoController
         var notes = await _unitOfWork.Notes.FindAsync(n => n.YouTubeVideoId == id && n.UserId == video.UserId, cancellationToken);
         var dtos = notes
             .OrderByDescending(n => n.CreatedAt)
-            .Select(n => new NoteDto(n.NoteId, n.UserId, n.DocumentId, n.YouTubeVideoId, n.SourceType, n.Content, n.Title, n.CreatedAt, n.UpdatedAt));
+            .Select(n => n.ToNoteDto());
         return Ok(BaseResponse<IEnumerable<NoteDto>>.Ok(dtos));
     }
 
@@ -70,9 +53,7 @@ public partial class VideoController
         // Return cached flashcards if they already exist
         var existing = (await _unitOfWork.Flashcards.FindAsync(f => f.YouTubeVideoId == id && f.UserId == userId, cancellationToken)).ToList();
         if (existing.Count > 0)
-            return Ok(BaseResponse<IEnumerable<FlashcardDto>>.Ok(
-                existing.Select(f => new FlashcardDto(f.FlashcardId, f.DocumentId, f.YouTubeVideoId, f.SourceType, f.UserId, f.Front, f.Back, f.CreatedAt, f.UpdatedAt,
-                    CardType: f.CardType, Difficulty: f.Difficulty, Chapter: f.Chapter, Tags: f.Tags))));
+            return Ok(BaseResponse<IEnumerable<FlashcardDto>>.Ok(existing.Select(f => f.ToFlashcardDto())));
 
         // No cached data — fetch transcript and generate
         var transcript = await GetOrFetchTranscriptAsync(video, cancellationToken);
@@ -81,10 +62,10 @@ public partial class VideoController
 
         var resultJson = await _aiService.GenerateFlashcardsFromYouTubeAsync(transcript, cancellationToken);
 
-        List<FlashcardItem> cards;
+        List<AiFlashcardItem> cards;
         try
         {
-            cards = JsonSerializer.Deserialize<List<FlashcardItem>>(resultJson,
+            cards = JsonSerializer.Deserialize<List<AiFlashcardItem>>(resultJson,
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? [];
         }
         catch
@@ -115,8 +96,7 @@ public partial class VideoController
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         var saved = await _unitOfWork.Flashcards.FindAsync(f => f.YouTubeVideoId == id && f.UserId == userId, cancellationToken);
-        var savedDtos = saved.Select(f => new FlashcardDto(f.FlashcardId, f.DocumentId, f.YouTubeVideoId, f.SourceType, f.UserId, f.Front, f.Back, f.CreatedAt, f.UpdatedAt,
-            CardType: f.CardType, Difficulty: f.Difficulty, Chapter: f.Chapter, Tags: f.Tags)).ToList();
+        var savedDtos = saved.Select(f => f.ToFlashcardDto()).ToList();
         return Ok(BaseResponse<IEnumerable<FlashcardDto>>.Ok(savedDtos));
     }
 
@@ -135,7 +115,7 @@ public partial class VideoController
 
         var terms = await _unitOfWork.GlossaryTerms.GetByVideoIdAsync(id, cancellationToken);
         var dtos = terms.Where(t => t.UserId == userId)
-            .Select(t => new GlossaryTermDto(t.GlossaryTermId, null, t.Term, t.Definition, t.CreatedAt, t.YouTubeVideoId))
+            .Select(t => t.ToGlossaryTermDto())
             .ToList();
         if (dtos.Count > 0)
             await _cache.SetAsync(cacheKey, dtos, ttl, cancellationToken);
@@ -162,10 +142,10 @@ public partial class VideoController
 
             var resultJson = await _aiService.GenerateGlossaryAsync(transcript, cancellationToken);
 
-            List<GlossaryItem> items;
+            List<AiGlossaryItem> items;
             try
             {
-                items = System.Text.Json.JsonSerializer.Deserialize<List<GlossaryItem>>(resultJson,
+                items = System.Text.Json.JsonSerializer.Deserialize<List<AiGlossaryItem>>(resultJson,
                     new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? [];
             }
             catch
@@ -189,7 +169,7 @@ public partial class VideoController
 
             var saved = await _unitOfWork.GlossaryTerms.GetByVideoIdAsync(id, cancellationToken);
             var dtos = saved.Where(t => t.UserId == userId)
-                .Select(t => new GlossaryTermDto(t.GlossaryTermId, null, t.Term, t.Definition, t.CreatedAt, t.YouTubeVideoId))
+                .Select(t => t.ToGlossaryTermDto())
                 .ToList();
             await _cache.SetAsync(VideoGlossaryCacheKey(id, userId), dtos, TimeSpan.FromSeconds(_cacheOptions.GeneratedResultSeconds), cancellationToken);
             return Ok(BaseResponse<IEnumerable<GlossaryTermDto>>.Ok(dtos, "Glossary generated successfully."));
@@ -204,7 +184,6 @@ public partial class VideoController
         }
     }
 
-    private record GlossaryItem(string Term, string Definition);
 
     // ── Video Quiz ────────────────────────────────────────────────────────
 
@@ -216,7 +195,7 @@ public partial class VideoController
         if (video is null)
             return NotFound(BaseResponse<IEnumerable<QuizDto>>.Fail("Video not found.", "VIDEO_NOT_FOUND"));
 
-        var normalizedDifficulty = string.IsNullOrWhiteSpace(difficulty) ? null : NormalizeQuizDifficulty(difficulty);
+        var normalizedDifficulty = string.IsNullOrWhiteSpace(difficulty) ? null : QuizDifficulty.Normalize(difficulty);
         var ttl = TimeSpan.FromSeconds(_cacheOptions.GeneratedResultSeconds);
         var cacheKey = VideoQuizCacheKey(id, video.UserId, normalizedDifficulty ?? "all");
 
@@ -227,10 +206,7 @@ public partial class VideoController
         var quizzes = await _unitOfWork.Quizzes.FindAsync(
             q => q.YouTubeVideoId == id && q.UserId == video.UserId && (normalizedDifficulty == null || q.Difficulty == normalizedDifficulty),
             cancellationToken);
-        var dtos = quizzes.Select(q => new QuizDto(
-            q.QuizId, null, q.YouTubeVideoId, q.SourceType, q.Question,
-            JsonSerializer.Deserialize<string[]>(q.OptionsJson) ?? [],
-            q.CorrectAnswer, q.Explanation, q.CreatedAt, q.Difficulty)).ToList();
+        var dtos = quizzes.Select(q => q.ToQuizDto()).ToList();
         if (dtos.Count > 0)
             await _cache.SetAsync(cacheKey, dtos, ttl, cancellationToken);
         return Ok(BaseResponse<IEnumerable<QuizDto>>.Ok(dtos));
@@ -240,7 +216,7 @@ public partial class VideoController
     public async Task<IActionResult> GenerateVideoQuiz(Guid id, [FromBody] YouTubeUrlRequest request, [FromQuery] string difficulty = "medium", CancellationToken cancellationToken = default)
     {
         var userId = User.GetUserId();
-        var normalizedDifficulty = NormalizeQuizDifficulty(difficulty);
+        var normalizedDifficulty = QuizDifficulty.Normalize(difficulty);
         var video = await GetVideoWithAccessCheckAsync(id, userId, cancellationToken);
         if (video is null)
             return NotFound(BaseResponse<IEnumerable<QuizDto>>.Fail("Video not found.", "VIDEO_NOT_FOUND"));
@@ -248,10 +224,7 @@ public partial class VideoController
         // Return cached quiz if it already exists
         var existingQuizzes = (await _unitOfWork.Quizzes.FindAsync(q => q.YouTubeVideoId == id && q.UserId == userId && q.Difficulty == normalizedDifficulty, cancellationToken)).ToList();
         if (existingQuizzes.Count > 0)
-            return Ok(BaseResponse<IEnumerable<QuizDto>>.Ok(existingQuizzes.Select(q => new QuizDto(
-                q.QuizId, null, q.YouTubeVideoId, q.SourceType, q.Question,
-                JsonSerializer.Deserialize<string[]>(q.OptionsJson) ?? [],
-                q.CorrectAnswer, q.Explanation, q.CreatedAt, q.Difficulty))));
+            return Ok(BaseResponse<IEnumerable<QuizDto>>.Ok(existingQuizzes.Select(q => q.ToQuizDto())));
 
         // No cached data — fetch transcript and generate
         var transcript = await GetOrFetchTranscriptAsync(video, cancellationToken);
@@ -260,10 +233,10 @@ public partial class VideoController
 
         var resultJson = await _aiService.GenerateQuizFromYouTubeAsync(transcript, normalizedDifficulty, cancellationToken);
 
-        List<QuizItem> quizItems;
+        List<AiQuizItem> quizItems;
         try
         {
-            quizItems = JsonSerializer.Deserialize<List<QuizItem>>(resultJson,
+            quizItems = JsonSerializer.Deserialize<List<AiQuizItem>>(resultJson,
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? [];
         }
         catch
@@ -290,20 +263,10 @@ public partial class VideoController
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         var saved = await _unitOfWork.Quizzes.FindAsync(q => q.YouTubeVideoId == id && q.UserId == userId && q.Difficulty == normalizedDifficulty, cancellationToken);
-        var savedDtos = saved.Select(q => new QuizDto(
-            q.QuizId, null, q.YouTubeVideoId, q.SourceType, q.Question,
-            JsonSerializer.Deserialize<string[]>(q.OptionsJson) ?? [],
-            q.CorrectAnswer, q.Explanation, q.CreatedAt, q.Difficulty)).ToList();
+        var savedDtos = saved.Select(q => q.ToQuizDto()).ToList();
         await _cache.SetAsync(VideoQuizCacheKey(id, userId, normalizedDifficulty), savedDtos, TimeSpan.FromSeconds(_cacheOptions.GeneratedResultSeconds), cancellationToken);
         return Ok(BaseResponse<IEnumerable<QuizDto>>.Ok(savedDtos));
     }
-
-    private static string NormalizeQuizDifficulty(string difficulty) => difficulty.ToLowerInvariant() switch
-    {
-        "easy" => "easy",
-        "hard" => "hard",
-        _ => "medium"
-    };
 
     [HttpPost("{id:guid}/quiz/submit")]
     [ProducesResponseType(typeof(BaseResponse<QuizSubmissionDto>), 200)]
@@ -327,9 +290,7 @@ public partial class VideoController
         if (submission is null)
             return Ok(BaseResponse<QuizSubmissionDto?>.Ok(null));
 
-        var answers = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(submission.AnswersJson) ?? new();
-        var dto = new QuizSubmissionDto(submission.SubmissionId, null, submission.YouTubeVideoId,
-            submission.SourceType, answers, submission.Score, submission.Total, submission.SubmittedAt);
+        var dto = submission.ToQuizSubmissionDto();
         return Ok(BaseResponse<QuizSubmissionDto>.Ok(dto));
     }
 

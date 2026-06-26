@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using StudyPlatform.Domain.Entities;
-using StudyPlatform.Infrastructure.Data.Configurations;
 
 namespace StudyPlatform.Infrastructure.Data;
 

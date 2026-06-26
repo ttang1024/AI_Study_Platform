@@ -366,6 +366,18 @@ export function useAudioDetail(propId?: string, propCourseId?: string) {
     }
   }, [id, courseId, isLoadingMindMap, generationDisabled]);
 
+  const handleSaveSummary = useCallback(async (markdown: string) => {
+    if (!id || !courseId) return;
+    await documentService.updateSummary(courseId, id, markdown);
+    setSummary(markdown);
+  }, [id, courseId]);
+
+  const handleSaveMindMap = useCallback(async (text: string) => {
+    if (!id || !courseId) return;
+    await documentService.updateMindMap(courseId, id, text);
+    setMindMapText(text);
+  }, [id, courseId]);
+
   const generateFlashcards = useCallback(async () => {
     if (!id || !courseId || isLoadingFlashcards || generationDisabled) return;
     setFlashcardsError(null);
@@ -477,8 +489,8 @@ export function useAudioDetail(propId?: string, propCourseId?: string) {
     transcript, isTranscribing, transcriptError, handleTranscribe, seekAudioTo,
     openMenu, setOpenMenu, copyMenuRef, downloadMenuRef, copyTranscript, downloadTranscript,
     activeTab, setActiveTab, activeView, setActiveView, targetQuizQuestionId,
-    summary, isLoadingSummary, summaryStreamText, summaryError, generateSummary,
-    mindMapText, isLoadingMindMap, mindMapStreamingText, mindMapError, generateMindMap,
+    summary, isLoadingSummary, summaryStreamText, summaryError, generateSummary, handleSaveSummary,
+    mindMapText, isLoadingMindMap, mindMapStreamingText, mindMapError, generateMindMap, handleSaveMindMap,
     showShareModal, setShowShareModal,
     noteContent, noteEditorRef, handleNoteSave,
     flashcards, isLoadingFlashcards, flashcardsError, generateFlashcards,

@@ -1,4 +1,3 @@
-export { BentoCardShell, BentoCardHeader } from './BentoCardShell';
 export { BentoFlashcardCard } from './BentoFlashcardCard';
 export { BentoNoteCard } from './BentoNoteCard';
 export { BentoPlayCard } from './BentoPlayCard';

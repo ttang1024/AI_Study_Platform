@@ -120,6 +120,8 @@ public record MoveCourseRequest(Guid TargetCourseId);
 
 public record UpdateDocumentRequest(string FileName);
 
+public record UpdateDocumentContentRequest(string? Summary = null, string? MindMapText = null);
+
 public record GlossaryTermDto(
     Guid Id,
     Guid? DocumentId,

@@ -33,5 +33,10 @@ public class DocumentConfiguration : IEntityTypeConfiguration<Document>
         builder.HasIndex(d => new { d.UserId, d.FileHash })
             .IsUnique()
             .HasFilter("\"FileHash\" IS NOT NULL");
+
+        // Serves the paginated library list: WHERE UserId = @u ORDER BY CreatedAt DESC.
+        // The (UserId, FileHash) index can't satisfy the CreatedAt ordering, so without this
+        // every page load sorts the user's whole document set.
+        builder.HasIndex(d => new { d.UserId, d.CreatedAt });
     }
 }

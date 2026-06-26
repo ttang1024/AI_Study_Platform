@@ -9,4 +9,5 @@ public interface IFlashcardRepository : IRepository<Flashcard>
     Task DeleteByIdsAsync(IEnumerable<Guid> ids, Guid userId, CancellationToken cancellationToken = default);
     Task<(IEnumerable<Flashcard> Items, int TotalCount)> GetPagedByUserIdAsync(Guid userId, int page, int pageSize, CancellationToken cancellationToken = default);
     Task<(IEnumerable<Guid> DocumentIds, IEnumerable<Guid> YouTubeVideoIds)> GetCoverageByUserIdAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<IEnumerable<Flashcard>> SearchByUserAsync(Guid userId, string query, int limit, CancellationToken cancellationToken = default);
 }

@@ -73,71 +73,56 @@ public class GlobalSearchQueryHandler : IRequestHandler<GlobalSearchQuery, Resul
         return Result<SearchResultsDto>.Success(new SearchResultsDto(paged, total, request.Page, request.PageSize));
     }
 
+    // Each category is filtered in SQL (ILike) and capped, rather than pulling every row for the
+    // user into memory and scanning in C#. The cap is generous relative to what the paged UI shows.
+    private const int PerCategoryLimit = 100;
+
     private async Task<IEnumerable<SearchResultItemDto>> SearchDocumentsAsync(
         Guid userId, string q, CancellationToken cancellationToken)
     {
-        var (docs, _) = await _unitOfWork.Documents.GetAllByUserIdAsync(userId, 1, 200, null, cancellationToken);
-        return docs
-            .Where(d => d.FileName.ToLowerInvariant().Contains(q) ||
-                        (d.Summary ?? string.Empty).ToLowerInvariant().Contains(q))
-            .Select(d => new SearchResultItemDto(
-                d.DocumentId.ToString(),
-                "document",
-                d.FileName,
-                Snippet(d.Summary ?? d.FileName, q),
-                $"/documents/{d.DocumentId}"));
+        var docs = await _unitOfWork.Documents.SearchByUserAsync(userId, q, PerCategoryLimit, cancellationToken);
+        return docs.Select(d => new SearchResultItemDto(
+            d.DocumentId.ToString(),
+            "document",
+            d.FileName,
+            Snippet(d.Summary ?? d.FileName, q),
+            $"/documents/{d.DocumentId}"));
     }
 
     private async Task<IEnumerable<SearchResultItemDto>> SearchNotesAsync(
         Guid userId, string q, CancellationToken cancellationToken)
     {
-        var notes = await _unitOfWork.Notes.GetByUserIdAsync(userId, cancellationToken);
-        return notes
-            .Where(n => (n.Title ?? string.Empty).ToLowerInvariant().Contains(q) ||
-                        n.Content.ToLowerInvariant().Contains(q))
-            .Select(n => new SearchResultItemDto(
-                n.NoteId.ToString(),
-                "note",
-                n.Title ?? n.Content[..Math.Min(60, n.Content.Length)],
-                Snippet(n.Content, q),
-                null));
+        var notes = await _unitOfWork.Notes.SearchByUserAsync(userId, q, PerCategoryLimit, cancellationToken);
+        return notes.Select(n => new SearchResultItemDto(
+            n.NoteId.ToString(),
+            "note",
+            n.Title ?? n.Content[..Math.Min(60, n.Content.Length)],
+            Snippet(n.Content, q),
+            null));
     }
 
     private async Task<IEnumerable<SearchResultItemDto>> SearchFlashcardsAsync(
         Guid userId, string q, CancellationToken cancellationToken)
     {
-        var cards = await _unitOfWork.Flashcards.GetByUserIdAsync(userId, cancellationToken);
-        return cards
-            .Where(f => f.Front.ToLowerInvariant().Contains(q) ||
-                        f.Back.ToLowerInvariant().Contains(q))
-            .Select(f => new SearchResultItemDto(
-                f.FlashcardId.ToString(),
-                "flashcard",
-                f.Front,
-                Snippet(f.Back, q),
-                "/flashcards"));
+        var cards = await _unitOfWork.Flashcards.SearchByUserAsync(userId, q, PerCategoryLimit, cancellationToken);
+        return cards.Select(f => new SearchResultItemDto(
+            f.FlashcardId.ToString(),
+            "flashcard",
+            f.Front,
+            Snippet(f.Back, q),
+            "/flashcards"));
     }
 
     private async Task<IEnumerable<SearchResultItemDto>> SearchGlossaryAsync(
         Guid userId, string q, CancellationToken cancellationToken)
     {
-        // GlossaryTerms are per-document; fetch all by getting all docs for user
-        var (docs, _) = await _unitOfWork.Documents.GetAllByUserIdAsync(userId, 1, 200, null, cancellationToken);
-        var results = new List<SearchResultItemDto>();
-        foreach (var doc in docs)
-        {
-            var terms = await _unitOfWork.GlossaryTerms.GetByDocumentIdAsync(doc.DocumentId, cancellationToken);
-            results.AddRange(terms
-                .Where(t => t.UserId == userId &&
-                            (t.Term.ToLowerInvariant().Contains(q) || t.Definition.ToLowerInvariant().Contains(q)))
-                .Select(t => new SearchResultItemDto(
-                    t.GlossaryTermId.ToString(),
-                    "glossary",
-                    t.Term,
-                    Snippet(t.Definition, q),
-                    "/glossary")));
-        }
-        return results;
+        var terms = await _unitOfWork.GlossaryTerms.SearchByUserAsync(userId, q, PerCategoryLimit, cancellationToken);
+        return terms.Select(t => new SearchResultItemDto(
+            t.GlossaryTermId.ToString(),
+            "glossary",
+            t.Term,
+            Snippet(t.Definition, q),
+            "/glossary"));
     }
 
     private static string Snippet(string text, string query, int maxLength = 150)

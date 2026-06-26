@@ -27,8 +27,8 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string; course
     transcript, isTranscribing, transcriptError, handleTranscribe, seekAudioTo,
     openMenu, setOpenMenu, copyMenuRef, downloadMenuRef, copyTranscript, downloadTranscript,
     activeTab, setActiveTab, activeView, setActiveView, targetQuizQuestionId,
-    summary, isLoadingSummary, summaryStreamText, summaryError, generateSummary,
-    mindMapText, isLoadingMindMap, mindMapStreamingText, mindMapError, generateMindMap,
+    summary, isLoadingSummary, summaryStreamText, summaryError, generateSummary, handleSaveSummary,
+    mindMapText, isLoadingMindMap, mindMapStreamingText, mindMapError, generateMindMap, handleSaveMindMap,
     showShareModal, setShowShareModal, noteContent, noteEditorRef, handleNoteSave,
     flashcards, isLoadingFlashcards, flashcardsError, generateFlashcards,
     activeQuizDifficulty, quizQuestionSets, quizQuestions, userAnswers, isQuizSubmitted,
@@ -77,6 +77,7 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string; course
               onTimelineSeek={seekAudioTo}
               generateDisabled={generationDisabled}
               generateDisabledReason={generationDisabledReason}
+              onSaveSummary={handleSaveSummary}
             />
           </div>
 
@@ -90,6 +91,7 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string; course
               title={fileName ?? 'mindmap'}
               generateDisabled={generationDisabled}
               generateDisabledReason={generationDisabledReason}
+              onSaveEdit={handleSaveMindMap}
             />
           </div>
 

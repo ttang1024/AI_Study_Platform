@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import { Search, ChevronLeft, ChevronRight, ChevronDown, ShieldCheck, UserCheck, UserX } from 'lucide-react';
 import { adminApi } from '../services/api';
 import type { UserItem } from '../types';
@@ -22,7 +22,7 @@ const SORT_OPTIONS = [
 ];
 
 const selectClass =
-  'appearance-none rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] px-3 py-2 pr-8 text-sm text-[var(--text-primary)] outline-none focus:border-indigo-500 transition-all cursor-pointer';
+  'appearance-none rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] px-3 py-2 pr-8 text-sm text-[var(--text-primary)] outline-none focus:border-emerald-500 transition-all cursor-pointer';
 
 export const UserManagementPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -99,7 +99,7 @@ export const UserManagementPage: React.FC = () => {
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             placeholder="Search by name or email…"
-            className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] py-2 pl-9 pr-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none focus:border-indigo-500 transition-all"
+            className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] py-2 pl-9 pr-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none focus:border-emerald-500 transition-all"
           />
         </form>
 
@@ -129,7 +129,7 @@ export const UserManagementPage: React.FC = () => {
       </div>
 
       {error && (
-        <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+        <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-600">
           {error}
         </div>
       )}
@@ -140,13 +140,13 @@ export const UserManagementPage: React.FC = () => {
           <div className="divide-y divide-[var(--border-color)]">
             {Array.from({ length: 8 }).map((_, i) => (
               <div key={i} className="flex items-center gap-4 px-5 py-4">
-                <div className="h-8 w-8 rounded-full bg-white/5 animate-pulse" />
+                <div className="h-8 w-8 rounded-full bg-black/5 animate-pulse" />
                 <div className="flex-1 space-y-1.5">
-                  <div className="h-3.5 w-32 rounded bg-white/5 animate-pulse" />
-                  <div className="h-3 w-48 rounded bg-white/5 animate-pulse" />
+                  <div className="h-3.5 w-32 rounded bg-black/5 animate-pulse" />
+                  <div className="h-3 w-48 rounded bg-black/5 animate-pulse" />
                 </div>
-                <div className="h-4 w-16 rounded bg-white/5 animate-pulse" />
-                <div className="h-7 w-24 rounded-lg bg-white/5 animate-pulse" />
+                <div className="h-4 w-16 rounded bg-black/5 animate-pulse" />
+                <div className="h-7 w-24 rounded-lg bg-black/5 animate-pulse" />
               </div>
             ))}
           </div>
@@ -171,32 +171,32 @@ export const UserManagementPage: React.FC = () => {
                 className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-4 px-6 py-4 text-sm"
               >
                 {/* User info */}
-                <div className="flex items-center gap-3 min-w-0">
+                <Link to={`/users/${user.userId}`} className="flex items-center gap-3 min-w-0 group">
                   <div className={cn(
                     'flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold',
                     user.isAdmin
-                      ? 'bg-indigo-600/20 text-indigo-400'
+                      ? 'bg-emerald-600/10 text-emerald-700'
                       : user.isActive
-                        ? 'bg-white/8 text-[var(--text-primary)]'
-                        : 'bg-white/4 text-[var(--text-secondary)]',
+                        ? 'bg-black/5 text-[var(--text-primary)]'
+                        : 'bg-black/[0.04] text-[var(--text-secondary)]',
                   )}>
                     {user.fullName.charAt(0).toUpperCase()}
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
                       <p className={cn(
-                        'truncate font-medium',
+                        'truncate font-medium group-hover:text-emerald-700 transition-colors',
                         user.isActive ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]',
                       )}>
                         {user.fullName}
                       </p>
                       {user.isAdmin && (
-                        <ShieldCheck size={13} className="shrink-0 text-indigo-400" />
+                        <ShieldCheck size={13} className="shrink-0 text-emerald-700" />
                       )}
                     </div>
                     <p className="truncate text-xs text-[var(--text-secondary)]">{user.email}</p>
                   </div>
-                </div>
+                </Link>
 
                 {/* Joined */}
                 <span className="whitespace-nowrap text-xs text-[var(--text-secondary)]" title={formatDate(user.createdAt)}>
@@ -207,10 +207,10 @@ export const UserManagementPage: React.FC = () => {
                 <span className={cn(
                   'rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap',
                   user.isAdmin
-                    ? 'bg-indigo-500/15 text-indigo-400'
+                    ? 'bg-emerald-600/10 text-emerald-700'
                     : user.isActive
-                      ? 'bg-emerald-500/15 text-emerald-400'
-                      : 'bg-red-500/15 text-red-400',
+                      ? 'bg-emerald-500/15 text-emerald-700'
+                      : 'bg-red-500/15 text-red-700',
                 )}>
                   {user.isAdmin ? 'Admin' : user.isActive ? 'Active' : 'Inactive'}
                 </span>

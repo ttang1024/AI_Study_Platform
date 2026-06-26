@@ -16,6 +16,7 @@ public class AnalyticsRepository : IAnalyticsRepository
 
     public async Task<IEnumerable<QuizAttempt>> GetQuizAttemptsByDateRangeAsync(Guid userId, DateTime from, DateTime to, CancellationToken cancellationToken = default)
         => await _context.QuizAttempts
+            .AsNoTracking()
             .Where(a => a.UserId == userId && a.AttemptedAt >= from.Date && a.AttemptedAt < to.Date.AddDays(1))
             .ToListAsync(cancellationToken);
 

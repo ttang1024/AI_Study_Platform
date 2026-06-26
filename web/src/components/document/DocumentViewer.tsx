@@ -72,7 +72,7 @@ const MARKDOWN_COMPONENTS: React.ComponentProps<typeof ReactMarkdown>['component
 
 interface DocumentViewerProps {
   fileUrl: string;
-  fileType: 'pdf' | 'docx' | 'txt' | 'md';
+  fileType: 'pdf' | 'docx' | 'txt' | 'md' | 'image' | 'ppt' | 'epub';
   httpHeaders?: Record<string, string>;
   onAddNote?: () => void;
   onAddNoteText?: (text: string) => void;
@@ -82,6 +82,7 @@ interface DocumentViewerProps {
 export const DocumentViewer: React.FC<DocumentViewerProps> = ({ fileUrl, fileType, httpHeaders, onAddNote, onAddNoteText, onAskAI }) => {
   const isUrlValid = fileUrl && fileUrl !== '#';
   const [content, setContent] = useState<string | null>(null);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [selection, setSelection] = useState<{ x: number; y: number; text: string } | null>(null);
   const [numPages, setNumPages] = useState<number | null>(null);
   const [containerWidth, setContainerWidth] = useState(0);
@@ -100,7 +101,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ fileUrl, fileTyp
   useEffect(() => {
     if (!isUrlValid) return;
 
-    if (fileType === 'txt' || fileType === 'md') {
+    if (fileType === 'txt' || fileType === 'md' || fileType === 'ppt' || fileType === 'epub') {
       fetch(fileUrl, { headers: httpHeaders })
         .then(res => {
           if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
@@ -111,6 +112,22 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ fileUrl, fileTyp
           console.error('Failed to fetch text file:', err);
           setContent('Error: Failed to load text content. This might be due to cross-origin restrictions.');
         });
+    } else if (fileType === 'image') {
+      let objectUrl: string | null = null;
+      fetch(fileUrl, { headers: httpHeaders })
+        .then(res => {
+          if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+          return res.blob();
+        })
+        .then(blob => {
+          objectUrl = URL.createObjectURL(blob);
+          setImageUrl(objectUrl);
+        })
+        .catch(err => {
+          console.error('Failed to fetch image file:', err);
+          setImageUrl(null);
+        });
+      return () => { if (objectUrl) URL.revokeObjectURL(objectUrl); };
     } else if (fileType === 'docx') {
       fetch(fileUrl, { headers: httpHeaders })
         .then(res => {
@@ -189,7 +206,27 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ fileUrl, fileTyp
             </div>
           )}
 
-          {isUrlValid && fileType === 'txt' && <pre className="whitespace-pre-wrap font-sans break-words">{content}</pre>}
+          {isUrlValid && (fileType === 'txt' || fileType === 'ppt' || fileType === 'epub') && (
+            content === null
+              ? (
+                <div className="flex flex-col items-center py-20">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <p className="mt-4 text-sm text-zinc-500">Extracting content...</p>
+                </div>
+              )
+              : <pre className="whitespace-pre-wrap font-sans break-words">{content}</pre>
+          )}
+
+          {isUrlValid && fileType === 'image' && (
+            imageUrl
+              ? <img src={imageUrl} alt="Document" className="mx-auto max-w-full rounded-lg" />
+              : (
+                <div className="flex flex-col items-center py-20">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <p className="mt-4 text-sm text-zinc-500">Loading image...</p>
+                </div>
+              )
+          )}
 
           {isUrlValid && fileType === 'md' && (
             <ReactMarkdown

@@ -36,12 +36,8 @@ public class CreateNoteCommandHandler : IRequestHandler<CreateNoteCommand, Resul
         await _unitOfWork.Notes.AddAsync(note, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return Result<NoteDto>.Success(ToDto(note), "Note created successfully.");
+        return Result<NoteDto>.Success(note.ToNoteDto(), "Note created successfully.");
     }
-
-    internal static NoteDto ToDto(Note n) => new(n.NoteId, n.UserId, n.DocumentId, n.YouTubeVideoId, n.SourceType, n.Content, n.Title, n.CreatedAt, n.UpdatedAt,
-        Document: n.Document?.FileName,
-        Video: n.YouTubeVideo?.Title);
 }
 
 public record GetAllNotesQuery(Guid UserId) : IRequest<Result<IEnumerable<NoteDto>>>;
@@ -56,7 +52,7 @@ public class GetAllNotesPagedQueryHandler : IRequestHandler<GetAllNotesPagedQuer
     public async Task<Result<PaginatedList<NoteDto>>> Handle(GetAllNotesPagedQuery request, CancellationToken cancellationToken)
     {
         var (notes, totalCount) = await _unitOfWork.Notes.GetPagedByUserIdAsync(request.UserId, request.Page, request.PageSize, cancellationToken);
-        var dtos = notes.Select(CreateNoteCommandHandler.ToDto);
+        var dtos = notes.Select(n => n.ToNoteDto());
         return Result<PaginatedList<NoteDto>>.Success(new PaginatedList<NoteDto>(dtos, totalCount, request.Page, request.PageSize));
     }
 }
@@ -69,7 +65,7 @@ public class GetAllNotesQueryHandler : IRequestHandler<GetAllNotesQuery, Result<
     public async Task<Result<IEnumerable<NoteDto>>> Handle(GetAllNotesQuery request, CancellationToken cancellationToken)
     {
         var notes = await _unitOfWork.Notes.GetByUserIdAsync(request.UserId, cancellationToken);
-        return Result<IEnumerable<NoteDto>>.Success(notes.Select(CreateNoteCommandHandler.ToDto));
+        return Result<IEnumerable<NoteDto>>.Success(notes.Select(n => n.ToNoteDto()));
     }
 }
 
@@ -91,7 +87,7 @@ public class UpdateNoteCommandHandler : IRequestHandler<UpdateNoteCommand, Resul
         _unitOfWork.Notes.Update(note);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return Result<NoteDto>.Success(CreateNoteCommandHandler.ToDto(note), "Note updated successfully.");
+        return Result<NoteDto>.Success(note.ToNoteDto(), "Note updated successfully.");
     }
 }
 

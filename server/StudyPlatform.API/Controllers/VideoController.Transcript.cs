@@ -1,27 +1,5 @@
-using System.Text;
-using System.Text.Json;
-using System.Text.RegularExpressions;
-using System.Security.Cryptography;
-using MediatR;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
-using StudyPlatform.API.Extensions;
 using StudyPlatform.Application.Common;
-using StudyPlatform.Application.Documents.DTOs;
-using StudyPlatform.Application.Notes.DTOs;
-using StudyPlatform.Application.Services;
-using StudyPlatform.Application.Settings;
-using StudyPlatform.Application.WorkedProblems.Commands;
-using StudyPlatform.Application.WorkedProblems.DTOs;
-using StudyPlatform.Application.WorkedProblems.Queries;
-using StudyPlatform.Application.YouTube.Commands;
-using StudyPlatform.Application.YouTube.DTOs;
-using StudyPlatform.Application.YouTube.Queries;
-using StudyPlatform.Domain.Entities;
-using StudyPlatform.Domain.Interfaces;
-using StudyPlatform.Infrastructure.Data;
 
 namespace StudyPlatform.API.Controllers;
 

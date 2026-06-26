@@ -1,6 +1,5 @@
 using MediatR;
 using StudyPlatform.Application.Common;
-using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
 
 namespace StudyPlatform.Application.Feedback.Commands;

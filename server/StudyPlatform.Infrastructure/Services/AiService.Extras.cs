@@ -1,15 +1,3 @@
-using System.Net.Http.Headers;
-using System.Runtime.CompilerServices;
-using System.Security.Cryptography;
-using System.Text;
-using System.Text.Json;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using StudyPlatform.Application.Services;
-using StudyPlatform.Application.Settings;
-
 namespace StudyPlatform.Infrastructure.Services;
 
 // OCR and evaluation/worked-problem/Q&A generation endpoints.

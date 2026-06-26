@@ -1,10 +1,6 @@
-using System.Net.Http.Headers;
-using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
-using System.Text.Json;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using StudyPlatform.Application.Services;
@@ -15,7 +11,6 @@ namespace StudyPlatform.Infrastructure.Services;
 public partial class AiService : IAiService
 {
     private readonly HttpClient _httpClient;
-    private readonly IConfiguration _configuration;
     private readonly ILogger<AiService> _logger;
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly IAppCache _cache;
@@ -23,14 +18,12 @@ public partial class AiService : IAiService
 
     public AiService(
         HttpClient httpClient,
-        IConfiguration configuration,
         ILogger<AiService> logger,
         IHttpContextAccessor httpContextAccessor,
         IAppCache cache,
         IOptions<CacheOptions> cacheOptions)
     {
         _httpClient = httpClient;
-        _configuration = configuration;
         _logger = logger;
         _httpContextAccessor = httpContextAccessor;
         _cache = cache;

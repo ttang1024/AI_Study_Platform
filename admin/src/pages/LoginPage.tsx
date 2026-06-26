@@ -29,14 +29,14 @@ export const LoginPage: React.FC = () => {
   };
 
   const inputClass =
-    'w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] px-4 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all';
+    'w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-app)] px-4 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all';
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[var(--bg-app)] px-4">
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-600">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-600">
             <ShieldCheck size={28} className="text-white" />
           </div>
           <div>
@@ -88,7 +88,7 @@ export const LoginPage: React.FC = () => {
             </div>
 
             {error && (
-              <p className="rounded-lg bg-red-500/10 border border-red-500/20 px-3 py-2 text-xs text-red-400">
+              <p className="rounded-lg bg-red-500/10 border border-red-500/20 px-3 py-2 text-xs text-red-600">
                 {error}
               </p>
             )}

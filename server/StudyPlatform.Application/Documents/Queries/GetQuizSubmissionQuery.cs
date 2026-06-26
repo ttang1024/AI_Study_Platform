@@ -1,4 +1,3 @@
-using System.Text.Json;
 using MediatR;
 using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Documents.DTOs;
@@ -25,18 +24,7 @@ public class GetQuizSubmissionQueryHandler : IRequestHandler<GetQuizSubmissionQu
         if (submission == null)
             return Result<QuizSubmissionDto?>.Success(null, "No submission found.");
 
-        var answers = JsonSerializer.Deserialize<Dictionary<string, string>>(submission.AnswersJson)
-                      ?? new Dictionary<string, string>();
-
-        var dto = new QuizSubmissionDto(
-            submission.SubmissionId,
-            submission.DocumentId,
-            submission.YouTubeVideoId,
-            submission.SourceType,
-            answers,
-            submission.Score,
-            submission.Total,
-            submission.SubmittedAt);
+        var dto = submission.ToQuizSubmissionDto();
 
         return Result<QuizSubmissionDto?>.Success(dto, "Submission retrieved.");
     }
@@ -61,14 +49,7 @@ public class GetAllQuizSubmissionsPagedQueryHandler : IRequestHandler<GetAllQuiz
     public async Task<Result<PaginatedList<QuizSubmissionDto>>> Handle(GetAllQuizSubmissionsPagedQuery request, CancellationToken cancellationToken)
     {
         var (submissions, totalCount) = await _unitOfWork.QuizSubmissions.GetPagedByUserAsync(request.UserId, request.Page, request.PageSize, cancellationToken);
-        var dtos = submissions.Select(s =>
-        {
-            var answers = JsonSerializer.Deserialize<Dictionary<string, string>>(s.AnswersJson) ?? new Dictionary<string, string>();
-            return new QuizSubmissionDto(s.SubmissionId, s.DocumentId, s.YouTubeVideoId, s.SourceType, answers, s.Score, s.Total, s.SubmittedAt,
-                Title: s.Document?.FileName ?? s.YouTubeVideo?.Title,
-                Document: s.Document?.FileName,
-                Video: s.YouTubeVideo?.Title);
-        });
+        var dtos = submissions.Select(s => s.ToQuizSubmissionDto());
         return Result<PaginatedList<QuizSubmissionDto>>.Success(new PaginatedList<QuizSubmissionDto>(dtos, totalCount, request.Page, request.PageSize));
     }
 }
@@ -86,15 +67,7 @@ public class GetAllQuizSubmissionsQueryHandler : IRequestHandler<GetAllQuizSubmi
     {
         var submissions = await _unitOfWork.QuizSubmissions.GetAllByUserAsync(request.UserId, cancellationToken);
 
-        var dtos = submissions.Select(s =>
-        {
-            var answers = JsonSerializer.Deserialize<Dictionary<string, string>>(s.AnswersJson)
-                          ?? new Dictionary<string, string>();
-            return new QuizSubmissionDto(s.SubmissionId, s.DocumentId, s.YouTubeVideoId, s.SourceType, answers, s.Score, s.Total, s.SubmittedAt,
-                Title: s.Document?.FileName ?? s.YouTubeVideo?.Title,
-                Document: s.Document?.FileName,
-                Video: s.YouTubeVideo?.Title);
-        });
+        var dtos = submissions.Select(s => s.ToQuizSubmissionDto());
 
         return Result<IEnumerable<QuizSubmissionDto>>.Success(dtos, "Submissions retrieved.");
     }

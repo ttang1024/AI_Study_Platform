@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { FeedbackItem, FeedbackStatus, FeedbackStats, PaginatedResponse, UserItem } from '../types';
+import type { FeedbackItem, FeedbackStatus, FeedbackStats, PaginatedResponse, UserItem, PlatformAnalytics, UserDetail } from '../types';
 
 const http = axios.create({ baseURL: '/api' });
 
@@ -74,6 +74,16 @@ export const adminApi = {
 
   setUserActive: async (userId: string, isActive: boolean): Promise<UserItem> => {
     const { data } = await http.patch<UserItem>(`/admin/users/${userId}/active`, { isActive });
+    return data;
+  },
+
+  getPlatformAnalytics: async (): Promise<PlatformAnalytics> => {
+    const { data } = await http.get<PlatformAnalytics>('/admin/analytics');
+    return data;
+  },
+
+  getUserDetail: async (userId: string): Promise<UserDetail> => {
+    const { data } = await http.get<UserDetail>(`/admin/users/${userId}/detail`);
     return data;
   },
 };

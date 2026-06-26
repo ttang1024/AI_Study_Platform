@@ -39,7 +39,7 @@ public class DocumentRepository : Repository<Document>, IDocumentRepository
 
     public async Task<(IEnumerable<Document> Items, int TotalCount)> GetAllByUserIdAsync(Guid userId, int page, int pageSize, Guid? courseId, CancellationToken cancellationToken = default)
     {
-        var query = _dbSet.Where(d => d.UserId == userId);
+        var query = _dbSet.AsNoTracking().Where(d => d.UserId == userId);
         if (courseId.HasValue)
             query = query.Where(d => d.CourseId == courseId.Value);
 
@@ -61,4 +61,17 @@ public class DocumentRepository : Repository<Document>, IDocumentRepository
 
     public async Task<int> CountByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
         => await _dbSet.CountAsync(d => d.UserId == userId, cancellationToken);
+
+    public async Task<IEnumerable<Document>> SearchByUserAsync(Guid userId, string query, int limit, CancellationToken cancellationToken = default)
+    {
+        var pattern = $"%{query}%";
+        return await _dbSet
+            .AsNoTracking()
+            .Where(d => d.UserId == userId &&
+                        (EF.Functions.ILike(d.FileName, pattern) ||
+                         (d.Summary != null && EF.Functions.ILike(d.Summary, pattern))))
+            .OrderByDescending(d => d.CreatedAt)
+            .Take(limit)
+            .ToListAsync(cancellationToken);
+    }
 }

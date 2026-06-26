@@ -119,10 +119,7 @@ public class GetVideoChatHistoryQueryHandler : IRequestHandler<GetVideoChatHisto
         var messages = await _unitOfWork.ChatMessages.GetByYouTubeVideoIdAsync(request.VideoId, request.UserId, cancellationToken);
         var dtos = new List<ChatMessageDto>();
         foreach (var m in messages)
-        {
-            var attachments = await ChatAttachmentStore.LoadAsync(_blobStorageService, m.AttachmentsJson, cancellationToken);
-            dtos.Add(new ChatMessageDto(m.MessageId, m.DocumentId, m.YouTubeVideoId, m.SourceType, m.Role, m.Content, m.CreatedAt, attachments.Count > 0 ? attachments : null));
-        }
+            dtos.Add(await m.ToDtoAsync(_blobStorageService, cancellationToken));
 
         return Result<IEnumerable<ChatMessageDto>>.Success(dtos);
     }

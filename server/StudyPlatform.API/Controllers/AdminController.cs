@@ -114,6 +114,19 @@ public class AdminController : ControllerBase
         return NoContent();
     }
 
+    // ── Platform Analytics ───────────────────────────────────────────────────
+
+    [HttpGet("analytics")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> GetPlatformAnalytics()
+    {
+        var result = await _mediator.Send(new GetPlatformAnalyticsQuery());
+        if (!result.IsSuccess)
+            return BadRequest(BaseResponse<object>.Fail(result.Message));
+
+        return Ok(result.Data);
+    }
+
     // ── User Management ──────────────────────────────────────────────────────
 
     [HttpGet("users")]
@@ -131,6 +144,17 @@ public class AdminController : ControllerBase
 
         var p = result.Data!;
         return Ok(new { items = p.Items, total = p.TotalCount, page = p.Page, pageSize = p.PageSize });
+    }
+
+    [HttpGet("users/{id:guid}/detail")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> GetUserDetail(Guid id)
+    {
+        var result = await _mediator.Send(new GetUserDetailQuery(id));
+        if (!result.IsSuccess)
+            return NotFound(BaseResponse<object>.Fail(result.Message, result.ErrorCode));
+
+        return Ok(result.Data);
     }
 
     [HttpPatch("users/{id:guid}/active")]

@@ -15,7 +15,7 @@ export interface Document {
 	title: string
 	id: string
 	name: string
-	type: 'pdf' | 'docx' | 'txt' | 'md' | 'audio' | 'podcast'
+	type: 'pdf' | 'docx' | 'txt' | 'md' | 'audio' | 'podcast' | 'image' | 'ppt' | 'epub'
 	url: string
 	uploadDate: string
 	fileSize?: number

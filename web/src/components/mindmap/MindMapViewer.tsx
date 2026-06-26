@@ -5,7 +5,7 @@ import {
   Maximize2, Minimize2, RotateCcw, Loader2,
   Download, Image, FileDown, FileText,
   ZoomIn, ZoomOut,
-  Brain,
+  Brain, Pencil, Check, X,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toPng } from 'html-to-image';
@@ -189,6 +189,8 @@ interface MindMapViewerProps {
   externalError?: string | null;
   generateDisabled?: boolean;
   generateDisabledReason?: string;
+  /** When provided, an Edit button lets the user revise the mind map source in place. */
+  onSaveEdit?: (text: string) => Promise<void>;
 }
 
 export const MindMapViewer: React.FC<MindMapViewerProps> = ({
@@ -200,6 +202,7 @@ export const MindMapViewer: React.FC<MindMapViewerProps> = ({
   externalError,
   generateDisabled = false,
   generateDisabledReason,
+  onSaveEdit,
 }) => {
   const { currentDocument, setCurrentDocument, updateDocumentInList } = useStudy();
   const isExternal = propOnGenerate !== undefined;
@@ -210,6 +213,9 @@ export const MindMapViewer: React.FC<MindMapViewerProps> = ({
   const [localStreamingText, setLocalStreamingText] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
   const [showDownloadMenu, setShowDownloadMenu] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editDraft, setEditDraft] = useState('');
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const mmRef = useRef<Markmap | null>(null);
   const streamingAccumRef = useRef('');
@@ -273,6 +279,28 @@ export const MindMapViewer: React.FC<MindMapViewerProps> = ({
     }
   };
 
+  const startEditing = () => {
+    setEditDraft(activeMindMarkText ?? '');
+    setShowDownloadMenu(false);
+    setIsEditing(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!onSaveEdit || isSavingEdit) return;
+    setIsSavingEdit(true);
+    try {
+      await onSaveEdit(editDraft);
+      // Reflect the edit immediately in internal (document) mode; in external mode the
+      // parent updates its own source of truth.
+      if (!isExternal) setLocalMindMarkText(editDraft);
+      setIsEditing(false);
+    } catch {
+      // Keep edit mode open so the user doesn't lose their changes on failure.
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
   const handleFit = useCallback(() => mmRef.current?.fit(), []);
 
   // markmap's rescale() has a math bug — the formula only keeps the viewport center
@@ -312,34 +340,84 @@ export const MindMapViewer: React.FC<MindMapViewerProps> = ({
     return () => document.removeEventListener('mousedown', handler);
   }, [showDownloadMenu]);
 
+  // Rasterize the mind map at its FULL natural size rather than the on-screen viewport.
+  //
+  // On screen the map is fit-to-view (zoomed out) inside a small container, so capturing the
+  // container only yields viewport-resolution pixels — blurry when enlarged. Instead we clone
+  // the live SVG, undo the d3 zoom transform (back to scale 1), and size the clone to the
+  // content's bounding box. Every node then renders at native resolution. We capture with
+  // html-to-image (not raw canvas) because markmap node content is HTML inside <foreignObject>,
+  // which only html-to-image rasterizes reliably. The clone is attached off-screen so
+  // getComputedStyle resolves while capturing.
+  const PAGE_PIXEL_RATIO = 2;
+  const PAGE_PADDING = 24;
+
+  const captureFullResolution = useCallback(async (): Promise<{
+    dataUrl: string;
+    width: number;
+    height: number;
+  } | null> => {
+    const liveSvg = (mmRef.current as any)?.svg?.node?.() as SVGSVGElement | undefined;
+    if (!liveSvg) return null;
+    const liveG = liveSvg.querySelector<SVGGraphicsElement>(':scope > g');
+    if (!liveG) return null;
+
+    const bbox = liveG.getBBox();
+    if (!bbox.width || !bbox.height) return null;
+    const width = Math.ceil(bbox.width + PAGE_PADDING * 2);
+    const height = Math.ceil(bbox.height + PAGE_PADDING * 2);
+
+    const clone = liveSvg.cloneNode(true) as SVGSVGElement;
+    const cloneG = clone.querySelector<SVGGraphicsElement>(':scope > g');
+    cloneG?.setAttribute('transform', `translate(${PAGE_PADDING - bbox.x},${PAGE_PADDING - bbox.y})`);
+    clone.setAttribute('width', `${width}`);
+    clone.setAttribute('height', `${height}`);
+    clone.setAttribute('viewBox', `0 0 ${width} ${height}`);
+    clone.style.width = `${width}px`;
+    clone.style.height = `${height}px`;
+    clone.style.opacity = '1';
+
+    const holder = document.createElement('div');
+    holder.style.cssText = 'position:fixed;left:-100000px;top:0;pointer-events:none;';
+    holder.appendChild(clone);
+    document.body.appendChild(holder);
+    try {
+      const dataUrl = await toPng(clone as unknown as HTMLElement, {
+        backgroundColor: '#ffffff',
+        width,
+        height,
+        pixelRatio: PAGE_PIXEL_RATIO,
+      });
+      return { dataUrl, width, height };
+    } finally {
+      document.body.removeChild(holder);
+    }
+  }, []);
+
   const downloadAsImage = useCallback(async () => {
     setShowDownloadMenu(false);
-    const el = containerRef.current;
-    if (!el) return;
-    const dataUrl = await toPng(el, { backgroundColor: '#ffffff', pixelRatio: 2 });
+    const result = await captureFullResolution();
+    if (!result) return;
     const a = document.createElement('a');
-    a.href = dataUrl;
+    a.href = result.dataUrl;
     a.download = `${downloadName}.png`;
     a.click();
-  }, [downloadName]);
+  }, [downloadName, captureFullResolution]);
 
   const downloadAsPdf = useCallback(async () => {
     setShowDownloadMenu(false);
-    const el = containerRef.current;
-    if (!el) return;
-    const dataUrl = await toPng(el, { backgroundColor: '#ffffff', pixelRatio: 2 });
-    const img = new window.Image();
-    img.src = dataUrl;
-    await new Promise(r => { img.onload = r; });
+    const result = await captureFullResolution();
+    if (!result) return;
+    const { dataUrl, width, height } = result;
     const { default: jsPDF } = await import('jspdf');
     const pdf = new jsPDF({
-      orientation: img.width > img.height ? 'landscape' : 'portrait',
+      orientation: width > height ? 'landscape' : 'portrait',
       unit: 'px',
-      format: [img.width, img.height],
+      format: [width, height],
     });
-    pdf.addImage(dataUrl, 'PNG', 0, 0, img.width, img.height);
+    pdf.addImage(dataUrl, 'PNG', 0, 0, width, height);
     pdf.save(`${downloadName}.pdf`);
-  }, [downloadName]);
+  }, [downloadName, captureFullResolution]);
 
   const downloadAsXMind = useCallback(async () => {
     setShowDownloadMenu(false);
@@ -410,6 +488,37 @@ export const MindMapViewer: React.FC<MindMapViewerProps> = ({
     >
       <MarkmapRenderer text={activeMindMarkText} mmRef={mmRef} />
 
+      {isEditing && (
+        <div className="absolute inset-0 z-40 flex flex-col gap-3 bg-white/95 backdrop-blur-sm p-4">
+          <p className="text-xs font-bold uppercase tracking-wider text-text-muted">
+            Edit mind map — one root line, then indented <span className="font-mono normal-case">-</span> bullets
+          </p>
+          <textarea
+            autoFocus
+            value={editDraft}
+            onChange={e => setEditDraft(e.target.value)}
+            className="flex-1 w-full resize-none rounded-xl border border-[var(--primary)]/40 bg-[var(--bg-app)] p-3 text-sm text-text-main outline-none focus:border-[var(--primary)] font-mono leading-relaxed"
+            placeholder={'Root topic\n  - Branch\n    - Sub-branch'}
+          />
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={() => setIsEditing(false)}
+              disabled={isSavingEdit}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-text-muted hover:bg-zinc-100 transition-all border border-[var(--border-color)] disabled:opacity-50"
+            >
+              <X size={13} /> Cancel
+            </button>
+            <button
+              onClick={handleSaveEdit}
+              disabled={isSavingEdit || !editDraft.trim()}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-[var(--primary)] hover:opacity-90 transition-all disabled:opacity-50"
+            >
+              {isSavingEdit ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />} Save
+            </button>
+          </div>
+        </div>
+      )}
+
       {isGenerating && (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-white/90 backdrop-blur-sm rounded-full px-4 py-2 shadow-md border border-zinc-100">
           <Loader2 className="h-3.5 w-3.5 animate-spin text-[var(--primary)]" />
@@ -444,6 +553,16 @@ export const MindMapViewer: React.FC<MindMapViewerProps> = ({
         <CtrlBtn onClick={toggleFullscreen} title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}>
           {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
         </CtrlBtn>
+
+        {onSaveEdit && (
+          <>
+            <Divider />
+            {/* Edit */}
+            <CtrlBtn onClick={startEditing} title="Edit mind map">
+              <Pencil size={16} />
+            </CtrlBtn>
+          </>
+        )}
 
         <Divider />
 

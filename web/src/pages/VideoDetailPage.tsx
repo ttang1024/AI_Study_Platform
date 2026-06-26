@@ -26,7 +26,7 @@ export const VideoDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
     activeTab, setActiveTab, activeView, setActiveView, locationState,
     summaryError, mindMapError, flashcardsError, quizError,
     noteContent, showShareModal, setShowShareModal,
-    summary, isLoadingSummary, summaryStreamText, generateSummary,
+    summary, isLoadingSummary, summaryStreamText, generateSummary, handleSaveSummary,
     summaryRef, summaryToolbar, setSummaryToolbar,
     transcriptRef, transcriptToolbar, setTranscriptToolbar,
     centerView, setCenterView, loadSubtitlesOnDemand,
@@ -34,7 +34,7 @@ export const VideoDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
     subtitles, subtitlesError, isLoadingSubtitles, refreshSubtitles,
     iframeRef, uploadedVideoRef,
     openMenu, setOpenMenu, copyMenuRef, downloadMenuRef, copyTranscript, downloadTranscript,
-    mindMapText, isLoadingMindMap, mindMapStreamingText, generateMindMap,
+    mindMapText, isLoadingMindMap, mindMapStreamingText, generateMindMap, handleSaveMindMap,
     flashcards, isLoadingFlashcards, generateFlashcards,
     activeQuizDifficulty, quizQuestionSets, quizQuestions, userAnswers, isQuizSubmitted,
     quizScore, isLoadingQuiz, generateQuiz, handleQuizDifficultyChange, submitQuiz, onAnswerQuiz,
@@ -86,6 +86,7 @@ export const VideoDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
               onTimelineSeek={seekTo}
               generateDisabled={generationDisabled}
               generateDisabledReason={generationDisabledReason}
+              onSaveSummary={handleSaveSummary}
             />
           </div>
 
@@ -100,6 +101,7 @@ export const VideoDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
               title={videoId ?? 'mindmap'}
               generateDisabled={generationDisabled}
               generateDisabledReason={generationDisabledReason}
+              onSaveEdit={handleSaveMindMap}
             />
           </div>
 
