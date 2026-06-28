@@ -1,5 +1,7 @@
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using StudyPlatform.API.Extensions;
 using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Feedback.Commands;
 
@@ -7,6 +9,7 @@ namespace StudyPlatform.API.Controllers;
 
 [ApiController]
 [Route("api/feedback")]
+[Authorize]
 [Produces("application/json")]
 public class FeedbackController : ControllerBase
 {
@@ -17,16 +20,8 @@ public class FeedbackController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Submit([FromBody] SubmitFeedbackRequest request)
     {
-        Guid? userId = null;
-        string? userEmail = null;
-
-        if (User.Identity?.IsAuthenticated == true)
-        {
-            var idClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-            if (Guid.TryParse(idClaim, out var parsedId))
-                userId = parsedId;
-            userEmail = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
-        }
+        var userId = User.GetUserId();
+        var userEmail = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
 
         var result = await _mediator.Send(new SubmitFeedbackCommand(
             request.Type, request.Subject, request.Message, request.Rating, userId, userEmail));
