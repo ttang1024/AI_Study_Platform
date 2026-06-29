@@ -45,7 +45,7 @@ function formatDate(iso: string) {
 }
 
 export const VideoCard: React.FC<VideoCardProps> = ({ video, to, onDeleted, onMoved, onUpdated, compact = false }) => {
-  const { courses, refreshStats } = useStudy();
+  const { courses, refreshStats, deleteVideo } = useStudy();
   const tiltDir = hashCode(video.id) % 2 === 0 ? 1 : -1;
   const sourceType = video.sourceType ?? 'youtube';
   const isBilibili = sourceType === 'bilibili';
@@ -86,8 +86,7 @@ export const VideoCard: React.FC<VideoCardProps> = ({ video, to, onDeleted, onMo
   const handleDelete = async () => {
     setIsDeleting(true);
     try {
-      await videoService.deleteVideo(video.id);
-      refreshStats();
+      await deleteVideo(video.id);
       onDeleted?.();
     } finally {
       setIsDeleting(false);

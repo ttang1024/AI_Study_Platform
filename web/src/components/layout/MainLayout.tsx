@@ -97,12 +97,16 @@ export const MainLayout: React.FC = () => {
           <NotificationBell className="bg-[var(--bg-sidebar)]/80 backdrop-blur shadow-sm border border-[var(--border-color)]" />
         </div>
 
-        <main className="flex-1 overflow-hidden flex flex-col p-4 sm:p-6 lg:p-8 min-w-0">
-          <div id="main-scroll" className="mx-auto w-full max-w-7xl flex-1 min-h-0 overflow-y-auto">
-            {/* Pages are lazy-loaded; keep the shell visible while a chunk loads. */}
-            <Suspense fallback={null}>
-              <Outlet />
-            </Suspense>
+        <main className="flex-1 overflow-hidden flex flex-col min-w-0">
+          {/* Full-width scroll container so the scrollbar sits at the page's right
+              edge; content stays centered via the inner max-width wrapper. */}
+          <div id="main-scroll" className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 lg:p-8">
+            <div className="mx-auto w-full max-w-7xl h-full">
+              {/* Pages are lazy-loaded; keep the shell visible while a chunk loads. */}
+              <Suspense fallback={null}>
+                <Outlet />
+              </Suspense>
+            </div>
           </div>
         </main>
       </div>

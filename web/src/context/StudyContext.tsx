@@ -38,6 +38,7 @@ interface StudyContextType {
   setCurrentDocument: (doc: Document | null | ((prev: Document | null) => Document | null)) => void;
   addDocument: (file: File, courseId: string) => Promise<string>;
   deleteDocument: (courseId: string, documentId: string) => Promise<void>;
+  deleteVideo: (videoId: string) => Promise<void>;
   updateDocumentInList: (doc: Document) => void;
   allNotes: Note[];
   addNote: (content: string) => Promise<void>;
@@ -345,6 +346,14 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (currentDocument?.id === documentId) setCurrentDocument(null);
   };
 
+  const deleteVideo = async (videoId: string): Promise<void> => {
+    await videoService.deleteVideo(videoId);
+    setVideos(prev => prev.filter(v => v.id !== videoId));
+    setTotalVideos(prev => Math.max(0, prev - 1));
+    setTotalMaterials(prev => Math.max(0, prev - 1));
+    refreshStats();
+  };
+
   const addDocument = async (file: File, courseId: string): Promise<string> => {
     const newDoc = await documentService.uploadDocument(courseId, file);
     setDocuments((prev) => [newDoc, ...prev]);
@@ -543,6 +552,7 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setCurrentDocument,
         addDocument,
         deleteDocument,
+        deleteVideo,
         updateDocumentInList,
         allNotes,
         addNote,
