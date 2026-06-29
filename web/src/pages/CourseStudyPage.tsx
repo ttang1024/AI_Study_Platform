@@ -100,7 +100,9 @@ const EmbeddedPage: React.FC<{ selected: Selected }> = ({ selected }) => {
 export const CourseStudyPage: React.FC = () => {
   const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
-  const { courses, flashcards: contextFlashcards, totalNotes } = useStudy();
+  const { courses, flashcards: contextFlashcards, totalNotes, ensureFlashcards } = useStudy();
+  // The full flashcard deck loads lazily — pull it now this page reads it.
+  useEffect(() => { void ensureFlashcards(); }, [ensureFlashcards]);
   useStudyTimer({ contextType: 'course', courseId, contextId: courseId, enabled: !!courseId });
 
   // Course + materials

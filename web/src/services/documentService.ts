@@ -17,7 +17,7 @@ export interface QuizSubmission {
 	submittedAt: string
 }
 
-interface BackendDocument {
+export interface BackendDocument {
 	documentId: string
 	courseId: string
 	userId: string
@@ -112,7 +112,7 @@ const getTypeFromContentTypeOrFileName = (
 	return 'txt'
 }
 
-const mapDocument = (bd: BackendDocument): Document => ({
+export const mapDocument = (bd: BackendDocument): Document => ({
 	id: bd.documentId,
 	name: bd.fileName,
 	title: bd.fileName,

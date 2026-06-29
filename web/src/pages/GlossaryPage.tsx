@@ -31,7 +31,9 @@ function getDocKind(doc: { type?: string; name: string; originalUrl?: string }):
 type MasteryFilter = 'all' | 'unmastered' | 'mastered';
 
 export const GlossaryPage: React.FC = () => {
-  const { documents, courses, videos } = useStudy();
+  const { documents, courses, videos, ensureVideos } = useStudy();
+  // The video list (used to label glossary sources) loads lazily.
+  useEffect(() => { void ensureVideos(); }, [ensureVideos]);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();

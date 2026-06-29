@@ -33,6 +33,9 @@ public static class InfrastructureServiceExtensions
         // Admin platform-wide analytics (reads across all users; admin-only endpoints)
         services.AddScoped<IAdminAnalyticsRepository, AdminAnalyticsRepository>();
 
+        // Unified library list (documents + videos merged, server-paginated)
+        services.AddScoped<ILibraryRepository, LibraryRepository>();
+
         // Services
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<IEmailService, EmailService>();

@@ -51,7 +51,7 @@ const TYPE_COLORS: Record<SearchResult['type'], string> = {
 };
 
 export const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) => {
-  const { documents, flashcards, allNotes } = useStudy();
+  const { documents, flashcards, allNotes, ensureFlashcards, ensureNotes } = useStudy();
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
@@ -66,6 +66,10 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) =
       setQuery('');
       setActiveIndex(0);
       setTimeout(() => inputRef.current?.focus(), 50);
+      // The flashcard deck and recent notes are loaded lazily by StudyContext —
+      // make them searchable the first time search opens.
+      void ensureFlashcards();
+      void ensureNotes();
       // Glossary terms, quiz questions and chat sessions aren't kept in
       // StudyContext (only counts are), so fetch them lazily the first time
       // search is opened.
@@ -76,6 +80,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) =
         aiService.getChatSessions().then(setChats).catch(() => {});
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   const results: SearchResult[] = React.useMemo(() => {

@@ -66,6 +66,9 @@ interface StudyContextType {
   refreshQuizSubmissions: () => Promise<void>;
   refreshDocuments: () => Promise<void>;
   refreshVideos: () => Promise<void>;
+  ensureFlashcards: () => Promise<void>;
+  ensureVideos: () => Promise<void>;
+  ensureNotes: () => Promise<void>;
   resetData: () => void;
 }
 
@@ -98,7 +101,13 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isLoading, setIsLoading] = useState(true);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [videos, setVideos] = useState<VideoListItem[]>([]);
-  const [videosLoading, setVideosLoading] = useState(true);
+  // Lazy: starts false; flips true only while ensureVideos() is actually fetching.
+  const [videosLoading, setVideosLoading] = useState(false);
+  // Load-once guards for the heavy "fetch all" lists, which are now pulled on first
+  // use rather than eagerly on login. 'idle' → not requested yet; reset on auth change.
+  const flashcardsStatusRef = React.useRef<'idle' | 'loading' | 'loaded'>('idle');
+  const videosStatusRef = React.useRef<'idle' | 'loading' | 'loaded'>('idle');
+  const notesStatusRef = React.useRef<'idle' | 'loading' | 'loaded'>('idle');
   const [totalDocuments, setTotalDocuments] = useState(0);
   const [totalArticles, setTotalArticles] = useState(0);
   const [totalAudio, setTotalAudio] = useState(0);
@@ -128,6 +137,9 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       invalidateDocumentListCache();
       invalidateFlashcardListCache();
       invalidateDashboardSummaryCache();
+      flashcardsStatusRef.current = 'idle';
+      videosStatusRef.current = 'idle';
+      notesStatusRef.current = 'idle';
       setDocuments([]);
       setVideos([]);
       setVideosLoading(false);
@@ -155,44 +167,30 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
 
     let cancelled = false;
+    // New session — let the lazy lists be (re)fetched on next use.
+    flashcardsStatusRef.current = 'idle';
+    videosStatusRef.current = 'idle';
+    notesStatusRef.current = 'idle';
 
-    // Heavy / secondary lists. Fetched in the background after the first paint so
-    // the initial render isn't blocked on them. The Library and Flashcards pages
-    // also (re)load these on mount, and other readers (search, notes) populate as
-    // they resolve — so deferring them is safe.
-    const emptyVideos = { items: [] as VideoListItem[], totalCount: 0, page: 1, pageSize: 1, totalPages: 0 };
-    const loadDeferredData = async (flashcardCount: number, documentCount: number, videoCount: number) => {
-      const flashcardSize = fetchAllSize(flashcardCount);
+    // Secondary lists used by the dashboard and global chrome (StudyCalendar,
+    // GlobalSearch). Fetched in the background after first paint so the initial
+    // render isn't blocked. The "fetch all" lists — flashcards, the video list and
+    // notes — are NOT loaded here; they're pulled lazily by the pages that actually
+    // read them (see ensureFlashcards / ensureVideos / ensureNotes).
+    // documentCount must cover every row /api/documents returns (plain docs +
+    // articles + audio), not just stats.totalDocuments — otherwise the fetch is
+    // sized too small and truncates, forcing the Library page into a second
+    // round-trip with a different pageSize that the list cache can't dedupe.
+    const loadDeferredData = async (documentCount: number) => {
       const documentSize = fetchAllSize(documentCount);
-      setVideosLoading(true);
-      const [fetchedFlashcards, docsResult, fetchedSubmissions, fetchedNotes, fetchedVideos] = await Promise.all([
-        flashcardService.getAllFlashcards(1, flashcardSize).catch(() => ({ items: [] as Flashcard[], totalCount: 0, page: 1, pageSize: flashcardSize, totalPages: 0 })),
+      const [docsResult, fetchedSubmissions] = await Promise.all([
         documentService.getAllDocuments(1, documentSize).catch(() => ({ items: [] as Document[], totalCount: 0, page: 1, pageSize: documentSize, totalPages: 0 })),
         quizSubmissionService.getAllSubmissions(1, 10).catch(() => ({ items: [] as QuizSubmission[], totalCount: 0, page: 1, pageSize: 10, totalPages: 0 })),
-        noteService.getAllNotes(1, 10).catch(() => ({ items: [] as Note[], totalCount: 0, page: 1, pageSize: 10, totalPages: 0 })),
-        // Only fetch the (lite) video list when the user actually has videos; it's
-        // used solely to label glossary/flashcard/note sources.
-        videoCount > 0
-          ? videoService.getVideosLite({ page: 1, pageSize: fetchAllSize(videoCount) }).catch(() => emptyVideos)
-          : Promise.resolve(emptyVideos),
       ]);
       if (cancelled) return;
 
-      if (fetchedFlashcards.items.length > 0) {
-        setFlashcards(fetchedFlashcards.items);
-        void offlineCacheService.cacheFlashcards(fetchedFlashcards.items);
-      } else if (isOffline()) {
-        // Offline with no fresh data — fall back to the last cached deck.
-        const cached = await offlineCacheService.getCachedFlashcards();
-        if (!cancelled) setFlashcards(cached);
-      } else {
-        setFlashcards(fetchedFlashcards.items);
-      }
       setDocuments(docsResult.items);
       setQuizSubmissions(fetchedSubmissions.items);
-      setAllNotes(fetchedNotes.items);
-      setVideos(fetchedVideos.items);
-      setVideosLoading(false);
     };
 
     // Critical: counts (stats) + courses power the dashboard — the post-login
@@ -200,9 +198,7 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // own fetches. Both are small, so the first paint stays fast.
     const loadInitialData = async () => {
       setIsLoading(true);
-      let flashcardCount = 0;
       let documentCount = 0;
-      let videoCount = 0;
       try {
         const [fetchedCourses, stats] = await Promise.all([
           courseService.getCourses().catch(() => [] as Course[]),
@@ -222,19 +218,17 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setTotalVideos(stats.totalVideos);
         setCourseMaterialCounts(stats.courseMaterialCounts);
         setAchievementStats(stats.achievements);
-        flashcardCount = stats.totalFlashcards;
-        documentCount = stats.totalDocuments;
-        videoCount = stats.totalVideos;
+        documentCount = stats.totalDocuments + stats.totalArticles + stats.totalAudio;
       } catch (error) {
         if (!cancelled) console.error('Failed to load initial data:', error);
       } finally {
         if (!cancelled) setIsLoading(false);
       }
 
-      // Kick off the heavy lists in the background once the critical data is in.
-      // Pass the freshly-fetched stats counts directly — the setTotal* state
+      // Kick off the secondary lists in the background once the critical data is in.
+      // Pass the freshly-fetched document count directly — the setTotal* state
       // setters above won't be visible in this closure yet.
-      if (!cancelled) void loadDeferredData(flashcardCount, documentCount, videoCount);
+      if (!cancelled) void loadDeferredData(documentCount);
     };
 
     loadInitialData();
@@ -274,19 +268,62 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
       const result = await noteService.getAllNotes(1, 10);
       setAllNotes(result.items);
+      notesStatusRef.current = 'loaded';
     } catch (error) {
       console.error('Failed to refresh notes:', error);
     }
   }, []);
 
+  // Lazy load-once for the recent-notes list — used by global search and the
+  // settings export. Pulled the first time a reader mounts, not eagerly on login.
+  const ensureNotes = React.useCallback(async (): Promise<void> => {
+    if (!isAuthenticated || isLoading) return;
+    if (notesStatusRef.current !== 'idle') return;
+    notesStatusRef.current = 'loading';
+    try {
+      const result = await noteService.getAllNotes(1, 10);
+      setAllNotes(result.items);
+      notesStatusRef.current = 'loaded';
+    } catch (error) {
+      console.error('Failed to load notes:', error);
+      notesStatusRef.current = 'idle';
+    }
+  }, [isAuthenticated, isLoading]);
+
   const refreshFlashcards = React.useCallback(async (): Promise<void> => {
     try {
       const result = await flashcardService.getAllFlashcards(1, fetchAllSize(totalFlashcards));
       setFlashcards(result.items);
+      flashcardsStatusRef.current = 'loaded';
     } catch (error) {
       console.error('Failed to refresh flashcards:', error);
     }
   }, [totalFlashcards]);
+
+  // Lazy load-once for the full flashcard deck — fetched the first time a page that
+  // renders it mounts, instead of eagerly on login. Waits for stats so it's sized
+  // to the real deck size; resets to 'idle' on error so a later mount can retry.
+  const ensureFlashcards = React.useCallback(async (): Promise<void> => {
+    if (!isAuthenticated || isLoading) return;
+    if (flashcardsStatusRef.current !== 'idle') return;
+    flashcardsStatusRef.current = 'loading';
+    try {
+      const result = await flashcardService.getAllFlashcards(1, fetchAllSize(totalFlashcards));
+      if (result.items.length > 0) {
+        setFlashcards(result.items);
+        void offlineCacheService.cacheFlashcards(result.items);
+      } else if (isOffline()) {
+        // Offline with no fresh data — fall back to the last cached deck.
+        setFlashcards(await offlineCacheService.getCachedFlashcards());
+      } else {
+        setFlashcards(result.items);
+      }
+      flashcardsStatusRef.current = 'loaded';
+    } catch (error) {
+      console.error('Failed to load flashcards:', error);
+      flashcardsStatusRef.current = 'idle';
+    }
+  }, [isAuthenticated, isLoading, totalFlashcards]);
 
   const refreshQuizSubmissions = React.useCallback(async (): Promise<void> => {
     try {
@@ -307,17 +344,38 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [totalDocuments]);
 
   const refreshVideos = React.useCallback(async (): Promise<void> => {
-    if (totalVideos === 0) { setVideos([]); return; }
+    if (totalVideos === 0) { setVideos([]); videosStatusRef.current = 'loaded'; return; }
     setVideosLoading(true);
     try {
       const result = await videoService.getVideosLite({ page: 1, pageSize: fetchAllSize(totalVideos) });
       setVideos(result.items);
+      videosStatusRef.current = 'loaded';
     } catch (error) {
       console.error('Failed to refresh videos:', error);
     } finally {
       setVideosLoading(false);
     }
   }, [totalVideos]);
+
+  // Lazy load-once for the (lite) video list, used to label content sources. Pulled
+  // the first time a page that reads it mounts, rather than eagerly on login.
+  const ensureVideos = React.useCallback(async (): Promise<void> => {
+    if (!isAuthenticated || isLoading) return;
+    if (videosStatusRef.current !== 'idle') return;
+    videosStatusRef.current = 'loading';
+    if (totalVideos === 0) { setVideos([]); videosStatusRef.current = 'loaded'; return; }
+    setVideosLoading(true);
+    try {
+      const result = await videoService.getVideosLite({ page: 1, pageSize: fetchAllSize(totalVideos) });
+      setVideos(result.items);
+      videosStatusRef.current = 'loaded';
+    } catch (error) {
+      console.error('Failed to load videos:', error);
+      videosStatusRef.current = 'idle';
+    } finally {
+      setVideosLoading(false);
+    }
+  }, [isAuthenticated, isLoading, totalVideos]);
 
   const refreshStats = React.useCallback(async (): Promise<void> => {
     try {
@@ -507,6 +565,9 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     invalidateDocumentListCache();
     invalidateFlashcardListCache();
     invalidateDashboardSummaryCache();
+    flashcardsStatusRef.current = 'idle';
+    videosStatusRef.current = 'idle';
+    notesStatusRef.current = 'idle';
     setDocuments([]);
     setVideos([]);
     setTotalDocuments(0);
@@ -579,6 +640,9 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         refreshFlashcards,
         refreshDocuments,
         refreshVideos,
+        ensureFlashcards,
+        ensureVideos,
+        ensureNotes,
         refreshQuizSubmissions,
         resetData,
       }}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -6,23 +6,17 @@ import {
 } from 'lucide-react';
 import { CONTENT_TYPE_ICONS } from '../constants/contentTypeIcons';
 import { useStudy } from '../context/StudyContext';
-import { videoService, VideoListItem } from '../services/videoService';
-import { documentService } from '../services/documentService';
+import { libraryService, LibraryEntry } from '../services/libraryService';
 import { DocumentCard } from '../components/common/DocumentCard';
 import { VideoCard } from '../components/common/VideoCard';
 import { SearchFilterBar } from '../components/common/SearchFilterBar';
 import { Pagination } from '../components/common/Pagination';
 import { TypeFilterTabs, TypeTab } from '../components/common/TypeFilterTabs';
 import { cn } from '../utils/cn';
-import { Document } from '../types';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type FilterType = 'all' | 'documents' | 'videos' | 'articles' | 'audio';
-
-type LibraryItem =
-  | { kind: 'document'; data: Document; sortDate: string }
-  | { kind: 'video'; data: VideoListItem; sortDate: string };
 
 const PAGE_SIZE = 8;
 
@@ -41,16 +35,16 @@ export const LibraryPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const {
-    isLoading, documents, videos, courses, totalDocuments, totalArticles, totalAudio,
-    totalVideos, totalMaterials, courseMaterialCounts,
+    courses, totalDocuments, totalArticles, totalAudio,
+    totalVideos, totalMaterials, courseMaterialCounts, refreshStats,
   } = useStudy();
 
-  const [allVideos, setAllVideos] = useState<VideoListItem[]>(videos);
-  const [libraryDocuments, setLibraryDocuments] = useState<Document[]>(documents);
-  const [videosLoading, setVideosLoading] = useState(true);
-  const [documentsLoading, setDocumentsLoading] = useState(false);
+  const [items, setItems] = useState<LibraryEntry[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -61,85 +55,55 @@ export const LibraryPage: React.FC = () => {
     setCurrentPage(1);
   };
 
-  // Load the full library dataset for local filtering and pagination.
+  // Debounce the search box so we fire one request after typing settles, not one
+  // per keystroke (search is now resolved server-side).
   useEffect(() => {
-    let active = true;
+    const id = setTimeout(() => setDebouncedSearch(searchQuery.trim()), 300);
+    return () => clearTimeout(id);
+  }, [searchQuery]);
 
-    if (isLoading) {
-      return () => { active = false; };
+  // Fetch a single page from the unified library endpoint. Documents and videos
+  // are merged, filtered, sorted and paginated server-side — we only ever hold
+  // the current page in memory.
+  const requestRef = React.useRef(0);
+  const fetchPage = useCallback(async () => {
+    const requestId = ++requestRef.current;
+    setLoading(true);
+    try {
+      const data = await libraryService.getLibrary({
+        type: activeType,
+        courseId: selectedCourseId,
+        search: debouncedSearch,
+        page: currentPage,
+        pageSize: PAGE_SIZE,
+      });
+      if (requestRef.current !== requestId) return; // a newer fetch superseded this one
+      setItems(data.items);
+      setTotalCount(data.totalCount);
+    } catch {
+      if (requestRef.current !== requestId) return;
+      setItems([]);
+      setTotalCount(0);
+    } finally {
+      if (requestRef.current === requestId) setLoading(false);
     }
+  }, [activeType, selectedCourseId, debouncedSearch, currentPage]);
 
-    if (totalVideos <= videos.length) {
-      setAllVideos(videos);
-      setVideosLoading(false);
-      return () => { active = false; };
+  useEffect(() => { fetchPage(); }, [fetchPage]);
+
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+  const paginated = items;
+
+  // A card removed itself server-side. Refresh the type/course badges (from stats)
+  // and either step back a page if we just emptied the last one, or refill this page.
+  const handleDeleted = useCallback(() => {
+    refreshStats();
+    if (items.length <= 1 && currentPage > 1) {
+      setCurrentPage(p => p - 1); // triggers a refetch via fetchPage's deps
+    } else {
+      fetchPage();
     }
-
-    setVideosLoading(true);
-    videoService.getVideos({ page: 1, pageSize: Math.max(totalVideos, PAGE_SIZE) })
-      .then(data => { if (active) setAllVideos(data.items); })
-      .catch(() => { if (active) setAllVideos([]); })
-      .finally(() => { if (active) setVideosLoading(false); });
-    return () => { active = false; };
-  }, [isLoading, totalVideos, videos]);
-
-  useEffect(() => {
-    let active = true;
-    const totalDocumentItems = totalMaterials - totalVideos;
-
-    if (isLoading) {
-      return () => { active = false; };
-    }
-
-    if (totalDocumentItems <= documents.length) {
-      setLibraryDocuments(documents);
-      setDocumentsLoading(false);
-      return () => { active = false; };
-    }
-
-    setDocumentsLoading(true);
-    documentService.getAllDocuments(1, Math.max(totalDocumentItems, PAGE_SIZE))
-      .then(data => { if (active) setLibraryDocuments(data.items); })
-      .catch(() => { if (active) setLibraryDocuments(documents); })
-      .finally(() => { if (active) setDocumentsLoading(false); });
-
-    return () => { active = false; };
-  }, [documents, isLoading, totalMaterials, totalVideos]);
-
-  // Partition documents
-  const audioDocs = useMemo(() => libraryDocuments.filter(d => d.type === 'audio' || d.type === 'podcast'), [libraryDocuments]);
-  const regularDocs = useMemo(() => libraryDocuments.filter(d => d.type !== 'audio' && d.type !== 'podcast' && !d.originalUrl), [libraryDocuments]);
-  const articleDocs = useMemo(() => libraryDocuments.filter(d => d.type !== 'audio' && d.type !== 'podcast' && !!d.originalUrl), [libraryDocuments]);
-
-  // Build unified item list based on active type
-  const allItems = useMemo((): LibraryItem[] => {
-    const docItems = (
-      activeType === 'videos' ? [] :
-        activeType === 'audio' ? audioDocs :
-          activeType === 'articles' ? articleDocs :
-            activeType === 'documents' ? regularDocs :
-              libraryDocuments
-    ).map((d): LibraryItem => ({ kind: 'document', data: d, sortDate: d.uploadDate }));
-
-    const videoItems = (activeType === 'documents' || activeType === 'articles' || activeType === 'audio' ? [] : allVideos)
-      .map((v): LibraryItem => ({ kind: 'video', data: v, sortDate: v.createdAt }));
-
-    return [...docItems, ...videoItems].sort(
-      (a, b) => new Date(b.sortDate).getTime() - new Date(a.sortDate).getTime()
-    );
-  }, [activeType, libraryDocuments, audioDocs, regularDocs, articleDocs, allVideos]);
-
-  // Search + course filter
-  const filteredItems = useMemo(() => allItems.filter(item => {
-    const name = item.kind === 'document' ? item.data.name : item.data.title;
-    const courseId = item.kind === 'document' ? item.data.courseId : item.data.courseId;
-    const matchesSearch = name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCourse = selectedCourseId === null || courseId === selectedCourseId;
-    return matchesSearch && matchesCourse;
-  }), [allItems, searchQuery, selectedCourseId]);
-
-  const totalPages = Math.ceil(filteredItems.length / PAGE_SIZE);
-  const paginated = filteredItems.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  }, [refreshStats, items.length, currentPage, fetchPage]);
 
   // Counts per type (for the header badge)
   const totalByType: Record<FilterType, number> = {
@@ -170,7 +134,7 @@ export const LibraryPage: React.FC = () => {
 
   // ── Empty state helpers ───────────────────────────────────────────────────
 
-  const isEmpty = !videosLoading && filteredItems.length === 0;
+  const isEmpty = !loading && totalCount === 0;
   const isFiltered = !!searchQuery || selectedCourseId !== null;
 
   return (
@@ -200,7 +164,7 @@ export const LibraryPage: React.FC = () => {
       {/* ── Study course banner ── */}
       {selectedCourseId && (() => {
         const c = courses.find(x => x.id === selectedCourseId);
-        const isEmpty = filteredItems.length === 0;
+        const isEmpty = !loading && totalCount === 0;
         return c ? (
           <div
             className="flex items-center justify-between rounded-2xl border px-4 py-3 gap-3"
@@ -251,7 +215,7 @@ export const LibraryPage: React.FC = () => {
       />
 
       {/* ── Grid ── */}
-      {(videosLoading && (activeType === 'all' || activeType === 'videos')) || (documentsLoading && activeType !== 'videos') ? (
+      {loading ? (
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-sidebar)] overflow-hidden animate-pulse">
@@ -317,15 +281,15 @@ export const LibraryPage: React.FC = () => {
                     doc={item.data}
                     course={getCourse(item.data.courseId)}
                     to={(item.data.type === 'audio' || item.data.type === 'podcast') ? `/audio/${item.data.id}` : item.data.originalUrl ? `/articles/${item.data.id}` : undefined}
-                    onUpdated={(updated) => setLibraryDocuments(prev => prev.map(d => d.id === updated.id ? updated : d))}
+                    onUpdated={(updated) => setItems(prev => prev.map(it => it.kind === 'document' && it.data.id === updated.id ? { kind: 'document', data: updated } : it))}
                   />
                 ) : (
                   <VideoCard
                     video={item.data}
                     to={`/videos/${item.data.id}`}
-                    onDeleted={() => setAllVideos(prev => prev.filter(v => v.id !== item.data.id))}
-                    onMoved={(newCourseId) => setAllVideos(prev => prev.map(v => v.id === item.data.id ? { ...v, courseId: newCourseId } : v))}
-                    onUpdated={(updated) => setAllVideos(prev => prev.map(v => v.id === updated.id ? { ...v, ...updated } : v))}
+                    onDeleted={() => handleDeleted()}
+                    onMoved={(newCourseId) => setItems(prev => prev.map(it => it.kind === 'video' && it.data.id === item.data.id ? { kind: 'video', data: { ...it.data, courseId: newCourseId } } : it))}
+                    onUpdated={(updated) => setItems(prev => prev.map(it => it.kind === 'video' && it.data.id === updated.id ? { kind: 'video', data: { ...it.data, ...updated } } : it))}
                   />
                 )}
               </motion.div>

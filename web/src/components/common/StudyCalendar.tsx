@@ -40,7 +40,7 @@ const toLocalDateStr = (iso: string) => {
 
 export const StudyCalendar: React.FC = () => {
   const navigate = useNavigate();
-  const { documents, courses, quizSubmissions } = useStudy();
+  const { documents, courses } = useStudy();
 
   const today = useMemo(() => new Date(), []);
   const todayStr = useMemo(() =>
@@ -55,7 +55,7 @@ export const StudyCalendar: React.FC = () => {
   const [popupDate, setPopupDate] = useState<string | null>(null);
   const popupRef = useRef<HTMLDivElement>(null);
 
-  // Build studyDayMap from documents + videos + quiz submissions
+  // Build studyDayMap from documents + videos
   useEffect(() => {
     let active = true;
     const build = async () => {
@@ -70,12 +70,6 @@ export const StudyCalendar: React.FC = () => {
         if (!doc.uploadDate) return;
         const type = doc.type === 'audio' || doc.type === 'podcast' ? 'audio' : doc.originalUrl ? 'article' : 'doc';
         addEntry(toLocalDateStr(doc.uploadDate), { id: doc.id, name: doc.name, type, courseId: doc.courseId });
-      });
-
-      // Quiz activity
-      quizSubmissions.forEach(s => {
-        const doc = documents.find(d => d.id === s.documentId);
-        if (doc) addEntry(toLocalDateStr(s.submittedAt), { id: doc.id, name: doc.name, type: 'doc', courseId: doc.courseId });
       });
 
       // Videos
@@ -94,7 +88,7 @@ export const StudyCalendar: React.FC = () => {
     };
     build();
     return () => { active = false; };
-  }, [documents, quizSubmissions]);
+  }, [documents]);
 
   // Close popup on outside click
   useEffect(() => {
@@ -261,10 +255,10 @@ export const StudyCalendar: React.FC = () => {
                     const course = courses.find(c => c.id === entry.courseId);
                     const courseColor = course?.color ?? (entry.type === 'video' ? '#ef4444' : undefined);
                     const courseName = course?.name;
-                    const Icon = entry.type === 'video'   ? CONTENT_TYPE_ICONS.video.icon
-                               : entry.type === 'article' ? CONTENT_TYPE_ICONS.article.icon
-                               : entry.type === 'audio'   ? CONTENT_TYPE_ICONS.audio.icon
-                               : CONTENT_TYPE_ICONS.document.icon;
+                    const Icon = entry.type === 'video' ? CONTENT_TYPE_ICONS.video.icon
+                      : entry.type === 'article' ? CONTENT_TYPE_ICONS.article.icon
+                        : entry.type === 'audio' ? CONTENT_TYPE_ICONS.audio.icon
+                          : CONTENT_TYPE_ICONS.document.icon;
                     return (
                       <button
                         key={entry.id}

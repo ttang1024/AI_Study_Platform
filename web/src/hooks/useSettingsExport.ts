@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useStudy } from '../context/StudyContext';
 import { glossaryService } from '../services/glossaryService';
 import { documentService } from '../services/documentService';
@@ -20,8 +20,12 @@ export type ExportKind = 'notes' | 'pdf' | 'obsidian' | 'quizCsv' | 'qti';
 
 /** Owns the Settings → Export tab logic: builds export payloads from study data and triggers downloads. */
 export function useSettingsExport() {
-  const { allNotes, documents, courses, flashcards, quizSubmissions } = useStudy();
+  const { allNotes, documents, courses, flashcards, quizSubmissions, ensureFlashcards, ensureNotes } = useStudy();
   const [exporting, setExporting] = useState<null | ExportKind>(null);
+
+  // The flashcard deck and notes load lazily; make sure they're present before the
+  // user exports (exports read them straight from context state).
+  useEffect(() => { void ensureFlashcards(); void ensureNotes(); }, [ensureFlashcards, ensureNotes]);
 
   const buildNotesExport = (): ExportNoteRecord[] => allNotes.map(note => {
     const doc = documents.find(d => d.id === note.documentId);

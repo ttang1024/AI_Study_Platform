@@ -31,17 +31,32 @@ export interface PagedNotes {
   totalPages: number;
 }
 
+// In-flight dedupe keyed by URL: collapses the concurrent identical fetches that
+// StudyContext's deferred load and the Notes page's own refresh fire on mount.
+const inflightNoteListRequests = new Map<string, Promise<PagedNotes>>();
+
 export const noteService = {
   async getAllNotes(page = 1, pageSize = 20): Promise<PagedNotes> {
-    const response = await apiClient.get(`/api/notes?page=${page}&pageSize=${pageSize}`);
-    const d = response.data.data;
-    return {
-      items: (d.items as BackendNote[]).map(mapNote),
-      totalCount: d.totalCount,
-      page: d.page,
-      pageSize: d.pageSize,
-      totalPages: d.totalPages,
-    };
+    const url = `/api/notes?page=${page}&pageSize=${pageSize}`;
+
+    const pending = inflightNoteListRequests.get(url);
+    if (pending) return pending;
+
+    const request = apiClient.get(url)
+      .then(response => {
+        const d = response.data.data;
+        return {
+          items: (d.items as BackendNote[]).map(mapNote),
+          totalCount: d.totalCount,
+          page: d.page,
+          pageSize: d.pageSize,
+          totalPages: d.totalPages,
+        };
+      })
+      .finally(() => inflightNoteListRequests.delete(url));
+
+    inflightNoteListRequests.set(url, request);
+    return request;
   },
 
   async createNote(data: { title?: string; content: string }): Promise<BackendNote> {

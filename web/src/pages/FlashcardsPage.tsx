@@ -31,8 +31,12 @@ const PAGE_SIZE = 6;
 const CARD_PAGE_SIZE = 10;
 
 export const FlashcardsPage: React.FC = () => {
-  const { documents, courses, flashcards, totalMaterials, isLoading: contextLoading, refreshFlashcards, refreshStats, refreshDocuments, videos: videoList, videosLoading, refreshVideos } = useStudy();
+  const { documents, courses, flashcards, totalMaterials, isLoading: contextLoading, refreshFlashcards, refreshStats, refreshDocuments, videos: videoList, videosLoading, refreshVideos, ensureFlashcards, ensureVideos } = useStudy();
   const navigate = useNavigate();
+
+  // Flashcards and the video list load lazily — pull them now this page (which
+  // renders both) has mounted.
+  useEffect(() => { void ensureFlashcards(); void ensureVideos(); }, [ensureFlashcards, ensureVideos]);
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
 
   const [coverageLoading, setCoverageLoading] = useState(true);

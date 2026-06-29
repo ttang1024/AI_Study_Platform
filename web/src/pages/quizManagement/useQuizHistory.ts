@@ -35,9 +35,11 @@ export function useQuizHistory() {
   const {
     documents, courses, quizSubmissions, totalMaterials, totalQuizSubmissions,
     achievementStats, refreshQuizSubmissions, refreshStats, refreshDocuments,
-    videos: videoList, refreshVideos,
+    videos: videoList, refreshVideos, ensureVideos,
   } = useStudy();
   const { showPrompt } = usePrompt();
+  // The video list (used to label quiz sources) loads lazily.
+  useEffect(() => { void ensureVideos(); }, [ensureVideos]);
 
   const [sourceType, setSourceType] = useState<SourceType>('all');
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
