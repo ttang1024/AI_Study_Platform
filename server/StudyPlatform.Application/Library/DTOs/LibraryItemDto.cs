@@ -3,7 +3,7 @@ namespace StudyPlatform.Application.Library.DTOs;
 /// <summary>
 /// One entry in the unified library list. <see cref="Kind"/> is "document" or
 /// "video"; the unused side's fields are null. Carries only what the library cards
-/// render — no Summary/MindMap/Transcript — keeping a page small over the wire.
+/// render — no MindMap/Transcript — keeping a page small over the wire.
 /// </summary>
 public record LibraryItemDto(
     string Kind,
@@ -18,6 +18,7 @@ public record LibraryItemDto(
     long FileSize,
     string? FileHash,
     string? OriginalUrl,
+    string? Summary,
     string? Title,
     string? VideoId,
     string? VideoUrl,

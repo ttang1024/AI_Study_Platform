@@ -7,8 +7,6 @@ import { isQuizOptionCorrect } from '../../utils/quizAnswers';
 import { QuestionBankQuestion } from '../../services/questionBankService';
 import { useStudy } from '../../context/StudyContext';
 
-const OPTION_LETTERS = ['A', 'B', 'C', 'D', 'E'];
-
 interface QuizMistakeCardProps {
   question: QuestionBankQuestion;
   selectedAnswer: string;
@@ -82,12 +80,6 @@ export const QuizMistakeCard: React.FC<QuizMistakeCardProps> = ({
             if (revealCorrect)
               return 'border-emerald-300 bg-emerald-50 text-emerald-700';
             return 'border-[var(--border-color)] bg-[var(--bg-sidebar)] text-text-muted';
-          })();
-
-          const letterStyle = (() => {
-            if (isSelected && !isCorrect) return 'bg-red-100 text-red-600';
-            if (revealCorrect) return 'bg-emerald-100 text-emerald-600';
-            return 'bg-zinc-100 text-zinc-500';
           })();
 
           return (

@@ -18,6 +18,7 @@ interface BackendLibraryItem {
 	fileSize?: number | null
 	fileHash?: string | null
 	originalUrl?: string | null
+	summary?: string | null
 	// video fields
 	title?: string | null
 	videoId?: string | null
@@ -60,6 +61,7 @@ const toDocument = (i: BackendLibraryItem): Document =>
 		fileSize: i.fileSize ?? 0,
 		fileHash: i.fileHash ?? undefined,
 		originalUrl: i.originalUrl ?? undefined,
+		summary: i.summary ?? undefined,
 		createdAt: i.createdAt,
 		updatedAt: i.createdAt,
 	} as BackendDocument)

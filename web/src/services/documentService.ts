@@ -92,22 +92,17 @@ const getTypeFromContentTypeOrFileName = (
 	)
 		return 'md'
 	if (
-		contentType === 'application/vnd.openxmlformats-officedocument.presentationml.presentation' ||
+		contentType ===
+			'application/vnd.openxmlformats-officedocument.presentationml.presentation' ||
 		contentType === 'application/vnd.ms-powerpoint' ||
 		PPT_EXTENSIONS.some(ext => name.endsWith(ext))
 	)
 		return 'ppt'
 	if (contentType === 'application/epub+zip' || name.endsWith('.epub')) return 'epub'
-	if (
-		contentType.startsWith('image/') ||
-		IMAGE_EXTENSIONS.some(ext => name.endsWith(ext))
-	)
+	if (contentType.startsWith('image/') || IMAGE_EXTENSIONS.some(ext => name.endsWith(ext)))
 		return 'image'
 	if (contentType === 'audio/podcast') return 'podcast'
-	if (
-		contentType.startsWith('audio/') ||
-		AUDIO_EXTENSIONS.some(ext => name.endsWith(ext))
-	)
+	if (contentType.startsWith('audio/') || AUDIO_EXTENSIONS.some(ext => name.endsWith(ext)))
 		return 'audio'
 	return 'txt'
 }
@@ -158,7 +153,7 @@ const mapFlashcard = (bf: BackendFlashcard): Flashcard => ({
 	front: bf.front,
 	back: bf.back,
 	cardType: bf.cardType === 'cloze' ? 'cloze' : bf.cardType === 'chart' ? 'chart' : 'basic',
-	difficulty: (bf.difficulty === 'easy' || bf.difficulty === 'hard') ? bf.difficulty : 'medium',
+	difficulty: bf.difficulty === 'easy' || bf.difficulty === 'hard' ? bf.difficulty : 'medium',
 	chapter: bf.chapter ?? undefined,
 	tags: bf.tags ?? [],
 	documentId: bf.documentId || '',
@@ -212,7 +207,8 @@ export const documentService = {
 		const pending = inflightDocumentListRequests.get(url)
 		if (pending) return pending
 
-		const request = apiClient.get(url)
+		const request = apiClient
+			.get(url)
 			.then(response => {
 				const data = response.data.data
 				const result = {
@@ -222,7 +218,10 @@ export const documentService = {
 					pageSize: data.pageSize,
 					totalPages: data.totalPages,
 				}
-				documentListCache.set(url, { value: result, expiresAt: Date.now() + DOCUMENT_LIST_CACHE_MS })
+				documentListCache.set(url, {
+					value: result,
+					expiresAt: Date.now() + DOCUMENT_LIST_CACHE_MS,
+				})
 				return result
 			})
 			.finally(() => inflightDocumentListRequests.delete(url))
@@ -258,7 +257,11 @@ export const documentService = {
 		invalidateDocumentListCache()
 	},
 
-	async moveDocument(courseId: string, documentId: string, targetCourseId: string): Promise<Document> {
+	async moveDocument(
+		courseId: string,
+		documentId: string,
+		targetCourseId: string,
+	): Promise<Document> {
 		const response = await apiClient.patch(
 			`/api/courses/${courseId}/documents/${documentId}/move`,
 			{ targetCourseId },
@@ -267,7 +270,11 @@ export const documentService = {
 		return mapDocument(response.data.data)
 	},
 
-	async updateDocument(courseId: string, documentId: string, data: { fileName: string }): Promise<Document> {
+	async updateDocument(
+		courseId: string,
+		documentId: string,
+		data: { fileName: string },
+	): Promise<Document> {
 		const response = await apiClient.patch(
 			`/api/courses/${courseId}/documents/${documentId}`,
 			data,
@@ -287,20 +294,17 @@ export const documentService = {
 	},
 
 	/** Persist a user-edited mind map (XMindMark/markdown source) back to the document. */
-	async updateMindMap(courseId: string, documentId: string, mindMapText: string): Promise<Document> {
+	async updateMindMap(
+		courseId: string,
+		documentId: string,
+		mindMapText: string,
+	): Promise<Document> {
 		const response = await apiClient.patch(
 			`/api/courses/${courseId}/documents/${documentId}/content`,
 			{ mindMapText },
 		)
 		invalidateDocumentListCache()
 		return mapDocument(response.data.data)
-	},
-
-	async getDownloadUrl(courseId: string, documentId: string): Promise<string> {
-		const response = await apiClient.get(
-			`/api/courses/${courseId}/documents/${documentId}/download-url`,
-		)
-		return response.data.data
 	},
 
 	async generateSummary(
@@ -326,14 +330,22 @@ export const documentService = {
 		return { mindMapText: doc.mindMapText || '' }
 	},
 
-	async generateQuiz(courseId: string, documentId: string, difficulty = 'medium'): Promise<QuizQuestion[]> {
+	async generateQuiz(
+		courseId: string,
+		documentId: string,
+		difficulty = 'medium',
+	): Promise<QuizQuestion[]> {
 		const response = await apiClient.post(
 			`/api/courses/${courseId}/documents/${documentId}/quiz/generate?difficulty=${encodeURIComponent(difficulty)}`,
 		)
 		return (response.data.data as BackendQuiz[]).map(mapQuiz)
 	},
 
-	async getQuiz(courseId: string, documentId: string, difficulty?: string): Promise<QuizQuestion[]> {
+	async getQuiz(
+		courseId: string,
+		documentId: string,
+		difficulty?: string,
+	): Promise<QuizQuestion[]> {
 		const query = difficulty ? `?difficulty=${encodeURIComponent(difficulty)}` : ''
 		const response = await apiClient.get(
 			`/api/courses/${courseId}/documents/${documentId}/quiz${query}`,
@@ -493,7 +505,10 @@ export interface QuizSubmissionCoverage {
 }
 
 const inflightQuizSubmissionListRequests = new Map<string, Promise<PagedQuizSubmissions>>()
-const quizSubmissionListCache = new Map<string, { value: PagedQuizSubmissions; expiresAt: number }>()
+const quizSubmissionListCache = new Map<
+	string,
+	{ value: PagedQuizSubmissions; expiresAt: number }
+>()
 const QUIZ_SUBMISSION_LIST_CACHE_MS = 2000
 const inflightQuizMaterialRequests = new Map<string, Promise<unknown>>()
 
@@ -531,10 +546,13 @@ export const quizSubmissionService = {
 
 	async getCoverage(): Promise<QuizSubmissionCoverage> {
 		const url = '/api/quiz-submissions/coverage'
-		const pending = inflightQuizMaterialRequests.get(url) as Promise<QuizSubmissionCoverage> | undefined
+		const pending = inflightQuizMaterialRequests.get(url) as
+			| Promise<QuizSubmissionCoverage>
+			| undefined
 		if (pending) return pending
 
-		const request = apiClient.get(url)
+		const request = apiClient
+			.get(url)
 			.then(response => {
 				const d = response.data.data
 				return {
@@ -550,10 +568,13 @@ export const quizSubmissionService = {
 
 	async getPendingMaterials(): Promise<PendingMaterial[]> {
 		const url = '/api/quiz-submissions/pending-materials'
-		const pending = inflightQuizMaterialRequests.get(url) as Promise<PendingMaterial[]> | undefined
+		const pending = inflightQuizMaterialRequests.get(url) as
+			| Promise<PendingMaterial[]>
+			| undefined
 		if (pending) return pending
 
-		const request = apiClient.get(url)
+		const request = apiClient
+			.get(url)
 			.then(response => response.data.data ?? [])
 			.finally(() => inflightQuizMaterialRequests.delete(url))
 
@@ -563,10 +584,13 @@ export const quizSubmissionService = {
 
 	async getGeneratedMaterials(): Promise<PendingMaterial[]> {
 		const url = '/api/quiz-submissions/generated-materials'
-		const pending = inflightQuizMaterialRequests.get(url) as Promise<PendingMaterial[]> | undefined
+		const pending = inflightQuizMaterialRequests.get(url) as
+			| Promise<PendingMaterial[]>
+			| undefined
 		if (pending) return pending
 
-		const request = apiClient.get(url)
+		const request = apiClient
+			.get(url)
 			.then(response => response.data.data ?? [])
 			.finally(() => inflightQuizMaterialRequests.delete(url))
 

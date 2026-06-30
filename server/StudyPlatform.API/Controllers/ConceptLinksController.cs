@@ -52,40 +52,4 @@ public class ConceptLinksController : ControllerBase
         var result = await _mediator.Send(new GetLearningPathQuery(userId), cancellationToken);
         return Ok(BaseResponse<LearningPathDto>.Ok(result.Data!));
     }
-
-    [HttpPost]
-    [ProducesResponseType(typeof(BaseResponse<ConceptLinkDto>), 201)]
-    [ProducesResponseType(typeof(BaseResponse), 400)]
-    public async Task<IActionResult> Create([FromBody] CreateConceptLinkRequest request, CancellationToken cancellationToken)
-    {
-        var userId = User.GetUserId();
-        var result = await _mediator.Send(
-            new CreateConceptLinkCommand(userId, request.SourceType, request.SourceId, request.TargetType, request.TargetId, request.Label),
-            cancellationToken);
-
-        if (!result.IsSuccess)
-            return BadRequest(BaseResponse<ConceptLinkDto>.Fail(result.Message, result.ErrorCode));
-
-        return CreatedAtAction(nameof(GetKnowledgeGraph), BaseResponse<ConceptLinkDto>.Ok(result.Data!, result.Message));
-    }
-
-    [HttpDelete("{linkId:guid}")]
-    [ProducesResponseType(typeof(BaseResponse), 200)]
-    [ProducesResponseType(typeof(BaseResponse), 404)]
-    public async Task<IActionResult> Delete(Guid linkId, CancellationToken cancellationToken)
-    {
-        var userId = User.GetUserId();
-        var result = await _mediator.Send(new DeleteConceptLinkCommand(userId, linkId), cancellationToken);
-        if (!result.IsSuccess)
-            return NotFound(new BaseResponse { Success = false, Message = result.Message, ErrorCode = result.ErrorCode });
-
-        return Ok(new BaseResponse { Success = true, Message = result.Message });
-    }
 }
-
-public record CreateConceptLinkRequest(
-    string SourceType,
-    Guid SourceId,
-    string TargetType,
-    Guid TargetId,
-    string? Label);

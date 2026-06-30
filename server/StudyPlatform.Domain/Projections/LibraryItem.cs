@@ -2,8 +2,8 @@ namespace StudyPlatform.Domain.Projections;
 
 /// <summary>
 /// A single row in the unified Library list — either a document or a video. It
-/// carries only the fields the library cards render (no Summary/MindMap/Transcript
-/// blobs), so a page of items stays small over the wire. <see cref="Kind"/> is the
+/// carries only the fields the library cards render (no MindMap/Transcript blobs),
+/// so a page of items stays small over the wire. <see cref="Kind"/> is the
 /// discriminator: "document" or "video". Document-only fields are null for videos
 /// and vice-versa.
 /// </summary>
@@ -23,6 +23,7 @@ public class LibraryItem
     public long FileSize { get; set; }
     public string? FileHash { get; set; }
     public string? OriginalUrl { get; set; }
+    public string? Summary { get; set; }
 
     // Video fields
     public string? Title { get; set; }

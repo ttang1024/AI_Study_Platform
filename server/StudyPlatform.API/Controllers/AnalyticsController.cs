@@ -39,18 +39,6 @@ public class AnalyticsController : ControllerBase
     }
 
     /// <summary>
-    /// Record a quiz attempt for analytics
-    /// </summary>
-    [HttpPost("quiz-attempt")]
-    [ProducesResponseType(typeof(BaseResponse), 200)]
-    public async Task<IActionResult> RecordQuizAttempt([FromBody] RecordQuizAttemptRequest request)
-    {
-        var userId = User.GetUserId();
-        var result = await _mediator.Send(new RecordQuizAttemptCommand(userId, request.QuizId, request.IsCorrect));
-        return Ok(new BaseResponse { Success = true, Message = result.Message });
-    }
-
-    /// <summary>
     /// Record a slice of active study time (heartbeat from a study surface)
     /// </summary>
     [HttpPost("study-session")]

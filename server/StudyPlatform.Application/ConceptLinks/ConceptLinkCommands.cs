@@ -8,16 +8,6 @@ namespace StudyPlatform.Application.ConceptLinks;
 
 // ── DTOs ────────────────────────────────────────────────────────────────────
 
-public record ConceptLinkDto(
-    Guid ConceptLinkId,
-    Guid UserId,
-    string SourceEntityType,
-    Guid SourceEntityId,
-    string TargetEntityType,
-    Guid TargetEntityId,
-    string? LinkLabel,
-    DateTime CreatedAt);
-
 public record NodeDto(string Id, string Type, string Title, string? Subtitle = null, string? Url = null, int Weight = 1, string? Description = null, string? CourseId = null);
 public record EdgeDto(string Source, string Target, string? Label, int Weight = 1);
 public record KnowledgeGraphStatsDto(int Materials, int Concepts, int Notes, int Quizzes, int Links);
@@ -333,62 +323,4 @@ public class GetKnowledgeGraphQueryHandler : IRequestHandler<GetKnowledgeGraphQu
 
     private static string Truncate(string text, int maxLength)
         => text.Length <= maxLength ? text : text[..maxLength].TrimEnd() + "...";
-}
-
-// ── Commands ─────────────────────────────────────────────────────────────────
-
-public record CreateConceptLinkCommand(
-    Guid UserId,
-    string SourceType,
-    Guid SourceId,
-    string TargetType,
-    Guid TargetId,
-    string? Label) : IRequest<Result<ConceptLinkDto>>;
-
-public class CreateConceptLinkCommandHandler : IRequestHandler<CreateConceptLinkCommand, Result<ConceptLinkDto>>
-{
-    private readonly IUnitOfWork _unitOfWork;
-    public CreateConceptLinkCommandHandler(IUnitOfWork unitOfWork) { _unitOfWork = unitOfWork; }
-
-    public async Task<Result<ConceptLinkDto>> Handle(CreateConceptLinkCommand request, CancellationToken cancellationToken)
-    {
-        var link = new ConceptLink
-        {
-            ConceptLinkId = Guid.NewGuid(),
-            UserId = request.UserId,
-            SourceEntityType = request.SourceType,
-            SourceEntityId = request.SourceId,
-            TargetEntityType = request.TargetType,
-            TargetEntityId = request.TargetId,
-            LinkLabel = request.Label,
-            CreatedAt = DateTime.UtcNow
-        };
-
-        await _unitOfWork.ConceptLinks.AddAsync(link, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-        return Result<ConceptLinkDto>.Success(ToDto(link), "Concept link created.");
-    }
-
-    internal static ConceptLinkDto ToDto(ConceptLink l) =>
-        new(l.ConceptLinkId, l.UserId, l.SourceEntityType, l.SourceEntityId, l.TargetEntityType, l.TargetEntityId, l.LinkLabel, l.CreatedAt);
-}
-
-public record DeleteConceptLinkCommand(Guid UserId, Guid LinkId) : IRequest<Result>;
-
-public class DeleteConceptLinkCommandHandler : IRequestHandler<DeleteConceptLinkCommand, Result>
-{
-    private readonly IUnitOfWork _unitOfWork;
-    public DeleteConceptLinkCommandHandler(IUnitOfWork unitOfWork) { _unitOfWork = unitOfWork; }
-
-    public async Task<Result> Handle(DeleteConceptLinkCommand request, CancellationToken cancellationToken)
-    {
-        var link = await _unitOfWork.ConceptLinks.GetByIdAsync(request.LinkId, cancellationToken);
-        if (link == null || link.UserId != request.UserId)
-            return Result.Failure("Concept link not found.", "NOT_FOUND");
-
-        _unitOfWork.ConceptLinks.Remove(link);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-        return Result.Success("Concept link deleted.");
-    }
 }

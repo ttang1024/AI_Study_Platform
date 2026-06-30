@@ -112,38 +112,6 @@ public class UserDocumentsController : ControllerBase
     }
 
     /// <summary>
-    /// Extract text from an image via OCR and create a document
-    /// </summary>
-    [HttpPost("ocr")]
-    [ProducesResponseType(typeof(BaseResponse<DocumentDto>), 201)]
-    [ProducesResponseType(typeof(BaseResponse), 400)]
-    public async Task<IActionResult> OcrImage(
-        IFormFile imageFile,
-        [FromForm] Guid? courseId,
-        CancellationToken cancellationToken)
-    {
-        if (imageFile == null || imageFile.Length == 0)
-            return BadRequest(BaseResponse<DocumentDto>.Fail("Image file is required.", "FILE_REQUIRED"));
-
-        var allowedTypes = new[] { "image/png", "image/jpeg", "image/jpg", "image/webp" };
-        if (!allowedTypes.Contains(imageFile.ContentType.ToLowerInvariant()))
-            return BadRequest(BaseResponse<DocumentDto>.Fail("Unsupported image type. Use PNG, JPG, or WEBP.", "INVALID_TYPE"));
-
-        using var ms = new MemoryStream();
-        await imageFile.CopyToAsync(ms, cancellationToken);
-        var imageBytes = ms.ToArray();
-
-        var userId = User.GetUserId();
-        var fileName = Path.GetFileNameWithoutExtension(imageFile.FileName);
-        var result = await _mediator.Send(new OcrImageCommand(userId, courseId, imageBytes, imageFile.ContentType, fileName), cancellationToken);
-
-        if (!result.IsSuccess)
-            return BadRequest(BaseResponse<DocumentDto>.Fail(result.Message, result.ErrorCode));
-
-        return StatusCode(201, BaseResponse<DocumentDto>.Ok(result.Data!, result.Message));
-    }
-
-    /// <summary>
     /// Get all documents for the authenticated user with pagination
     /// </summary>
     [HttpGet]

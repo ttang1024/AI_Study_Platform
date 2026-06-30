@@ -47,6 +47,7 @@ public class GetLibraryQueryHandler : IRequestHandler<GetLibraryQuery, Result<Pa
             i.FileSize,
             i.FileHash,
             i.OriginalUrl,
+            i.Summary,
             i.Title,
             i.VideoId,
             i.VideoUrl,

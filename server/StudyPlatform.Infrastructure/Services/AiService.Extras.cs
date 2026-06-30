@@ -1,15 +1,8 @@
 namespace StudyPlatform.Infrastructure.Services;
 
-// OCR and evaluation/worked-problem/Q&A generation endpoints.
+// Evaluation/worked-problem/Q&A generation endpoints.
 public partial class AiService
 {
-    // ── OCR ───────────────────────────────────────────────────────────────
-
-    public Task<string> ExtractTextFromImageAsync(byte[] imageData, string mimeType, CancellationToken cancellationToken = default)
-        => CallAiWithFileAsync(imageData, mimeType,
-            "Extract all text visible in this image verbatim. Return only the raw extracted text, no commentary.",
-            cancellationToken, cleanJson: false);
-
     // ── Phase 2 additions ─────────────────────────────────────────────────
 
     public Task<string> GenerateWorkedProblemsAsync(string content, string difficulty, int count, CancellationToken cancellationToken = default)

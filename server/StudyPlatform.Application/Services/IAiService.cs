@@ -25,9 +25,6 @@ public interface IAiService
     // Provider connection test
     Task<string> TestConnectionAsync(CancellationToken cancellationToken = default);
 
-    // OCR
-    Task<string> ExtractTextFromImageAsync(byte[] imageData, string mimeType, CancellationToken cancellationToken = default);
-
     // Phase 2 additions
     Task<string> GenerateWorkedProblemsAsync(string content, string difficulty, int count, CancellationToken cancellationToken = default);
     Task<string> EvaluateProblemAttemptAsync(string problem, string solution, string userAnswer, CancellationToken cancellationToken = default);

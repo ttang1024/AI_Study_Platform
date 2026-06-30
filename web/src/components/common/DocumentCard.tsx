@@ -33,16 +33,16 @@ function hashCode(str: string) {
 }
 
 const FILE_META: Record<string, { icon: React.ElementType; label: string; emoji: string }> = {
-  pdf:     { icon: FileText,                          label: 'PDF',     emoji: '📄' },
-  docx:    { icon: FileText,                          label: 'DOCX',    emoji: '📝' },
-  txt:     { icon: FileType,                          label: 'TXT',     emoji: '📃' },
-  md:      { icon: FileCode,                          label: 'MD',      emoji: '✍️' },
-  image:   { icon: Image,                             label: 'Image',   emoji: '🖼️' },
-  ppt:     { icon: Presentation,                      label: 'PPT',     emoji: '📊' },
-  epub:    { icon: BookOpen,                           label: 'eBook',   emoji: '📚' },
-  web:     { icon: CONTENT_TYPE_ICONS.article.icon,  label: 'Web',     emoji: CONTENT_TYPE_ICONS.article.emoji },
-  audio:   { icon: CONTENT_TYPE_ICONS.audio.icon,    label: 'Audio',   emoji: CONTENT_TYPE_ICONS.audio.emoji },
-  podcast: { icon: CONTENT_TYPE_ICONS.podcast.icon,  label: 'Podcast', emoji: CONTENT_TYPE_ICONS.podcast.emoji },
+  pdf: { icon: FileText, label: 'PDF', emoji: '📄' },
+  docx: { icon: FileText, label: 'DOCX', emoji: '📝' },
+  txt: { icon: FileType, label: 'TXT', emoji: '📃' },
+  md: { icon: FileCode, label: 'MD', emoji: '✍️' },
+  image: { icon: Image, label: 'Image', emoji: '🖼️' },
+  ppt: { icon: Presentation, label: 'PPT', emoji: '📊' },
+  epub: { icon: BookOpen, label: 'eBook', emoji: '📚' },
+  web: { icon: CONTENT_TYPE_ICONS.article.icon, label: 'Web', emoji: CONTENT_TYPE_ICONS.article.emoji },
+  audio: { icon: CONTENT_TYPE_ICONS.audio.icon, label: 'Audio', emoji: CONTENT_TYPE_ICONS.audio.emoji },
+  podcast: { icon: CONTENT_TYPE_ICONS.podcast.icon, label: 'Podcast', emoji: CONTENT_TYPE_ICONS.podcast.emoji },
 };
 
 export const DocumentCard: React.FC<DocumentCardProps> = ({ doc, course, to, compact = false, onDelete, onUpdated }) => {
@@ -148,7 +148,7 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({ doc, course, to, com
         exit={{ opacity: 0, scale: 0.88, y: -12 }}
         whileHover={{ y: -1, rotate: tiltDir * 0.1 }}
         transition={{ type: 'spring', stiffness: 320, damping: 22 }}
-        className={cn('group relative', compact ? 'h-[190px]' : 'h-[260px]')}
+        className={cn('group relative', compact ? 'h-[210px]' : 'h-[260px]')}
       >
         <Link
           to={to ?? (doc.type === 'audio' || doc.type === 'podcast' ? `/audio/${doc.id}` : `/documents/${doc.id}`)}
@@ -157,7 +157,7 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({ doc, course, to, com
         >
           {/* ── Summary cover ── */}
           <div
-            className={cn('relative overflow-hidden shrink-0', compact ? 'h-[90px]' : 'h-[165px]')}
+            className={cn('relative overflow-hidden shrink-0', compact ? 'h-[110px]' : 'h-[165px]')}
             style={{ backgroundColor: `${accent}12` }}
           >
             <div className="absolute inset-x-0 top-0 h-[3px] z-10" style={{ background: `linear-gradient(90deg, ${accent}, ${accent}66)` }} />
@@ -180,7 +180,7 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({ doc, course, to, com
 
             <div className="absolute inset-0 flex items-center px-4 pt-8 pb-1">
               {summaryText ? (
-                <p className={cn('text-[11px] leading-relaxed relative z-10', compact ? 'line-clamp-2' : 'line-clamp-6')} style={{ color: `color-mix(in srgb, ${accent} 80%, #000)` }}>
+                <p className={cn('text-[11px] leading-relaxed relative z-10', compact ? 'line-clamp-3' : 'line-clamp-6')} style={{ color: `color-mix(in srgb, ${accent} 80%, #000)` }}>
                   {summaryText}
                 </p>
               ) : transcriptText ? (
