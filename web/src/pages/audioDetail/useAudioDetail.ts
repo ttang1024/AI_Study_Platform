@@ -26,7 +26,11 @@ export function useAudioDetail(propId?: string, propCourseId?: string) {
   const id = propId ?? paramId;
   const navigate = useNavigate();
   const location = useLocation();
-  const { documents, isLoading } = useStudy();
+  const { documents, isLoading, ensureDocuments } = useStudy();
+
+  // The document list is loaded lazily by StudyContext; pull it so we can resolve
+  // this audio item's courseId on direct navigation / refresh.
+  useEffect(() => { void ensureDocuments(); }, [ensureDocuments]);
   const loadedKeyRef = useRef('');
 
   // courseId priority: prop > nav state > documents context
@@ -227,7 +231,7 @@ export function useAudioDetail(propId?: string, propCourseId?: string) {
     setCourseId(resolvedCourseId);
     loadAudio(resolvedCourseId, id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, isLoading]);
+  }, [id, isLoading, documents]);
 
   // ─── Transcribe ────────────────────────────────────────────────────────────
 

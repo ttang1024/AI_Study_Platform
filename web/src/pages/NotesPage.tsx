@@ -131,11 +131,11 @@ const NoteCard: React.FC<NoteCardProps> = ({
 
 export const NotesPage: React.FC = () => {
   const navigate = useNavigate();
-  const { documents, courses, allNotes, isLoading: contextLoading, deleteNote, updateNote, refreshNotes, videos: videoList, ensureVideos } = useStudy();
+  const { documents, courses, allNotes, isLoading: contextLoading, deleteNote, updateNote, refreshNotes, videos: videoList, ensureDocuments, ensureVideos } = useStudy();
 
   useEffect(() => { refreshNotes(); }, []);
-  // The video list (used to label note sources) loads lazily.
-  useEffect(() => { void ensureVideos(); }, [ensureVideos]);
+  // The document and video lists (used to label note sources) load lazily.
+  useEffect(() => { void ensureDocuments(); void ensureVideos(); }, [ensureDocuments, ensureVideos]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);

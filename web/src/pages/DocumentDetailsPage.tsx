@@ -31,7 +31,11 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
   const id = propId ?? paramId;
   const navigate = useNavigate();
   const location = useLocation();
-  const { isLoading, documents, currentDocument, setCurrentDocument, chatMessages, updateDocumentInList } = useStudy();
+  const { isLoading, documents, currentDocument, setCurrentDocument, chatMessages, updateDocumentInList, ensureDocuments } = useStudy();
+
+  // The document list is loaded lazily by StudyContext; pull it so we can resolve
+  // this document (and its courseId) on direct navigation / refresh.
+  useEffect(() => { void ensureDocuments(); }, [ensureDocuments]);
   const initialTab = (location.state as any)?.activeTab ?? 'summary';
   const targetQuizQuestionId = (location.state as any)?.targetQuizQuestionId as string | undefined;
   const [activeTab, setActiveTab] = useState<'summary' | 'mindmap' | 'notes' | 'flashcards' | 'quiz' | 'problems' | 'chat'>(initialTab);
@@ -91,7 +95,7 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
         .catch(() => { });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, isLoading]); // isLoading signals when documents finish loading (refresh case)
+  }, [id, isLoading, documents]); // re-run once the lazily-loaded list arrives so the doc resolves
 
   // Seed local chat messages from StudyContext when document changes
   useEffect(() => {

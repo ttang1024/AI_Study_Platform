@@ -51,7 +51,7 @@ const TYPE_COLORS: Record<SearchResult['type'], string> = {
 };
 
 export const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) => {
-  const { documents, flashcards, allNotes, ensureFlashcards, ensureNotes } = useStudy();
+  const { documents, flashcards, allNotes, ensureDocuments, ensureFlashcards, ensureNotes } = useStudy();
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
@@ -66,8 +66,9 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) =
       setQuery('');
       setActiveIndex(0);
       setTimeout(() => inputRef.current?.focus(), 50);
-      // The flashcard deck and recent notes are loaded lazily by StudyContext —
-      // make them searchable the first time search opens.
+      // The document list, flashcard deck and recent notes are loaded lazily by
+      // StudyContext — make them searchable the first time search opens.
+      void ensureDocuments();
       void ensureFlashcards();
       void ensureNotes();
       // Glossary terms, quiz questions and chat sessions aren't kept in

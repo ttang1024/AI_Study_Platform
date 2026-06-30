@@ -32,7 +32,11 @@ export const ArticlePage: React.FC<{ embedded?: boolean; id?: string; courseId?:
   const id = propId ?? paramId;
   const navigate = useNavigate();
   const location = useLocation();
-  const { isLoading, documents, currentDocument, setCurrentDocument, chatMessages, updateDocumentInList } = useStudy();
+  const { isLoading, documents, currentDocument, setCurrentDocument, chatMessages, updateDocumentInList, ensureDocuments } = useStudy();
+
+  // The document list is loaded lazily by StudyContext; pull it so we can resolve
+  // this article (and its courseId) on direct navigation / refresh.
+  useEffect(() => { void ensureDocuments(); }, [ensureDocuments]);
 
   const initialTab = (location.state as any)?.activeTab ?? 'summary';
   const targetQuizQuestionId = (location.state as any)?.targetQuizQuestionId as string | undefined;
@@ -93,7 +97,8 @@ export const ArticlePage: React.FC<{ embedded?: boolean; id?: string; courseId?:
     } else {
       setIsDocumentLoading(false);
     }
-  }, [id, isLoading]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, isLoading, documents]); // re-run once the lazily-loaded list arrives so the doc resolves
 
   // ── Seed chat from context ─────────────────────────────────────────────────
   useEffect(() => {

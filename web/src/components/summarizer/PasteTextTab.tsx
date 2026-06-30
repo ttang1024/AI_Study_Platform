@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Loader2, Zap, ArrowRight } from 'lucide-react';
@@ -28,8 +28,10 @@ export interface PasteTextTabProps {
 
 export const PasteTextTab: React.FC<PasteTextTabProps> = ({ selectedCourseId, onCourseError }) => {
   const navigate = useNavigate();
-  const { addDocument, documents, courses } = useStudy();
+  const { addDocument, documents, courses, ensureDocuments } = useStudy();
   const { showPrompt } = usePrompt();
+  // documents is loaded lazily by StudyContext; pull it for the recent list.
+  useEffect(() => { void ensureDocuments(); }, [ensureDocuments]);
   const recentDocs = documents.filter(d => d.type !== 'audio' && d.type !== 'podcast' && !d.originalUrl).slice(0, 3);
   const getCourse = (id?: string) => courses.find(c => c.id === id);
 

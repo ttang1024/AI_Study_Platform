@@ -52,8 +52,11 @@ export interface DocumentTabProps {
 
 export const DocumentTab: React.FC<DocumentTabProps> = ({ selectedCourseId, onCourseError }) => {
   const navigate = useNavigate();
-  const { addDocument, documents, courses } = useStudy();
+  const { addDocument, documents, courses, ensureDocuments } = useStudy();
   const { showPrompt } = usePrompt();
+  // documents is loaded lazily by StudyContext; pull it for the recent list and
+  // duplicate detection.
+  useEffect(() => { void ensureDocuments(); }, [ensureDocuments]);
   const recentDocs = documents.filter(d => d.type !== 'audio' && d.type !== 'podcast' && !d.originalUrl).slice(0, 3);
   const getCourse = (id?: string) => courses.find(c => c.id === id);
   const fileInputRef = useRef<HTMLInputElement>(null);

@@ -35,8 +35,11 @@ export interface AudioTabProps {
 
 export const AudioTab: React.FC<AudioTabProps> = ({ selectedCourseId, onCourseError }) => {
   const navigate = useNavigate();
-  const { refreshStats, documents, courses } = useStudy();
+  const { refreshStats, documents, courses, ensureDocuments } = useStudy();
   const { showPrompt } = usePrompt();
+  // documents is loaded lazily by StudyContext; pull it for the recent list and
+  // duplicate detection.
+  useEffect(() => { void ensureDocuments(); }, [ensureDocuments]);
   const recentAudios = documents.filter(d => d.type === 'audio').slice(0, 3);
   const getCourse = (id?: string) => courses.find(c => c.id === id);
   const audioInputRef = useRef<HTMLInputElement>(null);

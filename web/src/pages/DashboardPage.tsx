@@ -175,7 +175,7 @@ export const DashboardPage: React.FC = () => {
   const {
     totalDocuments, totalArticles, totalAudio, totalNotes,
     totalFlashcards, totalGlossaryTerms, totalQuizQuestions, totalVideos,
-    courses, documents, courseMaterialCounts,
+    courses, courseMaterialCounts,
   } = useStudy();
   const { summary, loading: summaryLoading } = useDashboardSummary();
 

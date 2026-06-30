@@ -66,9 +66,11 @@ interface StudyContextType {
   refreshQuizSubmissions: () => Promise<void>;
   refreshDocuments: () => Promise<void>;
   refreshVideos: () => Promise<void>;
+  ensureDocuments: () => Promise<void>;
   ensureFlashcards: () => Promise<void>;
   ensureVideos: () => Promise<void>;
   ensureNotes: () => Promise<void>;
+  ensureQuizSubmissions: () => Promise<void>;
   resetData: () => void;
 }
 
@@ -108,6 +110,8 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const flashcardsStatusRef = React.useRef<'idle' | 'loading' | 'loaded'>('idle');
   const videosStatusRef = React.useRef<'idle' | 'loading' | 'loaded'>('idle');
   const notesStatusRef = React.useRef<'idle' | 'loading' | 'loaded'>('idle');
+  const documentsStatusRef = React.useRef<'idle' | 'loading' | 'loaded'>('idle');
+  const quizSubmissionsStatusRef = React.useRef<'idle' | 'loading' | 'loaded'>('idle');
   const [totalDocuments, setTotalDocuments] = useState(0);
   const [totalArticles, setTotalArticles] = useState(0);
   const [totalAudio, setTotalAudio] = useState(0);
@@ -140,6 +144,8 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       flashcardsStatusRef.current = 'idle';
       videosStatusRef.current = 'idle';
       notesStatusRef.current = 'idle';
+      documentsStatusRef.current = 'idle';
+      quizSubmissionsStatusRef.current = 'idle';
       setDocuments([]);
       setVideos([]);
       setVideosLoading(false);
@@ -171,34 +177,14 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     flashcardsStatusRef.current = 'idle';
     videosStatusRef.current = 'idle';
     notesStatusRef.current = 'idle';
-
-    // Secondary lists used by the dashboard and global chrome (StudyCalendar,
-    // GlobalSearch). Fetched in the background after first paint so the initial
-    // render isn't blocked. The "fetch all" lists — flashcards, the video list and
-    // notes — are NOT loaded here; they're pulled lazily by the pages that actually
-    // read them (see ensureFlashcards / ensureVideos / ensureNotes).
-    // documentCount must cover every row /api/documents returns (plain docs +
-    // articles + audio), not just stats.totalDocuments — otherwise the fetch is
-    // sized too small and truncates, forcing the Library page into a second
-    // round-trip with a different pageSize that the list cache can't dedupe.
-    const loadDeferredData = async (documentCount: number) => {
-      const documentSize = fetchAllSize(documentCount);
-      const [docsResult, fetchedSubmissions] = await Promise.all([
-        documentService.getAllDocuments(1, documentSize).catch(() => ({ items: [] as Document[], totalCount: 0, page: 1, pageSize: documentSize, totalPages: 0 })),
-        quizSubmissionService.getAllSubmissions(1, 10).catch(() => ({ items: [] as QuizSubmission[], totalCount: 0, page: 1, pageSize: 10, totalPages: 0 })),
-      ]);
-      if (cancelled) return;
-
-      setDocuments(docsResult.items);
-      setQuizSubmissions(fetchedSubmissions.items);
-    };
+    documentsStatusRef.current = 'idle';
+    quizSubmissionsStatusRef.current = 'idle';
 
     // Critical: counts (stats) + courses power the dashboard — the post-login
     // landing page — and give other pages the totals they use to decide their
     // own fetches. Both are small, so the first paint stays fast.
     const loadInitialData = async () => {
       setIsLoading(true);
-      let documentCount = 0;
       try {
         const [fetchedCourses, stats] = await Promise.all([
           courseService.getCourses().catch(() => [] as Course[]),
@@ -218,17 +204,15 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setTotalVideos(stats.totalVideos);
         setCourseMaterialCounts(stats.courseMaterialCounts);
         setAchievementStats(stats.achievements);
-        documentCount = stats.totalDocuments + stats.totalArticles + stats.totalAudio;
       } catch (error) {
         if (!cancelled) console.error('Failed to load initial data:', error);
       } finally {
         if (!cancelled) setIsLoading(false);
       }
-
-      // Kick off the secondary lists in the background once the critical data is in.
-      // Pass the freshly-fetched document count directly — the setTotal* state
-      // setters above won't be visible in this closure yet.
-      if (!cancelled) void loadDeferredData(documentCount);
+      // The document list, quiz submissions, flashcards, the video list and notes
+      // are NOT loaded here — they're pulled lazily by the pages that actually read
+      // them (see ensureDocuments / ensureQuizSubmissions / ensureFlashcards /
+      // ensureVideos / ensureNotes), keeping the post-login first paint fast.
     };
 
     loadInitialData();
@@ -329,19 +313,59 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
       const result = await quizSubmissionService.getAllSubmissions(1, 10);
       setQuizSubmissions(result.items);
+      quizSubmissionsStatusRef.current = 'loaded';
     } catch (error) {
       console.error('Failed to refresh quiz submissions:', error);
     }
   }, []);
 
+  // Lazy load-once for the recent quiz submissions, used by the dashboard and the
+  // settings export. Pulled the first time a reader mounts, not eagerly on login.
+  const ensureQuizSubmissions = React.useCallback(async (): Promise<void> => {
+    if (!isAuthenticated || isLoading) return;
+    if (quizSubmissionsStatusRef.current !== 'idle') return;
+    quizSubmissionsStatusRef.current = 'loading';
+    try {
+      const result = await quizSubmissionService.getAllSubmissions(1, 10);
+      setQuizSubmissions(result.items);
+      quizSubmissionsStatusRef.current = 'loaded';
+    } catch (error) {
+      console.error('Failed to load quiz submissions:', error);
+      quizSubmissionsStatusRef.current = 'idle';
+    }
+  }, [isAuthenticated, isLoading]);
+
+  // documentCount must cover every row /api/documents returns (plain docs +
+  // articles + audio), not just totalDocuments — otherwise the fetch is sized too
+  // small and truncates the list.
+  const documentCount = totalDocuments + totalArticles + totalAudio;
+
   const refreshDocuments = React.useCallback(async (): Promise<void> => {
     try {
-      const result = await documentService.getAllDocuments(1, fetchAllSize(totalDocuments));
+      const result = await documentService.getAllDocuments(1, fetchAllSize(documentCount));
       setDocuments(result.items);
+      documentsStatusRef.current = 'loaded';
     } catch (error) {
       console.error('Failed to refresh documents:', error);
     }
-  }, [totalDocuments]);
+  }, [documentCount]);
+
+  // Lazy load-once for the full document list — used by the dashboard, global
+  // chrome (StudyCalendar, GlobalSearch) and the detail/summarizer pages. Fetched
+  // the first time a page that reads it mounts, instead of eagerly on login.
+  const ensureDocuments = React.useCallback(async (): Promise<void> => {
+    if (!isAuthenticated || isLoading) return;
+    if (documentsStatusRef.current !== 'idle') return;
+    documentsStatusRef.current = 'loading';
+    try {
+      const result = await documentService.getAllDocuments(1, fetchAllSize(documentCount));
+      setDocuments(result.items);
+      documentsStatusRef.current = 'loaded';
+    } catch (error) {
+      console.error('Failed to load documents:', error);
+      documentsStatusRef.current = 'idle';
+    }
+  }, [isAuthenticated, isLoading, documentCount]);
 
   const refreshVideos = React.useCallback(async (): Promise<void> => {
     if (totalVideos === 0) { setVideos([]); videosStatusRef.current = 'loaded'; return; }
@@ -640,9 +664,11 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         refreshFlashcards,
         refreshDocuments,
         refreshVideos,
+        ensureDocuments,
         ensureFlashcards,
         ensureVideos,
         ensureNotes,
+        ensureQuizSubmissions,
         refreshQuizSubmissions,
         resetData,
       }}

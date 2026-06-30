@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Eye, EyeOff, XCircle, CheckCircle2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
@@ -22,7 +22,11 @@ export const QuizMistakeCard: React.FC<QuizMistakeCardProps> = ({
 }) => {
   const [showAnswer, setShowAnswer] = useState(false);
   const navigate = useNavigate();
-  const { documents } = useStudy();
+  const { documents, ensureDocuments } = useStudy();
+
+  // documents is loaded lazily by StudyContext; pull it so the source link can
+  // route to the correct detail page (audio / article / document) by doc type.
+  useEffect(() => { void ensureDocuments(); }, [ensureDocuments]);
 
   const handleSourceClick = () => {
     const state = { activeTab: 'quiz' };

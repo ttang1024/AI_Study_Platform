@@ -40,7 +40,9 @@ const toLocalDateStr = (iso: string) => {
 
 export const StudyCalendar: React.FC = () => {
   const navigate = useNavigate();
-  const { documents, courses } = useStudy();
+  const { documents, courses, ensureDocuments } = useStudy();
+
+  useEffect(() => { void ensureDocuments(); }, [ensureDocuments]);
 
   const today = useMemo(() => new Date(), []);
   const todayStr = useMemo(() =>

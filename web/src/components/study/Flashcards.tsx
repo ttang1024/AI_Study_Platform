@@ -34,7 +34,11 @@ export const Flashcards: React.FC<FlashcardsProps> = ({
   generateDisabled = false,
   generateDisabledReason,
 }) => {
-  const { flashcards, setFlashcards, currentDocument, documents } = useStudy();
+  const { flashcards, setFlashcards, currentDocument, documents, ensureDocuments } = useStudy();
+
+  // documents is loaded lazily by StudyContext; pull it so a documentId lookup
+  // can resolve when this renders outside an already-loaded detail page.
+  useEffect(() => { void ensureDocuments(); }, [ensureDocuments]);
   const [isGeneratingLocal, setIsGeneratingLocal] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 

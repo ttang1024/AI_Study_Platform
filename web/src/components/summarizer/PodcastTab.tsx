@@ -31,7 +31,9 @@ export interface PodcastTabProps {
 
 export const PodcastTab: React.FC<PodcastTabProps> = ({ selectedCourseId, onCourseError }) => {
   const navigate = useNavigate();
-  const { documents, courses } = useStudy();
+  const { documents, courses, ensureDocuments } = useStudy();
+  // documents is loaded lazily by StudyContext; pull it for duplicate detection.
+  useEffect(() => { void ensureDocuments(); }, [ensureDocuments]);
   const [urlInput, setUrlInput] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
