@@ -61,6 +61,10 @@ export const ArticlePage: React.FC<{ embedded?: boolean; id?: string; courseId?:
 
   const noteEditorRef = useRef<VideoNoteEditorRef>(null);
   const chatPanelRef = useRef<ChatPanelRef>(null);
+  // Tracks the document id we've already fetched fresh data for, so re-running
+  // the fetch effect (updateDocumentInList mutates the documents list) doesn't
+  // refetch the same document in a loop.
+  const fetchedDocIdRef = useRef<string | null>(null);
   const summaryRef = useRef<HTMLDivElement>(null);
 
   const [docChatMessages, setDocChatMessages] = useState<Array<{ id: string; role: 'user' | 'model'; content: string; isError?: boolean; attachments?: ChatMessageAttachment[] }>>([]);
@@ -78,7 +82,8 @@ export const ArticlePage: React.FC<{ embedded?: boolean; id?: string; courseId?:
 
     // Fetch fresh data once the document's courseId is known
     const courseId = propCourseId ?? doc?.courseId ?? (location.state as any)?.courseId;
-    if (courseId) {
+    if (courseId && fetchedDocIdRef.current !== id) {
+      fetchedDocIdRef.current = id;
       setIsDocumentLoading(true);
       documentService.getDocument(courseId, id)
         .then(freshDoc => {

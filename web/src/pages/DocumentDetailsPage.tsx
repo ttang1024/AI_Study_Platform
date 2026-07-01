@@ -52,6 +52,11 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
   // instead of refetching the same list.
   const shareQuizzesRef = useRef<Awaited<ReturnType<typeof documentService.getQuiz>> | null>(null);
 
+  // Tracks the document id we've already fetched fresh data for, so re-running
+  // this effect (e.g. after updateDocumentInList changes the documents list)
+  // doesn't refetch the same document in a loop.
+  const fetchedDocIdRef = useRef<string | null>(null);
+
   // Ref to note editor for append-from-outside
   const noteEditorRef = useRef<VideoNoteEditorRef>(null);
   const chatPanelRef = useRef<ChatPanelRef>(null);
@@ -75,8 +80,12 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
       setCurrentDocument(doc);
     }
 
-    // Fetch fresh data from API once the doc is found in the list
-    if (doc?.courseId) {
+    // Fetch fresh data from API once the doc is found in the list — but only
+    // once per document id. updateDocumentInList below mutates the documents
+    // list reference, which re-runs this effect; without this guard that would
+    // refetch endlessly.
+    if (doc?.courseId && fetchedDocIdRef.current !== id) {
+      fetchedDocIdRef.current = id;
       documentService.getDocument(doc.courseId, id)
         .then(freshDoc => {
           // Merge: keep any AI content already set in state (e.g. just generated)
