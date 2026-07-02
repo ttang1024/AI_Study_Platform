@@ -173,11 +173,28 @@ public partial class DocumentsController
         if (document == null || document.UserId != userId)
             return NotFound(BaseResponse<string>.Fail("Document not found.", "DOCUMENT_NOT_FOUND"));
 
+        // Resolve the thread this turn belongs to. Old clients send no
+        // conversation id — continue the latest thread (creating one if none).
+        ChatConversation? conversation;
+        if (request.ConversationId is { } conversationId)
+        {
+            conversation = await _unitOfWork.ChatMessages.GetConversationAsync(conversationId, userId, cancellationToken);
+            if (conversation is null || conversation.DocumentId != documentId)
+                return NotFound(BaseResponse<string>.Fail("Conversation not found.", "CONVERSATION_NOT_FOUND"));
+        }
+        else
+        {
+            await ChatThreads.AdoptLegacyDocumentChatAsync(_unitOfWork, documentId, userId, cancellationToken);
+            var existing = await _unitOfWork.ChatMessages.GetConversationsByDocumentIdAsync(documentId, userId, cancellationToken);
+            conversation = existing.FirstOrDefault()
+                ?? await _unitOfWork.ChatMessages.CreateDocumentConversationAsync(userId, documentId, ChatThreads.DefaultTitle, cancellationToken);
+        }
+
         var promptMessage = ChatAttachments.PromptOrDefault(request.Message);
         var attachmentsJson = await ChatAttachmentStore.SaveAsync(_blobStorageService, attachments, userId, cancellationToken);
         var savedMessage = request.Message ?? string.Empty;
 
-        var history = await _unitOfWork.ChatMessages.GetByDocumentIdAsync(documentId, userId, cancellationToken);
+        var history = await _unitOfWork.ChatMessages.GetByConversationIdAsync(conversation.ConversationId, userId, cancellationToken);
         var historyTuples = history.Select(m => (m.Role, m.Content)).ToList();
         string content;
 
@@ -199,10 +216,15 @@ public partial class DocumentsController
         return await this.StreamAiToSseAsync(stream, cancellationToken,
             beforeStream: async ct =>
             {
+                if (historyTuples.Count == 0 && conversation.Title == ChatThreads.DefaultTitle)
+                    conversation.Title = ChatThreads.TitleFrom(promptMessage);
+                conversation.UpdatedAt = DateTime.UtcNow;
+                _unitOfWork.ChatMessages.UpdateConversation(conversation);
                 await _unitOfWork.ChatMessages.AddAsync(new ChatMessage
                 {
                     MessageId = Guid.NewGuid(),
                     DocumentId = documentId,
+                    ChatConversationId = conversation.ConversationId,
                     SourceType = "document",
                     UserId = userId,
                     Role = "user",
@@ -214,10 +236,13 @@ public partial class DocumentsController
             },
             onCompleted: async (text, ct) =>
             {
+                conversation.UpdatedAt = DateTime.UtcNow;
+                _unitOfWork.ChatMessages.UpdateConversation(conversation);
                 await _unitOfWork.ChatMessages.AddAsync(new ChatMessage
                 {
                     MessageId = Guid.NewGuid(),
                     DocumentId = documentId,
+                    ChatConversationId = conversation.ConversationId,
                     SourceType = "document",
                     UserId = userId,
                     Role = "assistant",

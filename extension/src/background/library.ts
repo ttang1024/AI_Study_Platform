@@ -80,6 +80,68 @@ export async function ensureVideo(videoId: string, videoUrl: string): Promise<st
 	}
 }
 
+// ── Chat conversations (threads) ─────────────────────────────────────────────
+// The panel shows the same per-video threads as the web app's video page.
+
+/** List this video's chat threads (newest first), if the video is saved. */
+export async function handleChatConversations(videoId: string) {
+	let id: string | null
+	try {
+		id = await findSavedVideoId(videoId)
+	} catch {
+		return { ok: true, found: false, conversations: [] } // not signed in → nothing saved
+	}
+	if (!id) return { ok: true, found: false, conversations: [] }
+
+	const res = await apiFetch(`/api/videos/${id}/chat/conversations`)
+	if (!res.ok) return { ok: true, found: true, conversations: [] }
+	const body = await res.json().catch(() => null)
+	const conversations = (body?.data || []).map((c: any) => ({
+		conversationId: c.conversationId,
+		title: c.title || 'New conversation',
+		updatedAt: c.updatedAt,
+		messageCount: c.messageCount ?? 0,
+	}))
+	return { ok: true, found: true, conversations }
+}
+
+/** Load one thread's messages. */
+export async function handleChatMessages(videoId: string, conversationId: string) {
+	let id: string | null
+	try {
+		id = await findSavedVideoId(videoId)
+	} catch {
+		return { ok: true, messages: [] }
+	}
+	if (!id) return { ok: true, messages: [] }
+
+	const res = await apiFetch(`/api/videos/${id}/chat/conversations/${conversationId}`)
+	if (!res.ok) return { ok: true, messages: [] }
+	const body = await res.json().catch(() => null)
+	const messages = (body?.data || []).map((m: any) => ({
+		role: m.role === 'assistant' ? 'assistant' : 'user',
+		content: m.content || '',
+		attachments: (m.attachments || []).map((a: any) => ({
+			url: a.url, // time-limited presigned URL
+			mimeType: a.mimeType || '',
+			fileName: a.fileName || undefined,
+		})),
+	}))
+	return { ok: true, messages }
+}
+
+/** Delete one thread (its messages go with it). */
+export async function handleDeleteChatConversation(videoId: string, conversationId: string) {
+	const id = await findSavedVideoId(videoId).catch(() => null)
+	if (!id) return { ok: false, error: 'Video not saved.' }
+	const res = await apiFetch(`/api/videos/${id}/chat/conversations/${conversationId}`, { method: 'DELETE' })
+	if (!res.ok) {
+		const body = await res.json().catch(() => null)
+		return { ok: false, error: body?.message || 'Couldn’t delete the conversation.' }
+	}
+	return { ok: true }
+}
+
 // Look up the user's saved record for this YouTube video and return whatever
 // content was already generated and persisted (summary) so the panel can render
 // it straight from the DB instead of regenerating.

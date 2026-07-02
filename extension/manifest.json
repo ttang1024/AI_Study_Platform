@@ -9,7 +9,12 @@
 		"default_icon": { "128": "icon128.png" }
 	},
 	"permissions": ["activeTab", "storage", "scripting", "contextMenus", "notifications"],
-	"host_permissions": ["http://localhost:5001/*", "http://localhost:3000/*"],
+	"host_permissions": [
+		"http://localhost:5001/*",
+		"http://localhost:3000/*",
+		"https://www.youtube.com/*",
+		"https://m.youtube.com/*"
+	],
 	"optional_host_permissions": ["http://*/*", "https://*/*"],
 	"background": {
 		"service_worker": "src/background/index.ts",

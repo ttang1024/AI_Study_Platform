@@ -2,7 +2,8 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useStudy } from '../../context/StudyContext';
 import { documentService } from '../../services/documentService';
-import { attachmentsToDisplay, type ChatAttachment, type ChatMessageAttachment } from '../../services/aiService';
+import { type ChatMessageAttachment } from '../../services/aiService';
+import { useDocumentChatThreads } from '../../components/ai/useDocumentChatThreads';
 import { audioService } from '../../services/audioService';
 import { VideoNoteEditorRef } from '../../components/youtube/VideoNoteEditor';
 import { ChatPanelRef } from '../../components/ai/ChatPanel';
@@ -106,8 +107,8 @@ export function useAudioDetail(propId?: string, propCourseId?: string) {
   const [quizScore, setQuizScore] = useState(0);
   const [quizError, setQuizError] = useState<string | null>(null);
 
-  // Chat
-  const [chatMessages, setChatMessages] = useState<ChatMsg[]>([]);
+  // Chat — multiple conversations (threads), shared with document/article pages
+  const docChat = useDocumentChatThreads(courseId || null, id || null);
   const chatPanelRef = useRef<ChatPanelRef>(null);
 
   // Click-outside to close transcript menus
@@ -208,11 +209,6 @@ export function useAudioDetail(propId?: string, propCourseId?: string) {
         }
       } catch { }
 
-      // Load chat
-      try {
-        const history = await documentService.getChatHistory(cId, docId);
-        setChatMessages(history.map(m => ({ id: m.id, role: m.role as 'user' | 'model', content: m.content, attachments: m.attachments })));
-      } catch { }
     } catch {
       navigate(-1);
     } finally {
@@ -469,23 +465,6 @@ export function useAudioDetail(propId?: string, propCourseId?: string) {
     }));
   };
 
-  const streamChat = async (message: string, onChunk: (chunk: string) => void, attachments?: ChatAttachment[]) => {
-    if (!id || !courseId) return;
-    const userMsg: ChatMsg = { id: Date.now().toString(), role: 'user', content: message, attachments: attachmentsToDisplay(attachments) };
-    setChatMessages(prev => [...prev, userMsg]);
-    let accumulated = '';
-    try {
-      await documentService.streamChat(courseId, id, message, (chunk) => {
-        accumulated += chunk;
-        onChunk(chunk);
-      }, undefined, attachments);
-      setChatMessages(prev => [...prev, { id: String(Date.now() + 1), role: 'model', content: accumulated }]);
-    } catch (err) {
-      setChatMessages(prev => [...prev, { id: String(Date.now() + 1), role: 'model', content: getApiErrorCode(err), isError: true }]);
-      throw err;
-    }
-  };
-
   return {
     id, courseId, navigate,
     fileName, isPodcast, podcastOriginalUrl, audioUrl, isLoadingPage,
@@ -500,7 +479,10 @@ export function useAudioDetail(propId?: string, propCourseId?: string) {
     flashcards, isLoadingFlashcards, flashcardsError, generateFlashcards,
     activeQuizDifficulty, quizQuestionSets, quizQuestions, userAnswers, isQuizSubmitted,
     quizScore, isLoadingQuiz, quizError, generateQuiz, handleQuizDifficultyChange, submitQuiz, onAnswerQuiz,
-    chatMessages, chatPanelRef, streamChat,
+    chatMessages: docChat.messages, chatPanelRef, streamChat: docChat.streamChat,
+    chatConversations: docChat.conversations, activeConversationId: docChat.activeConversationId,
+    selectConversation: docChat.selectConversation, newConversation: docChat.newConversation,
+    deleteConversation: docChat.deleteConversation,
     generationDisabled, generationDisabledReason, hasGeneratedQuizzes,
   };
 }

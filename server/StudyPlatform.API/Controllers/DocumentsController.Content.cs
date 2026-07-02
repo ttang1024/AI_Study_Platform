@@ -6,6 +6,8 @@ using StudyPlatform.Application.Documents.DTOs;
 using StudyPlatform.Application.Documents.Queries;
 using StudyPlatform.Application.Notes.Commands;
 using StudyPlatform.Application.Notes.DTOs;
+using StudyPlatform.Application.Services;
+using StudyPlatform.Domain.Interfaces;
 
 namespace StudyPlatform.API.Controllers;
 
@@ -133,8 +135,78 @@ public partial class DocumentsController
             return NotFound(BaseResponse<string>.Fail("Document not found.", "DOCUMENT_NOT_FOUND"));
 
         await _unitOfWork.ChatMessages.DeleteByDocumentIdAsync(documentId, userId, cancellationToken);
+        foreach (var conversation in await _unitOfWork.ChatMessages.GetConversationsByDocumentIdAsync(documentId, userId, cancellationToken))
+            await _unitOfWork.ChatMessages.DeleteConversationAsync(conversation.ConversationId, userId, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return Ok(BaseResponse<string>.Ok("Chat history deleted."));
+    }
+
+    // ── Document chat conversations (multiple threads per document) ──────
+
+    /// <summary>List this document's chat threads, newest first.</summary>
+    [HttpGet("{documentId:guid}/chat/conversations")]
+    [ProducesResponseType(typeof(BaseResponse<IEnumerable<ChatThreadSummary>>), 200)]
+    public async Task<IActionResult> GetChatConversations(Guid courseId, Guid documentId, CancellationToken cancellationToken)
+    {
+        var userId = User.GetUserId();
+        var document = await _unitOfWork.Documents.GetByIdAsync(documentId, cancellationToken);
+        if (document == null || document.UserId != userId)
+            return NotFound(BaseResponse<string>.Fail("Document not found.", "DOCUMENT_NOT_FOUND"));
+
+        await ChatThreads.AdoptLegacyDocumentChatAsync(_unitOfWork, documentId, userId, cancellationToken);
+
+        var conversations = await _unitOfWork.ChatMessages.GetDocumentThreadSummariesAsync(documentId, userId, cancellationToken);
+        return Ok(BaseResponse<IEnumerable<ChatThreadSummary>>.Ok(conversations));
+    }
+
+    /// <summary>Start a new chat thread for this document.</summary>
+    [HttpPost("{documentId:guid}/chat/conversations")]
+    [ProducesResponseType(typeof(BaseResponse<ChatThreadSummary>), 200)]
+    public async Task<IActionResult> CreateChatConversation(Guid courseId, Guid documentId, [FromBody] CreateChatThreadRequest? request, CancellationToken cancellationToken)
+    {
+        var userId = User.GetUserId();
+        var document = await _unitOfWork.Documents.GetByIdAsync(documentId, cancellationToken);
+        if (document == null || document.UserId != userId)
+            return NotFound(BaseResponse<string>.Fail("Document not found.", "DOCUMENT_NOT_FOUND"));
+
+        var conversation = await _unitOfWork.ChatMessages.CreateDocumentConversationAsync(
+            userId, documentId, request?.Title ?? ChatThreads.DefaultTitle, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return Ok(BaseResponse<ChatThreadSummary>.Ok(new ChatThreadSummary(
+            conversation.ConversationId, conversation.Title, conversation.CreatedAt, conversation.UpdatedAt, 0, null)));
+    }
+
+    /// <summary>Messages of one chat thread (attachments as presigned URLs).</summary>
+    [HttpGet("{documentId:guid}/chat/conversations/{conversationId:guid}")]
+    [ProducesResponseType(typeof(BaseResponse<IEnumerable<ChatMessageDto>>), 200)]
+    public async Task<IActionResult> GetChatConversationMessages(Guid courseId, Guid documentId, Guid conversationId, CancellationToken cancellationToken)
+    {
+        var userId = User.GetUserId();
+        var conversation = await _unitOfWork.ChatMessages.GetConversationAsync(conversationId, userId, cancellationToken);
+        if (conversation is null || conversation.DocumentId != documentId)
+            return NotFound(BaseResponse<string>.Fail("Conversation not found.", "CONVERSATION_NOT_FOUND"));
+
+        var messages = await _unitOfWork.ChatMessages.GetByConversationIdAsync(conversationId, userId, cancellationToken);
+        var dtos = new List<ChatMessageDto>();
+        foreach (var m in messages)
+            dtos.Add(await m.ToDtoAsync(_blobStorageService, cancellationToken));
+        return Ok(BaseResponse<IEnumerable<ChatMessageDto>>.Ok(dtos));
+    }
+
+    /// <summary>Delete one chat thread (its messages cascade).</summary>
+    [HttpDelete("{documentId:guid}/chat/conversations/{conversationId:guid}")]
+    [ProducesResponseType(typeof(BaseResponse<string>), 200)]
+    public async Task<IActionResult> DeleteChatConversation(Guid courseId, Guid documentId, Guid conversationId, CancellationToken cancellationToken)
+    {
+        var userId = User.GetUserId();
+        var conversation = await _unitOfWork.ChatMessages.GetConversationAsync(conversationId, userId, cancellationToken);
+        if (conversation is null || conversation.DocumentId != documentId)
+            return NotFound(BaseResponse<string>.Fail("Conversation not found.", "CONVERSATION_NOT_FOUND"));
+
+        await _unitOfWork.ChatMessages.DeleteConversationAsync(conversationId, userId, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return Ok(BaseResponse<string>.Ok("Conversation deleted."));
     }
 
     /// <summary>

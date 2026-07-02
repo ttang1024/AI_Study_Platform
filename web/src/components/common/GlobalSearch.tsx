@@ -148,7 +148,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) =
     for (const chat of chats) {
       if (chat.sourceName.toLowerCase().includes(q) || chat.lastMessage.toLowerCase().includes(q)) {
         results.push({
-          id: chat.sourceId,
+          id: chat.conversationId,
           title: chat.sourceName,
           subtitle: chat.lastMessage,
           type: 'chat',

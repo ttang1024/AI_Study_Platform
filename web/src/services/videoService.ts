@@ -2,6 +2,7 @@ import { apiClient } from './apiClient'
 import { streamSse } from './streamSse'
 import { getApiUrl } from '../utils/env'
 import type { ChatAttachment, ChatMessageAttachment } from './aiService'
+import type { ChatThreadSummary } from '../types'
 
 // --- Types ---
 
@@ -432,6 +433,39 @@ export const videoService = {
 		await apiClient.delete(`${VIDEO_API}/${videoId}/chat`)
 	},
 
+	// ── Chat conversations (multiple threads per video) ────────────────────
+
+	async listChatConversations(videoId: string): Promise<VideoChatConversation[]> {
+		const res = await apiClient.get<{ data: any[] }>(`${VIDEO_API}/${videoId}/chat/conversations`)
+		return (res.data?.data ?? []).map(mapConversation)
+	},
+
+	async createChatConversation(videoId: string, title?: string): Promise<VideoChatConversation> {
+		const res = await apiClient.post<{ data: any }>(`${VIDEO_API}/${videoId}/chat/conversations`, {
+			title: title ?? null,
+		})
+		return mapConversation(res.data.data)
+	},
+
+	async getConversationMessages(
+		videoId: string,
+		conversationId: string,
+	): Promise<Array<{ id: string; role: 'user' | 'model'; content: string; attachments?: ChatMessageAttachment[] }>> {
+		const res = await apiClient.get<{ data: any[] }>(
+			`${VIDEO_API}/${videoId}/chat/conversations/${conversationId}`,
+		)
+		return (res.data?.data ?? []).map((m: any) => ({
+			id: m.messageId,
+			role: m.role === 'assistant' ? 'model' : (m.role as 'user' | 'model'),
+			content: m.content,
+			attachments: m.attachments ?? undefined,
+		}))
+	},
+
+	async deleteChatConversation(videoId: string, conversationId: string): Promise<void> {
+		await apiClient.delete(`${VIDEO_API}/${videoId}/chat/conversations/${conversationId}`)
+	},
+
 	async sendChat(
 		videoId: string,
 		message: string,
@@ -473,12 +507,24 @@ export const videoService = {
 		onChunk: (chunk: string) => void,
 		signal?: AbortSignal,
 		attachments?: ChatAttachment[],
+		conversationId?: string,
 	): Promise<void> {
-		return streamSse(
-			`${VIDEO_API}/${videoId}/chat/stream`,
-			attachments && attachments.length > 0 ? { message, attachments } : { message },
-			onChunk,
-			signal,
-		)
+		const body: Record<string, unknown> = { message }
+		if (attachments && attachments.length > 0) body.attachments = attachments
+		if (conversationId) body.conversationId = conversationId
+		return streamSse(`${VIDEO_API}/${videoId}/chat/stream`, body, onChunk, signal)
 	},
+}
+
+export type VideoChatConversation = ChatThreadSummary
+
+function mapConversation(c: any): VideoChatConversation {
+	return {
+		conversationId: c.conversationId,
+		title: c.title,
+		createdAt: c.createdAt,
+		updatedAt: c.updatedAt,
+		messageCount: c.messageCount ?? 0,
+		lastMessage: c.lastMessage ?? null,
+	}
 }

@@ -4,6 +4,7 @@ using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Documents.DTOs;
 using StudyPlatform.Application.Services;
 using StudyPlatform.Application.YouTube.Commands;
+using StudyPlatform.Domain.Interfaces;
 
 namespace StudyPlatform.API.Controllers;
 
@@ -137,7 +138,12 @@ public partial class VideoController
     {
         if (string.IsNullOrWhiteSpace(request.VideoUrl))
             return BadRequest(BaseResponse<string>.Fail("videoUrl is required.", "MISSING_VIDEO_URL"));
-        if (string.IsNullOrWhiteSpace(request.Message))
+
+        List<(byte[] data, string mimeType, string? fileName)> attachments;
+        try { attachments = ChatAttachments.Decode(request.Attachments); }
+        catch (ArgumentException ex) { return BadRequest(BaseResponse<string>.Fail(ex.Message, "INVALID_ATTACHMENT")); }
+
+        if (string.IsNullOrWhiteSpace(request.Message) && attachments.Count == 0)
             return BadRequest(BaseResponse<string>.Fail("message is required.", "MISSING_MESSAGE"));
 
         var videoId = ExtractVideoId(request.VideoUrl);
@@ -146,7 +152,20 @@ public partial class VideoController
         if (transcript == null) return BadRequest(BaseResponse<string>.Fail("No subtitles available for this video.", "NO_TRANSCRIPT"));
 
         var history = (request.History ?? []).Select(h => (h.Role, h.Content));
-        var reply = await _aiService.ChatWithYouTubeAsync(transcript, history, request.Message, cancellationToken);
+        var message = ChatAttachments.PromptOrDefault(request.Message);
+
+        string reply;
+        if (attachments.Count > 0)
+        {
+            var sb = new System.Text.StringBuilder();
+            await foreach (var chunk in _aiService.StreamChatWithYouTubeAsync(transcript, history, message, ChatAttachments.ToModelInputs(attachments), cancellationToken))
+                sb.Append(chunk);
+            reply = sb.ToString();
+        }
+        else
+        {
+            reply = await _aiService.ChatWithYouTubeAsync(transcript, history, message, cancellationToken);
+        }
         return Ok(BaseResponse<string>.Ok(reply));
     }
 
@@ -190,8 +209,78 @@ public partial class VideoController
             return NotFound(BaseResponse<string>.Fail("Video not found.", "VIDEO_NOT_FOUND"));
 
         await _unitOfWork.ChatMessages.DeleteByYouTubeVideoIdAsync(id, userId, cancellationToken);
+        foreach (var conversation in await _unitOfWork.ChatMessages.GetConversationsByVideoIdAsync(id, userId, cancellationToken))
+            await _unitOfWork.ChatMessages.DeleteConversationAsync(conversation.ConversationId, userId, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return Ok(BaseResponse<string>.Ok("Chat history deleted."));
+    }
+
+    // ── Video chat conversations (multiple threads per video) ────────────
+
+    /// <summary>List this video's chat threads, newest first.</summary>
+    [HttpGet("{id:guid}/chat/conversations")]
+    [ProducesResponseType(typeof(BaseResponse<IEnumerable<ChatThreadSummary>>), 200)]
+    public async Task<IActionResult> GetVideoChatConversations(Guid id, CancellationToken cancellationToken)
+    {
+        var userId = User.GetUserId();
+        var video = await GetVideoWithAccessCheckAsync(id, userId, cancellationToken);
+        if (video is null)
+            return NotFound(BaseResponse<string>.Fail("Video not found.", "VIDEO_NOT_FOUND"));
+
+        await ChatThreads.AdoptLegacyVideoChatAsync(_unitOfWork, id, userId, cancellationToken);
+
+        var conversations = await _unitOfWork.ChatMessages.GetVideoThreadSummariesAsync(id, userId, cancellationToken);
+        return Ok(BaseResponse<IEnumerable<ChatThreadSummary>>.Ok(conversations));
+    }
+
+    /// <summary>Start a new chat thread for this video.</summary>
+    [HttpPost("{id:guid}/chat/conversations")]
+    [ProducesResponseType(typeof(BaseResponse<ChatThreadSummary>), 200)]
+    public async Task<IActionResult> CreateVideoChatConversation(Guid id, [FromBody] CreateChatThreadRequest? request, CancellationToken cancellationToken)
+    {
+        var userId = User.GetUserId();
+        var video = await GetVideoWithAccessCheckAsync(id, userId, cancellationToken);
+        if (video is null)
+            return NotFound(BaseResponse<string>.Fail("Video not found.", "VIDEO_NOT_FOUND"));
+
+        var conversation = await _unitOfWork.ChatMessages.CreateVideoConversationAsync(
+            userId, id, request?.Title ?? ChatThreads.DefaultTitle, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return Ok(BaseResponse<ChatThreadSummary>.Ok(new ChatThreadSummary(
+            conversation.ConversationId, conversation.Title, conversation.CreatedAt, conversation.UpdatedAt, 0, null)));
+    }
+
+    /// <summary>Messages of one chat thread (attachments as presigned URLs).</summary>
+    [HttpGet("{id:guid}/chat/conversations/{conversationId:guid}")]
+    [ProducesResponseType(typeof(BaseResponse<IEnumerable<ChatMessageDto>>), 200)]
+    public async Task<IActionResult> GetVideoChatConversationMessages(Guid id, Guid conversationId, CancellationToken cancellationToken)
+    {
+        var userId = User.GetUserId();
+        var conversation = await _unitOfWork.ChatMessages.GetConversationAsync(conversationId, userId, cancellationToken);
+        if (conversation is null || conversation.YouTubeVideoId != id)
+            return NotFound(BaseResponse<string>.Fail("Conversation not found.", "CONVERSATION_NOT_FOUND"));
+
+        var messages = await _unitOfWork.ChatMessages.GetByConversationIdAsync(conversationId, userId, cancellationToken);
+        var dtos = new List<ChatMessageDto>();
+        foreach (var m in messages)
+            dtos.Add(await m.ToDtoAsync(_blobStorageService, cancellationToken));
+        return Ok(BaseResponse<IEnumerable<ChatMessageDto>>.Ok(dtos));
+    }
+
+    /// <summary>Delete one chat thread (its messages cascade).</summary>
+    [HttpDelete("{id:guid}/chat/conversations/{conversationId:guid}")]
+    [ProducesResponseType(typeof(BaseResponse<string>), 200)]
+    public async Task<IActionResult> DeleteVideoChatConversation(Guid id, Guid conversationId, CancellationToken cancellationToken)
+    {
+        var userId = User.GetUserId();
+        var conversation = await _unitOfWork.ChatMessages.GetConversationAsync(conversationId, userId, cancellationToken);
+        if (conversation is null || conversation.YouTubeVideoId != id)
+            return NotFound(BaseResponse<string>.Fail("Conversation not found.", "CONVERSATION_NOT_FOUND"));
+
+        await _unitOfWork.ChatMessages.DeleteConversationAsync(conversationId, userId, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return Ok(BaseResponse<string>.Ok("Conversation deleted."));
     }
 
 }

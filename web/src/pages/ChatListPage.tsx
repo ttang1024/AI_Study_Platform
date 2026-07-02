@@ -28,8 +28,8 @@ export interface PanelMessage {
 
 export type ActiveItem =
   | { kind: 'general'; sourceId: string; name: string }
-  | { kind: 'document'; sourceId: string; courseId: string; name: string }
-  | { kind: 'video'; sourceId: string; name: string };
+  | { kind: 'document'; sourceId: string; courseId: string; name: string; conversationId: string; threadTitle: string }
+  | { kind: 'video'; sourceId: string; name: string; conversationId: string; threadTitle: string };
 
 /** Page-level mode: regular conversations or Feynman teach-back. */
 type PageTab = 'chats' | 'teach-back';
@@ -50,8 +50,8 @@ function formatTime(iso: string): string {
 
 function activeItemKey(item: ActiveItem): string {
   if (item.kind === 'general') return `general-${item.sourceId}`;
-  if (item.kind === 'document') return `doc-${item.sourceId}`;
-  return `vid-${item.sourceId}`;
+  if (item.kind === 'document') return `doc-${item.conversationId}`;
+  return `vid-${item.conversationId}`;
 }
 
 function createConversationId(): string {
@@ -119,6 +119,7 @@ export const ChatListPage: React.FC = () => {
   interface ListEntry {
     key: string;
     title: string;
+    sourceName: string;
     updatedAt: string;
     lastMessage: string;
     kind: 'general' | 'document' | 'video';
@@ -126,21 +127,23 @@ export const ChatListPage: React.FC = () => {
   }
 
   function buildListItems(backend: ChatSessionSummary[]): ListEntry[] {
+    // Each entry is one conversation thread; a document/video can have several.
     return backend.map(s => ({
         key: s.sourceType === 'general'
           ? `general-${s.sourceId}`
           : s.sourceType === 'document'
-            ? `doc-${s.sourceId}`
-            : `vid-${s.sourceId}`,
-        title: s.sourceName,
+            ? `doc-${s.conversationId}`
+            : `vid-${s.conversationId}`,
+        title: s.sourceType === 'general' ? s.sourceName : (s.conversationTitle || s.sourceName),
+        sourceName: s.sourceName,
         updatedAt: s.updatedAt,
         lastMessage: s.lastMessage,
         kind: s.sourceType as 'general' | 'document' | 'video',
         item: s.sourceType === 'general'
           ? { kind: 'general' as const, sourceId: s.sourceId, name: s.sourceName }
           : s.sourceType === 'document'
-            ? { kind: 'document' as const, sourceId: s.sourceId, courseId: s.courseId ?? '', name: s.sourceName }
-            : { kind: 'video' as const, sourceId: s.sourceId, name: s.sourceName },
+            ? { kind: 'document' as const, sourceId: s.sourceId, courseId: s.courseId ?? '', name: s.sourceName, conversationId: s.conversationId, threadTitle: s.conversationTitle }
+            : { kind: 'video' as const, sourceId: s.sourceId, name: s.sourceName, conversationId: s.conversationId, threadTitle: s.conversationTitle },
       })).sort(
       (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
     );
@@ -163,10 +166,10 @@ export const ChatListPage: React.FC = () => {
           attachments: m.attachments ?? undefined,
         })));
       } else if (item.kind === 'document') {
-        const msgs = await documentService.getChatHistory(item.courseId, item.sourceId);
+        const msgs = await documentService.getConversationMessages(item.courseId, item.sourceId, item.conversationId);
         setPanelMessages(msgs.map(m => ({ id: m.id, role: m.role as 'user' | 'model', content: m.content, attachments: m.attachments })));
       } else {
-        const msgs = await videoService.getChatHistory(item.sourceId);
+        const msgs = await videoService.getConversationMessages(item.sourceId, item.conversationId);
         setPanelMessages(msgs.map(m => ({ id: m.id, role: m.role, content: m.content, attachments: m.attachments })));
       }
     } catch {
@@ -195,6 +198,8 @@ export const ChatListPage: React.FC = () => {
       sourceId: conversation.conversationId,
       sourceName: conversation.title,
       courseId: null,
+      conversationId: conversation.conversationId,
+      conversationTitle: conversation.title,
       lastMessage: '',
       lastMessageRole: '',
       updatedAt: now,
@@ -209,7 +214,8 @@ export const ChatListPage: React.FC = () => {
   // ── Conversation actions ─────────────────────────────────────────────────
 
   const getConversationTitle = useCallback((item: ActiveItem): string => {
-    return item.name;
+    if (item.kind === 'general') return item.name;
+    return item.threadTitle || item.name;
   }, []);
 
   const selectAfterDelete = useCallback((deletedKey: string, nextBackendSessions = backendSessions) => {
@@ -239,15 +245,15 @@ export const ChatListPage: React.FC = () => {
           selectAfterDelete(key, nextBackendSessions);
         }
       } else if (item.kind === 'document') {
-        await documentService.deleteChatHistory(item.courseId, item.sourceId);
-        const nextBackendSessions = backendSessions.filter(s => !(s.sourceType === 'document' && s.sourceId === item.sourceId));
+        await documentService.deleteChatConversation(item.courseId, item.sourceId, item.conversationId);
+        const nextBackendSessions = backendSessions.filter(s => !(s.sourceType === 'document' && s.conversationId === item.conversationId));
         setBackendSessions(nextBackendSessions);
         if (activeItem && activeItemKey(activeItem) === key) {
           selectAfterDelete(key, nextBackendSessions);
         }
       } else {
-        await videoService.deleteChatHistory(item.sourceId);
-        const nextBackendSessions = backendSessions.filter(s => !(s.sourceType === 'video' && s.sourceId === item.sourceId));
+        await videoService.deleteChatConversation(item.sourceId, item.conversationId);
+        const nextBackendSessions = backendSessions.filter(s => !(s.sourceType === 'video' && s.conversationId === item.conversationId));
         setBackendSessions(nextBackendSessions);
         if (activeItem && activeItemKey(activeItem) === key) {
           selectAfterDelete(key, nextBackendSessions);
@@ -330,31 +336,14 @@ export const ChatListPage: React.FC = () => {
           await documentService.streamChat(activeItem.courseId, activeItem.sourceId, message, chunk => {
             accumulated += chunk;
             onChunk(chunk);
-          }, undefined, turnAttachments);
+          }, undefined, turnAttachments, activeItem.conversationId);
           completed = true;
-
-          setBackendSessions(prev =>
-            prev.map(s =>
-              s.sourceType === 'document' && s.sourceId === activeItem.sourceId
-                ? { ...s, lastMessage: accumulated, updatedAt: new Date().toISOString() }
-                : s,
-            ),
-          );
-
         } else {
           await videoService.streamChat(activeItem.sourceId, message, chunk => {
             accumulated += chunk;
             onChunk(chunk);
-          }, undefined, turnAttachments);
+          }, undefined, turnAttachments, activeItem.conversationId);
           completed = true;
-
-          setBackendSessions(prev =>
-            prev.map(s =>
-              s.sourceType === 'video' && s.sourceId === activeItem.sourceId
-                ? { ...s, lastMessage: accumulated, updatedAt: new Date().toISOString() }
-                : s,
-            ),
-          );
         }
       } catch (err) {
         const errorMessage: PanelMessage = { id: createMessageId(), role: 'model', content: STREAM_ERROR_MESSAGE, isError: true };
@@ -385,9 +374,9 @@ export const ChatListPage: React.FC = () => {
             ...prev,
             modelMessage,
           ]);
+          const updatedAt = new Date().toISOString();
+          const nextTitle = titleFromMessage(titleSource);
           if (activeItem.kind === 'general') {
-            const updatedAt = new Date().toISOString();
-            const nextTitle = titleFromMessage(titleSource);
             const shouldRetitle = backendSessions.find(session =>
               session.sourceType === 'general' && session.sourceId === activeItem.sourceId,
             )?.messageCount === 0;
@@ -405,6 +394,26 @@ export const ChatListPage: React.FC = () => {
             ));
             setActiveItem(prev => prev && prev.kind === 'general' && prev.sourceId === activeItem.sourceId
               ? { ...prev, name: shouldRetitle ? nextTitle : prev.name }
+              : prev);
+          } else {
+            // The server titles a thread from its first message; mirror that here.
+            const shouldRetitle = backendSessions.find(session =>
+              session.sourceType === activeItem.kind && session.conversationId === activeItem.conversationId,
+            )?.messageCount === 0;
+            setBackendSessions(prev => prev.map(session =>
+              session.sourceType === activeItem.kind && session.conversationId === activeItem.conversationId
+                ? {
+                  ...session,
+                  conversationTitle: shouldRetitle ? nextTitle : session.conversationTitle,
+                  lastMessage: accumulated,
+                  lastMessageRole: 'assistant',
+                  updatedAt,
+                  messageCount: session.messageCount + 2,
+                }
+                : session,
+            ));
+            setActiveItem(prev => prev && prev.kind !== 'general' && prev.conversationId === activeItem.conversationId
+              ? { ...prev, threadTitle: shouldRetitle ? nextTitle : prev.threadTitle }
               : prev);
           }
         }
@@ -513,7 +522,11 @@ export const ChatListPage: React.FC = () => {
 
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate leading-tight">{entry.title}</p>
-                    <p className="text-[11px] text-text-muted mt-0.5 truncate">{formatTime(entry.updatedAt)}</p>
+                    <p className="text-[11px] text-text-muted mt-0.5 truncate">
+                      {entry.kind !== 'general' && entry.title !== entry.sourceName
+                        ? `${entry.sourceName} · ${formatTime(entry.updatedAt)}`
+                        : formatTime(entry.updatedAt)}
+                    </p>
                   </div>
 
                   <button

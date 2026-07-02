@@ -11,6 +11,7 @@ public class S3BlobStorageService : IBlobStorageService
 {
     private readonly IAmazonS3 _s3Client;
     private readonly IAmazonS3 _presignClient;
+    private readonly Protocol _presignProtocol;
     private readonly string _bucketName;
     private readonly ILogger<S3BlobStorageService> _logger;
     private readonly SemaphoreSlim _bucketLock = new(1, 1);
@@ -42,6 +43,13 @@ public class S3BlobStorageService : IBlobStorageService
         _s3Client = !string.IsNullOrWhiteSpace(accessKey) && !string.IsNullOrWhiteSpace(secretKey)
             ? new AmazonS3Client(accessKey, secretKey, config)
             : new AmazonS3Client(config);
+
+        // The SDK presigns https URLs regardless of the endpoint's scheme, which
+        // breaks plain-http endpoints (dev MinIO) — match the configured scheme.
+        var presignEndpoint = publicServiceUrl ?? serviceUrl;
+        _presignProtocol = presignEndpoint?.StartsWith("http://", StringComparison.OrdinalIgnoreCase) == true
+            ? Protocol.HTTP
+            : Protocol.HTTPS;
 
         _presignClient = _s3Client;
         if (!string.IsNullOrWhiteSpace(publicServiceUrl))
@@ -168,6 +176,7 @@ public class S3BlobStorageService : IBlobStorageService
             BucketName = _bucketName,
             Key = GetObjectKey(blobUrl),
             Verb = HttpVerb.GET,
+            Protocol = _presignProtocol,
             Expires = DateTime.UtcNow.AddMinutes(expiryMinutes)
         };
 

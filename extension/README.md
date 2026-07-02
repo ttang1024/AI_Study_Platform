@@ -20,6 +20,8 @@ Built with **Vite + CRXJS**, so the injected UI **hot-reloads** as you edit.
 - **Transcript** — searchable, timestamped, click a line to jump the player;
   the current line highlights as the video plays.
 - **Chat** — ask questions about the video; answers are grounded in its transcript.
+  Messages can be copied or read aloud; the composer supports voice dictation,
+  image attachments, and one-click screenshots of the current video frame.
 - **Notes** — capture a thought at the current timestamp, click to jump back,
   export as Markdown. Stored locally per video.
 - **Clip to library** — send the current page into your Easy Study library.

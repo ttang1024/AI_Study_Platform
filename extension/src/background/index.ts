@@ -17,13 +17,13 @@
 
 import { friendlyError } from './api'
 import { setAiSettings, setToken } from './config'
-import { handleChat, handleOpenApp, handleClip, handleSaveFlashcard, handleStatus, handleTranscript } from './handlers'
-import { handleLibrary } from './library'
+import { handleCaptureTab, handleChat, handleOpenApp, handleClip, handleSaveFlashcard, handleStatus, handleTranscript } from './handlers'
+import { handleChatConversations, handleChatMessages, handleDeleteChatConversation, handleLibrary } from './library'
 import { startStream } from './streaming'
 
 // ── one-shot request/response messages ──────────────────────────────────────
 
-chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 	;(async () => {
 		try {
 			switch (msg?.type) {
@@ -39,10 +39,18 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 					return sendResponse(await handleChat(msg))
 				case 'ES_LIBRARY':
 					return sendResponse(await handleLibrary(msg.videoId))
+				case 'ES_CHAT_CONVERSATIONS':
+					return sendResponse(await handleChatConversations(msg.videoId))
+				case 'ES_CHAT_MESSAGES':
+					return sendResponse(await handleChatMessages(msg.videoId, msg.conversationId))
+				case 'ES_CHAT_DELETE_CONVERSATION':
+					return sendResponse(await handleDeleteChatConversation(msg.videoId, msg.conversationId))
 				case 'ES_OPEN_APP':
 					return sendResponse(await handleOpenApp(msg.path))
 				case 'ES_CLIP':
 					return sendResponse(await handleClip(msg.url))
+				case 'ES_CAPTURE_TAB':
+					return sendResponse(await handleCaptureTab(sender.tab?.windowId))
 				default:
 					return sendResponse({ ok: false, error: 'Unknown request.' })
 			}

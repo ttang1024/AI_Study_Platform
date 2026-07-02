@@ -365,7 +365,10 @@ export const CourseArtifactsWorkspace: React.FC<CourseArtifactsWorkspaceProps> =
       .then(sessions => {
         const map = new Map<string, ChatSessionSummary>();
         sessions.forEach(s => {
-          if (s.courseId === course.id) map.set(s.sourceId, s);
+          if (s.courseId !== course.id) return;
+          // Sessions are per thread; keep the most recent thread per material.
+          const existing = map.get(s.sourceId);
+          if (!existing || new Date(s.updatedAt) > new Date(existing.updatedAt)) map.set(s.sourceId, s);
         });
         setChatSessions(map);
       })

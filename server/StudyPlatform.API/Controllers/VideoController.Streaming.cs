@@ -90,11 +90,28 @@ public partial class VideoController
         if (video is null)
             return NotFound(BaseResponse<string>.Fail("Video not found.", "VIDEO_NOT_FOUND"));
 
+        // Resolve the thread this turn belongs to. Old clients send no
+        // conversation id — continue the latest thread (creating one if none).
+        ChatConversation? conversation;
+        if (request.ConversationId is { } conversationId)
+        {
+            conversation = await _unitOfWork.ChatMessages.GetConversationAsync(conversationId, userId, cancellationToken);
+            if (conversation is null || conversation.YouTubeVideoId != id)
+                return NotFound(BaseResponse<string>.Fail("Conversation not found.", "CONVERSATION_NOT_FOUND"));
+        }
+        else
+        {
+            await ChatThreads.AdoptLegacyVideoChatAsync(_unitOfWork, id, userId, cancellationToken);
+            var existing = await _unitOfWork.ChatMessages.GetConversationsByVideoIdAsync(id, userId, cancellationToken);
+            conversation = existing.FirstOrDefault()
+                ?? await _unitOfWork.ChatMessages.CreateVideoConversationAsync(userId, id, ChatThreads.DefaultTitle, cancellationToken);
+        }
+
         var promptMessage = ChatAttachments.PromptOrDefault(request.Message);
         var attachmentsJson = await ChatAttachmentStore.SaveAsync(_blobStorageService, attachments, userId, cancellationToken);
         var savedMessage = request.Message ?? string.Empty;
 
-        var history = await _unitOfWork.ChatMessages.GetByYouTubeVideoIdAsync(id, userId, cancellationToken);
+        var history = await _unitOfWork.ChatMessages.GetByConversationIdAsync(conversation.ConversationId, userId, cancellationToken);
         var historyTuples = history.Select(m => (m.Role, m.Content)).ToList();
         var videoTranscript = await GetOrFetchTranscriptAsync(video, cancellationToken) ?? string.Empty;
 
@@ -102,10 +119,15 @@ public partial class VideoController
         return await this.StreamAiToSseAsync(stream, cancellationToken,
             beforeStream: async ct =>
             {
+                if (historyTuples.Count == 0 && conversation.Title == ChatThreads.DefaultTitle)
+                    conversation.Title = ChatThreads.TitleFrom(promptMessage);
+                conversation.UpdatedAt = DateTime.UtcNow;
+                _unitOfWork.ChatMessages.UpdateConversation(conversation);
                 await _unitOfWork.ChatMessages.AddAsync(new ChatMessage
                 {
                     MessageId = Guid.NewGuid(),
                     YouTubeVideoId = id,
+                    ChatConversationId = conversation.ConversationId,
                     SourceType = "video",
                     UserId = userId,
                     Role = "user",
@@ -117,10 +139,13 @@ public partial class VideoController
             },
             onCompleted: async (text, ct) =>
             {
+                conversation.UpdatedAt = DateTime.UtcNow;
+                _unitOfWork.ChatMessages.UpdateConversation(conversation);
                 await _unitOfWork.ChatMessages.AddAsync(new ChatMessage
                 {
                     MessageId = Guid.NewGuid(),
                     YouTubeVideoId = id,
+                    ChatConversationId = conversation.ConversationId,
                     SourceType = "video",
                     UserId = userId,
                     Role = "assistant",

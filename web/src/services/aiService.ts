@@ -64,6 +64,9 @@ export interface ChatSessionSummary {
 	sourceId: string;
 	sourceName: string;
 	courseId: string | null;
+	/** The thread this summary describes; for general chats this equals sourceId. */
+	conversationId: string;
+	conversationTitle: string;
 	lastMessage: string;
 	lastMessageRole: string;
 	updatedAt: string;

@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using StudyPlatform.Infrastructure.Data;
@@ -12,9 +13,11 @@ using StudyPlatform.Infrastructure.Data;
 namespace StudyPlatform.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260702093203_AddVideoChatConversations")]
+    partial class AddVideoChatConversations
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -58,9 +61,6 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid?>("DocumentId")
-                        .HasColumnType("uuid");
-
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -76,8 +76,6 @@ namespace StudyPlatform.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("ConversationId");
-
-                    b.HasIndex("DocumentId", "UserId");
 
                     b.HasIndex("UserId", "UpdatedAt");
 
@@ -136,7 +134,7 @@ namespace StudyPlatform.Infrastructure.Migrations
 
                     b.ToTable("ChatMessages", t =>
                         {
-                            t.HasCheckConstraint("chk_chat_messages_source", "(\"DocumentId\" IS NOT NULL AND \"YouTubeVideoId\" IS NULL AND \"SourceType\" = 'document') OR (\"YouTubeVideoId\" IS NOT NULL AND \"DocumentId\" IS NULL AND \"SourceType\" = 'video') OR (\"ChatConversationId\" IS NOT NULL AND \"DocumentId\" IS NULL AND \"YouTubeVideoId\" IS NULL AND \"SourceType\" = 'general')");
+                            t.HasCheckConstraint("chk_chat_messages_source", "(\"DocumentId\" IS NOT NULL AND \"YouTubeVideoId\" IS NULL AND \"ChatConversationId\" IS NULL AND \"SourceType\" = 'document') OR (\"YouTubeVideoId\" IS NOT NULL AND \"DocumentId\" IS NULL AND \"SourceType\" = 'video') OR (\"ChatConversationId\" IS NOT NULL AND \"DocumentId\" IS NULL AND \"YouTubeVideoId\" IS NULL AND \"SourceType\" = 'general')");
                         });
                 });
 
@@ -1586,17 +1584,10 @@ namespace StudyPlatform.Infrastructure.Migrations
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.ChatConversation", b =>
                 {
-                    b.HasOne("StudyPlatform.Domain.Entities.Document", "Document")
-                        .WithMany()
-                        .HasForeignKey("DocumentId")
-                        .OnDelete(DeleteBehavior.Cascade);
-
                     b.HasOne("StudyPlatform.Domain.Entities.YouTubeVideo", "YouTubeVideo")
                         .WithMany()
                         .HasForeignKey("YouTubeVideoId")
                         .OnDelete(DeleteBehavior.Cascade);
-
-                    b.Navigation("Document");
 
                     b.Navigation("YouTubeVideo");
                 });

@@ -53,6 +53,50 @@ public class ChatMessageRepository : Repository<ChatMessage>, IChatMessageReposi
         return conversation;
     }
 
+    public async Task<ChatConversation> CreateVideoConversationAsync(Guid userId, Guid videoId, string title, CancellationToken cancellationToken = default)
+    {
+        var conversation = await CreateConversationAsync(userId, title, cancellationToken);
+        conversation.YouTubeVideoId = videoId;
+        return conversation;
+    }
+
+    public async Task<ChatConversation> CreateDocumentConversationAsync(Guid userId, Guid documentId, string title, CancellationToken cancellationToken = default)
+    {
+        var conversation = await CreateConversationAsync(userId, title, cancellationToken);
+        conversation.DocumentId = documentId;
+        return conversation;
+    }
+
+    public async Task<IReadOnlyList<ChatConversation>> GetConversationsByVideoIdAsync(Guid videoId, Guid userId, CancellationToken cancellationToken = default)
+        => await _context.ChatConversations
+            .Where(c => c.YouTubeVideoId == videoId && c.UserId == userId)
+            .OrderByDescending(c => c.UpdatedAt)
+            .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<ChatConversation>> GetConversationsByDocumentIdAsync(Guid documentId, Guid userId, CancellationToken cancellationToken = default)
+        => await _context.ChatConversations
+            .Where(c => c.DocumentId == documentId && c.UserId == userId)
+            .OrderByDescending(c => c.UpdatedAt)
+            .ToListAsync(cancellationToken);
+
+    public Task<IReadOnlyList<ChatThreadSummary>> GetVideoThreadSummariesAsync(Guid videoId, Guid userId, CancellationToken cancellationToken = default)
+        => GetThreadSummariesAsync(c => c.YouTubeVideoId == videoId && c.UserId == userId, cancellationToken);
+
+    public Task<IReadOnlyList<ChatThreadSummary>> GetDocumentThreadSummariesAsync(Guid documentId, Guid userId, CancellationToken cancellationToken = default)
+        => GetThreadSummariesAsync(c => c.DocumentId == documentId && c.UserId == userId, cancellationToken);
+
+    private async Task<IReadOnlyList<ChatThreadSummary>> GetThreadSummariesAsync(
+        System.Linq.Expressions.Expression<Func<ChatConversation, bool>> filter,
+        CancellationToken cancellationToken)
+        => await _context.ChatConversations
+            .Where(filter)
+            .OrderByDescending(c => c.UpdatedAt)
+            .Select(c => new ChatThreadSummary(
+                c.ConversationId, c.Title, c.CreatedAt, c.UpdatedAt,
+                c.Messages.Count,
+                c.Messages.OrderByDescending(m => m.CreatedAt).Select(m => m.Content).FirstOrDefault()))
+            .ToListAsync(cancellationToken);
+
     public async Task<ChatConversation?> GetConversationAsync(Guid conversationId, Guid userId, CancellationToken cancellationToken = default)
         => await _context.ChatConversations
             .FirstOrDefaultAsync(c => c.ConversationId == conversationId && c.UserId == userId, cancellationToken);
@@ -73,57 +117,73 @@ public class ChatMessageRepository : Repository<ChatMessage>, IChatMessageReposi
     public void UpdateConversation(ChatConversation conversation)
         => _context.ChatConversations.Update(conversation);
 
+    public async Task<IReadOnlyList<Guid>> GetVideoIdsWithLegacyChatAsync(Guid userId, CancellationToken cancellationToken = default)
+        => await _dbSet
+            .Where(m => m.UserId == userId && m.YouTubeVideoId != null && m.ChatConversationId == null)
+            .Select(m => m.YouTubeVideoId!.Value)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<Guid>> GetDocumentIdsWithLegacyChatAsync(Guid userId, CancellationToken cancellationToken = default)
+        => await _dbSet
+            .Where(m => m.UserId == userId && m.DocumentId != null && m.ChatConversationId == null)
+            .Select(m => m.DocumentId!.Value)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
     public async Task<IEnumerable<ChatConversationSummary>> GetConversationSummariesAsync(
         Guid userId,
         CancellationToken cancellationToken = default)
     {
-        var docRows = await _context.ChatMessages
-            .Where(m => m.UserId == userId && m.DocumentId != null)
+        // One summary per conversation thread (not per source), so a video or
+        // document with several threads shows each of them separately.
+        var docThreads = await _context.ChatConversations
+            .Where(c => c.UserId == userId && c.DocumentId != null)
             .Join(_context.Documents,
-                m => m.DocumentId,
+                c => c.DocumentId,
                 d => d.DocumentId,
-                (m, d) => new
+                (c, d) => new
                 {
-                    m.Content, m.Role, m.CreatedAt,
+                    c.ConversationId, ThreadTitle = c.Title, c.UpdatedAt,
                     d.DocumentId, d.FileName, d.CourseId,
+                    MessageCount = c.Messages.Count,
+                    Last = c.Messages.OrderByDescending(m => m.CreatedAt)
+                        .Select(m => new { m.Content, m.Role, m.CreatedAt })
+                        .FirstOrDefault(),
                 })
             .ToListAsync(cancellationToken);
 
-        var videoRows = await _context.ChatMessages
-            .Where(m => m.UserId == userId && m.YouTubeVideoId != null)
+        var videoThreads = await _context.ChatConversations
+            .Where(c => c.UserId == userId && c.YouTubeVideoId != null)
             .Join(_context.YouTubeVideos,
-                m => m.YouTubeVideoId,
+                c => c.YouTubeVideoId,
                 v => v.YouTubeVideoId,
-                (m, v) => new
+                (c, v) => new
                 {
-                    m.Content, m.Role, m.CreatedAt,
+                    c.ConversationId, ThreadTitle = c.Title, c.UpdatedAt,
                     v.YouTubeVideoId, v.Title, v.CourseId,
+                    MessageCount = c.Messages.Count,
+                    Last = c.Messages.OrderByDescending(m => m.CreatedAt)
+                        .Select(m => new { m.Content, m.Role, m.CreatedAt })
+                        .FirstOrDefault(),
                 })
             .ToListAsync(cancellationToken);
 
-        var docSummaries = docRows
-            .GroupBy(r => r.DocumentId)
-            .Select(g =>
-            {
-                var last = g.MaxBy(r => r.CreatedAt)!;
-                return new ChatConversationSummary(
-                    "document", g.Key, g.First().FileName, g.First().CourseId,
-                    last.Content, last.Role, last.CreatedAt, g.Count());
-            });
+        var docSummaries = docThreads.Select(t => new ChatConversationSummary(
+            "document", t.DocumentId, t.FileName, t.CourseId,
+            t.ConversationId, t.ThreadTitle,
+            t.Last?.Content ?? string.Empty, t.Last?.Role ?? string.Empty,
+            t.Last?.CreatedAt ?? t.UpdatedAt, t.MessageCount));
 
-        var videoSummaries = videoRows
-            .GroupBy(r => r.YouTubeVideoId)
-            .Select(g =>
-            {
-                var last = g.MaxBy(r => r.CreatedAt)!;
-                return new ChatConversationSummary(
-                    "video", g.Key, g.First().Title, g.First().CourseId,
-                    last.Content, last.Role, last.CreatedAt, g.Count());
-            });
+        var videoSummaries = videoThreads.Select(t => new ChatConversationSummary(
+            "video", t.YouTubeVideoId, t.Title, t.CourseId,
+            t.ConversationId, t.ThreadTitle,
+            t.Last?.Content ?? string.Empty, t.Last?.Role ?? string.Empty,
+            t.Last?.CreatedAt ?? t.UpdatedAt, t.MessageCount));
 
         var generalRows = await _context.ChatConversations
             .Include(c => c.Messages)
-            .Where(c => c.UserId == userId)
+            .Where(c => c.UserId == userId && c.YouTubeVideoId == null && c.DocumentId == null)
             .ToListAsync(cancellationToken);
 
         var generalSummaries = generalRows.Select(r =>
@@ -132,6 +192,7 @@ public class ChatMessageRepository : Repository<ChatMessage>, IChatMessageReposi
             var last = messages.FirstOrDefault();
             return new ChatConversationSummary(
                 "general", r.ConversationId, r.Title, null,
+                r.ConversationId, r.Title,
                 last?.Content ?? string.Empty, last?.Role ?? string.Empty,
                 last?.CreatedAt ?? r.UpdatedAt, messages.Count);
         });

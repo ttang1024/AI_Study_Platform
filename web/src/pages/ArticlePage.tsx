@@ -5,7 +5,8 @@ import {
 } from 'lucide-react';
 import { useStudy } from '../context/StudyContext';
 import { ChatPanel, ChatPanelRef } from '../components/ai/ChatPanel';
-import { attachmentsToDisplay, type ChatMessageAttachment } from '../services/aiService';
+import { ChatConversationBar } from '../components/ai/ChatConversationBar';
+import { useDocumentChatThreads } from '../components/ai/useDocumentChatThreads';
 import { MindMapViewer } from '../components/mindmap/MindMapViewer';
 import { Flashcards } from '../components/study/Flashcards';
 import { DocumentQuiz } from '../components/quiz/DocumentQuiz';
@@ -32,7 +33,7 @@ export const ArticlePage: React.FC<{ embedded?: boolean; id?: string; courseId?:
   const id = propId ?? paramId;
   const navigate = useNavigate();
   const location = useLocation();
-  const { isLoading, documents, currentDocument, setCurrentDocument, chatMessages, updateDocumentInList, ensureDocuments } = useStudy();
+  const { isLoading, documents, currentDocument, setCurrentDocument, updateDocumentInList, ensureDocuments } = useStudy();
 
   // The document list is loaded lazily by StudyContext; pull it so we can resolve
   // this article (and its courseId) on direct navigation / refresh.
@@ -67,7 +68,8 @@ export const ArticlePage: React.FC<{ embedded?: boolean; id?: string; courseId?:
   const fetchedDocIdRef = useRef<string | null>(null);
   const summaryRef = useRef<HTMLDivElement>(null);
 
-  const [docChatMessages, setDocChatMessages] = useState<Array<{ id: string; role: 'user' | 'model'; content: string; isError?: boolean; attachments?: ChatMessageAttachment[] }>>([]);
+  // Chat threads (multiple conversations per article)
+  const docChat = useDocumentChatThreads(currentDocument?.courseId, currentDocument?.id);
   const [isDocumentLoading, setIsDocumentLoading] = useState(true);
 
   // ── Load document ──────────────────────────────────────────────────────────
@@ -104,11 +106,6 @@ export const ArticlePage: React.FC<{ embedded?: boolean; id?: string; courseId?:
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, isLoading, documents]); // re-run once the lazily-loaded list arrives so the doc resolves
-
-  // ── Seed chat from context ─────────────────────────────────────────────────
-  useEffect(() => {
-    setDocChatMessages(chatMessages.map(m => ({ id: m.id, role: m.role as 'user' | 'model', content: m.content, attachments: m.attachments })));
-  }, [currentDocument?.id, chatMessages]);
 
   // ── Load note ──────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -341,36 +338,27 @@ export const ArticlePage: React.FC<{ embedded?: boolean; id?: string; courseId?:
                 </div>
               </div>
 
-              <div className={cn('flex-1 overflow-hidden', activeTab !== 'chat' && 'hidden')}>
-                <ChatPanel
-                  ref={chatPanelRef}
-                  onTabChange={setActiveTab}
-                  externalMessages={docChatMessages}
-                  enableAttachments
-                  onExternalStreamSend={async (message, onChunk, attachments) => {
-                    const userMsg = { id: Date.now().toString(), role: 'user' as const, content: message, attachments: attachmentsToDisplay(attachments) };
-                    setDocChatMessages(prev => [...prev, userMsg]);
-                    let accumulated = '';
-                    try {
-                      await documentService.streamChat(
-                        currentDocument.courseId || '',
-                        currentDocument.id,
-                        message,
-                        (chunk) => { accumulated += chunk; onChunk(chunk); },
-                        undefined,
-                        attachments,
-                      );
-                      setDocChatMessages(prev => [...prev, { id: String(Date.now() + 1), role: 'model', content: accumulated }]);
-                    } catch (err) {
-                      setDocChatMessages(prev => [...prev, { id: String(Date.now() + 1), role: 'model', content: getApiErrorCode(err), isError: true }]);
-                      throw err;
-                    }
-                  }}
-                  onExternalAddToNote={(html) => {
-                    noteEditorRef.current?.appendContent(html);
-                    setActiveTab('notes');
-                  }}
+              <div className={cn('flex-1 overflow-hidden flex flex-col', activeTab !== 'chat' && 'hidden')}>
+                <ChatConversationBar
+                  conversations={docChat.conversations}
+                  activeId={docChat.activeConversationId}
+                  onSelect={docChat.selectConversation}
+                  onNew={docChat.newConversation}
+                  onDelete={docChat.deleteConversation}
                 />
+                <div className="flex-1 overflow-hidden">
+                  <ChatPanel
+                    ref={chatPanelRef}
+                    onTabChange={setActiveTab}
+                    externalMessages={docChat.messages}
+                    enableAttachments
+                    onExternalStreamSend={docChat.streamChat}
+                    onExternalAddToNote={(html) => {
+                      noteEditorRef.current?.appendContent(html);
+                      setActiveTab('notes');
+                    }}
+                  />
+                </div>
               </div>
             </div>
           </div>

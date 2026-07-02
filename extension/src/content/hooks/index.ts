@@ -5,5 +5,13 @@ export { useVideoId } from './useVideoId'
 export { useStatus } from './useStatus'
 export { useTranscript, type Captions } from './useCaptions'
 export { useStreamText } from './useStreamText'
-export { useChat, type ChatMessage } from './useChat'
+export {
+	useChat,
+	type ChatMessage,
+	type ChatAttachment,
+	type ChatMessageAttachment,
+	type ConversationSummary,
+} from './useChat'
 export { useLibrary, type LibraryContent } from './useLibrary'
+export { useReadAloud } from './useReadAloud'
+export { useVoiceInput } from './useVoiceInput'

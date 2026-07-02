@@ -1,6 +1,6 @@
 import { apiClient } from './apiClient'
 import { streamSse } from './streamSse'
-import { Document, Note, ChatMessage, QuizQuestion, Flashcard } from '../types'
+import { Document, Note, ChatMessage, ChatThreadSummary, QuizQuestion, Flashcard } from '../types'
 import { PendingMaterial } from './pendingMaterialService'
 import type { ChatAttachment } from './aiService'
 
@@ -416,13 +416,12 @@ export const documentService = {
 		onChunk: (chunk: string) => void,
 		signal?: AbortSignal,
 		attachments?: ChatAttachment[],
+		conversationId?: string,
 	): Promise<void> {
-		return streamSse(
-			`/api/courses/${courseId}/documents/${documentId}/chat/stream`,
-			attachments && attachments.length > 0 ? { message, attachments } : { message },
-			onChunk,
-			signal,
-		)
+		const body: Record<string, unknown> = { message }
+		if (attachments && attachments.length > 0) body.attachments = attachments
+		if (conversationId) body.conversationId = conversationId
+		return streamSse(`/api/courses/${courseId}/documents/${documentId}/chat/stream`, body, onChunk, signal)
 	},
 
 	async getChatHistory(courseId: string, documentId: string): Promise<ChatMessage[]> {
@@ -434,6 +433,36 @@ export const documentService = {
 
 	async deleteChatHistory(courseId: string, documentId: string): Promise<void> {
 		await apiClient.delete(`/api/courses/${courseId}/documents/${documentId}/chat`)
+	},
+
+	// ── Chat conversations (multiple threads per document) ─────────────────
+
+	async listChatConversations(courseId: string, documentId: string): Promise<ChatThreadSummary[]> {
+		const res = await apiClient.get<{ data: ChatThreadSummary[] }>(
+			`/api/courses/${courseId}/documents/${documentId}/chat/conversations`,
+		)
+		return res.data?.data ?? []
+	},
+
+	async createChatConversation(courseId: string, documentId: string, title?: string): Promise<ChatThreadSummary> {
+		const res = await apiClient.post<{ data: ChatThreadSummary }>(
+			`/api/courses/${courseId}/documents/${documentId}/chat/conversations`,
+			{ title: title ?? null },
+		)
+		return res.data.data
+	},
+
+	async getConversationMessages(courseId: string, documentId: string, conversationId: string): Promise<ChatMessage[]> {
+		const response = await apiClient.get(
+			`/api/courses/${courseId}/documents/${documentId}/chat/conversations/${conversationId}`,
+		)
+		return (response.data.data as BackendChatMessage[]).map(mapChatMessage)
+	},
+
+	async deleteChatConversation(courseId: string, documentId: string, conversationId: string): Promise<void> {
+		await apiClient.delete(
+			`/api/courses/${courseId}/documents/${documentId}/chat/conversations/${conversationId}`,
+		)
 	},
 
 	async getNotes(courseId: string, documentId: string): Promise<Note[]> {

@@ -51,6 +51,16 @@ export interface ChatMessage {
 	attachments?: ChatMessageAttachment[]
 }
 
+/** One chat thread of a video or document (thread-switcher lists). */
+export interface ChatThreadSummary {
+	conversationId: string
+	title: string
+	createdAt: string
+	updatedAt: string
+	messageCount: number
+	lastMessage: string | null
+}
+
 export interface QuizQuestion {
 	id: string
 	question: string

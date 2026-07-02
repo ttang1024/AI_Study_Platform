@@ -74,7 +74,7 @@ public record ChatMessageAttachmentDto(string Url, string MimeType, string? File
 /// <summary>An image/PDF attachment for a chat turn. <see cref="Data"/> is raw base64 (no data: URL prefix).</summary>
 public record ChatAttachmentDto(string MimeType, string Data, string? FileName);
 
-public record AIChatRequest(string Message, IEnumerable<ChatAttachmentDto>? Attachments = null);
+public record AIChatRequest(string Message, IEnumerable<ChatAttachmentDto>? Attachments = null, Guid? ConversationId = null);
 
 public record QuizSubmissionDto(
     Guid SubmissionId,

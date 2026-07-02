@@ -53,6 +53,14 @@ public class AiController : ControllerBase
     public async Task<IActionResult> GetChatSessions(CancellationToken cancellationToken)
     {
         var userId = User.GetUserId();
+
+        // Summaries are one entry per thread, so messages saved before threads
+        // existed must be folded into a conversation first.
+        foreach (var videoId in await _unitOfWork.ChatMessages.GetVideoIdsWithLegacyChatAsync(userId, cancellationToken))
+            await ChatThreads.AdoptLegacyVideoChatAsync(_unitOfWork, videoId, userId, cancellationToken);
+        foreach (var documentId in await _unitOfWork.ChatMessages.GetDocumentIdsWithLegacyChatAsync(userId, cancellationToken))
+            await ChatThreads.AdoptLegacyDocumentChatAsync(_unitOfWork, documentId, userId, cancellationToken);
+
         var summaries = await _unitOfWork.ChatMessages.GetConversationSummariesAsync(userId, cancellationToken);
         return Ok(BaseResponse<IEnumerable<ChatConversationSummary>>.Ok(summaries));
     }

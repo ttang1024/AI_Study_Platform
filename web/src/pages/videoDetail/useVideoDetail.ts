@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { aiService, attachmentsToDisplay, type ChatAttachment, type ChatMessageAttachment } from '../../services/aiService';
-import { videoService, TranscriptSegment } from '../../services/videoService';
+import { videoService, TranscriptSegment, type VideoChatConversation } from '../../services/videoService';
 import { VideoNoteEditorRef } from '../../components/youtube/VideoNoteEditor';
 import { ChatPanelRef } from '../../components/ai/ChatPanel';
 import { QuizQuestion } from '../../types';
@@ -123,8 +123,11 @@ export function useVideoDetail(propId?: string) {
   const [isQuizSubmitted, setIsQuizSubmitted] = useState(false);
   const [quizScore, setQuizScore] = useState(0);
 
-  // Chat
+  // Chat — multiple conversations (threads) per video
   const [chatMessages, setChatMessages] = useState<ChatMsg[]>([]);
+  const [chatConversations, setChatConversations] = useState<VideoChatConversation[]>([]);
+  // null = a fresh thread not yet persisted (created on first send)
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
 
   // Refs for cross-panel actions
   const noteEditorRef = useRef<VideoNoteEditorRef>(null);
@@ -213,8 +216,16 @@ export function useVideoDetail(propId?: string) {
       } catch { }
 
       try {
-        const history = await videoService.getChatHistory(videoRecordId);
-        setChatMessages(history);
+        // Most recent thread opens by default; older threads via the switcher.
+        const conversations = await videoService.listChatConversations(videoRecordId);
+        setChatConversations(conversations);
+        if (conversations.length > 0) {
+          setActiveConversationId(conversations[0].conversationId);
+          setChatMessages(await videoService.getConversationMessages(videoRecordId, conversations[0].conversationId));
+        } else {
+          setActiveConversationId(null);
+          setChatMessages([]);
+        }
       } catch { }
 
     } catch {
@@ -597,20 +608,70 @@ export function useVideoDetail(propId?: string) {
     }));
   };
 
+  const refreshConversations = async (videoRecordId: string) => {
+    try {
+      setChatConversations(await videoService.listChatConversations(videoRecordId));
+    } catch { }
+  };
+
   const streamChat = async (message: string, onChunk: (chunk: string) => void, attachments?: ChatAttachment[]) => {
     if (!id) return;
     const userMsg: ChatMsg = { id: Date.now().toString(), role: 'user', content: message, attachments: attachmentsToDisplay(attachments) };
     setChatMessages(prev => [...prev, userMsg]);
     let accumulated = '';
     try {
+      // A fresh thread is persisted on its first send.
+      let conversationId = activeConversationId;
+      if (!conversationId) {
+        const created = await videoService.createChatConversation(id);
+        conversationId = created.conversationId;
+        setActiveConversationId(conversationId);
+      }
       await videoService.streamChat(id, message, (chunk) => {
         accumulated += chunk;
         onChunk(chunk);
-      }, undefined, attachments);
+      }, undefined, attachments, conversationId);
       setChatMessages(prev => [...prev, { id: String(Date.now() + 1), role: 'model', content: accumulated }]);
+      refreshConversations(id); // pick up auto-title / counts / ordering
     } catch (err) {
       setChatMessages(prev => [...prev, { id: String(Date.now() + 1), role: 'model', content: getApiErrorCode(err), isError: true }]);
       throw err;
+    }
+  };
+
+  const selectConversation = async (conversationId: string) => {
+    if (!id || conversationId === activeConversationId) return;
+    setActiveConversationId(conversationId);
+    try {
+      setChatMessages(await videoService.getConversationMessages(id, conversationId));
+    } catch {
+      setChatMessages([]);
+    }
+  };
+
+  const newConversation = () => {
+    setActiveConversationId(null);
+    setChatMessages([]);
+  };
+
+  const deleteConversation = async (conversationId: string) => {
+    if (!id) return;
+    try {
+      await videoService.deleteChatConversation(id, conversationId);
+    } catch { return; }
+    const remaining = chatConversations.filter(c => c.conversationId !== conversationId);
+    setChatConversations(remaining);
+    if (conversationId === activeConversationId) {
+      if (remaining.length > 0) {
+        setActiveConversationId(remaining[0].conversationId);
+        try {
+          setChatMessages(await videoService.getConversationMessages(id, remaining[0].conversationId));
+        } catch {
+          setChatMessages([]);
+        }
+      } else {
+        newConversation();
+      }
     }
   };
 
@@ -633,6 +694,7 @@ export function useVideoDetail(propId?: string) {
     activeQuizDifficulty, quizQuestionSets, quizQuestions, userAnswers, isQuizSubmitted,
     quizScore, isLoadingQuiz, generateQuiz, handleQuizDifficultyChange, submitQuiz, onAnswerQuiz,
     chatMessages, chatPanelRef, streamChat,
+    chatConversations, activeConversationId, selectConversation, newConversation, deleteConversation,
     noteEditorRef, handleNoteSave, seekTo,
     generationDisabled, generationDisabledReason, hasGeneratedQuizzes,
     handleSummaryMouseUp, handleTranscriptMouseUp,

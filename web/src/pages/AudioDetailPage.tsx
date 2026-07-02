@@ -12,6 +12,7 @@ import { MindMapViewer } from '../components/mindmap/MindMapViewer';
 import { Flashcards } from '../components/study/Flashcards';
 import { DocumentQuiz } from '../components/quiz/DocumentQuiz';
 import { ChatPanel } from '../components/ai/ChatPanel';
+import { ChatConversationBar } from '../components/ai/ChatConversationBar';
 import { SummaryPanel } from '../components/study/SummaryPanel';
 import { WorkedProblemsPanel } from '../components/WorkedProblemsPanel';
 import { cn } from '../utils/cn';
@@ -34,6 +35,7 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string; course
     activeQuizDifficulty, quizQuestionSets, quizQuestions, userAnswers, isQuizSubmitted,
     quizScore, isLoadingQuiz, quizError, generateQuiz, handleQuizDifficultyChange, submitQuiz, onAnswerQuiz,
     chatMessages, chatPanelRef, streamChat,
+    chatConversations, activeConversationId, selectConversation, newConversation, deleteConversation,
     generationDisabled, generationDisabledReason, hasGeneratedQuizzes,
   } = a;
 
@@ -152,18 +154,27 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string; course
           </div>
         </div>
 
-        <div className={cn('flex-1 overflow-hidden', activeTab !== 'chat' && 'hidden')}>
-          <ChatPanel
-            ref={chatPanelRef}
-            externalMessages={chatMessages}
-            onExternalStreamSend={streamChat}
-            enableAttachments
-            onExternalAddToNote={(html) => {
-              noteEditorRef.current?.appendContent(html);
-              setActiveTab('notes');
-            }}
-            placeholder="Ask anything about the lecture…"
+        <div className={cn('flex-1 overflow-hidden flex flex-col', activeTab !== 'chat' && 'hidden')}>
+          <ChatConversationBar
+            conversations={chatConversations}
+            activeId={activeConversationId}
+            onSelect={selectConversation}
+            onNew={newConversation}
+            onDelete={deleteConversation}
           />
+          <div className="flex-1 overflow-hidden">
+            <ChatPanel
+              ref={chatPanelRef}
+              externalMessages={chatMessages}
+              onExternalStreamSend={streamChat}
+              enableAttachments
+              onExternalAddToNote={(html) => {
+                noteEditorRef.current?.appendContent(html);
+                setActiveTab('notes');
+              }}
+              placeholder="Ask anything about the lecture…"
+            />
+          </div>
         </div>
       </div>
     </div>

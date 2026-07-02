@@ -14,13 +14,37 @@ export interface TranscriptSegment {
 	text: string
 }
 
+export interface ChatAttachmentPayload {
+	mimeType: string
+	data: string // base64, no data: prefix
+	fileName?: string
+}
+
+export interface ConversationSummary {
+	conversationId: string
+	title: string
+	updatedAt: string
+	messageCount: number
+}
+
 export type Msg =
 	| { type: 'ES_STATUS' }
 	| { type: 'ES_TRANSCRIPT'; videoId: string }
-	| { type: 'ES_CHAT'; videoUrl: string; message: string; history: { role: string; content: string }[] }
+	| {
+			type: 'ES_CHAT'
+			videoUrl: string
+			message: string
+			history: { role: string; content: string }[]
+			attachments?: ChatAttachmentPayload[]
+			conversationId?: string | null
+	  }
 	| { type: 'ES_LIBRARY'; videoId: string }
+	| { type: 'ES_CHAT_CONVERSATIONS'; videoId: string }
+	| { type: 'ES_CHAT_MESSAGES'; videoId: string; conversationId: string }
+	| { type: 'ES_CHAT_DELETE_CONVERSATION'; videoId: string; conversationId: string }
 	| { type: 'ES_OPEN_APP'; path: string }
 	| { type: 'ES_CLIP'; url: string }
+	| { type: 'ES_CAPTURE_TAB' }
 
 export function send<T = any>(msg: Msg): Promise<T> {
 	return new Promise((resolve) => {

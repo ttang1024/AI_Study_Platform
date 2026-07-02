@@ -89,3 +89,22 @@ export function renderMarkdown(md: string): string {
 	closeList()
 	return out.join('\n')
 }
+
+// Strips markdown syntax so speech synthesis reads prose, not asterisks.
+export function markdownToPlainText(md: string): string {
+	if (!md) return ''
+	return md
+		.replace(/```[\s\S]*?```/g, ' (code) ')
+		.replace(/`([^`]+)`/g, '$1')
+		.replace(/\[([^\]]+)\]\(https?:\/\/[^)\s]+\)/g, '$1')
+		.replace(/^#{1,6}\s+/gm, '')
+		.replace(/^\s*(---|\*\*\*|___)\s*$/gm, '')
+		.replace(/^\s*>\s?/gm, '')
+		.replace(/^\s*[-*+]\s+/gm, '')
+		.replace(/^\s*\d+[.)]\s+/gm, '')
+		.replace(/\*\*([^*]+)\*\*/g, '$1')
+		.replace(/__([^_]+)__/g, '$1')
+		.replace(/(^|[^*])\*([^*\n]+)\*/g, '$1$2')
+		.replace(/\n{2,}/g, '\n')
+		.trim()
+}
