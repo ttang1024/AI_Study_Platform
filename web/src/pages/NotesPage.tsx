@@ -1,133 +1,21 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Search, Calendar, Trash2, Edit3, X, Check, Loader2, Sparkles, Play, Share2, Download, CheckSquare, Square } from 'lucide-react';
+import { Search, X, Loader2, Play, Download } from 'lucide-react';
 import { STUDY_TYPE_ICONS } from '../constants/contentTypeIcons';
 import { CONTENT_TYPE_ICONS } from '../constants/contentTypeIcons';
 import { useStudy } from '../context/StudyContext';
-import { cn } from '../utils/cn';
-import { getDocDisplayName } from '../utils/docName';
 import { Button } from '../components/common/Button';
-import { RichTextEditor } from '../components/common/RichTextEditor';
 import { videoService } from '../services/videoService';
 import { noteService } from '../services/noteService';
-import { Note } from '../types';
 import { SourceFilterBar, SourceType } from '../components/common/SourceFilterBar';
-import { usePersistentTts } from '../context/TtsContext';
 import { ShareModal } from '../components/common/ShareModal';
 import { Pagination } from '../components/common/Pagination';
 import { downloadNotesMarkdown, ExportNoteRecord } from '../services/exportInteropService';
-import { synthesizeToBlob, downloadAudioBlob } from '../services/edgeTtsService';
+import { NoteCard } from '../components/notes/NoteCard';
+import { useNotesData } from '../hooks/useNotesData';
+import { useNotesAudio } from '../hooks/useNotesAudio';
 
 const PAGE_SIZE = 5;
-
-const stripHtml = (html: string): string => {
-  const div = document.createElement('div');
-  div.innerHTML = html;
-  return div.textContent || div.innerText || '';
-};
-
-interface VideoNoteEntry {
-  noteId: string;
-  videoRecordId: string;
-  title: string;
-  courseId: string;
-  courseColor: string;
-  courseName: string;
-  content: string;
-  createdAt: string;
-}
-
-type UnifiedNoteItem =
-  | { type: 'doc' | 'article' | 'audio'; note: Note; docName: string; courseId: string; courseName: string; courseColor: string; docId?: string }
-  | { type: 'video'; entry: VideoNoteEntry };
-
-interface NoteCardProps {
-  title: string;
-  courseName: string;
-  courseColor: string;
-  createdAt: string;
-  content: string;
-  icon: React.ReactNode;
-  viewLabel: string;
-  onView?: () => void;
-  onShare?: () => void;
-  isEditing: boolean;
-  editContent: string;
-  onEditContentChange: (v: string) => void;
-  onStartEdit: () => void;
-  onSave: () => void;
-  onCancel: () => void;
-  onDelete: () => void;
-  isSelected: boolean;
-  onToggleSelect: () => void;
-}
-
-const NoteCard: React.FC<NoteCardProps> = ({
-  title, courseName, courseColor, createdAt, content, icon, viewLabel, onView, onShare,
-  isEditing, editContent, onEditContentChange, onStartEdit, onSave, onCancel, onDelete,
-  isSelected, onToggleSelect,
-}) => (
-  <div className={cn(
-    'bg-[var(--bg-sidebar)] rounded-2xl border overflow-hidden shadow-sm transition-all',
-    isSelected ? 'border-[var(--primary)] ring-1 ring-[var(--primary)]/40' : 'border-[var(--border-color)]',
-  )}>
-    <div className="px-6 py-4 border-b border-[var(--border-color)] flex items-center justify-between bg-zinc-50/50">
-      <div className="flex items-center gap-3 min-w-0">
-        <button
-          onClick={onToggleSelect}
-          title={isSelected ? 'Deselect note' : 'Select note'}
-          className={cn(
-            'shrink-0 transition-all',
-            isSelected ? 'text-[var(--primary)]' : 'text-zinc-300 hover:text-[var(--primary)]',
-          )}
-        >
-          {isSelected ? <CheckSquare size={16} /> : <Square size={16} />}
-        </button>
-        {icon}
-        <h3 className="font-bold text-text-main truncate">{title}</h3>
-        {courseName && (
-          <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold text-white" style={{ backgroundColor: courseColor }}>{courseName}</span>
-        )}
-      </div>
-      <div className="flex items-center gap-2 shrink-0 ml-4">
-        {onShare && (
-          <button onClick={onShare} className="p-1.5 text-text-muted hover:text-[var(--primary)] hover:bg-[var(--primary)]/10 rounded-lg transition-all" title="Share note">
-            <Share2 size={14} />
-          </button>
-        )}
-        {onView && (
-          <button onClick={onView} className="text-xs font-medium text-[var(--primary)] hover:underline flex items-center gap-1">
-            {viewLabel} <ChevronRight size={14} />
-          </button>
-        )}
-      </div>
-    </div>
-    <div className={cn('p-6 group relative', isEditing ? 'bg-[var(--primary)]/5' : 'hover:bg-zinc-50/30')}>
-      {isEditing ? (
-        <div className="space-y-4">
-          <RichTextEditor content={editContent} onChange={onEditContentChange} placeholder="Edit your note..." />
-          <div className="flex gap-2 justify-end">
-            <Button onClick={onCancel} variant="outline" size="sm"><X size={14} className="mr-1" />Cancel</Button>
-            <Button onClick={onSave} size="sm"><Check size={14} className="mr-1" />Save</Button>
-          </div>
-        </div>
-      ) : (
-        <>
-          <div className="flex justify-between items-start mb-2">
-            <span className="flex items-center gap-1 text-[10px] text-text-muted uppercase tracking-wider font-bold">
-              <Calendar size={12} />{new Date(createdAt).toLocaleDateString()}
-            </span>
-            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
-              <button onClick={onStartEdit} className="p-1.5 text-text-muted hover:text-[var(--primary)] hover:bg-[var(--primary)]/10 rounded-lg transition-all"><Edit3 size={14} /></button>
-              <button onClick={onDelete} className="p-1.5 text-text-muted hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"><Trash2 size={14} /></button>
-            </div>
-          </div>
-          <div className="text-sm text-text-main leading-relaxed prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: content }} />
-        </>
-      )}
-    </div>
-  </div>
-);
 
 export const NotesPage: React.FC = () => {
   const navigate = useNavigate();
@@ -141,15 +29,12 @@ export const NotesPage: React.FC = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
 
-  const [videoNotes, setVideoNotes] = useState<VideoNoteEntry[]>([]);
   const [editingVideoId, setEditingVideoId] = useState<string | null>(null);
   const [editVideoContent, setEditVideoContent] = useState('');
 
   const [sourceType, setSourceType] = useState<SourceType>('all');
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [downloadingMp3, setDownloadingMp3] = useState(false);
   const [shareNote, setShareNote] = useState<{
     title: string;
     notesHtml: string;
@@ -160,71 +45,11 @@ export const NotesPage: React.FC = () => {
 
   // `videoList` (used to resolve each video-sourced note's title/course) comes
   // from StudyContext, which loads the lightweight list once and shares it.
-
-  useEffect(() => {
-    const entries: VideoNoteEntry[] = allNotes
-      .filter(n => n.youTubeVideoId)
-      .map(n => {
-        const video = videoList.find(v => v.id === n.youTubeVideoId);
-        return {
-          noteId: n.id,
-          videoRecordId: n.youTubeVideoId!,
-          title: video?.title ?? n.videoName ?? 'Unknown Video',
-          courseId: video?.courseId ?? '',
-          courseColor: video?.courseColor ?? '#a1a1aa',
-          courseName: video?.courseName ?? '',
-          content: n.content,
-          createdAt: n.createdAt,
-        };
-      });
-    setVideoNotes(entries);
-  }, [allNotes, videoList]);
-
-  const filteredDocNotes = useMemo(() => {
-    const docOnly = allNotes.filter(n => !n.youTubeVideoId);
-    if (!searchQuery.trim()) return docOnly;
-    const q = searchQuery.toLowerCase();
-    return docOnly.filter(n => n.content.toLowerCase().includes(q));
-  }, [allNotes, searchQuery]);
-
-  const allItems = useMemo<UnifiedNoteItem[]>(() => {
-    const docItems: UnifiedNoteItem[] = filteredDocNotes.map(note => {
-      const doc = documents.find(d => d.id === note.documentId);
-      const course = courses.find(c => c.id === doc?.courseId);
-      // Use documentName from API response first, fall back to context lookup
-      const docName = doc ? getDocDisplayName(doc) : (note.documentName ?? 'Unknown Document');
-      const type: 'doc' | 'article' | 'audio' = (doc?.type === 'audio' || doc?.type === 'podcast') ? 'audio' : doc?.originalUrl ? 'article' : 'doc';
-      return {
-        type,
-        note,
-        docName,
-        courseId: doc?.courseId ?? '',
-        courseName: course?.name ?? '',
-        courseColor: course?.color ?? '#a1a1aa',
-        docId: doc?.id,
-      };
-    });
-    const q = searchQuery.toLowerCase().trim();
-    const filteredVideoNotes = q
-      ? videoNotes.filter(v => v.content.toLowerCase().includes(q) || v.title.toLowerCase().includes(q))
-      : videoNotes;
-    const videoItems: UnifiedNoteItem[] = filteredVideoNotes.map(entry => ({ type: 'video', entry }));
-    return [...docItems, ...videoItems];
-  }, [filteredDocNotes, videoNotes, documents, courses, searchQuery]);
-
-  const filteredItems = useMemo(() => {
-    let items = allItems;
-    if (sourceType === 'document') items = items.filter(i => i.type === 'doc');
-    else if (sourceType === 'video') items = items.filter(i => i.type === 'video');
-    else if (sourceType === 'article') items = items.filter(i => i.type === 'article');
-    else if (sourceType === 'audio') items = items.filter(i => i.type === 'audio');
-    if (selectedCourseId) {
-      items = items.filter(i =>
-        i.type !== 'video' ? i.courseId === selectedCourseId : i.entry.courseId === selectedCourseId
-      );
-    }
-    return items;
-  }, [allItems, sourceType, selectedCourseId]);
+  const {
+    setVideoNotes,
+    allItems, filteredItems, counts, courseCounts,
+    selectedIds, setSelectedIds, toggleSelect, toggleSelectAll, allVisibleSelected,
+  } = useNotesData({ allNotes, videoList, documents, courses, searchQuery, sourceType, selectedCourseId });
 
   useEffect(() => { setPage(1); }, [sourceType, selectedCourseId, searchQuery]);
 
@@ -232,91 +57,8 @@ export const NotesPage: React.FC = () => {
   const safePage = Math.min(page, totalPages);
   const pagedItems = filteredItems.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
-  const itemId = (item: UnifiedNoteItem) => (item.type !== 'video' ? item.note.id : item.entry.noteId);
-
-  const toggleSelect = useCallback((id: string) => {
-    setSelectedIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  }, []);
-
-  // Drop selections that no longer match the active filters
-  useEffect(() => {
-    setSelectedIds(prev => {
-      if (prev.size === 0) return prev;
-      const visible = new Set(filteredItems.map(itemId));
-      const next = new Set([...prev].filter(id => visible.has(id)));
-      return next.size === prev.size ? prev : next;
-    });
-  }, [filteredItems]);
-
-  const allVisibleSelected = filteredItems.length > 0 && filteredItems.every(i => selectedIds.has(itemId(i)));
-
-  const toggleSelectAll = useCallback(() => {
-    setSelectedIds(prev => {
-      const allSelected = filteredItems.length > 0 && filteredItems.every(i => prev.has(itemId(i)));
-      return allSelected ? new Set() : new Set(filteredItems.map(itemId));
-    });
-  }, [filteredItems]);
-
-  // Notes that Play will read: the current selection, or the full filtered list when nothing is selected
-  const playItems = useMemo(
-    () => (selectedIds.size > 0 ? filteredItems.filter(i => selectedIds.has(itemId(i))) : filteredItems),
-    [filteredItems, selectedIds],
-  );
-
-  const ttsItems = useMemo(
-    () => playItems.map((item, i) => {
-      const title = item.type !== 'video' ? item.docName : item.entry.title;
-      const content = item.type !== 'video' ? item.note.content : item.entry.content;
-      return { text: `Note ${i + 1}: ${title}. ${stripHtml(content)}`, title };
-    }),
-    [playItems],
-  );
-
-  const getTtsSubtitle = useCallback(
-    (index: number, itemCount: number) => `Note ${index + 1} / ${itemCount}`,
-    [],
-  );
-
-  const { playerState, play } = usePersistentTts('notes', ttsItems, {
-    getSubtitle: getTtsSubtitle,
-  });
-
-  const handleDownloadMp3 = useCallback(async () => {
-    if (ttsItems.length === 0 || downloadingMp3) return;
-    setDownloadingMp3(true);
-    try {
-      const text = ttsItems.map(i => i.text).join('\n\n');
-      const blob = await synthesizeToBlob(text);
-      const name = selectedIds.size > 0 ? 'notes_selected' : 'notes';
-      downloadAudioBlob(blob, name);
-    } catch {
-      // Synthesis errors are rare and retryable; avoid an intrusive alert
-    } finally {
-      setDownloadingMp3(false);
-    }
-  }, [ttsItems, selectedIds, downloadingMp3]);
-
-  const counts = useMemo(() => ({
-    all: allItems.length,
-    document: allItems.filter(i => i.type === 'doc').length,
-    video: allItems.filter(i => i.type === 'video').length,
-    article: allItems.filter(i => i.type === 'article').length,
-    audio: allItems.filter(i => i.type === 'audio').length,
-  }), [allItems]);
-
-  const courseCounts = useMemo(() => {
-    const next: Record<string, number> = {};
-    for (const item of allItems) {
-      const courseId = item.type === 'video' ? item.entry.courseId : item.courseId;
-      if (!courseId) continue;
-      next[courseId] = (next[courseId] ?? 0) + 1;
-    }
-    return next;
-  }, [allItems]);
+  const { playItems, playerState, play, downloadingMp3, handleDownloadMp3 } =
+    useNotesAudio({ filteredItems, selectedIds });
 
   const handleSaveEdit = async () => {
     if (!editingId) return;
@@ -359,7 +101,7 @@ export const NotesPage: React.FC = () => {
     };
   }), [filteredItems]);
 
-  const resolveVideoUrl = React.useCallback(async (videoRecordId: string): Promise<string | null> => {
+  const resolveVideoUrl = useCallback(async (videoRecordId: string): Promise<string | null> => {
     const cachedVideo = videoList.find(v => v.id === videoRecordId);
     if (cachedVideo?.videoUrl) return cachedVideo.videoUrl;
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { User, Timer, BellRing } from 'lucide-react';
+import { User, Timer, BellRing, Loader2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { cn } from '../../utils/cn';
 import { pomodoroSettings } from '../../services/pomodoroSettings';
@@ -19,6 +19,7 @@ export const ProfileTab: React.FC = () => {
   const [pushSupported] = useState(() => pushService.isSupported());
   const [pushEnabled, setPushEnabled] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);
+  const [pushError, setPushError] = useState<string | null>(null);
   useEffect(() => {
     if (pushSupported) pushService.isSubscribed().then(setPushEnabled).catch(() => { });
   }, [pushSupported]);
@@ -26,15 +27,25 @@ export const ProfileTab: React.FC = () => {
   const togglePush = async () => {
     if (pushBusy) return;
     setPushBusy(true);
+    setPushError(null);
     try {
       if (pushEnabled) {
         await pushService.unsubscribe();
         setPushEnabled(false);
       } else {
-        setPushEnabled(await pushService.subscribe());
+        const ok = await pushService.subscribe();
+        setPushEnabled(ok);
+        if (!ok) {
+          setPushError(
+            Notification.permission === 'denied'
+              ? 'Notifications are blocked for this site. Allow them in your browser settings, then try again.'
+              : 'Could not enable reminders — the server has no push keys configured.',
+          );
+        }
       }
     } catch {
       setPushEnabled(false);
+      setPushError('Could not update the reminder subscription. Please try again.');
     } finally {
       setPushBusy(false);
     }
@@ -147,19 +158,22 @@ export const ProfileTab: React.FC = () => {
                 disabled={pushBusy}
                 onClick={togglePush}
                 className={cn(
-                  'relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/40 disabled:opacity-60',
+                  'relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/40 disabled:cursor-wait disabled:opacity-60',
                   pushEnabled ? 'bg-[var(--primary)]' : 'bg-zinc-300',
                 )}
               >
                 <span
                   className={cn(
-                    'inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform',
+                    'inline-flex h-5 w-5 transform items-center justify-center rounded-full bg-white shadow transition-transform',
                     pushEnabled ? 'translate-x-[1.375rem]' : 'translate-x-0.5',
                   )}
-                />
+                >
+                  {pushBusy && <Loader2 size={12} className="animate-spin text-zinc-400" />}
+                </span>
               </button>
             </div>
           )}
+          {pushError && <p className="mt-2 text-xs text-red-500">{pushError}</p>}
         </div>
 
         {error && <SettingsAlert kind="error">{error}</SettingsAlert>}

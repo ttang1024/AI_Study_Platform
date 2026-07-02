@@ -1,7 +1,7 @@
 import React from 'react';
 import type { AIProvider } from '../../services/aiSettingsService';
 
-const PROVIDER_ICON_SRC: Partial<Record<AIProvider, string>> = {
+export const PROVIDER_ICON_SRC: Partial<Record<AIProvider, string>> = {
   gemini: '/images/gemini.png',
   openai: '/images/openai.svg',
   claude: '/images/claude.ico',

@@ -90,8 +90,31 @@ export const TodayProgressHero: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-3xl p-8 text-center text-sm text-text-muted" style={{ boxShadow: CARD_SHADOW }}>
-        Building your plan…
+      <div className="bg-white rounded-3xl p-6 lg:p-8 animate-pulse" style={{ boxShadow: CARD_SHADOW }}>
+        <div className="flex flex-col lg:flex-row lg:items-center gap-8">
+          {/* Ring placeholder */}
+          <div className="shrink-0 self-center w-32 h-32 rounded-full border-[11px] border-zinc-100" />
+
+          {/* Stats placeholders */}
+          <div className="flex-1 min-w-0">
+            <div className="h-5 w-48 rounded-lg bg-zinc-100 mb-4" />
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="rounded-2xl bg-zinc-50 px-4 py-3">
+                  <div className="h-3 w-16 rounded bg-zinc-100" />
+                  <div className="h-7 w-12 rounded-lg bg-zinc-100 mt-2" />
+                </div>
+              ))}
+            </div>
+            <div className="h-4 w-64 max-w-full rounded-lg bg-zinc-100 mt-4" />
+          </div>
+
+          {/* CTA placeholders */}
+          <div className="shrink-0 self-stretch lg:self-center flex lg:flex-col gap-2.5">
+            <div className="flex-1 lg:flex-none h-[50px] w-full lg:w-40 rounded-2xl bg-zinc-100" />
+            <div className="flex-1 lg:flex-none h-[50px] w-full lg:w-40 rounded-2xl bg-zinc-100" />
+          </div>
+        </div>
       </div>
     );
   }

@@ -13,13 +13,26 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
 const supported = () =>
   'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
 
+/**
+ * Resolve the service worker registration, registering sw.js on demand.
+ * main.tsx only registers it in production builds, so waiting on
+ * `navigator.serviceWorker.ready` would hang forever in dev.
+ */
+async function ensureRegistration(): Promise<ServiceWorkerRegistration> {
+  const existing = await navigator.serviceWorker.getRegistration();
+  if (existing) return existing;
+  await navigator.serviceWorker.register('/sw.js');
+  return navigator.serviceWorker.ready;
+}
+
 export const pushService = {
   isSupported: supported,
 
   /** Whether this browser currently holds an active push subscription. */
   async isSubscribed(): Promise<boolean> {
     if (!supported()) return false;
-    const registration = await navigator.serviceWorker.ready;
+    const registration = await navigator.serviceWorker.getRegistration();
+    if (!registration) return false;
     return (await registration.pushManager.getSubscription()) !== null;
   },
 
@@ -38,7 +51,7 @@ export const pushService = {
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') return false;
 
-    const registration = await navigator.serviceWorker.ready;
+    const registration = await ensureRegistration();
     const subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(publicKey) as unknown as BufferSource,
@@ -56,8 +69,8 @@ export const pushService = {
   /** Drop the browser subscription and tell the server to forget it. */
   async unsubscribe(): Promise<void> {
     if (!supported()) return;
-    const registration = await navigator.serviceWorker.ready;
-    const subscription = await registration.pushManager.getSubscription();
+    const registration = await navigator.serviceWorker.getRegistration();
+    const subscription = registration && (await registration.pushManager.getSubscription());
     if (!subscription) return;
     const endpoint = subscription.endpoint;
     await subscription.unsubscribe();
