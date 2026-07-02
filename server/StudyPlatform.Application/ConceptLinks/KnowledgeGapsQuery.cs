@@ -1,5 +1,8 @@
 using MediatR;
+using Microsoft.Extensions.Options;
 using StudyPlatform.Application.Common;
+using StudyPlatform.Application.Services;
+using StudyPlatform.Application.Settings;
 using StudyPlatform.Domain.Interfaces;
 using System.Text.RegularExpressions;
 
@@ -34,7 +37,15 @@ public record GetKnowledgeGapsQuery(Guid UserId) : IRequest<Result<KnowledgeGaps
 public class GetKnowledgeGapsQueryHandler : IRequestHandler<GetKnowledgeGapsQuery, Result<KnowledgeGapsDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
-    public GetKnowledgeGapsQueryHandler(IUnitOfWork unitOfWork) { _unitOfWork = unitOfWork; }
+    private readonly IAppCache _cache;
+    private readonly CacheOptions _cacheOptions;
+
+    public GetKnowledgeGapsQueryHandler(IUnitOfWork unitOfWork, IAppCache cache, IOptions<CacheOptions> cacheOptions)
+    {
+        _unitOfWork = unitOfWork;
+        _cache = cache;
+        _cacheOptions = cacheOptions.Value;
+    }
 
     private sealed class ConceptAgg
     {
@@ -48,7 +59,16 @@ public class GetKnowledgeGapsQueryHandler : IRequestHandler<GetKnowledgeGapsQuer
 
     public async Task<Result<KnowledgeGapsDto>> Handle(GetKnowledgeGapsQuery request, CancellationToken cancellationToken)
     {
-        var userId = request.UserId;
+        var result = await _cache.GetOrCreateAsync(
+            $"concept-links:gaps:user:{request.UserId}",
+            ct => ComputeAsync(request.UserId, ct),
+            TimeSpan.FromSeconds(_cacheOptions.KnowledgeGraphSeconds),
+            cancellationToken);
+        return Result<KnowledgeGapsDto>.Success(result);
+    }
+
+    private async Task<KnowledgeGapsDto> ComputeAsync(Guid userId, CancellationToken cancellationToken)
+    {
         var glossaryTerms = (await _unitOfWork.GlossaryTerms.GetByUserWithSourcesAsync(userId, cancellationToken)).ToList();
         var masteredTerms = (await _unitOfWork.GlossaryMastered.GetMasteredTermIdsByUserAsync(userId, cancellationToken)).ToHashSet();
         var notes = (await _unitOfWork.Notes.GetByUserIdAsync(userId, cancellationToken)).ToList();
@@ -160,7 +180,7 @@ public class GetKnowledgeGapsQueryHandler : IRequestHandler<GetKnowledgeGapsQuer
             .ToArray();
 
         var stats = new KnowledgeGapStatsDto(concepts.Count, ordered.Length, unmastered, undefined, crossCourse);
-        return Result<KnowledgeGapsDto>.Success(new KnowledgeGapsDto(ordered, stats));
+        return new KnowledgeGapsDto(ordered, stats);
     }
 
     private static int SeverityRank(string severity) => severity switch { "high" => 0, "medium" => 1, _ => 2 };

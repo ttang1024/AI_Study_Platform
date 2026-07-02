@@ -14,6 +14,7 @@ import { Select } from '../components/common/Select';
 import { GroupLeaderboard } from '../components/groups/GroupLeaderboard';
 import { GroupBattles } from '../components/groups/GroupBattles';
 import { GroupAssignments } from '../components/groups/GroupAssignments';
+import { StudyRoomPanel, type StudyRoomState } from '../components/groups/StudyRoomPanel';
 import { cn } from '../utils/cn';
 
 type GroupTab = 'chat' | 'leaderboard' | 'battles' | 'assignments';
@@ -40,6 +41,7 @@ export const StudyGroupDetailPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<GroupTab>('chat');
   const chatEndRef = useRef<HTMLDivElement>(null);
   const hubRef = useRef<signalR.HubConnection | null>(null);
+  const [roomState, setRoomState] = useState<StudyRoomState | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -95,6 +97,8 @@ export const StudyGroupDetailPage: React.FC = () => {
     connection.on('CourseUnshared', (courseId: string) => {
       setGroup((g) => g ? { ...g, sharedCourses: g.sharedCourses.filter((sc) => sc.courseId !== courseId) } : g);
     });
+
+    connection.on('RoomState', (state: StudyRoomState) => setRoomState(state));
 
     connection.start()
       .then(() => connection.invoke('JoinGroup', id))
@@ -247,6 +251,18 @@ export const StudyGroupDetailPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left column: members + courses */}
         <div className="space-y-4">
+          {/* Live co-study room */}
+          {id && (
+            <StudyRoomPanel
+              state={roomState}
+              currentUserId={user?.id ?? ''}
+              onJoin={() => hubRef.current?.invoke('JoinStudyRoom', id).catch(() => {})}
+              onLeave={() => hubRef.current?.invoke('LeaveStudyRoom', id).catch(() => {})}
+              onSetStatus={(status) => hubRef.current?.invoke('SetStudyStatus', id, status).catch(() => {})}
+              onStartTimer={(minutes) => hubRef.current?.invoke('StartRoomTimer', id, minutes).catch(() => {})}
+            />
+          )}
+
           {/* Members */}
           <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
             <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100">

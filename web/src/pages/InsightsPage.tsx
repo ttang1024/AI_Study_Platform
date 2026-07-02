@@ -1,24 +1,30 @@
 import React from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { BarChart3, Target, GraduationCap } from 'lucide-react';
+import { BarChart3, Target } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { AnalyticsSection } from '../components/dashboard/AnalyticsSection';
 import { ReinforcementPanel } from '../components/reinforcement/ReinforcementPanel';
-import { PracticeSection } from '../components/practice/PracticeSection';
 
-type Tab = 'analytics' | 'reinforcement' | 'practice';
+type Tab = 'analytics' | 'reinforcement';
 
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: 'analytics', label: 'Analytics', icon: BarChart3 },
   { id: 'reinforcement', label: 'Reinforcement', icon: Target },
-  { id: 'practice', label: 'Practice', icon: GraduationCap },
 ];
 
 export const InsightsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const param = searchParams.get('tab');
-  const activeTab: Tab = param === 'reinforcement' ? 'reinforcement' : param === 'practice' ? 'practice' : 'analytics';
+
+  // Practice graduated to its own top-level page. Old deep links (dashboard
+  // bookmarks, cached recommendation URLs) still arrive here — forward them.
+  if (param === 'practice') {
+    const smart = searchParams.get('smart');
+    return <Navigate to={`/practice${smart ? `?smart=${smart}` : ''}`} replace />;
+  }
+
+  const activeTab: Tab = param === 'reinforcement' ? 'reinforcement' : 'analytics';
 
   const selectTab = (tab: Tab) => {
     const next = new URLSearchParams(searchParams);
@@ -75,7 +81,6 @@ export const InsightsPage: React.FC = () => {
         >
           {activeTab === 'analytics' && <AnalyticsSection />}
           {activeTab === 'reinforcement' && <ReinforcementPanel />}
-          {activeTab === 'practice' && <PracticeSection />}
         </motion.div>
       </AnimatePresence>
 

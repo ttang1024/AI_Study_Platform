@@ -44,6 +44,7 @@ const DocumentDetailsPage = lazyPage(() => import('./pages/DocumentDetailsPage')
 const CourseStudyPage = lazyPage(() => import('./pages/CourseStudyPage'), 'CourseStudyPage');
 const SharedContentPage = lazyPage(() => import('./pages/SharedContentPage'), 'SharedContentPage');
 const PlannerPage = lazyPage(() => import('./pages/PlannerPage'), 'PlannerPage');
+const PracticePage = lazyPage(() => import('./pages/PracticePage'), 'PracticePage');
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -88,8 +89,7 @@ export default function App() {
                     <Route path="dashboard" element={<DashboardPage />} />
                     {/* The Today plan now lives as the dashboard hero + the Insights → Analytics tab. */}
                     <Route path="today" element={<Navigate to="/dashboard" replace />} />
-                    {/* Practice was merged into the Insights page as a tab. Preserve old links. */}
-                    <Route path="practice" element={<Navigate to="/insights?tab=practice" replace />} />
+                    <Route path="practice" element={<PracticePage />} />
                     <Route path="library" element={<LibraryPage />} />
                     <Route path="documents" element={<Navigate to="/library" replace />} />
                     <Route path="videos" element={<Navigate to="/library?type=videos" replace />} />

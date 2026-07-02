@@ -1,5 +1,8 @@
 using MediatR;
+using Microsoft.Extensions.Options;
 using StudyPlatform.Application.Common;
+using StudyPlatform.Application.Services;
+using StudyPlatform.Application.Settings;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
 using System.Text.RegularExpressions;
@@ -20,16 +23,34 @@ public record GetKnowledgeGraphQuery(Guid UserId) : IRequest<Result<KnowledgeGra
 public class GetKnowledgeGraphQueryHandler : IRequestHandler<GetKnowledgeGraphQuery, Result<KnowledgeGraphDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
-    public GetKnowledgeGraphQueryHandler(IUnitOfWork unitOfWork) { _unitOfWork = unitOfWork; }
+    private readonly IAppCache _cache;
+    private readonly CacheOptions _cacheOptions;
+
+    public GetKnowledgeGraphQueryHandler(IUnitOfWork unitOfWork, IAppCache cache, IOptions<CacheOptions> cacheOptions)
+    {
+        _unitOfWork = unitOfWork;
+        _cache = cache;
+        _cacheOptions = cacheOptions.Value;
+    }
 
     public async Task<Result<KnowledgeGraphDto>> Handle(GetKnowledgeGraphQuery request, CancellationToken cancellationToken)
     {
-        var links = (await _unitOfWork.ConceptLinks.GetByUserAsync(request.UserId, cancellationToken)).ToList();
-        var documents = (await _unitOfWork.Documents.FindAsync(d => d.UserId == request.UserId, cancellationToken)).ToList();
-        var videos = (await _unitOfWork.YouTubeVideos.FindAsync(v => v.UserId == request.UserId, cancellationToken)).ToList();
-        var notes = (await _unitOfWork.Notes.GetByUserIdAsync(request.UserId, cancellationToken)).ToList();
-        var quizzes = (await _unitOfWork.Quizzes.FindAsync(q => q.UserId == request.UserId, cancellationToken)).ToList();
-        var glossaryTerms = (await _unitOfWork.GlossaryTerms.GetByUserWithSourcesAsync(request.UserId, cancellationToken)).ToList();
+        var result = await _cache.GetOrCreateAsync(
+            $"concept-links:graph:user:{request.UserId}",
+            ct => ComputeAsync(request.UserId, ct),
+            TimeSpan.FromSeconds(_cacheOptions.KnowledgeGraphSeconds),
+            cancellationToken);
+        return Result<KnowledgeGraphDto>.Success(result);
+    }
+
+    private async Task<KnowledgeGraphDto> ComputeAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        var links = (await _unitOfWork.ConceptLinks.GetByUserAsync(userId, cancellationToken)).ToList();
+        var documents = (await _unitOfWork.Documents.FindAsync(d => d.UserId == userId, cancellationToken)).ToList();
+        var videos = (await _unitOfWork.YouTubeVideos.FindAsync(v => v.UserId == userId, cancellationToken)).ToList();
+        var notes = (await _unitOfWork.Notes.GetByUserIdAsync(userId, cancellationToken)).ToList();
+        var quizzes = (await _unitOfWork.Quizzes.FindAsync(q => q.UserId == userId, cancellationToken)).ToList();
+        var glossaryTerms = (await _unitOfWork.GlossaryTerms.GetByUserWithSourcesAsync(userId, cancellationToken)).ToList();
 
         var nodes = new Dictionary<string, NodeDto>(StringComparer.OrdinalIgnoreCase);
         var edgeWeights = new Dictionary<(string Source, string Target, string Label), int>();
@@ -192,7 +213,7 @@ public class GetKnowledgeGraphQueryHandler : IRequestHandler<GetKnowledgeGraphQu
             orderedNodes.Count(n => n.Type == "quiz"),
             edges.Count);
 
-        return Result<KnowledgeGraphDto>.Success(new KnowledgeGraphDto(orderedNodes, edges, stats));
+        return new KnowledgeGraphDto(orderedNodes, edges, stats);
     }
 
     private async Task EnsureLinkedNodeAsync(string nodeId, Dictionary<string, NodeDto> nodes, CancellationToken cancellationToken)

@@ -1,6 +1,6 @@
 import { apiClient } from './apiClient';
 
-export type PracticeSource = 'quiz' | 'flashcard' | 'glossary' | 'problem';
+export type PracticeSource = 'quiz' | 'flashcard' | 'glossary' | 'problem' | 'mistake';
 
 export interface PracticeQuestion {
   id: string;
@@ -46,6 +46,12 @@ export const practiceService = {
     if (opts.courseId) params.set('courseId', opts.courseId);
     if (opts.sources?.length) params.set('sources', opts.sources.join(','));
     const response = await apiClient.get(`/api/practice/generate?${params.toString()}`);
+    return response.data.data;
+  },
+
+  /** Prioritized daily session: due FSRS cards + open mistakes + weak glossary terms. */
+  async generateSmartSession(): Promise<PracticeTest> {
+    const response = await apiClient.get('/api/practice/smart-session');
     return response.data.data;
   },
 

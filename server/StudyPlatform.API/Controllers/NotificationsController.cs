@@ -5,8 +5,12 @@ using StudyPlatform.API.Extensions;
 using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Gamification;
 using StudyPlatform.Application.Notifications;
+using StudyPlatform.Application.Services;
 
 namespace StudyPlatform.API.Controllers;
+
+public record PushSubscribeRequest(string Endpoint, string P256dh, string Auth);
+public record PushUnsubscribeRequest(string Endpoint);
 
 [ApiController]
 [Route("api/notifications")]
@@ -15,10 +19,41 @@ namespace StudyPlatform.API.Controllers;
 public class NotificationsController : ControllerBase
 {
     private readonly IMediator _mediator;
+    private readonly IPushNotificationService _push;
 
-    public NotificationsController(IMediator mediator)
+    public NotificationsController(IMediator mediator, IPushNotificationService push)
     {
         _mediator = mediator;
+        _push = push;
+    }
+
+    /// <summary>
+    /// VAPID public key used by the browser to create a push subscription.
+    /// Empty string means push is not configured on this deployment.
+    /// </summary>
+    [HttpGet("push/public-key")]
+    [ProducesResponseType(typeof(BaseResponse<string>), 200)]
+    public IActionResult GetPushPublicKey()
+        => Ok(BaseResponse<string>.Ok(_push.PublicKey));
+
+    /// <summary>Register this browser for due-review push reminders.</summary>
+    [HttpPost("push/subscribe")]
+    [ProducesResponseType(typeof(BaseResponse<bool>), 200)]
+    public async Task<IActionResult> PushSubscribe([FromBody] PushSubscribeRequest request, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(request.Endpoint) || string.IsNullOrWhiteSpace(request.P256dh) || string.IsNullOrWhiteSpace(request.Auth))
+            return BadRequest(BaseResponse<bool>.Fail("Endpoint, p256dh and auth are required."));
+        await _push.SubscribeAsync(User.GetUserId(), request.Endpoint, request.P256dh, request.Auth, ct);
+        return Ok(BaseResponse<bool>.Ok(true));
+    }
+
+    /// <summary>Remove this browser's push subscription.</summary>
+    [HttpPost("push/unsubscribe")]
+    [ProducesResponseType(typeof(BaseResponse<bool>), 200)]
+    public async Task<IActionResult> PushUnsubscribe([FromBody] PushUnsubscribeRequest request, CancellationToken ct)
+    {
+        await _push.UnsubscribeAsync(User.GetUserId(), request.Endpoint, ct);
+        return Ok(BaseResponse<bool>.Ok(true));
     }
 
     /// <summary>

@@ -64,7 +64,7 @@ export const BentoStudyGroupCard: React.FC = () => {
       </div>
 
       <p className="text-sm text-white/40 leading-relaxed">
-        Create or join study groups. Share documents, quizzes, and flashcards — assign work, battle in live quizzes, and climb the XP leaderboard.
+        Create or join study groups. Study together in live co-study rooms with a shared focus timer — share courses, assign work, battle in live quizzes, and climb the XP leaderboard.
       </p>
     </BentoCardShell>
   );

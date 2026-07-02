@@ -90,7 +90,7 @@ export const BentoSearchCard: React.FC = () => {
       </div>
 
       <p className="text-sm text-white/40 leading-relaxed">
-        Instant full-text search across all documents, videos, notes, and flashcards — plus ask-your-library AI answers with cited sources.
+        Semantic search across all documents, videos, notes, and flashcards — finds related concepts even when the words differ — plus ask-your-library AI answers with cited sources.
       </p>
     </BentoCardShell>
   );

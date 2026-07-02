@@ -74,7 +74,7 @@ export const BentoQuizCard: React.FC = () => {
       </div>
 
       <p className="text-sm text-white/40 leading-relaxed">
-        Question Bank with filtering &amp; pagination, Review Mistakes tab, timed mock exam, and shareable quiz links.
+        Question Bank with filtering &amp; pagination, one-button smart sessions that mix due reviews with mistake redos, timed mock exams, and shareable quiz links.
       </p>
     </BentoCardShell>
   );

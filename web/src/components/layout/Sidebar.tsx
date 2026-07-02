@@ -6,8 +6,8 @@ import {
   LayoutDashboard, Library, Settings, LogOut, BrainCircuit,
   Award, NotebookPen, X, Sparkles, ChevronLeft, ChevronRight,
   User, BookMarked, MessageSquarePlus,
-  Search, Trophy, Users, Bot, Network, CloudDownload, LineChart,
-  CalendarClock,
+  Search, Trophy, Users, Bot, Network, LineChart,
+  CalendarClock, GraduationCap,
 } from 'lucide-react';
 import { AchievementsPanel } from '../dashboard/AchievementsPanel';
 import { cn } from '../../utils/cn';
@@ -28,13 +28,14 @@ const navItems = [
   { icon: Library, label: 'Library', path: '/library' },
   { icon: BrainCircuit, label: 'Flashcards', path: '/flashcards' },
   { icon: Award, label: 'Quizzes', path: '/quizzes' },
+  { icon: GraduationCap, label: 'Practice', path: '/practice' },
   { icon: CalendarClock, label: 'Planner', path: '/planner' },
   { icon: BookMarked, label: 'Glossary', path: '/glossary' },
   { icon: NotebookPen, label: 'Notes', path: '/notes' },
   { icon: Bot, label: 'AI Chat', path: '/chat' },
   { icon: Network, label: 'Knowledge Graph', path: '/knowledge-graph' },
   { icon: Users, label: 'Study Groups', path: '/groups' },
-  { icon: CloudDownload, label: 'Offline', path: '/offline' },
+  // Offline moved out of the sidebar — it lives in Settings → Export as a utility.
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isCollapsed, onToggle, onSearchOpen }) => {

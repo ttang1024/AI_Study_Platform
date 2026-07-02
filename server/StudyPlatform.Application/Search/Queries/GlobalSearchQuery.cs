@@ -1,5 +1,7 @@
 using MediatR;
+using Microsoft.Extensions.Logging;
 using StudyPlatform.Application.Common;
+using StudyPlatform.Application.Services;
 using StudyPlatform.Domain.Interfaces;
 
 namespace StudyPlatform.Application.Search.Queries;
@@ -30,11 +32,27 @@ public record GlobalSearchQuery(
 
 public class GlobalSearchQueryHandler : IRequestHandler<GlobalSearchQuery, Result<SearchResultsDto>>
 {
-    private readonly IUnitOfWork _unitOfWork;
+    // Semantic fallback: below this many exact matches, expand the query into
+    // AI-suggested synonyms/related phrases and search those too.
+    private const int SemanticExpansionThreshold = 5;
+    private const int MaxExpansionTerms = 6;
+    private static readonly TimeSpan ExpansionCacheTtl = TimeSpan.FromDays(7);
 
-    public GlobalSearchQueryHandler(IUnitOfWork unitOfWork)
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly IAiService _aiService;
+    private readonly IAppCache _cache;
+    private readonly ILogger<GlobalSearchQueryHandler> _logger;
+
+    public GlobalSearchQueryHandler(
+        IUnitOfWork unitOfWork,
+        IAiService aiService,
+        IAppCache cache,
+        ILogger<GlobalSearchQueryHandler> logger)
     {
         _unitOfWork = unitOfWork;
+        _aiService = aiService;
+        _cache = cache;
+        _logger = logger;
     }
 
     public async Task<Result<SearchResultsDto>> Handle(GlobalSearchQuery request, CancellationToken cancellationToken)
@@ -46,23 +64,23 @@ public class GlobalSearchQueryHandler : IRequestHandler<GlobalSearchQuery, Resul
         var types = request.EntityTypes?.Select(t => t.ToLowerInvariant()).ToHashSet()
                     ?? new HashSet<string> { "documents", "notes", "flashcards", "glossary" };
 
-        var results = new List<SearchResultItemDto>();
+        var results = await SearchAllAsync(request.UserId, q, types, cancellationToken);
 
-        // Run all searches in parallel
-        var tasks = new List<Task<IEnumerable<SearchResultItemDto>>>();
-
-        if (types.Contains("documents"))
-            tasks.Add(SearchDocumentsAsync(request.UserId, q, cancellationToken));
-        if (types.Contains("notes"))
-            tasks.Add(SearchNotesAsync(request.UserId, q, cancellationToken));
-        if (types.Contains("flashcards"))
-            tasks.Add(SearchFlashcardsAsync(request.UserId, q, cancellationToken));
-        if (types.Contains("glossary"))
-            tasks.Add(SearchGlossaryAsync(request.UserId, q, cancellationToken));
-
-        var allResults = await Task.WhenAll(tasks);
-        foreach (var batch in allResults)
-            results.AddRange(batch);
+        // Semantic layer: when the literal query barely matches, retry with
+        // meaning-adjacent terms so "heart attack" also finds "myocardial infarction".
+        if (results.Count < SemanticExpansionThreshold && q.Length >= 3)
+        {
+            var seen = results.Select(r => $"{r.Type}:{r.Id}").ToHashSet();
+            foreach (var term in await ExpandQueryAsync(q, cancellationToken))
+            {
+                var extra = await SearchAllAsync(request.UserId, term, types, cancellationToken);
+                foreach (var item in extra)
+                {
+                    if (seen.Add($"{item.Type}:{item.Id}"))
+                        results.Add(item);
+                }
+            }
+        }
 
         var total = results.Count;
         var paged = results
@@ -71,6 +89,58 @@ public class GlobalSearchQueryHandler : IRequestHandler<GlobalSearchQuery, Resul
             .ToList();
 
         return Result<SearchResultsDto>.Success(new SearchResultsDto(paged, total, request.Page, request.PageSize));
+    }
+
+    private async Task<List<SearchResultItemDto>> SearchAllAsync(
+        Guid userId, string q, HashSet<string> types, CancellationToken cancellationToken)
+    {
+        // Run all category searches in parallel
+        var tasks = new List<Task<IEnumerable<SearchResultItemDto>>>();
+
+        if (types.Contains("documents"))
+            tasks.Add(SearchDocumentsAsync(userId, q, cancellationToken));
+        if (types.Contains("notes"))
+            tasks.Add(SearchNotesAsync(userId, q, cancellationToken));
+        if (types.Contains("flashcards"))
+            tasks.Add(SearchFlashcardsAsync(userId, q, cancellationToken));
+        if (types.Contains("glossary"))
+            tasks.Add(SearchGlossaryAsync(userId, q, cancellationToken));
+
+        var allResults = await Task.WhenAll(tasks);
+        return allResults.SelectMany(batch => batch).ToList();
+    }
+
+    /// <summary>AI synonyms/related phrases for the query, cached a week per distinct query.</summary>
+    private async Task<IReadOnlyList<string>> ExpandQueryAsync(string q, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var expansions = await _cache.GetOrCreateAsync(
+                $"search:expand:{q}",
+                async ct =>
+                {
+                    var reply = await _aiService.GeneralChatAsync(
+                        Array.Empty<(string, string)>(),
+                        $"List up to {MaxExpansionTerms} alternative search keywords (synonyms, related terms, translations if the query is not English) for: \"{q}\". " +
+                        "Reply with ONLY the terms, comma-separated, no numbering or explanation.",
+                        ct);
+                    return reply.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                        .Select(t => t.Trim('"', '\'', '.').ToLowerInvariant())
+                        .Where(t => t.Length >= 2 && t != q)
+                        .Distinct()
+                        .Take(MaxExpansionTerms)
+                        .ToArray();
+                },
+                ExpansionCacheTtl,
+                cancellationToken);
+            return expansions ?? Array.Empty<string>();
+        }
+        catch (Exception ex)
+        {
+            // Search must never fail because expansion did — degrade to exact matches.
+            _logger.LogWarning(ex, "Semantic query expansion failed for {Query}", q);
+            return Array.Empty<string>();
+        }
     }
 
     // Each category is filtered in SQL (ILike) and capped, rather than pulling every row for the

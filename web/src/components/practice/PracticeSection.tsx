@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Check, X, Clock, Trophy, RotateCcw, ArrowRight, Eye,
-  BrainCircuit, Award, BookMarked, Sigma, Play, Layers, ListChecks, GraduationCap,
+  BrainCircuit, Award, BookMarked, Sigma, Play, Layers, ListChecks, GraduationCap, Zap,
 } from 'lucide-react';
 import {
   practiceService, type PracticeQuestion, type PracticeSource,
@@ -11,6 +11,18 @@ import {
 } from '../../services/practiceService';
 import { useStudy } from '../../context/StudyContext';
 import { useStudyTimer } from '../../hooks/useStudyTimer';
+import { CardChart } from '../study/CardChart';
+
+/** Chart flashcards store a ChartDefinition JSON as their answer — render it, don't print it. */
+const isChartAnswer = (answer: string) => {
+  if (!answer.trimStart().startsWith('{')) return false;
+  try {
+    const parsed = JSON.parse(answer);
+    return !!(parsed?.labels && parsed?.datasets);
+  } catch {
+    return false;
+  }
+};
 
 const CARD_SHADOW = '0 1px 3px rgba(0,0,0,0.06), 0 6px 20px rgba(0,0,0,0.05)';
 
@@ -19,8 +31,10 @@ const SOURCE_META: Record<PracticeSource, { label: string; desc: string; icon: R
   flashcard: { label: 'Flashcards', desc: 'Front → back recall', icon: BrainCircuit, color: '#0d9488' },
   glossary: { label: 'Glossary', desc: 'Term → definition', icon: BookMarked, color: '#2563eb' },
   problem: { label: 'Worked problems', desc: 'Solve & self-check', icon: Sigma, color: '#7c3aed' },
+  mistake: { label: 'Mistake redo', desc: 'Questions you previously missed', icon: RotateCcw, color: '#dc2626' },
 };
-const ALL_SOURCES = Object.keys(SOURCE_META) as PracticeSource[];
+// The configurable test draws from these; 'mistake' only appears inside smart sessions.
+const ALL_SOURCES = ['quiz', 'flashcard', 'glossary', 'problem'] as PracticeSource[];
 
 const formatTime = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
@@ -65,6 +79,17 @@ export const PracticeSection: React.FC = () => {
     });
   };
 
+  const runTest = (test: { questions: PracticeQuestion[] }) => {
+    setQuestions(test.questions);
+    setIndex(0);
+    setResults([]);
+    setSelected(null);
+    setRevealed(false);
+    setElapsed(0);
+    startRef.current = Date.now();
+    setPhase('running');
+  };
+
   const start = async () => {
     setLoading(true);
     setError(null);
@@ -79,20 +104,43 @@ export const PracticeSection: React.FC = () => {
         setLoading(false);
         return;
       }
-      setQuestions(test.questions);
-      setIndex(0);
-      setResults([]);
-      setSelected(null);
-      setRevealed(false);
-      setElapsed(0);
-      startRef.current = Date.now();
-      setPhase('running');
+      runTest(test);
     } catch {
       setError('Couldn’t build a test right now. Please try again.');
     } finally {
       setLoading(false);
     }
   };
+
+  const [smartLoading, setSmartLoading] = useState(false);
+  const startSmartSession = async () => {
+    setSmartLoading(true);
+    setError(null);
+    try {
+      const test = await practiceService.generateSmartSession();
+      if (test.questions.length === 0) {
+        setError('Nothing due right now — no waiting reviews, open mistakes, or unmastered terms. Nice work!');
+        return;
+      }
+      runTest(test);
+    } catch {
+      setError('Couldn’t build your smart session right now. Please try again.');
+    } finally {
+      setSmartLoading(false);
+    }
+  };
+
+  // Deep link: /practice?smart=1 starts the smart session directly
+  // (used by the dashboard hero button; old /insights?tab=practice links redirect here).
+  const [searchParams] = useSearchParams();
+  const smartAutostartRef = useRef(false);
+  useEffect(() => {
+    if (searchParams.get('smart') === '1' && !smartAutostartRef.current) {
+      smartAutostartRef.current = true;
+      void startSmartSession();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const current = questions[index];
 
@@ -139,6 +187,31 @@ export const PracticeSection: React.FC = () => {
       <div className="w-full space-y-8">
         <div>
           <p className="text-text-muted mt-1 text-[14px]">One timed test, mixed from everything you’ve studied. Results feed your mastery and streak.</p>
+        </div>
+
+        {/* One-button daily smart session */}
+        <div
+          className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-3xl bg-gradient-to-r from-[var(--primary)] to-[var(--primary)]/80 p-6 text-white"
+          style={{ boxShadow: CARD_SHADOW }}
+        >
+          <div className="flex items-start gap-3">
+            <div className="rounded-xl bg-white/15 p-2.5 shrink-0">
+              <Zap size={20} />
+            </div>
+            <div>
+              <p className="text-[15px] font-bold">Daily smart session</p>
+              <p className="text-[12px] text-white/85 mt-0.5 leading-snug max-w-md">
+                Due flashcard reviews, mistakes to redo, and weak concepts — auto-picked and interleaved into one short session.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={startSmartSession}
+            disabled={smartLoading}
+            className="shrink-0 flex items-center justify-center gap-2 rounded-2xl bg-white text-[var(--primary)] px-6 py-3 text-[14px] font-bold hover:opacity-90 transition-opacity disabled:opacity-60"
+          >
+            {smartLoading ? 'Building…' : <><Play size={15} /> Start now</>}
+          </button>
         </div>
 
         <div className="grid lg:grid-cols-[1fr_340px] gap-6 items-start">
@@ -322,7 +395,7 @@ export const PracticeSection: React.FC = () => {
                     <div key={q.id} className="relative bg-white rounded-2xl pl-5 pr-4 py-3.5 overflow-hidden" style={{ boxShadow: CARD_SHADOW }}>
                       <span className="absolute left-0 top-0 bottom-0 w-1.5" style={{ background: meta.color }} />
                       <p className="text-[13px] font-semibold text-text-main line-clamp-2">{q.prompt}</p>
-                      <p className="text-[13px] text-[var(--primary)] mt-1 line-clamp-2"><span className="text-text-muted font-medium">Answer:</span> {q.answer}</p>
+                      <p className="text-[13px] text-[var(--primary)] mt-1 line-clamp-2"><span className="text-text-muted font-medium">Answer:</span> {isChartAnswer(q.answer) ? 'chart card — review it in Flashcards' : q.answer}</p>
                     </div>
                   );
                 })}
@@ -415,7 +488,11 @@ export const PracticeSection: React.FC = () => {
               ) : (
                 <div className="rounded-xl bg-zinc-50 p-4">
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-text-muted mb-1">Answer</p>
-                  <p className="text-[15px] text-text-main whitespace-pre-wrap">{current.answer}</p>
+                  {isChartAnswer(current.answer) ? (
+                    <CardChart data={current.answer} />
+                  ) : (
+                    <p className="text-[15px] text-text-main whitespace-pre-wrap">{current.answer}</p>
+                  )}
                 </div>
               )}
             </div>

@@ -58,6 +58,14 @@ export interface MockExamResult {
   items: MockExamResultItem[]
 }
 
+export interface CramSheet {
+  examPlanId: string
+  title: string
+  examDate: string
+  markdown: string
+  generatedAt: string
+}
+
 export const plannerService = {
   async getExamPlans(): Promise<ExamPlan[]> {
     const res = await apiClient.get('/api/planner/exam-plans')
@@ -75,6 +83,12 @@ export const plannerService = {
 
   async getSchedule(planId: string): Promise<ExamSchedule> {
     const res = await apiClient.get(`/api/planner/exam-plans/${planId}/schedule`)
+    return res.data.data
+  },
+
+  /** AI one-page cheat sheet from weak material; cached daily server-side. */
+  async getCramSheet(planId: string, refresh = false): Promise<CramSheet> {
+    const res = await apiClient.get(`/api/planner/exam-plans/${planId}/cram-sheet`, { params: { refresh } })
     return res.data.data
   },
 

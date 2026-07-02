@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Share2, Copy, Check, Loader2, ExternalLink, Image as ImageIcon, Download } from 'lucide-react';
-import { toPng } from 'html-to-image';
 import { STUDY_TYPE_ICONS } from '../../constants/contentTypeIcons';
 import { createShare, ShareableQuiz, ShareableCard } from '../../services/shareContentService';
 import { ShareImageCard, ShareImageContent } from './ShareImageCard';
@@ -100,6 +99,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
       const rect = el.getBoundingClientRect();
       const MAX_SIDE = 8000;
       const pixelRatio = Math.max(2, Math.min(3, MAX_SIDE / Math.max(rect.width, rect.height, 1)));
+      const { toPng } = await import('html-to-image');
       const dataUrl = await toPng(el, { backgroundColor: '#ffffff', pixelRatio, cacheBust: true });
       setImageDataUrl(dataUrl);
       setStep('image');

@@ -1336,6 +1336,46 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.ToTable("Users");
                 });
 
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.UserPushSubscription", b =>
+                {
+                    b.Property<Guid>("UserPushSubscriptionId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Auth")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Endpoint")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)");
+
+                    b.Property<DateTime?>("LastNotifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("P256dh")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("UserPushSubscriptionId");
+
+                    b.HasIndex("Endpoint")
+                        .IsUnique();
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("UserPushSubscriptions");
+                });
+
             modelBuilder.Entity("StudyPlatform.Domain.Entities.WorkedProblem", b =>
                 {
                     b.Property<Guid>("WorkedProblemId")
@@ -1923,6 +1963,17 @@ namespace StudyPlatform.Infrastructure.Migrations
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.StudySession", b =>
+                {
+                    b.HasOne("StudyPlatform.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.UserPushSubscription", b =>
                 {
                     b.HasOne("StudyPlatform.Domain.Entities.User", "User")
                         .WithMany()

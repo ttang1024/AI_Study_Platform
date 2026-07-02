@@ -44,6 +44,7 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IDocumentContentService, DocumentContentService>();
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddSingleton<IAppCache, DistributedAppCache>();
+        services.AddScoped<IPushNotificationService, WebPushNotificationService>();
 
         // HTTP context accessor (used by AiService to read request headers)
         services.AddHttpContextAccessor();

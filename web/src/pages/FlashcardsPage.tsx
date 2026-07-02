@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useStudy } from '../context/StudyContext';
-import { BrainCircuit, Search, Loader2, Pencil, CalendarDays, Upload } from 'lucide-react';
+import { BrainCircuit, Search, Loader2, Pencil, CalendarDays, Upload, GraduationCap } from 'lucide-react';
 import { FlashcardImportModal } from '../components/study/FlashcardImportModal';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { cn } from '../utils/cn';
 import { getDocDisplayName } from '../utils/docName';
 import { motion, AnimatePresence } from 'motion/react';
@@ -204,6 +204,12 @@ export const FlashcardsPage: React.FC = () => {
           <p className="text-lg text-zinc-500 font-medium max-w-2xl">
             Master your subjects with active recall and spaced repetition.
           </p>
+          <Link
+            to="/practice"
+            className="inline-flex w-fit items-center gap-1.5 rounded-xl border border-[var(--primary)]/30 bg-[var(--primary)]/10 px-3 py-1.5 text-sm font-semibold text-[var(--primary)] hover:bg-[var(--primary)]/15 transition-colors"
+          >
+            <GraduationCap size={15} /> Start a practice test
+          </Link>
         </div>
         {activeTab === 'sets' && (
           <div className="flex items-center gap-2 w-full sm:w-auto">

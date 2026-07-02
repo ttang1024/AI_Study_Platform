@@ -86,7 +86,7 @@ export const TodayProgressHero: React.FC = () => {
 
   const core = useMemo(() => (plan?.items ?? []).filter(i => !i.stretch), [plan]);
   const coreRemaining = core.filter(i => !done.has(i.id)).length;
-  const firstActionUrl = (core.find(i => !done.has(i.id) && i.url) ?? core.find(i => i.url))?.url ?? '/insights?tab=practice';
+  const firstActionUrl = (core.find(i => !done.has(i.id) && i.url) ?? core.find(i => i.url))?.url ?? '/practice';
 
   if (loading) {
     return (
@@ -148,10 +148,10 @@ export const TodayProgressHero: React.FC = () => {
             <Play size={16} /> Start session
           </Link>
           <Link
-            to="/insights?tab=practice"
+            to="/practice?smart=1"
             className="flex-1 lg:flex-none inline-flex items-center justify-center gap-2 rounded-2xl bg-zinc-100 text-text-main px-6 py-3.5 text-[15px] font-bold hover:bg-zinc-200 transition-colors whitespace-nowrap"
           >
-            <Award size={16} /> Practice test
+            <Award size={16} /> Smart session
           </Link>
         </div>
       </div>

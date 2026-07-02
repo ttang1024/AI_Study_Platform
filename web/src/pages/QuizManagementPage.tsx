@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useStudy } from '../context/StudyContext';
-import { Loader2, Download, Plus } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Loader2, Download, Plus, GraduationCap } from 'lucide-react';
 import { TimedExamModal } from '../components/quiz/TimedExamModal';
 import { ShareModal } from '../components/common/ShareModal';
 import { EditQuestionModal } from '../components/quiz/EditQuestionModal';
@@ -61,6 +62,12 @@ export const QuizManagementPage: React.FC = () => {
           <p className="text-base sm:text-lg text-zinc-500 font-medium max-w-2xl">
             Track your progress and sharpen your knowledge.
           </p>
+          <Link
+            to="/practice"
+            className="inline-flex w-fit items-center gap-1.5 rounded-xl border border-[var(--primary)]/30 bg-[var(--primary)]/10 px-3 py-1.5 text-sm font-semibold text-[var(--primary)] hover:bg-[var(--primary)]/15 transition-colors"
+          >
+            <GraduationCap size={15} /> Start a practice test
+          </Link>
         </div>
         {mainTab === 'history' && history.docStats.totalTaken > 0 && (
           <div className="flex flex-wrap items-center gap-3 shrink-0">

@@ -88,7 +88,7 @@ export const BentoPlannerCard: React.FC = () => {
       </div>
 
       <p className="text-sm text-white/40 leading-relaxed">
-        Set an exam date, get a day-by-day study schedule with countdown, and drill timed AI mock exams — wrong answers feed your mistakes notebook.
+        Set an exam date, get a day-by-day schedule with countdown, drill timed AI mock exams, and cram with a one-page AI cheat sheet built from your weak spots.
       </p>
     </BentoCardShell>
   );

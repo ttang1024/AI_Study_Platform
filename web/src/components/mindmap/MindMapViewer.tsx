@@ -8,7 +8,6 @@ import {
   Brain, Pencil, Check, X,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { toPng } from 'html-to-image';
 import { cn } from '../../utils/cn';
 import { useStudy } from '../../context/StudyContext';
 import { documentService } from '../../services/documentService';
@@ -382,6 +381,7 @@ export const MindMapViewer: React.FC<MindMapViewerProps> = ({
     holder.appendChild(clone);
     document.body.appendChild(holder);
     try {
+      const { toPng } = await import('html-to-image');
       const dataUrl = await toPng(clone as unknown as HTMLElement, {
         backgroundColor: '#ffffff',
         width,

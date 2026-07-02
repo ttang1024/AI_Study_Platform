@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using MediatR;
 using StudyPlatform.Application.Analytics.Queries;
 using StudyPlatform.Application.Common;
@@ -35,6 +36,29 @@ public record PracticeResultItem(string Source, Guid SourceId, bool IsCorrect);
 public record SubmitPracticeTestRequest(IReadOnlyList<PracticeResultItem> Results);
 
 public record PracticeTestSummaryDto(int Total, int Correct, double AccuracyPercent);
+
+/// <summary>
+/// Turns a flashcard into a practice prompt/answer pair. Cloze cards carry their
+/// answer inline as <c>{{term}}</c> in the front (the back is often empty), so the
+/// terms are blanked out of the prompt and surfaced as the answer.
+/// </summary>
+public static class PracticeFlashcardFormat
+{
+    private static readonly Regex ClozeRegex = new(@"\{\{([^}]+)\}\}", RegexOptions.Compiled);
+
+    /// <summary>Null when the card has no answer to reveal (no cloze terms and a blank back).</summary>
+    public static (string Prompt, string Answer)? ToPromptAnswer(string front, string? back)
+    {
+        var matches = ClozeRegex.Matches(front);
+        if (matches.Count == 0)
+            return string.IsNullOrWhiteSpace(back) ? null : (front, back!);
+
+        var prompt = ClozeRegex.Replace(front, "_____");
+        var terms = string.Join(", ", matches.Select(m => m.Groups[1].Value.Trim()));
+        var answer = string.IsNullOrWhiteSpace(back) ? terms : $"{terms} — {back}";
+        return (prompt, answer);
+    }
+}
 
 // ── Generate ──────────────────────────────────────────────────────────────────
 
@@ -102,16 +126,21 @@ public class GeneratePracticeTestQueryHandler : IRequestHandler<GeneratePractice
             pools["quiz"] = pool;
         }
 
-        // ── Flashcards (recall, self-graded) ──
+        // ── Flashcards (recall, self-graded; cloze fronts get blanked out) ──
         if (sources.Contains("flashcard"))
         {
             var cards = (await _unitOfWork.Flashcards.GetByUserIdAsync(userId, ct)).ToList();
             pools["flashcard"] = cards
-                .Select(f => new { f, courseId = CourseOf(f.DocumentId, f.YouTubeVideoId) })
-                .Where(x => CourseMatches(x.courseId) && !string.IsNullOrWhiteSpace(x.f.Front))
+                .Select(f => new
+                {
+                    f,
+                    courseId = CourseOf(f.DocumentId, f.YouTubeVideoId),
+                    qa = string.IsNullOrWhiteSpace(f.Front) ? null : PracticeFlashcardFormat.ToPromptAnswer(f.Front, f.Back),
+                })
+                .Where(x => CourseMatches(x.courseId) && x.qa is not null)
                 .Select(x => new PracticeQuestionDto(
                     $"flashcard:{x.f.FlashcardId}", "flashcard", x.f.FlashcardId.ToString(), "recall",
-                    x.f.Front, null, x.f.Back, null, x.f.Difficulty, x.courseId?.ToString()))
+                    x.qa!.Value.Prompt, null, x.qa.Value.Answer, null, x.f.Difficulty, x.courseId?.ToString()))
                 .ToList();
         }
 
@@ -291,6 +320,24 @@ public class SubmitPracticeTestCommandHandler : IRequestHandler<SubmitPracticeTe
                     if (item.IsCorrect && masteredProblems.Add(item.SourceId))
                         await _unitOfWork.WorkedProblemMastered.AddAsync(
                             new WorkedProblemMastered { Id = Guid.NewGuid(), UserId = userId, WorkedProblemId = item.SourceId, MasteredAt = DateTime.UtcNow }, ct);
+                    break;
+
+                case "mistake":
+                    // Smart-session redo of a mistake-notebook entry: a correct answer
+                    // resolves it, a wrong one bumps its missed counter.
+                    var mistake = (await _unitOfWork.MistakeEntries.FindAsync(
+                        m => m.MistakeEntryId == item.SourceId && m.UserId == userId, ct)).FirstOrDefault();
+                    if (mistake is null) break;
+                    if (item.IsCorrect)
+                    {
+                        mistake.Status = "resolved";
+                        mistake.ResolvedAt = DateTime.UtcNow;
+                    }
+                    else
+                    {
+                        mistake.TimesMissed++;
+                        mistake.LastMissedAt = DateTime.UtcNow;
+                    }
                     break;
             }
         }

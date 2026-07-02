@@ -184,6 +184,10 @@ builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.Configure<AppLimitsOptions>(builder.Configuration.GetSection(AppLimitsOptions.SectionName));
 builder.Services.Configure<CacheOptions>(builder.Configuration.GetSection(CacheOptions.SectionName));
+builder.Services.Configure<VapidOptions>(builder.Configuration.GetSection(VapidOptions.SectionName));
+
+// Daily "cards due" web-push reminders (no-op until VAPID keys are configured).
+builder.Services.AddHostedService<DueReviewPushWorker>();
 
 // Health checks
 builder.Services.AddHealthChecks();

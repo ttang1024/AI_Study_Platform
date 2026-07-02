@@ -13,7 +13,7 @@
 
 </div>
 
-Upload documents, videos (YouTube · Bilibili · your own files), podcasts, and web articles — AI generates summaries, flashcards, quizzes, glossaries, and mind maps. Master any topic with spaced repetition, an exam planner with AI mock exams, and an AI tutor.
+Upload documents, videos (YouTube · Bilibili · your own files), podcasts, and web articles — AI generates summaries, flashcards, quizzes, glossaries, and mind maps. Master any topic with spaced repetition, one-button daily smart sessions, an exam planner with AI mock exams and cram sheets, and a hands-free voice tutor.
 
 ---
 
@@ -27,15 +27,15 @@ Upload documents, videos (YouTube · Bilibili · your own files), podcasts, and 
 | --- | -------------------- | ------------------------------------------------------------------------------------------------------------ |
 | 📄  | **Content Sources**  | PDF / DOCX, YouTube & Bilibili, uploaded videos, web article clipping, audio files, Apple Podcasts           |
 | 🤖  | **AI Generation**    | Summaries, flashcards (basic / cloze / chart), quizzes, glossaries, mind maps, worked problems               |
-| 🎯  | **Study Tools**      | Rich-text notes, AI tutor (voice + graded teach-back), FSRS-4.5 spaced repetition, question bank, knowledge graph & learning paths |
-| 🗓️  | **Today & Practice** | Daily study plan with goal budgeting, unified Practice / Exam mode (quiz · flashcard · glossary · problem), timed runner |
-| 🎓  | **Exam Prep**        | Exam planner with countdown & day-by-day schedule, timed AI mock exams, mistakes notebook, reinforcement center |
+| 🎯  | **Study Tools**      | Rich-text notes, hands-free voice tutor (speaks, listens, and answers back), graded teach-back, photo problem capture, FSRS-4.5 spaced repetition, question bank, knowledge graph & learning paths |
+| 🗓️  | **Today & Practice** | Daily study plan with goal budgeting, one-button **smart session** (due reviews + mistake redos + weak concepts, interleaved), unified Practice / Exam mode (quiz · flashcard · glossary · problem), timed runner |
+| 🎓  | **Exam Prep**        | Exam planner with countdown & day-by-day schedule, AI cram sheets built from your weak spots, timed AI mock exams, mistakes notebook, reinforcement center |
 | 📊  | **Insights**         | Time-on-task & accuracy analytics, per-course mastery, knowledge-gap detection, AI recommendations, XP & levels |
-| 🔔  | **Reminders**        | Notification digest — due cards, streak-at-risk, daily-goal progress, top knowledge gaps                     |
+| 🔔  | **Reminders**        | Browser push reminders when flashcards come due (Web Push), notification digest — due cards, streak-at-risk, daily-goal progress, top knowledge gaps |
 | 📴  | **Offline PWA**      | Installable app shell; flashcards & glossary cached for offline review with background sync                  |
-| 🔊  | **Extras**           | PDF annotations, text-to-speech, full-text search + ask-your-library AI answers (cited sources), public share links |
-| 🔄  | **Import / Export**  | Anki import & export, Notion / Markdown ZIP import, study-pack export (PDF / CSV), ICS calendar feed, web clipper |
-| 👥  | **Study Groups**     | Shared courses & documents, real-time chat, assignments, live quiz battles, XP leaderboard                   |
+| 🔊  | **Extras**           | PDF annotations, text-to-speech, semantic full-text search (finds related concepts even when the words differ) + ask-your-library AI answers (cited sources), public share links |
+| 🔄  | **Import / Export**  | Anki import & export, Notion / Markdown ZIP import, study-pack export (PDF / CSV), ICS calendar feed, web clipper, highlight-to-flashcard from any web page |
+| 👥  | **Study Groups**     | Shared courses & documents, real-time chat, live co-study rooms with shared focus timer, assignments, live quiz battles, XP leaderboard |
 | 🔐  | **Auth**             | Email + OTP, Google / GitHub OAuth, JWT sessions                                                             |
 
 **AI Providers** — Gemini · OpenAI · Claude · Grok · DeepSeek · Kimi · Doubao · Qwen · Wenxin Yiyan (multi-provider routing, switchable from settings)
@@ -47,6 +47,8 @@ Upload documents, videos (YouTube · Bilibili · your own files), podcasts, and 
 **Backend** — .NET 10 · ASP.NET Core · EF Core 9 · MediatR · FluentValidation · SignalR · PostgreSQL · Redis · Amazon S3 · yt-dlp · ffmpeg · Whisper.net · MailKit · JWT
 
 **Frontend** — React 19 · TypeScript 5.8 · Vite 6 · TailwindCSS 4 · React Router 7 · Tiptap · D3.js + Markmap · Service Worker + idb-keyval (offline PWA)
+
+> **Build systems:** Vite (`npm run dev` / `npm run build`) is the production path — `deploy.sh` ships `web/dist` to S3/CloudFront. The Next.js scripts (`dev:next` / `build:next` / `start:next`) are an alternative SSR entry (`web/src/app`) added for landing/share-page SEO experiments and are **not** deployed; keep changes working under Vite first.
 
 **Architecture** — Clean Architecture · CQRS · Repository + Unit of Work · SSE streaming
 
@@ -105,6 +107,9 @@ cd web && npm install && npm run dev       # → http://localhost:3000
 	"GitHubOAuth": { "ClientId": "Ov23lic...", "ClientSecret": "..." },
 	"Cors": { "AllowedOrigins": ["http://localhost:3000", "http://localhost:3001"] },
 	"AppLimits": { "DocumentUploadLimit": -1 }, // -1 = unlimited; hosted default is 10 documents / audio / video uploads per account
+	// Optional — enables browser push reminders for due flashcards.
+	// Generate a key pair once with: npx web-push generate-vapid-keys
+	"Vapid": { "PublicKey": "", "PrivateKey": "", "Subject": "mailto:you@example.com" },
 }
 ```
 
@@ -122,7 +127,7 @@ VITE_GITHUB_CLIENT_ID=Ov23lic...
 
 Clip any web page into your library as a cleaned-up Markdown article:
 
-- **Browser extension** — load `extension/` as an unpacked extension (Chrome / Edge / Brave). See [extension/README.md](extension/README.md).
+- **Browser extension** — load `extension/` as an unpacked extension (Chrome / Edge / Brave). Also adds a right-click **Save selection as flashcard** action: the highlighted text becomes the front, AI writes the back. See [extension/README.md](extension/README.md).
 - **Bookmarklet** — Settings → Export → **Web Clipper bookmarklet**; no install needed.
 
 ---

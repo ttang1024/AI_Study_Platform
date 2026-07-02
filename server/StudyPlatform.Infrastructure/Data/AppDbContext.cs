@@ -43,6 +43,7 @@ public class AppDbContext : DbContext
     public DbSet<QuizBattleEntry> QuizBattleEntries => Set<QuizBattleEntry>();
     public DbSet<GroupAssignment> GroupAssignments => Set<GroupAssignment>();
     public DbSet<GroupAssignmentCompletion> GroupAssignmentCompletions => Set<GroupAssignmentCompletion>();
+    public DbSet<UserPushSubscription> UserPushSubscriptions => Set<UserPushSubscription>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

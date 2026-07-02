@@ -49,3 +49,15 @@ export async function handleClip(url: string) {
 	await chrome.tabs.create({ url: `${appOrigin}/summarizer?tab=web&clip=${encodeURIComponent(url)}` })
 	return { ok: true }
 }
+
+/** Highlight → flashcard: selection becomes the front, the AI writes the back. */
+export async function handleSaveFlashcard(text: string, sourceTitle?: string, sourceUrl?: string) {
+	const res = await apiFetch('/api/flashcards/from-text', {
+		method: 'POST',
+		ai: true,
+		body: { text, sourceTitle: sourceTitle || null, sourceUrl: sourceUrl || null },
+	})
+	const body = await res.json().catch(() => null)
+	if (!res.ok) return { ok: false, error: body?.message || 'Couldn’t save the flashcard.', code: body?.errorCode }
+	return { ok: true, card: body?.data || null }
+}

@@ -240,7 +240,8 @@ export const LandingPage: React.FC = () => {
           transition={{ duration: 0.7, delay: 0.52 }}
           className="max-w-2xl text-lg sm:text-xl text-white/45 leading-relaxed mb-10">
           Turn documents, YouTube &amp; Bilibili videos, podcasts, audio lectures, and web articles into AI summaries,
-          mind maps, flashcards, quizzes — then master it all with spaced repetition, timed mock exams, and an AI tutor.
+          mind maps, flashcards, quizzes — then master it all with spaced repetition, one-button smart sessions,
+          timed mock exams, and a hands-free voice tutor.
         </motion.p>
 
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
@@ -270,7 +271,7 @@ export const LandingPage: React.FC = () => {
           {[
             { to: 15, suffix: '+', label: 'AI-powered tools' },
             { to: 100, suffix: '%', label: 'Free to start' },
-            { to: 7, suffix: ' content types', label: '' },
+            { to: 12, suffix: ' content types', label: '' },
           ].map((s, i) => (
             <motion.div key={i}
               initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
@@ -485,7 +486,7 @@ export const LandingPage: React.FC = () => {
             {[
               { step: '01', title: 'Add Your Content', desc: 'Upload PDFs or videos, paste a YouTube or Bilibili link, clip a web article, add audio files, or paste an Apple Podcasts URL.', icon: BookOpen, color: 'from-cyan-500 to-blue-600', glow: 'rgba(6,182,212,0.4)' },
               { step: '02', title: 'AI Does the Work', desc: 'AI instantly generates summaries, mind maps, flashcards, quizzes, glossaries, and step-by-step worked problems.', icon: Bot, color: 'from-teal-400 to-cyan-600', glow: 'rgba(13,148,136,0.4)' },
-              { step: '03', title: 'Master the Topic', desc: 'Review due cards with FSRS spaced repetition, take timed mock exams, annotate PDFs, and explore your Knowledge Graph.', icon: GraduationCap, color: 'from-emerald-400 to-teal-600', glow: 'rgba(52,211,153,0.4)' },
+              { step: '03', title: 'Master the Topic', desc: 'Run one-button smart sessions over due cards, mistakes, and weak concepts, take timed mock exams, cram with AI cheat sheets, and explore your Knowledge Graph.', icon: GraduationCap, color: 'from-emerald-400 to-teal-600', glow: 'rgba(52,211,153,0.4)' },
             ].map((item, i) => {
               const Icon = item.icon;
               return (

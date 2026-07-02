@@ -54,6 +54,21 @@ public class PlannerController : ControllerBase
         return Ok(new BaseResponse { Success = true, Message = result.Message });
     }
 
+    /// <summary>
+    /// AI cram sheet for an exam plan: a one-page Markdown summary of the learner's
+    /// weak material (open mistakes + unmastered terms). Cached daily; refresh=true regenerates.
+    /// </summary>
+    [HttpGet("exam-plans/{planId:guid}/cram-sheet")]
+    [ProducesResponseType(typeof(BaseResponse<CramSheetDto>), 200)]
+    [ProducesResponseType(typeof(BaseResponse), 404)]
+    public async Task<IActionResult> GetCramSheet(Guid planId, [FromQuery] bool refresh = false)
+    {
+        var result = await _mediator.Send(new GetCramSheetQuery(User.GetUserId(), planId, refresh));
+        if (!result.IsSuccess)
+            return NotFound(BaseResponse<CramSheetDto>.Fail(result.Message, result.ErrorCode));
+        return Ok(BaseResponse<CramSheetDto>.Ok(result.Data!));
+    }
+
     /// <summary>Get the back-planned daily schedule for an exam plan.</summary>
     [HttpGet("exam-plans/{planId:guid}/schedule")]
     [ProducesResponseType(typeof(BaseResponse<ExamScheduleDto>), 200)]

@@ -17,7 +17,7 @@
 
 import { friendlyError } from './api'
 import { setAiSettings, setToken } from './config'
-import { handleChat, handleOpenApp, handleClip, handleStatus, handleTranscript } from './handlers'
+import { handleChat, handleOpenApp, handleClip, handleSaveFlashcard, handleStatus, handleTranscript } from './handlers'
 import { handleLibrary } from './library'
 import { startStream } from './streaming'
 
@@ -65,4 +65,32 @@ chrome.runtime.onConnect.addListener((port) => {
 		if (m?.type === 'start') startStream(m.kind, m.videoUrl, port, aborter.signal)
 		if (m?.type === 'cancel') aborter.abort()
 	})
+})
+
+// ── highlight → flashcard (right-click any selected text) ───────────────────
+
+const FLASHCARD_MENU_ID = 'es-save-flashcard'
+
+chrome.runtime.onInstalled.addListener(() => {
+	chrome.contextMenus.create({
+		id: FLASHCARD_MENU_ID,
+		title: 'Save selection as flashcard',
+		contexts: ['selection'],
+	})
+})
+
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+	if (info.menuItemId !== FLASHCARD_MENU_ID || !info.selectionText) return
+	;(async () => {
+		const result = await handleSaveFlashcard(info.selectionText!, tab?.title ?? undefined, info.pageUrl).catch(friendlyError)
+		const ok = (result as any)?.ok === true
+		chrome.notifications.create({
+			type: 'basic',
+			iconUrl: 'icon128.png',
+			title: ok ? 'Flashcard saved' : 'Couldn’t save flashcard',
+			message: ok
+				? 'The AI is on the back of the card — review it in Easy Study → Flashcards.'
+				: ((result as any)?.error || 'Something went wrong.'),
+		})
+	})()
 })

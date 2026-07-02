@@ -1,5 +1,8 @@
 using MediatR;
+using Microsoft.Extensions.Options;
 using StudyPlatform.Application.Common;
+using StudyPlatform.Application.Services;
+using StudyPlatform.Application.Settings;
 using StudyPlatform.Domain.Interfaces;
 
 namespace StudyPlatform.Application.ConceptLinks;
@@ -32,21 +35,34 @@ public class GetLearningPathQueryHandler : IRequestHandler<GetLearningPathQuery,
     private const int MaxSteps = 40;
 
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IAppCache _cache;
+    private readonly CacheOptions _cacheOptions;
 
-    public GetLearningPathQueryHandler(IUnitOfWork unitOfWork)
+    public GetLearningPathQueryHandler(IUnitOfWork unitOfWork, IAppCache cache, IOptions<CacheOptions> cacheOptions)
     {
         _unitOfWork = unitOfWork;
+        _cache = cache;
+        _cacheOptions = cacheOptions.Value;
     }
 
     public async Task<Result<LearningPathDto>> Handle(GetLearningPathQuery request, CancellationToken cancellationToken)
     {
-        var userId = request.UserId;
+        var result = await _cache.GetOrCreateAsync(
+            $"concept-links:learning-path:user:{request.UserId}",
+            ct => ComputeAsync(request.UserId, ct),
+            TimeSpan.FromSeconds(_cacheOptions.KnowledgeGraphSeconds),
+            cancellationToken);
+        return Result<LearningPathDto>.Success(result);
+    }
+
+    private async Task<LearningPathDto> ComputeAsync(Guid userId, CancellationToken cancellationToken)
+    {
         var terms = (await _unitOfWork.GlossaryTerms.FindAsync(t => t.UserId == userId, cancellationToken)).ToList();
         var mastered = (await _unitOfWork.GlossaryMastered.GetMasteredTermIdsByUserAsync(userId, cancellationToken)).ToHashSet();
         var links = (await _unitOfWork.ConceptLinks.GetByUserAsync(userId, cancellationToken)).ToList();
 
         if (terms.Count == 0)
-            return Result<LearningPathDto>.Success(new LearningPathDto(Array.Empty<LearningPathStepDto>(), 0, 0));
+            return new LearningPathDto(Array.Empty<LearningPathStepDto>(), 0, 0);
 
         // Dedupe terms by name (the same concept can appear in several materials).
         var byName = terms
@@ -145,6 +161,6 @@ public class GetLearningPathQueryHandler : IRequestHandler<GetLearningPathQuery,
         }
 
         var masteredCount = byName.Count(e => e.Mastered);
-        return Result<LearningPathDto>.Success(new LearningPathDto(steps, masteredCount, byName.Count));
+        return new LearningPathDto(steps, masteredCount, byName.Count);
     }
 }

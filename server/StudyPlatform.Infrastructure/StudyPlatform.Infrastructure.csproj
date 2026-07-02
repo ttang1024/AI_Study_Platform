@@ -28,6 +28,7 @@
     <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.1" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.1" />
     <PackageReference Include="UglyToad.PdfPig" Version="1.7.0-custom-5" />
+    <PackageReference Include="WebPush" Version="1.0.13" />
     <PackageReference Include="Whisper.net" Version="1.7.3" />
     <PackageReference Include="Whisper.net.Runtime" Version="1.7.3" />
     <PackageReference Include="HtmlAgilityPack" Version="1.11.67" />

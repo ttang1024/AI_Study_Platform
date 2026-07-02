@@ -3,32 +3,20 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useStudy } from '../context/StudyContext';
 import { useAuth } from '../context/AuthContext';
 import { motion } from 'motion/react';
-import {
-  BookMarked, Search, Sparkles, Loader2, Play,
-  FileText, Youtube, Globe, Mic,
-  CheckCircle2, Circle, Share2, X, Download,
-} from 'lucide-react';
+import { BookMarked, Search, X } from 'lucide-react';
 import { GlossaryTerm } from '../types';
-import { glossaryService } from '../services/glossaryService';
-import { masteredService } from '../services/masteredService';
-import { cn } from '../utils/cn';
 import { getDocDisplayName } from '../utils/docName';
 import { SourceFilterBar, SourceType } from '../components/common/SourceFilterBar';
 import { GlossaryShareModal } from '../components/common/GlossaryShareModal';
 import { GlossaryTermCard } from '../components/common/GlossaryTermCard';
-import { Pagination } from '../components/common/Pagination';
-import { Select } from '../components/common/Select';
 import { GlossaryGeneratePanel } from '../components/glossary/GlossaryGeneratePanel';
+import { GlossaryHeader } from '../components/glossary/GlossaryHeader';
+import { GlossaryMasteryFilter, MasteryFilter } from '../components/glossary/GlossaryMasteryFilter';
+import { GlossaryLetterNav } from '../components/glossary/GlossaryLetterNav';
 import { useStudyTimer } from '../hooks/useStudyTimer';
 import { useGlossaryAudio } from '../hooks/useGlossaryAudio';
-
-function getDocKind(doc: { type?: string; name: string; originalUrl?: string }): 'audio' | 'article' | 'document' {
-  if (doc.type === 'audio' || doc.type === 'podcast') return 'audio';
-  if (doc.originalUrl) return 'article';
-  return 'document';
-}
-
-type MasteryFilter = 'all' | 'unmastered' | 'mastered';
+import { useGlossaryTerms, getDocKind } from '../hooks/useGlossaryTerms';
+import { useMasteredTerms } from '../hooks/useMasteredTerms';
 
 export const GlossaryPage: React.FC = () => {
   const { documents, courses, videos, ensureDocuments, ensureVideos } = useStudy();
@@ -38,7 +26,15 @@ export const GlossaryPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const userId = user?.id ?? 'guest';
-  const [allTerms, setAllTerms] = useState<GlossaryTerm[]>([]);
+
+  const {
+    allTerms,
+    generating, handleGenerateDoc, handleGenerateVideo,
+    editingId, editDraft, setEditDraft, savingId, deletingId,
+    startEdit, cancelEdit, saveEdit, handleDelete,
+  } = useGlossaryTerms(userId, documents, videos);
+  const { masteredIds, toggleMastered } = useMasteredTerms(userId);
+
   const [selectedSourceId, setSelectedSourceId] = useState('');
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   // Attribute glossary time to the course of the selected source, falling back to the
@@ -52,17 +48,11 @@ export const GlossaryPage: React.FC = () => {
   const [generateCourseId, setGenerateCourseId] = useState<string | null>(null);
   const [sourceType, setSourceType] = useState<SourceType>('all');
   const [search, setSearch] = useState('');
-  const [generating, setGenerating] = useState<Set<string>>(new Set());
   const [activeLetter, setActiveLetter] = useState<string | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
   const [generatePage, setGeneratePage] = useState(1);
   const initialMastery = searchParams.get('mastery') === 'unmastered' ? 'unmastered' : 'all';
   const [masteryFilter, setMasteryFilter] = useState<MasteryFilter>(initialMastery);
-  const [masteredIds, setMasteredIds] = useState<Set<string>>(() => masteredService.getCached(userId));
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editDraft, setEditDraft] = useState({ term: '', definition: '' });
-  const [savingId, setSavingId] = useState<string | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const GENERATE_PAGE_SIZE = 6;
@@ -75,114 +65,6 @@ export const GlossaryPage: React.FC = () => {
   const handleSelectGenerateCourse = (id: string | null) => {
     setGenerateCourseId(id);
     setGeneratePage(1);
-  };
-
-  const toggleMastered = useCallback((id: string) => {
-    // Optimistic update
-    setMasteredIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      masteredService.updateCache(userId, next);
-      return next;
-    });
-    // Sync to server
-    masteredService.toggle(userId, id).catch(() => {
-      // Revert on failure
-      setMasteredIds(prev => {
-        const next = new Set(prev);
-        if (next.has(id)) next.delete(id); else next.add(id);
-        masteredService.updateCache(userId, next);
-        return next;
-      });
-    });
-  }, [userId]);
-
-  // Sync mastered IDs from server on mount
-  useEffect(() => {
-    if (userId === 'guest') return;
-    masteredService.loadFromServer(userId).then(setMasteredIds).catch(() => { });
-  }, [userId]);
-
-  // `videos` (used only to label video-sourced glossary terms) comes from
-  // StudyContext, which loads the lightweight list once and shares it.
-
-  // Load cached glossary terms in one request. Per-source endpoints are only used for refresh/generate.
-  useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      const terms = await glossaryService.getAllGlossary();
-      if (!cancelled) setAllTerms(terms);
-    };
-    if (userId !== 'guest') load();
-    return () => { cancelled = true; };
-  }, [userId]);
-
-  const handleGenerateDoc = async (docId: string) => {
-    const doc = documents.find(d => d.id === docId);
-    if (!doc) return;
-    setGenerating(prev => new Set([...prev, docId]));
-    try {
-      const terms = await glossaryService.generateGlossary(doc.courseId || '', doc.id);
-      const enriched = terms.map(t => ({
-        ...t,
-        documentId: doc.id,
-        sourceName: doc.name,
-        courseId: doc.courseId,
-        sourceKind: getDocKind(doc) as GlossaryTerm['sourceKind'],
-      }));
-      setAllTerms(prev => [...prev.filter(t => t.documentId !== docId), ...enriched]);
-    } finally {
-      setGenerating(prev => { const n = new Set(prev); n.delete(docId); return n; });
-    }
-  };
-
-  const handleGenerateVideo = async (videoId: string) => {
-    const video = videos.find(v => v.id === videoId);
-    if (!video) return;
-    setGenerating(prev => new Set([...prev, videoId]));
-    try {
-      const terms = await glossaryService.generateVideoGlossary(videoId, video.videoUrl);
-      const enriched = terms.map(t => ({
-        ...t,
-        youTubeVideoId: videoId,
-        sourceName: video.title,
-        courseId: video.courseId,
-        sourceKind: 'video' as const,
-      }));
-      setAllTerms(prev => [...prev.filter(t => t.youTubeVideoId !== videoId), ...enriched]);
-    } finally {
-      setGenerating(prev => { const n = new Set(prev); n.delete(videoId); return n; });
-    }
-  };
-
-  const startEdit = (term: GlossaryTerm) => {
-    setEditingId(term.id);
-    setEditDraft({ term: term.term, definition: term.definition });
-  };
-
-  const cancelEdit = () => setEditingId(null);
-
-  const saveEdit = async (termId: string) => {
-    setSavingId(termId);
-    try {
-      const updated = await glossaryService.updateTerm(termId, editDraft.term, editDraft.definition);
-      setAllTerms(prev => prev.map(t =>
-        t.id === termId ? { ...t, term: updated.term, definition: updated.definition } : t
-      ));
-      setEditingId(null);
-    } finally {
-      setSavingId(null);
-    }
-  };
-
-  const handleDelete = async (termId: string) => {
-    setDeletingId(termId);
-    try {
-      await glossaryService.deleteTerm(termId);
-      setAllTerms(prev => prev.filter(t => t.id !== termId));
-    } finally {
-      setDeletingId(null);
-    }
   };
 
   const filtered = useMemo(() => {
@@ -255,7 +137,6 @@ export const GlossaryPage: React.FC = () => {
     document.getElementById(`glossary-${letter}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     setActiveLetter(letter);
   };
-
 
   const masteredCount = useMemo(() => allTerms.filter(t => masteredIds.has(t.id)).length, [allTerms, masteredIds]);
 
@@ -340,82 +221,22 @@ export const GlossaryPage: React.FC = () => {
     setGeneratePage(page => Math.min(page, totalPages));
   }, [visibleSources.length]);
 
-  const masteryTabs: { id: MasteryFilter; label: string }[] = [
-    { id: 'all', label: 'All' },
-    { id: 'unmastered', label: 'Learning' },
-    { id: 'mastered', label: 'Mastered' },
-  ];
-
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-        <div className="space-y-2">
-          <h1 className="text-4xl font-black text-text-main">
-            Study <span className="text-primary">Glossary</span>
-          </h1>
-          <p className="text-zinc-500 font-medium">AI-extracted key terms and definitions from all your content.</p>
-        </div>
-        <div className="flex flex-col items-end gap-3">
-          <div className="flex items-center gap-3">
-            <div className="text-right">
-              <p className="text-3xl font-black text-text-main">{allTerms.length}</p>
-              <p className="text-xs text-text-muted font-medium">total terms</p>
-            </div>
-            {masteredCount > 0 && (
-              <div className="text-right">
-                <p className="text-3xl font-black text-emerald-600">{masteredCount}</p>
-                <p className="text-xs text-emerald-500/70 font-medium">mastered</p>
-              </div>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            {filtered.length > 0 && (
-              <button
-                onClick={() => setShareOpen(true)}
-                className="flex items-center gap-1.5 rounded-xl border border-[var(--border-color)] px-4 py-2 text-xs font-bold text-text-muted hover:border-primary/50 hover:text-primary transition-all"
-              >
-                <Share2 size={13} />
-                Share
-              </button>
-            )}
-            {filtered.length > 0 && playerState === 'idle' && (
-              <button
-                onClick={() => play(0)}
-                className="flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-white shadow hover:opacity-90 transition-opacity"
-              >
-                <Play size={13} className="fill-current" />
-                {selectedIds.size > 0
-                  ? `Play Selected (${playTerms.length})`
-                  : `Play ${masteryFilter !== 'all' ? `(${filtered.length})` : 'All'}`}
-              </button>
-            )}
-            {filtered.length > 0 && (
-              <button
-                onClick={handleDownloadTxt}
-                title="Download as TXT"
-                className="flex items-center gap-1.5 rounded-xl border border-[var(--border-color)] px-4 py-2 text-xs font-bold text-text-muted hover:border-primary/50 hover:text-primary transition-all"
-              >
-                <Download size={13} />
-                {`TXT${selectedIds.size > 0 ? ` (${playTerms.length})` : ''}`}
-              </button>
-            )}
-            {filtered.length > 0 && (
-              <button
-                onClick={handleDownloadMp3}
-                disabled={downloadingMp3}
-                title="Download as MP3"
-                className="flex items-center gap-1.5 rounded-xl border border-[var(--border-color)] px-4 py-2 text-xs font-bold text-text-muted hover:border-primary/50 hover:text-primary transition-all disabled:opacity-50"
-              >
-                {downloadingMp3 ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
-                {downloadingMp3
-                  ? 'Generating…'
-                  : `MP3${selectedIds.size > 0 ? ` (${playTerms.length})` : ''}`}
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
+      <GlossaryHeader
+        totalTerms={allTerms.length}
+        masteredCount={masteredCount}
+        filteredCount={filtered.length}
+        selectedCount={selectedIds.size}
+        playCount={playTerms.length}
+        masteryFilter={masteryFilter}
+        playerIdle={playerState === 'idle'}
+        downloadingMp3={downloadingMp3}
+        onShare={() => setShareOpen(true)}
+        onPlay={() => play(0)}
+        onDownloadTxt={handleDownloadTxt}
+        onDownloadMp3={handleDownloadMp3}
+      />
 
       {/* Generate panel */}
       {allSources.length > 0 && (
@@ -456,44 +277,14 @@ export const GlossaryPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Mastery filter */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold text-text-muted">Status:</span>
-          <div className="flex items-center gap-1">
-            {masteryTabs.map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setMasteryFilter(tab.id)}
-                className={cn(
-                  'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all',
-                  masteryFilter === tab.id
-                    ? tab.id === 'mastered'
-                      ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
-                      : tab.id === 'unmastered'
-                        ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                        : 'bg-zinc-800 text-white'
-                    : 'border border-[var(--border-color)] text-text-muted hover:border-zinc-400',
-                )}
-              >
-                {tab.id === 'mastered' && <CheckCircle2 size={12} />}
-                {tab.id === 'unmastered' && <Circle size={12} />}
-                {tab.label}
-                {tab.id === 'mastered' && masteredCount > 0 && (
-                  <span className="rounded-full bg-emerald-200 px-1.5 text-emerald-700">{masteredCount}</span>
-                )}
-                {tab.id === 'unmastered' && allTerms.length > 0 && (
-                  <span className="rounded-full bg-amber-100 px-1.5 text-amber-600">{allTerms.length - masteredCount}</span>
-                )}
-              </button>
-            ))}
-          </div>
-          {masteryFilter !== 'all' && (
-            <span className="text-xs text-text-muted ml-1">
-              · {filtered.length} term{filtered.length !== 1 ? 's' : ''} shown
-              {playerState !== 'idle' && ' · playing filtered list'}
-            </span>
-          )}
-        </div>
+        <GlossaryMasteryFilter
+          value={masteryFilter}
+          onChange={setMasteryFilter}
+          totalCount={allTerms.length}
+          masteredCount={masteredCount}
+          filteredCount={filtered.length}
+          playing={playerState !== 'idle'}
+        />
 
         {/* Selection toolbar */}
         {filtered.length > 0 && (
@@ -576,30 +367,11 @@ export const GlossaryPage: React.FC = () => {
             ))}
           </div>
 
-          {/* A-Z letter nav */}
-          <div className="hidden sm:flex sticky top-6 self-start flex-col items-center gap-px">
-            {Array.from('ABCDEFGHIJKLMNOPQRSTUVWXYZ#').map(letter => {
-              const has = availableLetters.has(letter);
-              const isActive = activeLetter === letter;
-              return (
-                <button
-                  key={letter}
-                  onClick={() => has && scrollToLetter(letter)}
-                  disabled={!has}
-                  className={cn(
-                    'w-6 h-6 rounded text-[11px] font-black flex items-center justify-center transition-all duration-150',
-                    isActive
-                      ? 'bg-primary text-white shadow-sm shadow-primary/30'
-                      : has
-                        ? 'text-primary hover:bg-primary/10'
-                        : 'text-zinc-300 cursor-default',
-                  )}
-                >
-                  {letter}
-                </button>
-              );
-            })}
-          </div>
+          <GlossaryLetterNav
+            availableLetters={availableLetters}
+            activeLetter={activeLetter}
+            onSelect={scrollToLetter}
+          />
         </div>
       )}
 

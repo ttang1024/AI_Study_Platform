@@ -41,6 +41,19 @@ public class PracticeController : ControllerBase
     }
 
     /// <summary>
+    /// One-button daily smart session: due FSRS flashcards + open mistakes + unmastered
+    /// glossary terms, interleaved. Submit results via the regular submit endpoint.
+    /// </summary>
+    [HttpGet("smart-session")]
+    [ProducesResponseType(typeof(BaseResponse<PracticeTestDto>), 200)]
+    public async Task<IActionResult> SmartSession()
+    {
+        var userId = User.GetUserId();
+        var result = await _mediator.Send(new GetSmartSessionQuery(userId));
+        return Ok(BaseResponse<PracticeTestDto>.Ok(result.Data!));
+    }
+
+    /// <summary>
     /// Submit practice-test results. Feeds existing mastery signals: quiz-accuracy analytics,
     /// FSRS reviews for flashcards, and mastered flags for correctly-answered terms/problems.
     /// </summary>

@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   CalendarClock, Plus, Trash2, Timer, Play, CheckCircle2, XCircle,
-  BrainCircuit, Target, BookX, Award, Loader2, Download,
+  BrainCircuit, Target, BookX, Award, Loader2, Download, NotebookPen,
 } from 'lucide-react';
+import { CramSheetModal } from '../components/planner/CramSheetModal';
 import {
   plannerService, type ExamPlan, type ExamSchedule, type MockExam, type MockExamResult,
 } from '../services/plannerService';
@@ -149,6 +150,7 @@ export const PlannerPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [schedule, setSchedule] = useState<ExamSchedule | null>(null);
+  const [cramPlanId, setCramPlanId] = useState<string | null>(null);
   const [scheduleLoading, setScheduleLoading] = useState(false);
 
   const [showCreate, setShowCreate] = useState(false);
@@ -430,6 +432,13 @@ export const PlannerPage: React.FC = () => {
                   <p className="text-sm font-semibold truncate">{schedule.plan.title}</p>
                   <p className="text-xs opacity-80">{new Date(schedule.plan.examDate).toLocaleDateString()} · {schedule.plan.dailyMinutes} min/day</p>
                 </div>
+                <button
+                  onClick={() => setCramPlanId(schedule.plan.id)}
+                  className="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-white/15 px-3 py-2 text-xs font-semibold hover:bg-white/25 transition-colors"
+                  title="One-page AI cheat sheet from your weak spots"
+                >
+                  <NotebookPen size={13} /> Cram sheet
+                </button>
               </div>
 
               {schedule.days.length === 0 ? (
@@ -464,6 +473,8 @@ export const PlannerPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {cramPlanId && <CramSheetModal planId={cramPlanId} onClose={() => setCramPlanId(null)} />}
     </div>
   );
 };

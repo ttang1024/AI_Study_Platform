@@ -108,7 +108,7 @@ public class GetRecommendationsQueryHandler : IRequestHandler<GetRecommendations
             reviewQueue.Add(new RecommendationItemDto(
                 "problems-unmastered", "problems", $"Practice {unmasteredProblems} worked problem{(unmasteredProblems == 1 ? "" : "s")}",
                 "Strengthen problem-solving on questions you haven't mastered.",
-                (int)Math.Clamp(40 + unmasteredProblems * 2, 40, 90), "/insights?tab=practice", null, null, unmasteredProblems));
+                (int)Math.Clamp(40 + unmasteredProblems * 2, 40, 90), "/practice", null, null, unmasteredProblems));
         }
 
         // ── Next best content ───────────────────────────────────────────────────

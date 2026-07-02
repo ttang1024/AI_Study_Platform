@@ -51,6 +51,65 @@ public class CreateFlashcardCommandHandler : IRequestHandler<CreateFlashcardComm
     }
 }
 
+/// <summary>
+/// "Highlight → flashcard": mint a card from arbitrary selected text (web clipper,
+/// browser extension). The selection becomes the front; the AI writes the back.
+/// </summary>
+public record CreateFlashcardFromTextCommand(
+    Guid UserId,
+    string Text,
+    string? SourceTitle = null,
+    string? SourceUrl = null) : IRequest<Result<FlashcardDto>>;
+
+public class CreateFlashcardFromTextCommandHandler : IRequestHandler<CreateFlashcardFromTextCommand, Result<FlashcardDto>>
+{
+    private const int MaxFrontChars = 500;
+
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly IAiService _aiService;
+
+    public CreateFlashcardFromTextCommandHandler(IUnitOfWork unitOfWork, IAiService aiService)
+    {
+        _unitOfWork = unitOfWork;
+        _aiService = aiService;
+    }
+
+    public async Task<Result<FlashcardDto>> Handle(CreateFlashcardFromTextCommand request, CancellationToken cancellationToken)
+    {
+        var front = (request.Text ?? string.Empty).Trim();
+        if (front.Length == 0)
+            return Result<FlashcardDto>.Failure("Text is required.", "TEXT_REQUIRED");
+        if (front.Length > MaxFrontChars)
+            front = front[..MaxFrontChars].TrimEnd() + "…";
+
+        var back = (await _aiService.GenerateFlashcardBackAsync(front, cancellationToken)).Trim();
+        if (!string.IsNullOrWhiteSpace(request.SourceTitle))
+            back += $"\n\n— {request.SourceTitle.Trim()}";
+
+        var tags = new List<string> { "web" };
+        if (!string.IsNullOrWhiteSpace(request.SourceUrl)
+            && Uri.TryCreate(request.SourceUrl, UriKind.Absolute, out var uri))
+            tags.Add(uri.Host);
+
+        var flashcard = new Flashcard
+        {
+            FlashcardId = Guid.NewGuid(),
+            SourceType = "document",
+            UserId = request.UserId,
+            Front = front,
+            Back = back,
+            Tags = tags,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        await _unitOfWork.Flashcards.AddAsync(flashcard, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return Result<FlashcardDto>.Success(flashcard.ToFlashcardDto(), "Flashcard created from selection.");
+    }
+}
+
 public record GetAllFlashcardsQuery(Guid UserId) : IRequest<Result<IEnumerable<FlashcardDto>>>;
 
 public record GetAllFlashcardsPagedQuery(Guid UserId, int Page, int PageSize) : IRequest<Result<PaginatedList<FlashcardDto>>>;
