@@ -1,0 +1,64 @@
+{{- if .Values.redis.enabled }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "study-platform.fullname" . }}-redis
+  labels:
+    {{- include "study-platform.selectorLabels" (dict "root" . "component" "redis") | nindent 4 }}
+spec:
+  serviceName: {{ include "study-platform.fullname" . }}-redis
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "study-platform.selectorLabels" (dict "root" . "component" "redis") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "study-platform.selectorLabels" (dict "root" . "component" "redis") | nindent 8 }}
+    spec:
+      containers:
+        - name: redis
+          image: {{ .Values.redis.image }}
+          command: ["redis-server", "--appendonly", "yes"]
+          ports:
+            - containerPort: 6379
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          readinessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            {{- toYaml .Values.redis.resources | nindent 12 }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- if .Values.global.storageClass }}
+        storageClassName: {{ .Values.global.storageClass }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.redis.storage }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "study-platform.fullname" . }}-redis
+  labels:
+    {{- include "study-platform.selectorLabels" (dict "root" . "component" "redis") | nindent 4 }}
+spec:
+  selector:
+    {{- include "study-platform.selectorLabels" (dict "root" . "component" "redis") | nindent 4 }}
+  ports:
+    - port: 6379
+      targetPort: 6379
+{{- end }}

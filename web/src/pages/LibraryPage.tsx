@@ -253,7 +253,7 @@ export const LibraryPage: React.FC = () => {
           </div>
           {!isFiltered && (
             <button
-              onClick={() => navigate(activeType === 'videos' ? '/summarizer?tab=youtube' : activeType === 'audio' ? '/summarizer?tab=audio' : '/summarizer')}
+              onClick={() => navigate(activeType === 'videos' ? '/summarizer?tab=link' : activeType === 'audio' ? '/summarizer?tab=audio' : '/summarizer')}
               className={cn(
                 'flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold text-white transition-colors',
                 activeType === 'videos' ? 'bg-red-500 hover:bg-red-600' : activeType === 'audio' ? 'bg-amber-500 hover:bg-amber-600' : 'bg-primary hover:opacity-90',

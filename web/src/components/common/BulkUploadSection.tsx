@@ -6,6 +6,7 @@ import { useStudy } from '../../context/StudyContext';
 import { cn } from '../../utils/cn';
 import { getApiErrorMessage } from '../../utils/apiError';
 import { usePrompt } from './PromptBox';
+import { DOCUMENT_ACCEPT_ATTR, isAcceptedDocumentFile } from '../../constants/documentUpload';
 
 function getDocRoute(fileName: string, docId: string): string {
   return fileName.toLowerCase().endsWith('.md') ? `/articles/${docId}` : `/documents/${docId}`;
@@ -20,18 +21,7 @@ interface FileEntry {
   error?: string;
 }
 
-const ACCEPTED_EXTS = ['.pdf', '.docx', '.txt', '.md'];
-const ACCEPTED_TYPES = [
-  'application/pdf',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'text/plain',
-  'text/markdown',
-];
-
-function isValidFile(f: File): boolean {
-  const ext = f.name.substring(f.name.lastIndexOf('.')).toLowerCase();
-  return ACCEPTED_TYPES.includes(f.type) || ACCEPTED_EXTS.includes(ext);
-}
+const isValidFile = isAcceptedDocumentFile;
 
 interface BulkUploadSectionProps {
   selectedCourseId: string;
@@ -147,7 +137,7 @@ export const BulkUploadSection: React.FC<BulkUploadSectionProps> = ({ selectedCo
           ref={inputRef}
           type="file"
           multiple
-          accept=".pdf,.docx,.txt,.md"
+          accept={DOCUMENT_ACCEPT_ATTR}
           className="hidden"
           onChange={e => { addFiles(Array.from(e.target.files || [])); if (e.target) e.target.value = ''; }}
         />
@@ -156,7 +146,7 @@ export const BulkUploadSection: React.FC<BulkUploadSectionProps> = ({ selectedCo
         </div>
         <div className="text-center">
           <p className="font-bold text-text-main text-sm">{isDragging ? 'Drop files here' : 'Drop multiple files or click to browse'}</p>
-          <p className="text-xs text-text-muted mt-0.5">PDF, DOCX, TXT, MD · max 50MB each</p>
+          <p className="text-xs text-text-muted mt-0.5">PDF, Office, images, eBooks, text &amp; more · max 50MB each</p>
         </div>
         {files.length > 0 && (
           <span className="absolute top-3 right-3 rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold text-white">

@@ -136,6 +136,16 @@ public partial class AiService : IAiService
             ct => CallAiWithFileAsync(fileData, mimeType, AiPrompts.Glossary, ct),
             cancellationToken);
 
+    public async Task<string> ExtractTextFromFileAsync(byte[] fileData, string mimeType, CancellationToken cancellationToken = default)
+    {
+        var result = await CacheGeneratedResultAsync(
+            "extract-text:file",
+            HashBytes(fileData, mimeType, AiPrompts.ExtractText),
+            ct => CallAiWithFileAsync(fileData, mimeType, AiPrompts.ExtractText, ct, cleanJson: false),
+            cancellationToken);
+        return AiResponseParsing.CleanTextResponse(result);
+    }
+
     // ── Text-based methods — provider-agnostic ────────────────────────────
 
     public async Task<string> GenerateMindMapAsync(string textContent, CancellationToken cancellationToken = default)

@@ -2,9 +2,13 @@ import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
-  FileText, ChevronDown, ChevronUp, Youtube, Mic, Rss, ExternalLink, FileVideo,
+  FileText, ChevronDown, ChevronUp, Youtube, Mic, Rss, ExternalLink, FileVideo, Clapperboard,
 } from 'lucide-react';
 import { SharedContent } from '../../services/shareContentService';
+import {
+  isExternalVideoSource, parseExternalVideoId, buildExternalEmbedUrl, EXTERNAL_SOURCE_BRANDING,
+  type VideoSourceType,
+} from '../../constants/videoSources';
 import { getApiUrl } from '../../utils/env';
 import { SharedDocumentViewer } from './SharedDocumentViewer';
 
@@ -31,7 +35,7 @@ export function parseBilibiliVideo(url: string): { bvid: string; page: number } 
 }
 
 export type NormalizedSourceType =
-  | 'youtube' | 'bilibili' | 'upload' | 'audio' | 'podcast' | 'article' | 'document' | 'chat';
+  | VideoSourceType | 'audio' | 'podcast' | 'article' | 'document' | 'chat';
 
 interface SharedMediaProps {
   content: SharedContent;
@@ -95,6 +99,36 @@ export const SharedMedia: React.FC<SharedMediaProps> = ({
             src={`https://player.bilibili.com/player.html?bvid=${video.bvid}&page=${video.page}`}
             title={content.title}
             allow="autoplay; fullscreen; picture-in-picture"
+            allowFullScreen
+            className="w-full h-full"
+          />
+        </div>
+      </div>
+    ) : null;
+  }
+
+  if (isExternalVideoSource(normalizedSourceType) && content.sourceUrl) {
+    const externalId = parseExternalVideoId(normalizedSourceType, content.sourceUrl);
+    const brand = EXTERNAL_SOURCE_BRANDING[normalizedSourceType];
+    return externalId ? (
+      <div className="rounded-2xl overflow-hidden border border-[var(--border-color)] bg-black">
+        <a
+          href={content.sourceUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-3 px-4 py-3 bg-[var(--bg-sidebar)] border-b border-[var(--border-color)] hover:bg-primary/5 transition-colors group"
+        >
+          <div className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 ${brand.badgeBg}`}>
+            <Clapperboard size={13} className="text-white" />
+          </div>
+          <span className="flex-1 min-w-0 text-xs text-text-muted truncate">{content.sourceUrl}</span>
+          <ExternalLink size={13} className="text-text-muted group-hover:text-primary transition-colors shrink-0" />
+        </a>
+        <div style={{ aspectRatio: '16/9' }}>
+          <iframe
+            src={buildExternalEmbedUrl(normalizedSourceType, externalId, content.sourceUrl)}
+            title={content.title}
+            allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
             allowFullScreen
             className="w-full h-full"
           />

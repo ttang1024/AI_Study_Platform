@@ -1,0 +1,189 @@
+# Default values for study-platform.
+# This chart is cloud-agnostic: postgres/redis/minio run in-cluster as StatefulSets,
+# mirroring docker-compose.yml, so the whole stack comes up on any cluster (kind,
+# minikube, EKS, GKE, ...) with no external managed services required.
+#
+# For production, override storageClass / resources / replicaCount / ingress hosts
+# via a second values file, e.g.: helm install -f values.yaml -f values-production.yaml
+
+global:
+  storageClass: "" # "" = cluster default StorageClass
+
+# ---------------------------------------------------------------------------
+# Secrets
+# ---------------------------------------------------------------------------
+# DO NOT commit real values here. Put them in a separate, gitignored file
+# (e.g. secrets.values.yaml) and pass it with -f, or set existingSecretName
+# to point at a Secret you manage externally (Sealed Secrets, External Secrets
+# Operator, `kubectl create secret generic ...`). When existingSecretName is
+# set, every other key under `secrets:` is ignored and this chart creates no
+# Secret of its own — your external Secret must contain the same keys as
+# templates/secret-app.yaml.
+secrets:
+  existingSecretName: ""
+
+  postgresPassword: "changeme"
+  jwtSecretKey: "changeme-64-char-hex-secret"
+
+  emailFrom: ""
+  smtpUser: ""
+  smtpPassword: ""
+
+  googleClientId: ""
+  googleClientSecret: ""
+  githubClientId: ""
+  githubClientSecret: ""
+
+  minioRootUser: "minioadmin"
+  minioRootPassword: "minioadmin123"
+
+  # Optional: web push (see project memory: FSRS review reminders)
+  vapidPublicKey: ""
+  vapidPrivateKey: ""
+  vapidSubject: ""
+
+  # Optional: YouTube ingestion hardening (see tech_doc/deployment.md)
+  youtubeProxyUrl: ""
+  youtubeCookiesB64: ""
+
+# ---------------------------------------------------------------------------
+# API (server/ — ASP.NET Core)
+# ---------------------------------------------------------------------------
+api:
+  image:
+    repository: study-platform-api
+    tag: latest
+    pullPolicy: IfNotPresent
+  # IMPORTANT: background workers (AudioTranscriptionQueue, DueReviewPushWorker)
+  # run in-process and assume a single replica — there is no SignalR backplane.
+  # Do not raise this above 1 until that work is extracted (see tech_doc/deployment.md).
+  replicaCount: 1
+  port: 5000
+  service:
+    type: ClusterIP
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      memory: 1Gi
+  dataProtectionKeys:
+    storage: 256Mi
+
+  env:
+    aspnetcoreEnvironment: Production
+    awsRegion: us-east-1
+    s3BucketName: documents-dev
+    s3ForcePathStyle: "true"
+    redisEnabled: "true"
+    cacheDashboardStatsSeconds: "60"
+    cacheAnalyticsSummarySeconds: "300"
+    cacheGeneratedResultSeconds: "3600"
+    jwtIssuer: "Study Platform"
+    jwtAudience: "Study Platform Users"
+    jwtAccessTokenExpiryMinutes: "15"
+    jwtRefreshTokenExpiryDays: "7"
+    emailFromName: "Study Platform"
+    smtpHost: smtp.gmail.com
+    smtpPort: "587"
+    corsAllowedOrigins:
+      - http://localhost:3000
+      - http://localhost:4200
+    documentUploadLimit: "20"
+    youtubeSubtitleLanguages: "en.*,en"
+    youtubeHttpTimeoutSeconds: "60"
+
+# ---------------------------------------------------------------------------
+# web (web/ — Vite SPA served by nginx, proxies /api/* to the api service)
+# ---------------------------------------------------------------------------
+web:
+  image:
+    repository: study-platform-web
+    tag: latest
+    pullPolicy: IfNotPresent
+  replicaCount: 2
+  service:
+    type: ClusterIP
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      memory: 128Mi
+
+# ---------------------------------------------------------------------------
+# admin (admin/ — Vite SPA served by nginx, proxies /api/* to the api service)
+# ---------------------------------------------------------------------------
+admin:
+  image:
+    repository: study-platform-admin
+    tag: latest
+    pullPolicy: IfNotPresent
+  replicaCount: 1
+  service:
+    type: ClusterIP
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      memory: 128Mi
+
+# ---------------------------------------------------------------------------
+# Ingress
+# ---------------------------------------------------------------------------
+ingress:
+  enabled: false
+  className: nginx
+  annotations: {}
+  web:
+    host: study.example.com
+  admin:
+    host: admin.study.example.com
+  api:
+    # Direct API access is used by the browser extension; the web/admin apps
+    # reach the API via their in-pod nginx proxy and don't need this host.
+    host: api.study.example.com
+  tls: []
+  # Example:
+  # tls:
+  #   - secretName: study-platform-tls
+  #     hosts:
+  #       - study.example.com
+  #       - admin.example.com
+  #       - api.example.com
+
+# ---------------------------------------------------------------------------
+# Backing services — set enabled: false to use an external managed service
+# instead (e.g. RDS/ElastiCache/S3), then point api.env at it directly.
+# ---------------------------------------------------------------------------
+postgres:
+  enabled: true
+  image: postgres:17-alpine
+  db: studyplatform
+  user: studyplatform
+  storage: 5Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+redis:
+  enabled: true
+  image: redis:7-alpine
+  storage: 2Gi
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+
+minio:
+  enabled: true
+  image: minio/minio:latest
+  mcImage: minio/mc:latest
+  bucket: documents-dev
+  storage: 10Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi

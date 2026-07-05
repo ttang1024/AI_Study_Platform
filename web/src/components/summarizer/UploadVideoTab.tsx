@@ -100,9 +100,9 @@ export const UploadVideoTab: React.FC<UploadVideoTabProps> = ({ selectedCourseId
   const validateAndSetFile = (f?: File) => {
     if (!f) return;
     const ext = f.name.substring(f.name.lastIndexOf('.')).toLowerCase();
-    const allowed = ['.mp4', '.mov', '.m4v', '.webm', '.mkv', '.avi'];
+    const allowed = ['.mp4', '.mov', '.m4v', '.webm', '.mkv', '.avi', '.wmv', '.flv', '.3gp', '.3g2', '.ts', '.mts', '.m2ts', '.mpg', '.mpeg', '.ogv', '.vob', '.asf'];
     if (!f.type.startsWith('video/') && !allowed.includes(ext)) {
-      showPrompt('Unsupported format. Please upload a video file (MP4, MOV, WEBM, MKV, AVI).');
+      showPrompt('Unsupported format. Please upload a video file (MP4, MOV, WEBM, MKV, AVI, WMV, FLV, 3GP, TS, MPG, OGV, VOB, ASF).');
       return;
     }
     if (f.size > 500 * 1024 * 1024) {
@@ -157,7 +157,7 @@ export const UploadVideoTab: React.FC<UploadVideoTabProps> = ({ selectedCourseId
           ref={inputRef}
           type="file"
           className="absolute inset-0 z-10 cursor-pointer opacity-0"
-          accept="video/*,.mp4,.mov,.m4v,.webm,.mkv,.avi"
+          accept="video/*,.mp4,.mov,.m4v,.webm,.mkv,.avi,.wmv,.flv,.3gp,.3g2,.ts,.mts,.m2ts,.mpg,.mpeg,.ogv,.vob,.asf"
           onClick={(e) => { (e.target as HTMLInputElement).value = ''; }}
           onChange={(e) => validateAndSetFile(e.target.files?.[0])}
         />

@@ -1,5 +1,6 @@
 import { apiClient } from './apiClient';
 import { getShareBaseUrl } from '../utils/env';
+import type { VideoSourceType } from '../constants/videoSources';
 
 export interface ShareableQuiz {
   question: string;
@@ -29,7 +30,7 @@ export interface CreateSharePayload {
   flashcards?: ShareableCard[] | null;
   glossaryTerms?: ShareableGlossaryTerm[] | null;
   expiresInDays?: number | null;
-  sourceType?: 'youtube' | 'bilibili' | 'upload' | 'article' | 'audio' | 'podcast' | 'document' | 'chat' | null;
+  sourceType?: VideoSourceType | 'article' | 'audio' | 'podcast' | 'document' | 'chat' | null;
   sourceUrl?: string | null;
   originalArticleUrl?: string | null;
 }

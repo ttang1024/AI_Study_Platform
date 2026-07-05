@@ -11,6 +11,7 @@ import { useSelectionToolbar } from './useSelectionToolbar';
 import {
   parseVideoId, parseBilibiliVideo, isOptionCorrect, fmtTime, fmtSrtTime,
 } from './helpers';
+import { isExternalVideoSource, type VideoSourceType } from '../../constants/videoSources';
 
 export interface SimpleCard { id: string; front: string; back: string; cardType?: 'basic' | 'cloze' | 'chart'; }
 export interface ChatMsg { id: string; role: 'user' | 'model'; content: string; isError?: boolean; attachments?: ChatMessageAttachment[]; }
@@ -41,11 +42,16 @@ export function useVideoDetail(propId?: string) {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [playbackUrl, setPlaybackUrl] = useState<string | null>(null);
   const [videoTitle, setVideoTitle] = useState<string | null>(null);
-  const [sourceType, setSourceType] = useState<'youtube' | 'bilibili' | 'upload'>('youtube');
-  const [bilibiliStartSeconds, setBilibiliStartSeconds] = useState(0);
-  const [bilibiliSeekNonce, setBilibiliSeekNonce] = useState(0);
+  const [sourceType, setSourceType] = useState<VideoSourceType>('youtube');
+  // Seek-by-reload state for iframe players without a seek API (Bilibili, Vimeo, TED, Dailymotion).
+  const [embedStartSeconds, setEmbedStartSeconds] = useState(0);
+  const [embedSeekNonce, setEmbedSeekNonce] = useState(0);
   const bilibiliVideo = videoUrl && sourceType === 'bilibili' ? parseBilibiliVideo(videoUrl) : null;
-  const videoId = videoUrl ? (sourceType === 'bilibili' ? bilibiliVideo?.key ?? null : sourceType === 'upload' ? id ?? null : parseVideoId(videoUrl)) : null;
+  const videoId = videoUrl
+    ? (sourceType === 'bilibili' ? bilibiliVideo?.key ?? null
+      : sourceType === 'youtube' ? parseVideoId(videoUrl)
+      : id ?? null)
+    : null;
 
   const [isLoadingVideo, setIsLoadingVideo] = useState(true);
   const [courseId, setCourseId] = useState<string | null>(null);
@@ -132,7 +138,7 @@ export function useVideoDetail(propId?: string) {
   // Refs for cross-panel actions
   const noteEditorRef = useRef<VideoNoteEditorRef>(null);
   const chatPanelRef = useRef<ChatPanelRef>(null);
-  const bilibiliSeekTimerRef = useRef<number | null>(null);
+  const embedSeekTimerRef = useRef<number | null>(null);
 
   const loadVideoFromApi = async (videoRecordId: string) => {
     setIsLoadingVideo(true);
@@ -143,11 +149,11 @@ export function useVideoDetail(propId?: string) {
       setMindMapText(v.mindMapText ?? null);
       setVideoUrl(v.videoUrl);
       setSourceType(v.sourceType ?? 'youtube');
-      setBilibiliStartSeconds(0);
-      setBilibiliSeekNonce(0);
-      if (bilibiliSeekTimerRef.current != null) {
-        window.clearTimeout(bilibiliSeekTimerRef.current);
-        bilibiliSeekTimerRef.current = null;
+      setEmbedStartSeconds(0);
+      setEmbedSeekNonce(0);
+      if (embedSeekTimerRef.current != null) {
+        window.clearTimeout(embedSeekTimerRef.current);
+        embedSeekTimerRef.current = null;
       }
       setVideoTitle(v.title ?? null);
       if ((v.sourceType ?? 'youtube') === 'upload') {
@@ -349,14 +355,14 @@ export function useVideoDetail(propId?: string) {
       return;
     }
 
-    if (sourceType === 'bilibili') {
-      if (bilibiliSeekTimerRef.current != null) {
-        window.clearTimeout(bilibiliSeekTimerRef.current);
+    if (sourceType === 'bilibili' || isExternalVideoSource(sourceType)) {
+      if (embedSeekTimerRef.current != null) {
+        window.clearTimeout(embedSeekTimerRef.current);
       }
-      bilibiliSeekTimerRef.current = window.setTimeout(() => {
-        setBilibiliStartSeconds(safeSeconds);
-        setBilibiliSeekNonce(prev => prev + 1);
-        bilibiliSeekTimerRef.current = null;
+      embedSeekTimerRef.current = window.setTimeout(() => {
+        setEmbedStartSeconds(safeSeconds);
+        setEmbedSeekNonce(prev => prev + 1);
+        embedSeekTimerRef.current = null;
       }, 200);
     }
   };
@@ -677,7 +683,7 @@ export function useVideoDetail(propId?: string) {
 
   return {
     id, videoUrl, playbackUrl, videoTitle, sourceType, bilibiliVideo, videoId,
-    bilibiliStartSeconds, bilibiliSeekNonce, isLoadingVideo, handleBack,
+    embedStartSeconds, embedSeekNonce, isLoadingVideo, handleBack,
     activeTab, setActiveTab, activeView, setActiveView, locationState,
     summaryError, mindMapError, flashcardsError, quizError,
     noteContent, showShareModal, setShowShareModal,

@@ -13,7 +13,7 @@
 
 </div>
 
-Upload documents, videos (YouTube · Bilibili · your own files), podcasts, and web articles — AI generates summaries, flashcards, quizzes, glossaries, and mind maps. Master any topic with spaced repetition, one-button daily smart sessions, an exam planner with AI mock exams and cram sheets, and a hands-free voice tutor.
+Upload documents in 80+ formats, videos (paste any link — YouTube · Bilibili · Vimeo · TED · Dailymotion · TikTok · Facebook · Instagram · X · Reddit · LinkedIn, auto-detected — or your own files), podcasts, and web articles — AI generates summaries, flashcards, quizzes, glossaries, and mind maps. Master any topic with spaced repetition, one-button daily smart sessions, an exam planner with AI mock exams and cram sheets, and a hands-free voice tutor.
 
 ---
 
@@ -25,7 +25,7 @@ Upload documents, videos (YouTube · Bilibili · your own files), podcasts, and 
 
 |     | Category             | What you get                                                                                                 |
 | --- | -------------------- | ------------------------------------------------------------------------------------------------------------ |
-| 📄  | **Content Sources**  | PDF / DOCX, YouTube & Bilibili, uploaded videos, web article clipping, audio files, Apple Podcasts           |
+| 📄  | **Content Sources**  | 80+ document formats — PDF (scanned PDFs & images get AI OCR), Office incl. legacy `.doc`/`.ppt`/`.xls`, OpenDocument, iWork, eBooks (EPUB / MOBI / FB2), email (EML / MSG / MHTML), XPS / Visio / SVG, Jupyter notebooks, subtitles, LaTeX / Markdown / HTML / RTF, source code — plus online video from 11 sites auto-detected from the pasted link (YouTube & Bilibili with playlist / multi-part import; Vimeo, TED, Dailymotion; public TikTok, Facebook, Instagram, X/Twitter, Reddit, LinkedIn posts), uploaded videos & audio (most containers), web article clipping, Apple Podcasts |
 | 🤖  | **AI Generation**    | Summaries, flashcards (basic / cloze / chart), quizzes, glossaries, mind maps, worked problems               |
 | 🎯  | **Study Tools**      | Rich-text notes, hands-free voice tutor (speaks, listens, and answers back), graded teach-back, photo problem capture, FSRS-4.5 spaced repetition, question bank, knowledge graph & learning paths |
 | 🗓️  | **Today & Practice** | Daily study plan with goal budgeting, one-button **smart session** (due reviews + mistake redos + weak concepts, interleaved), unified Practice / Exam mode (quiz · flashcard · glossary · problem), timed runner |
@@ -155,7 +155,7 @@ Web `:3000` · Admin `:4200` · API + Swagger `:5001` · MinIO console `:9001`
 
 ### Video transcripts (production)
 
-YouTube / Bilibili use captions when available, then fall back to yt-dlp + Whisper; uploaded videos are transcribed with ffmpeg + Whisper. YouTube may block cloud IPs — set `YOUTUBE_PROXY_URL` (SOCKS/HTTP proxy) and optionally `YOUTUBE_COOKIES_B64="$(base64 < cookies.txt | tr -d '\n')"` before running `./deploy-backend.sh`.
+Online videos (YouTube, Bilibili, Vimeo, TED, Dailymotion, TikTok, and public social posts) use native captions when available (YouTube json3 or WebVTT), then fall back to yt-dlp + Whisper; uploaded videos are transcribed with ffmpeg + Whisper. YouTube may block cloud IPs — set `YOUTUBE_PROXY_URL` (SOCKS/HTTP proxy) and optionally `YOUTUBE_COOKIES_B64="$(base64 < cookies.txt | tr -d '\n')"` before running `./deploy-backend.sh`.
 
 ---
 

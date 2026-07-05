@@ -35,11 +35,40 @@ public class AudioController : ControllerBase
     [
         "audio/mpeg", "audio/mp3", "audio/mp4", "audio/x-m4a",
         "audio/wav", "audio/x-wav", "audio/ogg", "audio/aac",
-        "audio/flac", "audio/webm"
+        "audio/flac", "audio/webm", "audio/opus",
+        "audio/aiff", "audio/x-aiff", "audio/x-ms-wma", "audio/amr", "audio/3gpp",
+        "audio/x-m4b", "audio/x-matroska"
     ];
 
     private static readonly string[] AllowedExtensions =
-        [".mp3", ".m4a", ".wav", ".ogg", ".aac", ".flac"];
+        [".mp3", ".m4a", ".m4b", ".wav", ".ogg", ".aac", ".flac", ".opus", ".aiff", ".aif", ".wma", ".amr", ".mka"];
+
+    // Browsers often report an empty or generic content type for the less
+    // common audio formats; downstream logic (transcription, content service)
+    // keys off an audio/* type, so normalise from the extension when needed.
+    private static string NormalizeAudioContentType(string contentType, string ext)
+    {
+        if (!string.IsNullOrWhiteSpace(contentType) &&
+            contentType.StartsWith("audio/", StringComparison.OrdinalIgnoreCase))
+            return contentType;
+
+        return ext switch
+        {
+            ".mp3" => "audio/mpeg",
+            ".m4a" => "audio/x-m4a",
+            ".m4b" => "audio/mp4",
+            ".mka" => "audio/x-matroska",
+            ".wav" => "audio/wav",
+            ".ogg" => "audio/ogg",
+            ".aac" => "audio/aac",
+            ".flac" => "audio/flac",
+            ".opus" => "audio/opus",
+            ".aiff" or ".aif" => "audio/aiff",
+            ".wma" => "audio/x-ms-wma",
+            ".amr" => "audio/amr",
+            _ => "audio/mpeg",
+        };
+    }
 
     /// <summary>
     /// Upload an audio lecture to a course
@@ -57,13 +86,13 @@ public class AudioController : ControllerBase
 
         if (!AllowedMimeTypes.Contains(file.ContentType) && !AllowedExtensions.Contains(ext))
             return BadRequest(BaseResponse<DocumentDto>.Fail(
-                "File type not supported. Allowed: MP3, M4A, WAV, OGG, AAC, FLAC.",
+                "File type not supported. Allowed: MP3, M4A/M4B, WAV, OGG, AAC, FLAC, OPUS, AIFF, WMA, AMR, MKA.",
                 "INVALID_FILE_TYPE"));
 
         var userId = User.GetUserId();
         using var stream = file.OpenReadStream();
         var result = await _mediator.Send(new UploadDocumentCommand(
-            courseId, userId, file.FileName, file.ContentType, file.Length, stream));
+            courseId, userId, file.FileName, NormalizeAudioContentType(file.ContentType, ext), file.Length, stream));
 
         if (!result.IsSuccess)
         {

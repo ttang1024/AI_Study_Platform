@@ -15,7 +15,7 @@ import { TextSelectionToolbar } from '../components/document/TextSelectionToolba
 import { VideoNoteEditor, VideoNoteEditorRef } from '../components/youtube/VideoNoteEditor';
 import { SummaryPanel } from '../components/study/SummaryPanel';
 import { WorkedProblemsPanel } from '../components/WorkedProblemsPanel';
-import { documentService } from '../services/documentService';
+import { documentService, usesServerExtractedText } from '../services/documentService';
 import { apiClient } from '../services/apiClient';
 import { ShareModal } from '../components/common/ShareModal';
 import { DetailPageSkeleton } from '../components/common/DetailPageSkeleton';
@@ -259,9 +259,9 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
 
   // For real documents, stream through the API to avoid CORS issues with blob storage.
   // For the mock document (id === '123'), use the direct public URL.
-  // PPTX/EPUB cannot be rendered raw in the browser, so the viewer reads the
-  // server-extracted plain text instead of the original file.
-  const usesExtractedText = currentDocument?.type === 'ppt' || currentDocument?.type === 'epub';
+  // PPTX/EPUB/Office/eBook-style formats cannot be rendered raw in the browser,
+  // so the viewer reads the server-extracted plain text instead of the original file.
+  const usesExtractedText = currentDocument != null && usesServerExtractedText(currentDocument);
   const viewUrl = currentDocument?.courseId
     ? `${API_URL}/api/courses/${currentDocument.courseId}/documents/${currentDocument.id}/${usesExtractedText ? 'text' : 'file'}`
     : currentDocument?.url ?? '';

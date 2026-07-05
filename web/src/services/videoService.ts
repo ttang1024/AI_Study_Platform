@@ -3,6 +3,7 @@ import { streamSse } from './streamSse'
 import { getApiUrl } from '../utils/env'
 import type { ChatAttachment, ChatMessageAttachment } from './aiService'
 import type { ChatThreadSummary } from '../types'
+import type { VideoSourceType } from '../constants/videoSources'
 
 // --- Types ---
 
@@ -13,7 +14,7 @@ export interface VideoListItem {
 	courseColor: string
 	videoId: string
 	videoUrl: string
-	sourceType?: 'youtube' | 'bilibili' | 'upload'
+	sourceType?: VideoSourceType
 	title: string
 	thumbnailUrl: string
 	summary: string | null
@@ -36,7 +37,7 @@ export interface VideoDetail {
 	courseId: string
 	videoId: string
 	videoUrl: string
-	sourceType?: 'youtube' | 'bilibili' | 'upload'
+	sourceType?: VideoSourceType
 	title: string
 	thumbnailUrl: string
 	summary: string | null
@@ -85,7 +86,7 @@ export interface CreateVideoData {
 	courseId: string
 	videoId: string
 	videoUrl: string
-	sourceType?: 'youtube' | 'bilibili' | 'upload'
+	sourceType?: VideoSourceType
 	title: string
 	thumbnailUrl: string
 	summary: null

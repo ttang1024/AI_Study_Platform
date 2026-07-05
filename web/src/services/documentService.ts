@@ -69,9 +69,27 @@ interface BackendFlashcard {
 	tags?: string[]
 }
 
-const AUDIO_EXTENSIONS = ['.mp3', '.m4a', '.wav', '.ogg', '.aac', '.flac', '.webm']
-const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.heic', '.heif', '.bmp']
-const PPT_EXTENSIONS = ['.ppt', '.pptx']
+const AUDIO_EXTENSIONS = ['.mp3', '.m4a', '.m4b', '.wav', '.ogg', '.aac', '.flac', '.webm', '.opus', '.aiff', '.aif', '.wma', '.amr', '.mka']
+const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.heic', '.heif', '.bmp', '.svg']
+const PPT_EXTENSIONS = ['.ppt', '.pptx', '.pptm', '.potx']
+
+// Formats the browser cannot render raw; the viewer shows the
+// server-extracted plain text (GET .../documents/{id}/text) instead.
+const SERVER_EXTRACTED_EXTENSIONS = [
+	'.ppt', '.pptx', '.epub', '.mobi', '.fb2',
+	'.doc', '.docm', '.dotx', '.rtf',
+	'.xls', '.xlsx', '.xlsm', '.odt', '.odp', '.ods',
+	'.pages', '.key', '.numbers',
+	'.xps', '.oxps', '.vsdx',
+	'.eml', '.mhtml', '.mht', '.msg',
+	'.ipynb', '.html', '.htm', '.xhtml', '.smi',
+]
+
+export const usesServerExtractedText = (doc: { type: string; name: string }): boolean => {
+	if (doc.type === 'ppt' || doc.type === 'epub') return true
+	const name = doc.name.toLowerCase()
+	return SERVER_EXTRACTED_EXTENSIONS.some(ext => name.endsWith(ext))
+}
 
 const getTypeFromContentTypeOrFileName = (
 	contentType: string,

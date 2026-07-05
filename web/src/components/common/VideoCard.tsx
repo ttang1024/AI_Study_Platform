@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Youtube, Clock, Trash2, Sparkles, FolderInput, Pencil, Loader2, FileVideo } from 'lucide-react';
+import { Youtube, Clock, Trash2, Sparkles, FolderInput, Pencil, Loader2, FileVideo, Clapperboard } from 'lucide-react';
 import { useStudy } from '../../context/StudyContext';
 import { videoService } from '../../services/videoService';
+import { isExternalVideoSource, EXTERNAL_SOURCE_BRANDING, type VideoSourceType } from '../../constants/videoSources';
 import { MoveToCourseModal } from './MoveToCourseModal';
 import { DeleteModal } from './DeleteModal';
 import { Modal } from './Modal';
@@ -21,7 +22,7 @@ export interface VideoCardData {
   thumbnailUrl: string;
   /** YouTube video ID used for thumbnail fallback URL */
   videoId?: string;
-  sourceType?: 'youtube' | 'bilibili' | 'upload';
+  sourceType?: VideoSourceType;
   courseColor: string;
   courseName: string;
   createdAt: string;
@@ -52,17 +53,22 @@ export const VideoCard: React.FC<VideoCardProps> = ({ video, to, onDeleted, onMo
   const isUpload = sourceType === 'upload';
   const fallbackThumbnail = isBilibili
     ? '/images/bilibili.png'
-    : isUpload
-      ? ''
-      : video.videoId
-        ? `https://img.youtube.com/vi/${video.videoId}/mqdefault.jpg`
-        : '';
+    : sourceType === 'youtube' && video.videoId
+      ? `https://img.youtube.com/vi/${video.videoId}/mqdefault.jpg`
+      : '';
   const thumbnailSrc = isUpload
     ? videoService.getUploadedVideoThumbnailUrl(video.id)
     : (video.thumbnailUrl || fallbackThumbnail);
   const uploadPreviewUrl = isUpload ? videoService.getUploadedVideoStreamUrl(video.id) : '';
-  const SourceIcon = isUpload ? FileVideo : Youtube;
-  const sourceAccentClass = isBilibili ? 'bg-sky-500' : isUpload ? 'bg-primary' : 'bg-red-500';
+  const isExternal = isExternalVideoSource(sourceType);
+  const SourceIcon = isUpload ? FileVideo : isExternal ? Clapperboard : Youtube;
+  const sourceAccentClass = isBilibili
+    ? 'bg-sky-500'
+    : isUpload
+      ? 'bg-primary'
+      : isExternal
+        ? EXTERNAL_SOURCE_BRANDING[sourceType].badgeBg
+        : 'bg-red-500';
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);

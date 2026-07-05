@@ -72,10 +72,10 @@ export const AudioTab: React.FC<AudioTabProps> = ({ selectedCourseId, onCourseEr
       : `/documents/${duplicateAudio?.id}`;
 
   const validateAndSetFile = (f: File) => {
-    const exts = ['.mp3', '.m4a', '.wav', '.ogg', '.aac', '.flac'];
+    const exts = ['.mp3', '.m4a', '.m4b', '.wav', '.ogg', '.aac', '.flac', '.opus', '.aiff', '.aif', '.wma', '.amr', '.mka'];
     const ext = f.name.substring(f.name.lastIndexOf('.')).toLowerCase();
     if (!f.type.startsWith('audio/') && !exts.includes(ext)) {
-      showPrompt('Unsupported format. Please upload an audio file (MP3, M4A, WAV, OGG).');
+      showPrompt('Unsupported format. Please upload an audio file (MP3, M4A/M4B, WAV, OGG, AAC, FLAC, OPUS, AIFF, WMA, AMR, MKA).');
       return;
     }
     if (f.size > 100 * 1024 * 1024) {
@@ -140,7 +140,7 @@ export const AudioTab: React.FC<AudioTabProps> = ({ selectedCourseId, onCourseEr
           className="absolute inset-0 cursor-pointer opacity-0 z-10"
           onClick={(e) => { (e.target as HTMLInputElement).value = ''; }}
           onChange={(e) => { const f = e.target.files?.[0]; if (f) validateAndSetFile(f); }}
-          accept="audio/*,.mp3,.m4a,.wav,.ogg,.aac,.flac"
+          accept="audio/*,.mp3,.m4a,.m4b,.wav,.ogg,.aac,.flac,.opus,.aiff,.aif,.wma,.amr,.mka"
         />
         <AnimatePresence mode="wait">
           {!audioFile ? (

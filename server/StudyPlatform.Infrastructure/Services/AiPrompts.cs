@@ -87,6 +87,14 @@ Use up to three card types — about 55% basic, 35% cloze, and up to 10% chart (
 Return a JSON array only, no markdown, no code blocks:
 [{{""type"":""basic"",""front"":""..."",""back"":""...""}},{{""type"":""cloze"",""front"":""..{{{{term}}}}..."",""back"":""""}},{{""type"":""chart"",""front"":""..."",""back"":"""",""chartData"":{{""type"":""bar"",""title"":""..."",""labels"":[""A"",""B""],""datasets"":[{{""label"":""X"",""data"":[1,2]}}]}}}}]";
 
+        public const string ExtractText =
+            @"Transcribe ALL readable text content from the supplied file, preserving the natural reading order.
+Output ONLY the transcribed text. No commentary, no code fences, no notes about the file.
+Use Markdown headings and lists only where the source clearly has them.
+For tables, output one row per line with cells separated by ' | '.
+For purely visual elements (photos, diagrams, charts), add a short parenthetical description in place.
+If the file contains no readable text, output nothing.";
+
         public static readonly string Glossary =
             $@"Extract 10-20 key terms and their definitions from the supplied study material.
 {NoSourceMetaPhrases}

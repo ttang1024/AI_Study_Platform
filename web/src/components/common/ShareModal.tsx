@@ -5,6 +5,7 @@ import { STUDY_TYPE_ICONS } from '../../constants/contentTypeIcons';
 import { createShare, ShareableQuiz, ShareableCard } from '../../services/shareContentService';
 import { ShareImageCard, ShareImageContent } from './ShareImageCard';
 import { cn } from '../../utils/cn';
+import type { VideoSourceType } from '../../constants/videoSources';
 
 interface ShareModalProps {
   open: boolean;
@@ -15,7 +16,7 @@ interface ShareModalProps {
   notesHtml?: string | null;
   fetchQuizzes?: () => Promise<ShareableQuiz[]>;
   fetchFlashcards?: () => Promise<ShareableCard[]>;
-  sourceType?: 'youtube' | 'bilibili' | 'upload' | 'article' | 'audio' | 'podcast' | 'document' | null;
+  sourceType?: VideoSourceType | 'article' | 'audio' | 'podcast' | 'document' | null;
   sourceUrl?: string | null;
   originalArticleUrl?: string | null;
 }

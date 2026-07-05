@@ -1,5 +1,7 @@
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using StudyPlatform.Application.Services;
@@ -72,12 +74,14 @@ public partial class YouTubeTranscriptService
             return null;
         }
 
-        foreach (var subtitleUrl in FindSubtitleUrls(infoJson, preferSimplifiedChinese))
+        foreach (var track in FindSubtitleTracks(infoJson, preferSimplifiedChinese))
         {
             try
             {
-                var json3 = await _httpClient.GetStringAsync(subtitleUrl, ct);
-                var raw = ParseJson3(json3, preferSimplifiedChinese);
+                var payload = await _httpClient.GetStringAsync(track.Url, ct);
+                var raw = track.Ext == "json3"
+                    ? ParseJson3(payload, preferSimplifiedChinese)
+                    : ParseVtt(payload, preferSimplifiedChinese);
                 if (raw.Count == 0) continue;
 
                 _cache.Set(cacheKey, raw, TimeSpan.FromMinutes(10));
@@ -114,12 +118,12 @@ public partial class YouTubeTranscriptService
             return null;
         }
 
-        foreach (var subtitleUrl in FindSubtitleUrls(infoJson, preferSimplifiedChinese: false))
+        foreach (var track in FindSubtitleTracks(infoJson, preferSimplifiedChinese: false))
         {
             try
             {
-                var json3 = await _httpClient.GetStringAsync(subtitleUrl, ct);
-                var raw = ParseJson3(json3);
+                var payload = await _httpClient.GetStringAsync(track.Url, ct);
+                var raw = track.Ext == "json3" ? ParseJson3(payload) : ParseVtt(payload);
                 if (raw.Count > 0)
                     return raw;
             }
@@ -133,8 +137,9 @@ public partial class YouTubeTranscriptService
     }
 
     // Prefer manual subtitles over auto-generated, original tracks over translations,
-    // and English when available. json3 carries timing data without extra parsing.
-    private static IReadOnlyList<string> FindSubtitleUrls(string infoJson, bool preferSimplifiedChinese)
+    // and English when available. json3 (YouTube) carries timing data without extra parsing;
+    // vtt covers the other yt-dlp-supported sites (Vimeo, TED, Dailymotion, …).
+    private static IReadOnlyList<SubtitleCandidate> FindSubtitleTracks(string infoJson, bool preferSimplifiedChinese)
     {
         using var doc = JsonDocument.Parse(infoJson);
         var root = doc.RootElement;
@@ -149,13 +154,14 @@ public partial class YouTubeTranscriptService
             {
                 foreach (var fmt in lang.Value.EnumerateArray())
                 {
-                    if (fmt.TryGetProperty("ext", out var ext) && ext.GetString() == "json3"
-                        && fmt.TryGetProperty("url", out var url))
-                    {
-                        var value = url.GetString();
-                        if (!string.IsNullOrWhiteSpace(value))
-                            candidates.Add(new SubtitleCandidate(trackPriority, lang.Name, value));
-                    }
+                    if (!fmt.TryGetProperty("ext", out var ext) || !fmt.TryGetProperty("url", out var url))
+                        continue;
+                    var extValue = ext.GetString();
+                    if (extValue is not ("json3" or "vtt"))
+                        continue;
+                    var value = url.GetString();
+                    if (!string.IsNullOrWhiteSpace(value))
+                        candidates.Add(new SubtitleCandidate(trackPriority, lang.Name, value, extValue));
                 }
             }
         }
@@ -164,11 +170,11 @@ public partial class YouTubeTranscriptService
             .OrderBy(c => c.TrackPriority)
             .ThenBy(c => c.IsTranslated ? 1 : 0)
             .ThenBy(c => c.GetLanguagePriority(preferSimplifiedChinese))
-            .Select(c => c.Url)
+            .ThenBy(c => c.Ext == "json3" ? 0 : 1)
             .ToList();
     }
 
-    private sealed record SubtitleCandidate(int TrackPriority, string Language, string Url)
+    private sealed record SubtitleCandidate(int TrackPriority, string Language, string Url, string Ext)
     {
         public bool IsTranslated => Url.Contains("tlang=", StringComparison.OrdinalIgnoreCase);
 
@@ -228,6 +234,60 @@ public partial class YouTubeTranscriptService
         }
 
         return result;
+    }
+
+    private static readonly Regex VttTimingRegex = new(
+        @"(?<start>(?:\d{1,2}:)?\d{1,2}:\d{2}\.\d{3})\s+-->\s+(?<end>(?:\d{1,2}:)?\d{1,2}:\d{2}\.\d{3})",
+        RegexOptions.Compiled);
+
+    // WebVTT parser for non-YouTube subtitle tracks (Vimeo, TED, Dailymotion, …).
+    private static IReadOnlyList<(TimeSpan Offset, TimeSpan Duration, string Text)> ParseVtt(
+        string vtt,
+        bool normalizeSimplifiedChinese = false)
+    {
+        var result = new List<(TimeSpan, TimeSpan, string)>();
+        var lines = vtt.Split('\n');
+
+        for (var i = 0; i < lines.Length; i++)
+        {
+            var match = VttTimingRegex.Match(lines[i]);
+            if (!match.Success) continue;
+
+            var start = ParseVttTimestamp(match.Groups["start"].Value);
+            var end = ParseVttTimestamp(match.Groups["end"].Value);
+
+            var sb = new StringBuilder();
+            for (i++; i < lines.Length; i++)
+            {
+                var line = lines[i].TrimEnd('\r');
+                if (string.IsNullOrWhiteSpace(line)) break;
+                if (VttTimingRegex.IsMatch(line)) { i--; break; }
+                if (sb.Length > 0) sb.Append(' ');
+                sb.Append(line);
+            }
+
+            var text = Regex.Replace(sb.ToString(), "<[^>]+>", "");
+            text = TranscriptTextProcessor.CleanCaptionText(text);
+            if (normalizeSimplifiedChinese)
+                text = ToSimplifiedChinese(text);
+            if (text.Length == 0) continue;
+
+            // Rolling captions repeat the previous cue's text; drop consecutive duplicates.
+            if (result.Count > 0 && result[^1].Item3 == text) continue;
+
+            result.Add((start, end > start ? end - start : TimeSpan.Zero, text));
+        }
+
+        return result;
+    }
+
+    private static TimeSpan ParseVttTimestamp(string value)
+    {
+        var parts = value.Split(':');
+        var seconds = double.Parse(parts[^1], CultureInfo.InvariantCulture);
+        var minutes = int.Parse(parts[^2], CultureInfo.InvariantCulture);
+        var hours = parts.Length >= 3 ? int.Parse(parts[^3], CultureInfo.InvariantCulture) : 0;
+        return TimeSpan.FromHours(hours) + TimeSpan.FromMinutes(minutes) + TimeSpan.FromSeconds(seconds);
     }
 
     // ── Whisper fallback ──────────────────────────────────────────────────────

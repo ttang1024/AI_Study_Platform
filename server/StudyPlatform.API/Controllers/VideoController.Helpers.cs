@@ -77,11 +77,23 @@ public partial class VideoController
     {
         "bilibili" => "bilibili",
         "upload" => "upload",
+        "vimeo" => "vimeo",
+        "ted" => "ted",
+        "dailymotion" => "dailymotion",
+        "facebook" => "facebook",
+        "instagram" => "instagram",
+        "twitter" => "twitter",
+        "reddit" => "reddit",
+        "linkedin" => "linkedin",
+        "tiktok" => "tiktok",
         _ => "youtube"
     };
 
+    // Sources whose transcript must be fetched by full URL (yt-dlp) rather than YouTube video id.
     private static bool IsExternalVideoSource(YouTubeVideo video)
-        => string.Equals(video.SourceType, "bilibili", StringComparison.OrdinalIgnoreCase);
+        => NormalizeSourceType(video.SourceType)
+            is "bilibili" or "vimeo" or "ted" or "dailymotion"
+            or "facebook" or "instagram" or "twitter" or "reddit" or "linkedin" or "tiktok";
 
     private static bool IsBilibiliVideo(YouTubeVideo video)
         => string.Equals(video.SourceType, "bilibili", StringComparison.OrdinalIgnoreCase);

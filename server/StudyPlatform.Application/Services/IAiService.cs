@@ -11,6 +11,8 @@ public interface IAiService
     Task<string> GenerateFlashcardsAsync(string textContent, CancellationToken cancellationToken = default);
     Task<string> GenerateGlossaryAsync(byte[] fileData, string mimeType, CancellationToken cancellationToken = default);
     Task<string> GenerateGlossaryAsync(string textContent, CancellationToken cancellationToken = default);
+    /// <summary>OCR-style transcription of a binary file (scanned PDF, image) into plain text.</summary>
+    Task<string> ExtractTextFromFileAsync(byte[] fileData, string mimeType, CancellationToken cancellationToken = default);
     Task<string> ChatAsync(string documentContent, string userMessage, IEnumerable<(string role, string content)> history, CancellationToken cancellationToken = default);
 
     // YouTube-based (transcript text)

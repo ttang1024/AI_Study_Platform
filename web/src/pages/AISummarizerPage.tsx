@@ -1,29 +1,30 @@
 import React, { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Upload, Files, Youtube, FileVideo, ClipboardPaste } from 'lucide-react';
+import { Upload, Files, FileVideo, ClipboardPaste, Wand2 } from 'lucide-react';
 import { CONTENT_TYPE_ICONS } from '../constants/contentTypeIcons';
 import { BulkUploadSection } from '../components/common/BulkUploadSection';
 import { cn } from '../utils/cn';
 import { CoursePicker } from '../components/common/CoursePicker';
 import { DocumentTab } from '../components/summarizer/DocumentTab';
-import { YouTubeTab } from '../components/summarizer/YouTubeTab';
 import { UploadVideoTab } from '../components/summarizer/UploadVideoTab';
 import { AudioTab } from '../components/summarizer/AudioTab';
 import { PodcastTab } from '../components/summarizer/PodcastTab';
 import { WebTab } from '../components/summarizer/WebTab';
 import { PasteTextTab } from '../components/summarizer/PasteTextTab';
+import { WebVideoTab } from '../components/summarizer/WebVideoTab';
+import { isExternalVideoSource } from '../constants/videoSources';
 
 type Tab = 'document' | 'video' | 'web' | 'audio' | 'text';
 type DocSubTab = 'single' | 'bulk';
 type AudioSubTab = 'lecture' | 'podcast';
-type VideoSubTab = 'youtube' | 'bilibili' | 'upload';
+type VideoSubTab = 'link' | 'upload';
 
 export const AISummarizerPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<Tab>(() => {
     const t = searchParams.get('tab');
-    if (t === 'youtube' || t === 'bilibili' || t === 'video' || t === 'upload-video') return 'video';
+    if (t === 'youtube' || t === 'bilibili' || t === 'video' || t === 'upload-video' || t === 'link' || isExternalVideoSource(t)) return 'video';
     if (t === 'web') return 'web';
     if (t === 'audio' || t === 'podcast') return 'audio';
     if (t === 'text' || t === 'paste') return 'text';
@@ -37,9 +38,8 @@ export const AISummarizerPage: React.FC = () => {
   );
   const [videoSubTab, setVideoSubTab] = useState<VideoSubTab>(() => {
     const t = searchParams.get('tab');
-    if (t === 'bilibili') return 'bilibili';
     if (t === 'upload-video') return 'upload';
-    return 'youtube';
+    return 'link';
   });
   const [selectedCourseId, setSelectedCourseId] = useState(searchParams.get('courseId') ?? '');
   const [courseError, setCourseError] = useState(false);
@@ -59,7 +59,7 @@ export const AISummarizerPage: React.FC = () => {
             selectedCourseId={selectedCourseId}
             onSelect={(id) => { setSelectedCourseId(id); setCourseError(false); }}
             error={courseError}
-            variant={activeTab === 'video' && videoSubTab === 'youtube' ? 'red' : 'primary'}
+            variant="primary"
           />
         </div>
 
@@ -165,24 +165,15 @@ export const AISummarizerPage: React.FC = () => {
 
             {activeTab === 'video' && (
               <motion.div key="video" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.15 }} className="flex flex-col gap-4">
-                <div className="flex rounded-lg bg-zinc-50 border border-zinc-200 p-0.5 gap-0.5 self-start">
+                <div className="flex flex-wrap rounded-lg bg-zinc-50 border border-zinc-200 p-0.5 gap-0.5 self-start">
                   <button
-                    onClick={() => setVideoSubTab('youtube')}
+                    onClick={() => setVideoSubTab('link')}
                     className={cn(
                       'flex items-center gap-1.5 rounded-md px-4 py-1.5 text-xs font-bold transition-all duration-200',
-                      videoSubTab === 'youtube' ? 'bg-white text-red-500 shadow-sm' : 'text-zinc-500 hover:text-zinc-700',
+                      videoSubTab === 'link' ? 'bg-white text-violet-500 shadow-sm' : 'text-zinc-500 hover:text-zinc-700',
                     )}
                   >
-                    <Youtube size={12} /> YouTube
-                  </button>
-                  <button
-                    onClick={() => setVideoSubTab('bilibili')}
-                    className={cn(
-                      'flex items-center gap-1.5 rounded-md px-4 py-1.5 text-xs font-bold transition-all duration-200',
-                      videoSubTab === 'bilibili' ? 'bg-white text-sky-500 shadow-sm' : 'text-zinc-500 hover:text-zinc-700',
-                  )}
-                >
-                    <img src="/images/bilibili.png" alt="" className="h-3 w-3 object-contain" /> Bilibili
+                    <Wand2 size={12} /> Video Link
                   </button>
                   <button
                     onClick={() => setVideoSubTab('upload')}
@@ -195,13 +186,9 @@ export const AISummarizerPage: React.FC = () => {
                   </button>
                 </div>
                 <AnimatePresence mode="wait">
-                  {videoSubTab === 'youtube' ? (
-                    <motion.div key="youtube" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.12 }}>
-                      <YouTubeTab selectedCourseId={selectedCourseId} onCourseError={setCourseError} source="youtube" />
-                    </motion.div>
-                  ) : videoSubTab === 'bilibili' ? (
-                    <motion.div key="bilibili" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.12 }}>
-                      <YouTubeTab selectedCourseId={selectedCourseId} onCourseError={setCourseError} source="bilibili" />
+                  {videoSubTab === 'link' ? (
+                    <motion.div key="link" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.12 }}>
+                      <WebVideoTab selectedCourseId={selectedCourseId} onCourseError={setCourseError} />
                     </motion.div>
                   ) : (
                     <motion.div key="upload-video" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.12 }}>

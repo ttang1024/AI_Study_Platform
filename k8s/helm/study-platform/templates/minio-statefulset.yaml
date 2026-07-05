@@ -1,0 +1,82 @@
+{{- if .Values.minio.enabled }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "study-platform.fullname" . }}-minio
+  labels:
+    {{- include "study-platform.selectorLabels" (dict "root" . "component" "minio") | nindent 4 }}
+spec:
+  serviceName: {{ include "study-platform.fullname" . }}-minio
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "study-platform.selectorLabels" (dict "root" . "component" "minio") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "study-platform.selectorLabels" (dict "root" . "component" "minio") | nindent 8 }}
+    spec:
+      containers:
+        - name: minio
+          image: {{ .Values.minio.image }}
+          command: ["server", "/data", "--console-address", ":9001"]
+          ports:
+            - containerPort: 9000
+            - containerPort: 9001
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "study-platform.secretName" . }}
+                  key: MINIO_ROOT_USER
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "study-platform.secretName" . }}
+                  key: MINIO_ROOT_PASSWORD
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          readinessProbe:
+            httpGet:
+              path: /minio/health/ready
+              port: 9000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /minio/health/live
+              port: 9000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            {{- toYaml .Values.minio.resources | nindent 12 }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- if .Values.global.storageClass }}
+        storageClassName: {{ .Values.global.storageClass }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.minio.storage }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "study-platform.fullname" . }}-minio
+  labels:
+    {{- include "study-platform.selectorLabels" (dict "root" . "component" "minio") | nindent 4 }}
+spec:
+  selector:
+    {{- include "study-platform.selectorLabels" (dict "root" . "component" "minio") | nindent 4 }}
+  ports:
+    - name: api
+      port: 9000
+      targetPort: 9000
+    - name: console
+      port: 9001
+      targetPort: 9001
+{{- end }}

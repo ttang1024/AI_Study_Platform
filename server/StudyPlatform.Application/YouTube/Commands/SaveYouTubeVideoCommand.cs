@@ -143,6 +143,15 @@ public class SaveYouTubeVideoCommandHandler : IRequestHandler<SaveYouTubeVideoCo
     {
         "bilibili" => "bilibili",
         "upload" => "upload",
+        "vimeo" => "vimeo",
+        "ted" => "ted",
+        "dailymotion" => "dailymotion",
+        "facebook" => "facebook",
+        "instagram" => "instagram",
+        "twitter" => "twitter",
+        "reddit" => "reddit",
+        "linkedin" => "linkedin",
+        "tiktok" => "tiktok",
         _ => "youtube"
     };
 }

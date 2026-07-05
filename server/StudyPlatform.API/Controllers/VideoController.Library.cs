@@ -41,9 +41,14 @@ public partial class VideoController
             return BadRequest(BaseResponse<YouTubeVideoDto>.Fail("No file provided.", "NO_FILE"));
 
         var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
-        var allowedExtensions = new[] { ".mp4", ".mov", ".m4v", ".webm", ".mkv", ".avi" };
+        var allowedExtensions = new[]
+        {
+            ".mp4", ".mov", ".m4v", ".webm", ".mkv", ".avi",
+            ".wmv", ".flv", ".3gp", ".3g2", ".ts", ".mts", ".m2ts", ".mpg", ".mpeg", ".ogv",
+            ".vob", ".asf",
+        };
         if (!file.ContentType.StartsWith("video/", StringComparison.OrdinalIgnoreCase) && !allowedExtensions.Contains(ext))
-            return BadRequest(BaseResponse<YouTubeVideoDto>.Fail("File type not supported. Allowed: MP4, MOV, WEBM, MKV, AVI.", "INVALID_FILE_TYPE"));
+            return BadRequest(BaseResponse<YouTubeVideoDto>.Fail("File type not supported. Allowed: MP4, MOV, WEBM, MKV, AVI, WMV, FLV, 3GP, TS, MPG, OGV, VOB, ASF.", "INVALID_FILE_TYPE"));
 
         var userId = User.GetUserId();
         var course = await _unitOfWork.Courses.GetByIdAsync(courseId, cancellationToken);

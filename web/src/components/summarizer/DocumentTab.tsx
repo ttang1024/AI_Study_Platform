@@ -10,6 +10,7 @@ import { cn } from '../../utils/cn';
 import { getApiErrorMessage } from '../../utils/apiError';
 import { calculateSha256 } from '../../utils/fileHash';
 import { DuplicateAlert } from './DuplicateAlert';
+import { DOCUMENT_ACCEPT_ATTR, isAcceptedDocumentFile } from '../../constants/documentUpload';
 
 const container = {
   hidden: { opacity: 0, y: 24 },
@@ -25,24 +26,11 @@ const FILE_TYPES = [
   { icon: Image, label: 'Image', color: 'text-violet-500 bg-violet-50' },
   { icon: Presentation, label: 'PPT', color: 'text-orange-500 bg-orange-50' },
   { icon: FileText, label: 'Word', color: 'text-blue-500 bg-blue-50' },
+  { icon: FileText, label: 'Excel', color: 'text-green-600 bg-green-50' },
   { icon: FileText, label: 'TXT', color: 'text-zinc-400 bg-zinc-50' },
   { icon: BookOpen, label: 'eBook', color: 'text-emerald-500 bg-emerald-50' },
-];
-
-const ACCEPTED_EXTENSIONS = [
-  '.pdf', '.docx', '.doc', '.txt', '.md', '.markdown',
-  '.ppt', '.pptx', '.epub',
-  '.png', '.jpg', '.jpeg', '.gif', '.webp', '.heic', '.heif', '.bmp',
-];
-const ACCEPTED_MIME_TYPES = [
-  'application/pdf', 'text/plain', 'text/markdown', 'text/x-markdown',
-  'application/msword',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/vnd.ms-powerpoint',
-  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-  'application/epub+zip',
-  'image/png', 'image/jpeg', 'image/jpg', 'image/gif',
-  'image/webp', 'image/heic', 'image/heif', 'image/bmp',
+  { icon: FileText, label: 'Code', color: 'text-sky-500 bg-sky-50' },
+  { icon: FileText, label: 'Subtitles', color: 'text-amber-500 bg-amber-50' },
 ];
 
 export interface DocumentTabProps {
@@ -89,9 +77,8 @@ export const DocumentTab: React.FC<DocumentTabProps> = ({ selectedCourseId, onCo
       : `/documents/${duplicateDoc?.id}`;
 
   const validateAndSetFile = (f: File) => {
-    const ext = f.name.substring(f.name.lastIndexOf('.')).toLowerCase();
-    if (!ACCEPTED_MIME_TYPES.includes(f.type) && !ACCEPTED_EXTENSIONS.includes(ext)) {
-      showPrompt('Unsupported file format. Please upload a PDF, Image, PPT, Word, TXT, or eBook (EPUB) file.');
+    if (!isAcceptedDocumentFile(f)) {
+      showPrompt('Unsupported file format. Please upload a PDF, Image, Office, OpenDocument, text/Markdown/HTML/RTF/LaTeX, CSV/JSON/XML/YAML, notebook, subtitle, source code, eBook, or iWork file.');
       return;
     }
     if (f.size > 50 * 1024 * 1024) {
@@ -148,7 +135,7 @@ export const DocumentTab: React.FC<DocumentTabProps> = ({ selectedCourseId, onCo
           className="absolute inset-0 cursor-pointer opacity-0 z-10"
           onClick={(e) => { (e.target as HTMLInputElement).value = ''; }}
           onChange={(e) => { const f = e.target.files?.[0]; if (f) validateAndSetFile(f); }}
-          accept=".pdf,.docx,.doc,.txt,.md,.markdown,.ppt,.pptx,.epub,.png,.jpg,.jpeg,.gif,.webp,.heic,.heif,.bmp"
+          accept={DOCUMENT_ACCEPT_ATTR}
         />
         <AnimatePresence mode="wait">
           {!file ? (

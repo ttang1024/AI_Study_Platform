@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Youtube, Sparkles, Loader2, RotateCcw, ChevronLeft, AlertCircle, Copy, Download, Share2, FileVideo } from 'lucide-react';
+import { Youtube, Sparkles, Loader2, RotateCcw, ChevronLeft, AlertCircle, Copy, Download, Share2, FileVideo, Clapperboard } from 'lucide-react';
 import { VideoNoteEditor } from '../components/youtube/VideoNoteEditor';
 import { MindMapViewer } from '../components/mindmap/MindMapViewer';
 import { Flashcards } from '../components/study/Flashcards';
@@ -18,12 +18,15 @@ import { ShareableQuiz, ShareableCard } from '../services/shareContentService';
 import { videoService } from '../services/videoService';
 import { buildBilibiliPlayerUrl } from './videoDetail/helpers';
 import { useVideoDetail } from './videoDetail/useVideoDetail';
+import {
+  isExternalVideoSource, parseExternalVideoId, buildExternalEmbedUrl, EXTERNAL_SOURCE_BRANDING,
+} from '../constants/videoSources';
 
 export const VideoDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({ embedded, id: propId }) => {
   const v = useVideoDetail(propId);
   const {
     id, videoUrl, playbackUrl, videoTitle, sourceType, bilibiliVideo, videoId,
-    bilibiliStartSeconds, bilibiliSeekNonce, isLoadingVideo, handleBack,
+    embedStartSeconds, embedSeekNonce, isLoadingVideo, handleBack,
     activeTab, setActiveTab, activeView, setActiveView, locationState,
     summaryError, mindMapError, flashcardsError, quizError,
     noteContent, showShareModal, setShowShareModal,
@@ -45,6 +48,11 @@ export const VideoDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
     generationDisabled, generationDisabledReason, hasGeneratedQuizzes,
     handleSummaryMouseUp, handleTranscriptMouseUp,
   } = v;
+
+  // Platform-native id (Vimeo numeric id / TED slug / Dailymotion id) for the embed player.
+  const externalVideoId = isExternalVideoSource(sourceType) && videoUrl
+    ? parseExternalVideoId(sourceType, videoUrl)
+    : null;
 
   // ─── Study Panel ─────────────────────────────────────────────────────────
   const studyPanel = (
@@ -220,10 +228,17 @@ export const VideoDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
             >
               <ChevronLeft size={16} />
             </button>
-            <div className={cn('flex h-7 w-7 items-center justify-center rounded-lg text-white shrink-0', sourceType === 'bilibili' ? 'bg-sky-500' : 'bg-red-500')}>
+            <div className={cn(
+              'flex h-7 w-7 items-center justify-center rounded-lg text-white shrink-0',
+              sourceType === 'bilibili' ? 'bg-sky-500'
+                : isExternalVideoSource(sourceType) ? EXTERNAL_SOURCE_BRANDING[sourceType].badgeBg
+                : 'bg-red-500',
+            )}>
               {sourceType === 'bilibili' ? (
                 <img src="/images/bilibili-white.png" alt="" className="h-4 w-4 object-contain" />
-              ) : sourceType === 'upload' ? <FileVideo size={14} /> : <Youtube size={14} />}
+              ) : sourceType === 'upload' ? <FileVideo size={14} />
+                : isExternalVideoSource(sourceType) ? <Clapperboard size={14} />
+                : <Youtube size={14} />}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-medium text-text-main truncate">
@@ -261,10 +276,20 @@ export const VideoDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
               )}
               {sourceType === 'bilibili' && bilibiliVideo && (
                 <iframe
-                  key={`${bilibiliVideo.key}-${bilibiliSeekNonce}`}
-                  src={buildBilibiliPlayerUrl(bilibiliVideo, bilibiliStartSeconds)}
+                  key={`${bilibiliVideo.key}-${embedSeekNonce}`}
+                  src={buildBilibiliPlayerUrl(bilibiliVideo, embedStartSeconds)}
                   title="Bilibili video player"
                   allow="autoplay; fullscreen; picture-in-picture"
+                  allowFullScreen
+                  className="w-full h-full"
+                />
+              )}
+              {isExternalVideoSource(sourceType) && externalVideoId && videoUrl && (
+                <iframe
+                  key={`${externalVideoId}-${embedSeekNonce}`}
+                  src={buildExternalEmbedUrl(sourceType, externalVideoId, videoUrl, embedStartSeconds)}
+                  title={`${EXTERNAL_SOURCE_BRANDING[sourceType].label} video player`}
+                  allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
                   allowFullScreen
                   className="w-full h-full"
                 />

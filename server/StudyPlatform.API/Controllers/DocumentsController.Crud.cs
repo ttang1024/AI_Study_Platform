@@ -63,11 +63,42 @@ public partial class DocumentsController
             // PowerPoint
             "application/vnd.ms-powerpoint",
             "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-            // eBook
-            "application/epub+zip",
+            // Excel / OpenDocument
+            "application/vnd.ms-excel",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "application/vnd.oasis.opendocument.text",
+            "application/vnd.oasis.opendocument.presentation",
+            "application/vnd.oasis.opendocument.spreadsheet",
+            // Macro-enabled / template OpenXML variants
+            "application/vnd.ms-word.document.macroEnabled.12",
+            "application/vnd.ms-word.template.macroEnabled.12",
+            "application/vnd.ms-powerpoint.presentation.macroEnabled.12",
+            "application/vnd.ms-excel.sheet.macroEnabled.12",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.template",
+            "application/vnd.openxmlformats-officedocument.presentationml.template",
+            // XPS / Visio
+            "application/vnd.ms-xpsdocument", "application/oxps",
+            "application/vnd.ms-visio.drawing",
+            // Email
+            "message/rfc822", "multipart/related", "application/vnd.ms-outlook",
+            // eBooks
+            "application/epub+zip", "application/x-mobipocket-ebook",
+            "application/x-fictionbook+xml",
+            // Apple iWork
+            "application/vnd.apple.pages", "application/vnd.apple.keynote", "application/vnd.apple.numbers",
+            // Rich text / markup / data
+            "application/rtf", "text/rtf",
+            "text/html", "application/xhtml+xml",
+            "text/csv", "text/tab-separated-values",
+            "application/json", "application/x-ipynb+json",
+            "text/xml", "application/xml", "text/yaml", "application/x-yaml",
+            "application/x-tex", "text/x-tex",
+            // Subtitles
+            "application/x-subrip", "text/vtt",
             // Images
             "image/png", "image/jpeg", "image/jpg", "image/gif",
             "image/webp", "image/heic", "image/heif", "image/bmp",
+            "image/svg+xml",
             // Some browsers/OSes send a generic type for .pptx/.epub uploads;
             // accept these and rely on the extension allowlist below.
             "application/zip", "application/octet-stream",
@@ -75,15 +106,32 @@ public partial class DocumentsController
 
         var allowedExtensions = new[]
         {
-            ".pdf", ".txt", ".md", ".markdown", ".doc", ".docx",
-            ".ppt", ".pptx", ".epub",
-            ".png", ".jpg", ".jpeg", ".gif", ".webp", ".heic", ".heif", ".bmp",
+            ".pdf", ".txt", ".md", ".markdown", ".doc", ".docx", ".docm", ".dotx",
+            ".ppt", ".pptx", ".pptm", ".potx",
+            ".xls", ".xlsx", ".xlsm",
+            ".odt", ".odp", ".ods",
+            ".epub", ".mobi", ".fb2",
+            ".pages", ".key", ".numbers",
+            ".xps", ".oxps", ".vsdx",
+            ".eml", ".mhtml", ".mht", ".msg",
+            ".rtf", ".html", ".htm", ".xhtml", ".tex",
+            ".rst", ".adoc", ".org", ".log", ".ini", ".toml", ".cfg",
+            ".csv", ".tsv", ".json", ".xml", ".yaml", ".yml", ".ipynb",
+            ".srt", ".vtt", ".ass", ".ssa", ".sub", ".smi",
+            // Source code (extracted as plain text)
+            ".py", ".js", ".jsx", ".ts", ".tsx", ".java", ".c", ".h", ".cpp", ".hpp",
+            ".cs", ".rb", ".go", ".rs", ".swift", ".kt", ".php", ".sql", ".sh", ".r",
+            ".scala", ".lua", ".pl", ".m",
+            ".png", ".jpg", ".jpeg", ".gif", ".webp", ".heic", ".heif", ".bmp", ".svg",
         };
 
+        // Browsers report wildly inconsistent (often empty) MIME types for the
+        // less common formats, so a match on either the type or the extension
+        // allowlist is enough.
         var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
-        if (!allowedTypes.Contains(file.ContentType) || !allowedExtensions.Contains(extension))
+        if (!allowedTypes.Contains(file.ContentType) && !allowedExtensions.Contains(extension))
             return BadRequest(BaseResponse<DocumentDto>.Fail(
-                "File type not supported. Allowed: PDF, Image, PPT, Word, TXT, Markdown, eBook (EPUB).",
+                "File type not supported. Allowed: documents (PDF, Office, OpenDocument, iWork, XPS, Visio), text/markup, data (CSV/JSON/XML/YAML), notebooks, subtitles, source code, eBooks (EPUB/MOBI/FB2), email (EML/MHTML/MSG), and images.",
                 "INVALID_FILE_TYPE"));
 
         var userId = User.GetUserId();

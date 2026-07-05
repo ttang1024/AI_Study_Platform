@@ -85,6 +85,9 @@ appsettings.json
 appsettings.Development.json
 cookies.txt
 
+# Kubernetes Helm secrets overrides (never commit real secret values)
+secrets.values.yaml
+
 __azurite_db_blob__.json
 __azurite_db_blob_extent__.json
 __blobstorage__

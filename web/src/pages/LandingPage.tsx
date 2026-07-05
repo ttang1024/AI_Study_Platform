@@ -143,7 +143,7 @@ export const LandingPage: React.FC = () => {
         <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.52 }}
           className="max-w-2xl text-lg sm:text-xl text-white/45 leading-relaxed mb-10">
-          Turn documents, YouTube &amp; Bilibili videos, podcasts, audio lectures, and web articles into AI summaries,
+          Turn documents in 80+ formats, videos from 11 sites (YouTube, Bilibili, Vimeo, TED, TikTok &amp; more), podcasts, audio lectures, and web articles into AI summaries,
           mind maps, flashcards, quizzes — then master it all with spaced repetition, one-button smart sessions,
           timed mock exams, and a hands-free voice tutor.
         </motion.p>

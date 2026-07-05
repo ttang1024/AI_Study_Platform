@@ -5,7 +5,7 @@ import { FadeIn } from './LandingAnimations';
 import { Badge } from './Badge';
 
 const STEPS = [
-  { step: '01', title: 'Add Your Content', desc: 'Upload PDFs or videos, paste a YouTube or Bilibili link, clip a web article, add audio files, or paste an Apple Podcasts URL.', icon: BookOpen, color: 'from-cyan-500 to-blue-600', glow: 'rgba(6,182,212,0.4)' },
+  { step: '01', title: 'Add Your Content', desc: 'Upload documents in 80+ formats (PDF, Office, eBooks, notebooks, even scanned pages) or videos, paste any video link — YouTube, Bilibili, Vimeo, TED, Dailymotion, TikTok, Facebook, Instagram, X, Reddit, LinkedIn — auto-detected, clip a web article, add audio files, or paste an Apple Podcasts URL.', icon: BookOpen, color: 'from-cyan-500 to-blue-600', glow: 'rgba(6,182,212,0.4)' },
   { step: '02', title: 'AI Does the Work', desc: 'AI instantly generates summaries, mind maps, flashcards, quizzes, glossaries, and step-by-step worked problems.', icon: Bot, color: 'from-teal-400 to-cyan-600', glow: 'rgba(13,148,136,0.4)' },
   { step: '03', title: 'Master the Topic', desc: 'Run one-button smart sessions over due cards, mistakes, and weak concepts, take timed mock exams, cram with AI cheat sheets, and explore your Knowledge Graph.', icon: GraduationCap, color: 'from-emerald-400 to-teal-600', glow: 'rgba(52,211,153,0.4)' },
 ];

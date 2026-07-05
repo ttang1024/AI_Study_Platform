@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "study-platform.fullname" . }}-web
+  labels:
+    {{- include "study-platform.selectorLabels" (dict "root" . "component" "web") | nindent 4 }}
+spec:
+  replicas: {{ .Values.web.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "study-platform.selectorLabels" (dict "root" . "component" "web") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "study-platform.selectorLabels" (dict "root" . "component" "web") | nindent 8 }}
+    spec:
+      containers:
+        - name: web
+          image: "{{ .Values.web.image.repository }}:{{ .Values.web.image.tag }}"
+          imagePullPolicy: {{ .Values.web.image.pullPolicy }}
+          ports:
+            - containerPort: 80
+          env:
+            - name: API_BACKEND_URL
+              value: {{ printf "http://%s-api:%v" (include "study-platform.fullname" .) .Values.api.port | quote }}
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+          resources:
+            {{- toYaml .Values.web.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "study-platform.fullname" . }}-web
+  labels:
+    {{- include "study-platform.selectorLabels" (dict "root" . "component" "web") | nindent 4 }}
+spec:
+  type: {{ .Values.web.service.type }}
+  selector:
+    {{- include "study-platform.selectorLabels" (dict "root" . "component" "web") | nindent 4 }}
+  ports:
+    - port: 80
+      targetPort: 80

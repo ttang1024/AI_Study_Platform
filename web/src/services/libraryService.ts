@@ -2,6 +2,7 @@ import { apiClient } from './apiClient'
 import { Document } from '../types'
 import { mapDocument, BackendDocument } from './documentService'
 import { VideoListItem } from './videoService'
+import type { VideoSourceType } from '../constants/videoSources'
 
 // Unified library row from GET /api/library — either a document or a video.
 interface BackendLibraryItem {
@@ -24,7 +25,7 @@ interface BackendLibraryItem {
 	videoId?: string | null
 	videoUrl?: string | null
 	thumbnailUrl?: string | null
-	sourceType?: 'youtube' | 'bilibili' | 'upload' | null
+	sourceType?: VideoSourceType | null
 }
 
 // Normalized shape the Library page renders — mirrors its existing LibraryItem union.

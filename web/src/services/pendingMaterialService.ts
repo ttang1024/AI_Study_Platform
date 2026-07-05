@@ -1,5 +1,6 @@
 import { Document } from '../types';
 import { VideoListItem } from './videoService';
+import type { VideoSourceType } from '../constants/videoSources';
 
 export interface PendingMaterial {
 	kind: 'document' | 'video';
@@ -14,7 +15,7 @@ export interface PendingMaterial {
 	videoId?: string | null;
 	videoUrl?: string | null;
 	thumbnailUrl?: string | null;
-	sourceType?: 'youtube' | 'bilibili' | 'upload' | null;
+	sourceType?: VideoSourceType | null;
 	createdAt: string;
 }
 
