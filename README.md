@@ -13,7 +13,7 @@
 
 </div>
 
-Upload documents in 80+ formats, videos (paste any link — YouTube · Bilibili · Vimeo · TED · Dailymotion · TikTok · Facebook · Instagram · X · Reddit · LinkedIn, auto-detected — or your own files), podcasts, and web articles — AI generates summaries, flashcards, quizzes, glossaries, and mind maps. Master any topic with spaced repetition, one-button daily smart sessions, an exam planner with AI mock exams and cram sheets, and a hands-free voice tutor.
+Upload documents in 80+ formats, videos (paste any link — YouTube · Bilibili · Vimeo · TED · Dailymotion · TikTok · Facebook · Instagram · X · Reddit · LinkedIn, auto-detected — or your own files), podcasts (paste any episode link, RSS feed, or MP3), and web articles — AI generates summaries, flashcards, quizzes, glossaries, and mind maps. Master any topic with spaced repetition, one-button daily smart sessions, an exam planner with AI mock exams and cram sheets, and a hands-free voice tutor.
 
 ---
 
@@ -25,7 +25,7 @@ Upload documents in 80+ formats, videos (paste any link — YouTube · Bilibili 
 
 |     | Category             | What you get                                                                                                 |
 | --- | -------------------- | ------------------------------------------------------------------------------------------------------------ |
-| 📄  | **Content Sources**  | 80+ document formats — PDF (scanned PDFs & images get AI OCR), Office incl. legacy `.doc`/`.ppt`/`.xls`, OpenDocument, iWork, eBooks (EPUB / MOBI / FB2), email (EML / MSG / MHTML), XPS / Visio / SVG, Jupyter notebooks, subtitles, LaTeX / Markdown / HTML / RTF, source code — plus online video from 11 sites auto-detected from the pasted link (YouTube & Bilibili with playlist / multi-part import; Vimeo, TED, Dailymotion; public TikTok, Facebook, Instagram, X/Twitter, Reddit, LinkedIn posts), uploaded videos & audio (most containers), web article clipping, Apple Podcasts |
+| 📄  | **Content Sources**  | 80+ document formats — PDF (scanned PDFs & images get AI OCR), Office incl. legacy `.doc`/`.ppt`/`.xls`, OpenDocument, iWork, eBooks (EPUB / MOBI / FB2), email (EML / MSG / MHTML), XPS / Visio / SVG, Jupyter notebooks, subtitles, LaTeX / Markdown / HTML / RTF, source code — plus online video from 11 sites auto-detected from the pasted link (YouTube & Bilibili with playlist / multi-part import; Vimeo, TED, Dailymotion; public TikTok, Facebook, Instagram, X/Twitter, Reddit, LinkedIn posts), uploaded videos & audio (most containers), web article clipping, podcasts from any episode link (Apple Podcasts, Overcast, Castro, Pocket Casts, Podbean, Buzzsprout & more — plus RSS feeds with an episode picker and direct MP3 links) |
 | 🤖  | **AI Generation**    | Summaries, flashcards (basic / cloze / chart), quizzes, glossaries, mind maps, worked problems               |
 | 🎯  | **Study Tools**      | Rich-text notes, hands-free voice tutor (speaks, listens, and answers back), graded teach-back, photo problem capture, FSRS-4.5 spaced repetition, question bank, knowledge graph & learning paths |
 | 🗓️  | **Today & Practice** | Daily study plan with goal budgeting, one-button **smart session** (due reviews + mistake redos + weak concepts, interleaved), unified Practice / Exam mode (quiz · flashcard · glossary · problem), timed runner |

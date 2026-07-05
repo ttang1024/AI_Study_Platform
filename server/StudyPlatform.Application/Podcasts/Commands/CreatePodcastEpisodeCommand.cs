@@ -10,14 +10,14 @@ namespace StudyPlatform.Application.Podcasts.Commands;
 public record CreatePodcastEpisodeCommand(
     Guid UserId,
     Guid CourseId,
-    string ApplePodcastsUrl) : IRequest<Result<DocumentDto>>;
+    string EpisodeUrl) : IRequest<Result<DocumentDto>>;
 
 public class CreatePodcastEpisodeCommandHandler : IRequestHandler<CreatePodcastEpisodeCommand, Result<DocumentDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
-    private readonly IApplePodcastService _podcastService;
+    private readonly IPodcastEpisodeService _podcastService;
 
-    public CreatePodcastEpisodeCommandHandler(IUnitOfWork unitOfWork, IApplePodcastService podcastService)
+    public CreatePodcastEpisodeCommandHandler(IUnitOfWork unitOfWork, IPodcastEpisodeService podcastService)
     {
         _unitOfWork = unitOfWork;
         _podcastService = podcastService;
@@ -29,11 +29,21 @@ public class CreatePodcastEpisodeCommandHandler : IRequestHandler<CreatePodcastE
         if (course == null || course.UserId != request.UserId)
             return Result<DocumentDto>.Failure("Course not found.", "COURSE_NOT_FOUND");
 
-        var info = await _podcastService.GetEpisodeInfoAsync(request.ApplePodcastsUrl, cancellationToken);
+        var info = await _podcastService.GetEpisodeInfoAsync(request.EpisodeUrl, cancellationToken);
         if (info == null)
+        {
+            // The URL may be a podcast RSS feed rather than an episode page —
+            // signal the client to load the episode picker instead.
+            var feed = await _podcastService.GetFeedAsync(request.EpisodeUrl, cancellationToken);
+            if (feed != null)
+                return Result<DocumentDto>.Failure(
+                    "This link is a podcast feed. Pick an episode from the list.",
+                    "RSS_FEED_URL");
+
             return Result<DocumentDto>.Failure(
-                "Could not fetch podcast episode. Please check the Apple Podcasts URL.",
+                "Could not find a playable episode at that link. Try the episode page URL (Apple Podcasts, Overcast, Castro, Podbean, …), an RSS feed, or a direct MP3 link.",
                 "PODCAST_FETCH_FAILED");
+        }
 
         var document = new Document
         {
@@ -44,7 +54,7 @@ public class CreatePodcastEpisodeCommandHandler : IRequestHandler<CreatePodcastE
             BlobUrl = info.AudioUrl,
             ContentType = "audio/podcast",
             FileSize = 0,
-            OriginalUrl = request.ApplePodcastsUrl,
+            OriginalUrl = request.EpisodeUrl,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
         };

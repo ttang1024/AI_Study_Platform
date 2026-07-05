@@ -16,6 +16,23 @@ export interface PodcastEpisode {
   updatedAt: string;
 }
 
+export interface PodcastFeedEpisode {
+  id: string;
+  title: string;
+  audioUrl: string;
+  link: string;
+  description: string;
+  thumbnailUrl: string;
+  durationMs: number;
+  publishedAt: string | null;
+}
+
+export interface PodcastFeed {
+  title: string;
+  thumbnailUrl: string;
+  episodes: PodcastFeedEpisode[];
+}
+
 function mapEpisode(d: any): PodcastEpisode {
   return {
     documentId: d.documentId,
@@ -35,8 +52,21 @@ function mapEpisode(d: any): PodcastEpisode {
 }
 
 export const podcastService = {
-  async create(applePodcastsUrl: string, courseId: string): Promise<PodcastEpisode> {
-    const res = await apiClient.post('/api/podcasts', { applePodcastsUrl, courseId });
+  /** Create from an episode page URL (Apple Podcasts, Overcast, Castro, …) or a direct audio URL. */
+  async create(url: string, courseId: string): Promise<PodcastEpisode> {
+    const res = await apiClient.post('/api/podcasts', { url, courseId });
+    return mapEpisode(res.data.data);
+  },
+
+  /** List episodes of a podcast RSS feed for the picker. */
+  async getFeed(feedUrl: string): Promise<PodcastFeed> {
+    const res = await apiClient.get('/api/podcasts/feed', { params: { url: feedUrl } });
+    return res.data.data as PodcastFeed;
+  },
+
+  /** Create from an episode the user picked out of an RSS feed. */
+  async createFromFeed(feedUrl: string, episodeId: string, courseId: string): Promise<PodcastEpisode> {
+    const res = await apiClient.post('/api/podcasts/from-feed', { feedUrl, episodeId, courseId });
     return mapEpisode(res.data.data);
   },
 

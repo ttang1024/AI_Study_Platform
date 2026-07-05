@@ -75,11 +75,17 @@ public static class InfrastructureServiceExtensions
             client.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
         });
 
-        // Apple Podcast Service
-        services.AddHttpClient<IApplePodcastService, ApplePodcastService>(client =>
+        // Podcast Episode Service — browser-like UA because many podcast platforms
+        // (Overcast, Podbean, …) block generic HTTP clients from episode pages
+        services.AddHttpClient<IPodcastEpisodeService, PodcastEpisodeService>(client =>
         {
             client.Timeout = TimeSpan.FromSeconds(30);
-            client.DefaultRequestHeaders.Add("User-Agent", "StudyPlatform/1.0");
+            client.DefaultRequestHeaders.Add("User-Agent",
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+        })
+        .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+        {
+            AutomaticDecompression = System.Net.DecompressionMethods.All
         });
 
         // Web Clipper — used by ClipUrl to fetch article HTML server-side

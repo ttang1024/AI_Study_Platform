@@ -33,8 +33,10 @@ export const AISummarizerPage: React.FC = () => {
   const [docSubTab, setDocSubTab] = useState<DocSubTab>(() =>
     searchParams.get('tab') === 'bulk' ? 'bulk' : 'single',
   );
+  // Podcast is the leading sub-tab; explicit ?tab=audio deep-links (e.g. from
+  // the library) still land on the lecture upload.
   const [audioSubTab, setAudioSubTab] = useState<AudioSubTab>(() =>
-    searchParams.get('tab') === 'podcast' ? 'podcast' : 'lecture',
+    searchParams.get('tab') === 'audio' ? 'lecture' : 'podcast',
   );
   const [videoSubTab, setVideoSubTab] = useState<VideoSubTab>(() => {
     const t = searchParams.get('tab');
@@ -209,15 +211,6 @@ export const AISummarizerPage: React.FC = () => {
               <motion.div key="audio" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.15 }} className="flex flex-col gap-4">
                 <div className="flex rounded-lg bg-zinc-50 border border-zinc-200 p-0.5 gap-0.5 self-start">
                   <button
-                    onClick={() => setAudioSubTab('lecture')}
-                    className={cn(
-                      'flex items-center gap-1.5 rounded-md px-4 py-1.5 text-xs font-bold transition-all duration-200',
-                      audioSubTab === 'lecture' ? 'bg-white text-primary shadow-sm' : 'text-zinc-500 hover:text-zinc-700',
-                    )}
-                  >
-                    <CONTENT_TYPE_ICONS.audio.icon size={12} /> Audio Lecture
-                  </button>
-                  <button
                     onClick={() => setAudioSubTab('podcast')}
                     className={cn(
                       'flex items-center gap-1.5 rounded-md px-4 py-1.5 text-xs font-bold transition-all duration-200',
@@ -225,6 +218,15 @@ export const AISummarizerPage: React.FC = () => {
                     )}
                   >
                     <CONTENT_TYPE_ICONS.podcast.icon size={12} /> Podcast
+                  </button>
+                  <button
+                    onClick={() => setAudioSubTab('lecture')}
+                    className={cn(
+                      'flex items-center gap-1.5 rounded-md px-4 py-1.5 text-xs font-bold transition-all duration-200',
+                      audioSubTab === 'lecture' ? 'bg-white text-primary shadow-sm' : 'text-zinc-500 hover:text-zinc-700',
+                    )}
+                  >
+                    <CONTENT_TYPE_ICONS.audio.icon size={12} /> Audio Lecture
                   </button>
                 </div>
                 <AnimatePresence mode="wait">

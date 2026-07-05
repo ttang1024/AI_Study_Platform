@@ -12,12 +12,12 @@ public class TranscribePodcastCommandHandler : IRequestHandler<TranscribePodcast
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly ITranscriptionService _transcriptionService;
-    private readonly IApplePodcastService _podcastService;
+    private readonly IPodcastEpisodeService _podcastService;
 
     public TranscribePodcastCommandHandler(
         IUnitOfWork unitOfWork,
         ITranscriptionService transcriptionService,
-        IApplePodcastService podcastService)
+        IPodcastEpisodeService podcastService)
     {
         _unitOfWork = unitOfWork;
         _transcriptionService = transcriptionService;

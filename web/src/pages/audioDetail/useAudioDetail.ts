@@ -143,6 +143,10 @@ export function useAudioDetail(propId?: string, propCourseId?: string) {
       setMindMapText(doc.mindMapText ?? null);
       setTranscript(doc.transcript ?? null);
 
+      // Kick off transcription automatically when none exists yet; the
+      // isTranscribing/transcriptError UI states cover progress and failure.
+      if (!doc.transcript) void doTranscribe(cId, docId);
+
       if (audioObjectUrlRef.current) {
         URL.revokeObjectURL(audioObjectUrlRef.current);
         audioObjectUrlRef.current = null;
