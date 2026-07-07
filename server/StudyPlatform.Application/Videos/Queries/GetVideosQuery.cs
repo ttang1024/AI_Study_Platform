@@ -1,28 +1,28 @@
 using MediatR;
 using StudyPlatform.Application.Common;
-using StudyPlatform.Application.YouTube.Commands;
-using StudyPlatform.Application.YouTube.DTOs;
+using StudyPlatform.Application.Videos.Commands;
+using StudyPlatform.Application.Videos.DTOs;
 using StudyPlatform.Domain.Interfaces;
 
-namespace StudyPlatform.Application.YouTube.Queries;
+namespace StudyPlatform.Application.Videos.Queries;
 
-public record GetYouTubeVideosQuery(
+public record GetVideosQuery(
     Guid UserId,
     Guid? CourseId,
     string? Search,
     int Page,
-    int PageSize) : IRequest<Result<YouTubeVideoPagedResult>>;
+    int PageSize) : IRequest<Result<VideoPagedResult>>;
 
-public class GetYouTubeVideosQueryHandler : IRequestHandler<GetYouTubeVideosQuery, Result<YouTubeVideoPagedResult>>
+public class GetVideosQueryHandler : IRequestHandler<GetVideosQuery, Result<VideoPagedResult>>
 {
     private readonly IUnitOfWork _unitOfWork;
 
-    public GetYouTubeVideosQueryHandler(IUnitOfWork unitOfWork)
+    public GetVideosQueryHandler(IUnitOfWork unitOfWork)
     {
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<Result<YouTubeVideoPagedResult>> Handle(GetYouTubeVideosQuery request, CancellationToken cancellationToken)
+    public async Task<Result<VideoPagedResult>> Handle(GetVideosQuery request, CancellationToken cancellationToken)
     {
         var queryUserId = request.UserId;
 
@@ -37,19 +37,19 @@ public class GetYouTubeVideosQueryHandler : IRequestHandler<GetYouTubeVideosQuer
                 var hasGroupAccess = groupIds.Count > 0 && await _unitOfWork.StudyGroupMembers.ExistsAsync(
                     m => groupIds.Contains(m.GroupId) && m.UserId == request.UserId, cancellationToken);
                 if (!hasGroupAccess)
-                    return Result<YouTubeVideoPagedResult>.Success(
-                        new YouTubeVideoPagedResult([], 0, request.Page, request.PageSize, 0));
+                    return Result<VideoPagedResult>.Success(
+                        new VideoPagedResult([], 0, request.Page, request.PageSize, 0));
                 queryUserId = course.UserId;
             }
         }
 
-        var (items, totalCount) = await _unitOfWork.YouTubeVideos.GetPagedAsync(
+        var (items, totalCount) = await _unitOfWork.Videos.GetPagedAsync(
             queryUserId, request.CourseId, request.Search,
             request.Page, request.PageSize, cancellationToken);
 
         var totalPages = (int)Math.Ceiling(totalCount / (double)request.PageSize);
-        var dtos = items.Select(SaveYouTubeVideoCommandHandler.ToDto);
+        var dtos = items.Select(SaveVideoCommandHandler.ToDto);
 
-        return Result<YouTubeVideoPagedResult>.Success(new YouTubeVideoPagedResult(dtos, totalCount, request.Page, request.PageSize, totalPages));
+        return Result<VideoPagedResult>.Success(new VideoPagedResult(dtos, totalCount, request.Page, request.PageSize, totalPages));
     }
 }

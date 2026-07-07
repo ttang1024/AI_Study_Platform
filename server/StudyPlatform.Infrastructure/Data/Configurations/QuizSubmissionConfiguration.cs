@@ -21,21 +21,21 @@ public class QuizSubmissionConfiguration : IEntityTypeConfiguration<QuizSubmissi
             .IsRequired(false)
             .OnDelete(DeleteBehavior.Cascade);
 
-        builder.HasOne(s => s.YouTubeVideo)
+        builder.HasOne(s => s.Video)
             .WithMany()
-            .HasForeignKey(s => s.YouTubeVideoId)
+            .HasForeignKey(s => s.VideoId)
             .IsRequired(false)
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.ToTable(t => t.HasCheckConstraint("chk_quiz_submissions_source",
-            "(\"DocumentId\" IS NOT NULL AND \"YouTubeVideoId\" IS NULL AND \"SourceType\" = 'document') OR " +
-            "(\"YouTubeVideoId\" IS NOT NULL AND \"DocumentId\" IS NULL AND \"SourceType\" = 'video')"));
+            "(\"DocumentId\" IS NOT NULL AND \"VideoId\" IS NULL AND \"SourceType\" = 'document') OR " +
+            "(\"VideoId\" IS NOT NULL AND \"DocumentId\" IS NULL AND \"SourceType\" = 'video')"));
 
         builder.HasIndex(s => new { s.DocumentId, s.UserId });
-        builder.HasIndex(s => new { s.YouTubeVideoId, s.UserId });
+        builder.HasIndex(s => new { s.VideoId, s.UserId });
 
         // Serves the submissions history list: WHERE UserId = @u ORDER BY SubmittedAt DESC.
-        // The two indexes above lead with DocumentId/YouTubeVideoId, so a UserId-only filter
+        // The two indexes above lead with DocumentId/VideoId, so a UserId-only filter
         // can't use them.
         builder.HasIndex(s => new { s.UserId, s.SubmittedAt });
     }

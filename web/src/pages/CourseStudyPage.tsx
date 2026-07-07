@@ -199,11 +199,11 @@ export const CourseStudyPage: React.FC = () => {
         const inCourse = (docId?: string | null, videoId?: string | null) =>
           (!!docId && documentIds.has(docId)) || (!!videoId && videoIds.has(videoId));
         setArtifacts({
-          notes: notesPage.items.filter(n => inCourse(n.documentId, n.youTubeVideoId)),
+          notes: notesPage.items.filter(n => inCourse(n.documentId, n.videoId)),
           flashcards: [],
           questions, // already course-scoped (and source-labeled) server-side
           glossary: glossary.filter(g =>
-            inCourse(g.documentId, g.youTubeVideoId) || g.courseId === courseId,
+            inCourse(g.documentId, g.videoId) || g.courseId === courseId,
           ),
           workedProblems: [...docProblems.flat(), ...videoProblems.flat()],
         });
@@ -225,7 +225,7 @@ export const CourseStudyPage: React.FC = () => {
     const videoIds = new Set(videos.map(v => v.id));
     return contextFlashcards.filter(f =>
       (!!f.documentId && documentIds.has(f.documentId)) ||
-      (!!f.youTubeVideoId && videoIds.has(f.youTubeVideoId)));
+      (!!f.videoId && videoIds.has(f.videoId)));
   }, [contextFlashcards, documents, videos]);
 
   const artifactsWithFlashcards = useMemo(

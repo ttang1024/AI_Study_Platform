@@ -6,7 +6,7 @@ public record WorkedProblemDto(
     Guid WorkedProblemId,
     Guid UserId,
     Guid? DocumentId,
-    Guid? YouTubeVideoId,
+    Guid? VideoId,
     string ProblemText,
     IEnumerable<ProblemStepDto> Steps,
     string FinalAnswer,

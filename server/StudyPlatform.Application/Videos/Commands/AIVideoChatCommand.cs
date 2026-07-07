@@ -5,7 +5,7 @@ using StudyPlatform.Application.Services;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
 
-namespace StudyPlatform.Application.YouTube.Commands;
+namespace StudyPlatform.Application.Videos.Commands;
 
 public record AIVideoChatCommand(
     Guid VideoId,
@@ -27,11 +27,11 @@ public class AIVideoChatCommandHandler : IRequestHandler<AIVideoChatCommand, Res
 
     public async Task<Result<ChatMessageDto>> Handle(AIVideoChatCommand request, CancellationToken cancellationToken)
     {
-        var video = await _unitOfWork.YouTubeVideos.GetByIdForUserAsync(request.VideoId, request.UserId, cancellationToken);
+        var video = await _unitOfWork.Videos.GetByIdForUserAsync(request.VideoId, request.UserId, cancellationToken);
         if (video is null)
             return Result<ChatMessageDto>.Failure("Video not found.", "VIDEO_NOT_FOUND");
 
-        var history = await _unitOfWork.ChatMessages.GetByYouTubeVideoIdAsync(request.VideoId, request.UserId, cancellationToken);
+        var history = await _unitOfWork.ChatMessages.GetByVideoIdAsync(request.VideoId, request.UserId, cancellationToken);
         var historyTuples = history.Select(m => (m.Role, m.Content)).ToList();
 
         // Use stored transcript if available; otherwise fetch, store, and return.
@@ -42,8 +42,8 @@ public class AIVideoChatCommandHandler : IRequestHandler<AIVideoChatCommand, Res
         }
         else
         {
-            var segments = await _transcriptService.GetTranscriptAsync(video.VideoId, cancellationToken)
-                           ?? await _transcriptService.GetSubtitlesAsync(video.VideoId, cancellationToken);
+            var segments = await _transcriptService.GetTranscriptAsync(video.ExternalVideoId, cancellationToken)
+                           ?? await _transcriptService.GetSubtitlesAsync(video.ExternalVideoId, cancellationToken);
             transcriptText = segments != null && segments.Count > 0
                 ? string.Join(" ", segments.Select(s => s.Text))
                 : string.Empty;
@@ -51,14 +51,14 @@ public class AIVideoChatCommandHandler : IRequestHandler<AIVideoChatCommand, Res
             {
                 video.Transcript = transcriptText;
                 video.UpdatedAt = DateTime.UtcNow;
-                _unitOfWork.YouTubeVideos.Update(video);
+                _unitOfWork.Videos.Update(video);
             }
         }
 
         var userMessage = new ChatMessage
         {
             MessageId = Guid.NewGuid(),
-            YouTubeVideoId = request.VideoId,
+            VideoId = request.VideoId,
             SourceType = "video",
             UserId = request.UserId,
             Role = "user",
@@ -73,7 +73,7 @@ public class AIVideoChatCommandHandler : IRequestHandler<AIVideoChatCommand, Res
         var assistantMessage = new ChatMessage
         {
             MessageId = Guid.NewGuid(),
-            YouTubeVideoId = request.VideoId,
+            VideoId = request.VideoId,
             SourceType = "video",
             UserId = request.UserId,
             Role = "assistant",
@@ -87,7 +87,7 @@ public class AIVideoChatCommandHandler : IRequestHandler<AIVideoChatCommand, Res
         var dto = new ChatMessageDto(
             assistantMessage.MessageId,
             assistantMessage.DocumentId,
-            assistantMessage.YouTubeVideoId,
+            assistantMessage.VideoId,
             assistantMessage.SourceType,
             assistantMessage.Role,
             assistantMessage.Content,
@@ -112,11 +112,11 @@ public class GetVideoChatHistoryQueryHandler : IRequestHandler<GetVideoChatHisto
 
     public async Task<Result<IEnumerable<ChatMessageDto>>> Handle(GetVideoChatHistoryQuery request, CancellationToken cancellationToken)
     {
-        var video = await _unitOfWork.YouTubeVideos.GetByIdForUserAsync(request.VideoId, request.UserId, cancellationToken);
+        var video = await _unitOfWork.Videos.GetByIdForUserAsync(request.VideoId, request.UserId, cancellationToken);
         if (video is null)
             return Result<IEnumerable<ChatMessageDto>>.Failure("Video not found.", "VIDEO_NOT_FOUND");
 
-        var messages = await _unitOfWork.ChatMessages.GetByYouTubeVideoIdAsync(request.VideoId, request.UserId, cancellationToken);
+        var messages = await _unitOfWork.ChatMessages.GetByVideoIdAsync(request.VideoId, request.UserId, cancellationToken);
         var dtos = new List<ChatMessageDto>();
         foreach (var m in messages)
             dtos.Add(await m.ToDtoAsync(_blobStorageService, cancellationToken));

@@ -29,8 +29,8 @@ public class GetQuestionBankQueryHandler : IRequestHandler<GetQuestionBankQuery,
 
         var documents = (await _unitOfWork.Documents.FindAsync(d => d.UserId == request.UserId, cancellationToken))
             .ToDictionary(d => d.DocumentId);
-        var videos = (await _unitOfWork.YouTubeVideos.FindAsync(v => v.UserId == request.UserId, cancellationToken))
-            .ToDictionary(v => v.YouTubeVideoId);
+        var videos = (await _unitOfWork.Videos.FindAsync(v => v.UserId == request.UserId, cancellationToken))
+            .ToDictionary(v => v.VideoId);
         var courses = (await _unitOfWork.Courses.FindAsync(c => c.UserId == request.UserId, cancellationToken))
             .ToDictionary(c => c.CourseId);
 
@@ -46,7 +46,7 @@ public class GetQuestionBankQueryHandler : IRequestHandler<GetQuestionBankQuery,
     internal static QuestionBankQuestionDto ToDto(
         Quiz quiz,
         IReadOnlyDictionary<Guid, Document> documents,
-        IReadOnlyDictionary<Guid, YouTubeVideo> videos,
+        IReadOnlyDictionary<Guid, Video> videos,
         IReadOnlyDictionary<Guid, Course> courses)
     {
         Guid? courseId = null;
@@ -56,7 +56,7 @@ public class GetQuestionBankQueryHandler : IRequestHandler<GetQuestionBankQuery,
             courseId = document.CourseId;
             sourceName = document.FileName;
         }
-        else if (quiz.YouTubeVideoId.HasValue && videos.TryGetValue(quiz.YouTubeVideoId.Value, out var video))
+        else if (quiz.VideoId.HasValue && videos.TryGetValue(quiz.VideoId.Value, out var video))
         {
             courseId = video.CourseId;
             sourceName = video.Title;
@@ -67,7 +67,7 @@ public class GetQuestionBankQueryHandler : IRequestHandler<GetQuestionBankQuery,
         return new QuestionBankQuestionDto(
             quiz.QuizId,
             quiz.DocumentId,
-            quiz.YouTubeVideoId,
+            quiz.VideoId,
             courseId,
             quiz.SourceType,
             sourceName,

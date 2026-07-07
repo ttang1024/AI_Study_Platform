@@ -28,8 +28,8 @@ export const QuizMistakeCard: React.FC<QuizMistakeCardProps> = ({
 
   const handleSourceClick = () => {
     const state = { activeTab: 'quiz' };
-    if (question.youTubeVideoId) {
-      navigate(`/videos/${question.youTubeVideoId}`, { state });
+    if (question.videoId) {
+      navigate(`/videos/${question.videoId}`, { state });
     } else if (question.documentId) {
       const doc = documents.find(d => d.id === question.documentId);
       if (doc?.type === 'audio' || doc?.type === 'podcast') {

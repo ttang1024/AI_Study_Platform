@@ -30,7 +30,7 @@ export interface Document {
 export interface Note {
 	id: string
 	documentId: string
-	youTubeVideoId?: string
+	videoId?: string
 	documentName?: string
 	videoName?: string
 	content: string
@@ -85,7 +85,7 @@ export interface FlashcardSrsState {
 export interface Flashcard {
 	id: string
 	documentId: string
-	youTubeVideoId?: string
+	videoId?: string
 	documentName?: string
 	videoName?: string
 	front: string
@@ -118,7 +118,7 @@ export interface GlossaryTerm {
 	term: string
 	definition: string
 	documentId?: string
-	youTubeVideoId?: string
+	videoId?: string
 	sourceName?: string // doc name or video title
 	courseId?: string
 	sourceKind?: 'document' | 'video' | 'article' | 'audio'

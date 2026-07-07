@@ -60,12 +60,12 @@ export const useGlossaryTerms = (userId: string, documents: StudyDocument[], vid
       const terms = await glossaryService.generateVideoGlossary(videoId, video.videoUrl);
       const enriched = terms.map(t => ({
         ...t,
-        youTubeVideoId: videoId,
+        videoId: videoId,
         sourceName: video.title,
         courseId: video.courseId,
         sourceKind: 'video' as const,
       }));
-      setAllTerms(prev => [...prev.filter(t => t.youTubeVideoId !== videoId), ...enriched]);
+      setAllTerms(prev => [...prev.filter(t => t.videoId !== videoId), ...enriched]);
     } finally {
       setGenerating(prev => { const n = new Set(prev); n.delete(videoId); return n; });
     }

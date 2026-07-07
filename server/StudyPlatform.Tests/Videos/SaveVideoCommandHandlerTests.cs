@@ -2,26 +2,26 @@ using System.Linq.Expressions;
 using Microsoft.Extensions.Options;
 using Moq;
 using StudyPlatform.Application.Settings;
-using StudyPlatform.Application.YouTube.Commands;
+using StudyPlatform.Application.Videos.Commands;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
 using Xunit;
 
-namespace StudyPlatform.Tests.YouTube;
+namespace StudyPlatform.Tests.Videos;
 
-public class SaveYouTubeVideoCommandHandlerTests
+public class SaveVideoCommandHandlerTests
 {
     private readonly Mock<IUnitOfWork> _uow = new();
-    private readonly Mock<IYouTubeVideoRepository> _videos = new();
-    private readonly SaveYouTubeVideoCommandHandler _handler;
+    private readonly Mock<IVideoRepository> _videos = new();
+    private readonly SaveVideoCommandHandler _handler;
 
     private readonly Guid _courseId = Guid.NewGuid();
     private readonly Guid _userId = Guid.NewGuid();
 
-    public SaveYouTubeVideoCommandHandlerTests()
+    public SaveVideoCommandHandlerTests()
     {
-        _uow.Setup(u => u.YouTubeVideos).Returns(_videos.Object);
-        _handler = new SaveYouTubeVideoCommandHandler(
+        _uow.Setup(u => u.Videos).Returns(_videos.Object);
+        _handler = new SaveVideoCommandHandler(
             _uow.Object,
             Options.Create(new AppLimitsOptions { VideoUploadLimit = 10 }));
     }
@@ -29,10 +29,10 @@ public class SaveYouTubeVideoCommandHandlerTests
     [Fact]
     public async Task Handle_UploadVideoLimitReached_ReturnsFailureWithoutSaving()
     {
-        _videos.Setup(r => r.CountAsync(It.IsAny<Expression<Func<YouTubeVideo, bool>>>(), default))
+        _videos.Setup(r => r.CountAsync(It.IsAny<Expression<Func<Video, bool>>>(), default))
             .ReturnsAsync(10);
 
-        var result = await _handler.Handle(new SaveYouTubeVideoCommand(
+        var result = await _handler.Handle(new SaveVideoCommand(
             _userId,
             _courseId,
             "upload-local",
@@ -44,7 +44,7 @@ public class SaveYouTubeVideoCommandHandlerTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal("VIDEO_LIMIT_REACHED", result.ErrorCode);
-        _videos.Verify(r => r.AddAsync(It.IsAny<YouTubeVideo>(), default), Times.Never);
+        _videos.Verify(r => r.AddAsync(It.IsAny<Video>(), default), Times.Never);
         _uow.Verify(u => u.SaveChangesAsync(default), Times.Never);
     }
 }

@@ -28,7 +28,7 @@ public static class ChatThreads
     public static Task AdoptLegacyVideoChatAsync(IUnitOfWork unitOfWork, Guid videoId, Guid userId, CancellationToken cancellationToken)
         => AdoptAsync(
             unitOfWork,
-            () => unitOfWork.ChatMessages.GetByYouTubeVideoIdAsync(videoId, userId, cancellationToken),
+            () => unitOfWork.ChatMessages.GetByVideoIdAsync(videoId, userId, cancellationToken),
             title => unitOfWork.ChatMessages.CreateVideoConversationAsync(userId, videoId, title, cancellationToken),
             cancellationToken);
 

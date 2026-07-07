@@ -10,7 +10,7 @@ export interface WorkedProblem {
   workedProblemId: string;
   userId: string;
   documentId: string | null;
-  youTubeVideoId: string | null;
+  videoId: string | null;
   problemText: string;
   steps: ProblemStep[];
   finalAnswer: string;

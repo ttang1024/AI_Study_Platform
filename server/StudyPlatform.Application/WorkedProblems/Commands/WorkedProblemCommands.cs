@@ -46,7 +46,7 @@ public class GenerateWorkedProblemsCommandHandler : IRequestHandler<GenerateWork
         }
         else if (request.VideoId.HasValue)
         {
-            var video = await _unitOfWork.YouTubeVideos.GetByIdForUserAsync(request.VideoId.Value, request.UserId, cancellationToken);
+            var video = await _unitOfWork.Videos.GetByIdForUserAsync(request.VideoId.Value, request.UserId, cancellationToken);
             if (video == null)
                 return Result<IEnumerable<WorkedProblemDto>>.Failure("Video not found.", "VIDEO_NOT_FOUND");
             content = video.Transcript ?? video.Summary ?? video.Title;
@@ -73,7 +73,7 @@ public class GenerateWorkedProblemsCommandHandler : IRequestHandler<GenerateWork
             WorkedProblemId = Guid.NewGuid(),
             UserId = request.UserId,
             DocumentId = request.DocumentId,
-            YouTubeVideoId = request.VideoId,
+            VideoId = request.VideoId,
             ProblemText = i.Problem,
             StepsJson = JsonSerializer.Serialize(i.Steps ?? []),
             FinalAnswer = i.Answer,
@@ -97,7 +97,7 @@ public class GenerateWorkedProblemsCommandHandler : IRequestHandler<GenerateWork
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? [];
         }
         catch { }
-        return new WorkedProblemDto(p.WorkedProblemId, p.UserId, p.DocumentId, p.YouTubeVideoId,
+        return new WorkedProblemDto(p.WorkedProblemId, p.UserId, p.DocumentId, p.VideoId,
             p.ProblemText, steps, p.FinalAnswer, p.Difficulty, p.Topic, p.CreatedAt);
     }
 

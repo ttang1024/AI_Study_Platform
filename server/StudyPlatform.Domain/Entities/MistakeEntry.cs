@@ -11,7 +11,7 @@ public class MistakeEntry
     public Guid UserId { get; set; }
     public Guid? QuizId { get; set; }
     public Guid? DocumentId { get; set; }
-    public Guid? YouTubeVideoId { get; set; }
+    public Guid? VideoId { get; set; }
     public string SourceType { get; set; } = "document"; // "document" | "video"
     public string Question { get; set; } = string.Empty;
     public string OptionsJson { get; set; } = string.Empty;

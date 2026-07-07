@@ -15,12 +15,12 @@ public class QuizSubmissionRepository : Repository<QuizSubmission>, IQuizSubmiss
 
     public async Task<QuizSubmission?> GetByVideoAndUserAsync(Guid videoId, Guid userId, CancellationToken cancellationToken = default)
         => await _dbSet
-            .FirstOrDefaultAsync(s => s.YouTubeVideoId == videoId && s.UserId == userId, cancellationToken);
+            .FirstOrDefaultAsync(s => s.VideoId == videoId && s.UserId == userId, cancellationToken);
 
     public async Task<IEnumerable<QuizSubmission>> GetAllByUserAsync(Guid userId, CancellationToken cancellationToken = default)
         => await _dbSet
             .Include(s => s.Document)
-            .Include(s => s.YouTubeVideo)
+            .Include(s => s.Video)
             .Where(s => s.UserId == userId)
             .OrderByDescending(s => s.SubmittedAt)
             .ToListAsync(cancellationToken);
@@ -35,7 +35,7 @@ public class QuizSubmissionRepository : Repository<QuizSubmission>, IQuizSubmiss
         var query = _dbSet
             .AsNoTracking()
             .Include(s => s.Document)
-            .Include(s => s.YouTubeVideo)
+            .Include(s => s.Video)
             .Where(s => s.UserId == userId);
         var totalCount = await query.CountAsync(cancellationToken);
         var items = await query
@@ -46,7 +46,7 @@ public class QuizSubmissionRepository : Repository<QuizSubmission>, IQuizSubmiss
         return (items, totalCount);
     }
 
-    public async Task<(IEnumerable<Guid> DocumentIds, IEnumerable<Guid> YouTubeVideoIds)> GetCoverageByUserAsync(Guid userId, CancellationToken cancellationToken = default)
+    public async Task<(IEnumerable<Guid> DocumentIds, IEnumerable<Guid> VideoIds)> GetCoverageByUserAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         var documentIds = await _dbSet
             .Where(s => s.UserId == userId && s.DocumentId != null && s.SourceType != "video")
@@ -54,12 +54,12 @@ public class QuizSubmissionRepository : Repository<QuizSubmission>, IQuizSubmiss
             .Distinct()
             .ToListAsync(cancellationToken);
 
-        var youTubeVideoIds = await _dbSet
-            .Where(s => s.UserId == userId && s.YouTubeVideoId != null)
-            .Select(s => s.YouTubeVideoId!.Value)
+        var videoIds = await _dbSet
+            .Where(s => s.UserId == userId && s.VideoId != null)
+            .Select(s => s.VideoId!.Value)
             .Distinct()
             .ToListAsync(cancellationToken);
 
-        return (documentIds, youTubeVideoIds);
+        return (documentIds, videoIds);
     }
 }

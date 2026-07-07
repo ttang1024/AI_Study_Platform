@@ -59,7 +59,7 @@ public class AskLibraryQueryHandler : IRequestHandler<AskLibraryQuery, Result<As
 
         var userId = request.UserId;
         var documents = (await _unitOfWork.Documents.FindAsync(d => d.UserId == userId, cancellationToken)).ToList();
-        var videos = (await _unitOfWork.YouTubeVideos.FindAsync(v => v.UserId == userId, cancellationToken)).ToList();
+        var videos = (await _unitOfWork.Videos.FindAsync(v => v.UserId == userId, cancellationToken)).ToList();
         var notes = (await _unitOfWork.Notes.GetByUserIdAsync(userId, cancellationToken)).ToList();
         var terms = (await _unitOfWork.GlossaryTerms.FindAsync(t => t.UserId == userId, cancellationToken)).ToList();
 
@@ -78,7 +78,7 @@ public class AskLibraryQueryHandler : IRequestHandler<AskLibraryQuery, Result<As
             var body = v.Summary ?? v.Transcript ?? string.Empty;
             var score = Score(keywords, v.Title, body);
             if (score > 0)
-                candidates.Add(new Candidate("video", v.YouTubeVideoId.ToString(), v.Title, body, $"/videos/{v.YouTubeVideoId}", score));
+                candidates.Add(new Candidate("video", v.VideoId.ToString(), v.Title, body, $"/videos/{v.VideoId}", score));
         }
 
         foreach (var n in notes)

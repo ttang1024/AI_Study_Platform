@@ -4,7 +4,7 @@ export interface Mistake {
   id: string
   quizId?: string
   documentId?: string
-  youTubeVideoId?: string
+  videoId?: string
   sourceType: string
   question: string
   options: string[]

@@ -92,9 +92,9 @@ public class GeneratePracticeTestQueryHandler : IRequestHandler<GeneratePractice
 
         // Course mapping so we can filter any source down to a single course.
         var documents = (await _unitOfWork.Documents.FindAsync(d => d.UserId == userId, ct)).ToList();
-        var videos = (await _unitOfWork.YouTubeVideos.FindAsync(v => v.UserId == userId, ct)).ToList();
+        var videos = (await _unitOfWork.Videos.FindAsync(v => v.UserId == userId, ct)).ToList();
         var docToCourse = documents.ToDictionary(d => d.DocumentId, d => d.CourseId);
-        var videoToCourse = videos.ToDictionary(v => v.YouTubeVideoId, v => v.CourseId);
+        var videoToCourse = videos.ToDictionary(v => v.VideoId, v => v.CourseId);
 
         Guid? CourseOf(Guid? docId, Guid? videoId)
         {
@@ -114,7 +114,7 @@ public class GeneratePracticeTestQueryHandler : IRequestHandler<GeneratePractice
             var pool = new List<PracticeQuestionDto>();
             foreach (var q in quizzes)
             {
-                var courseId = CourseOf(q.DocumentId, q.YouTubeVideoId);
+                var courseId = CourseOf(q.DocumentId, q.VideoId);
                 if (!CourseMatches(courseId)) continue;
                 var options = DeserializeOptions(q.OptionsJson);
                 if (options.Length < 2) continue;
@@ -134,7 +134,7 @@ public class GeneratePracticeTestQueryHandler : IRequestHandler<GeneratePractice
                 .Select(f => new
                 {
                     f,
-                    courseId = CourseOf(f.DocumentId, f.YouTubeVideoId),
+                    courseId = CourseOf(f.DocumentId, f.VideoId),
                     qa = string.IsNullOrWhiteSpace(f.Front) ? null : PracticeFlashcardFormat.ToPromptAnswer(f.Front, f.Back),
                 })
                 .Where(x => CourseMatches(x.courseId) && x.qa is not null)
@@ -152,7 +152,7 @@ public class GeneratePracticeTestQueryHandler : IRequestHandler<GeneratePractice
             var pool = new List<PracticeQuestionDto>();
             foreach (var t in terms)
             {
-                var courseId = CourseOf(t.DocumentId, t.YouTubeVideoId);
+                var courseId = CourseOf(t.DocumentId, t.VideoId);
                 if (!CourseMatches(courseId) || string.IsNullOrWhiteSpace(t.Term) || string.IsNullOrWhiteSpace(t.Definition))
                     continue;
 
@@ -184,7 +184,7 @@ public class GeneratePracticeTestQueryHandler : IRequestHandler<GeneratePractice
         {
             var problems = (await _unitOfWork.WorkedProblems.GetByUserAsync(userId, null, null, ct)).ToList();
             pools["problem"] = problems
-                .Select(p => new { p, courseId = CourseOf(p.DocumentId, p.YouTubeVideoId) })
+                .Select(p => new { p, courseId = CourseOf(p.DocumentId, p.VideoId) })
                 .Where(x => CourseMatches(x.courseId) && !string.IsNullOrWhiteSpace(x.p.ProblemText))
                 .Select(x => new PracticeQuestionDto(
                     $"problem:{x.p.WorkedProblemId}", "problem", x.p.WorkedProblemId.ToString(), "recall",

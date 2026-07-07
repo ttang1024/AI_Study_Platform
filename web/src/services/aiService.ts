@@ -83,7 +83,7 @@ export interface GeneralChatConversation {
 export interface ChatMessageDto {
 	messageId: string;
 	documentId?: string | null;
-	youTubeVideoId?: string | null;
+	videoId?: string | null;
 	sourceType: string;
 	role: 'user' | 'assistant' | 'model';
 	content: string;

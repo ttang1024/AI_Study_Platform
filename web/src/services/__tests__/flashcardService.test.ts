@@ -27,7 +27,7 @@ const mappedCard = {
   documentId: 'doc-1',
   documentName: 'Intro.pdf',
   videoName: undefined,
-  youTubeVideoId: undefined,
+  videoId: undefined,
   difficulty: 'medium',
 }
 
@@ -113,18 +113,18 @@ describe('flashcardService', () => {
   // ─── mapFlashcard (via createFlashcard) ────────────────────────────────────
 
   describe('mapFlashcard edge cases', () => {
-    it('maps youTubeVideoId and videoName when present', async () => {
+    it('maps videoId and videoName when present', async () => {
       const videoCard = {
         flashcardId: 'fc-2',
         front: 'Q',
         back: 'A',
-        youTubeVideoId: 'yt-1',
+        videoId: 'yt-1',
         video: 'My Video',
       }
       mockApiClient.post.mockResolvedValueOnce({ data: { data: videoCard } })
 
       const result = await flashcardService.createFlashcard({ front: 'Q', back: 'A' })
-      expect(result.youTubeVideoId).toBe('yt-1')
+      expect(result.videoId).toBe('yt-1')
       expect(result.videoName).toBe('My Video')
       expect(result.documentId).toBe('')
     })
@@ -135,14 +135,14 @@ describe('flashcardService', () => {
   describe('getCoverage', () => {
     it('returns document and video id arrays', async () => {
       mockApiClient.get.mockResolvedValueOnce({
-        data: { data: { documentIds: ['doc-1', 'doc-2'], youTubeVideoIds: ['yt-1'] } },
+        data: { data: { documentIds: ['doc-1', 'doc-2'], videoIds: ['yt-1'] } },
       })
 
       const result = await flashcardService.getCoverage()
 
       expect(mockApiClient.get).toHaveBeenCalledWith('/api/flashcards/coverage')
       expect(result.documentIds).toEqual(['doc-1', 'doc-2'])
-      expect(result.youTubeVideoIds).toEqual(['yt-1'])
+      expect(result.videoIds).toEqual(['yt-1'])
     })
 
     it('defaults to empty arrays when fields are missing', async () => {
@@ -151,7 +151,7 @@ describe('flashcardService', () => {
       const result = await flashcardService.getCoverage()
 
       expect(result.documentIds).toEqual([])
-      expect(result.youTubeVideoIds).toEqual([])
+      expect(result.videoIds).toEqual([])
     })
   })
 

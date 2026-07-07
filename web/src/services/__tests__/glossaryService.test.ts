@@ -16,7 +16,7 @@ const backendTerm = (id = 't-1') => ({
   term: 'Entropy',
   definition: 'A measure of disorder',
   documentId: 'doc-1',
-  youTubeVideoId: undefined,
+  videoId: undefined,
   courseId: 'c-1',
   sourceName: 'lecture.pdf',
   sourceKind: 'document',

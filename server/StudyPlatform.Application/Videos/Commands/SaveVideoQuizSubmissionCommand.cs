@@ -6,7 +6,7 @@ using StudyPlatform.Application.Mistakes;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
 
-namespace StudyPlatform.Application.YouTube.Commands;
+namespace StudyPlatform.Application.Videos.Commands;
 
 public record SaveVideoQuizSubmissionCommand(
     Guid VideoId,
@@ -26,7 +26,7 @@ public class SaveVideoQuizSubmissionCommandHandler : IRequestHandler<SaveVideoQu
 
     public async Task<Result<QuizSubmissionDto>> Handle(SaveVideoQuizSubmissionCommand request, CancellationToken cancellationToken)
     {
-        var video = await _unitOfWork.YouTubeVideos.GetByIdForUserAsync(request.VideoId, request.UserId, cancellationToken);
+        var video = await _unitOfWork.Videos.GetByIdForUserAsync(request.VideoId, request.UserId, cancellationToken);
         if (video is null)
             return Result<QuizSubmissionDto>.Failure("Video not found.", "VIDEO_NOT_FOUND");
 
@@ -47,7 +47,7 @@ public class SaveVideoQuizSubmissionCommandHandler : IRequestHandler<SaveVideoQu
             existing = new QuizSubmission
             {
                 SubmissionId = Guid.NewGuid(),
-                YouTubeVideoId = request.VideoId,
+                VideoId = request.VideoId,
                 SourceType = "video",
                 UserId = request.UserId,
                 AnswersJson = answersJson,

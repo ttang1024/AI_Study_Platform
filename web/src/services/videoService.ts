@@ -345,15 +345,15 @@ export const videoService = {
 		return note ? { noteId: note.noteId, content: note.content ?? '' } : null
 	},
 
-	async getVideoNotes(videoRecordId: string): Promise<Array<{ noteId: string; youTubeVideoId?: string; content: string; createdAt: string; updatedAt?: string }>> {
+	async getVideoNotes(videoRecordId: string): Promise<Array<{ noteId: string; videoId?: string; content: string; createdAt: string; updatedAt?: string }>> {
 		const res = await apiClient.get<{ data: any[] }>(`${VIDEO_API}/${videoRecordId}/notes`)
 		return res.data?.data ?? []
 	},
 
-	async createNote(content: string, youTubeVideoId: string): Promise<VideoNoteResult> {
+	async createNote(content: string, videoId: string): Promise<VideoNoteResult> {
 		const res = await apiClient.post<{ data: { noteId: string; content: string } }>(
 			'/api/notes',
-			{ content, youTubeVideoId },
+			{ content, videoId },
 		)
 		return { noteId: res.data.data.noteId, content: res.data.data.content }
 	},

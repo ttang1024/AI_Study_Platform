@@ -81,10 +81,10 @@ public class CreateFlashcardCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_WithYouTubeVideo_SetsSourceTypeToVideo()
+    public async Task Handle_WithVideo_SetsSourceTypeToVideo()
     {
         var videoId = Guid.NewGuid();
-        var cmd = new CreateFlashcardCommand(_userId, "Front", "Back", YouTubeVideoId: videoId);
+        var cmd = new CreateFlashcardCommand(_userId, "Front", "Back", VideoId: videoId);
 
         Flashcard? captured = null;
         _flashcards.Setup(r => r.AddAsync(It.IsAny<Flashcard>(), default))
@@ -94,7 +94,7 @@ public class CreateFlashcardCommandHandlerTests
         await _handler.Handle(cmd, default);
 
         Assert.Equal("video", captured?.SourceType);
-        Assert.Equal(videoId, captured?.YouTubeVideoId);
+        Assert.Equal(videoId, captured?.VideoId);
     }
 }
 

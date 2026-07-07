@@ -21,9 +21,9 @@ public class ChatMessageConfiguration : IEntityTypeConfiguration<ChatMessage>
             .IsRequired(false)
             .OnDelete(DeleteBehavior.Cascade);
 
-        builder.HasOne(c => c.YouTubeVideo)
+        builder.HasOne(c => c.Video)
             .WithMany(v => v.ChatMessages)
-            .HasForeignKey(c => c.YouTubeVideoId)
+            .HasForeignKey(c => c.VideoId)
             .IsRequired(false)
             .OnDelete(DeleteBehavior.Cascade);
 
@@ -36,8 +36,8 @@ public class ChatMessageConfiguration : IEntityTypeConfiguration<ChatMessage>
         // Video/document messages may carry a ChatConversationId (per-source
         // threads); messages predating threads have none.
         builder.ToTable(t => t.HasCheckConstraint("chk_chat_messages_source",
-            "(\"DocumentId\" IS NOT NULL AND \"YouTubeVideoId\" IS NULL AND \"SourceType\" = 'document') OR " +
-            "(\"YouTubeVideoId\" IS NOT NULL AND \"DocumentId\" IS NULL AND \"SourceType\" = 'video') OR " +
-            "(\"ChatConversationId\" IS NOT NULL AND \"DocumentId\" IS NULL AND \"YouTubeVideoId\" IS NULL AND \"SourceType\" = 'general')"));
+            "(\"DocumentId\" IS NOT NULL AND \"VideoId\" IS NULL AND \"SourceType\" = 'document') OR " +
+            "(\"VideoId\" IS NOT NULL AND \"DocumentId\" IS NULL AND \"SourceType\" = 'video') OR " +
+            "(\"ChatConversationId\" IS NOT NULL AND \"DocumentId\" IS NULL AND \"VideoId\" IS NULL AND \"SourceType\" = 'general')"));
     }
 }

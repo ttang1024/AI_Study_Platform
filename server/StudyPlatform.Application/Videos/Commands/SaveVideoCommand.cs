@@ -2,13 +2,13 @@ using MediatR;
 using Microsoft.Extensions.Options;
 using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Settings;
-using StudyPlatform.Application.YouTube.DTOs;
+using StudyPlatform.Application.Videos.DTOs;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
 
-namespace StudyPlatform.Application.YouTube.Commands;
+namespace StudyPlatform.Application.Videos.Commands;
 
-public record SaveYouTubeVideoCommand(
+public record SaveVideoCommand(
     Guid UserId,
     Guid CourseId,
     string VideoId,
@@ -16,49 +16,49 @@ public record SaveYouTubeVideoCommand(
     string? SourceType,
     string Title,
     string ThumbnailUrl,
-    string? Summary) : IRequest<Result<YouTubeVideoDto>>;
+    string? Summary) : IRequest<Result<VideoDto>>;
 
-public class SaveYouTubeVideoCommandHandler : IRequestHandler<SaveYouTubeVideoCommand, Result<YouTubeVideoDto>>
+public class SaveVideoCommandHandler : IRequestHandler<SaveVideoCommand, Result<VideoDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly AppLimitsOptions _limits;
 
-    public SaveYouTubeVideoCommandHandler(IUnitOfWork unitOfWork, IOptions<AppLimitsOptions> limits)
+    public SaveVideoCommandHandler(IUnitOfWork unitOfWork, IOptions<AppLimitsOptions> limits)
     {
         _unitOfWork = unitOfWork;
         _limits = limits.Value;
     }
 
-    public async Task<Result<YouTubeVideoDto>> Handle(SaveYouTubeVideoCommand request, CancellationToken cancellationToken)
+    public async Task<Result<VideoDto>> Handle(SaveVideoCommand request, CancellationToken cancellationToken)
     {
         // Look for an existing record with the same YouTube videoId so we can reuse cached AI content
         var sourceType = NormalizeSourceType(request.SourceType);
 
         if (sourceType == "upload" && _limits.VideoUploadLimit >= 0)
         {
-            var count = await _unitOfWork.YouTubeVideos.CountAsync(
+            var count = await _unitOfWork.Videos.CountAsync(
                 v => v.UserId == request.UserId && v.SourceType == "upload",
                 cancellationToken);
             if (count >= _limits.VideoUploadLimit)
-                return Result<YouTubeVideoDto>.Failure(
+                return Result<VideoDto>.Failure(
                     $"Upload limit of {_limits.VideoUploadLimit} videos per account reached.",
                     "VIDEO_LIMIT_REACHED");
         }
 
-        var previousRecords = (await _unitOfWork.YouTubeVideos.FindAsync(
-            v => v.UserId == request.UserId && v.VideoId == request.VideoId && v.SourceType == sourceType,
+        var previousRecords = (await _unitOfWork.Videos.FindAsync(
+            v => v.UserId == request.UserId && v.ExternalVideoId == request.VideoId && v.SourceType == sourceType,
             cancellationToken)).ToList();
 
         var sourceRecord = previousRecords
             .OrderByDescending(v => v.UpdatedAt)
             .FirstOrDefault(v => v.Summary != null || v.MindMapText != null);
 
-        var video = new YouTubeVideo
+        var video = new Video
         {
-            YouTubeVideoId = Guid.NewGuid(),
+            VideoId = Guid.NewGuid(),
             UserId = request.UserId,
             CourseId = request.CourseId,
-            VideoId = request.VideoId,
+            ExternalVideoId = request.VideoId,
             VideoUrl = request.VideoUrl,
             SourceType = sourceType,
             Title = request.Title,
@@ -69,14 +69,14 @@ public class SaveYouTubeVideoCommandHandler : IRequestHandler<SaveYouTubeVideoCo
             UpdatedAt = DateTime.UtcNow,
         };
 
-        await _unitOfWork.YouTubeVideos.AddAsync(video, cancellationToken);
+        await _unitOfWork.Videos.AddAsync(video, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // Copy flashcards and quiz from the source record if available
         if (sourceRecord != null)
         {
             var srcFlashcards = (await _unitOfWork.Flashcards.FindAsync(
-                f => f.YouTubeVideoId == sourceRecord.YouTubeVideoId,
+                f => f.VideoId == sourceRecord.VideoId,
                 cancellationToken)).ToList();
 
             foreach (var fc in srcFlashcards)
@@ -85,7 +85,7 @@ public class SaveYouTubeVideoCommandHandler : IRequestHandler<SaveYouTubeVideoCo
                 {
                     FlashcardId = Guid.NewGuid(),
                     UserId = request.UserId,
-                    YouTubeVideoId = video.YouTubeVideoId,
+                    VideoId = video.VideoId,
                     SourceType = "video",
                     Front = fc.Front,
                     Back = fc.Back,
@@ -95,7 +95,7 @@ public class SaveYouTubeVideoCommandHandler : IRequestHandler<SaveYouTubeVideoCo
             }
 
             var srcQuizzes = (await _unitOfWork.Quizzes.FindAsync(
-                q => q.YouTubeVideoId == sourceRecord.YouTubeVideoId,
+                q => q.VideoId == sourceRecord.VideoId,
                 cancellationToken)).ToList();
 
             foreach (var q in srcQuizzes)
@@ -104,7 +104,7 @@ public class SaveYouTubeVideoCommandHandler : IRequestHandler<SaveYouTubeVideoCo
                 {
                     QuizId = Guid.NewGuid(),
                     UserId = request.UserId,
-                    YouTubeVideoId = video.YouTubeVideoId,
+                    VideoId = video.VideoId,
                     SourceType = "video",
                     Question = q.Question,
                     OptionsJson = q.OptionsJson,
@@ -119,17 +119,17 @@ public class SaveYouTubeVideoCommandHandler : IRequestHandler<SaveYouTubeVideoCo
         }
 
         // Reload with course navigation property
-        var saved = await _unitOfWork.YouTubeVideos.GetByIdForUserAsync(video.YouTubeVideoId, request.UserId, cancellationToken);
+        var saved = await _unitOfWork.Videos.GetByIdForUserAsync(video.VideoId, request.UserId, cancellationToken);
 
-        return Result<YouTubeVideoDto>.Success(ToDto(saved!));
+        return Result<VideoDto>.Success(ToDto(saved!));
     }
 
-    public static YouTubeVideoDto ToDto(YouTubeVideo v) => new(
-        v.YouTubeVideoId,
+    public static VideoDto ToDto(Video v) => new(
+        v.VideoId,
         v.CourseId,
         v.Course.CourseName,
         v.Course.CourseColor,
-        v.VideoId,
+        v.ExternalVideoId,
         v.VideoUrl,
         string.IsNullOrWhiteSpace(v.SourceType) ? "youtube" : v.SourceType,
         v.Title,

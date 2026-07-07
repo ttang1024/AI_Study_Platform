@@ -11,7 +11,7 @@ public record CreateNoteCommand(
     string Content,
     string? Title = null,
     Guid? DocumentId = null,
-    Guid? YouTubeVideoId = null) : IRequest<Result<NoteDto>>;
+    Guid? VideoId = null) : IRequest<Result<NoteDto>>;
 
 public class CreateNoteCommandHandler : IRequestHandler<CreateNoteCommand, Result<NoteDto>>
 {
@@ -25,8 +25,8 @@ public class CreateNoteCommandHandler : IRequestHandler<CreateNoteCommand, Resul
             NoteId = Guid.NewGuid(),
             UserId = request.UserId,
             DocumentId = request.DocumentId,
-            YouTubeVideoId = request.YouTubeVideoId,
-            SourceType = request.YouTubeVideoId.HasValue ? "video" : "document",
+            VideoId = request.VideoId,
+            SourceType = request.VideoId.HasValue ? "video" : "document",
             Content = request.Content,
             Title = request.Title,
             CreatedAt = DateTime.UtcNow,

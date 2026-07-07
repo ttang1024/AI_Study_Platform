@@ -6,11 +6,11 @@ using StudyPlatform.Infrastructure.Data;
 
 namespace StudyPlatform.Infrastructure.Repositories;
 
-public class YouTubeVideoRepository : Repository<YouTubeVideo>, IYouTubeVideoRepository
+public class VideoRepository : Repository<Video>, IVideoRepository
 {
-    public YouTubeVideoRepository(AppDbContext context) : base(context) { }
+    public VideoRepository(AppDbContext context) : base(context) { }
 
-    public async Task<(IEnumerable<YouTubeVideo> Items, int TotalCount)> GetPagedAsync(
+    public async Task<(IEnumerable<Video> Items, int TotalCount)> GetPagedAsync(
         Guid userId, Guid? courseId, string? search, int page, int pageSize,
         CancellationToken cancellationToken = default)
     {
@@ -35,7 +35,7 @@ public class YouTubeVideoRepository : Repository<YouTubeVideo>, IYouTubeVideoRep
         return (items, totalCount);
     }
 
-    public async Task<(IEnumerable<YouTubeVideoListItem> Items, int TotalCount)> GetPagedLiteAsync(
+    public async Task<(IEnumerable<VideoListItem> Items, int TotalCount)> GetPagedLiteAsync(
         Guid userId, int page, int pageSize, CancellationToken cancellationToken = default)
     {
         var query = _dbSet.Where(v => v.UserId == userId);
@@ -47,12 +47,12 @@ public class YouTubeVideoRepository : Repository<YouTubeVideo>, IYouTubeVideoRep
             .OrderByDescending(v => v.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .Select(v => new YouTubeVideoListItem(
-                v.YouTubeVideoId,
+            .Select(v => new VideoListItem(
+                v.VideoId,
                 v.CourseId,
                 v.Course.CourseName,
                 v.Course.CourseColor,
-                v.VideoId,
+                v.ExternalVideoId,
                 v.VideoUrl,
                 string.IsNullOrWhiteSpace(v.SourceType) ? "youtube" : v.SourceType,
                 v.Title,
@@ -63,21 +63,21 @@ public class YouTubeVideoRepository : Repository<YouTubeVideo>, IYouTubeVideoRep
         return (items, totalCount);
     }
 
-    public async Task<YouTubeVideo?> GetByIdForUserAsync(Guid id, Guid userId, CancellationToken cancellationToken = default)
+    public async Task<Video?> GetByIdForUserAsync(Guid id, Guid userId, CancellationToken cancellationToken = default)
         => await _dbSet
             .Include(v => v.Course)
-            .FirstOrDefaultAsync(v => v.YouTubeVideoId == id && v.UserId == userId, cancellationToken);
+            .FirstOrDefaultAsync(v => v.VideoId == id && v.UserId == userId, cancellationToken);
 
-    public async Task<YouTubeVideo?> GetByIdWithCourseAsync(Guid id, CancellationToken cancellationToken = default)
+    public async Task<Video?> GetByIdWithCourseAsync(Guid id, CancellationToken cancellationToken = default)
         => await _dbSet
             .Include(v => v.Course)
-            .FirstOrDefaultAsync(v => v.YouTubeVideoId == id, cancellationToken);
+            .FirstOrDefaultAsync(v => v.VideoId == id, cancellationToken);
 
-    public async Task<YouTubeVideo?> GetByVideoIdAsync(string videoId, CancellationToken cancellationToken = default)
+    public async Task<Video?> GetByExternalVideoIdAsync(string externalVideoId, CancellationToken cancellationToken = default)
         => await _dbSet
-            .FirstOrDefaultAsync(v => v.VideoId == videoId, cancellationToken);
+            .FirstOrDefaultAsync(v => v.ExternalVideoId == externalVideoId, cancellationToken);
 
-    public async Task<YouTubeVideo?> GetByVideoIdForUserAsync(string videoId, Guid userId, CancellationToken cancellationToken = default)
+    public async Task<Video?> GetByExternalVideoIdForUserAsync(string externalVideoId, Guid userId, CancellationToken cancellationToken = default)
         => await _dbSet
-            .FirstOrDefaultAsync(v => v.VideoId == videoId && v.UserId == userId, cancellationToken);
+            .FirstOrDefaultAsync(v => v.ExternalVideoId == externalVideoId && v.UserId == userId, cancellationToken);
 }

@@ -19,9 +19,9 @@ public class GlossaryTermConfiguration : IEntityTypeConfiguration<GlossaryTerm>
             .OnDelete(DeleteBehavior.Cascade)
             .IsRequired(false);
 
-        builder.HasOne(t => t.YouTubeVideo)
+        builder.HasOne(t => t.Video)
             .WithMany()
-            .HasForeignKey(t => t.YouTubeVideoId)
+            .HasForeignKey(t => t.VideoId)
             .OnDelete(DeleteBehavior.Cascade)
             .IsRequired(false);
 

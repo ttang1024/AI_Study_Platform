@@ -5,7 +5,7 @@ export type QuestionDifficulty = 'easy' | 'medium' | 'hard'
 export interface QuestionBankQuestion {
   quizId: string
   documentId?: string
-  youTubeVideoId?: string
+  videoId?: string
   courseId?: string
   sourceType: 'document' | 'video'
   sourceName?: string

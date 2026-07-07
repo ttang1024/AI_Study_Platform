@@ -68,7 +68,7 @@ public class GetMistakesQueryHandler : IRequestHandler<GetMistakesQuery, Result<
             if (answers == null || answers.Count == 0) continue;
 
             var sourceQuizzes = submission.SourceType == "video"
-                ? quizzes.Where(q => q.YouTubeVideoId == submission.YouTubeVideoId).ToList()
+                ? quizzes.Where(q => q.VideoId == submission.VideoId).ToList()
                 : quizzes.Where(q => q.DocumentId == submission.DocumentId).ToList();
             if (sourceQuizzes.Count == 0) continue;
 
@@ -83,7 +83,7 @@ public class GetMistakesQueryHandler : IRequestHandler<GetMistakesQuery, Result<
     }
 
     internal static MistakeDto ToDto(Domain.Entities.MistakeEntry m) => new(
-        m.MistakeEntryId, m.QuizId, m.DocumentId, m.YouTubeVideoId, m.SourceType,
+        m.MistakeEntryId, m.QuizId, m.DocumentId, m.VideoId, m.SourceType,
         m.Question, ParseOptions(m.OptionsJson), m.CorrectAnswer, m.UserAnswer, m.Explanation,
         m.Status, m.TimesMissed, m.FirstMissedAt, m.LastMissedAt, m.ResolvedAt);
 

@@ -6,7 +6,7 @@ public record BulkDeleteFlashcardsRequest(IEnumerable<Guid> FlashcardIds);
 
 public record FlashcardCoverageDto(
     IEnumerable<Guid> DocumentIds,
-    IEnumerable<Guid> YouTubeVideoIds);
+    IEnumerable<Guid> VideoIds);
 
 /// <summary>Rating: 1=Again, 2=Hard, 3=Good, 4=Easy</summary>
 public record ReviewFlashcardRequest(int Rating);

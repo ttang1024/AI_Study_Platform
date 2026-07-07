@@ -80,7 +80,7 @@ public class GetRecommendationsQueryHandler : IRequestHandler<GetRecommendations
             .ToList();
         foreach (var x in weakSubs)
         {
-            var (title, url) = await ResolveSourceAsync(x.Sub.DocumentId, x.Sub.YouTubeVideoId, ct);
+            var (title, url) = await ResolveSourceAsync(x.Sub.DocumentId, x.Sub.VideoId, ct);
             reviewQueue.Add(new RecommendationItemDto(
                 $"quiz-{x.Sub.SubmissionId}", "quiz", $"Retry quiz: {title}",
                 $"You scored {Math.Round(x.Accuracy)}% last time.", (int)Math.Clamp(100 - x.Accuracy, 30, 100),
@@ -159,8 +159,8 @@ public class GetRecommendationsQueryHandler : IRequestHandler<GetRecommendations
         }
         if (videoId.HasValue)
         {
-            var video = await _unitOfWork.YouTubeVideos.GetByIdAsync(videoId.Value, ct);
-            if (video != null) return (video.Title, $"/videos/{video.YouTubeVideoId}");
+            var video = await _unitOfWork.Videos.GetByIdAsync(videoId.Value, ct);
+            if (video != null) return (video.Title, $"/videos/{video.VideoId}");
         }
         return ("a previous quiz", null);
     }

@@ -72,7 +72,7 @@ public class GetWeeklyDigestQueryHandler : IRequestHandler<GetWeeklyDigestQuery,
 
         var newDocs = await _unitOfWork.Documents.CountAsync(
             d => d.UserId == userId && d.CreatedAt >= from, cancellationToken);
-        var newVideos = await _unitOfWork.YouTubeVideos.CountAsync(
+        var newVideos = await _unitOfWork.Videos.CountAsync(
             v => v.UserId == userId && v.CreatedAt >= from, cancellationToken);
 
         var mistakesResolved = await _unitOfWork.MistakeEntries.CountAsync(

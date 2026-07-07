@@ -13,7 +13,7 @@ public interface IUnitOfWork : IDisposable
     IChatMessageRepository ChatMessages { get; }
     IAnalyticsRepository Analytics { get; }
     IQuizSubmissionRepository QuizSubmissions { get; }
-    IYouTubeVideoRepository YouTubeVideos { get; }
+    IVideoRepository Videos { get; }
     IGlossaryTermRepository GlossaryTerms { get; }
     IFeedbackRepository Feedbacks { get; }
     IShareTokenRepository ShareTokens { get; }

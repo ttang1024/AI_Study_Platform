@@ -21,7 +21,7 @@ public class UnitOfWork : IUnitOfWork
     private IChatMessageRepository? _chatMessages;
     private IAnalyticsRepository? _analytics;
     private IQuizSubmissionRepository? _quizSubmissions;
-    private IYouTubeVideoRepository? _youTubeVideos;
+    private IVideoRepository? _youTubeVideos;
     private IGlossaryTermRepository? _glossaryTerms;
     private IFeedbackRepository? _feedbacks;
     private IShareTokenRepository? _shareTokens;
@@ -58,7 +58,7 @@ public class UnitOfWork : IUnitOfWork
     public IChatMessageRepository ChatMessages => _chatMessages ??= new ChatMessageRepository(_context);
     public IAnalyticsRepository Analytics => _analytics ??= new AnalyticsRepository(_context);
     public IQuizSubmissionRepository QuizSubmissions => _quizSubmissions ??= new QuizSubmissionRepository(_context);
-    public IYouTubeVideoRepository YouTubeVideos => _youTubeVideos ??= new YouTubeVideoRepository(_context);
+    public IVideoRepository Videos => _youTubeVideos ??= new VideoRepository(_context);
     public IGlossaryTermRepository GlossaryTerms => _glossaryTerms ??= new GlossaryTermRepository(_context);
     public IFeedbackRepository Feedbacks => _feedbacks ??= new FeedbackRepository(_context);
     public IShareTokenRepository ShareTokens => _shareTokens ??= new ShareTokenRepository(_context);

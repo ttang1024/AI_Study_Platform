@@ -73,7 +73,7 @@ public class AIChatCommandHandler : IRequestHandler<AIChatCommand, Result<ChatMe
         var dto = new ChatMessageDto(
             assistantMessage.MessageId,
             assistantMessage.DocumentId,
-            assistantMessage.YouTubeVideoId,
+            assistantMessage.VideoId,
             assistantMessage.SourceType,
             assistantMessage.Role,
             assistantMessage.Content,

@@ -79,7 +79,7 @@ const notes = [
   },
   {
     noteId: 'note-video',
-    youTubeVideoId: 'video-mitosis',
+    videoId: 'video-mitosis',
     title: 'Mitosis Explained',
     content: '<p>Mitosis has prophase, metaphase, anaphase, and telophase.</p>',
     video: 'Mitosis Explained',
@@ -111,7 +111,7 @@ const flashcards = [
   },
   {
     flashcardId: 'flashcard-mitosis',
-    youTubeVideoId: 'video-mitosis',
+    videoId: 'video-mitosis',
     video: 'Mitosis Explained',
     front: 'What happens during anaphase?',
     back: 'Sister chromatids separate.',
@@ -213,11 +213,11 @@ export async function mockStudyApi(page: Page) {
     if (path === '/api/videos') return json(route, paged(videos, Number(url.searchParams.get('pageSize') ?? 8)))
     if (path === '/api/notes') return json(route, paged(notes, Number(url.searchParams.get('pageSize') ?? 20)))
     if (path === '/api/flashcards') return json(route, paged(flashcards, Number(url.searchParams.get('pageSize') ?? 20)))
-    if (path === '/api/flashcards/coverage') return json(route, { documentIds: ['doc-cells'], youTubeVideoIds: ['video-mitosis'] })
+    if (path === '/api/flashcards/coverage') return json(route, { documentIds: ['doc-cells'], videoIds: ['video-mitosis'] })
     if (path === '/api/flashcards/pending-materials') return json(route, [])
     if (path === '/api/flashcards/srs') return json(route, [])
     if (path === '/api/quiz-submissions') return json(route, paged(quizSubmissions, Number(url.searchParams.get('pageSize') ?? 20)))
-    if (path === '/api/quiz-submissions/coverage') return json(route, { documentIds: ['doc-cells'], youTubeVideoIds: [] })
+    if (path === '/api/quiz-submissions/coverage') return json(route, { documentIds: ['doc-cells'], videoIds: [] })
     if (path === '/api/quiz-submissions/pending-materials') return json(route, [])
     if (path === '/api/quiz-submissions/generated-materials') return json(route, [])
     if (path === '/api/question-bank') return json(route, questionBank)

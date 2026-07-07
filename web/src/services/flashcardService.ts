@@ -22,7 +22,7 @@ interface BackendFlashcard {
   chapter?: string;
   tags?: string[];
   documentId?: string;
-  youTubeVideoId?: string;
+  videoId?: string;
   document?: string;
   video?: string;
   title?: string;
@@ -49,7 +49,7 @@ const mapFlashcard = (bf: BackendFlashcard): Flashcard => ({
   chapter: bf.chapter ?? undefined,
   tags: bf.tags ?? [],
   documentId: bf.documentId || '',
-  youTubeVideoId: bf.youTubeVideoId ?? undefined,
+  videoId: bf.videoId ?? undefined,
   documentName: bf.document ?? bf.title ?? undefined,
   videoName: bf.video ?? undefined,
   srs: bf.srs ? mapSrs(bf.srs) : undefined,
@@ -65,7 +65,7 @@ export interface PagedFlashcards {
 
 export interface FlashcardCoverage {
   documentIds: string[]
-  youTubeVideoIds: string[]
+  videoIds: string[]
 }
 
 const inflightRequests = new Map<string, Promise<unknown>>();
@@ -121,7 +121,7 @@ export const flashcardService = {
         const d = response.data.data;
         return {
           documentIds: d.documentIds ?? [],
-          youTubeVideoIds: d.youTubeVideoIds ?? [],
+          videoIds: d.videoIds ?? [],
         };
       })
       .finally(() => inflightRequests.delete(url));

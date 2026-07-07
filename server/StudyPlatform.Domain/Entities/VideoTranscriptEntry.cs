@@ -1,6 +1,6 @@
 namespace StudyPlatform.Domain.Entities;
 
-public class YouTubeTranscriptEntry
+public class VideoTranscriptEntry
 {
     public string VideoId { get; set; } = string.Empty;
     public string Kind { get; set; } = string.Empty;

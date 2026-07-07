@@ -199,7 +199,7 @@ public class ShareController : ControllerBase
         if (!TryParseVideoPath(share.SourceUrl, out var videoId))
             return NotFound();
 
-        var video = await _unitOfWork.YouTubeVideos.GetByIdAsync(videoId, cancellationToken);
+        var video = await _unitOfWork.Videos.GetByIdAsync(videoId, cancellationToken);
         if (video == null || video.UserId != share.OwnerId || video.SourceType != "upload")
             return NotFound();
 

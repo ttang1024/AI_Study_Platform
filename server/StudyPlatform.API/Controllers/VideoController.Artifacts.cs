@@ -4,7 +4,7 @@ using StudyPlatform.API.Extensions;
 using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Documents.DTOs;
 using StudyPlatform.Application.Notes.DTOs;
-using StudyPlatform.Application.YouTube.Commands;
+using StudyPlatform.Application.Videos.Commands;
 using StudyPlatform.Domain.Entities;
 
 namespace StudyPlatform.API.Controllers;
@@ -22,7 +22,7 @@ public partial class VideoController
         if (video is null)
             return NotFound(BaseResponse<IEnumerable<FlashcardDto>>.Fail("Video not found.", "VIDEO_NOT_FOUND"));
 
-        var flashcards = await _unitOfWork.Flashcards.FindAsync(f => f.YouTubeVideoId == id && f.UserId == video.UserId, cancellationToken);
+        var flashcards = await _unitOfWork.Flashcards.FindAsync(f => f.VideoId == id && f.UserId == video.UserId, cancellationToken);
         var dtos = flashcards.Select(f => f.ToFlashcardDto()).ToList();
         return Ok(BaseResponse<IEnumerable<FlashcardDto>>.Ok(dtos));
     }
@@ -35,7 +35,7 @@ public partial class VideoController
         if (video is null)
             return NotFound(BaseResponse<IEnumerable<NoteDto>>.Fail("Video not found.", "VIDEO_NOT_FOUND"));
 
-        var notes = await _unitOfWork.Notes.FindAsync(n => n.YouTubeVideoId == id && n.UserId == video.UserId, cancellationToken);
+        var notes = await _unitOfWork.Notes.FindAsync(n => n.VideoId == id && n.UserId == video.UserId, cancellationToken);
         var dtos = notes
             .OrderByDescending(n => n.CreatedAt)
             .Select(n => n.ToNoteDto());
@@ -43,7 +43,7 @@ public partial class VideoController
     }
 
     [HttpPost("{id:guid}/flashcards/generate")]
-    public async Task<IActionResult> GenerateVideoFlashcards(Guid id, [FromBody] YouTubeUrlRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> GenerateVideoFlashcards(Guid id, [FromBody] VideoUrlRequest request, CancellationToken cancellationToken)
     {
         var userId = User.GetUserId();
         var video = await GetVideoWithAccessCheckAsync(id, userId, cancellationToken);
@@ -51,7 +51,7 @@ public partial class VideoController
             return NotFound(BaseResponse<IEnumerable<FlashcardDto>>.Fail("Video not found.", "VIDEO_NOT_FOUND"));
 
         // Return cached flashcards if they already exist
-        var existing = (await _unitOfWork.Flashcards.FindAsync(f => f.YouTubeVideoId == id && f.UserId == userId, cancellationToken)).ToList();
+        var existing = (await _unitOfWork.Flashcards.FindAsync(f => f.VideoId == id && f.UserId == userId, cancellationToken)).ToList();
         if (existing.Count > 0)
             return Ok(BaseResponse<IEnumerable<FlashcardDto>>.Ok(existing.Select(f => f.ToFlashcardDto())));
 
@@ -84,7 +84,7 @@ public partial class VideoController
             {
                 FlashcardId = Guid.NewGuid(),
                 UserId = userId,
-                YouTubeVideoId = id,
+                VideoId = id,
                 SourceType = "video",
                 Front = card.Front,
                 Back = back,
@@ -95,7 +95,7 @@ public partial class VideoController
         }
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        var saved = await _unitOfWork.Flashcards.FindAsync(f => f.YouTubeVideoId == id && f.UserId == userId, cancellationToken);
+        var saved = await _unitOfWork.Flashcards.FindAsync(f => f.VideoId == id && f.UserId == userId, cancellationToken);
         var savedDtos = saved.Select(f => f.ToFlashcardDto()).ToList();
         return Ok(BaseResponse<IEnumerable<FlashcardDto>>.Ok(savedDtos));
     }
@@ -123,7 +123,7 @@ public partial class VideoController
     }
 
     [HttpPost("{id:guid}/glossary/generate")]
-    public async Task<IActionResult> GenerateVideoGlossary(Guid id, [FromBody] YouTubeUrlRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> GenerateVideoGlossary(Guid id, [FromBody] VideoUrlRequest request, CancellationToken cancellationToken)
     {
         var userId = User.GetUserId();
         var video = await GetVideoWithAccessCheckAsync(id, userId, cancellationToken);
@@ -159,7 +159,7 @@ public partial class VideoController
                 {
                     GlossaryTermId = Guid.NewGuid(),
                     UserId = userId,
-                    YouTubeVideoId = id,
+                    VideoId = id,
                     Term = item.Term,
                     Definition = item.Definition,
                     CreatedAt = DateTime.UtcNow
@@ -204,7 +204,7 @@ public partial class VideoController
             return Ok(BaseResponse<IEnumerable<QuizDto>>.Ok(cached));
 
         var quizzes = await _unitOfWork.Quizzes.FindAsync(
-            q => q.YouTubeVideoId == id && q.UserId == video.UserId && (normalizedDifficulty == null || q.Difficulty == normalizedDifficulty),
+            q => q.VideoId == id && q.UserId == video.UserId && (normalizedDifficulty == null || q.Difficulty == normalizedDifficulty),
             cancellationToken);
         var dtos = quizzes.Select(q => q.ToQuizDto()).ToList();
         if (dtos.Count > 0)
@@ -213,7 +213,7 @@ public partial class VideoController
     }
 
     [HttpPost("{id:guid}/quiz/generate")]
-    public async Task<IActionResult> GenerateVideoQuiz(Guid id, [FromBody] YouTubeUrlRequest request, [FromQuery] string difficulty = "medium", CancellationToken cancellationToken = default)
+    public async Task<IActionResult> GenerateVideoQuiz(Guid id, [FromBody] VideoUrlRequest request, [FromQuery] string difficulty = "medium", CancellationToken cancellationToken = default)
     {
         var userId = User.GetUserId();
         var normalizedDifficulty = QuizDifficulty.Normalize(difficulty);
@@ -222,7 +222,7 @@ public partial class VideoController
             return NotFound(BaseResponse<IEnumerable<QuizDto>>.Fail("Video not found.", "VIDEO_NOT_FOUND"));
 
         // Return cached quiz if it already exists
-        var existingQuizzes = (await _unitOfWork.Quizzes.FindAsync(q => q.YouTubeVideoId == id && q.UserId == userId && q.Difficulty == normalizedDifficulty, cancellationToken)).ToList();
+        var existingQuizzes = (await _unitOfWork.Quizzes.FindAsync(q => q.VideoId == id && q.UserId == userId && q.Difficulty == normalizedDifficulty, cancellationToken)).ToList();
         if (existingQuizzes.Count > 0)
             return Ok(BaseResponse<IEnumerable<QuizDto>>.Ok(existingQuizzes.Select(q => q.ToQuizDto())));
 
@@ -250,7 +250,7 @@ public partial class VideoController
             {
                 QuizId = Guid.NewGuid(),
                 UserId = userId,
-                YouTubeVideoId = id,
+                VideoId = id,
                 SourceType = "video",
                 Question = item.Question,
                 OptionsJson = JsonSerializer.Serialize(item.Options),
@@ -262,7 +262,7 @@ public partial class VideoController
         }
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        var saved = await _unitOfWork.Quizzes.FindAsync(q => q.YouTubeVideoId == id && q.UserId == userId && q.Difficulty == normalizedDifficulty, cancellationToken);
+        var saved = await _unitOfWork.Quizzes.FindAsync(q => q.VideoId == id && q.UserId == userId && q.Difficulty == normalizedDifficulty, cancellationToken);
         var savedDtos = saved.Select(q => q.ToQuizDto()).ToList();
         await _cache.SetAsync(VideoQuizCacheKey(id, userId, normalizedDifficulty), savedDtos, TimeSpan.FromSeconds(_cacheOptions.GeneratedResultSeconds), cancellationToken);
         return Ok(BaseResponse<IEnumerable<QuizDto>>.Ok(savedDtos));

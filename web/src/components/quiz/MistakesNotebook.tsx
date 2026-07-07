@@ -98,8 +98,8 @@ const MistakeCard: React.FC<{
 
   const sourceUrl = mistake.documentId
     ? `/documents/${mistake.documentId}`
-    : mistake.youTubeVideoId
-      ? `/videos/${mistake.youTubeVideoId}`
+    : mistake.videoId
+      ? `/videos/${mistake.videoId}`
       : null;
 
   return (

@@ -12,8 +12,8 @@ namespace StudyPlatform.API.Controllers;
 
 public record TranscriptSegmentDto(double StartSeconds, string Text);
 public record PlaylistVideoItemDto(string VideoId, string Title, string ThumbnailUrl);
-public record YouTubeUrlRequest(string VideoUrl);
-public record YouTubeChatRequest(string VideoUrl, string Message, IEnumerable<ChatHistoryEntry> History, IEnumerable<ChatAttachmentDto>? Attachments = null);
+public record VideoUrlRequest(string VideoUrl);
+public record VideoChatRequest(string VideoUrl, string Message, IEnumerable<ChatHistoryEntry> History, IEnumerable<ChatAttachmentDto>? Attachments = null);
 public record ChatHistoryEntry(string Role, string Content);
 
 [ApiController]

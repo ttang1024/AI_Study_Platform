@@ -11,7 +11,7 @@ export const glossaryService = {
 				term: t.term,
 				definition: t.definition,
 				documentId: t.documentId,
-				youTubeVideoId: t.youTubeVideoId,
+				videoId: t.videoId,
 				courseId: t.courseId,
 				sourceName: t.sourceName,
 				sourceKind: t.sourceKind,
@@ -66,7 +66,7 @@ export const glossaryService = {
 				id: t.id,
 				term: t.term,
 				definition: t.definition,
-				youTubeVideoId: videoId,
+				videoId: videoId,
 			}))
 		} catch {
 			return []
@@ -82,7 +82,7 @@ export const glossaryService = {
 			id: t.id,
 			term: t.term,
 			definition: t.definition,
-			youTubeVideoId: videoId,
+			videoId: videoId,
 		}))
 	},
 
@@ -97,7 +97,7 @@ export const glossaryService = {
 			term: t.term,
 			definition: t.definition,
 			documentId: t.documentId,
-			youTubeVideoId: t.youTubeVideoId,
+			videoId: t.videoId,
 		}
 	},
 

@@ -3,9 +3,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using StudyPlatform.API.Extensions;
 using StudyPlatform.Application.Common;
-using StudyPlatform.Application.YouTube.Commands;
-using StudyPlatform.Application.YouTube.DTOs;
-using StudyPlatform.Application.YouTube.Queries;
+using StudyPlatform.Application.Videos.Commands;
+using StudyPlatform.Application.Videos.DTOs;
+using StudyPlatform.Application.Videos.Queries;
 using StudyPlatform.Domain.Entities;
 
 namespace StudyPlatform.API.Controllers;
@@ -16,17 +16,17 @@ public partial class VideoController
     // ── Video library (CRUD) ──────────────────────────────────────────────
 
     [HttpPost]
-    public async Task<IActionResult> SaveVideo([FromBody] SaveYouTubeVideoRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> SaveVideo([FromBody] SaveVideoRequest request, CancellationToken cancellationToken)
     {
         var userId = User.GetUserId();
-        var result = await _mediator.Send(new SaveYouTubeVideoCommand(
+        var result = await _mediator.Send(new SaveVideoCommand(
             userId, request.CourseId, request.VideoId,
             request.VideoUrl, request.SourceType, request.Title, request.ThumbnailUrl, request.Summary), cancellationToken);
 
         if (!result.IsSuccess)
-            return BadRequest(BaseResponse<YouTubeVideoDto>.Fail(result.Message, result.ErrorCode));
+            return BadRequest(BaseResponse<VideoDto>.Fail(result.Message, result.ErrorCode));
 
-        return Ok(BaseResponse<YouTubeVideoDto>.Ok(result.Data!));
+        return Ok(BaseResponse<VideoDto>.Ok(result.Data!));
     }
 
     [HttpPost("upload")]
@@ -38,7 +38,7 @@ public partial class VideoController
         CancellationToken cancellationToken)
     {
         if (file == null || file.Length == 0)
-            return BadRequest(BaseResponse<YouTubeVideoDto>.Fail("No file provided.", "NO_FILE"));
+            return BadRequest(BaseResponse<VideoDto>.Fail("No file provided.", "NO_FILE"));
 
         var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
         var allowedExtensions = new[]
@@ -48,20 +48,20 @@ public partial class VideoController
             ".vob", ".asf",
         };
         if (!file.ContentType.StartsWith("video/", StringComparison.OrdinalIgnoreCase) && !allowedExtensions.Contains(ext))
-            return BadRequest(BaseResponse<YouTubeVideoDto>.Fail("File type not supported. Allowed: MP4, MOV, WEBM, MKV, AVI, WMV, FLV, 3GP, TS, MPG, OGV, VOB, ASF.", "INVALID_FILE_TYPE"));
+            return BadRequest(BaseResponse<VideoDto>.Fail("File type not supported. Allowed: MP4, MOV, WEBM, MKV, AVI, WMV, FLV, 3GP, TS, MPG, OGV, VOB, ASF.", "INVALID_FILE_TYPE"));
 
         var userId = User.GetUserId();
         var course = await _unitOfWork.Courses.GetByIdAsync(courseId, cancellationToken);
         if (course == null || course.UserId != userId)
-            return BadRequest(BaseResponse<YouTubeVideoDto>.Fail("Course not found.", "COURSE_NOT_FOUND"));
+            return BadRequest(BaseResponse<VideoDto>.Fail("Course not found.", "COURSE_NOT_FOUND"));
 
         if (_limits.VideoUploadLimit >= 0)
         {
-            var count = await _unitOfWork.YouTubeVideos.CountAsync(
+            var count = await _unitOfWork.Videos.CountAsync(
                 v => v.UserId == userId && v.SourceType == "upload",
                 cancellationToken);
             if (count >= _limits.VideoUploadLimit)
-                return BadRequest(BaseResponse<YouTubeVideoDto>.Fail(
+                return BadRequest(BaseResponse<VideoDto>.Fail(
                     $"Upload limit of {_limits.VideoUploadLimit} videos per account reached.",
                     "VIDEO_LIMIT_REACHED"));
         }
@@ -89,12 +89,12 @@ public partial class VideoController
         var transcript = string.Join(" ", segments.Select(s => s.Text));
         var videoId = $"upload-{Guid.NewGuid():N}";
 
-        var video = new YouTubeVideo
+        var video = new Video
         {
-            YouTubeVideoId = Guid.NewGuid(),
+            VideoId = Guid.NewGuid(),
             UserId = userId,
             CourseId = courseId,
-            VideoId = videoId,
+            ExternalVideoId = videoId,
             VideoUrl = blobUrl,
             SourceType = "upload",
             Title = Path.GetFileNameWithoutExtension(file.FileName),
@@ -104,12 +104,12 @@ public partial class VideoController
             UpdatedAt = DateTime.UtcNow,
         };
 
-        await _unitOfWork.YouTubeVideos.AddAsync(video, cancellationToken);
+        await _unitOfWork.Videos.AddAsync(video, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         await StoreTranscriptSegmentsAsync($"upload:{videoId}", TranscriptKind, segments, TimeSpan.FromSeconds(_cacheOptions.TranscriptSeconds), cancellationToken);
 
-        var saved = await _unitOfWork.YouTubeVideos.GetByIdForUserAsync(video.YouTubeVideoId, userId, cancellationToken);
-        return StatusCode(StatusCodes.Status201Created, BaseResponse<YouTubeVideoDto>.Ok(SaveYouTubeVideoCommandHandler.ToDto(saved!)));
+        var saved = await _unitOfWork.Videos.GetByIdForUserAsync(video.VideoId, userId, cancellationToken);
+        return StatusCode(StatusCodes.Status201Created, BaseResponse<VideoDto>.Ok(SaveVideoCommandHandler.ToDto(saved!)));
     }
 
     [HttpGet("{id:guid}/playback-url")]
@@ -180,8 +180,8 @@ public partial class VideoController
         CancellationToken cancellationToken = default)
     {
         var userId = User.GetUserId();
-        var result = await _mediator.Send(new GetYouTubeVideosQuery(userId, courseId, search, page, pageSize), cancellationToken);
-        return Ok(BaseResponse<YouTubeVideoPagedResult>.Ok(result.Data!));
+        var result = await _mediator.Send(new GetVideosQuery(userId, courseId, search, page, pageSize), cancellationToken);
+        return Ok(BaseResponse<VideoPagedResult>.Ok(result.Data!));
     }
 
     // Lightweight list (no summary/mind-map) for callers that fetch all of a user's
@@ -193,20 +193,20 @@ public partial class VideoController
         CancellationToken cancellationToken = default)
     {
         var userId = User.GetUserId();
-        var result = await _mediator.Send(new GetYouTubeVideosLiteQuery(userId, page, pageSize), cancellationToken);
-        return Ok(BaseResponse<YouTubeVideoLitePagedResult>.Ok(result.Data!));
+        var result = await _mediator.Send(new GetVideosLiteQuery(userId, page, pageSize), cancellationToken);
+        return Ok(BaseResponse<VideoLitePagedResult>.Ok(result.Data!));
     }
 
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetVideo(Guid id, CancellationToken cancellationToken)
     {
         var userId = User.GetUserId();
-        var result = await _mediator.Send(new GetYouTubeVideoByIdQuery(id, userId), cancellationToken);
+        var result = await _mediator.Send(new GetVideoByIdQuery(id, userId), cancellationToken);
 
         if (!result.IsSuccess)
-            return NotFound(BaseResponse<YouTubeVideoDto>.Fail(result.Message, result.ErrorCode));
+            return NotFound(BaseResponse<VideoDto>.Fail(result.Message, result.ErrorCode));
 
-        return Ok(BaseResponse<YouTubeVideoDto>.Ok(result.Data!));
+        return Ok(BaseResponse<VideoDto>.Ok(result.Data!));
     }
 
     [HttpGet("{id:guid}/transcript")]
@@ -217,7 +217,7 @@ public partial class VideoController
         if (video is null)
             return NotFound(BaseResponse<IReadOnlyList<TranscriptSegmentDto>>.Fail("Video not found.", "VIDEO_NOT_FOUND"));
 
-        var transcriptKey = $"{NormalizeSourceType(video.SourceType)}:{video.VideoId}";
+        var transcriptKey = $"{NormalizeSourceType(video.SourceType)}:{video.ExternalVideoId}";
         var ttl = TimeSpan.FromSeconds(_cacheOptions.TranscriptSeconds);
         var stored = await GetStoredTranscriptSegmentsAsync(transcriptKey, TranscriptKind, cancellationToken)
                      ?? await GetStoredTranscriptSegmentsAsync(transcriptKey, SubtitlesKind, cancellationToken);
@@ -247,7 +247,7 @@ public partial class VideoController
         if (video is null)
             return NotFound(BaseResponse<IReadOnlyList<TranscriptSegmentDto>>.Fail("Video not found.", "VIDEO_NOT_FOUND"));
 
-        var transcriptKey = $"{NormalizeSourceType(video.SourceType)}:{video.VideoId}";
+        var transcriptKey = $"{NormalizeSourceType(video.SourceType)}:{video.ExternalVideoId}";
         var ttl = TimeSpan.FromSeconds(_cacheOptions.TranscriptSeconds);
         var stored = await GetStoredTranscriptSegmentsAsync(transcriptKey, SubtitlesKind, cancellationToken)
                      ?? await GetStoredTranscriptSegmentsAsync(transcriptKey, TranscriptKind, cancellationToken);
@@ -278,39 +278,39 @@ public partial class VideoController
     }
 
     [HttpPatch("{id:guid}")]
-    public async Task<IActionResult> UpdateVideo(Guid id, [FromBody] UpdateYouTubeVideoRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> UpdateVideo(Guid id, [FromBody] UpdateVideoRequest request, CancellationToken cancellationToken)
     {
         var userId = User.GetUserId();
-        var result = await _mediator.Send(new UpdateYouTubeVideoCommand(
+        var result = await _mediator.Send(new UpdateVideoCommand(
             id, userId, request.Title, request.Summary, request.MindMapText), cancellationToken);
 
         if (!result.IsSuccess)
         {
             if (result.ErrorCode == "VIDEO_NOT_FOUND")
-                return NotFound(BaseResponse<YouTubeVideoDto>.Fail(result.Message, result.ErrorCode));
-            return BadRequest(BaseResponse<YouTubeVideoDto>.Fail(result.Message, result.ErrorCode));
+                return NotFound(BaseResponse<VideoDto>.Fail(result.Message, result.ErrorCode));
+            return BadRequest(BaseResponse<VideoDto>.Fail(result.Message, result.ErrorCode));
         }
 
-        return Ok(BaseResponse<YouTubeVideoDto>.Ok(result.Data!));
+        return Ok(BaseResponse<VideoDto>.Ok(result.Data!));
     }
 
     [HttpPatch("{id:guid}/move")]
-    public async Task<IActionResult> MoveVideo(Guid id, [FromBody] MoveYouTubeVideoRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> MoveVideo(Guid id, [FromBody] MoveVideoRequest request, CancellationToken cancellationToken)
     {
         var userId = User.GetUserId();
-        var result = await _mediator.Send(new MoveYouTubeVideoCommand(id, userId, request.TargetCourseId), cancellationToken);
+        var result = await _mediator.Send(new MoveVideoCommand(id, userId, request.TargetCourseId), cancellationToken);
 
         if (!result.IsSuccess)
-            return NotFound(BaseResponse<YouTubeVideoDto>.Fail(result.Message, result.ErrorCode));
+            return NotFound(BaseResponse<VideoDto>.Fail(result.Message, result.ErrorCode));
 
-        return Ok(BaseResponse<YouTubeVideoDto>.Ok(result.Data!));
+        return Ok(BaseResponse<VideoDto>.Ok(result.Data!));
     }
 
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> DeleteVideo(Guid id, CancellationToken cancellationToken)
     {
         var userId = User.GetUserId();
-        var result = await _mediator.Send(new DeleteYouTubeVideoCommand(id, userId), cancellationToken);
+        var result = await _mediator.Send(new DeleteVideoCommand(id, userId), cancellationToken);
 
         if (!result.IsSuccess)
             return NotFound(BaseResponse<string>.Fail(result.Message, result.ErrorCode));

@@ -27,7 +27,7 @@ export const QuizPreviewModal: React.FC<Props> = ({ node, onClose }) => {
       .then(all => {
         if (cancelled) return;
         setQuestions(all.filter(q =>
-          sourceType === 'document' ? q.documentId === sourceId : q.youTubeVideoId === sourceId,
+          sourceType === 'document' ? q.documentId === sourceId : q.videoId === sourceId,
         ));
       })
       .finally(() => { if (!cancelled) setLoading(false); });

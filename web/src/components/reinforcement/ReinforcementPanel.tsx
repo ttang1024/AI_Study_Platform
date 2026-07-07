@@ -56,11 +56,11 @@ const getAllQuizSubmissions = async (): Promise<QuizSubmission[]> => {
 };
 
 const isVideoSubmission = (submission: QuizSubmission) =>
-  Boolean(submission.youTubeVideoId || submission.sourceType === 'video');
+  Boolean(submission.videoId || submission.sourceType === 'video');
 
 const isQuestionFromSubmissionSource = (question: QuestionBankQuestion, submission: QuizSubmission) => {
   if (isVideoSubmission(submission)) {
-    return question.sourceType === 'video' && question.youTubeVideoId === submission.youTubeVideoId;
+    return question.sourceType === 'video' && question.videoId === submission.videoId;
   }
   return question.sourceType === 'document' && question.documentId === submission.documentId;
 };
@@ -241,9 +241,9 @@ export const ReinforcementPanel: React.FC = () => {
       if (q.sourceType === 'document' && q.documentId && q.courseId) {
         if (!docGroups.has(q.documentId)) docGroups.set(q.documentId, { courseId: q.courseId, questions: [] });
         docGroups.get(q.documentId)!.questions.push(q);
-      } else if (q.sourceType === 'video' && q.youTubeVideoId) {
-        if (!videoGroups.has(q.youTubeVideoId)) videoGroups.set(q.youTubeVideoId, []);
-        videoGroups.get(q.youTubeVideoId)!.push(q);
+      } else if (q.sourceType === 'video' && q.videoId) {
+        if (!videoGroups.has(q.videoId)) videoGroups.set(q.videoId, []);
+        videoGroups.get(q.videoId)!.push(q);
       }
     }
 
@@ -265,11 +265,11 @@ export const ReinforcementPanel: React.FC = () => {
     }
 
     for (const [videoId, questions] of videoGroups) {
-      const existing = submissions.find(s => s.youTubeVideoId === videoId);
+      const existing = submissions.find(s => s.videoId === videoId);
       const mergedAnswers = { ...(existing?.answers ?? {}) };
       for (const q of questions) mergedAnswers[q.quizId] = q.correctAnswer;
 
-      const sourceQs = bankQuestions.filter(q => q.sourceType === 'video' && q.youTubeVideoId === videoId);
+      const sourceQs = bankQuestions.filter(q => q.sourceType === 'video' && q.videoId === videoId);
       const total = Math.max(sourceQs.length, existing?.total ?? 0);
       const score = sourceQs.filter(q => {
         const ans = mergedAnswers[q.quizId];

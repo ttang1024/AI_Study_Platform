@@ -58,8 +58,8 @@ public class GetCourseMasteryQueryHandler : IRequestHandler<GetCourseMasteryQuer
                 docToCourse[doc.DocumentId] = course.CourseId;
         }
 
-        var (videos, _) = await _unitOfWork.YouTubeVideos.GetPagedAsync(userId, null, null, 1, int.MaxValue, ct);
-        var videoToCourse = videos.ToDictionary(v => v.YouTubeVideoId, v => v.CourseId);
+        var (videos, _) = await _unitOfWork.Videos.GetPagedAsync(userId, null, null, 1, int.MaxValue, ct);
+        var videoToCourse = videos.ToDictionary(v => v.VideoId, v => v.CourseId);
 
         Guid? CourseOf(Guid? docId, Guid? videoId)
         {
@@ -89,21 +89,21 @@ public class GetCourseMasteryQueryHandler : IRequestHandler<GetCourseMasteryQuer
         {
             var components = new List<CourseMasteryComponentDto>();
 
-            var courseCards = flashcards.Where(f => CourseOf(f.DocumentId, f.YouTubeVideoId) == course.CourseId).ToList();
+            var courseCards = flashcards.Where(f => CourseOf(f.DocumentId, f.VideoId) == course.CourseId).ToList();
             if (courseCards.Count > 0)
             {
                 var reviewed = courseCards.Count(f => srsState.TryGetValue(f.FlashcardId, out var st) && st >= FsrsReviewState);
                 components.Add(new CourseMasteryComponentDto("Flashcards", Pct(reviewed, courseCards.Count), courseCards.Count));
             }
 
-            var courseTerms = glossaryTerms.Where(t => CourseOf(t.DocumentId, t.YouTubeVideoId) == course.CourseId).ToList();
+            var courseTerms = glossaryTerms.Where(t => CourseOf(t.DocumentId, t.VideoId) == course.CourseId).ToList();
             if (courseTerms.Count > 0)
             {
                 var mastered = courseTerms.Count(t => masteredTerms.Contains(t.GlossaryTermId));
                 components.Add(new CourseMasteryComponentDto("Glossary", Pct(mastered, courseTerms.Count), courseTerms.Count));
             }
 
-            var courseSubs = submissions.Where(s => CourseOf(s.DocumentId, s.YouTubeVideoId) == course.CourseId).ToList();
+            var courseSubs = submissions.Where(s => CourseOf(s.DocumentId, s.VideoId) == course.CourseId).ToList();
             var totalQuestions = courseSubs.Sum(s => s.Total);
             if (totalQuestions > 0)
             {
@@ -111,7 +111,7 @@ public class GetCourseMasteryQueryHandler : IRequestHandler<GetCourseMasteryQuer
                 components.Add(new CourseMasteryComponentDto("Quizzes", Pct(correct, totalQuestions), totalQuestions));
             }
 
-            var courseProblems = problems.Where(p => CourseOf(p.DocumentId, p.YouTubeVideoId) == course.CourseId).ToList();
+            var courseProblems = problems.Where(p => CourseOf(p.DocumentId, p.VideoId) == course.CourseId).ToList();
             if (courseProblems.Count > 0)
             {
                 var mastered = courseProblems.Count(p => masteredProblems.Contains(p.WorkedProblemId));

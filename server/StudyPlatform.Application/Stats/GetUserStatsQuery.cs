@@ -55,7 +55,7 @@ public class GetUserStatsQueryHandler : IRequestHandler<GetUserStatsQuery, Resul
         var totalGlossaryTerms = await _unitOfWork.GlossaryTerms.CountAsync(g => g.UserId == userId, cancellationToken);
         var totalQuizQuestions = await _unitOfWork.Quizzes.CountAsync(q => q.UserId == userId, cancellationToken);
         var totalQuizSubmissions = await _unitOfWork.QuizSubmissions.CountAsync(q => q.UserId == userId, cancellationToken);
-        var totalVideos = await _unitOfWork.YouTubeVideos.CountAsync(v => v.UserId == userId, cancellationToken);
+        var totalVideos = await _unitOfWork.Videos.CountAsync(v => v.UserId == userId, cancellationToken);
 
         var courseMaterialCounts = new List<CourseMaterialStatsDto>();
         var courses = await _unitOfWork.Courses.FindAsync(c => c.UserId == userId, cancellationToken);
@@ -65,7 +65,7 @@ public class GetUserStatsQueryHandler : IRequestHandler<GetUserStatsQuery, Resul
             var documentCount = await _unitOfWork.Documents.CountAsync(d => d.UserId == userId && d.CourseId == courseId && !(d.OriginalUrl != null && d.ContentType.StartsWith("text/")) && !(d.ContentType == "audio/podcast" || d.ContentType.StartsWith("audio/")), cancellationToken);
             var articleCount = await _unitOfWork.Documents.CountAsync(d => d.UserId == userId && d.CourseId == courseId && d.OriginalUrl != null && d.ContentType.StartsWith("text/"), cancellationToken);
             var audioCount = await _unitOfWork.Documents.CountAsync(d => d.UserId == userId && d.CourseId == courseId && (d.ContentType == "audio/podcast" || d.ContentType.StartsWith("audio/")), cancellationToken);
-            var videoCount = await _unitOfWork.YouTubeVideos.CountAsync(v => v.UserId == userId && v.CourseId == courseId, cancellationToken);
+            var videoCount = await _unitOfWork.Videos.CountAsync(v => v.UserId == userId && v.CourseId == courseId, cancellationToken);
             courseMaterialCounts.Add(new CourseMaterialStatsDto(courseId, documentCount, articleCount, audioCount, videoCount, documentCount + articleCount + audioCount + videoCount));
         }
 

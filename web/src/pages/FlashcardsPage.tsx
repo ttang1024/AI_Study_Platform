@@ -40,7 +40,7 @@ export const FlashcardsPage: React.FC = () => {
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
 
   const [coverageLoading, setCoverageLoading] = useState(true);
-  const [coverage, setCoverage] = useState({ documentIds: [] as string[], youTubeVideoIds: [] as string[] });
+  const [coverage, setCoverage] = useState({ documentIds: [] as string[], videoIds: [] as string[] });
   const [pendingLoading, setPendingLoading] = useState(true);
   const [pendingItems, setPendingItems] = useState<PendingItem[]>([]);
   const [selectedVideo, setSelectedVideo] = useState<VideoRecord | null>(null);
@@ -78,7 +78,7 @@ export const FlashcardsPage: React.FC = () => {
     setCoverageLoading(true);
     return flashcardService.getCoverage()
       .then(setCoverage)
-      .catch(() => setCoverage({ documentIds: [], youTubeVideoIds: [] }))
+      .catch(() => setCoverage({ documentIds: [], videoIds: [] }))
       .finally(() => setCoverageLoading(false));
   }, []);
 
@@ -131,7 +131,7 @@ export const FlashcardsPage: React.FC = () => {
 
   const handleSelectVideo = (videoId: string) => {
     const cards = flashcards
-      .filter(f => f.youTubeVideoId === videoId)
+      .filter(f => f.videoId === videoId)
       .map(f => ({ id: f.id, front: f.front, back: f.back, cardType: f.cardType }));
     setVideoCards(cards);
     const v = videoList.find(vl => vl.id === videoId);
@@ -158,7 +158,7 @@ export const FlashcardsPage: React.FC = () => {
 
   const pendingItemsCount = Math.max(
     0,
-    totalMaterials - coverage.documentIds.length - coverage.youTubeVideoIds.length,
+    totalMaterials - coverage.documentIds.length - coverage.videoIds.length,
   );
 
 
@@ -302,7 +302,7 @@ export const FlashcardsPage: React.FC = () => {
               <div className="space-y-2">
                 {pagedCards.map(card => {
                   const doc = documents.find(d => d.id === card.documentId);
-                  const vid = videoList.find(v => v.id === card.youTubeVideoId);
+                  const vid = videoList.find(v => v.id === card.videoId);
                   const sourceName = doc ? getDocDisplayName(doc) : vid?.title ?? card.documentName ?? card.videoName ?? '';
                   const isFlipped = flippedCards.has(card.id);
                   return (
@@ -352,8 +352,8 @@ export const FlashcardsPage: React.FC = () => {
                               onClick={(e) => {
                                 e.stopPropagation();
                                 const state = { activeTab: 'flashcards' };
-                                if (card.youTubeVideoId) {
-                                  navigate(`/videos/${card.youTubeVideoId}`, { state });
+                                if (card.videoId) {
+                                  navigate(`/videos/${card.videoId}`, { state });
                                 } else if (doc?.originalUrl) {
                                   navigate(`/articles/${card.documentId}`, { state });
                                 } else if (doc?.type === 'audio' || doc?.type === 'podcast') {
@@ -427,7 +427,7 @@ export const FlashcardsPage: React.FC = () => {
                     }}
                     onMobileReview={() => {
                       const cards = isVideo
-                        ? flashcards.filter(f => f.youTubeVideoId === set.id).map(f => ({ id: f.id, front: f.front, back: f.back, cardType: f.cardType }))
+                        ? flashcards.filter(f => f.videoId === set.id).map(f => ({ id: f.id, front: f.front, back: f.back, cardType: f.cardType }))
                         : flashcards.filter(f => f.documentId === set.id).map(f => ({ id: f.id, front: f.front, back: f.back, cardType: f.cardType }));
                       setMobileReview({ cards, title: set.name });
                     }}

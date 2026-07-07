@@ -12,7 +12,7 @@ public class GlossaryTermRepository : Repository<GlossaryTerm>, IGlossaryTermRep
     public async Task<IEnumerable<GlossaryTerm>> GetByUserWithSourcesAsync(Guid userId, CancellationToken cancellationToken = default)
         => await _dbSet
             .Include(t => t.Document)
-            .Include(t => t.YouTubeVideo)
+            .Include(t => t.Video)
             .Where(t => t.UserId == userId)
             .OrderBy(t => t.Term)
             .ToListAsync(cancellationToken);
@@ -43,13 +43,13 @@ public class GlossaryTermRepository : Repository<GlossaryTerm>, IGlossaryTermRep
 
     public async Task<IEnumerable<GlossaryTerm>> GetByVideoIdAsync(Guid videoId, CancellationToken cancellationToken = default)
         => await _dbSet
-            .Where(t => t.YouTubeVideoId == videoId)
+            .Where(t => t.VideoId == videoId)
             .OrderBy(t => t.Term)
             .ToListAsync(cancellationToken);
 
     public async Task DeleteByVideoIdAsync(Guid videoId, CancellationToken cancellationToken = default)
     {
-        var terms = await _dbSet.Where(t => t.YouTubeVideoId == videoId).ToListAsync(cancellationToken);
+        var terms = await _dbSet.Where(t => t.VideoId == videoId).ToListAsync(cancellationToken);
         _dbSet.RemoveRange(terms);
     }
 }

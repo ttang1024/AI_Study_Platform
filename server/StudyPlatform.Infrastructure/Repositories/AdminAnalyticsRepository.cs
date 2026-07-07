@@ -37,7 +37,7 @@ public class AdminAnalyticsRepository : IAdminAnalyticsRepository
         var content = new ContentMetrics(
             Documents: await _db.Documents.CountAsync(ct),
             Courses: await _db.Courses.CountAsync(ct),
-            Videos: await _db.YouTubeVideos.CountAsync(ct),
+            Videos: await _db.Videos.CountAsync(ct),
             Quizzes: await _db.Quizzes.CountAsync(ct),
             Flashcards: await _db.Flashcards.CountAsync(ct),
             Notes: await _db.Notes.CountAsync(ct),
@@ -133,7 +133,7 @@ public class AdminAnalyticsRepository : IAdminAnalyticsRepository
         var content = new UserContentCounts(
             Courses: await _db.Courses.CountAsync(c => c.UserId == userId, ct),
             Documents: await _db.Documents.CountAsync(d => d.UserId == userId, ct),
-            Videos: await _db.YouTubeVideos.CountAsync(v => v.UserId == userId, ct),
+            Videos: await _db.Videos.CountAsync(v => v.UserId == userId, ct),
             Quizzes: await _db.Quizzes.CountAsync(q => q.UserId == userId, ct),
             Flashcards: await _db.Flashcards.CountAsync(f => f.UserId == userId, ct),
             Notes: await _db.Notes.CountAsync(n => n.UserId == userId, ct),

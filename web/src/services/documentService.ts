@@ -7,7 +7,7 @@ import type { ChatAttachment } from './aiService'
 export interface QuizSubmission {
 	submissionId: string
 	documentId: string
-	youTubeVideoId?: string
+	videoId?: string
 	sourceType?: string
 	documentName?: string
 	videoName?: string
@@ -180,7 +180,7 @@ const mapFlashcard = (bf: BackendFlashcard): Flashcard => ({
 const mapQuizSubmission = (bs: any): QuizSubmission => ({
 	submissionId: bs.submissionId,
 	documentId: bs.documentId,
-	youTubeVideoId: bs.youTubeVideoId ?? undefined,
+	videoId: bs.videoId ?? undefined,
 	sourceType: bs.sourceType ?? undefined,
 	documentName: bs.document ?? (bs.sourceType === 'document' ? bs.title : undefined) ?? undefined,
 	videoName: bs.video ?? (bs.sourceType === 'video' ? bs.title : undefined) ?? undefined,
@@ -548,7 +548,7 @@ export interface PagedQuizSubmissions {
 
 export interface QuizSubmissionCoverage {
 	documentIds: string[]
-	youTubeVideoIds: string[]
+	videoIds: string[]
 }
 
 const inflightQuizSubmissionListRequests = new Map<string, Promise<PagedQuizSubmissions>>()
@@ -604,7 +604,7 @@ export const quizSubmissionService = {
 				const d = response.data.data
 				return {
 					documentIds: d.documentIds ?? [],
-					youTubeVideoIds: d.youTubeVideoIds ?? [],
+					videoIds: d.videoIds ?? [],
 				}
 			})
 			.finally(() => inflightQuizMaterialRequests.delete(url))

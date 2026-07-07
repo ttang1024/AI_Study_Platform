@@ -14,7 +14,7 @@ const { noteService } = await import('../noteService')
 const backendNote = (id = 'n-1') => ({
   noteId: id,
   documentId: 'doc-1',
-  youTubeVideoId: undefined,
+  videoId: undefined,
   title: 'My Note',
   content: 'Note content',
   createdAt: '2026-01-01T00:00:00Z',

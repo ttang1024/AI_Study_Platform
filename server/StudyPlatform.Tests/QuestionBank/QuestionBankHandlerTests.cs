@@ -80,7 +80,7 @@ public class UpdateQuestionBankQuestionCommandHandlerTests
     private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IQuizRepository> _quizzes = new();
     private readonly Mock<IDocumentRepository> _documents = new();
-    private readonly Mock<IYouTubeVideoRepository> _videos = new();
+    private readonly Mock<IVideoRepository> _videos = new();
     private readonly Mock<ICourseRepository> _courses = new();
     private readonly UpdateQuestionBankQuestionCommandHandler _handler;
     private readonly Guid _userId = Guid.NewGuid();
@@ -89,14 +89,14 @@ public class UpdateQuestionBankQuestionCommandHandlerTests
     {
         _uow.Setup(u => u.Quizzes).Returns(_quizzes.Object);
         _uow.Setup(u => u.Documents).Returns(_documents.Object);
-        _uow.Setup(u => u.YouTubeVideos).Returns(_videos.Object);
+        _uow.Setup(u => u.Videos).Returns(_videos.Object);
         _uow.Setup(u => u.Courses).Returns(_courses.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
 
         _documents.Setup(r => r.FindAsync(It.IsAny<Expression<Func<Document, bool>>>(), default))
             .ReturnsAsync(Array.Empty<Document>());
-        _videos.Setup(r => r.FindAsync(It.IsAny<Expression<Func<YouTubeVideo, bool>>>(), default))
-            .ReturnsAsync(Array.Empty<YouTubeVideo>());
+        _videos.Setup(r => r.FindAsync(It.IsAny<Expression<Func<Video, bool>>>(), default))
+            .ReturnsAsync(Array.Empty<Video>());
         _courses.Setup(r => r.FindAsync(It.IsAny<Expression<Func<Course, bool>>>(), default))
             .ReturnsAsync(Array.Empty<Course>());
 
@@ -190,7 +190,7 @@ public class GetQuestionBankQueryHandlerTests
     private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IQuizRepository> _quizzes = new();
     private readonly Mock<IDocumentRepository> _documents = new();
-    private readonly Mock<IYouTubeVideoRepository> _videos = new();
+    private readonly Mock<IVideoRepository> _videos = new();
     private readonly Mock<ICourseRepository> _courses = new();
     private readonly GetQuestionBankQueryHandler _handler;
     private readonly Guid _userId = Guid.NewGuid();
@@ -199,13 +199,13 @@ public class GetQuestionBankQueryHandlerTests
     {
         _uow.Setup(u => u.Quizzes).Returns(_quizzes.Object);
         _uow.Setup(u => u.Documents).Returns(_documents.Object);
-        _uow.Setup(u => u.YouTubeVideos).Returns(_videos.Object);
+        _uow.Setup(u => u.Videos).Returns(_videos.Object);
         _uow.Setup(u => u.Courses).Returns(_courses.Object);
 
         _documents.Setup(r => r.FindAsync(It.IsAny<Expression<Func<Document, bool>>>(), default))
             .ReturnsAsync(Array.Empty<Document>());
-        _videos.Setup(r => r.FindAsync(It.IsAny<Expression<Func<YouTubeVideo, bool>>>(), default))
-            .ReturnsAsync(Array.Empty<YouTubeVideo>());
+        _videos.Setup(r => r.FindAsync(It.IsAny<Expression<Func<Video, bool>>>(), default))
+            .ReturnsAsync(Array.Empty<Video>());
         _courses.Setup(r => r.FindAsync(It.IsAny<Expression<Func<Course, bool>>>(), default))
             .ReturnsAsync(Array.Empty<Course>());
 

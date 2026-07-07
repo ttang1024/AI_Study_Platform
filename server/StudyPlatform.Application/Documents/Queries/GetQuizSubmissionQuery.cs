@@ -84,8 +84,8 @@ public class GetQuizSubmissionCoverageQueryHandler : IRequestHandler<GetQuizSubm
 
     public async Task<Result<QuizSubmissionCoverageDto>> Handle(GetQuizSubmissionCoverageQuery request, CancellationToken cancellationToken)
     {
-        var (documentIds, youTubeVideoIds) = await _unitOfWork.QuizSubmissions.GetCoverageByUserAsync(request.UserId, cancellationToken);
-        return Result<QuizSubmissionCoverageDto>.Success(new QuizSubmissionCoverageDto(documentIds, youTubeVideoIds));
+        var (documentIds, videoIds) = await _unitOfWork.QuizSubmissions.GetCoverageByUserAsync(request.UserId, cancellationToken);
+        return Result<QuizSubmissionCoverageDto>.Success(new QuizSubmissionCoverageDto(documentIds, videoIds));
     }
 }
 
@@ -128,15 +128,15 @@ public class GetPendingQuizMaterialsQueryHandler : IRequestHandler<GetPendingQui
                     d.CreatedAt);
             });
 
-        var videos = (await _unitOfWork.YouTubeVideos.FindAsync(
-                v => v.UserId == request.UserId && !videoIdSet.Contains(v.YouTubeVideoId),
+        var videos = (await _unitOfWork.Videos.FindAsync(
+                v => v.UserId == request.UserId && !videoIdSet.Contains(v.VideoId),
                 cancellationToken))
             .Select(v =>
             {
                 courseMap.TryGetValue(v.CourseId, out var course);
                 return new PendingMaterialDto(
                     "video",
-                    v.YouTubeVideoId,
+                    v.VideoId,
                     v.CourseId,
                     course?.CourseName ?? string.Empty,
                     course?.CourseColor ?? "#a1a1aa",
@@ -144,7 +144,7 @@ public class GetPendingQuizMaterialsQueryHandler : IRequestHandler<GetPendingQui
                     null,
                     null,
                     null,
-                    v.VideoId,
+                    v.ExternalVideoId,
                     v.VideoUrl,
                     v.ThumbnailUrl,
                     v.CreatedAt,
@@ -174,8 +174,8 @@ public class GetGeneratedQuizMaterialsQueryHandler : IRequestHandler<GetGenerate
             .Distinct()
             .ToHashSet();
         var generatedVideoIds = generatedQuizzes
-            .Where(q => q.YouTubeVideoId.HasValue || q.SourceType == "video")
-            .Select(q => q.YouTubeVideoId)
+            .Where(q => q.VideoId.HasValue || q.SourceType == "video")
+            .Select(q => q.VideoId)
             .Where(id => id.HasValue)
             .Select(id => id!.Value)
             .Distinct()
@@ -210,15 +210,15 @@ public class GetGeneratedQuizMaterialsQueryHandler : IRequestHandler<GetGenerate
                     d.CreatedAt);
             });
 
-        var videos = (await _unitOfWork.YouTubeVideos.FindAsync(
-                v => v.UserId == request.UserId && generatedVideoIds.Contains(v.YouTubeVideoId),
+        var videos = (await _unitOfWork.Videos.FindAsync(
+                v => v.UserId == request.UserId && generatedVideoIds.Contains(v.VideoId),
                 cancellationToken))
             .Select(v =>
             {
                 courseMap.TryGetValue(v.CourseId, out var course);
                 return new PendingMaterialDto(
                     "video",
-                    v.YouTubeVideoId,
+                    v.VideoId,
                     v.CourseId,
                     course?.CourseName ?? string.Empty,
                     course?.CourseColor ?? "#a1a1aa",
@@ -226,7 +226,7 @@ public class GetGeneratedQuizMaterialsQueryHandler : IRequestHandler<GetGenerate
                     null,
                     null,
                     null,
-                    v.VideoId,
+                    v.ExternalVideoId,
                     v.VideoUrl,
                     v.ThumbnailUrl,
                     v.CreatedAt,

@@ -3,7 +3,7 @@ namespace StudyPlatform.Application.QuestionBank;
 public record QuestionBankQuestionDto(
     Guid QuizId,
     Guid? DocumentId,
-    Guid? YouTubeVideoId,
+    Guid? VideoId,
     Guid? CourseId,
     string SourceType,
     string? SourceName,

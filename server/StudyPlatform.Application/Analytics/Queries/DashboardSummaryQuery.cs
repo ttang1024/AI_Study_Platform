@@ -170,9 +170,9 @@ public class GetDashboardSummaryQueryHandler : IRequestHandler<GetDashboardSumma
                 continue;
 
             // Prefer questions belonging to this submission's source; fall back to whatever the answer keys resolve to.
-            var isVideo = submission.YouTubeVideoId.HasValue || submission.SourceType == "video";
+            var isVideo = submission.VideoId.HasValue || submission.SourceType == "video";
             var sourceQuestions = quizzes.Where(q => isVideo
-                    ? q.SourceType == "video" && q.YouTubeVideoId == submission.YouTubeVideoId
+                    ? q.SourceType == "video" && q.VideoId == submission.VideoId
                     : q.SourceType == "document" && q.DocumentId == submission.DocumentId)
                 .ToList();
 

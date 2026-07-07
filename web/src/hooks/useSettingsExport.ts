@@ -39,7 +39,7 @@ export function useSettingsExport() {
     return {
       title: note.videoName ?? note.documentName ?? doc?.name ?? 'Untitled note',
       courseName: course?.name,
-      sourceType: note.youTubeVideoId ? 'video' : doc?.originalUrl ? 'article' : doc?.type ?? 'document',
+      sourceType: note.videoId ? 'video' : doc?.originalUrl ? 'article' : doc?.type ?? 'document',
       createdAt: note.createdAt,
       html: note.content,
     };
@@ -49,12 +49,12 @@ export function useSettingsExport() {
     const records: ExportQuizRecord[] = [];
     const seen = new Set<string>();
     for (const submission of quizSubmissions) {
-      const key = submission.youTubeVideoId ? `video:${submission.youTubeVideoId}` : `doc:${submission.documentId}`;
+      const key = submission.videoId ? `video:${submission.videoId}` : `doc:${submission.documentId}`;
       if (seen.has(key)) continue;
       seen.add(key);
       try {
-        if (submission.youTubeVideoId || submission.sourceType === 'video') {
-          const videoId = submission.youTubeVideoId ?? '';
+        if (submission.videoId || submission.sourceType === 'video') {
+          const videoId = submission.videoId ?? '';
           if (!videoId) continue;
           const questions = await videoService.getQuiz(videoId);
           records.push({

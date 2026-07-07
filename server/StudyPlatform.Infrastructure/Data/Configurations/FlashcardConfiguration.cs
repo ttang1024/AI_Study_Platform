@@ -25,15 +25,15 @@ public class FlashcardConfiguration : IEntityTypeConfiguration<Flashcard>
             .OnDelete(DeleteBehavior.Cascade)
             .IsRequired(false);
 
-        builder.HasOne(f => f.YouTubeVideo)
+        builder.HasOne(f => f.Video)
             .WithMany()
-            .HasForeignKey(f => f.YouTubeVideoId)
+            .HasForeignKey(f => f.VideoId)
             .IsRequired(false)
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.ToTable(t => t.HasCheckConstraint("chk_flashcards_source",
-            "(\"DocumentId\" IS NOT NULL AND \"YouTubeVideoId\" IS NULL AND \"SourceType\" = 'document') OR " +
-            "(\"YouTubeVideoId\" IS NOT NULL AND \"DocumentId\" IS NULL AND \"SourceType\" = 'video')"));
+            "(\"DocumentId\" IS NOT NULL AND \"VideoId\" IS NULL AND \"SourceType\" = 'document') OR " +
+            "(\"VideoId\" IS NOT NULL AND \"DocumentId\" IS NULL AND \"SourceType\" = 'video')"));
 
         // Serves the flashcards list / search: WHERE UserId = @u ORDER BY CreatedAt DESC.
         builder.HasIndex(f => new { f.UserId, f.CreatedAt });

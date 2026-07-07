@@ -17,9 +17,9 @@ public class GetAllGlossaryTermsQueryHandler : IRequestHandler<GetAllGlossaryTer
         var terms = await _unitOfWork.GlossaryTerms.GetByUserWithSourcesAsync(request.UserId, cancellationToken);
         var dtos = terms.Select(t =>
         {
-            var isVideo = t.YouTubeVideoId.HasValue;
+            var isVideo = t.VideoId.HasValue;
             var document = t.Document;
-            var video = t.YouTubeVideo;
+            var video = t.Video;
             var sourceKind = isVideo
                 ? "video"
                 : document?.OriginalUrl != null
@@ -34,7 +34,7 @@ public class GetAllGlossaryTermsQueryHandler : IRequestHandler<GetAllGlossaryTer
                 t.Term,
                 t.Definition,
                 t.CreatedAt,
-                t.YouTubeVideoId,
+                t.VideoId,
                 video?.CourseId ?? document?.CourseId,
                 video?.Title ?? document?.FileName,
                 sourceKind);

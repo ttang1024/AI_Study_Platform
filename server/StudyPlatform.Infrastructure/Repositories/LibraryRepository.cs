@@ -6,7 +6,7 @@ using StudyPlatform.Infrastructure.Data;
 namespace StudyPlatform.Infrastructure.Repositories;
 
 /// <summary>
-/// Merges the Documents and YouTubeVideos tables into one paginated, date-sorted
+/// Merges the Documents and Videos tables into one paginated, date-sorted
 /// list at the database level (UNION ALL + ORDER BY + OFFSET/LIMIT), so a request
 /// reads and returns only the page asked for rather than every row.
 /// </summary>
@@ -79,7 +79,7 @@ public class LibraryRepository : ILibraryRepository
         IQueryable<LibraryItem>? videoItems = null;
         if (includeVideos)
         {
-            var videos = _db.YouTubeVideos.AsNoTracking().Where(v => v.UserId == userId);
+            var videos = _db.Videos.AsNoTracking().Where(v => v.UserId == userId);
             if (courseId.HasValue)
                 videos = videos.Where(v => v.CourseId == courseId.Value);
             if (!string.IsNullOrWhiteSpace(search))
@@ -90,7 +90,7 @@ public class LibraryRepository : ILibraryRepository
             videoItems = videos.Select(v => new LibraryItem
             {
                 Kind = "video",
-                Id = v.YouTubeVideoId,
+                Id = v.VideoId,
                 CourseId = v.CourseId,
                 CourseName = v.Course.CourseName,
                 CourseColor = v.Course.CourseColor,
@@ -103,7 +103,7 @@ public class LibraryRepository : ILibraryRepository
                 OriginalUrl = null,
                 Summary = null,
                 Title = v.Title,
-                VideoId = v.VideoId,
+                VideoId = v.ExternalVideoId,
                 VideoUrl = v.VideoUrl,
                 ThumbnailUrl = v.ThumbnailUrl,
                 SourceType = string.IsNullOrWhiteSpace(v.SourceType) ? "youtube" : v.SourceType,

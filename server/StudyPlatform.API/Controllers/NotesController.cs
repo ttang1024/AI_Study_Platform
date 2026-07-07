@@ -42,7 +42,7 @@ public class NotesController : ControllerBase
     public async Task<IActionResult> CreateNote([FromBody] CreateNoteRequest request)
     {
         var userId = User.GetUserId();
-        var result = await _mediator.Send(new CreateNoteCommand(userId, request.Content, request.Title, request.DocumentId, request.YouTubeVideoId));
+        var result = await _mediator.Send(new CreateNoteCommand(userId, request.Content, request.Title, request.DocumentId, request.VideoId));
         if (!result.IsSuccess)
             return BadRequest(BaseResponse<NoteDto>.Fail(result.Message, result.ErrorCode));
 

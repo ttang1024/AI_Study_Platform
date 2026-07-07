@@ -72,7 +72,7 @@ export const GlossaryPage: React.FC = () => {
     if (sourceType !== 'all') terms = terms.filter(t => t.sourceKind === sourceType);
     if (selectedSourceId) {
       terms = terms.filter(t =>
-        t.documentId === selectedSourceId || t.youTubeVideoId === selectedSourceId
+        t.documentId === selectedSourceId || t.videoId === selectedSourceId
       );
     }
     if (selectedCourseId) terms = terms.filter(t => t.courseId === selectedCourseId);
@@ -172,7 +172,7 @@ export const GlossaryPage: React.FC = () => {
     allTerms
       .filter(t => sourceType === 'all' || t.sourceKind === sourceType)
       .forEach(t => {
-        const id = t.documentId ?? t.youTubeVideoId;
+        const id = t.documentId ?? t.videoId;
         if (id && t.sourceName) options.set(id, t.sourceName);
       });
 
@@ -203,7 +203,7 @@ export const GlossaryPage: React.FC = () => {
     const ids = new Set<string>();
     allTerms.forEach(term => {
       if (term.documentId) ids.add(term.documentId);
-      if (term.youTubeVideoId) ids.add(term.youTubeVideoId);
+      if (term.videoId) ids.add(term.videoId);
     });
     return ids;
   }, [allTerms]);

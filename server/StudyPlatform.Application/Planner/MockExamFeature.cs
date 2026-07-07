@@ -34,13 +34,13 @@ public class GetMockExamQueryHandler : IRequestHandler<GetMockExamQuery, Result<
             var docIds = (await _unitOfWork.Documents.FindAsync(
                 d => d.UserId == request.UserId && d.CourseId == request.CourseId.Value, cancellationToken))
                 .Select(d => d.DocumentId).ToHashSet();
-            var videoIds = (await _unitOfWork.YouTubeVideos.FindAsync(
+            var videoIds = (await _unitOfWork.Videos.FindAsync(
                 v => v.UserId == request.UserId && v.CourseId == request.CourseId.Value, cancellationToken))
-                .Select(v => v.YouTubeVideoId).ToHashSet();
+                .Select(v => v.VideoId).ToHashSet();
 
             quizzes = quizzes.Where(q =>
                 (q.DocumentId.HasValue && docIds.Contains(q.DocumentId.Value)) ||
-                (q.YouTubeVideoId.HasValue && videoIds.Contains(q.YouTubeVideoId.Value))).ToList();
+                (q.VideoId.HasValue && videoIds.Contains(q.VideoId.Value))).ToList();
         }
 
         if (quizzes.Count == 0)

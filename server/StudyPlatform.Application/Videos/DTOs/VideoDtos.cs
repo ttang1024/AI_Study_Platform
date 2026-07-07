@@ -1,6 +1,6 @@
-namespace StudyPlatform.Application.YouTube.DTOs;
+namespace StudyPlatform.Application.Videos.DTOs;
 
-public record YouTubeVideoDto(
+public record VideoDto(
     Guid Id,
     Guid CourseId,
     string CourseName,
@@ -15,7 +15,7 @@ public record YouTubeVideoDto(
     DateTime CreatedAt,
     DateTime UpdatedAt);
 
-public record SaveYouTubeVideoRequest(
+public record SaveVideoRequest(
     Guid CourseId,
     string VideoId,
     string VideoUrl,
@@ -24,15 +24,15 @@ public record SaveYouTubeVideoRequest(
     string ThumbnailUrl,
     string? Summary);
 
-public record UpdateYouTubeVideoRequest(
+public record UpdateVideoRequest(
     string? Title,
     string? Summary,
     string? MindMapText);
 
-public record MoveYouTubeVideoRequest(Guid TargetCourseId);
+public record MoveVideoRequest(Guid TargetCourseId);
 
-public record YouTubeVideoPagedResult(
-    IEnumerable<YouTubeVideoDto> Items,
+public record VideoPagedResult(
+    IEnumerable<VideoDto> Items,
     int TotalCount,
     int Page,
     int PageSize,
@@ -40,7 +40,7 @@ public record YouTubeVideoPagedResult(
 
 // Lightweight list shape — no Summary/MindMapText. Used by callers that fetch all
 // of a user's videos only to label other content (glossary/flashcards/notes).
-public record YouTubeVideoLiteDto(
+public record VideoLiteDto(
     Guid Id,
     Guid CourseId,
     string CourseName,
@@ -52,8 +52,8 @@ public record YouTubeVideoLiteDto(
     string ThumbnailUrl,
     DateTime CreatedAt);
 
-public record YouTubeVideoLitePagedResult(
-    IEnumerable<YouTubeVideoLiteDto> Items,
+public record VideoLitePagedResult(
+    IEnumerable<VideoLiteDto> Items,
     int TotalCount,
     int Page,
     int PageSize,

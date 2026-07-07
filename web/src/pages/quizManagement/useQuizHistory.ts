@@ -51,7 +51,7 @@ export function useQuizHistory() {
   const [loadingTimedExam, setLoadingTimedExam] = useState<string | null>(null);
   const [generatedPending, setGeneratedPending] = useState<UnifiedQuizItem[]>([]);
   const [coverageLoading, setCoverageLoading] = useState(true);
-  const [coverage, setCoverage] = useState({ documentIds: [] as string[], youTubeVideoIds: [] as string[] });
+  const [coverage, setCoverage] = useState({ documentIds: [] as string[], videoIds: [] as string[] });
   const [pendingLoading, setPendingLoading] = useState(true);
   const [pendingItems, setPendingItems] = useState<PendingItem[]>([]);
   const [exporting, setExporting] = useState<null | 'csv' | 'gift' | 'qti'>(null);
@@ -59,7 +59,7 @@ export function useQuizHistory() {
   // Remove pending entries once a real submission arrives.
   useEffect(() => {
     const submittedDocIds = new Set(quizSubmissions.map(s => s.documentId).filter(Boolean));
-    const submittedVideoIds = new Set(quizSubmissions.map(s => s.youTubeVideoId).filter(Boolean));
+    const submittedVideoIds = new Set(quizSubmissions.map(s => s.videoId).filter(Boolean));
     setGeneratedPending(prev => prev.filter(p => p.type === 'video' ? !submittedVideoIds.has(p.id) : p.docId && !submittedDocIds.has(p.docId)));
   }, [quizSubmissions]);
 
@@ -108,7 +108,7 @@ export function useQuizHistory() {
     setCoverageLoading(true);
     return quizSubmissionService.getCoverage()
       .then(setCoverage)
-      .catch(() => setCoverage({ documentIds: [], youTubeVideoIds: [] }))
+      .catch(() => setCoverage({ documentIds: [], videoIds: [] }))
       .finally(() => setCoverageLoading(false));
   }, []);
 
@@ -213,7 +213,7 @@ export function useQuizHistory() {
   // ── Derived collections ─────────────────────────────────────────────────────
 
   const docQuizItems = useMemo<DocQuizItem[]>(() =>
-    quizSubmissions.filter(s => !s.youTubeVideoId && s.sourceType !== 'video').map(s => {
+    quizSubmissions.filter(s => !s.videoId && s.sourceType !== 'video').map(s => {
       const doc = documents.find(d => d.id === s.documentId);
       const course = courses.find(c => c.id === doc?.courseId);
       return {
@@ -232,9 +232,9 @@ export function useQuizHistory() {
     }), [quizSubmissions, documents, courses]);
 
   const videoQuizItems = useMemo<VideoQuizItem[]>(() =>
-    quizSubmissions.filter(s => s.youTubeVideoId || s.sourceType === 'video').map(s => ({
+    quizSubmissions.filter(s => s.videoId || s.sourceType === 'video').map(s => ({
       type: 'video' as const,
-      id: s.youTubeVideoId ?? s.submissionId,
+      id: s.videoId ?? s.submissionId,
       name: s.videoName ?? 'Unknown Video',
       courseId: '',
       courseColor: '#a1a1aa',
@@ -287,7 +287,7 @@ export function useQuizHistory() {
 
   const pendingItemsCount = Math.max(
     0,
-    totalMaterials - coverage.documentIds.length - coverage.youTubeVideoIds.length - generatedPending.length,
+    totalMaterials - coverage.documentIds.length - coverage.videoIds.length - generatedPending.length,
   );
 
   const visiblePendingItems = useMemo(() => {

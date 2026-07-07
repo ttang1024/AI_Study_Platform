@@ -19,7 +19,7 @@ public class AppDbContext : DbContext
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
     public DbSet<QuizAttempt> QuizAttempts => Set<QuizAttempt>();
     public DbSet<QuizSubmission> QuizSubmissions => Set<QuizSubmission>();
-    public DbSet<YouTubeVideo> YouTubeVideos => Set<YouTubeVideo>();
+    public DbSet<Video> Videos => Set<Video>();
     public DbSet<GlossaryTerm> GlossaryTerms => Set<GlossaryTerm>();
     public DbSet<Feedback> Feedbacks => Set<Feedback>();
     public DbSet<ShareToken> ShareTokens => Set<ShareToken>();
@@ -35,7 +35,7 @@ public class AppDbContext : DbContext
     public DbSet<ConceptLink> ConceptLinks => Set<ConceptLink>();
     public DbSet<FlashcardSrsData> FlashcardSrs => Set<FlashcardSrsData>();
     public DbSet<CacheEntry> CacheEntries => Set<CacheEntry>();
-    public DbSet<YouTubeTranscriptEntry> YouTubeTranscriptEntries => Set<YouTubeTranscriptEntry>();
+    public DbSet<VideoTranscriptEntry> VideoTranscriptEntries => Set<VideoTranscriptEntry>();
     public DbSet<StudySession> StudySessions => Set<StudySession>();
     public DbSet<MistakeEntry> MistakeEntries => Set<MistakeEntry>();
     public DbSet<ExamPlan> ExamPlans => Set<ExamPlan>();

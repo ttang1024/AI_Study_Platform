@@ -11,15 +11,15 @@ namespace StudyPlatform.Application.Documents.DTOs;
 public static class ArtifactMappings
 {
     public static QuizDto ToQuizDto(this Quiz q) => new(
-        q.QuizId, q.DocumentId, q.YouTubeVideoId, q.SourceType, q.Question,
+        q.QuizId, q.DocumentId, q.VideoId, q.SourceType, q.Question,
         JsonSerializer.Deserialize<string[]>(q.OptionsJson) ?? Array.Empty<string>(),
         q.CorrectAnswer, q.Explanation, q.CreatedAt, q.Difficulty);
 
     public static FlashcardDto ToFlashcardDto(this Flashcard f, FlashcardSrsData? srs = null) => new(
-        f.FlashcardId, f.DocumentId, f.YouTubeVideoId, f.SourceType, f.UserId, f.Front, f.Back, f.CreatedAt, f.UpdatedAt,
-        Title: f.Document?.FileName ?? f.YouTubeVideo?.Title,
+        f.FlashcardId, f.DocumentId, f.VideoId, f.SourceType, f.UserId, f.Front, f.Back, f.CreatedAt, f.UpdatedAt,
+        Title: f.Document?.FileName ?? f.Video?.Title,
         Document: f.Document?.FileName,
-        Video: f.YouTubeVideo?.Title,
+        Video: f.Video?.Title,
         Srs: srs?.ToSrsDto(),
         CardType: f.CardType,
         Difficulty: f.Difficulty,
@@ -36,13 +36,13 @@ public static class ArtifactMappings
     /// course/source name, which the glossary list endpoint computes separately).
     /// </summary>
     public static GlossaryTermDto ToGlossaryTermDto(this GlossaryTerm t) => new(
-        t.GlossaryTermId, t.DocumentId, t.Term, t.Definition, t.CreatedAt, t.YouTubeVideoId);
+        t.GlossaryTermId, t.DocumentId, t.Term, t.Definition, t.CreatedAt, t.VideoId);
 
     public static QuizSubmissionDto ToQuizSubmissionDto(this QuizSubmission s) => new(
-        s.SubmissionId, s.DocumentId, s.YouTubeVideoId, s.SourceType,
+        s.SubmissionId, s.DocumentId, s.VideoId, s.SourceType,
         JsonSerializer.Deserialize<Dictionary<string, string>>(s.AnswersJson) ?? new(),
         s.Score, s.Total, s.SubmittedAt,
-        Title: s.Document?.FileName ?? s.YouTubeVideo?.Title,
+        Title: s.Document?.FileName ?? s.Video?.Title,
         Document: s.Document?.FileName,
-        Video: s.YouTubeVideo?.Title);
+        Video: s.Video?.Title);
 }

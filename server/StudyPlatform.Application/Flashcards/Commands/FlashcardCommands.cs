@@ -13,7 +13,7 @@ public record CreateFlashcardCommand(
     string Front,
     string Back,
     Guid? DocumentId = null,
-    Guid? YouTubeVideoId = null,
+    Guid? VideoId = null,
     string CardType = "basic") : IRequest<Result<FlashcardDto>>;
 
 public class CreateFlashcardCommandHandler : IRequestHandler<CreateFlashcardCommand, Result<FlashcardDto>>
@@ -34,8 +34,8 @@ public class CreateFlashcardCommandHandler : IRequestHandler<CreateFlashcardComm
         {
             FlashcardId = Guid.NewGuid(),
             DocumentId = request.DocumentId,
-            YouTubeVideoId = request.YouTubeVideoId,
-            SourceType = request.YouTubeVideoId.HasValue ? "video" : "document",
+            VideoId = request.VideoId,
+            SourceType = request.VideoId.HasValue ? "video" : "document",
             UserId = request.UserId,
             Front = request.Front,
             Back = request.Back,
@@ -154,8 +154,8 @@ public class GetFlashcardCoverageQueryHandler : IRequestHandler<GetFlashcardCove
 
     public async Task<Result<FlashcardCoverageDto>> Handle(GetFlashcardCoverageQuery request, CancellationToken cancellationToken)
     {
-        var (documentIds, youTubeVideoIds) = await _unitOfWork.Flashcards.GetCoverageByUserIdAsync(request.UserId, cancellationToken);
-        return Result<FlashcardCoverageDto>.Success(new FlashcardCoverageDto(documentIds, youTubeVideoIds));
+        var (documentIds, videoIds) = await _unitOfWork.Flashcards.GetCoverageByUserIdAsync(request.UserId, cancellationToken);
+        return Result<FlashcardCoverageDto>.Success(new FlashcardCoverageDto(documentIds, videoIds));
     }
 }
 
@@ -194,15 +194,15 @@ public class GetPendingFlashcardMaterialsQueryHandler : IRequestHandler<GetPendi
                     d.CreatedAt);
             });
 
-        var videos = (await _unitOfWork.YouTubeVideos.FindAsync(
-                v => v.UserId == request.UserId && !videoIdSet.Contains(v.YouTubeVideoId),
+        var videos = (await _unitOfWork.Videos.FindAsync(
+                v => v.UserId == request.UserId && !videoIdSet.Contains(v.VideoId),
                 cancellationToken))
             .Select(v =>
             {
                 courseMap.TryGetValue(v.CourseId, out var course);
                 return new PendingMaterialDto(
                     "video",
-                    v.YouTubeVideoId,
+                    v.VideoId,
                     v.CourseId,
                     course?.CourseName ?? string.Empty,
                     course?.CourseColor ?? "#a1a1aa",
@@ -210,7 +210,7 @@ public class GetPendingFlashcardMaterialsQueryHandler : IRequestHandler<GetPendi
                     null,
                     null,
                     null,
-                    v.VideoId,
+                    v.ExternalVideoId,
                     v.VideoUrl,
                     v.ThumbnailUrl,
                     v.CreatedAt,

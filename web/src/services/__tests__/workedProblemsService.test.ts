@@ -13,7 +13,7 @@ const backendProblem = (id = 'p-1') => ({
   workedProblemId: id,
   userId: 'u-1',
   documentId: 'doc-1',
-  youTubeVideoId: null,
+  videoId: null,
   problemText: 'Solve for x',
   steps: [{ stepNumber: 1, description: 'Isolate x', formula: 'x = 5' }],
   finalAnswer: 'x = 5',

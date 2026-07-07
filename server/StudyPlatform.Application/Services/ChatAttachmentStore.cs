@@ -69,7 +69,7 @@ public static class ChatAttachmentStore
     {
         var attachments = await LoadAsync(blob, message.AttachmentsJson, cancellationToken);
         return new ChatMessageDto(
-            message.MessageId, message.DocumentId, message.YouTubeVideoId, message.SourceType,
+            message.MessageId, message.DocumentId, message.VideoId, message.SourceType,
             message.Role, message.Content, message.CreatedAt,
             attachments.Count > 0 ? attachments : null);
     }

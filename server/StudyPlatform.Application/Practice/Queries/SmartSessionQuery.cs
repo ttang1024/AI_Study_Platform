@@ -33,9 +33,9 @@ public class GetSmartSessionQueryHandler : IRequestHandler<GetSmartSessionQuery,
         var userId = request.UserId;
 
         var documents = (await _unitOfWork.Documents.FindAsync(d => d.UserId == userId, ct)).ToList();
-        var videos = (await _unitOfWork.YouTubeVideos.FindAsync(v => v.UserId == userId, ct)).ToList();
+        var videos = (await _unitOfWork.Videos.FindAsync(v => v.UserId == userId, ct)).ToList();
         var docToCourse = documents.ToDictionary(d => d.DocumentId, d => d.CourseId);
-        var videoToCourse = videos.ToDictionary(v => v.YouTubeVideoId, v => v.CourseId);
+        var videoToCourse = videos.ToDictionary(v => v.VideoId, v => v.CourseId);
 
         string? CourseOf(Guid? docId, Guid? videoId)
         {
@@ -64,7 +64,7 @@ public class GetSmartSessionQueryHandler : IRequestHandler<GetSmartSessionQuery,
                 dueCards.Add(new PracticeQuestionDto(
                     $"flashcard:{card.FlashcardId}", "flashcard", card.FlashcardId.ToString(), "recall",
                     qa.Value.Prompt, null, qa.Value.Answer, null, card.Difficulty,
-                    CourseOf(card.DocumentId, card.YouTubeVideoId)));
+                    CourseOf(card.DocumentId, card.VideoId)));
             }
         }
 
@@ -83,7 +83,7 @@ public class GetSmartSessionQueryHandler : IRequestHandler<GetSmartSessionQuery,
                     isMc ? "mc" : "recall", m.Question,
                     isMc ? options : null, m.CorrectAnswer,
                     string.IsNullOrWhiteSpace(m.Explanation) ? null : m.Explanation,
-                    "hard", CourseOf(m.DocumentId, m.YouTubeVideoId));
+                    "hard", CourseOf(m.DocumentId, m.VideoId));
             })
             .ToList();
 
@@ -105,7 +105,7 @@ public class GetSmartSessionQueryHandler : IRequestHandler<GetSmartSessionQuery,
                     .OrderBy(_ => Random.Shared.Next())
                     .Take(3)
                     .ToList();
-                var courseId = CourseOf(t.DocumentId, t.YouTubeVideoId);
+                var courseId = CourseOf(t.DocumentId, t.VideoId);
                 if (distractors.Count == 3)
                 {
                     var options = distractors.Append(t.Definition).OrderBy(_ => Random.Shared.Next()).ToArray();

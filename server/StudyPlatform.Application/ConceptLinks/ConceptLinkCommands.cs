@@ -47,7 +47,7 @@ public class GetKnowledgeGraphQueryHandler : IRequestHandler<GetKnowledgeGraphQu
     {
         var links = (await _unitOfWork.ConceptLinks.GetByUserAsync(userId, cancellationToken)).ToList();
         var documents = (await _unitOfWork.Documents.FindAsync(d => d.UserId == userId, cancellationToken)).ToList();
-        var videos = (await _unitOfWork.YouTubeVideos.FindAsync(v => v.UserId == userId, cancellationToken)).ToList();
+        var videos = (await _unitOfWork.Videos.FindAsync(v => v.UserId == userId, cancellationToken)).ToList();
         var notes = (await _unitOfWork.Notes.GetByUserIdAsync(userId, cancellationToken)).ToList();
         var quizzes = (await _unitOfWork.Quizzes.FindAsync(q => q.UserId == userId, cancellationToken)).ToList();
         var glossaryTerms = (await _unitOfWork.GlossaryTerms.GetByUserWithSourcesAsync(userId, cancellationToken)).ToList();
@@ -125,11 +125,11 @@ public class GetKnowledgeGraphQueryHandler : IRequestHandler<GetKnowledgeGraphQu
         foreach (var video in videos)
         {
             AddNode(new NodeDto(
-                $"video:{video.YouTubeVideoId}",
+                $"video:{video.VideoId}",
                 "video",
-                string.IsNullOrWhiteSpace(video.Title) ? video.VideoId : video.Title,
+                string.IsNullOrWhiteSpace(video.Title) ? video.ExternalVideoId : video.Title,
                 "Video",
-                $"/videos/{video.YouTubeVideoId}",
+                $"/videos/{video.VideoId}",
                 HasStudyArtifacts(video) ? 3 : 1,
                 null,
                 video.CourseId.ToString()));
@@ -140,15 +140,15 @@ public class GetKnowledgeGraphQueryHandler : IRequestHandler<GetKnowledgeGraphQu
             var conceptId = AddConcept(term.Term, 2, term.Definition);
             if (term.DocumentId.HasValue)
                 AddEdge($"document:{term.DocumentId.Value}", conceptId, "defines");
-            if (term.YouTubeVideoId.HasValue)
-                AddEdge($"video:{term.YouTubeVideoId.Value}", conceptId, "defines");
+            if (term.VideoId.HasValue)
+                AddEdge($"video:{term.VideoId.Value}", conceptId, "defines");
         }
 
         foreach (var note in notes.Take(120))
         {
-            var sourceId = GetSourceNodeId(note.DocumentId, note.YouTubeVideoId);
+            var sourceId = GetSourceNodeId(note.DocumentId, note.VideoId);
             var noteId = $"note:{note.NoteId}";
-            AddNode(new NodeDto(noteId, "note", GetNoteTitle(note), GetSourceTitle(note.Document, note.YouTubeVideo), "/notes"));
+            AddNode(new NodeDto(noteId, "note", GetNoteTitle(note), GetSourceTitle(note.Document, note.Video), "/notes"));
             if (sourceId is not null)
                 AddEdge(sourceId, noteId, "has note");
 
@@ -156,7 +156,7 @@ public class GetKnowledgeGraphQueryHandler : IRequestHandler<GetKnowledgeGraphQu
                 AddEdge(noteId, conceptId, "mentions");
         }
 
-        foreach (var group in quizzes.GroupBy(q => GetSourceNodeId(q.DocumentId, q.YouTubeVideoId)).Where(g => g.Key is not null).Take(120))
+        foreach (var group in quizzes.GroupBy(q => GetSourceNodeId(q.DocumentId, q.VideoId)).Where(g => g.Key is not null).Take(120))
         {
             var quizId = $"quiz:{group.Key}";
             AddNode(new NodeDto(quizId, "quiz", $"{group.Count()} quiz question{(group.Count() == 1 ? "" : "s")}", "Generated quiz", "/quizzes", Math.Min(group.Count(), 8)));
@@ -236,10 +236,10 @@ public class GetKnowledgeGraphQueryHandler : IRequestHandler<GetKnowledgeGraphQu
                     : new NodeDto(nodeId, GetDocumentNodeType(doc), doc.FileName, GetDocumentSubtitle(doc), GetDocumentUrl(doc));
                 break;
             case "video":
-                var video = await _unitOfWork.YouTubeVideos.GetByIdAsync(id, cancellationToken);
+                var video = await _unitOfWork.Videos.GetByIdAsync(id, cancellationToken);
                 nodes[nodeId] = video is null
                     ? new NodeDto(nodeId, "video", id.ToString())
-                    : new NodeDto(nodeId, "video", string.IsNullOrWhiteSpace(video.Title) ? video.VideoId : video.Title, "Video", $"/videos/{video.YouTubeVideoId}");
+                    : new NodeDto(nodeId, "video", string.IsNullOrWhiteSpace(video.Title) ? video.ExternalVideoId : video.Title, "Video", $"/videos/{video.VideoId}");
                 break;
             case "note":
                 var note = await _unitOfWork.Notes.GetByIdAsync(id, cancellationToken);
@@ -262,7 +262,7 @@ public class GetKnowledgeGraphQueryHandler : IRequestHandler<GetKnowledgeGraphQu
     private static string? GetSourceNodeId(Guid? documentId, Guid? videoId)
         => documentId.HasValue ? $"document:{documentId.Value}" : videoId.HasValue ? $"video:{videoId.Value}" : null;
 
-    private static string GetSourceTitle(Document? document, YouTubeVideo? video)
+    private static string GetSourceTitle(Document? document, Video? video)
         => document?.FileName ?? video?.Title ?? "Standalone note";
 
     private static string GetNoteTitle(Note note)
@@ -280,7 +280,7 @@ public class GetKnowledgeGraphQueryHandler : IRequestHandler<GetKnowledgeGraphQu
     private static bool HasStudyArtifacts(Document doc)
         => !string.IsNullOrWhiteSpace(doc.Summary) || !string.IsNullOrWhiteSpace(doc.MindMapText) || !string.IsNullOrWhiteSpace(doc.Transcript);
 
-    private static bool HasStudyArtifacts(YouTubeVideo video)
+    private static bool HasStudyArtifacts(Video video)
         => !string.IsNullOrWhiteSpace(video.Summary) || !string.IsNullOrWhiteSpace(video.MindMapText) || !string.IsNullOrWhiteSpace(video.Transcript);
 
     private static bool IsCourseMaterialNode(NodeDto node)

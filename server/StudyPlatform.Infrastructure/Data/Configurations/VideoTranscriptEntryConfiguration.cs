@@ -4,9 +4,9 @@ using StudyPlatform.Domain.Entities;
 
 namespace StudyPlatform.Infrastructure.Data.Configurations;
 
-public class YouTubeTranscriptEntryConfiguration : IEntityTypeConfiguration<YouTubeTranscriptEntry>
+public class VideoTranscriptEntryConfiguration : IEntityTypeConfiguration<VideoTranscriptEntry>
 {
-    public void Configure(EntityTypeBuilder<YouTubeTranscriptEntry> builder)
+    public void Configure(EntityTypeBuilder<VideoTranscriptEntry> builder)
     {
         builder.HasKey(e => new { e.VideoId, e.Kind });
         builder.Property(e => e.VideoId).HasMaxLength(32);

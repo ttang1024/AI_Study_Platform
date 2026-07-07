@@ -6,8 +6,8 @@ public interface IChatMessageRepository : IRepository<ChatMessage>
 {
     Task<IEnumerable<ChatMessage>> GetByDocumentIdAsync(Guid documentId, Guid userId, CancellationToken cancellationToken = default);
     Task DeleteByDocumentIdAsync(Guid documentId, Guid userId, CancellationToken cancellationToken = default);
-    Task<IEnumerable<ChatMessage>> GetByYouTubeVideoIdAsync(Guid videoId, Guid userId, CancellationToken cancellationToken = default);
-    Task DeleteByYouTubeVideoIdAsync(Guid videoId, Guid userId, CancellationToken cancellationToken = default);
+    Task<IEnumerable<ChatMessage>> GetByVideoIdAsync(Guid videoId, Guid userId, CancellationToken cancellationToken = default);
+    Task DeleteByVideoIdAsync(Guid videoId, Guid userId, CancellationToken cancellationToken = default);
     Task<ChatConversation> CreateConversationAsync(Guid userId, string title, CancellationToken cancellationToken = default);
     Task<ChatConversation> CreateVideoConversationAsync(Guid userId, Guid videoId, string title, CancellationToken cancellationToken = default);
     Task<ChatConversation> CreateDocumentConversationAsync(Guid userId, Guid documentId, string title, CancellationToken cancellationToken = default);

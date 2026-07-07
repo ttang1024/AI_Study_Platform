@@ -39,12 +39,12 @@ export function useNotesData({
 
   useEffect(() => {
     const entries: VideoNoteEntry[] = allNotes
-      .filter(n => n.youTubeVideoId)
+      .filter(n => n.videoId)
       .map(n => {
-        const video = videoList.find(v => v.id === n.youTubeVideoId);
+        const video = videoList.find(v => v.id === n.videoId);
         return {
           noteId: n.id,
-          videoRecordId: n.youTubeVideoId!,
+          videoRecordId: n.videoId!,
           title: video?.title ?? n.videoName ?? 'Unknown Video',
           courseId: video?.courseId ?? '',
           courseColor: video?.courseColor ?? '#a1a1aa',
@@ -57,7 +57,7 @@ export function useNotesData({
   }, [allNotes, videoList]);
 
   const filteredDocNotes = useMemo(() => {
-    const docOnly = allNotes.filter(n => !n.youTubeVideoId);
+    const docOnly = allNotes.filter(n => !n.videoId);
     if (!searchQuery.trim()) return docOnly;
     const q = searchQuery.toLowerCase();
     return docOnly.filter(n => n.content.toLowerCase().includes(q));

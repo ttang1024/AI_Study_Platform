@@ -13,12 +13,12 @@ public partial class VideoController
 {
     // ── Access helper ─────────────────────────────────────────────────────
 
-    private async Task<YouTubeVideo?> GetVideoWithAccessCheckAsync(Guid id, Guid userId, CancellationToken cancellationToken)
+    private async Task<Video?> GetVideoWithAccessCheckAsync(Guid id, Guid userId, CancellationToken cancellationToken)
     {
-        var video = await _unitOfWork.YouTubeVideos.GetByIdForUserAsync(id, userId, cancellationToken);
+        var video = await _unitOfWork.Videos.GetByIdForUserAsync(id, userId, cancellationToken);
         if (video is not null) return video;
 
-        video = await _unitOfWork.YouTubeVideos.GetByIdWithCourseAsync(id, cancellationToken);
+        video = await _unitOfWork.Videos.GetByIdWithCourseAsync(id, cancellationToken);
         if (video is null) return null;
 
         var shared = await _unitOfWork.StudyGroupSharedCourses.FindAsync(sc => sc.CourseId == video.CourseId, cancellationToken);
@@ -90,12 +90,12 @@ public partial class VideoController
     };
 
     // Sources whose transcript must be fetched by full URL (yt-dlp) rather than YouTube video id.
-    private static bool IsExternalVideoSource(YouTubeVideo video)
+    private static bool IsExternalVideoSource(Video video)
         => NormalizeSourceType(video.SourceType)
             is "bilibili" or "vimeo" or "ted" or "dailymotion"
             or "facebook" or "instagram" or "twitter" or "reddit" or "linkedin" or "tiktok";
 
-    private static bool IsBilibiliVideo(YouTubeVideo video)
+    private static bool IsBilibiliVideo(Video video)
         => string.Equals(video.SourceType, "bilibili", StringComparison.OrdinalIgnoreCase);
 
     private static string TranscriptCacheKey(string videoId) => $"transcript:{videoId}";
@@ -114,13 +114,13 @@ public partial class VideoController
         CancellationToken cancellationToken)
     {
         var entryVideoId = TranscriptEntryVideoId(videoId);
-        var entry = await _db.YouTubeTranscriptEntries.FindAsync([entryVideoId, kind], cancellationToken);
+        var entry = await _db.VideoTranscriptEntries.FindAsync([entryVideoId, kind], cancellationToken);
         if (entry is null)
             return null;
 
         if (entry.ExpiresAt <= DateTime.UtcNow)
         {
-            _db.YouTubeTranscriptEntries.Remove(entry);
+            _db.VideoTranscriptEntries.Remove(entry);
             await _db.SaveChangesAsync(cancellationToken);
             return null;
         }
@@ -135,7 +135,7 @@ public partial class VideoController
         }
         catch
         {
-            _db.YouTubeTranscriptEntries.Remove(entry);
+            _db.VideoTranscriptEntries.Remove(entry);
             await _db.SaveChangesAsync(cancellationToken);
             return null;
         }
@@ -160,7 +160,7 @@ public partial class VideoController
         var entryVideoId = TranscriptEntryVideoId(videoId);
 
         await _db.Database.ExecuteSqlInterpolatedAsync($"""
-            INSERT INTO "YouTubeTranscriptEntries" ("VideoId", "Kind", "SegmentsJson", "ExpiresAt", "CreatedAt", "UpdatedAt")
+            INSERT INTO "VideoTranscriptEntries" ("VideoId", "Kind", "SegmentsJson", "ExpiresAt", "CreatedAt", "UpdatedAt")
             VALUES ({entryVideoId}, {kind}, {segmentsJson}, {expiresAt}, {now}, {now})
             ON CONFLICT ("VideoId", "Kind") DO UPDATE
             SET "SegmentsJson" = EXCLUDED."SegmentsJson",
@@ -179,9 +179,9 @@ public partial class VideoController
     }
 
     // Returns transcript from Redis → DB → YouTube fetch (in that order), persisting to DB and Redis on miss.
-    private async Task<string?> GetOrFetchTranscriptAsync(YouTubeVideo video, CancellationToken cancellationToken)
+    private async Task<string?> GetOrFetchTranscriptAsync(Video video, CancellationToken cancellationToken)
     {
-        var transcriptKey = $"{NormalizeSourceType(video.SourceType)}:{video.VideoId}";
+        var transcriptKey = $"{NormalizeSourceType(video.SourceType)}:{video.ExternalVideoId}";
         var cacheKey = TranscriptCacheKey(transcriptKey);
         var ttl = TimeSpan.FromSeconds(_cacheOptions.TranscriptSeconds);
 
@@ -202,7 +202,7 @@ public partial class VideoController
             var storedTranscript = string.Join(" ", storedSegments.Select(s => s.Text));
             video.Transcript = storedTranscript;
             video.UpdatedAt = DateTime.UtcNow;
-            _unitOfWork.YouTubeVideos.Update(video);
+            _unitOfWork.Videos.Update(video);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             await _cache.SetAsync(cacheKey, storedTranscript, ttl, cancellationToken);
             return storedTranscript;
@@ -210,13 +210,13 @@ public partial class VideoController
 
         var segments = IsExternalVideoSource(video)
             ? await _transcriptService.GetSubtitlesFromUrlAsync(video.VideoUrl, cancellationToken)
-            : await _transcriptService.GetSubtitlesAsync(video.VideoId, cancellationToken);
+            : await _transcriptService.GetSubtitlesAsync(video.ExternalVideoId, cancellationToken);
         var transcriptKind = SubtitlesKind;
         if (segments == null || segments.Count == 0)
         {
             segments = IsExternalVideoSource(video)
                 ? await _transcriptService.GetTranscriptFromUrlAsync(video.VideoUrl, cancellationToken)
-                : await _transcriptService.GetTranscriptAsync(video.VideoId, cancellationToken);
+                : await _transcriptService.GetTranscriptAsync(video.ExternalVideoId, cancellationToken);
             transcriptKind = TranscriptKind;
         }
         if (segments == null || segments.Count == 0) return null;
@@ -225,7 +225,7 @@ public partial class VideoController
         var transcript = string.Join(" ", segments.Select(s => s.Text));
         video.Transcript = transcript;
         video.UpdatedAt = DateTime.UtcNow;
-        _unitOfWork.YouTubeVideos.Update(video);
+        _unitOfWork.Videos.Update(video);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         await StoreTranscriptSegmentsAsync(transcriptKey, transcriptKind, dtos, ttl, cancellationToken);
         await _cache.SetAsync(cacheKey, transcript, ttl, cancellationToken);
@@ -233,9 +233,9 @@ public partial class VideoController
     }
 
     // Returns a timestamped transcript for a saved video (used by timeline-aware summary).
-    private async Task<string?> GetOrFetchTimelineTranscriptAsync(YouTubeVideo video, CancellationToken cancellationToken)
+    private async Task<string?> GetOrFetchTimelineTranscriptAsync(Video video, CancellationToken cancellationToken)
     {
-        var transcriptKey = $"{NormalizeSourceType(video.SourceType)}:{video.VideoId}";
+        var transcriptKey = $"{NormalizeSourceType(video.SourceType)}:{video.ExternalVideoId}";
         var segmentsCacheKey = TranscriptSegmentsCacheKey(transcriptKey);
         var ttl = TimeSpan.FromSeconds(_cacheOptions.TranscriptSeconds);
 
@@ -253,13 +253,13 @@ public partial class VideoController
 
         var segments = IsExternalVideoSource(video)
             ? await _transcriptService.GetSubtitlesFromUrlAsync(video.VideoUrl, cancellationToken)
-            : await _transcriptService.GetSubtitlesAsync(video.VideoId, cancellationToken);
+            : await _transcriptService.GetSubtitlesAsync(video.ExternalVideoId, cancellationToken);
         var transcriptKind = SubtitlesKind;
         if (segments == null || segments.Count == 0)
         {
             segments = IsExternalVideoSource(video)
                 ? await _transcriptService.GetTranscriptFromUrlAsync(video.VideoUrl, cancellationToken)
-                : await _transcriptService.GetTranscriptAsync(video.VideoId, cancellationToken);
+                : await _transcriptService.GetTranscriptAsync(video.ExternalVideoId, cancellationToken);
             transcriptKind = TranscriptKind;
         }
         if (segments == null || segments.Count == 0)
@@ -281,7 +281,7 @@ public partial class VideoController
         if (!string.IsNullOrEmpty(cached))
             return cached;
 
-        var savedVideo = await _unitOfWork.YouTubeVideos.GetByVideoIdAsync(videoId, cancellationToken);
+        var savedVideo = await _unitOfWork.Videos.GetByExternalVideoIdAsync(videoId, cancellationToken);
         if (savedVideo != null)
             return await GetOrFetchTranscriptAsync(savedVideo, cancellationToken);
 

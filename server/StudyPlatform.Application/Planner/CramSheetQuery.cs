@@ -51,9 +51,9 @@ public class GetCramSheetQueryHandler : IRequestHandler<GetCramSheetQuery, Resul
         // Course scoping: material belongs to the plan's course via its source doc/video.
         var userId = request.UserId;
         var documents = (await _unitOfWork.Documents.FindAsync(d => d.UserId == userId, ct)).ToList();
-        var videos = (await _unitOfWork.YouTubeVideos.FindAsync(v => v.UserId == userId, ct)).ToList();
+        var videos = (await _unitOfWork.Videos.FindAsync(v => v.UserId == userId, ct)).ToList();
         var docToCourse = documents.ToDictionary(d => d.DocumentId, d => d.CourseId);
-        var videoToCourse = videos.ToDictionary(v => v.YouTubeVideoId, v => v.CourseId);
+        var videoToCourse = videos.ToDictionary(v => v.VideoId, v => v.CourseId);
 
         bool InCourse(Guid? docId, Guid? videoId)
         {
@@ -65,7 +65,7 @@ public class GetCramSheetQueryHandler : IRequestHandler<GetCramSheetQuery, Resul
 
         var mistakes = (await _unitOfWork.MistakeEntries.FindAsync(
                 m => m.UserId == userId && m.Status == "open", ct))
-            .Where(m => InCourse(m.DocumentId, m.YouTubeVideoId))
+            .Where(m => InCourse(m.DocumentId, m.VideoId))
             .OrderByDescending(m => m.TimesMissed)
             .Take(MaxMistakes)
             .ToList();
@@ -73,7 +73,7 @@ public class GetCramSheetQueryHandler : IRequestHandler<GetCramSheetQuery, Resul
         var masteredTerms = (await _unitOfWork.GlossaryMastered.GetMasteredTermIdsByUserAsync(userId, ct)).ToHashSet();
         var weakTerms = (await _unitOfWork.GlossaryTerms.GetByUserWithSourcesAsync(userId, ct))
             .Where(t => !masteredTerms.Contains(t.GlossaryTermId)
-                && InCourse(t.DocumentId, t.YouTubeVideoId)
+                && InCourse(t.DocumentId, t.VideoId)
                 && !string.IsNullOrWhiteSpace(t.Term)
                 && !string.IsNullOrWhiteSpace(t.Definition))
             .Take(MaxTerms)

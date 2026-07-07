@@ -4,7 +4,7 @@ import { Note } from '../types';
 interface BackendNote {
   noteId: string;
   documentId?: string;
-  youTubeVideoId?: string;
+  videoId?: string;
   title?: string;
   content: string;
   createdAt: string;
@@ -16,7 +16,7 @@ interface BackendNote {
 const mapNote = (n: BackendNote): Note => ({
   id: n.noteId,
   documentId: n.documentId ?? '',
-  youTubeVideoId: n.youTubeVideoId ?? undefined,
+  videoId: n.videoId ?? undefined,
   documentName: n.document ?? undefined,
   videoName: n.video ?? undefined,
   content: n.content,

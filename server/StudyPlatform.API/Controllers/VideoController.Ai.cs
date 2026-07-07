@@ -3,7 +3,7 @@ using StudyPlatform.API.Extensions;
 using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Documents.DTOs;
 using StudyPlatform.Application.Services;
-using StudyPlatform.Application.YouTube.Commands;
+using StudyPlatform.Application.Videos.Commands;
 using StudyPlatform.Domain.Interfaces;
 
 namespace StudyPlatform.API.Controllers;
@@ -14,7 +14,7 @@ public partial class VideoController
     // ── AI generation ─────────────────────────────────────────────────────
 
     [HttpPost("mindmap")]
-    public async Task<IActionResult> GenerateMindMap([FromBody] YouTubeUrlRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> GenerateMindMap([FromBody] VideoUrlRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.VideoUrl))
             return BadRequest(BaseResponse<string>.Fail("videoUrl is required.", "MISSING_VIDEO_URL"));
@@ -41,7 +41,7 @@ public partial class VideoController
     [ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status429TooManyRequests)]
     [ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status502BadGateway)]
-    public async Task<IActionResult> StreamMindMap([FromBody] YouTubeUrlRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> StreamMindMap([FromBody] VideoUrlRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.VideoUrl))
             return BadRequest(BaseResponse<string>.Fail("videoUrl is required.", "MISSING_VIDEO_URL"));
@@ -82,13 +82,13 @@ public partial class VideoController
         {
             video.MindMapText = text;
             video.UpdatedAt = DateTime.UtcNow;
-            _unitOfWork.YouTubeVideos.Update(video);
+            _unitOfWork.Videos.Update(video);
             await _unitOfWork.SaveChangesAsync(ct);
         });
     }
 
     [HttpPost("quiz")]
-    public async Task<IActionResult> GenerateQuiz([FromBody] YouTubeUrlRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> GenerateQuiz([FromBody] VideoUrlRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.VideoUrl))
             return BadRequest(BaseResponse<string>.Fail("videoUrl is required.", "MISSING_VIDEO_URL"));
@@ -111,7 +111,7 @@ public partial class VideoController
     }
 
     [HttpPost("flashcards")]
-    public async Task<IActionResult> GenerateFlashcards([FromBody] YouTubeUrlRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> GenerateFlashcards([FromBody] VideoUrlRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.VideoUrl))
             return BadRequest(BaseResponse<string>.Fail("videoUrl is required.", "MISSING_VIDEO_URL"));
@@ -134,7 +134,7 @@ public partial class VideoController
     }
 
     [HttpPost("chat")]
-    public async Task<IActionResult> Chat([FromBody] YouTubeChatRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> Chat([FromBody] VideoChatRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.VideoUrl))
             return BadRequest(BaseResponse<string>.Fail("videoUrl is required.", "MISSING_VIDEO_URL"));
@@ -191,7 +191,7 @@ public partial class VideoController
         if (video is null)
             return NotFound(BaseResponse<IEnumerable<ChatMessageDto>>.Fail("Video not found.", "VIDEO_NOT_FOUND"));
 
-        var messages = await _unitOfWork.ChatMessages.GetByYouTubeVideoIdAsync(id, video.UserId, cancellationToken);
+        var messages = await _unitOfWork.ChatMessages.GetByVideoIdAsync(id, video.UserId, cancellationToken);
         var dtos = new List<ChatMessageDto>();
         foreach (var m in messages)
             dtos.Add(await m.ToDtoAsync(_blobStorageService, cancellationToken));
@@ -208,7 +208,7 @@ public partial class VideoController
         if (video is null)
             return NotFound(BaseResponse<string>.Fail("Video not found.", "VIDEO_NOT_FOUND"));
 
-        await _unitOfWork.ChatMessages.DeleteByYouTubeVideoIdAsync(id, userId, cancellationToken);
+        await _unitOfWork.ChatMessages.DeleteByVideoIdAsync(id, userId, cancellationToken);
         foreach (var conversation in await _unitOfWork.ChatMessages.GetConversationsByVideoIdAsync(id, userId, cancellationToken))
             await _unitOfWork.ChatMessages.DeleteConversationAsync(conversation.ConversationId, userId, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -258,7 +258,7 @@ public partial class VideoController
     {
         var userId = User.GetUserId();
         var conversation = await _unitOfWork.ChatMessages.GetConversationAsync(conversationId, userId, cancellationToken);
-        if (conversation is null || conversation.YouTubeVideoId != id)
+        if (conversation is null || conversation.VideoId != id)
             return NotFound(BaseResponse<string>.Fail("Conversation not found.", "CONVERSATION_NOT_FOUND"));
 
         var messages = await _unitOfWork.ChatMessages.GetByConversationIdAsync(conversationId, userId, cancellationToken);
@@ -275,7 +275,7 @@ public partial class VideoController
     {
         var userId = User.GetUserId();
         var conversation = await _unitOfWork.ChatMessages.GetConversationAsync(conversationId, userId, cancellationToken);
-        if (conversation is null || conversation.YouTubeVideoId != id)
+        if (conversation is null || conversation.VideoId != id)
             return NotFound(BaseResponse<string>.Fail("Conversation not found.", "CONVERSATION_NOT_FOUND"));
 
         await _unitOfWork.ChatMessages.DeleteConversationAsync(conversationId, userId, cancellationToken);

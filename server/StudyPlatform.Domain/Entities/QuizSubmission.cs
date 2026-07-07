@@ -4,7 +4,7 @@ public class QuizSubmission
 {
     public Guid SubmissionId { get; set; }
     public Guid? DocumentId { get; set; }
-    public Guid? YouTubeVideoId { get; set; }
+    public Guid? VideoId { get; set; }
     public string SourceType { get; set; } = "document"; // "document" | "video"
     public Guid UserId { get; set; }
     /// <summary>JSON dictionary: { quizId → selectedAnswer }</summary>
@@ -14,5 +14,5 @@ public class QuizSubmission
     public DateTime SubmittedAt { get; set; }
 
     public Document? Document { get; set; }
-    public YouTubeVideo? YouTubeVideo { get; set; }
+    public Video? Video { get; set; }
 }

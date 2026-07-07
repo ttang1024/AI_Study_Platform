@@ -23,16 +23,16 @@ public class ChatMessageRepository : Repository<ChatMessage>, IChatMessageReposi
         _dbSet.RemoveRange(messages);
     }
 
-    public async Task<IEnumerable<ChatMessage>> GetByYouTubeVideoIdAsync(Guid videoId, Guid userId, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<ChatMessage>> GetByVideoIdAsync(Guid videoId, Guid userId, CancellationToken cancellationToken = default)
         => await _dbSet
-            .Where(m => m.YouTubeVideoId == videoId && m.UserId == userId)
+            .Where(m => m.VideoId == videoId && m.UserId == userId)
             .OrderBy(m => m.CreatedAt)
             .ToListAsync(cancellationToken);
 
-    public async Task DeleteByYouTubeVideoIdAsync(Guid videoId, Guid userId, CancellationToken cancellationToken = default)
+    public async Task DeleteByVideoIdAsync(Guid videoId, Guid userId, CancellationToken cancellationToken = default)
     {
         var messages = await _dbSet
-            .Where(m => m.YouTubeVideoId == videoId && m.UserId == userId)
+            .Where(m => m.VideoId == videoId && m.UserId == userId)
             .ToListAsync(cancellationToken);
         _dbSet.RemoveRange(messages);
     }
@@ -56,7 +56,7 @@ public class ChatMessageRepository : Repository<ChatMessage>, IChatMessageReposi
     public async Task<ChatConversation> CreateVideoConversationAsync(Guid userId, Guid videoId, string title, CancellationToken cancellationToken = default)
     {
         var conversation = await CreateConversationAsync(userId, title, cancellationToken);
-        conversation.YouTubeVideoId = videoId;
+        conversation.VideoId = videoId;
         return conversation;
     }
 
@@ -69,7 +69,7 @@ public class ChatMessageRepository : Repository<ChatMessage>, IChatMessageReposi
 
     public async Task<IReadOnlyList<ChatConversation>> GetConversationsByVideoIdAsync(Guid videoId, Guid userId, CancellationToken cancellationToken = default)
         => await _context.ChatConversations
-            .Where(c => c.YouTubeVideoId == videoId && c.UserId == userId)
+            .Where(c => c.VideoId == videoId && c.UserId == userId)
             .OrderByDescending(c => c.UpdatedAt)
             .ToListAsync(cancellationToken);
 
@@ -80,7 +80,7 @@ public class ChatMessageRepository : Repository<ChatMessage>, IChatMessageReposi
             .ToListAsync(cancellationToken);
 
     public Task<IReadOnlyList<ChatThreadSummary>> GetVideoThreadSummariesAsync(Guid videoId, Guid userId, CancellationToken cancellationToken = default)
-        => GetThreadSummariesAsync(c => c.YouTubeVideoId == videoId && c.UserId == userId, cancellationToken);
+        => GetThreadSummariesAsync(c => c.VideoId == videoId && c.UserId == userId, cancellationToken);
 
     public Task<IReadOnlyList<ChatThreadSummary>> GetDocumentThreadSummariesAsync(Guid documentId, Guid userId, CancellationToken cancellationToken = default)
         => GetThreadSummariesAsync(c => c.DocumentId == documentId && c.UserId == userId, cancellationToken);
@@ -119,8 +119,8 @@ public class ChatMessageRepository : Repository<ChatMessage>, IChatMessageReposi
 
     public async Task<IReadOnlyList<Guid>> GetVideoIdsWithLegacyChatAsync(Guid userId, CancellationToken cancellationToken = default)
         => await _dbSet
-            .Where(m => m.UserId == userId && m.YouTubeVideoId != null && m.ChatConversationId == null)
-            .Select(m => m.YouTubeVideoId!.Value)
+            .Where(m => m.UserId == userId && m.VideoId != null && m.ChatConversationId == null)
+            .Select(m => m.VideoId!.Value)
             .Distinct()
             .ToListAsync(cancellationToken);
 
@@ -154,14 +154,14 @@ public class ChatMessageRepository : Repository<ChatMessage>, IChatMessageReposi
             .ToListAsync(cancellationToken);
 
         var videoThreads = await _context.ChatConversations
-            .Where(c => c.UserId == userId && c.YouTubeVideoId != null)
-            .Join(_context.YouTubeVideos,
-                c => c.YouTubeVideoId,
-                v => v.YouTubeVideoId,
+            .Where(c => c.UserId == userId && c.VideoId != null)
+            .Join(_context.Videos,
+                c => c.VideoId,
+                v => v.VideoId,
                 (c, v) => new
                 {
                     c.ConversationId, ThreadTitle = c.Title, c.UpdatedAt,
-                    v.YouTubeVideoId, v.Title, v.CourseId,
+                    v.VideoId, v.Title, v.CourseId,
                     MessageCount = c.Messages.Count,
                     Last = c.Messages.OrderByDescending(m => m.CreatedAt)
                         .Select(m => new { m.Content, m.Role, m.CreatedAt })
@@ -176,14 +176,14 @@ public class ChatMessageRepository : Repository<ChatMessage>, IChatMessageReposi
             t.Last?.CreatedAt ?? t.UpdatedAt, t.MessageCount));
 
         var videoSummaries = videoThreads.Select(t => new ChatConversationSummary(
-            "video", t.YouTubeVideoId, t.Title, t.CourseId,
+            "video", t.VideoId, t.Title, t.CourseId,
             t.ConversationId, t.ThreadTitle,
             t.Last?.Content ?? string.Empty, t.Last?.Role ?? string.Empty,
             t.Last?.CreatedAt ?? t.UpdatedAt, t.MessageCount));
 
         var generalRows = await _context.ChatConversations
             .Include(c => c.Messages)
-            .Where(c => c.UserId == userId && c.YouTubeVideoId == null && c.DocumentId == null)
+            .Where(c => c.UserId == userId && c.VideoId == null && c.DocumentId == null)
             .ToListAsync(cancellationToken);
 
         var generalSummaries = generalRows.Select(r =>

@@ -21,7 +21,7 @@ public static class MistakeCapture
         CancellationToken cancellationToken)
     {
         var quizzes = sourceType == "video"
-            ? await unitOfWork.Quizzes.FindAsync(q => q.UserId == userId && q.YouTubeVideoId == videoId, cancellationToken)
+            ? await unitOfWork.Quizzes.FindAsync(q => q.UserId == userId && q.VideoId == videoId, cancellationToken)
             : await unitOfWork.Quizzes.FindAsync(q => q.UserId == userId && q.DocumentId == documentId, cancellationToken);
 
         await CaptureForQuizzesAsync(unitOfWork, userId, quizzes.ToList(), answers, cancellationToken);
@@ -90,7 +90,7 @@ public static class MistakeCapture
                     UserId = userId,
                     QuizId = quiz.QuizId,
                     DocumentId = quiz.DocumentId,
-                    YouTubeVideoId = quiz.YouTubeVideoId,
+                    VideoId = quiz.VideoId,
                     SourceType = quiz.SourceType,
                     Question = quiz.Question,
                     OptionsJson = quiz.OptionsJson,

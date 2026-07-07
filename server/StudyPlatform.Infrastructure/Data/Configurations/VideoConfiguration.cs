@@ -4,12 +4,12 @@ using StudyPlatform.Domain.Entities;
 
 namespace StudyPlatform.Infrastructure.Data.Configurations;
 
-public class YouTubeVideoConfiguration : IEntityTypeConfiguration<YouTubeVideo>
+public class VideoConfiguration : IEntityTypeConfiguration<Video>
 {
-    public void Configure(EntityTypeBuilder<YouTubeVideo> builder)
+    public void Configure(EntityTypeBuilder<Video> builder)
     {
-        builder.HasKey(v => v.YouTubeVideoId);
-        builder.Property(v => v.VideoId).IsRequired().HasMaxLength(50);
+        builder.HasKey(v => v.VideoId);
+        builder.Property(v => v.ExternalVideoId).IsRequired().HasMaxLength(50);
         builder.Property(v => v.VideoUrl).IsRequired().HasMaxLength(500);
         builder.Property(v => v.SourceType).IsRequired().HasMaxLength(20).HasDefaultValue("youtube");
         builder.Property(v => v.Title).IsRequired().HasMaxLength(500);

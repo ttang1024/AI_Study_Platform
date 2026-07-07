@@ -6,7 +6,7 @@ namespace StudyPlatform.Domain.Projections;
 /// columns (Summary, MindMapText, Transcript) so they are never read from the DB
 /// or shipped over the wire.
 /// </summary>
-public record YouTubeVideoListItem(
+public record VideoListItem(
     Guid Id,
     Guid CourseId,
     string CourseName,

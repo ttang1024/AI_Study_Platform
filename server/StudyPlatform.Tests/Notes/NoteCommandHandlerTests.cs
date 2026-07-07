@@ -40,13 +40,13 @@ public class CreateNoteCommandHandlerTests
     public async Task Handle_VideoNote_SetsSourceTypeVideo()
     {
         var videoId = Guid.NewGuid();
-        var cmd = new CreateNoteCommand(_userId, "Video content", YouTubeVideoId: videoId);
+        var cmd = new CreateNoteCommand(_userId, "Video content", VideoId: videoId);
 
         var result = await _handler.Handle(cmd, default);
 
         Assert.True(result.IsSuccess);
         Assert.Equal("video", result.Data!.SourceType);
-        Assert.Equal(videoId, result.Data.YouTubeVideoId);
+        Assert.Equal(videoId, result.Data.VideoId);
     }
 
     [Fact]

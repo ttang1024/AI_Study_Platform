@@ -19,7 +19,7 @@ public record DocumentDto(
 public record QuizDto(
     Guid QuizId,
     Guid? DocumentId,
-    Guid? YouTubeVideoId,
+    Guid? VideoId,
     string SourceType,
     string Question,
     string[] Options,
@@ -42,7 +42,7 @@ public record FlashcardSrsDto(
 public record FlashcardDto(
     Guid FlashcardId,
     Guid? DocumentId,
-    Guid? YouTubeVideoId,
+    Guid? VideoId,
     string SourceType,
     Guid UserId,
     string Front,
@@ -61,7 +61,7 @@ public record FlashcardDto(
 public record ChatMessageDto(
     Guid MessageId,
     Guid? DocumentId,
-    Guid? YouTubeVideoId,
+    Guid? VideoId,
     string SourceType,
     string Role,
     string Content,
@@ -79,7 +79,7 @@ public record AIChatRequest(string Message, IEnumerable<ChatAttachmentDto>? Atta
 public record QuizSubmissionDto(
     Guid SubmissionId,
     Guid? DocumentId,
-    Guid? YouTubeVideoId,
+    Guid? VideoId,
     string SourceType,
     Dictionary<string, string> Answers,
     int Score,
@@ -91,7 +91,7 @@ public record QuizSubmissionDto(
 
 public record QuizSubmissionCoverageDto(
     IEnumerable<Guid> DocumentIds,
-    IEnumerable<Guid> YouTubeVideoIds);
+    IEnumerable<Guid> VideoIds);
 
 public record PendingMaterialDto(
     string Kind,
@@ -128,7 +128,7 @@ public record GlossaryTermDto(
     string Term,
     string Definition,
     DateTime CreatedAt,
-    Guid? YouTubeVideoId = null,
+    Guid? VideoId = null,
     Guid? CourseId = null,
     string? SourceName = null,
     string? SourceKind = null);

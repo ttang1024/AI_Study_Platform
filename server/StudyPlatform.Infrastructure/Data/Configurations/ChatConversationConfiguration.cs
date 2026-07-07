@@ -13,9 +13,9 @@ public class ChatConversationConfiguration : IEntityTypeConfiguration<ChatConver
         builder.Property(c => c.CreatedAt).IsRequired();
         builder.Property(c => c.UpdatedAt).IsRequired();
 
-        builder.HasOne(c => c.YouTubeVideo)
+        builder.HasOne(c => c.Video)
             .WithMany()
-            .HasForeignKey(c => c.YouTubeVideoId)
+            .HasForeignKey(c => c.VideoId)
             .IsRequired(false)
             .OnDelete(DeleteBehavior.Cascade);
 
@@ -26,7 +26,7 @@ public class ChatConversationConfiguration : IEntityTypeConfiguration<ChatConver
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasIndex(c => new { c.UserId, c.UpdatedAt });
-        builder.HasIndex(c => new { c.YouTubeVideoId, c.UserId });
+        builder.HasIndex(c => new { c.VideoId, c.UserId });
         builder.HasIndex(c => new { c.DocumentId, c.UserId });
     }
 }

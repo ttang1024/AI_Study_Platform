@@ -52,8 +52,8 @@ public class UpdateQuestionBankQuestionCommandHandler : IRequestHandler<UpdateQu
 
         var documents = (await _unitOfWork.Documents.FindAsync(d => d.UserId == request.UserId, cancellationToken))
             .ToDictionary(d => d.DocumentId);
-        var videos = (await _unitOfWork.YouTubeVideos.FindAsync(v => v.UserId == request.UserId, cancellationToken))
-            .ToDictionary(v => v.YouTubeVideoId);
+        var videos = (await _unitOfWork.Videos.FindAsync(v => v.UserId == request.UserId, cancellationToken))
+            .ToDictionary(v => v.VideoId);
         var courses = (await _unitOfWork.Courses.FindAsync(c => c.UserId == request.UserId, cancellationToken))
             .ToDictionary(c => c.CourseId);
 

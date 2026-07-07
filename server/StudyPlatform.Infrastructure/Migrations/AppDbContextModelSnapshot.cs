@@ -46,7 +46,7 @@ namespace StudyPlatform.Infrastructure.Migrations
 
                     b.HasIndex("ExpiresAt");
 
-                    b.ToTable("CacheEntries");
+                    b.ToTable("CacheEntries", (string)null);
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.ChatConversation", b =>
@@ -72,7 +72,7 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("YouTubeVideoId")
+                    b.Property<Guid?>("VideoId")
                         .HasColumnType("uuid");
 
                     b.HasKey("ConversationId");
@@ -81,9 +81,9 @@ namespace StudyPlatform.Infrastructure.Migrations
 
                     b.HasIndex("UserId", "UpdatedAt");
 
-                    b.HasIndex("YouTubeVideoId", "UserId");
+                    b.HasIndex("VideoId", "UserId");
 
-                    b.ToTable("ChatConversations");
+                    b.ToTable("ChatConversations", (string)null);
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.ChatMessage", b =>
@@ -123,7 +123,7 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("YouTubeVideoId")
+                    b.Property<Guid?>("VideoId")
                         .HasColumnType("uuid");
 
                     b.HasKey("MessageId");
@@ -132,11 +132,11 @@ namespace StudyPlatform.Infrastructure.Migrations
 
                     b.HasIndex("DocumentId");
 
-                    b.HasIndex("YouTubeVideoId");
+                    b.HasIndex("VideoId");
 
-                    b.ToTable("ChatMessages", t =>
+                    b.ToTable("ChatMessages", null, t =>
                         {
-                            t.HasCheckConstraint("chk_chat_messages_source", "(\"DocumentId\" IS NOT NULL AND \"YouTubeVideoId\" IS NULL AND \"SourceType\" = 'document') OR (\"YouTubeVideoId\" IS NOT NULL AND \"DocumentId\" IS NULL AND \"SourceType\" = 'video') OR (\"ChatConversationId\" IS NOT NULL AND \"DocumentId\" IS NULL AND \"YouTubeVideoId\" IS NULL AND \"SourceType\" = 'general')");
+                            t.HasCheckConstraint("chk_chat_messages_source", "(\"DocumentId\" IS NOT NULL AND \"VideoId\" IS NULL AND \"SourceType\" = 'document') OR (\"VideoId\" IS NOT NULL AND \"DocumentId\" IS NULL AND \"SourceType\" = 'video') OR (\"ChatConversationId\" IS NOT NULL AND \"DocumentId\" IS NULL AND \"VideoId\" IS NULL AND \"SourceType\" = 'general')");
                         });
                 });
 
@@ -176,7 +176,7 @@ namespace StudyPlatform.Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("ConceptLinks");
+                    b.ToTable("ConceptLinks", (string)null);
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.Course", b =>
@@ -208,7 +208,7 @@ namespace StudyPlatform.Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("Courses");
+                    b.ToTable("Courses", (string)null);
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.Document", b =>
@@ -274,7 +274,7 @@ namespace StudyPlatform.Infrastructure.Migrations
                         .IsUnique()
                         .HasFilter("\"FileHash\" IS NOT NULL");
 
-                    b.ToTable("Documents");
+                    b.ToTable("Documents", (string)null);
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.DocumentAnnotation", b =>
@@ -320,7 +320,7 @@ namespace StudyPlatform.Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("DocumentAnnotations");
+                    b.ToTable("DocumentAnnotations", (string)null);
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.ExamPlan", b =>
@@ -355,7 +355,7 @@ namespace StudyPlatform.Infrastructure.Migrations
 
                     b.HasIndex("UserId", "ExamDate");
 
-                    b.ToTable("ExamPlans");
+                    b.ToTable("ExamPlans", (string)null);
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.Feedback", b =>
@@ -410,7 +410,7 @@ namespace StudyPlatform.Infrastructure.Migrations
 
                     b.HasIndex("SubmittedAt");
 
-                    b.ToTable("Feedbacks");
+                    b.ToTable("Feedbacks", (string)null);
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.Flashcard", b =>
@@ -469,20 +469,20 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("YouTubeVideoId")
+                    b.Property<Guid?>("VideoId")
                         .HasColumnType("uuid");
 
                     b.HasKey("FlashcardId");
 
                     b.HasIndex("DocumentId");
 
-                    b.HasIndex("YouTubeVideoId");
+                    b.HasIndex("VideoId");
 
                     b.HasIndex("UserId", "CreatedAt");
 
-                    b.ToTable("Flashcards", t =>
+                    b.ToTable("Flashcards", null, t =>
                         {
-                            t.HasCheckConstraint("chk_flashcards_source", "(\"DocumentId\" IS NOT NULL AND \"YouTubeVideoId\" IS NULL AND \"SourceType\" = 'document') OR (\"YouTubeVideoId\" IS NOT NULL AND \"DocumentId\" IS NULL AND \"SourceType\" = 'video')");
+                            t.HasCheckConstraint("chk_flashcards_source", "(\"DocumentId\" IS NOT NULL AND \"VideoId\" IS NULL AND \"SourceType\" = 'document') OR (\"VideoId\" IS NOT NULL AND \"DocumentId\" IS NULL AND \"SourceType\" = 'video')");
                         });
                 });
 
@@ -534,7 +534,7 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.HasIndex("UserId", "FlashcardId")
                         .IsUnique();
 
-                    b.ToTable("FlashcardSrs");
+                    b.ToTable("FlashcardSrs", (string)null);
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.GlossaryMastered", b =>
@@ -559,7 +559,7 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.HasIndex("UserId", "GlossaryTermId")
                         .IsUnique();
 
-                    b.ToTable("GlossaryMastered");
+                    b.ToTable("GlossaryMastered", (string)null);
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.GlossaryTerm", b =>
@@ -586,14 +586,14 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("YouTubeVideoId")
+                    b.Property<Guid?>("VideoId")
                         .HasColumnType("uuid");
 
                     b.HasKey("GlossaryTermId");
 
                     b.HasIndex("DocumentId");
 
-                    b.HasIndex("YouTubeVideoId");
+                    b.HasIndex("VideoId");
 
                     b.HasIndex("UserId", "Term");
 
@@ -634,7 +634,7 @@ namespace StudyPlatform.Infrastructure.Migrations
 
                     b.HasIndex("GroupId", "CreatedAt");
 
-                    b.ToTable("GroupAssignments");
+                    b.ToTable("GroupAssignments", (string)null);
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.GroupAssignmentCompletion", b =>
@@ -659,7 +659,7 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.HasIndex("AssignmentId", "UserId")
                         .IsUnique();
 
-                    b.ToTable("GroupAssignmentCompletions");
+                    b.ToTable("GroupAssignmentCompletions", (string)null);
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.GroupChatMessage", b =>
@@ -687,7 +687,7 @@ namespace StudyPlatform.Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("GroupChatMessages");
+                    b.ToTable("GroupChatMessages", (string)null);
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.MistakeEntry", b =>
@@ -747,7 +747,7 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("YouTubeVideoId")
+                    b.Property<Guid?>("VideoId")
                         .HasColumnType("uuid");
 
                     b.HasKey("MistakeEntryId");
@@ -756,7 +756,7 @@ namespace StudyPlatform.Infrastructure.Migrations
 
                     b.HasIndex("UserId", "Status");
 
-                    b.ToTable("MistakeEntries");
+                    b.ToTable("MistakeEntries", (string)null);
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.Note", b =>
@@ -792,20 +792,20 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("YouTubeVideoId")
+                    b.Property<Guid?>("VideoId")
                         .HasColumnType("uuid");
 
                     b.HasKey("NoteId");
 
                     b.HasIndex("DocumentId");
 
-                    b.HasIndex("YouTubeVideoId");
+                    b.HasIndex("VideoId");
 
                     b.HasIndex("UserId", "UpdatedAt");
 
-                    b.ToTable("Notes", t =>
+                    b.ToTable("Notes", null, t =>
                         {
-                            t.HasCheckConstraint("chk_notes_source", "(\"DocumentId\" IS NOT NULL AND \"YouTubeVideoId\" IS NULL AND \"SourceType\" = 'document') OR (\"YouTubeVideoId\" IS NOT NULL AND \"DocumentId\" IS NULL AND \"SourceType\" = 'video')");
+                            t.HasCheckConstraint("chk_notes_source", "(\"DocumentId\" IS NOT NULL AND \"VideoId\" IS NULL AND \"SourceType\" = 'document') OR (\"VideoId\" IS NOT NULL AND \"DocumentId\" IS NULL AND \"SourceType\" = 'video')");
                         });
                 });
 
@@ -850,7 +850,7 @@ namespace StudyPlatform.Infrastructure.Migrations
 
                     b.HasIndex("Email", "Purpose");
 
-                    b.ToTable("OtpCodes");
+                    b.ToTable("OtpCodes", (string)null);
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.Quiz", b =>
@@ -899,18 +899,18 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("YouTubeVideoId")
+                    b.Property<Guid?>("VideoId")
                         .HasColumnType("uuid");
 
                     b.HasKey("QuizId");
 
                     b.HasIndex("DocumentId");
 
-                    b.HasIndex("YouTubeVideoId");
+                    b.HasIndex("VideoId");
 
-                    b.ToTable("Quizzes", t =>
+                    b.ToTable("Quizzes", null, t =>
                         {
-                            t.HasCheckConstraint("chk_quizzes_source", "(\"DocumentId\" IS NOT NULL AND \"YouTubeVideoId\" IS NULL AND \"SourceType\" = 'document') OR (\"YouTubeVideoId\" IS NOT NULL AND \"DocumentId\" IS NULL AND \"SourceType\" = 'video')");
+                            t.HasCheckConstraint("chk_quizzes_source", "(\"DocumentId\" IS NOT NULL AND \"VideoId\" IS NULL AND \"SourceType\" = 'document') OR (\"VideoId\" IS NOT NULL AND \"DocumentId\" IS NULL AND \"SourceType\" = 'video')");
                         });
                 });
 
@@ -936,7 +936,7 @@ namespace StudyPlatform.Infrastructure.Migrations
 
                     b.HasIndex("UserId", "AttemptedAt");
 
-                    b.ToTable("QuizAttempts");
+                    b.ToTable("QuizAttempts", (string)null);
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.QuizBattle", b =>
@@ -975,7 +975,7 @@ namespace StudyPlatform.Infrastructure.Migrations
 
                     b.HasIndex("GroupId", "CreatedAt");
 
-                    b.ToTable("QuizBattles");
+                    b.ToTable("QuizBattles", (string)null);
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.QuizBattleEntry", b =>
@@ -1013,7 +1013,7 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.HasIndex("BattleId", "UserId")
                         .IsUnique();
 
-                    b.ToTable("QuizBattleEntries");
+                    b.ToTable("QuizBattleEntries", (string)null);
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.QuizSubmission", b =>
@@ -1048,7 +1048,7 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("YouTubeVideoId")
+                    b.Property<Guid?>("VideoId")
                         .HasColumnType("uuid");
 
                     b.HasKey("SubmissionId");
@@ -1057,11 +1057,11 @@ namespace StudyPlatform.Infrastructure.Migrations
 
                     b.HasIndex("UserId", "SubmittedAt");
 
-                    b.HasIndex("YouTubeVideoId", "UserId");
+                    b.HasIndex("VideoId", "UserId");
 
-                    b.ToTable("QuizSubmissions", t =>
+                    b.ToTable("QuizSubmissions", null, t =>
                         {
-                            t.HasCheckConstraint("chk_quiz_submissions_source", "(\"DocumentId\" IS NOT NULL AND \"YouTubeVideoId\" IS NULL AND \"SourceType\" = 'document') OR (\"YouTubeVideoId\" IS NOT NULL AND \"DocumentId\" IS NULL AND \"SourceType\" = 'video')");
+                            t.HasCheckConstraint("chk_quiz_submissions_source", "(\"DocumentId\" IS NOT NULL AND \"VideoId\" IS NULL AND \"SourceType\" = 'document') OR (\"VideoId\" IS NOT NULL AND \"DocumentId\" IS NULL AND \"SourceType\" = 'video')");
                         });
                 });
 
@@ -1097,7 +1097,7 @@ namespace StudyPlatform.Infrastructure.Migrations
 
                     b.HasIndex("UserId", "IsRevoked", "ExpiresAt");
 
-                    b.ToTable("RefreshTokens");
+                    b.ToTable("RefreshTokens", (string)null);
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.ShareToken", b =>
@@ -1162,7 +1162,7 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.HasIndex("Token")
                         .IsUnique();
 
-                    b.ToTable("ShareTokens");
+                    b.ToTable("ShareTokens", (string)null);
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.StudyGroup", b =>
@@ -1197,7 +1197,7 @@ namespace StudyPlatform.Infrastructure.Migrations
 
                     b.HasIndex("OwnerId");
 
-                    b.ToTable("StudyGroups");
+                    b.ToTable("StudyGroups", (string)null);
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.StudyGroupMember", b =>
@@ -1227,7 +1227,7 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.HasIndex("GroupId", "UserId")
                         .IsUnique();
 
-                    b.ToTable("StudyGroupMembers");
+                    b.ToTable("StudyGroupMembers", (string)null);
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.StudyGroupSharedCourse", b =>
@@ -1256,7 +1256,7 @@ namespace StudyPlatform.Infrastructure.Migrations
 
                     b.HasIndex("SharedByUserId");
 
-                    b.ToTable("StudyGroupSharedCourses");
+                    b.ToTable("StudyGroupSharedCourses", (string)null);
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.StudySession", b =>
@@ -1289,7 +1289,7 @@ namespace StudyPlatform.Infrastructure.Migrations
 
                     b.HasIndex("UserId", "OccurredAt");
 
-                    b.ToTable("StudySessions");
+                    b.ToTable("StudySessions", (string)null);
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.User", b =>
@@ -1343,7 +1343,7 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.HasIndex("Email")
                         .IsUnique();
 
-                    b.ToTable("Users");
+                    b.ToTable("Users", (string)null);
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.UserPushSubscription", b =>
@@ -1383,7 +1383,100 @@ namespace StudyPlatform.Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("UserPushSubscriptions");
+                    b.ToTable("UserPushSubscriptions", (string)null);
+                });
+
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.Video", b =>
+                {
+                    b.Property<Guid>("VideoId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CourseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ExternalVideoId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("MindMapText")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SourceType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("youtube");
+
+                    b.Property<string>("Summary")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ThumbnailUrl")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("Transcript")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("VideoUrl")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.HasKey("VideoId");
+
+                    b.HasIndex("CourseId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Videos", (string)null);
+                });
+
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.VideoTranscriptEntry", b =>
+                {
+                    b.Property<string>("VideoId")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("Kind")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("SegmentsJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("VideoId", "Kind");
+
+                    b.HasIndex("ExpiresAt");
+
+                    b.ToTable("VideoTranscriptEntries", (string)null);
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.WorkedProblem", b =>
@@ -1422,14 +1515,14 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("YouTubeVideoId")
+                    b.Property<Guid?>("VideoId")
                         .HasColumnType("uuid");
 
                     b.HasKey("WorkedProblemId");
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("WorkedProblems");
+                    b.ToTable("WorkedProblems", (string)null);
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.WorkedProblemAttempt", b =>
@@ -1463,7 +1556,7 @@ namespace StudyPlatform.Infrastructure.Migrations
 
                     b.HasIndex("WorkedProblemId");
 
-                    b.ToTable("WorkedProblemAttempts");
+                    b.ToTable("WorkedProblemAttempts", (string)null);
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.WorkedProblemMastered", b =>
@@ -1488,100 +1581,7 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.HasIndex("UserId", "WorkedProblemId")
                         .IsUnique();
 
-                    b.ToTable("WorkedProblemMastered");
-                });
-
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.YouTubeTranscriptEntry", b =>
-                {
-                    b.Property<string>("VideoId")
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<string>("Kind")
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime>("ExpiresAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("SegmentsJson")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("VideoId", "Kind");
-
-                    b.HasIndex("ExpiresAt");
-
-                    b.ToTable("YouTubeTranscriptEntries");
-                });
-
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.YouTubeVideo", b =>
-                {
-                    b.Property<Guid>("YouTubeVideoId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("CourseId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("MindMapText")
-                        .HasColumnType("text");
-
-                    b.Property<string>("SourceType")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasDefaultValue("youtube");
-
-                    b.Property<string>("Summary")
-                        .HasColumnType("text");
-
-                    b.Property<string>("ThumbnailUrl")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<string>("Transcript")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("VideoId")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("VideoUrl")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.HasKey("YouTubeVideoId");
-
-                    b.HasIndex("CourseId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("YouTubeVideos");
+                    b.ToTable("WorkedProblemMastered", (string)null);
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.ChatConversation", b =>
@@ -1591,14 +1591,14 @@ namespace StudyPlatform.Infrastructure.Migrations
                         .HasForeignKey("DocumentId")
                         .OnDelete(DeleteBehavior.Cascade);
 
-                    b.HasOne("StudyPlatform.Domain.Entities.YouTubeVideo", "YouTubeVideo")
+                    b.HasOne("StudyPlatform.Domain.Entities.Video", "Video")
                         .WithMany()
-                        .HasForeignKey("YouTubeVideoId")
+                        .HasForeignKey("VideoId")
                         .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("Document");
 
-                    b.Navigation("YouTubeVideo");
+                    b.Navigation("Video");
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.ChatMessage", b =>
@@ -1613,16 +1613,16 @@ namespace StudyPlatform.Infrastructure.Migrations
                         .HasForeignKey("DocumentId")
                         .OnDelete(DeleteBehavior.Cascade);
 
-                    b.HasOne("StudyPlatform.Domain.Entities.YouTubeVideo", "YouTubeVideo")
+                    b.HasOne("StudyPlatform.Domain.Entities.Video", "Video")
                         .WithMany("ChatMessages")
-                        .HasForeignKey("YouTubeVideoId")
+                        .HasForeignKey("VideoId")
                         .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("ChatConversation");
 
                     b.Navigation("Document");
 
-                    b.Navigation("YouTubeVideo");
+                    b.Navigation("Video");
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.ConceptLink", b =>
@@ -1710,14 +1710,14 @@ namespace StudyPlatform.Infrastructure.Migrations
                         .HasForeignKey("DocumentId")
                         .OnDelete(DeleteBehavior.Cascade);
 
-                    b.HasOne("StudyPlatform.Domain.Entities.YouTubeVideo", "YouTubeVideo")
+                    b.HasOne("StudyPlatform.Domain.Entities.Video", "Video")
                         .WithMany()
-                        .HasForeignKey("YouTubeVideoId")
+                        .HasForeignKey("VideoId")
                         .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("Document");
 
-                    b.Navigation("YouTubeVideo");
+                    b.Navigation("Video");
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.FlashcardSrsData", b =>
@@ -1749,14 +1749,14 @@ namespace StudyPlatform.Infrastructure.Migrations
                         .HasForeignKey("DocumentId")
                         .OnDelete(DeleteBehavior.Cascade);
 
-                    b.HasOne("StudyPlatform.Domain.Entities.YouTubeVideo", "YouTubeVideo")
+                    b.HasOne("StudyPlatform.Domain.Entities.Video", "Video")
                         .WithMany()
-                        .HasForeignKey("YouTubeVideoId")
+                        .HasForeignKey("VideoId")
                         .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("Document");
 
-                    b.Navigation("YouTubeVideo");
+                    b.Navigation("Video");
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.GroupAssignment", b =>
@@ -1826,14 +1826,14 @@ namespace StudyPlatform.Infrastructure.Migrations
                         .HasForeignKey("DocumentId")
                         .OnDelete(DeleteBehavior.Cascade);
 
-                    b.HasOne("StudyPlatform.Domain.Entities.YouTubeVideo", "YouTubeVideo")
+                    b.HasOne("StudyPlatform.Domain.Entities.Video", "Video")
                         .WithMany()
-                        .HasForeignKey("YouTubeVideoId")
+                        .HasForeignKey("VideoId")
                         .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("Document");
 
-                    b.Navigation("YouTubeVideo");
+                    b.Navigation("Video");
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.OtpCode", b =>
@@ -1853,14 +1853,14 @@ namespace StudyPlatform.Infrastructure.Migrations
                         .HasForeignKey("DocumentId")
                         .OnDelete(DeleteBehavior.Cascade);
 
-                    b.HasOne("StudyPlatform.Domain.Entities.YouTubeVideo", "YouTubeVideo")
+                    b.HasOne("StudyPlatform.Domain.Entities.Video", "Video")
                         .WithMany()
-                        .HasForeignKey("YouTubeVideoId")
+                        .HasForeignKey("VideoId")
                         .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("Document");
 
-                    b.Navigation("YouTubeVideo");
+                    b.Navigation("Video");
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.QuizBattle", b =>
@@ -1900,14 +1900,14 @@ namespace StudyPlatform.Infrastructure.Migrations
                         .HasForeignKey("DocumentId")
                         .OnDelete(DeleteBehavior.Cascade);
 
-                    b.HasOne("StudyPlatform.Domain.Entities.YouTubeVideo", "YouTubeVideo")
+                    b.HasOne("StudyPlatform.Domain.Entities.Video", "Video")
                         .WithMany()
-                        .HasForeignKey("YouTubeVideoId")
+                        .HasForeignKey("VideoId")
                         .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("Document");
 
-                    b.Navigation("YouTubeVideo");
+                    b.Navigation("Video");
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.RefreshToken", b =>
@@ -2011,6 +2011,25 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.Video", b =>
+                {
+                    b.HasOne("StudyPlatform.Domain.Entities.Course", "Course")
+                        .WithMany()
+                        .HasForeignKey("CourseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("StudyPlatform.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Course");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("StudyPlatform.Domain.Entities.WorkedProblem", b =>
                 {
                     b.HasOne("StudyPlatform.Domain.Entities.User", "User")
@@ -2050,25 +2069,6 @@ namespace StudyPlatform.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("WorkedProblem");
-                });
-
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.YouTubeVideo", b =>
-                {
-                    b.HasOne("StudyPlatform.Domain.Entities.Course", "Course")
-                        .WithMany()
-                        .HasForeignKey("CourseId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("StudyPlatform.Domain.Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.Navigation("Course");
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.ChatConversation", b =>
@@ -2120,14 +2120,14 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Navigation("RefreshTokens");
                 });
 
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.Video", b =>
+                {
+                    b.Navigation("ChatMessages");
+                });
+
             modelBuilder.Entity("StudyPlatform.Domain.Entities.WorkedProblem", b =>
                 {
                     b.Navigation("Attempts");
-                });
-
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.YouTubeVideo", b =>
-                {
-                    b.Navigation("ChatMessages");
                 });
 #pragma warning restore 612, 618
         }

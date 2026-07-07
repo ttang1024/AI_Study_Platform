@@ -74,10 +74,10 @@ public class GetKnowledgeGapsQueryHandler : IRequestHandler<GetKnowledgeGapsQuer
         var notes = (await _unitOfWork.Notes.GetByUserIdAsync(userId, cancellationToken)).ToList();
         var quizzes = (await _unitOfWork.Quizzes.FindAsync(q => q.UserId == userId, cancellationToken)).ToList();
         var documents = (await _unitOfWork.Documents.FindAsync(d => d.UserId == userId, cancellationToken)).ToList();
-        var videos = (await _unitOfWork.YouTubeVideos.FindAsync(v => v.UserId == userId, cancellationToken)).ToList();
+        var videos = (await _unitOfWork.Videos.FindAsync(v => v.UserId == userId, cancellationToken)).ToList();
 
         var docToCourse = documents.ToDictionary(d => d.DocumentId, d => d.CourseId);
-        var videoToCourse = videos.ToDictionary(v => v.YouTubeVideoId, v => v.CourseId);
+        var videoToCourse = videos.ToDictionary(v => v.VideoId, v => v.CourseId);
 
         string? CourseOf(Guid? docId, Guid? videoId)
         {
@@ -103,8 +103,8 @@ public class GetKnowledgeGapsQueryHandler : IRequestHandler<GetKnowledgeGapsQuer
                 concepts[id] = agg;
             }
             agg.TermIds.Add(term.GlossaryTermId);
-            var courseId = CourseOf(term.DocumentId, term.YouTubeVideoId);
-            if (term.DocumentId.HasValue || term.YouTubeVideoId.HasValue) agg.Defined = true;
+            var courseId = CourseOf(term.DocumentId, term.VideoId);
+            if (term.DocumentId.HasValue || term.VideoId.HasValue) agg.Defined = true;
             if (courseId != null) agg.CourseIds.Add(courseId);
             knownConcepts[title] = id;
         }
@@ -120,10 +120,10 @@ public class GetKnowledgeGapsQueryHandler : IRequestHandler<GetKnowledgeGapsQuer
         }
 
         foreach (var note in notes.Take(300))
-            CountReferences($"{note.Title} {note.Content}", CourseOf(note.DocumentId, note.YouTubeVideoId));
+            CountReferences($"{note.Title} {note.Content}", CourseOf(note.DocumentId, note.VideoId));
 
         foreach (var quiz in quizzes.Take(600))
-            CountReferences($"{quiz.Question} {quiz.Explanation}", CourseOf(quiz.DocumentId, quiz.YouTubeVideoId));
+            CountReferences($"{quiz.Question} {quiz.Explanation}", CourseOf(quiz.DocumentId, quiz.VideoId));
 
         var gaps = new List<ConceptGapDto>();
         int unmastered = 0, undefined = 0, crossCourse = 0;

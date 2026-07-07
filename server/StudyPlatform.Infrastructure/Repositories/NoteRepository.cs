@@ -12,7 +12,7 @@ public class NoteRepository : Repository<Note>, INoteRepository
     public async Task<IEnumerable<Note>> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
         => await _dbSet
             .Include(n => n.Document)
-            .Include(n => n.YouTubeVideo)
+            .Include(n => n.Video)
             .Where(n => n.UserId == userId)
             .OrderByDescending(n => n.UpdatedAt)
             .ToListAsync(cancellationToken);
@@ -37,7 +37,7 @@ public class NoteRepository : Repository<Note>, INoteRepository
         var query = _dbSet
             .AsNoTracking()
             .Include(n => n.Document)
-            .Include(n => n.YouTubeVideo)
+            .Include(n => n.Video)
             .Where(n => n.UserId == userId);
         var totalCount = await query.CountAsync(cancellationToken);
         var items = await query

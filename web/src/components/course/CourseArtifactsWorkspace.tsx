@@ -155,11 +155,11 @@ export const CourseArtifactsWorkspace: React.FC<CourseArtifactsWorkspaceProps> =
         : videoId === selected.data.id;
     };
     return {
-      notes: artifacts.notes.filter(n => matchesSource(n.documentId, n.youTubeVideoId)),
-      flashcards: artifacts.flashcards.filter(f => matchesSource(f.documentId, f.youTubeVideoId)),
-      questions: artifacts.questions.filter(q => matchesSource(q.documentId, q.youTubeVideoId)),
-      glossary: artifacts.glossary.filter(g => matchesSource(g.documentId, g.youTubeVideoId)),
-      workedProblems: artifacts.workedProblems.filter(p => matchesSource(p.documentId, p.youTubeVideoId)),
+      notes: artifacts.notes.filter(n => matchesSource(n.documentId, n.videoId)),
+      flashcards: artifacts.flashcards.filter(f => matchesSource(f.documentId, f.videoId)),
+      questions: artifacts.questions.filter(q => matchesSource(q.documentId, q.videoId)),
+      glossary: artifacts.glossary.filter(g => matchesSource(g.documentId, g.videoId)),
+      workedProblems: artifacts.workedProblems.filter(p => matchesSource(p.documentId, p.videoId)),
     };
   }, [artifacts, artifactFilter, selected]);
 
@@ -502,32 +502,32 @@ export const CourseArtifactsWorkspace: React.FC<CourseArtifactsWorkspaceProps> =
 
   const buildNoteDetail = (note: Note): OpenArtifactDetail => ({
     kind: 'notes', itemKey: note.id, type: 'note',
-    title: sourceTitle(note.documentId, note.youTubeVideoId, note.documentName ?? note.videoName ?? 'Note'),
+    title: sourceTitle(note.documentId, note.videoId, note.documentName ?? note.videoName ?? 'Note'),
     content: note.content,
   });
 
   const buildFlashcardDetail = (card: Flashcard): OpenArtifactDetail => ({
     kind: 'flashcards', itemKey: card.id, type: 'flashcard',
-    title: sourceTitle(card.documentId, card.youTubeVideoId, card.documentName ?? card.videoName ?? 'Flashcard'),
+    title: sourceTitle(card.documentId, card.videoId, card.documentName ?? card.videoName ?? 'Flashcard'),
     front: card.front, back: card.back,
   });
 
   const buildQuestionDetail = (question: QuestionBankQuestion): OpenArtifactDetail => ({
     kind: 'questions', itemKey: question.quizId, type: 'question',
-    title: sourceTitle(question.documentId, question.youTubeVideoId, question.sourceName ?? 'Question'),
+    title: sourceTitle(question.documentId, question.videoId, question.sourceName ?? 'Question'),
     question,
     userAnswer: userAnswerMap.get(question.quizId),
   });
 
   const buildGlossaryDetail = (term: GlossaryTerm): OpenArtifactDetail => ({
     kind: 'glossary', itemKey: term.id, type: 'glossary',
-    title: sourceTitle(term.documentId, term.youTubeVideoId, term.sourceName ?? 'Glossary'),
+    title: sourceTitle(term.documentId, term.videoId, term.sourceName ?? 'Glossary'),
     term,
   });
 
   const buildProblemDetail = (problem: WorkedProblem): OpenArtifactDetail => ({
     kind: 'workedProblems', itemKey: problem.workedProblemId, type: 'problem',
-    title: sourceTitle(problem.documentId, problem.youTubeVideoId, problem.topic ?? 'Worked problem'),
+    title: sourceTitle(problem.documentId, problem.videoId, problem.topic ?? 'Worked problem'),
     problem,
   });
 

@@ -58,9 +58,9 @@ export function useFlashcardSets({
   const videoSets = useMemo(() => {
     const map = new Map<string, Flashcard[]>();
     for (const f of flashcards) {
-      if (!f.youTubeVideoId) continue;
-      if (!map.has(f.youTubeVideoId)) map.set(f.youTubeVideoId, []);
-      map.get(f.youTubeVideoId)!.push(f);
+      if (!f.videoId) continue;
+      if (!map.has(f.videoId)) map.set(f.videoId, []);
+      map.get(f.videoId)!.push(f);
     }
     return Array.from(map.entries()).map(([videoId, cards]) => ({ videoId, cards }));
   }, [flashcards]);
@@ -68,7 +68,7 @@ export function useFlashcardSets({
   const docSets = useMemo(() => {
     const map = new Map<string, Flashcard[]>();
     for (const f of flashcards) {
-      if (f.youTubeVideoId) continue; // skip video flashcards
+      if (f.videoId) continue; // skip video flashcards
       const key = f.documentId || '__none__';
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(f);
@@ -132,9 +132,9 @@ export function useFlashcardSets({
 
   const filteredCards = useMemo(() => {
     let cards = flashcards;
-    if (sourceType === 'video') cards = cards.filter(f => !!f.youTubeVideoId);
+    if (sourceType === 'video') cards = cards.filter(f => !!f.videoId);
     else if (sourceType === 'document') cards = cards.filter(f => {
-      if (f.youTubeVideoId) return false;
+      if (f.videoId) return false;
       const doc = documents.find(d => d.id === f.documentId);
       return !!doc && !doc.originalUrl && doc.type !== 'audio' && doc.type !== 'podcast';
     });
@@ -149,7 +149,7 @@ export function useFlashcardSets({
     if (selectedCourseId) {
       cards = cards.filter(f => {
         const doc = documents.find(d => d.id === f.documentId);
-        const vid = videoList.find(v => v.id === f.youTubeVideoId);
+        const vid = videoList.find(v => v.id === f.videoId);
         return doc?.courseId === selectedCourseId || vid?.courseId === selectedCourseId;
       });
     }

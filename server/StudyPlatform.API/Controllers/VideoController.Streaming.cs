@@ -17,7 +17,7 @@ public partial class VideoController
     [ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status429TooManyRequests)]
     [ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status502BadGateway)]
-    public async Task<IActionResult> StreamSummary([FromBody] YouTubeUrlRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> StreamSummary([FromBody] VideoUrlRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.VideoUrl))
             return BadRequest(BaseResponse<string>.Fail("videoUrl is required.", "MISSING_VIDEO_URL"));
@@ -58,7 +58,7 @@ public partial class VideoController
         {
             video.Summary = text;
             video.UpdatedAt = DateTime.UtcNow;
-            _unitOfWork.YouTubeVideos.Update(video);
+            _unitOfWork.Videos.Update(video);
             await _unitOfWork.SaveChangesAsync(ct);
         });
     }
@@ -96,7 +96,7 @@ public partial class VideoController
         if (request.ConversationId is { } conversationId)
         {
             conversation = await _unitOfWork.ChatMessages.GetConversationAsync(conversationId, userId, cancellationToken);
-            if (conversation is null || conversation.YouTubeVideoId != id)
+            if (conversation is null || conversation.VideoId != id)
                 return NotFound(BaseResponse<string>.Fail("Conversation not found.", "CONVERSATION_NOT_FOUND"));
         }
         else
@@ -126,7 +126,7 @@ public partial class VideoController
                 await _unitOfWork.ChatMessages.AddAsync(new ChatMessage
                 {
                     MessageId = Guid.NewGuid(),
-                    YouTubeVideoId = id,
+                    VideoId = id,
                     ChatConversationId = conversation.ConversationId,
                     SourceType = "video",
                     UserId = userId,
@@ -144,7 +144,7 @@ public partial class VideoController
                 await _unitOfWork.ChatMessages.AddAsync(new ChatMessage
                 {
                     MessageId = Guid.NewGuid(),
-                    YouTubeVideoId = id,
+                    VideoId = id,
                     ChatConversationId = conversation.ConversationId,
                     SourceType = "video",
                     UserId = userId,

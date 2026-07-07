@@ -4,7 +4,7 @@ public record MistakeDto(
     Guid Id,
     Guid? QuizId,
     Guid? DocumentId,
-    Guid? YouTubeVideoId,
+    Guid? VideoId,
     string SourceType,
     string Question,
     IReadOnlyList<string> Options,

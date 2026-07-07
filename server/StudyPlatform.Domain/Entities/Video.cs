@@ -1,11 +1,11 @@
 namespace StudyPlatform.Domain.Entities;
 
-public class YouTubeVideo
+public class Video
 {
-    public Guid YouTubeVideoId { get; set; }
+    public Guid VideoId { get; set; }
     public Guid UserId { get; set; }
     public Guid CourseId { get; set; }
-    public string VideoId { get; set; } = string.Empty;   // YouTube video ID (e.g. dQw4w9WgXcQ)
+    public string ExternalVideoId { get; set; } = string.Empty;   // Source-site video ID (e.g. dQw4w9WgXcQ)
     public string VideoUrl { get; set; } = string.Empty;
     public string SourceType { get; set; } = "youtube";
     public string Title { get; set; } = string.Empty;
