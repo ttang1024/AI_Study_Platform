@@ -51,10 +51,20 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
-    /// Moves the refresh token from the response body into an HttpOnly cookie.
+    /// Native apps have no HttpOnly cookie jar, so they identify themselves with this header
+    /// and receive the refresh token in the response body instead of a cookie.
+    /// </summary>
+    private bool IsMobileClient() => Request.Headers["X-Client-Type"] == "mobile";
+
+    /// <summary>
+    /// Moves the refresh token from the response body into an HttpOnly cookie for web clients.
+    /// Mobile clients keep the refresh token in the body since they can't read HttpOnly cookies.
     /// </summary>
     private AuthResponse IssueRefreshTokenCookie(AuthResponse response)
     {
+        if (IsMobileClient())
+            return response;
+
         SetRefreshTokenCookie(response.RefreshToken);
         return response with { RefreshToken = string.Empty };
     }
@@ -110,9 +120,9 @@ public class AuthController : ControllerBase
     [HttpPost("refresh-token")]
     [ProducesResponseType(typeof(BaseResponse<AuthResponse>), 200)]
     [ProducesResponseType(typeof(BaseResponse), 401)]
-    public async Task<IActionResult> RefreshToken()
+    public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest? request)
     {
-        var refreshToken = Request.Cookies[RefreshTokenCookieName];
+        var refreshToken = IsMobileClient() ? request?.RefreshToken : Request.Cookies[RefreshTokenCookieName];
         if (string.IsNullOrEmpty(refreshToken))
             return Unauthorized(BaseResponse<AuthResponse>.Fail("Refresh token is missing.", "INVALID_REFRESH_TOKEN"));
 
@@ -212,9 +222,9 @@ public class AuthController : ControllerBase
     /// </summary>
     [HttpPost("logout")]
     [ProducesResponseType(typeof(BaseResponse), 200)]
-    public async Task<IActionResult> Logout()
+    public async Task<IActionResult> Logout([FromBody] RefreshTokenRequest? request)
     {
-        var refreshToken = Request.Cookies[RefreshTokenCookieName];
+        var refreshToken = IsMobileClient() ? request?.RefreshToken : Request.Cookies[RefreshTokenCookieName];
         var result = await _mediator.Send(new LogoutCommand(refreshToken ?? string.Empty));
         ClearRefreshTokenCookie();
         return Ok(new BaseResponse { Success = true, Message = result.Message });

@@ -267,3 +267,129 @@ public class GetQuestionBankQueryHandlerTests
         Assert.Equal("lecture.pdf", result.Data!.First().SourceName);
     }
 }
+
+// ─── RecordQuestionBankAttemptCommand ──────────────────────────────────────────
+
+public class RecordQuestionBankAttemptCommandHandlerTests
+{
+    private readonly Mock<IUnitOfWork> _uow = new();
+    private readonly Mock<IQuizRepository> _quizzes = new();
+    private readonly Mock<IMistakeEntryRepository> _mistakes = new();
+    private readonly RecordQuestionBankAttemptCommandHandler _handler;
+    private readonly Guid _userId = Guid.NewGuid();
+    private readonly List<MistakeEntry> _store = new();
+
+    public RecordQuestionBankAttemptCommandHandlerTests()
+    {
+        _uow.Setup(u => u.Quizzes).Returns(_quizzes.Object);
+        _uow.Setup(u => u.MistakeEntries).Returns(_mistakes.Object);
+        _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
+        _mistakes.Setup(r => r.FindAsync(It.IsAny<Expression<Func<MistakeEntry, bool>>>(), default))
+            .ReturnsAsync(() => _store.ToList());
+        _mistakes.Setup(r => r.AddAsync(It.IsAny<MistakeEntry>(), default))
+            .Callback<MistakeEntry, CancellationToken>((e, _) => _store.Add(e))
+            .Returns(Task.CompletedTask);
+        _handler = new RecordQuestionBankAttemptCommandHandler(_uow.Object);
+    }
+
+    private Quiz MakeQuiz(Guid? userId = null) => new()
+    {
+        QuizId = Guid.NewGuid(),
+        UserId = userId ?? _userId,
+        Question = "What is X?",
+        OptionsJson = "[\"A) one\",\"B) two\"]",
+        CorrectAnswer = "A",
+        Explanation = "Because.",
+        Difficulty = "medium",
+        CreatedAt = DateTime.UtcNow,
+    };
+
+    [Fact]
+    public async Task Handle_WrongAnswer_AddsOpenMistakeEntry()
+    {
+        var quiz = MakeQuiz();
+        _quizzes.Setup(r => r.GetByIdAsync(quiz.QuizId, default)).ReturnsAsync(quiz);
+
+        var result = await _handler.Handle(new RecordQuestionBankAttemptCommand(_userId, quiz.QuizId, "B) two"), default);
+
+        Assert.True(result.IsSuccess);
+        Assert.False(result.Data!.IsCorrect);
+        var entry = Assert.Single(_store);
+        Assert.Equal(quiz.QuizId, entry.QuizId);
+        Assert.Equal("open", entry.Status);
+        Assert.Equal("B) two", entry.UserAnswer);
+        _uow.Verify(u => u.SaveChangesAsync(default), Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_CorrectAnswer_ResolvesOpenEntryWithoutAddingOne()
+    {
+        var quiz = MakeQuiz();
+        _quizzes.Setup(r => r.GetByIdAsync(quiz.QuizId, default)).ReturnsAsync(quiz);
+        var existing = new MistakeEntry
+        {
+            MistakeEntryId = Guid.NewGuid(),
+            UserId = _userId,
+            QuizId = quiz.QuizId,
+            Status = "open",
+            TimesMissed = 1,
+        };
+        _store.Add(existing);
+
+        var result = await _handler.Handle(new RecordQuestionBankAttemptCommand(_userId, quiz.QuizId, "A) one"), default);
+
+        Assert.True(result.IsSuccess);
+        Assert.True(result.Data!.IsCorrect);
+        Assert.Equal("resolved", existing.Status);
+        Assert.NotNull(existing.ResolvedAt);
+        Assert.Single(_store);
+        _mistakes.Verify(r => r.AddAsync(It.IsAny<MistakeEntry>(), default), Times.Never);
+    }
+
+    [Fact]
+    public async Task Handle_RepeatWrongAnswer_BumpsExistingEntry()
+    {
+        var quiz = MakeQuiz();
+        _quizzes.Setup(r => r.GetByIdAsync(quiz.QuizId, default)).ReturnsAsync(quiz);
+        var existing = new MistakeEntry
+        {
+            MistakeEntryId = Guid.NewGuid(),
+            UserId = _userId,
+            QuizId = quiz.QuizId,
+            Status = "resolved",
+            ResolvedAt = DateTime.UtcNow,
+            TimesMissed = 1,
+        };
+        _store.Add(existing);
+
+        var result = await _handler.Handle(new RecordQuestionBankAttemptCommand(_userId, quiz.QuizId, "B) two"), default);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(2, existing.TimesMissed);
+        Assert.Equal("open", existing.Status);
+        Assert.Null(existing.ResolvedAt);
+        Assert.Single(_store);
+    }
+
+    [Fact]
+    public async Task Handle_QuestionNotOwned_ReturnsNotFound()
+    {
+        var quiz = MakeQuiz(Guid.NewGuid());
+        _quizzes.Setup(r => r.GetByIdAsync(quiz.QuizId, default)).ReturnsAsync(quiz);
+
+        var result = await _handler.Handle(new RecordQuestionBankAttemptCommand(_userId, quiz.QuizId, "A"), default);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("QUESTION_NOT_FOUND", result.ErrorCode);
+        Assert.Empty(_store);
+    }
+
+    [Fact]
+    public async Task Handle_BlankAnswer_ReturnsInvalid()
+    {
+        var result = await _handler.Handle(new RecordQuestionBankAttemptCommand(_userId, Guid.NewGuid(), "  "), default);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("INVALID_ANSWER", result.ErrorCode);
+    }
+}

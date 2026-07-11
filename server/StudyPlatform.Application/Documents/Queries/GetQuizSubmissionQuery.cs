@@ -30,9 +30,6 @@ public class GetQuizSubmissionQueryHandler : IRequestHandler<GetQuizSubmissionQu
     }
 }
 
-// Query to get all submissions for a user (used by QuizManagementPage)
-public record GetAllQuizSubmissionsQuery(Guid UserId) : IRequest<Result<IEnumerable<QuizSubmissionDto>>>;
-
 public record GetAllQuizSubmissionsPagedQuery(Guid UserId, int Page, int PageSize) : IRequest<Result<PaginatedList<QuizSubmissionDto>>>;
 
 public record GetQuizSubmissionCoverageQuery(Guid UserId) : IRequest<Result<QuizSubmissionCoverageDto>>;
@@ -51,25 +48,6 @@ public class GetAllQuizSubmissionsPagedQueryHandler : IRequestHandler<GetAllQuiz
         var (submissions, totalCount) = await _unitOfWork.QuizSubmissions.GetPagedByUserAsync(request.UserId, request.Page, request.PageSize, cancellationToken);
         var dtos = submissions.Select(s => s.ToQuizSubmissionDto());
         return Result<PaginatedList<QuizSubmissionDto>>.Success(new PaginatedList<QuizSubmissionDto>(dtos, totalCount, request.Page, request.PageSize));
-    }
-}
-
-public class GetAllQuizSubmissionsQueryHandler : IRequestHandler<GetAllQuizSubmissionsQuery, Result<IEnumerable<QuizSubmissionDto>>>
-{
-    private readonly IUnitOfWork _unitOfWork;
-
-    public GetAllQuizSubmissionsQueryHandler(IUnitOfWork unitOfWork)
-    {
-        _unitOfWork = unitOfWork;
-    }
-
-    public async Task<Result<IEnumerable<QuizSubmissionDto>>> Handle(GetAllQuizSubmissionsQuery request, CancellationToken cancellationToken)
-    {
-        var submissions = await _unitOfWork.QuizSubmissions.GetAllByUserAsync(request.UserId, cancellationToken);
-
-        var dtos = submissions.Select(s => s.ToQuizSubmissionDto());
-
-        return Result<IEnumerable<QuizSubmissionDto>>.Success(dtos, "Submissions retrieved.");
     }
 }
 

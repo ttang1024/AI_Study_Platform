@@ -97,30 +97,3 @@ public class AIVideoChatCommandHandler : IRequestHandler<AIVideoChatCommand, Res
     }
 }
 
-public record GetVideoChatHistoryQuery(Guid VideoId, Guid UserId) : IRequest<Result<IEnumerable<ChatMessageDto>>>;
-
-public class GetVideoChatHistoryQueryHandler : IRequestHandler<GetVideoChatHistoryQuery, Result<IEnumerable<ChatMessageDto>>>
-{
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IBlobStorageService _blobStorageService;
-
-    public GetVideoChatHistoryQueryHandler(IUnitOfWork unitOfWork, IBlobStorageService blobStorageService)
-    {
-        _unitOfWork = unitOfWork;
-        _blobStorageService = blobStorageService;
-    }
-
-    public async Task<Result<IEnumerable<ChatMessageDto>>> Handle(GetVideoChatHistoryQuery request, CancellationToken cancellationToken)
-    {
-        var video = await _unitOfWork.Videos.GetByIdForUserAsync(request.VideoId, request.UserId, cancellationToken);
-        if (video is null)
-            return Result<IEnumerable<ChatMessageDto>>.Failure("Video not found.", "VIDEO_NOT_FOUND");
-
-        var messages = await _unitOfWork.ChatMessages.GetByVideoIdAsync(request.VideoId, request.UserId, cancellationToken);
-        var dtos = new List<ChatMessageDto>();
-        foreach (var m in messages)
-            dtos.Add(await m.ToDtoAsync(_blobStorageService, cancellationToken));
-
-        return Result<IEnumerable<ChatMessageDto>>.Success(dtos);
-    }
-}

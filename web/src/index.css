@@ -128,19 +128,12 @@
 }
 
 .summary-ul {
-	@apply space-y-1.5 pl-0 mt-2;
+	@apply space-y-1.5 pl-5 mt-2;
 }
 
 .summary-li {
-	@apply block text-[14px] leading-[1.65] text-text-main/85;
+	@apply text-[14px] leading-[1.65] text-text-main/85 marker:text-[var(--primary)] marker:font-bold;
 }
-
-/* .summary-li::before {
-	content: '›';
-	margin-right: 4px;
-	font-weight: bold;
-	@apply text-[var(--primary)] font-bold shrink-0 mt-px;
-} */
 
 .summary-strong {
 	@apply font-semibold text-text-main;

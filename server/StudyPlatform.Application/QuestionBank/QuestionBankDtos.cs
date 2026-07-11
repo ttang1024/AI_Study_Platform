@@ -22,3 +22,7 @@ public record UpdateQuestionBankQuestionRequest(
     string CorrectAnswer,
     string Explanation,
     string Difficulty);
+
+public record RecordQuestionBankAttemptRequest(string SelectedAnswer);
+
+public record QuestionBankAttemptResultDto(bool IsCorrect);

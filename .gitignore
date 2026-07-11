@@ -9,6 +9,8 @@ publish/
 # Temporary files
 *.tmp
 *.temp
+AGENTS.md
+CLAUDE.md
 # Visual Studio related files
 .vs/
 *.suo

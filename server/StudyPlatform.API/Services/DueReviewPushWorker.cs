@@ -7,7 +7,8 @@ using StudyPlatform.Infrastructure.Data;
 namespace StudyPlatform.API.Services;
 
 /// <summary>
-/// Sends at most one web-push reminder per device per day to users whose FSRS
+/// Sends at most one push reminder (browser Web Push or mobile Expo push) per
+/// device per day to users whose FSRS
 /// flashcards are due. Checks hourly; the per-device LastNotifiedAt timestamp is
 /// the throttle, so users get the reminder roughly when their cards come due
 /// rather than at a fixed global hour.
@@ -35,8 +36,9 @@ public sealed class DueReviewPushWorker : BackgroundService
     {
         if (!_vapid.IsConfigured)
         {
-            _logger.LogInformation("Web push disabled: no VAPID keys configured — due-review reminders will not be sent");
-            return;
+            // Browser deliveries are skipped inside the push service; mobile Expo-token
+            // deliveries need no VAPID keys, so the sweep still runs.
+            _logger.LogInformation("Web push disabled: no VAPID keys configured — due-review reminders go to mobile devices only");
         }
 
         while (!stoppingToken.IsCancellationRequested)

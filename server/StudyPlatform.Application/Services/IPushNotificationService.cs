@@ -1,8 +1,9 @@
 namespace StudyPlatform.Application.Services;
 
 /// <summary>
-/// Browser Web Push: subscription management and message delivery. Disabled
-/// (no-op sends, empty public key) when VAPID keys are not configured.
+/// Push subscription management and message delivery. Endpoints are either browser
+/// Web Push subscriptions (need VAPID keys; skipped when unconfigured) or native
+/// Expo push tokens ("ExponentPushToken[...]", delivered via Expo's push API).
 /// </summary>
 public interface IPushNotificationService
 {

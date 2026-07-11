@@ -40,8 +40,6 @@ public class CreateNoteCommandHandler : IRequestHandler<CreateNoteCommand, Resul
     }
 }
 
-public record GetAllNotesQuery(Guid UserId) : IRequest<Result<IEnumerable<NoteDto>>>;
-
 public record GetAllNotesPagedQuery(Guid UserId, int Page, int PageSize) : IRequest<Result<PaginatedList<NoteDto>>>;
 
 public class GetAllNotesPagedQueryHandler : IRequestHandler<GetAllNotesPagedQuery, Result<PaginatedList<NoteDto>>>
@@ -54,18 +52,6 @@ public class GetAllNotesPagedQueryHandler : IRequestHandler<GetAllNotesPagedQuer
         var (notes, totalCount) = await _unitOfWork.Notes.GetPagedByUserIdAsync(request.UserId, request.Page, request.PageSize, cancellationToken);
         var dtos = notes.Select(n => n.ToNoteDto());
         return Result<PaginatedList<NoteDto>>.Success(new PaginatedList<NoteDto>(dtos, totalCount, request.Page, request.PageSize));
-    }
-}
-
-public class GetAllNotesQueryHandler : IRequestHandler<GetAllNotesQuery, Result<IEnumerable<NoteDto>>>
-{
-    private readonly IUnitOfWork _unitOfWork;
-    public GetAllNotesQueryHandler(IUnitOfWork unitOfWork) { _unitOfWork = unitOfWork; }
-
-    public async Task<Result<IEnumerable<NoteDto>>> Handle(GetAllNotesQuery request, CancellationToken cancellationToken)
-    {
-        var notes = await _unitOfWork.Notes.GetByUserIdAsync(request.UserId, cancellationToken);
-        return Result<IEnumerable<NoteDto>>.Success(notes.Select(n => n.ToNoteDto()));
     }
 }
 

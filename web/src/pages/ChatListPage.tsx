@@ -79,7 +79,7 @@ export interface ListEntry {
 
 function buildListItems(backend: ChatSessionSummary[]): ListEntry[] {
   // Each entry is one conversation thread; a document/video can have several.
-  return backend.map(s => ({
+  return backend.filter(s => s.messageCount > 0).map(s => ({
       key: s.sourceType === 'general'
         ? `general-${s.sourceId}`
         : s.sourceType === 'document'

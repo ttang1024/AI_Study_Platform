@@ -3,6 +3,9 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import { toString as mdastToString } from 'mdast-util-to-string';
+import type { Paragraph, Parent, Root } from 'mdast';
+import type { Plugin } from 'unified';
 
 interface SummaryMarkdownProps {
 	value: string;
@@ -14,7 +17,7 @@ export const summaryMarkdownComponents = {
 	h2: ({ children }: any) => <h2 className="summary-h2">{children}</h2>,
 	h3: ({ children }: any) => <h3 className="summary-h3">{children}</h3>,
 	p: ({ children }: any) => <p className="summary-p">{children}</p>,
-	ul: ({ children }: any) => <ul className="summary-ul">{children}</ul>,
+	ul: ({ children }: any) => <ul className="summary-ul list-disc">{children}</ul>,
 	ol: ({ children }: any) => <ol className="summary-ul list-decimal">{children}</ol>,
 	li: ({ children }: any) => <li className="summary-li">{children}</li>,
 	strong: ({ children }: any) => <strong className="summary-strong">{children}</strong>,
@@ -28,7 +31,30 @@ export const summaryMarkdownComponents = {
 	td: ({ children }: any) => <td className="border border-zinc-200 px-3 py-2 align-top">{children}</td>,
 };
 
-const timelineRangePattern = /^\s*(?:[-*]\s*)?(\d{1,2}:\d{2}(?::\d{2})?)\s*[–-]\s*(\d{1,2}:\d{2}(?::\d{2})?)\s*(.*)$/;
+const timelineRangePattern = /^\s*(?:[-*]\s*)?(\d{1,2}:\d{2}(?::\d{2})?)\s*[–—-]\s*(\d{1,2}:\d{2}(?::\d{2})?)\s*(.*)$/;
+const timelineOnlyPattern = /^\s*(?:[-*]\s*)?\d{1,2}:\d{2}(?::\d{2})?\s*[–—-]\s*\d{1,2}:\d{2}(?::\d{2})?\s*$/;
+
+/**
+ * The AI timeline prompt puts each "HH:MM - HH:MM" range on its own paragraph, with the
+ * description as the *next* paragraph — but TimelineParagraph expects both on one line.
+ * Fold the description into the timestamp paragraph before render so the regex below sees it.
+ */
+const remarkMergeTimelineParagraphs: Plugin<[], Root> = () => (tree) => {
+	const merge = (node: Parent) => {
+		for (let i = 0; i < node.children.length; i++) {
+			const child = node.children[i] as Paragraph;
+			const next = node.children[i + 1] as Paragraph | undefined;
+			if (child.type === 'paragraph' && next?.type === 'paragraph' && timelineOnlyPattern.test(mdastToString(child))) {
+				child.children.push({ type: 'text', value: ' ' }, ...next.children);
+				node.children.splice(i + 1, 1);
+			}
+			if ('children' in child && Array.isArray((child as unknown as Parent).children)) {
+				merge(child as unknown as Parent);
+			}
+		}
+	};
+	merge(tree);
+};
 
 const getTextFromChildren = (children: React.ReactNode): string => {
 	if (typeof children === 'string' || typeof children === 'number') return String(children);
@@ -143,7 +169,7 @@ export const SummaryMarkdown: React.FC<SummaryMarkdownProps> = ({ value, onTimel
 	}), [renderTimelineText]);
 
 	return (
-		<ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]} components={components}>
+		<ReactMarkdown remarkPlugins={[remarkGfm, remarkMath, remarkMergeTimelineParagraphs]} rehypePlugins={[rehypeKatex]} components={components}>
 			{value}
 		</ReactMarkdown>
 	);

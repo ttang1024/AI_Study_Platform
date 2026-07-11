@@ -44,5 +44,6 @@ public static class ArtifactMappings
         s.Score, s.Total, s.SubmittedAt,
         Title: s.Document?.FileName ?? s.Video?.Title,
         Document: s.Document?.FileName,
-        Video: s.Video?.Title);
+        Video: s.Video?.Title,
+        CourseId: s.Document?.CourseId ?? s.Video?.CourseId);
 }

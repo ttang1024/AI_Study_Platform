@@ -13,7 +13,7 @@ export default defineConfig(({ mode }) => {
 			},
 		},
 		optimizeDeps: {
-			include: ['xmindmark'],
+			include: ['xmindmark', 'mdast-util-to-string'],
 		},
 		build: {
 			// React/router load eagerly on every page; isolating them into their own chunk keeps the

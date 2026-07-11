@@ -10,7 +10,7 @@ public record RegisterRequest(
 
 public record LoginRequest(string Email, string Password);
 
-public record RefreshTokenRequest(string RefreshToken);
+public record RefreshTokenRequest(string? RefreshToken = null);
 
 public record ResetPasswordRequest(
     string Email,

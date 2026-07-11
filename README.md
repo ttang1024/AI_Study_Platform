@@ -37,6 +37,7 @@ Upload documents in 80+ formats, videos (paste any link — YouTube · Bilibili 
 | 🔄  | **Import / Export**  | Anki import & export, Notion / Markdown ZIP import, study-pack export (PDF / CSV), ICS calendar feed, web clipper, highlight-to-flashcard from any web page |
 | 👥  | **Study Groups**     | Shared courses & documents, real-time chat, live co-study rooms with shared focus timer, assignments, live quiz battles, XP leaderboard |
 | 🔐  | **Auth**             | Email + OTP, Google / GitHub OAuth, JWT sessions                                                             |
+| 📱  | **Mobile App**       | React Native (Expo) app in [`rn/`](rn/README.md) with full web-feature parity, plus biometric app lock, camera scan-to-summarize, haptic study feedback, keep-awake exams, offline review, and push reminders |
 
 **AI Providers** — Gemini · OpenAI · Claude · Grok · DeepSeek · Kimi · Doubao · Qwen · Wenxin Yiyan (multi-provider routing, switchable from settings)
 
@@ -47,6 +48,8 @@ Upload documents in 80+ formats, videos (paste any link — YouTube · Bilibili 
 **Backend** — .NET 10 · ASP.NET Core · EF Core 9 · MediatR · FluentValidation · SignalR · PostgreSQL · Redis · Amazon S3 · yt-dlp · ffmpeg · Whisper.net · MailKit · JWT
 
 **Frontend** — React 19 · TypeScript 5.8 · Vite 6 · TailwindCSS 4 · React Router 7 · Tiptap · D3.js + Markmap · Service Worker + idb-keyval (offline PWA)
+
+**Mobile** — React Native 0.86 · Expo SDK 57 · expo-router · SignalR · WebView-hosted pdf.js / KaTeX / markmap (see [`rn/README.md`](rn/README.md))
 
 > **Build systems:** Vite (`npm run dev` / `npm run build`) is the production path — `deploy.sh` ships `web/dist` to S3/CloudFront. The Next.js scripts (`dev:next` / `build:next` / `start:next`) are an alternative SSR entry (`web/src/app`) added for landing/share-page SEO experiments and are **not** deployed; keep changes working under Vite first.
 
@@ -81,6 +84,9 @@ dotnet run --project StudyPlatform.API     # → http://localhost:5001
 
 # 6. Run frontend
 cd web && npm install && npm run dev       # → http://localhost:3000
+
+# 7. (Optional) Run the mobile app — see rn/README.md for env setup
+cd rn && npm install && npx expo start
 ```
 
 ---

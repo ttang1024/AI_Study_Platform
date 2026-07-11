@@ -1,11 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useInView, animate } from 'motion/react';
-import {
-  NotebookPen, ArrowRight, BrainCircuit, Award,
-  BookMarked, Play, Plus, CalendarCheck2,
-} from 'lucide-react';
-import { CONTENT_TYPE_ICONS } from '../constants/contentTypeIcons';
+import { ArrowRight, Play, Plus, CalendarCheck2 } from 'lucide-react';
+import { CONTENT_TYPE_ICONS, STUDY_TYPE_ICONS } from '../constants/contentTypeIcons';
 import { useAuth } from '../context/AuthContext';
 import { useStudy } from '../context/StudyContext';
 import { StudyCalendar } from '../components/common/StudyCalendar';
@@ -53,11 +50,12 @@ interface ContentCardProps {
   label: string;
   value: number;
   icon: React.ElementType;
+  color: string;
   link: string;
   summarizerTab: string;
 }
 
-const ContentCard: React.FC<ContentCardProps> = ({ label, value, icon: Icon, link, summarizerTab }) => {
+const ContentCard: React.FC<ContentCardProps> = ({ label, value, icon: Icon, color, link, summarizerTab }) => {
   const isEmpty = value === 0;
   const destination = isEmpty ? `/summarizer${summarizerTab ? `?tab=${summarizerTab}` : ''}` : link;
 
@@ -71,7 +69,10 @@ const ContentCard: React.FC<ContentCardProps> = ({ label, value, icon: Icon, lin
         onMouseLeave={e => (e.currentTarget.style.boxShadow = CARD_SHADOW)}
       >
         {/* Large background icon */}
-        <div className="pointer-events-none absolute -top-2 -right-4 text-[var(--primary)] opacity-[0.07] group-hover:opacity-[0.18] transition-opacity duration-300">
+        <div
+          className="pointer-events-none absolute -top-2 -right-4 opacity-[0.1] group-hover:opacity-[0.22] transition-opacity duration-300"
+          style={{ color }}
+        >
           <Icon size={100} strokeWidth={1.2} />
         </div>
 
@@ -89,7 +90,7 @@ const ContentCard: React.FC<ContentCardProps> = ({ label, value, icon: Icon, lin
 
         <div className="mt-4 pt-3 border-t border-black/[0.05] flex items-center justify-between">
           <span className="text-[14px] font-bold text-text-muted">{label}</span>
-          <span className="text-[11px] font-medium text-[var(--primary)]">{isEmpty ? 'Add now' : 'View all'}</span>
+          <span className="text-[11px] font-medium" style={{ color }}>{isEmpty ? 'Add now' : 'View all'}</span>
         </div>
       </Link>
     </motion.div>
@@ -101,10 +102,12 @@ interface ToolCardProps {
   label: string;
   value: number | null;
   icon: React.ElementType;
+  color: string;
+  bg: string;
   link: string;
 }
 
-const ToolCard: React.FC<ToolCardProps> = ({ label, value, icon: Icon, link }) => (
+const ToolCard: React.FC<ToolCardProps> = ({ label, value, icon: Icon, color, bg, link }) => (
   <motion.div variants={cardItem} whileTap={{ scale: 0.98 }}>
     <Link
       to={link}
@@ -114,8 +117,8 @@ const ToolCard: React.FC<ToolCardProps> = ({ label, value, icon: Icon, link }) =
       onMouseLeave={e => (e.currentTarget.style.boxShadow = CARD_SHADOW)}
     >
       <div className="flex items-center gap-4 w-full transition-transform duration-300 ease-out group-hover:scale-[1.03] origin-left">
-        <div className="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'rgba(13,148,136,0.08)' }}>
-          <Icon size={18} className="text-[var(--primary)]" />
+        <div className="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: bg }}>
+          <Icon size={18} style={{ color }} />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-[11px] font-semibold text-text-muted mb-0.5">{label}</p>
@@ -202,10 +205,10 @@ export const DashboardPage: React.FC = () => {
         <SectionLabel>Content Library</SectionLabel>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {[
-            { label: 'Documents', value: totalDocuments, icon: CONTENT_TYPE_ICONS.document.icon, link: '/library?type=documents', summarizerTab: '' },
-            { label: 'Videos', value: totalVideos, icon: CONTENT_TYPE_ICONS.video.icon, link: '/library?type=videos', summarizerTab: 'youtube' },
-            { label: 'Articles', value: totalArticles, icon: CONTENT_TYPE_ICONS.article.icon, link: '/library?type=articles', summarizerTab: 'web' },
-            { label: 'Audio', value: totalAudio, icon: CONTENT_TYPE_ICONS.audio.icon, link: '/library?type=audio', summarizerTab: 'audio' },
+            { label: 'Documents', value: totalDocuments, icon: CONTENT_TYPE_ICONS.document.icon, color: CONTENT_TYPE_ICONS.document.color, link: '/library?type=documents', summarizerTab: '' },
+            { label: 'Videos', value: totalVideos, icon: CONTENT_TYPE_ICONS.video.icon, color: CONTENT_TYPE_ICONS.video.color, link: '/library?type=videos', summarizerTab: 'youtube' },
+            { label: 'Articles', value: totalArticles, icon: CONTENT_TYPE_ICONS.article.icon, color: CONTENT_TYPE_ICONS.article.color, link: '/library?type=articles', summarizerTab: 'web' },
+            { label: 'Audio', value: totalAudio, icon: CONTENT_TYPE_ICONS.audio.icon, color: CONTENT_TYPE_ICONS.audio.color, link: '/library?type=audio', summarizerTab: 'audio' },
           ].map(card => (
             <ContentCard key={card.label} {...card} />
           ))}
@@ -219,10 +222,10 @@ export const DashboardPage: React.FC = () => {
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {([
-            { label: 'Flashcards', value: totalFlashcards, icon: BrainCircuit, link: '/flashcards' },
-            { label: 'Quizzes', value: totalQuizQuestions, icon: Award, link: '/quizzes' },
-            { label: 'Notes', value: totalNotes, icon: NotebookPen, link: '/notes' },
-            { label: 'Glossary', value: totalGlossaryTerms, icon: BookMarked, link: '/glossary' },
+            { label: 'Flashcards', value: totalFlashcards, icon: STUDY_TYPE_ICONS.flashcard.icon, color: STUDY_TYPE_ICONS.flashcard.color, bg: STUDY_TYPE_ICONS.flashcard.bg, link: '/flashcards' },
+            { label: 'Quizzes', value: totalQuizQuestions, icon: STUDY_TYPE_ICONS.quiz.icon, color: STUDY_TYPE_ICONS.quiz.color, bg: STUDY_TYPE_ICONS.quiz.bg, link: '/quizzes' },
+            { label: 'Notes', value: totalNotes, icon: STUDY_TYPE_ICONS.notes.icon, color: STUDY_TYPE_ICONS.notes.color, bg: STUDY_TYPE_ICONS.notes.bg, link: '/notes' },
+            { label: 'Glossary', value: totalGlossaryTerms, icon: STUDY_TYPE_ICONS.glossary.icon, color: STUDY_TYPE_ICONS.glossary.color, bg: STUDY_TYPE_ICONS.glossary.bg, link: '/glossary' },
           ] as ToolCardProps[]).map(tool => (
             <ToolCard key={tool.label} {...tool} />
           ))}

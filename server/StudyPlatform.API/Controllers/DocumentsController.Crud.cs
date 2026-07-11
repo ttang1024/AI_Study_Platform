@@ -238,4 +238,21 @@ public partial class DocumentsController
         return Content(text ?? string.Empty, "text/plain; charset=utf-8");
     }
 
+    /// <summary>
+    /// Get a short-lived presigned URL for a document (used by clients that need to
+    /// open/stream the file directly, e.g. the mobile app's audio player and file viewer).
+    /// </summary>
+    [HttpGet("{documentId:guid}/download-url")]
+    [ProducesResponseType(typeof(BaseResponse<string>), 200)]
+    [ProducesResponseType(typeof(BaseResponse), 404)]
+    public async Task<IActionResult> GetDocumentDownloadUrl(Guid courseId, Guid documentId)
+    {
+        var userId = User.GetUserId();
+        var result = await _mediator.Send(new GetDocumentDownloadUrlQuery(documentId, userId));
+        if (!result.IsSuccess)
+            return NotFound(BaseResponse<string>.Fail(result.Message, result.ErrorCode));
+
+        return Ok(BaseResponse<string>.Ok(result.Data!));
+    }
+
 }

@@ -87,7 +87,8 @@ public record QuizSubmissionDto(
     DateTime SubmittedAt,
     string? Title = null,
     string? Document = null,
-    string? Video = null);
+    string? Video = null,
+    Guid? CourseId = null);
 
 public record QuizSubmissionCoverageDto(
     IEnumerable<Guid> DocumentIds,

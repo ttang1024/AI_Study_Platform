@@ -32,6 +32,26 @@ public class QuestionBankController : ControllerBase
         return Ok(BaseResponse<IEnumerable<QuestionBankQuestionDto>>.Ok(result.Data!));
     }
 
+    /// <summary>
+    /// Record a single answer attempt on a question-bank question. Wrong answers land in the
+    /// mistake notebook (or bump an existing entry); correct answers resolve an open entry.
+    /// </summary>
+    [HttpPost("{quizId:guid}/attempt")]
+    [ProducesResponseType(typeof(BaseResponse<QuestionBankAttemptResultDto>), 200)]
+    [ProducesResponseType(typeof(BaseResponse), 404)]
+    public async Task<IActionResult> RecordAttempt(Guid quizId, [FromBody] RecordQuestionBankAttemptRequest request)
+    {
+        var userId = User.GetUserId();
+        var result = await _mediator.Send(new RecordQuestionBankAttemptCommand(userId, quizId, request.SelectedAnswer));
+
+        if (!result.IsSuccess)
+            return result.ErrorCode == "QUESTION_NOT_FOUND"
+                ? NotFound(BaseResponse<QuestionBankAttemptResultDto>.Fail(result.Message, result.ErrorCode))
+                : BadRequest(BaseResponse<QuestionBankAttemptResultDto>.Fail(result.Message, result.ErrorCode));
+
+        return Ok(BaseResponse<QuestionBankAttemptResultDto>.Ok(result.Data!));
+    }
+
     [HttpPatch("{quizId:guid}")]
     [ProducesResponseType(typeof(BaseResponse<QuestionBankQuestionDto>), 200)]
     [ProducesResponseType(typeof(BaseResponse), 404)]

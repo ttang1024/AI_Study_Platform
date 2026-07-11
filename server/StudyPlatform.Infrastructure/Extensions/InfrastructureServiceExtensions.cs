@@ -44,7 +44,12 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IDocumentContentService, DocumentContentService>();
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddSingleton<IAppCache, DistributedAppCache>();
-        services.AddScoped<IPushNotificationService, WebPushNotificationService>();
+        // Push notifications — the HttpClient delivers to Expo's push API for
+        // native-device tokens; browser Web Push goes through the WebPush library.
+        services.AddHttpClient<IPushNotificationService, WebPushNotificationService>(client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(15);
+        });
 
         // HTTP context accessor (used by AiService to read request headers)
         services.AddHttpContextAccessor();
