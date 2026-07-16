@@ -4,7 +4,7 @@ import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 import { Brain, Check, Pencil, RotateCcw, Sparkles, X, ZoomIn, ZoomOut } from 'lucide-react-native';
 
 import { EmptyState } from '@/components/EmptyState';
-import { Alpha, Colors, Overlay, Radius, Spacing, Typography } from '@/constants/theme';
+import { Alpha, Colors, Layout, Overlay, Radius, Spacing, Typography } from '@/constants/theme';
 import { documentService } from '@/services/documentService';
 import { buildMindMapHtml } from '@/utils/mindMapHtml';
 import { xmindMarkToMarkdown } from '@/utils/xmindMarkdown';
@@ -179,7 +179,7 @@ export function MindMapView({ document, courseId, onDocumentUpdate }: MindMapVie
 
 const styles = StyleSheet.create({
   centerState: {
-    alignItems: 'center', justifyContent: 'center', gap: Spacing.two, paddingVertical: Spacing.six,
+    ...Layout.center, gap: Spacing.two, paddingVertical: Spacing.six,
     backgroundColor: Colors.bgCard, borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.lg,
   },
   centerStateText: { ...Typography.caption, color: Colors.textSecondary, textAlign: 'center' },
@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
   },
   errorBannerText: { ...Typography.caption, color: Colors.red, textAlign: 'center' },
   regeneratingBadge: {
-    position: 'absolute', bottom: Spacing.two, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 6,
+    position: 'absolute', bottom: Spacing.two, alignSelf: 'center', ...Layout.row, gap: 6,
     backgroundColor: Overlay.panel, borderRadius: Radius.xl, paddingVertical: 6, paddingHorizontal: 12,
     borderWidth: 1, borderColor: Colors.border,
   },
@@ -203,10 +203,10 @@ const styles = StyleSheet.create({
     position: 'absolute', top: Spacing.two, right: Spacing.two, backgroundColor: Overlay.panel,
     borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.border, padding: 4, gap: 2,
   },
-  ctrlBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center', borderRadius: Radius.sm },
+  ctrlBtn: { width: 32, height: 32, ...Layout.center, borderRadius: Radius.sm },
   ctrlDivider: { height: 1, backgroundColor: Colors.border, marginVertical: 2 },
   regenerateButton: {
-    position: 'absolute', bottom: Spacing.two, left: Spacing.two, flexDirection: 'row', alignItems: 'center', gap: 5,
+    position: 'absolute', bottom: Spacing.two, left: Spacing.two, ...Layout.row, gap: 5,
     backgroundColor: Overlay.panel, borderRadius: Radius.xl, paddingVertical: 6, paddingHorizontal: 10,
     borderWidth: 1, borderColor: Colors.border,
   },
@@ -219,12 +219,12 @@ const styles = StyleSheet.create({
   },
   editActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: Spacing.two },
   editCancelButton: {
-    flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: Colors.border,
+    ...Layout.row, gap: 6, borderWidth: 1, borderColor: Colors.border,
     borderRadius: Radius.md, paddingVertical: 10, paddingHorizontal: Spacing.three,
   },
   editCancelText: { ...Typography.captionBold, color: Colors.textSecondary },
   editSaveButton: {
-    flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: Colors.primary,
+    ...Layout.row, gap: 6, backgroundColor: Colors.primary,
     borderRadius: Radius.md, paddingVertical: 10, paddingHorizontal: Spacing.three,
   },
   editSaveText: { ...Typography.captionBold, color: Colors.primaryForeground },

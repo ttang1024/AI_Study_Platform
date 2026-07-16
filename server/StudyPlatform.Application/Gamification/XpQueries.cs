@@ -54,13 +54,13 @@ public class GetUserXpQueryHandler : IRequestHandler<GetUserXpQuery, Result<User
     {
         var userId = request.UserId;
 
-        var sessions = await _unitOfWork.StudySessions.FindAsync(s => s.UserId == userId, cancellationToken);
+        var sessions = await _unitOfWork.StudySessions.FindAsNoTrackingAsync(s => s.UserId == userId, cancellationToken);
         var studyMinutes = sessions.Sum(s => s.DurationSeconds) / 60;
 
-        var submissions = await _unitOfWork.QuizSubmissions.FindAsync(s => s.UserId == userId, cancellationToken);
+        var submissions = await _unitOfWork.QuizSubmissions.FindAsNoTrackingAsync(s => s.UserId == userId, cancellationToken);
         var quizCorrect = submissions.Sum(s => s.Score);
 
-        var srs = await _unitOfWork.FlashcardSrs.FindAsync(s => s.UserId == userId, cancellationToken);
+        var srs = await _unitOfWork.FlashcardSrs.FindAsNoTrackingAsync(s => s.UserId == userId, cancellationToken);
         var reps = srs.Sum(s => s.Reps);
 
         var masteredTerms = (await _unitOfWork.GlossaryMastered.GetMasteredTermIdsByUserAsync(userId, cancellationToken)).Count();
@@ -102,13 +102,13 @@ public class GetGroupLeaderboardQueryHandler : IRequestHandler<GetGroupLeaderboa
         var since = DateTime.UtcNow.AddDays(-days);
         var memberIds = group.Members.Select(m => m.UserId).ToList();
 
-        var sessions = await _unitOfWork.StudySessions.FindAsync(
+        var sessions = await _unitOfWork.StudySessions.FindAsNoTrackingAsync(
             s => memberIds.Contains(s.UserId) && s.OccurredAt >= since, cancellationToken);
         var minutesByUser = sessions
             .GroupBy(s => s.UserId)
             .ToDictionary(g => g.Key, g => g.Sum(s => s.DurationSeconds) / 60);
 
-        var submissions = await _unitOfWork.QuizSubmissions.FindAsync(
+        var submissions = await _unitOfWork.QuizSubmissions.FindAsNoTrackingAsync(
             s => memberIds.Contains(s.UserId) && s.SubmittedAt >= since, cancellationToken);
         var correctByUser = submissions
             .GroupBy(s => s.UserId)

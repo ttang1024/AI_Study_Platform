@@ -24,7 +24,6 @@ export const BentoGlossaryCard: React.FC = () => {
         title="Glossary"
         gradient="from-teal-400 via-cyan-500 to-sky-600"
         iconGlow="0 6px 22px rgba(20,184,166,0.35)"
-        isNew
       />
 
       <div className="flex-1 rounded-xl overflow-hidden mb-3" style={{ background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(255,255,255,0.06)' }}>

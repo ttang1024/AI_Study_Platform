@@ -30,28 +30,38 @@ public record GlobalSearchQuery(
     int Page,
     int PageSize) : IRequest<Result<SearchResultsDto>>;
 
+/// <summary>
+/// Hybrid search. Keyword matching finds the exact string the user typed; semantic matching finds the
+/// passages that mean the same thing ("heart attack" → "myocardial infarction"). Neither subsumes the
+/// other, so both run and the results are merged: keyword hits rank first because an exact match is
+/// almost always what someone typing an exact phrase wants, with semantic hits filling in behind.
+/// When embeddings are unconfigured this degrades cleanly to keyword-only.
+/// </summary>
 public class GlobalSearchQueryHandler : IRequestHandler<GlobalSearchQuery, Result<SearchResultsDto>>
 {
-    // Semantic fallback: below this many exact matches, expand the query into
-    // AI-suggested synonyms/related phrases and search those too.
-    private const int SemanticExpansionThreshold = 5;
-    private const int MaxExpansionTerms = 6;
-    private static readonly TimeSpan ExpansionCacheTtl = TimeSpan.FromDays(7);
+    // Each category is filtered in SQL and capped, rather than pulling every row for the user into
+    // memory and scanning in C#. The cap is generous relative to what the paged UI shows.
+    private const int PerCategoryLimit = 100;
+    private const int SemanticLimit = 40;
+
+    /// <summary>
+    /// Cosine distance beyond which a chunk isn't really "about" the query. Vector search always
+    /// returns its k nearest neighbours, however far away they are, so without a cutoff every query
+    /// would return something — a confidently irrelevant something.
+    /// </summary>
+    private const double MaxSemanticDistance = 0.55;
 
     private readonly IUnitOfWork _unitOfWork;
-    private readonly IAiService _aiService;
-    private readonly IAppCache _cache;
+    private readonly IEmbeddingIndex _embeddingIndex;
     private readonly ILogger<GlobalSearchQueryHandler> _logger;
 
     public GlobalSearchQueryHandler(
         IUnitOfWork unitOfWork,
-        IAiService aiService,
-        IAppCache cache,
+        IEmbeddingIndex embeddingIndex,
         ILogger<GlobalSearchQueryHandler> logger)
     {
         _unitOfWork = unitOfWork;
-        _aiService = aiService;
-        _cache = cache;
+        _embeddingIndex = embeddingIndex;
         _logger = logger;
     }
 
@@ -64,22 +74,16 @@ public class GlobalSearchQueryHandler : IRequestHandler<GlobalSearchQuery, Resul
         var types = request.EntityTypes?.Select(t => t.ToLowerInvariant()).ToHashSet()
                     ?? new HashSet<string> { "documents", "notes", "flashcards", "glossary" };
 
-        var results = await SearchAllAsync(request.UserId, q, types, cancellationToken);
+        var keywordTask = SearchKeywordAsync(request.UserId, q, types, cancellationToken);
+        var semanticTask = SearchSemanticAsync(request.UserId, request.Query, types, cancellationToken);
+        await Task.WhenAll(keywordTask, semanticTask);
 
-        // Semantic layer: when the literal query barely matches, retry with
-        // meaning-adjacent terms so "heart attack" also finds "myocardial infarction".
-        if (results.Count < SemanticExpansionThreshold && q.Length >= 3)
+        var results = keywordTask.Result;
+        var seen = results.Select(r => $"{r.Type}:{r.Id}").ToHashSet();
+        foreach (var item in semanticTask.Result)
         {
-            var seen = results.Select(r => $"{r.Type}:{r.Id}").ToHashSet();
-            foreach (var term in await ExpandQueryAsync(q, cancellationToken))
-            {
-                var extra = await SearchAllAsync(request.UserId, term, types, cancellationToken);
-                foreach (var item in extra)
-                {
-                    if (seen.Add($"{item.Type}:{item.Id}"))
-                        results.Add(item);
-                }
-            }
+            if (seen.Add($"{item.Type}:{item.Id}"))
+                results.Add(item);
         }
 
         var total = results.Count;
@@ -91,10 +95,75 @@ public class GlobalSearchQueryHandler : IRequestHandler<GlobalSearchQuery, Resul
         return Result<SearchResultsDto>.Success(new SearchResultsDto(paged, total, request.Page, request.PageSize));
     }
 
-    private async Task<List<SearchResultItemDto>> SearchAllAsync(
+    // ── Semantic ──────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Flashcards aren't embedded (they're short prompts, not prose), so the semantic layer covers the
+    /// other three categories and the keyword layer continues to cover all four.
+    /// </summary>
+    private static readonly Dictionary<string, string> SemanticTypeByCategory = new()
+    {
+        ["documents"] = "document",
+        ["notes"] = "note",
+        ["glossary"] = "glossary",
+    };
+
+    private async Task<List<SearchResultItemDto>> SearchSemanticAsync(
+        Guid userId, string query, HashSet<string> categories, CancellationToken cancellationToken)
+    {
+        var sourceTypes = SemanticTypeByCategory
+            .Where(kv => categories.Contains(kv.Key))
+            .Select(kv => kv.Value)
+            .ToList();
+
+        // Videos have no category of their own in this UI, but their transcripts are indexed and are
+        // usually the best answer to a "what did the lecture say about X" query, so include them
+        // whenever documents are in scope.
+        if (categories.Contains("documents"))
+            sourceTypes.Add("video");
+
+        if (sourceTypes.Count == 0)
+            return [];
+
+        try
+        {
+            var hits = await _embeddingIndex.SearchAsync(userId, query, sourceTypes, SemanticLimit, cancellationToken);
+
+            return hits
+                .Where(h => h.Distance <= MaxSemanticDistance)
+                // One source can match on several chunks; show the source once, at its best chunk.
+                .GroupBy(h => (h.SourceType, h.SourceId))
+                .Select(g => g.OrderBy(h => h.Distance).First())
+                .OrderBy(h => h.Distance)
+                .Select(h => new SearchResultItemDto(
+                    h.SourceId.ToString(),
+                    h.SourceType,
+                    h.Title,
+                    Truncate(h.Text, 150),
+                    UrlFor(h.SourceType, h.SourceId, h.Title)))
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            // Semantic search is an enhancement — never let it take the keyword results down with it.
+            _logger.LogWarning(ex, "Semantic search failed for query {Query}; returning keyword results only", query);
+            return [];
+        }
+    }
+
+    private static string? UrlFor(string sourceType, Guid sourceId, string title) => sourceType switch
+    {
+        "document" => $"/documents/{sourceId}",
+        "video" => $"/videos/{sourceId}",
+        "glossary" => $"/glossary?search={Uri.EscapeDataString(title)}",
+        _ => null,
+    };
+
+    // ── Keyword ───────────────────────────────────────────────────────────────
+
+    private async Task<List<SearchResultItemDto>> SearchKeywordAsync(
         Guid userId, string q, HashSet<string> types, CancellationToken cancellationToken)
     {
-        // Run all category searches in parallel
         var tasks = new List<Task<IEnumerable<SearchResultItemDto>>>();
 
         if (types.Contains("documents"))
@@ -109,43 +178,6 @@ public class GlobalSearchQueryHandler : IRequestHandler<GlobalSearchQuery, Resul
         var allResults = await Task.WhenAll(tasks);
         return allResults.SelectMany(batch => batch).ToList();
     }
-
-    /// <summary>AI synonyms/related phrases for the query, cached a week per distinct query.</summary>
-    private async Task<IReadOnlyList<string>> ExpandQueryAsync(string q, CancellationToken cancellationToken)
-    {
-        try
-        {
-            var expansions = await _cache.GetOrCreateAsync(
-                $"search:expand:{q}",
-                async ct =>
-                {
-                    var reply = await _aiService.GeneralChatAsync(
-                        Array.Empty<(string, string)>(),
-                        $"List up to {MaxExpansionTerms} alternative search keywords (synonyms, related terms, translations if the query is not English) for: \"{q}\". " +
-                        "Reply with ONLY the terms, comma-separated, no numbering or explanation.",
-                        ct);
-                    return reply.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                        .Select(t => t.Trim('"', '\'', '.').ToLowerInvariant())
-                        .Where(t => t.Length >= 2 && t != q)
-                        .Distinct()
-                        .Take(MaxExpansionTerms)
-                        .ToArray();
-                },
-                ExpansionCacheTtl,
-                cancellationToken);
-            return expansions ?? Array.Empty<string>();
-        }
-        catch (Exception ex)
-        {
-            // Search must never fail because expansion did — degrade to exact matches.
-            _logger.LogWarning(ex, "Semantic query expansion failed for {Query}", q);
-            return Array.Empty<string>();
-        }
-    }
-
-    // Each category is filtered in SQL (ILike) and capped, rather than pulling every row for the
-    // user into memory and scanning in C#. The cap is generous relative to what the paged UI shows.
-    private const int PerCategoryLimit = 100;
 
     private async Task<IEnumerable<SearchResultItemDto>> SearchDocumentsAsync(
         Guid userId, string q, CancellationToken cancellationToken)
@@ -194,6 +226,9 @@ public class GlobalSearchQueryHandler : IRequestHandler<GlobalSearchQuery, Resul
             Snippet(t.Definition, q),
             "/glossary"));
     }
+
+    private static string Truncate(string text, int maxLength)
+        => text.Length <= maxLength ? text : text[..maxLength] + "...";
 
     private static string Snippet(string text, string query, int maxLength = 150)
     {

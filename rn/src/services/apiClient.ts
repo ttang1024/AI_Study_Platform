@@ -1,5 +1,6 @@
 import axios from 'axios';
 
+import { buildAiHeaders } from '@core/ai';
 import { API_URL } from '@/constants/env';
 import { aiSettingsService } from '@/services/aiSettingsService';
 import { tokenStore } from '@/services/tokenStore';
@@ -33,11 +34,7 @@ apiClient.interceptors.request.use(async (config) => {
       aiSettingsService.getActiveKey(),
       aiSettingsService.getActiveModel(),
     ]);
-    config.headers['X-AI-Provider'] = provider;
-    config.headers['X-AI-Model'] = model;
-    if (key) {
-      config.headers['X-AI-Key'] = key;
-    }
+    Object.assign(config.headers, buildAiHeaders({ provider, model, key: key ?? '' }));
   }
 
   return config;

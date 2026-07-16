@@ -1,10 +1,11 @@
 import React, { useMemo, useRef } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 import { Bold, Italic, List, ListOrdered } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
 
-import { Colors, Radius, Spacing } from '@/constants/theme';
+import { PressableScale } from '@/components/PressableScale';
+import { Colors, Layout, Radius, Spacing } from '@/constants/theme';
 
 interface RichTextEditorProps {
   initialHtml: string;
@@ -81,13 +82,13 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ initialHtml, onC
     <View style={styles.root}>
       <View style={styles.toolbar}>
         {COMMANDS.map(({ icon: Icon, command }) => (
-          <Pressable
+          <PressableScale
             key={command}
-            style={({ pressed }) => [styles.toolButton, pressed && styles.toolButtonPressed]}
+            style={styles.toolButton}
             onPress={() => webviewRef.current?.injectJavaScript(`window.__exec(${JSON.stringify(command)}); true;`)}
           >
             <Icon size={16} color={Colors.textPrimary} />
-          </Pressable>
+          </PressableScale>
         ))}
       </View>
       <WebView
@@ -115,7 +116,7 @@ const styles = StyleSheet.create({
   },
   toolButton: {
     width: 34, height: 34, borderRadius: Radius.sm,
-    alignItems: 'center', justifyContent: 'center',
+    ...Layout.center,
   },
   toolButtonPressed: { backgroundColor: Colors.zinc200 },
   webview: { flex: 1, backgroundColor: 'transparent' },

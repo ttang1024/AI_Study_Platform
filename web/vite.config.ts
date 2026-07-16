@@ -9,11 +9,22 @@ export default defineConfig(({ mode }) => {
 		plugins: [react(), tailwindcss()],
 		resolve: {
 			alias: {
+				// Shared platform-agnostic package (packages/core). Listed before '@' —
+				// harmless either way since '@' only matches '@/'-prefixed ids, but explicit.
+				'@core': path.resolve(__dirname, '../packages/core/src'),
 				'@': path.resolve(__dirname, '.'),
 			},
+			// Force a single instance of React and the router. Without this, Vite can
+			// end up serving a lazy route chunk a second, separately-optimized copy of
+			// react-router, whose <Router> context the entry chunk's hooks can't read —
+			// surfacing as "useLocation() may be used only in the context of a <Router>"
+			// white screens on client-side navigation to a lazy route.
+			dedupe: ['react', 'react-dom', 'react-router', 'react-router-dom'],
 		},
 		optimizeDeps: {
-			include: ['xmindmark', 'mdast-util-to-string'],
+			// Pre-bundle the router up front so navigating to a lazy route never triggers
+			// a mid-session re-optimization that splits it into a second module instance.
+			include: ['xmindmark', 'mdast-util-to-string', 'react-router', 'react-router-dom'],
 		},
 		build: {
 			// React/router load eagerly on every page; isolating them into their own chunk keeps the

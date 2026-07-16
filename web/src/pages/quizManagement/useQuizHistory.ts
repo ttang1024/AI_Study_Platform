@@ -149,7 +149,7 @@ export function useQuizHistory() {
       if (questions.length === 0) { showPrompt('No questions available for this video.'); return; }
       setTimedExamQuestions(questions.map(q => ({
         id: q.quizId, question: q.question, options: q.options,
-        answer: q.correctAnswer, explanation: q.explanation, type: 'multiple-choice' as const,
+        correctAnswer: q.correctAnswer, explanation: q.explanation, type: 'multiple-choice' as const,
       })));
       setTimedExamDocName(videoName);
       setTimedExamDocId(videoId);
@@ -173,7 +173,7 @@ export function useQuizHistory() {
         const questions = await documentService.getQuiz(courseId, docId);
         return questions.map(q => ({
           question: q.question, options: q.options ?? [],
-          correctAnswer: q.answer, explanation: q.explanation ?? '',
+          correctAnswer: q.correctAnswer, explanation: q.explanation ?? '',
         }));
       },
       sourceType: srcType,
@@ -331,7 +331,7 @@ export function useQuizHistory() {
               questions: questions.map(q => ({
                 question: q.question,
                 options: q.options ?? [],
-                correctAnswer: getCorrectQuizOptionText(q.options, q.answer),
+                correctAnswer: getCorrectQuizOptionText(q.options, q.correctAnswer),
                 explanation: q.explanation ?? '',
               })),
             });

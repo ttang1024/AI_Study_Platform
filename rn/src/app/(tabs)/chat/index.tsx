@@ -1,12 +1,13 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { Bot, FileText, MessageSquarePlus, Trash2, Video } from 'lucide-react-native';
 
 import { EmptyState } from '@/components/EmptyState';
 import { IconBadge } from '@/components/IconBadge';
-import { Colors, Gradients, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
+import { PressableScale } from '@/components/PressableScale';
+import { Colors, Gradients, Layout, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
 import { chatService, ChatSessionSummary } from '@/services/chatService';
 
 function formatTime(iso: string): string {
@@ -24,18 +25,24 @@ export default function ChatListScreen() {
   const router = useRouter();
   const [sessions, setSessions] = useState<ChatSessionSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [creating, setCreating] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    const all = await chatService.getSessions();
-    setSessions(
-      all
-        .filter((s) => s.messageCount > 0)
-        .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()),
-    );
-    setLoading(false);
+  const load = useCallback(async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true);
+    else setLoading(true);
+    try {
+      const all = await chatService.getSessions();
+      setSessions(
+        all
+          .filter((s) => s.messageCount > 0)
+          .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()),
+      );
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   }, []);
 
   useFocusEffect(
@@ -86,8 +93,8 @@ export default function ChatListScreen() {
 
   return (
     <View style={styles.root}>
-      <Pressable
-        style={({ pressed }) => [styles.newButton, pressed && !creating && styles.pressed]}
+      <PressableScale
+        style={styles.newButton}
         onPress={handleNew}
         disabled={creating}
       >
@@ -101,7 +108,7 @@ export default function ChatListScreen() {
             </>
           )}
         </LinearGradient>
-      </Pressable>
+      </PressableScale>
 
       {loading ? (
         <ActivityIndicator style={styles.loading} color={Colors.primary} />
@@ -112,9 +119,10 @@ export default function ChatListScreen() {
           data={sessions}
           keyExtractor={(s) => s.conversationId}
           contentContainerStyle={styles.list}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={Colors.primary} />}
           renderItem={({ item }) => (
-            <Pressable
-              style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+            <PressableScale
+              style={styles.card}
               onPress={() => handleOpen(item)}
             >
               {item.sourceType === 'document' ? (
@@ -141,7 +149,7 @@ export default function ChatListScreen() {
                   <Trash2 size={16} color={Colors.textSecondary} />
                 )}
               </Pressable>
-            </Pressable>
+            </PressableScale>
           )}
         />
       )}
@@ -153,13 +161,13 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bgApp },
   newButton: { margin: Spacing.three, borderRadius: Radius.pill, ...Shadows.primaryGlow },
   newButtonInner: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.two,
+    ...Layout.row, justifyContent: 'center', gap: Spacing.two,
     height: 48, borderRadius: Radius.pill,
   },
   newButtonText: { ...Typography.bodyBold, color: Colors.primaryForeground },
   list: { paddingHorizontal: Spacing.three, paddingBottom: Spacing.five, gap: Spacing.two },
   card: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.two,
+    ...Layout.row, gap: Spacing.two,
     backgroundColor: Colors.bgCard, borderRadius: Radius.lg, padding: Spacing.three,
     ...Shadows.card,
   },
@@ -168,6 +176,5 @@ const styles = StyleSheet.create({
   cardSubtitle: { ...Typography.caption, fontSize: 12, color: Colors.textSecondary, marginTop: 2 },
   cardTime: { ...Typography.caption, fontSize: 11, color: Colors.textSecondary, marginLeft: Spacing.one },
   deleteButton: { padding: Spacing.one },
-  pressed: { opacity: 0.85 },
   loading: { marginTop: Spacing.five },
 });

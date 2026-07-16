@@ -2,14 +2,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Bell, ChevronRight, KeyRound, MessageSquarePlus, UserCircle, Volume2 } from 'lucide-react-native';
+import { Activity, Bell, ChevronRight, KeyRound, MessageSquarePlus, UserCircle, Volume2 } from 'lucide-react-native';
 
 import { Button } from '@/components/Button';
 import { IconBadge } from '@/components/IconBadge';
 import { PasswordSection } from '@/components/settings/PasswordSection';
 import { ProfileSection } from '@/components/settings/ProfileSection';
 import { SecuritySection } from '@/components/settings/SecuritySection';
-import { Colors, Gradients, Overlay, Radius, Shadows, Spacing } from '@/constants/theme';
+import { Colors, Gradients, Layout, Overlay, Radius, Shadows, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
 
 export default function SettingsScreen() {
@@ -44,6 +44,15 @@ export default function SettingsScreen() {
           <View style={styles.navBody}>
             <Text style={styles.navTitle}>AI Services</Text>
             <Text style={styles.navSubtitle}>Bring your own API key for Gemini, OpenAI, Claude, and more</Text>
+          </View>
+          <ChevronRight size={18} color={Colors.textSecondary} />
+        </Pressable>
+        {/* Directly under AI Services: the keys are configured there, this is what they cost. */}
+        <Pressable style={styles.navRow} onPress={() => router.push('/settings/ai-usage')}>
+          <IconBadge icon={Activity} size={36} />
+          <View style={styles.navBody}>
+            <Text style={styles.navTitle}>AI Usage</Text>
+            <Text style={styles.navSubtitle}>What your AI calls have cost, by feature and model</Text>
           </View>
           <ChevronRight size={18} color={Colors.textSecondary} />
         </Pressable>
@@ -84,21 +93,21 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bgApp },
   content: { padding: Spacing.three, gap: Spacing.four, paddingBottom: Spacing.six },
   profileCard: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.three,
+    ...Layout.row, gap: Spacing.three,
     borderRadius: Radius.xl, padding: Spacing.four,
     ...Shadows.primaryGlow,
   },
   avatarCircle: {
     width: 52, height: 52, borderRadius: 26,
     backgroundColor: Overlay.glass, borderWidth: 1, borderColor: Overlay.glassBorder,
-    alignItems: 'center', justifyContent: 'center',
+    ...Layout.center,
   },
   name: { fontSize: 16, fontWeight: '800', color: Colors.white },
   email: { fontSize: 13, color: Overlay.onGradientMuted, marginTop: 2 },
   section: { gap: Spacing.two },
 
   navRow: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.three,
+    ...Layout.row, gap: Spacing.three,
     backgroundColor: Colors.bgCard,
     borderRadius: Radius.lg, padding: Spacing.three,
     ...Shadows.card,

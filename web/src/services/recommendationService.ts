@@ -1,28 +1,9 @@
-import { apiClient } from './apiClient';
+// Service logic moved to the shared package (packages/core). This file wires the
+// web HTTP adapter into the shared factory and re-exports the types, so existing
+// `@/services/recommendationService` imports across web/ keep working unchanged.
+import { createRecommendationService } from '@core/services/recommendationService';
+import { http } from './http';
 
-export type RecommendationType = 'flashcards' | 'quiz' | 'glossary' | 'problems' | 'material' | 'course';
+export * from '@core/services/recommendationService';
 
-export interface RecommendationItem {
-  id: string;
-  type: RecommendationType;
-  title: string;
-  reason: string;
-  priority: number;
-  url: string | null;
-  courseId: string | null;
-  courseName: string | null;
-  count: number | null;
-}
-
-export interface Recommendations {
-  reviewQueue: RecommendationItem[];
-  nextBestContent: RecommendationItem[];
-  generatedAt: string;
-}
-
-export const recommendationService = {
-  async getRecommendations(): Promise<Recommendations> {
-    const response = await apiClient.get('/api/recommendations');
-    return response.data.data;
-  },
-};
+export const recommendationService = createRecommendationService(http);

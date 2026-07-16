@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Pencil, Trash2 } from 'lucide-react-native';
 
 import { Card } from '@/components/Card';
-import { Colors, Spacing, Typography } from '@/constants/theme';
+import { Colors, Layout, Spacing, Typography } from '@/constants/theme';
 import type { Note } from '@/types';
 import { stripHtml } from '@/utils/stripHtml';
 
@@ -37,6 +37,6 @@ const styles = StyleSheet.create({
   source: { ...Typography.captionBold, color: Colors.primary },
   content: { ...Typography.body, color: Colors.textPrimary },
   actions: { flexDirection: 'row', gap: Spacing.four },
-  actionButton: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  actionButton: { ...Layout.row, gap: 4 },
   actionText: { ...Typography.captionBold, color: Colors.textSecondary },
 });

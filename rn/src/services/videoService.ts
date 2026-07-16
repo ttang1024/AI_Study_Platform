@@ -1,7 +1,7 @@
 import { apiClient } from '@/services/apiClient';
 import { API_URL } from '@/constants/env';
 import { tokenStore } from '@/services/tokenStore';
-import type { PickedFile } from '@/types';
+import type { PickedFile, SimpleCard } from '@/types';
 import type { VideoSourceType } from '@/constants/videoSources';
 import { toFormDataPart } from '@/utils/formData';
 import { streamSse } from '@/services/sse';
@@ -35,12 +35,21 @@ export interface PlaylistVideoItemData {
   videoUrl?: string;
 }
 
+export interface TranscriptSegment {
+  startSeconds: number;
+  text: string;
+}
+
 const VIDEO_API = '/api/videos';
 
 export const videoService = {
   async getVideo(id: string): Promise<VideoDetail> {
     const res = await apiClient.get<{ data: VideoDetail }>(`${VIDEO_API}/${id}`);
     return res.data.data;
+  },
+
+  async deleteVideo(id: string): Promise<void> {
+    await apiClient.delete(`${VIDEO_API}/${id}`);
   },
 
   async createVideo(data: CreateVideoData): Promise<VideoDetail> {
@@ -88,4 +97,47 @@ export const videoService = {
   async streamSummary(videoRecordId: string, onChunk: (chunk: string) => void, signal?: AbortSignal): Promise<void> {
     return streamSse(`${VIDEO_API}/${videoRecordId}/summary/stream`, {}, onChunk, signal);
   },
+
+  /** Captions for a YouTube video, keyed by its source video id (the backend falls back to raw subtitles). */
+  async getTranscript(videoId: string): Promise<TranscriptSegment[]> {
+    const res = await apiClient.get<{ data: TranscriptSegment[] }>(
+      `${VIDEO_API}/transcript?videoId=${encodeURIComponent(videoId)}`,
+    );
+    return res.data.data ?? [];
+  },
+
+  /** Captions for a saved video record (non-YouTube sources), keyed by its record id. */
+  async getVideoTranscript(videoRecordId: string): Promise<TranscriptSegment[]> {
+    const res = await apiClient.get<{ data: TranscriptSegment[] }>(
+      `${VIDEO_API}/${videoRecordId}/transcript`,
+    );
+    return res.data.data ?? [];
+  },
+
+  async getFlashcards(videoId: string): Promise<SimpleCard[]> {
+    const res = await apiClient.get<{ data: BackendVideoFlashcard[] }>(`${VIDEO_API}/${videoId}/flashcards`);
+    return (res.data.data ?? []).map(mapVideoFlashcard);
+  },
+
+  async generateFlashcards(videoId: string, videoUrl: string): Promise<SimpleCard[]> {
+    const res = await apiClient.post<{ data: BackendVideoFlashcard[] }>(
+      `${VIDEO_API}/${videoId}/flashcards/generate`,
+      { videoUrl },
+    );
+    return (res.data.data ?? []).map(mapVideoFlashcard);
+  },
 };
+
+interface BackendVideoFlashcard {
+  flashcardId: string;
+  front: string;
+  back: string;
+  cardType?: 'basic' | 'cloze' | 'chart';
+}
+
+const mapVideoFlashcard = (bf: BackendVideoFlashcard): SimpleCard => ({
+  id: bf.flashcardId,
+  front: bf.front,
+  back: bf.back,
+  cardType: bf.cardType ?? 'basic',
+});

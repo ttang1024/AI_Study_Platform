@@ -1,57 +1,20 @@
-import { apiClient } from './apiClient'
+// Service logic moved to the shared package (packages/core). XP lives in the
+// shared statsService, the digest/ICS calls in the shared gamificationService;
+// this shim recombines them to keep web's historical surface.
+import { createGamificationService } from '@core/services/gamificationService';
+import { createStatsService } from '@core/services/statsService';
+import { http } from './http';
 
-export interface XpBreakdown {
-  source: string
-  label: string
-  xp: number
-}
+export type { DigestDay, WeeklyDigest } from '@core/services/gamificationService';
+export type { UserXp } from '@core/services/statsService';
 
-export interface UserXp {
-  totalXp: number
-  level: number
-  xpIntoLevel: number
-  xpForNextLevel: number
-  levelProgress: number
-  breakdown: XpBreakdown[]
-}
+export type XpBreakdown = import('@core/services/statsService').UserXp['breakdown'][number];
 
-export interface DigestDay {
-  date: string
-  minutes: number
-}
-
-export interface WeeklyDigest {
-  from: string
-  to: string
-  studyMinutes: number
-  activeDays: number
-  dailyMinutes: DigestDay[]
-  flashcardReviews: number
-  quizzesTaken: number
-  quizAccuracy: number
-  newMaterials: number
-  mistakesResolved: number
-  openMistakes: number
-  currentStreak: number
-  weeklyXp: number
-  topGapConcept?: string
-  topGapReason?: string
-  headline: string
-}
+const core = createGamificationService(http);
+const stats = createStatsService(http);
 
 export const gamificationService = {
-  async getXp(): Promise<UserXp> {
-    const res = await apiClient.get('/api/stats/xp')
-    return res.data.data
-  },
-
-  async getWeeklyDigest(): Promise<WeeklyDigest> {
-    const res = await apiClient.get('/api/notifications/weekly-digest')
-    return res.data.data
-  },
-
-  async downloadCalendarIcs(): Promise<Blob> {
-    const res = await apiClient.get('/api/calendar/ics', { responseType: 'blob' })
-    return res.data
-  },
-}
+  getXp: stats.getXp,
+  getWeeklyDigest: core.getWeeklyDigest,
+  downloadCalendarIcs: core.downloadCalendarIcs,
+};

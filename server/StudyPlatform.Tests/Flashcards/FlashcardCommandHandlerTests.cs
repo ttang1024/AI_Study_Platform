@@ -200,6 +200,7 @@ public class ReviewFlashcardCommandHandlerTests
     private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IFlashcardRepository> _flashcards = new();
     private readonly Mock<IFlashcardSrsDataRepository> _srsRepo = new();
+    private readonly Mock<IFlashcardReviewLogRepository> _reviewLogs = new();
     private readonly ReviewFlashcardCommandHandler _handler;
     private readonly Guid _userId = Guid.NewGuid();
     private readonly Guid _cardId = Guid.NewGuid();
@@ -208,8 +209,10 @@ public class ReviewFlashcardCommandHandlerTests
     {
         _uow.Setup(u => u.Flashcards).Returns(_flashcards.Object);
         _uow.Setup(u => u.FlashcardSrs).Returns(_srsRepo.Object);
+        _uow.Setup(u => u.FlashcardReviewLogs).Returns(_reviewLogs.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
         _srsRepo.Setup(r => r.AddAsync(It.IsAny<FlashcardSrsData>(), default)).Returns(Task.CompletedTask);
+        _reviewLogs.Setup(r => r.AddAsync(It.IsAny<FlashcardReviewLog>(), default)).Returns(Task.CompletedTask);
         _handler = new ReviewFlashcardCommandHandler(_uow.Object);
     }
 

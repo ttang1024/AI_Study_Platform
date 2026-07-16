@@ -44,10 +44,26 @@ public class AppDbContext : DbContext
     public DbSet<GroupAssignment> GroupAssignments => Set<GroupAssignment>();
     public DbSet<GroupAssignmentCompletion> GroupAssignmentCompletions => Set<GroupAssignmentCompletion>();
     public DbSet<UserPushSubscription> UserPushSubscriptions => Set<UserPushSubscription>();
+    public DbSet<FlashcardReviewLog> FlashcardReviewLogs => Set<FlashcardReviewLog>();
+    public DbSet<StreakCoverDay> StreakCoverDays => Set<StreakCoverDay>();
+    public DbSet<UserCalendarFeed> UserCalendarFeeds => Set<UserCalendarFeed>();
+    public DbSet<CourseAudioOverview> CourseAudioOverviews => Set<CourseAudioOverview>();
+    public DbSet<GroupNote> GroupNotes => Set<GroupNote>();
+    public DbSet<AiUsageLog> AiUsageLogs => Set<AiUsageLog>();
+    public DbSet<ContentEmbedding> ContentEmbeddings => Set<ContentEmbedding>();
+    public DbSet<AiJob> AiJobs => Set<AiJob>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        // vector  — the embedding column and its HNSW index (semantic search).
+        // pg_trgm — GIN trigram indexes for the ILIKE '%term%' searches. A leading wildcard makes a
+        //           B-tree useless, so without this every keyword search is a sequential scan whose
+        //           cost grows with the size of the user's library.
+        modelBuilder.HasPostgresExtension("vector");
+        modelBuilder.HasPostgresExtension("pg_trgm");
+
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
     }
 }

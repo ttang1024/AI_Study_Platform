@@ -4,7 +4,7 @@ import { BellRing, Info } from 'lucide-react-native';
 
 import { FilterChip } from '@/components/FilterChip';
 import { InfoBanner } from '@/components/InfoBanner';
-import { Colors, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
+import { Colors, Layout, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
 import {
   disableDailyReminder,
   getReminderSettings,
@@ -153,11 +153,11 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bgCard, borderRadius: Radius.lg, padding: Spacing.three,
     gap: Spacing.three, ...Shadows.card,
   },
-  rowHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
+  rowHeader: { ...Layout.row, gap: Spacing.three },
   rowText: { flex: 1, gap: 2 },
   rowTitle: { ...Typography.bodyBold, color: Colors.textPrimary },
   rowSubtitle: { ...Typography.caption, color: Colors.textSecondary },
   timeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
-  hintRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 2 },
+  hintRow: { ...Layout.row, gap: 6, paddingHorizontal: 2 },
   hintText: { ...Typography.caption, color: Colors.textSecondary },
 });

@@ -9,8 +9,11 @@ export const XpDigestCards: React.FC = () => {
   const [digest, setDigest] = useState<WeeklyDigest | null>(null);
 
   useEffect(() => {
-    gamificationService.getXp().then(setXp).catch(() => {});
-    gamificationService.getWeeklyDigest().then(setDigest).catch(() => {});
+    // Validate the shape, not just the rejection. Both values render behind `!xp` /
+    // `!digest` skeleton branches that a truthy-but-malformed response (e.g. []) slips
+    // past, and their fields are then dereferenced unguarded.
+    gamificationService.getXp().then(x => setXp(x?.breakdown ? x : null)).catch(() => {});
+    gamificationService.getWeeklyDigest().then(d => setDigest(d?.dailyMinutes ? d : null)).catch(() => {});
   }, []);
 
   const maxDay = Math.max(1, ...(digest?.dailyMinutes.map((d) => d.minutes) ?? [1]));

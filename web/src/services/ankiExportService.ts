@@ -1,7 +1,30 @@
+import { apiClient } from './apiClient';
+
 interface AnkiCard {
   id: string;
   front: string;
   back: string;
+}
+
+/**
+ * Server-built .apkg (real Anki package) with FSRS scheduling state carried over.
+ * Exports all cards, or one course's cards when courseId is given.
+ */
+export async function downloadApkg(courseId?: string, fallbackName = 'study-platform'): Promise<void> {
+  const params = courseId ? `?courseId=${courseId}` : '';
+  const response = await apiClient.get(`/api/flashcards/export/apkg${params}`, { responseType: 'blob' });
+  const disposition: string = response.headers['content-disposition'] ?? '';
+  const match = disposition.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
+  const filename = match ? decodeURIComponent(match[1]) : `${fallbackName}.apkg`;
+
+  const url = URL.createObjectURL(response.data as Blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 export async function downloadAnkiDeck(cards: AnkiCard[], deckName: string): Promise<void> {

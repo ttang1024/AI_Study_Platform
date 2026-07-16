@@ -7,7 +7,7 @@ import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
 import { SegmentedTabs } from '@/components/SegmentedTabs';
 import { SummaryMarkdown } from '@/components/SummaryMarkdown';
-import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
+import { Alpha, Colors, Radius, Spacing, Typography } from '@/constants/theme';
 import type { WorkedProblem, WorkedProblemAttempt } from '@/services/workedProblemsService';
 
 type Difficulty = 'easy' | 'medium' | 'hard';
@@ -196,8 +196,8 @@ const styles = StyleSheet.create({
     ...Typography.body, color: Colors.textPrimary, minHeight: 60, textAlignVertical: 'top',
     borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.md, padding: Spacing.two,
   },
-  feedbackBox: { backgroundColor: `${Colors.blue}1a`, borderRadius: Radius.md, padding: Spacing.two },
-  feedbackCorrect: { backgroundColor: `${Colors.emerald}1a` },
-  feedbackWrong: { backgroundColor: `${Colors.red}1a` },
+  feedbackBox: { backgroundColor: `${Colors.blue}${Alpha.tint}`, borderRadius: Radius.md, padding: Spacing.two },
+  feedbackCorrect: { backgroundColor: `${Colors.emerald}${Alpha.tint}` },
+  feedbackWrong: { backgroundColor: `${Colors.red}${Alpha.tint}` },
   feedbackText: { ...Typography.body, color: Colors.textPrimary },
 });

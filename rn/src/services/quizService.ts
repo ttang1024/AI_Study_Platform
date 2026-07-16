@@ -68,8 +68,12 @@ export const quizService = {
     return (response.data.data as BackendQuiz[]).map(mapQuiz);
   },
 
-  async submitDocumentQuiz(courseId: string, documentId: string, answers: Record<string, string>, score: number, total: number): Promise<QuizSubmission> {
-    const response = await apiClient.post(`/api/courses/${courseId}/documents/${documentId}/quiz/submission`, { answers, score, total });
+  /**
+   * @param confidence Optional {questionId: 1|2|3} self-rating (1 = guessing, 3 = confident). Omitted
+   *   when nothing was rated — the server distinguishes "no data" from "rated", so an empty map lies.
+   */
+  async submitDocumentQuiz(courseId: string, documentId: string, answers: Record<string, string>, score: number, total: number, confidence?: Record<string, number>): Promise<QuizSubmission> {
+    const response = await apiClient.post(`/api/courses/${courseId}/documents/${documentId}/quiz/submission`, { answers, score, total, confidence });
     return mapSubmission(response.data.data);
   },
 
@@ -91,8 +95,8 @@ export const quizService = {
   },
 
   // Note: video submissions POST to `/submit`, documents POST to `/submission` — confirmed asymmetry in the backend routes.
-  async submitVideoQuiz(videoId: string, answers: Record<string, string>, score: number, total: number): Promise<QuizSubmission> {
-    const response = await apiClient.post(`/api/videos/${videoId}/quiz/submit`, { answers, score, total });
+  async submitVideoQuiz(videoId: string, answers: Record<string, string>, score: number, total: number, confidence?: Record<string, number>): Promise<QuizSubmission> {
+    const response = await apiClient.post(`/api/videos/${videoId}/quiz/submit`, { answers, score, total, confidence });
     return mapSubmission(response.data.data);
   },
 

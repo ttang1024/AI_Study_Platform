@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, TextInput, TextInputProps, View } from 'react-native';
 import { Search } from 'lucide-react-native';
 
-import { Colors, Radius, Shadows, Spacing } from '@/constants/theme';
+import { Colors, Layout, Radius, Shadows, Spacing } from '@/constants/theme';
 
 interface SearchBarProps {
   value: string;
@@ -29,8 +29,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({ value, onChangeText, place
 
 const styles = StyleSheet.create({
   root: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    ...Layout.row,
     gap: Spacing.two,
     backgroundColor: Colors.bgSidebar,
     borderRadius: Radius.pill,

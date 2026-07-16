@@ -1,15 +1,18 @@
 import React from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { BarChart3, Target } from 'lucide-react';
+import { BarChart3, Target, Brain } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { AnalyticsSection } from '../components/dashboard/AnalyticsSection';
 import { ReinforcementPanel } from '../components/reinforcement/ReinforcementPanel';
+import { RetentionSection } from '../components/dashboard/RetentionSection';
+import { CalibrationSection } from '../components/dashboard/CalibrationSection';
 
-type Tab = 'analytics' | 'reinforcement';
+type Tab = 'analytics' | 'reinforcement' | 'retention';
 
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+  { id: 'retention', label: 'Retention', icon: Brain },
   { id: 'reinforcement', label: 'Reinforcement', icon: Target },
 ];
 
@@ -24,7 +27,7 @@ export const InsightsPage: React.FC = () => {
     return <Navigate to={`/practice${smart ? `?smart=${smart}` : ''}`} replace />;
   }
 
-  const activeTab: Tab = param === 'reinforcement' ? 'reinforcement' : 'analytics';
+  const activeTab: Tab = param === 'reinforcement' ? 'reinforcement' : param === 'retention' ? 'retention' : 'analytics';
 
   const selectTab = (tab: Tab) => {
     const next = new URLSearchParams(searchParams);
@@ -80,6 +83,14 @@ export const InsightsPage: React.FC = () => {
           transition={{ duration: 0.18 }}
         >
           {activeTab === 'analytics' && <AnalyticsSection />}
+          {/* Two kinds of calibration, side by side: RetentionSection grades the FSRS scheduler's
+              predicted recall, CalibrationSection grades the learner's own sense of what they know. */}
+          {activeTab === 'retention' && (
+            <div className="space-y-6">
+              <RetentionSection />
+              <CalibrationSection />
+            </div>
+          )}
           {activeTab === 'reinforcement' && <ReinforcementPanel />}
         </motion.div>
       </AnimatePresence>

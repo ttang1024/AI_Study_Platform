@@ -3,7 +3,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
 import type { LucideIcon } from 'lucide-react-native';
 
-import { Colors, Gradients, Radius, Shadows } from '@/constants/theme';
+import { Colors, Gradients, Layout, Radius, Shadows } from '@/constants/theme';
 
 // Fixed pixel height (not derived from padding + text line-height) so the
 // horizontal ScrollView wrapping these chips can be given an exact, matching
@@ -43,8 +43,7 @@ export const FilterChip: React.FC<FilterChipProps> = ({ label, active, onPress, 
 
 const styles = StyleSheet.create({
   chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    ...Layout.row,
     justifyContent: 'center',
     gap: 6,
     paddingHorizontal: 14,

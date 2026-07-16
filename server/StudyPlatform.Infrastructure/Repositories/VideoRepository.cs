@@ -63,6 +63,23 @@ public class VideoRepository : Repository<Video>, IVideoRepository
         return (items, totalCount);
     }
 
+    public async Task<IReadOnlyDictionary<Guid, int>> GetCountsByCourseAsync(
+        Guid userId, CancellationToken cancellationToken = default)
+        => await _dbSet
+            .AsNoTracking()
+            .Where(v => v.UserId == userId)
+            .GroupBy(v => v.CourseId)
+            .Select(g => new { CourseId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(r => r.CourseId, r => r.Count, cancellationToken);
+
+    public async Task<IReadOnlyDictionary<Guid, Guid>> GetVideoCourseMapAsync(
+        Guid userId, CancellationToken cancellationToken = default)
+        => await _dbSet
+            .AsNoTracking()
+            .Where(v => v.UserId == userId)
+            .Select(v => new { v.VideoId, v.CourseId })
+            .ToDictionaryAsync(r => r.VideoId, r => r.CourseId, cancellationToken);
+
     public async Task<Video?> GetByIdForUserAsync(Guid id, Guid userId, CancellationToken cancellationToken = default)
         => await _dbSet
             .Include(v => v.Course)

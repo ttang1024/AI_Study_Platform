@@ -3,7 +3,7 @@ import React from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { Languages, Mic, MicOff, Paperclip, Send } from 'lucide-react-native';
 
-import { Alpha, Colors, Gradients, Radius, Shadows, Spacing } from '@/constants/theme';
+import { Alpha, Colors, Gradients, Layout, Radius, Shadows, Spacing } from '@/constants/theme';
 
 interface DictationControls {
   supported: boolean;
@@ -76,7 +76,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'flex-end', gap: Spacing.one,
     padding: Spacing.three, borderTopWidth: 1, borderTopColor: Colors.border, backgroundColor: Colors.bgCard,
   },
-  attachButton: { width: 38, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: Radius.pill },
+  attachButton: { width: 38, height: 44, ...Layout.center, borderRadius: Radius.pill },
   micButtonActive: { backgroundColor: `${Colors.red}${Alpha.tint}` },
   input: {
     flex: 1, minHeight: 44, maxHeight: 120, borderRadius: Radius.xl, backgroundColor: Colors.bgApp,
@@ -84,6 +84,6 @@ const styles = StyleSheet.create({
     marginHorizontal: Spacing.one,
   },
   sendButton: { borderRadius: Radius.pill, ...Shadows.primaryGlow },
-  sendGradient: { width: 44, height: 44, borderRadius: Radius.pill, alignItems: 'center', justifyContent: 'center' },
+  sendGradient: { width: 44, height: 44, borderRadius: Radius.pill, ...Layout.center },
   sendButtonDisabled: { opacity: 0.5 },
 });

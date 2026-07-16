@@ -18,13 +18,13 @@ public class GetMistakesQueryHandler : IRequestHandler<GetMistakesQuery, Result<
 
     public async Task<Result<MistakesDto>> Handle(GetMistakesQuery request, CancellationToken cancellationToken)
     {
-        var entries = (await _unitOfWork.MistakeEntries.FindAsync(m => m.UserId == request.UserId, cancellationToken)).ToList();
+        var entries = (await _unitOfWork.MistakeEntries.FindAsNoTrackingAsync(m => m.UserId == request.UserId, cancellationToken)).ToList();
 
         // Mistakes are normally captured at submission time, but submissions that predate the
         // notebook never went through capture. First time a user with history opens an empty
         // notebook, replay their stored submissions once.
         if (entries.Count == 0 && await BackfillFromSubmissionsAsync(request.UserId, cancellationToken))
-            entries = (await _unitOfWork.MistakeEntries.FindAsync(m => m.UserId == request.UserId, cancellationToken)).ToList();
+            entries = (await _unitOfWork.MistakeEntries.FindAsNoTrackingAsync(m => m.UserId == request.UserId, cancellationToken)).ToList();
 
         var openCount = entries.Count(m => m.Status == "open");
         var resolvedCount = entries.Count - openCount;
@@ -46,10 +46,10 @@ public class GetMistakesQueryHandler : IRequestHandler<GetMistakesQuery, Result<
     /// <summary>Replays stored quiz submissions through the capture logic. Returns true if anything was written.</summary>
     private async Task<bool> BackfillFromSubmissionsAsync(Guid userId, CancellationToken cancellationToken)
     {
-        var submissions = (await _unitOfWork.QuizSubmissions.FindAsync(s => s.UserId == userId, cancellationToken)).ToList();
+        var submissions = (await _unitOfWork.QuizSubmissions.FindAsNoTrackingAsync(s => s.UserId == userId, cancellationToken)).ToList();
         if (submissions.Count == 0) return false;
 
-        var quizzes = (await _unitOfWork.Quizzes.FindAsync(q => q.UserId == userId, cancellationToken)).ToList();
+        var quizzes = (await _unitOfWork.Quizzes.FindAsNoTrackingAsync(q => q.UserId == userId, cancellationToken)).ToList();
         if (quizzes.Count == 0) return false;
 
         var wroteAnything = false;
@@ -85,7 +85,7 @@ public class GetMistakesQueryHandler : IRequestHandler<GetMistakesQuery, Result<
     internal static MistakeDto ToDto(Domain.Entities.MistakeEntry m) => new(
         m.MistakeEntryId, m.QuizId, m.DocumentId, m.VideoId, m.SourceType,
         m.Question, ParseOptions(m.OptionsJson), m.CorrectAnswer, m.UserAnswer, m.Explanation,
-        m.Status, m.TimesMissed, m.FirstMissedAt, m.LastMissedAt, m.ResolvedAt);
+        m.Status, m.TimesMissed, m.FirstMissedAt, m.LastMissedAt, m.ResolvedAt, m.FlashcardId);
 
     private static IReadOnlyList<string> ParseOptions(string optionsJson)
     {

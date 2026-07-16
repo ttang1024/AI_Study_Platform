@@ -4,10 +4,12 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Newspaper } from 'lucide-react-native';
 
 import { Button } from '@/components/Button';
+import { DuplicateAlert } from '@/components/summarizer/DuplicateAlert';
 import { IntroCard } from '@/components/summarizer/IntroCard';
 import { TextField } from '@/components/TextField';
 import { Colors, Spacing } from '@/constants/theme';
 import { documentService } from '@/services/documentService';
+import { useLibraryEntries } from '@/hooks/useLibraryEntries';
 import { getApiErrorMessage } from '@/utils/apiError';
 
 interface WebArticleFormProps {
@@ -20,10 +22,18 @@ export function WebArticleForm({ selectedCourseId, onCourseError }: WebArticleFo
   const [url, setUrl] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const articles = useLibraryEntries('articles');
+
+  const trimmedUrl = url.trim();
+  const duplicate = trimmedUrl
+    ? articles.find((e) => e.kind === 'document' && e.data.originalUrl === trimmedUrl)
+    : undefined;
 
   const submit = async () => {
     const trimmed = url.trim();
     if (!trimmed) return;
+    // Don't clip an article that's already in the library — the duplicate banner is shown instead.
+    if (duplicate) return;
     if (!selectedCourseId) { onCourseError(true); return; }
     onCourseError(false);
     setError('');
@@ -31,6 +41,8 @@ export function WebArticleForm({ selectedCourseId, onCourseError }: WebArticleFo
     try {
       const result = await documentService.clipUrl(trimmed, selectedCourseId);
       router.push(`/(tabs)/library/document/${result.documentId}?courseId=${result.courseId}`);
+      // Clear the form so returning to the summarizer starts fresh.
+      setUrl('');
     } catch (err) {
       setError(getApiErrorMessage(err, 'Could not read that page. Please check the URL and try again.'));
     } finally {
@@ -54,9 +66,17 @@ export function WebArticleForm({ selectedCourseId, onCourseError }: WebArticleFo
         />
       </IntroCard>
 
+      {duplicate?.kind === 'document' && (
+        <DuplicateAlert
+          label="article"
+          courseName={duplicate.data.courseName ?? ''}
+          onView={() => router.push(`/(tabs)/library/document/${duplicate.data.id}?courseId=${duplicate.data.courseId}`)}
+        />
+      )}
+
       {!!error && <Text style={styles.error}>{error}</Text>}
 
-      <Button title="Clip & Analyze" onPress={submit} loading={loading} disabled={!url.trim()} />
+      <Button title="Clip & Analyze" onPress={submit} loading={loading} disabled={!url.trim() || !!duplicate} />
     </View>
   );
 }

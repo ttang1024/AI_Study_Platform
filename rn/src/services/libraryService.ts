@@ -1,5 +1,15 @@
-import { apiClient } from '@/services/apiClient';
+// Endpoint + paging logic moved to the shared package (packages/core). The row
+// mappers stay here because rn's Document/VideoListItem DTOs haven't been
+// reconciled with web's — each app injects its own `mapItem`.
+import {
+  createLibraryService,
+  type BackendLibraryItem,
+  type PagedLibraryOf,
+} from '@core/services/libraryService';
+import { http } from '@/services/http';
 import type { Document, VideoListItem } from '@/types';
+
+export type { GetLibraryParams, LibraryFilterType } from '@core/services/libraryService';
 
 const AUDIO_EXTENSIONS = ['.mp3', '.m4a', '.m4b', '.wav', '.ogg', '.aac', '.flac', '.webm', '.opus', '.aiff', '.aif', '.wma', '.amr', '.mka'];
 const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.heic', '.heif', '.bmp', '.svg'];
@@ -18,44 +28,9 @@ const getDocumentType = (contentType: string, fileName: string): Document['type'
   return 'txt';
 };
 
-interface BackendLibraryItem {
-  kind: 'document' | 'video';
-  id: string;
-  courseId: string;
-  courseName: string;
-  courseColor: string;
-  createdAt: string;
-  fileName?: string | null;
-  blobUrl?: string | null;
-  contentType?: string | null;
-  originalUrl?: string | null;
-  summary?: string | null;
-  title?: string | null;
-  videoId?: string | null;
-  videoUrl?: string | null;
-  thumbnailUrl?: string | null;
-  sourceType?: string | null;
-}
-
 export type LibraryEntry = { kind: 'document'; data: Document } | { kind: 'video'; data: VideoListItem };
 
-export interface PagedLibrary {
-  items: LibraryEntry[];
-  totalCount: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
-}
-
-export type LibraryFilterType = 'all' | 'documents' | 'articles' | 'audio' | 'videos';
-
-export interface GetLibraryParams {
-  type?: LibraryFilterType;
-  courseId?: string | null;
-  search?: string;
-  page?: number;
-  pageSize?: number;
-}
+export type PagedLibrary = PagedLibraryOf<LibraryEntry>;
 
 const mapItem = (i: BackendLibraryItem): LibraryEntry => {
   if (i.kind === 'video') {
@@ -92,24 +67,4 @@ const mapItem = (i: BackendLibraryItem): LibraryEntry => {
   };
 };
 
-export const libraryService = {
-  async getLibrary(params: GetLibraryParams = {}): Promise<PagedLibrary> {
-    const p = new URLSearchParams({
-      type: params.type ?? 'all',
-      page: String(params.page ?? 1),
-      pageSize: String(params.pageSize ?? 8),
-    });
-    if (params.courseId) p.set('courseId', params.courseId);
-    if (params.search) p.set('search', params.search);
-
-    const response = await apiClient.get(`/api/library?${p}`);
-    const data = response.data.data;
-    return {
-      items: (data.items as BackendLibraryItem[]).map(mapItem),
-      totalCount: data.totalCount,
-      page: data.page,
-      pageSize: data.pageSize,
-      totalPages: data.totalPages,
-    };
-  },
-};
+export const libraryService = createLibraryService(http, mapItem);

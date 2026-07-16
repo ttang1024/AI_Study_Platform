@@ -1,38 +1,28 @@
-import { apiClient } from '@/services/apiClient';
+// Service logic moved to the shared package (packages/core). This shim keeps
+// rn's historical method names over the shared web-canonical factory. No
+// offline cache is injected, so list() errors propagate exactly as before.
+import { createGlossaryService } from '@core/services/glossaryService';
+import { http } from '@/services/http';
 import type { GlossaryTerm } from '@/types';
 
+const core = createGlossaryService(http);
+
 export const glossaryService = {
-  async list(): Promise<GlossaryTerm[]> {
-    const response = await apiClient.get('/api/glossary');
-    return response.data.data as GlossaryTerm[];
+  list(): Promise<GlossaryTerm[]> {
+    return core.getAllGlossary();
   },
 
-  async getMasteredIds(): Promise<string[]> {
-    const response = await apiClient.get('/api/glossary/mastered');
-    return response.data.data as string[];
+  getMasteredIds: core.getMasteredIds,
+
+  toggleMastered: core.toggleMastered,
+
+  update(termId: string, data: { term: string; definition: string }): Promise<GlossaryTerm> {
+    return core.updateTerm(termId, data.term, data.definition);
   },
 
-  async toggleMastered(termId: string): Promise<boolean> {
-    const response = await apiClient.post(`/api/glossary/mastered/${termId}`);
-    return response.data.data as boolean;
-  },
+  remove: core.deleteTerm,
 
-  async update(termId: string, data: { term: string; definition: string }): Promise<GlossaryTerm> {
-    const response = await apiClient.put(`/api/glossary/terms/${termId}`, data);
-    return response.data.data as GlossaryTerm;
-  },
+  generateForDocument: core.generateGlossary,
 
-  async remove(termId: string): Promise<void> {
-    await apiClient.delete(`/api/glossary/terms/${termId}`);
-  },
-
-  async generateForDocument(courseId: string, documentId: string): Promise<GlossaryTerm[]> {
-    const response = await apiClient.post(`/api/courses/${courseId}/documents/${documentId}/glossary/generate`);
-    return response.data.data as GlossaryTerm[];
-  },
-
-  async generateForVideo(videoId: string, videoUrl: string): Promise<GlossaryTerm[]> {
-    const response = await apiClient.post(`/api/videos/${videoId}/glossary/generate`, { videoUrl });
-    return response.data.data as GlossaryTerm[];
-  },
+  generateForVideo: core.generateVideoGlossary,
 };

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { CalendarClock } from 'lucide-react-native';
 
 import { Button } from '@/components/Button';
@@ -7,7 +7,7 @@ import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
 import { FilterChip } from '@/components/FilterChip';
 import { PlanCard } from '@/components/study/PlanCard';
-import { Colors, Spacing, Typography } from '@/constants/theme';
+import { Colors, Layout, Spacing, Typography } from '@/constants/theme';
 import { courseService } from '@/services/courseService';
 import { plannerService, type ExamPlan } from '@/services/plannerService';
 import type { Course } from '@/types';
@@ -24,13 +24,26 @@ export default function PlannerScreen() {
   const [courseId, setCourseId] = useState<string | undefined>(undefined);
   const [dailyMinutes, setDailyMinutes] = useState(40);
   const [submitting, setSubmitting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
-    plannerService.listExamPlans().then(setPlans);
+    plannerService.getExamPlans().then(setPlans);
     courseService.getCourses().then(setCourses).catch(() => {});
   }, []);
+
+  const refresh = async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        plannerService.getExamPlans().then(setPlans),
+        courseService.getCourses().then(setCourses).catch(() => {}),
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const create = async () => {
     if (!title.trim() || !DATE_PATTERN.test(examDate)) {
@@ -67,7 +80,11 @@ export default function PlannerScreen() {
   };
 
   return (
-    <ScrollView style={styles.root} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.root}
+      contentContainerStyle={styles.content}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={Colors.primary} />}
+    >
       {showForm ? (
         <Card style={styles.form}>
           <TextInput value={title} onChangeText={setTitle} placeholder="Exam title" placeholderTextColor={Colors.textSecondary} style={styles.input} autoFocus />
@@ -124,7 +141,7 @@ const styles = StyleSheet.create({
   },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   errorText: { ...Typography.caption, color: Colors.red },
-  formActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: Spacing.three, alignItems: 'center' },
+  formActions: { ...Layout.row, justifyContent: 'flex-end', gap: Spacing.three },
   cancelText: { ...Typography.captionBold, color: Colors.textSecondary },
   loading: { marginTop: Spacing.five },
 });

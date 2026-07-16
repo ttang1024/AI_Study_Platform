@@ -7,7 +7,7 @@ import { Camera, FileText, Upload } from 'lucide-react-native';
 
 import { Button } from '@/components/Button';
 import { Dropzone } from '@/components/summarizer/Dropzone';
-import { Colors, Radius, Spacing } from '@/constants/theme';
+import { Colors, Layout, Radius, Spacing } from '@/constants/theme';
 import { documentService } from '@/services/documentService';
 import { isAcceptedDocumentFile } from '@/constants/documentUpload';
 import type { PickedFile } from '@/types';
@@ -63,6 +63,8 @@ export function DocumentForm({ selectedCourseId, onCourseError }: DocumentFormPr
     try {
       const doc = await documentService.uploadDocument(selectedCourseId, file);
       router.push(`/(tabs)/library/document/${doc.id}?courseId=${doc.courseId}`);
+      // Clear the form so returning to the summarizer starts fresh.
+      setFile(null);
     } catch {
       setError('Upload failed. Please try again.');
     } finally {
@@ -103,7 +105,7 @@ export function DocumentForm({ selectedCourseId, onCourseError }: DocumentFormPr
 const styles = StyleSheet.create({
   root: { gap: Spacing.three },
   filePreview: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.two,
+    ...Layout.row, gap: Spacing.two,
     backgroundColor: Colors.bgSidebar, borderWidth: 1, borderColor: Colors.border,
     borderRadius: Radius.md, padding: Spacing.two,
   },

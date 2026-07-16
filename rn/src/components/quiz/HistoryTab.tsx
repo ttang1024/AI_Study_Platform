@@ -1,11 +1,12 @@
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ChevronRight, History } from 'lucide-react-native';
 
 import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
-import { Colors, Spacing, Typography } from '@/constants/theme';
+import { PressableScale } from '@/components/PressableScale';
+import { Colors, Layout, Spacing, Typography } from '@/constants/theme';
 import { quizHistoryService } from '@/services/quizHistoryService';
 import { statsService } from '@/services/statsService';
 import type { PendingMaterial, QuizSubmission, UserStats } from '@/types';
@@ -105,7 +106,7 @@ export const HistoryTab: React.FC = () => {
 };
 
 const ItemCard: React.FC<{ title: string; subtitle: string; onPress?: () => void }> = ({ title, subtitle, onPress }) => (
-  <Pressable onPress={onPress} disabled={!onPress} style={({ pressed }) => pressed && styles.pressed}>
+  <PressableScale onPress={onPress} disabled={!onPress}>
     <Card style={styles.card}>
       <View style={styles.cardText}>
         <Text style={styles.title} numberOfLines={1}>{title}</Text>
@@ -113,7 +114,7 @@ const ItemCard: React.FC<{ title: string; subtitle: string; onPress?: () => void
       </View>
       {onPress && <ChevronRight size={18} color={Colors.textSecondary} />}
     </Card>
-  </Pressable>
+  </PressableScale>
 );
 
 const StatTile: React.FC<{ label: string; value: string }> = ({ label, value }) => (
@@ -125,14 +126,14 @@ const StatTile: React.FC<{ label: string; value: string }> = ({ label, value }) 
 
 const styles = StyleSheet.create({
   root: { padding: Spacing.three, gap: Spacing.two, paddingBottom: Spacing.five },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  center: { ...Layout.fillCenter },
   statRow: { flexDirection: 'row', gap: Spacing.two, marginBottom: Spacing.two },
   statTile: { flex: 1, backgroundColor: Colors.bgCard, borderWidth: 1, borderColor: Colors.border, borderRadius: 12, padding: Spacing.two, alignItems: 'center' },
   statValue: { ...Typography.heading, color: Colors.textPrimary },
   statLabel: { ...Typography.caption, color: Colors.textSecondary },
   sectionLabel: { ...Typography.subheading, color: Colors.textPrimary, marginTop: Spacing.two },
   pressed: { opacity: 0.7 },
-  card: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  card: { ...Layout.row, gap: Spacing.two },
   cardText: { flex: 1, gap: 2 },
   title: { ...Typography.bodyBold, color: Colors.textPrimary },
   subtitle: { ...Typography.caption, color: Colors.textSecondary },

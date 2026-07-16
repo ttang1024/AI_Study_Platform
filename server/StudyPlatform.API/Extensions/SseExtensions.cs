@@ -105,6 +105,21 @@ public static class SseExtensions
         await response.Body.FlushAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// Emits an object as the SSE payload. Distinct from WriteSseDataAsync, which serializes its
+    /// argument as a JSON *string* — passing pre-serialized JSON to that would double-encode it.
+    /// </summary>
+    public static async Task WriteSseJsonAsync<T>(this HttpResponse response, T payload, CancellationToken cancellationToken)
+    {
+        var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        });
+
+        await response.WriteAsync($"data: {json}\n\n", cancellationToken);
+        await response.Body.FlushAsync(cancellationToken);
+    }
+
     public static async Task WriteSseDoneAsync(this HttpResponse response, CancellationToken cancellationToken)
     {
         await response.WriteAsync("data: [DONE]\n\n", cancellationToken);

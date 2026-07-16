@@ -4,7 +4,7 @@ import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 import type { LucideIcon } from 'lucide-react-native';
 
 import { CHIP_HEIGHT } from '@/components/FilterChip';
-import { Colors, Gradients, Radius, Spacing } from '@/constants/theme';
+import { Colors, Gradients, Layout, Radius, Spacing } from '@/constants/theme';
 
 export interface TabChipOption<T extends string> {
   id: T;
@@ -73,11 +73,11 @@ const styles = StyleSheet.create({
   // overflowing sibling content compress the row despite the fixed height.
   row: { flexGrow: 0, flexShrink: 0, height: CHIP_HEIGHT + Spacing.two },
   rowContent: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.one,
+    ...Layout.row, gap: Spacing.one,
     paddingHorizontal: Spacing.three, paddingBottom: Spacing.two,
   },
   chip: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, flexShrink: 0,
+    ...Layout.row, justifyContent: 'center', gap: 6, flexShrink: 0,
     paddingHorizontal: 14, height: CHIP_HEIGHT, borderRadius: Radius.pill,
     // Constant border width in both states — only the color changes — so
     // toggling a tab never changes its measured size.

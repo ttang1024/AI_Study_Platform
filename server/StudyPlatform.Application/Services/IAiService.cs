@@ -7,6 +7,10 @@ public interface IAiService
     Task<string> GenerateMindMapAsync(string textContent, CancellationToken cancellationToken = default);
     Task<string> GenerateQuizAsync(byte[] fileData, string mimeType, string difficulty = "medium", CancellationToken cancellationToken = default);
     Task<string> GenerateQuizAsync(string textContent, string difficulty = "medium", CancellationToken cancellationToken = default);
+
+    /// <summary>Quiz weighted towards the concepts the learner keeps getting wrong. See <see cref="QuizPlan"/>.</summary>
+    Task<string> GenerateAdaptiveQuizAsync(byte[] fileData, string mimeType, QuizPlan plan, CancellationToken cancellationToken = default);
+    Task<string> GenerateAdaptiveQuizAsync(string textContent, QuizPlan plan, CancellationToken cancellationToken = default);
     Task<string> GenerateFlashcardsAsync(byte[] fileData, string mimeType, CancellationToken cancellationToken = default);
     Task<string> GenerateFlashcardsAsync(string textContent, CancellationToken cancellationToken = default);
     Task<string> GenerateGlossaryAsync(byte[] fileData, string mimeType, CancellationToken cancellationToken = default);
@@ -36,6 +40,18 @@ public interface IAiService
     // Phase 3 additions
     Task<string> GenerateFlashcardBackAsync(string frontText, CancellationToken cancellationToken = default);
     Task<string> SuggestConceptLinksAsync(string documentContent, string entityType, Guid entityId, string existingTerms, CancellationToken cancellationToken = default);
+
+    // Audio overview (NotebookLM-style two-host dialogue)
+    Task<string> GenerateAudioOverviewScriptAsync(string courseName, string materialsDigest, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Grades a photographed handwritten solution, step by step. Returns the JSON described by
+    /// AiPrompts.GradeHandwrittenWork. Pages are graded together as one continuous solution.
+    /// </summary>
+    Task<string> GradeHandwrittenWorkAsync(
+        IReadOnlyList<(byte[] data, string mimeType)> pages,
+        string? problemStatement,
+        CancellationToken cancellationToken = default);
 
     // Streaming variants
     IAsyncEnumerable<string> StreamSummaryAsync(byte[] fileData, string mimeType, CancellationToken cancellationToken = default);

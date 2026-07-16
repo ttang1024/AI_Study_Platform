@@ -46,6 +46,25 @@ public class QuizSubmissionRepository : Repository<QuizSubmission>, IQuizSubmiss
         return (items, totalCount);
     }
 
+    public async Task<QuizAchievements> GetAchievementsAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        var row = await _dbSet
+            .AsNoTracking()
+            .Where(s => s.UserId == userId && s.Total > 0)
+            .GroupBy(_ => 1)
+            .Select(g => new
+            {
+                Perfect = g.Count(s => s.Score == s.Total),
+                Scored = g.Count(),
+                Average = g.Average(s => (double)s.Score / s.Total * 100),
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return row == null
+            ? QuizAchievements.Empty
+            : new QuizAchievements(row.Perfect, row.Scored, row.Average);
+    }
+
     public async Task<(IEnumerable<Guid> DocumentIds, IEnumerable<Guid> VideoIds)> GetCoverageByUserAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         var documentIds = await _dbSet

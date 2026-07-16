@@ -1,13 +1,14 @@
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Users } from 'lucide-react-native';
 
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
 import { IconBadge } from '@/components/IconBadge';
-import { Colors, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
+import { PressableScale } from '@/components/PressableScale';
+import { Colors, Layout, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
 import { studyGroupService, type StudyGroup } from '@/services/studyGroupService';
 
 export default function GroupsScreen() {
@@ -18,6 +19,7 @@ export default function GroupsScreen() {
   const [description, setDescription] = useState('');
   const [inviteCode, setInviteCode] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = () => studyGroupService.listMyGroups().then(setGroups);
@@ -25,6 +27,15 @@ export default function GroupsScreen() {
   useEffect(() => {
     load();
   }, []);
+
+  const refresh = async () => {
+    setRefreshing(true);
+    try {
+      await load();
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const create = async () => {
     if (!name.trim()) return;
@@ -60,7 +71,11 @@ export default function GroupsScreen() {
   };
 
   return (
-    <ScrollView style={styles.root} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.root}
+      contentContainerStyle={styles.content}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={Colors.primary} />}
+    >
       {mode === 'none' && (
         <View style={styles.actionRow}>
           <View style={styles.actionButton}>
@@ -114,9 +129,9 @@ export default function GroupsScreen() {
         <EmptyState icon={Users} title="No study groups yet" subtitle="Create one or join with an invite code from a friend." />
       ) : (
         groups.map((group) => (
-          <Pressable
+          <PressableScale
             key={group.studyGroupId}
-            style={({ pressed }) => [styles.groupCard, pressed && styles.pressedDim]}
+            style={styles.groupCard}
             onPress={() => router.push(`/study/groups/${group.studyGroupId}`)}
           >
             <IconBadge icon={Users} color={Colors.purple} size={40} iconSize={18} />
@@ -125,7 +140,7 @@ export default function GroupsScreen() {
               {!!group.description && <Text style={styles.groupDescription} numberOfLines={2}>{group.description}</Text>}
               <Text style={styles.groupMeta}>{group.memberCount} member{group.memberCount === 1 ? '' : 's'} · Code: {group.inviteCode}</Text>
             </View>
-          </Pressable>
+          </PressableScale>
         ))
       )}
     </ScrollView>
@@ -143,11 +158,10 @@ const styles = StyleSheet.create({
     borderRadius: 8, padding: Spacing.two,
   },
   errorText: { ...Typography.caption, color: Colors.red },
-  formActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: Spacing.three, alignItems: 'center' },
+  formActions: { ...Layout.row, justifyContent: 'flex-end', gap: Spacing.three },
   cancelText: { ...Typography.captionBold, color: Colors.textSecondary },
-  pressedDim: { opacity: 0.85 },
   groupCard: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.three,
+    ...Layout.row, gap: Spacing.three,
     backgroundColor: Colors.bgCard, borderRadius: Radius.lg, padding: Spacing.three,
     ...Shadows.card,
   },

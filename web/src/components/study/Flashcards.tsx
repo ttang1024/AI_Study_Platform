@@ -11,7 +11,7 @@ interface SimpleCard {
   id: string;
   front: string;
   back: string;
-  cardType?: 'basic' | 'cloze' | 'chart';
+  cardType?: 'basic' | 'cloze' | 'chart' | 'occlusion';
   srs?: FlashcardSrsState;
 }
 

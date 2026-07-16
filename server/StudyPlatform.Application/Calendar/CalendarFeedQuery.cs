@@ -36,7 +36,7 @@ public class GetCalendarFeedQueryHandler : IRequestHandler<GetCalendarFeedQuery,
         sb.AppendLine("X-WR-CALNAME:Easy Study");
 
         // Flashcards due per day (cards already overdue roll into today).
-        var srs = await _unitOfWork.FlashcardSrs.FindAsync(
+        var srs = await _unitOfWork.FlashcardSrs.FindAsNoTrackingAsync(
             s => s.UserId == userId && s.Due < horizon, cancellationToken);
         var dueByDay = srs
             .GroupBy(s => s.Due.Date < today ? today : s.Due.Date)
@@ -53,7 +53,7 @@ public class GetCalendarFeedQueryHandler : IRequestHandler<GetCalendarFeedQuery,
         }
 
         // Exam dates + a daily study block leading up to each exam.
-        var plans = await _unitOfWork.ExamPlans.FindAsync(
+        var plans = await _unitOfWork.ExamPlans.FindAsNoTrackingAsync(
             p => p.UserId == userId && p.ExamDate >= today, cancellationToken);
 
         foreach (var plan in plans)

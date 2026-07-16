@@ -19,6 +19,14 @@ public class MistakeEntry
     public string UserAnswer { get; set; } = string.Empty;
     public string Explanation { get; set; } = string.Empty;
     public string Status { get; set; } = "open"; // "open" | "resolved"
+
+    /// <summary>
+    /// The flashcard promoted from this mistake, if the user has made one. Set once and kept even after
+    /// the mistake resolves — it is what stops a second promotion from creating a duplicate card, and
+    /// deleting the card is the user's way of undoing the promotion.
+    /// </summary>
+    public Guid? FlashcardId { get; set; }
+
     public int TimesMissed { get; set; } = 1;
     public DateTime FirstMissedAt { get; set; }
     public DateTime LastMissedAt { get; set; }

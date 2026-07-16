@@ -13,7 +13,8 @@ notes with a rich-text editor, glossary, worked problems, and a practice center.
 
 **AI tools** — general and document/video-scoped chat (with image/PDF attachments and voice input),
 "Ask the library" RAG search, summarizer for ~50 document formats plus video/web/audio/pasted-text
-sources, AI cram sheets, and study planner schedules.
+sources, AI cram sheets, study planner schedules, and an AI usage view (Settings → AI usage: token
+spend and estimated cost broken down by provider and model).
 
 **Social & progress** — study groups with realtime chat (SignalR), quiz battles, live study rooms with
 shared pomodoro, assignments, leaderboards, achievements, insights/analytics charts, knowledge-graph

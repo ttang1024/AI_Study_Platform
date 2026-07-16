@@ -7,7 +7,7 @@
 [![.NET](https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com)
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14+-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17_+_pgvector-4169E1?logo=postgresql&logoColor=white)](https://github.com/pgvector/pgvector)
 [![Redis](https://img.shields.io/badge/Redis-7-DC382D?logo=redis&logoColor=white)](https://redis.io)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
@@ -23,21 +23,21 @@ Upload documents in 80+ formats, videos (paste any link — YouTube · Bilibili 
 
 ## Features
 
-|     | Category             | What you get                                                                                                 |
-| --- | -------------------- | ------------------------------------------------------------------------------------------------------------ |
+|     | Category             | What you get                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| --- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 📄  | **Content Sources**  | 80+ document formats — PDF (scanned PDFs & images get AI OCR), Office incl. legacy `.doc`/`.ppt`/`.xls`, OpenDocument, iWork, eBooks (EPUB / MOBI / FB2), email (EML / MSG / MHTML), XPS / Visio / SVG, Jupyter notebooks, subtitles, LaTeX / Markdown / HTML / RTF, source code — plus online video from 11 sites auto-detected from the pasted link (YouTube & Bilibili with playlist / multi-part import; Vimeo, TED, Dailymotion; public TikTok, Facebook, Instagram, X/Twitter, Reddit, LinkedIn posts), uploaded videos & audio (most containers), web article clipping, podcasts from any episode link (Apple Podcasts, Overcast, Castro, Pocket Casts, Podbean, Buzzsprout & more — plus RSS feeds with an episode picker and direct MP3 links) |
-| 🤖  | **AI Generation**    | Summaries, flashcards (basic / cloze / chart), quizzes, glossaries, mind maps, worked problems               |
-| 🎯  | **Study Tools**      | Rich-text notes, hands-free voice tutor (speaks, listens, and answers back), graded teach-back, photo problem capture, FSRS-4.5 spaced repetition, question bank, knowledge graph & learning paths |
-| 🗓️  | **Today & Practice** | Daily study plan with goal budgeting, one-button **smart session** (due reviews + mistake redos + weak concepts, interleaved), unified Practice / Exam mode (quiz · flashcard · glossary · problem), timed runner |
-| 🎓  | **Exam Prep**        | Exam planner with countdown & day-by-day schedule, AI cram sheets built from your weak spots, timed AI mock exams, mistakes notebook, reinforcement center |
-| 📊  | **Insights**         | Time-on-task & accuracy analytics, per-course mastery, knowledge-gap detection, AI recommendations, XP & levels |
-| 🔔  | **Reminders**        | Browser push reminders when flashcards come due (Web Push), notification digest — due cards, streak-at-risk, daily-goal progress, top knowledge gaps |
-| 📴  | **Offline PWA**      | Installable app shell; flashcards & glossary cached for offline review with background sync                  |
-| 🔊  | **Extras**           | PDF annotations, text-to-speech, semantic full-text search (finds related concepts even when the words differ) + ask-your-library AI answers (cited sources), public share links |
-| 🔄  | **Import / Export**  | Anki import & export, Notion / Markdown ZIP import, study-pack export (PDF / CSV), ICS calendar feed, web clipper, highlight-to-flashcard from any web page |
-| 👥  | **Study Groups**     | Shared courses & documents, real-time chat, live co-study rooms with shared focus timer, assignments, live quiz battles, XP leaderboard |
-| 🔐  | **Auth**             | Email + OTP, Google / GitHub OAuth, JWT sessions                                                             |
-| 📱  | **Mobile App**       | React Native (Expo) app in [`rn/`](rn/README.md) with full web-feature parity, plus biometric app lock, camera scan-to-summarize, haptic study feedback, keep-awake exams, offline review, and push reminders |
+| 🤖  | **AI Generation**    | Summaries, flashcards (basic / cloze / chart), adaptive quizzes (difficulty tunes to your performance on the material), glossaries, mind maps, worked problems                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| 🎯  | **Study Tools**      | Rich-text notes, hands-free voice tutor (speaks, listens, and answers back), graded teach-back, photo problem capture, FSRS-4.5 spaced repetition, question bank, knowledge graph & learning paths                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| 🗓️  | **Today & Practice** | Daily study plan with goal budgeting, one-button **smart session** (due reviews + mistake redos + weak concepts, interleaved), unified Practice / Exam mode (quiz · flashcard · glossary · problem), timed runner                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| 🎓  | **Exam Prep**        | Exam planner with countdown & day-by-day schedule, AI cram sheets built from your weak spots, timed AI mock exams, mistakes notebook, reinforcement center                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| 📊  | **Insights**         | Time-on-task & accuracy analytics, per-course mastery, knowledge-gap detection, AI recommendations, AI usage & estimated cost, XP & levels                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| 🔔  | **Reminders**        | Browser push reminders when flashcards come due (Web Push), notification digest — due cards, streak-at-risk, daily-goal progress, top knowledge gaps                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| 📴  | **Offline PWA**      | Installable app shell; flashcards & glossary cached for offline review with background sync                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| 🔊  | **Extras**           | PDF annotations, text-to-speech, semantic full-text search (finds related concepts even when the words differ) + ask-your-library AI answers (cited sources), public share links                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| 🔄  | **Import / Export**  | Anki import & export, Notion / Markdown ZIP import, study-pack export (PDF / CSV), ICS calendar feed, web clipper, highlight-to-flashcard from any web page                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| 👥  | **Study Groups**     | Shared courses & documents, real-time chat, live co-study rooms with shared focus timer, assignments, live quiz battles, XP leaderboard                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| 🔐  | **Auth**             | Email + OTP, Google / GitHub OAuth, JWT sessions                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| 📱  | **Mobile App**       | React Native (Expo) app in [`rn/`](rn/README.md) with full web-feature parity, plus biometric app lock, camera scan-to-summarize, haptic study feedback, keep-awake exams, offline review, and push reminders                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 
 **AI Providers** — Gemini · OpenAI · Claude · Grok · DeepSeek · Kimi · Doubao · Qwen · Wenxin Yiyan (multi-provider routing, switchable from settings)
 
@@ -51,6 +51,8 @@ Upload documents in 80+ formats, videos (paste any link — YouTube · Bilibili 
 
 **Mobile** — React Native 0.86 · Expo SDK 57 · expo-router · SignalR · WebView-hosted pdf.js / KaTeX / markmap (see [`rn/README.md`](rn/README.md))
 
+**Shared** — `packages/core` (`@study/core`): platform-agnostic API services, SSE stream reader, and DTOs consumed by `web/`, `rn/`, and `extension/`
+
 > **Build systems:** Vite (`npm run dev` / `npm run build`) is the production path — `deploy.sh` ships `web/dist` to S3/CloudFront. The Next.js scripts (`dev:next` / `build:next` / `start:next`) are an alternative SSR entry (`web/src/app`) added for landing/share-page SEO experiments and are **not** deployed; keep changes working under Vite first.
 
 **Architecture** — Clean Architecture · CQRS · Repository + Unit of Work · SSE streaming
@@ -59,7 +61,7 @@ Upload documents in 80+ formats, videos (paste any link — YouTube · Bilibili 
 
 ## Local Setup
 
-**Prerequisites** — .NET SDK 10 · Node.js 18+ · PostgreSQL 14+ · Redis 7+ · ffmpeg · AWS CLI
+**Prerequisites** — .NET SDK 10 · Node.js 18+ · PostgreSQL 17 with [pgvector](https://github.com/pgvector/pgvector) (migrations create the `vector` extension — stock Postgres won't migrate) · Redis 7+ · ffmpeg · AWS CLI
 **Required services** — Google Gemini API key, Google & GitHub OAuth apps, SMTP/SES email, S3 or MinIO storage (other AI providers optional)
 
 ```bash
@@ -97,25 +99,42 @@ cd rn && npm install && npx expo start
 
 ```jsonc
 {
-	"ConnectionStrings": { "DefaultConnection": "Host=localhost;Port=5432;Database=studyplatform;Username=studyplatform;Password=yourpassword" },
-	"Redis": { "Enabled": false, "ConnectionString": "localhost:6379" },
-	"JwtSettings": { "SecretKey": "your-32-char-secret", "AccessTokenExpiryMinutes": 15, "RefreshTokenExpiryDays": 7 },
-	"EmailSettings": { "Provider": "Ses", "FromEmail": "you@gmail.com", "SesRegion": "ap-southeast-2" }, // or SMTP fallback
-	"S3": {
-		"BucketName": "documents-dev",
-		"ServiceUrl": "http://localhost:9000",        // local MinIO
-		"PublicServiceUrl": "http://localhost:9000",
-		"ForcePathStyle": true,
-		"AccessKey": "minioadmin",
-		"SecretKey": "minioadmin123",
-	},
-	"GoogleOAuth": { "ClientId": "xxxx.apps.googleusercontent.com", "ClientSecret": "GOCSPX-..." },
-	"GitHubOAuth": { "ClientId": "Ov23lic...", "ClientSecret": "..." },
-	"Cors": { "AllowedOrigins": ["http://localhost:3000", "http://localhost:3001"] },
-	"AppLimits": { "DocumentUploadLimit": -1 }, // -1 = unlimited; hosted default is 10 documents / audio / video uploads per account
-	// Optional — enables browser push reminders for due flashcards.
-	// Generate a key pair once with: npx web-push generate-vapid-keys
-	"Vapid": { "PublicKey": "", "PrivateKey": "", "Subject": "mailto:you@example.com" },
+  "ConnectionStrings": {
+    "DefaultConnection": "Host=localhost;Port=5432;Database=studyplatform;Username=studyplatform;Password=yourpassword",
+  },
+  "Redis": { "Enabled": false, "ConnectionString": "localhost:6379" },
+  "JwtSettings": {
+    "SecretKey": "your-32-char-secret",
+    "AccessTokenExpiryMinutes": 15,
+    "RefreshTokenExpiryDays": 7,
+  },
+  "EmailSettings": {
+    "Provider": "Ses",
+    "FromEmail": "you@gmail.com",
+    "SesRegion": "ap-southeast-2",
+  }, // or SMTP fallback
+  "S3": {
+    "BucketName": "documents-dev",
+    "ServiceUrl": "http://localhost:9000", // local MinIO
+    "PublicServiceUrl": "http://localhost:9000",
+    "ForcePathStyle": true,
+    "AccessKey": "minioadmin",
+    "SecretKey": "minioadmin123",
+  },
+  "GoogleOAuth": { "ClientId": "xxxx.apps.googleusercontent.com", "ClientSecret": "GOCSPX-..." },
+  "GitHubOAuth": { "ClientId": "Ov23lic...", "ClientSecret": "..." },
+  "Cors": { "AllowedOrigins": ["http://localhost:3000", "http://localhost:3001"] },
+  "AppLimits": { "DocumentUploadLimit": -1 }, // -1 = unlimited; hosted default is 10 documents / audio / video uploads per account
+  // Optional — enables browser push reminders for due flashcards.
+  // Generate a key pair once with: npx web-push generate-vapid-keys
+  "Vapid": { "PublicKey": "", "PrivateKey": "", "Subject": "mailto:you@example.com" },
+  // Optional — AI token metering. DailyTokenLimit 0 = unlimited; Pricing is per-million
+  // tokens keyed by model-name prefix (longest match wins) and drives the cost estimates
+  // in the AI-usage view. Unpriced models still log tokens, just with a $0 estimate.
+  "AiUsage": {
+    "DailyTokenLimit": 0,
+    "Pricing": { "gemini-2.5-flash": { "InputPerMillion": 0.30, "OutputPerMillion": 2.50 } },
+  },
 }
 ```
 
@@ -154,6 +173,10 @@ docker compose exec api dotnet ef database update \
 Web `:3000` · Admin `:4200` · API + Swagger `:5001` · MinIO console `:9001`
 
 > `VITE_*` variables are baked in at build time — rebuild frontend images after changing them. MinIO credentials and bucket come from `.env` (`MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` / `S3_BUCKET_NAME`); `S3_PUBLIC_SERVICE_URL` must be reachable from the host browser.
+
+### Kubernetes (Helm)
+
+Cloud-agnostic chart at [`k8s/helm/study-platform/`](k8s/README.md) running the same stack (API, web, admin, in-cluster Postgres/Redis/MinIO) on any cluster — kind/minikube locally, EKS/GKE in production. Note: the API is single-replica by design (in-process background workers + SignalR without a backplane).
 
 ### AWS
 

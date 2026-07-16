@@ -56,7 +56,9 @@ public record FlashcardDto(
     string CardType = "basic",
     string Difficulty = "medium",
     string? Chapter = null,
-    IEnumerable<string>? Tags = null);
+    IEnumerable<string>? Tags = null,
+    string? ImageUrl = null,
+    string? OcclusionsJson = null);
 
 public record ChatMessageDto(
     Guid MessageId,
@@ -110,10 +112,15 @@ public record PendingMaterialDto(
     DateTime CreatedAt,
     string? SourceType = null);
 
+/// <param name="Confidence">
+/// Optional {quizId: 1|2|3} self-rating per answer (1 = guessing, 3 = confident). Optional so existing
+/// clients keep working unchanged and a learner can skip rating a question.
+/// </param>
 public record SaveQuizSubmissionRequest(
     Dictionary<string, string> Answers,
     int Score,
-    int Total);
+    int Total,
+    Dictionary<string, int>? Confidence = null);
 
 public record ClipUrlRequest(string Url, string CourseId);
 

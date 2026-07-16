@@ -1,18 +1,56 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { HelpCircle, BarChart2 } from 'lucide-react';
+import { HelpCircle, BarChart2, ImageOff } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { ClozeText } from './ClozeText';
 import { MathText } from './MathText';
 import { CardChart } from './CardChart';
+import type { OcclusionRect } from '../../types';
 
-export type FlashcardCardType = 'basic' | 'cloze' | 'chart';
+export type FlashcardCardType = 'basic' | 'cloze' | 'chart' | 'occlusion';
 export type FlashcardCardStyle = 'flip' | 'compact' | 'review';
+
+/** Image with mask rectangles: opaque until flipped, then translucent outlines with labels. */
+export const OcclusionImage: React.FC<{
+  imageUrl: string;
+  occlusions: OcclusionRect[];
+  revealed: boolean;
+  className?: string;
+}> = ({ imageUrl, occlusions, revealed, className }) => (
+  <div className={cn('relative inline-block max-w-full', className)}>
+    <img src={imageUrl} alt="Occlusion card" className="max-w-full max-h-[320px] rounded-xl select-none" draggable={false} />
+    {occlusions.map((r, i) => (
+      <div
+        key={i}
+        className={cn(
+          'absolute rounded-[3px] border-2 transition-all duration-300 flex items-center justify-center overflow-hidden',
+          revealed
+            ? 'border-[var(--primary)] bg-[var(--primary)]/10'
+            : 'border-amber-400 bg-amber-300',
+        )}
+        style={{
+          left: `${r.x * 100}%`,
+          top: `${r.y * 100}%`,
+          width: `${r.w * 100}%`,
+          height: `${r.h * 100}%`,
+        }}
+      >
+        {revealed && r.label && (
+          <span className="text-[10px] font-bold text-[var(--primary)] bg-white/85 rounded px-1 truncate">
+            {r.label}
+          </span>
+        )}
+      </div>
+    ))}
+  </div>
+);
 
 interface FlashcardFlipCardProps {
   front: string;
   back: string;
   cardType?: FlashcardCardType;
+  imageUrl?: string;
+  occlusions?: OcclusionRect[];
   isFlipped: boolean;
   onFlip: () => void;
   variant?: FlashcardCardStyle;
@@ -43,6 +81,8 @@ export const FlashcardFlipCard: React.FC<FlashcardFlipCardProps> = ({
   front,
   back,
   cardType,
+  imageUrl,
+  occlusions,
   isFlipped,
   onFlip,
   variant = 'flip',
@@ -61,6 +101,54 @@ export const FlashcardFlipCard: React.FC<FlashcardFlipCardProps> = ({
   const effectiveCardType = getFlashcardCardType({ front, cardType });
   const isCloze = effectiveCardType === 'cloze';
   const isChart = effectiveCardType === 'chart';
+  const isOcclusion = effectiveCardType === 'occlusion';
+
+  if (isOcclusion) {
+    return (
+      <div
+        className="relative w-full cursor-pointer"
+        style={{ minHeight: 300 }}
+        onClick={onFlip}
+      >
+        <div
+          className={cn(
+            'flex flex-col items-center justify-center rounded-3xl border-2 p-6 sm:p-8 text-center shadow-xl transition-all duration-300',
+            isFlipped
+              ? 'border-[var(--primary)] bg-[var(--bg-app)]'
+              : 'border-[var(--border-color)] bg-[var(--bg-sidebar)]',
+          )}
+          style={{ minHeight: 300 }}
+        >
+          <div className="flex items-center gap-2 mb-4">
+            <span className="text-xs font-bold uppercase tracking-widest text-[var(--primary)]">
+              {isFlipped ? 'Revealed' : 'What’s hidden?'}
+            </span>
+            <span className="rounded-full bg-[var(--primary)]/10 px-2 py-0.5 text-[10px] font-black text-[var(--primary)] uppercase tracking-widest">Occlusion</span>
+          </div>
+          {imageUrl && occlusions ? (
+            <OcclusionImage imageUrl={imageUrl} occlusions={occlusions} revealed={isFlipped} />
+          ) : (
+            <div className="flex flex-col items-center gap-2 text-text-muted">
+              <ImageOff size={28} />
+              <p className="text-sm">Image unavailable</p>
+            </div>
+          )}
+          {front && <p className="mt-4 text-sm font-semibold text-text-main">{front}</p>}
+          {back && isFlipped && (
+            <p className="mt-2 text-sm text-text-muted border-t border-[var(--border-color)] pt-3 w-full max-w-md">
+              <MathText text={back} />
+            </p>
+          )}
+          {!isFlipped && (
+            <p className="mt-4 text-[10px] sm:text-sm text-text-muted flex items-center gap-2">
+              <HelpCircle size={14} />
+              Recall each hidden region, then click to reveal
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   if (effectiveVariant === 'compact') {
     return (

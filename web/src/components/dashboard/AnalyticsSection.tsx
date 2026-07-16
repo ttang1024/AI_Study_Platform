@@ -352,7 +352,7 @@ export const AnalyticsSection: React.FC = () => {
   const [timeOnTask, setTimeOnTask] = useState<TimeOnTask | null>(null);
   const [mastery, setMastery] = useState<CourseMastery[]>([]);
 
-  const { summary, loading: summaryLoading } = useDashboardSummary();
+  const { summary, loading: summaryLoading, refresh: refreshSummary } = useDashboardSummary();
 
   // Compute the range once per `days`. Using `new Date()` inside the effect would
   // produce millisecond-different from/to on each run, so the two effect invocations
@@ -404,7 +404,7 @@ export const AnalyticsSection: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* ── Today ────────────────────────────────────────────────────────── */}
-      <DashboardTodayStrip summary={summary} loading={summaryLoading} />
+      <DashboardTodayStrip summary={summary} loading={summaryLoading} onRefresh={refreshSummary} />
 
       {/* ── Today's plan (focus + stretch) ───────────────────────────────── */}
       <TodayPlanList />

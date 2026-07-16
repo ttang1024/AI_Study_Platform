@@ -7,7 +7,7 @@ import { Button } from '@/components/Button';
 import { FilterChip } from '@/components/FilterChip';
 import { ExamReview } from '@/components/study/ExamReview';
 import { ExamRunning } from '@/components/study/ExamRunning';
-import { Colors, Spacing, Typography } from '@/constants/theme';
+import { Colors, Layout, Spacing, Typography } from '@/constants/theme';
 import { courseService } from '@/services/courseService';
 import { plannerService, type MockExam, type MockExamResult } from '@/services/plannerService';
 import type { Course } from '@/types';
@@ -132,7 +132,7 @@ export default function MockExamScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bgApp, padding: Spacing.three, gap: Spacing.three },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.bgApp },
+  center: { ...Layout.fillCenter, backgroundColor: Colors.bgApp },
   sectionLabel: { ...Typography.captionBold, color: Colors.textSecondary },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
 });

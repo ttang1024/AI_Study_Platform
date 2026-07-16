@@ -1,43 +1,9 @@
-import { apiClient } from '@/services/apiClient';
+// Service logic moved to the shared package (packages/core). This file wires the
+// RN HTTP adapter into the shared factory, so existing imports keep working.
+// (rn call sites now use the web-canonical API: `delete`, response-wrapped returns.)
+import { createAnnotationsService } from '@core/services/annotationsService';
+import { http } from '@/services/http';
 
-export interface DocumentAnnotation {
-  documentAnnotationId: string;
-  documentId: string;
-  userId: string;
-  highlightedText: string;
-  note?: string;
-  color: string;
-  pageNumber: number;
-  /** JSON array of page-normalized rects: [{x, y, w, h}] in 0..1 page fractions. */
-  rectJson: string;
-  createdAt: string;
-  updatedAt: string;
-}
+export * from '@core/services/annotationsService';
 
-export interface CreateAnnotationRequest {
-  highlightedText: string;
-  note?: string;
-  color: string;
-  pageNumber: number;
-  rectJson: string;
-}
-
-export const annotationsService = {
-  async getByDocument(documentId: string): Promise<DocumentAnnotation[]> {
-    const response = await apiClient.get(`/api/documents/${documentId}/annotations`);
-    return (response.data.data as DocumentAnnotation[]) ?? [];
-  },
-
-  async create(documentId: string, data: CreateAnnotationRequest): Promise<DocumentAnnotation> {
-    const response = await apiClient.post(`/api/documents/${documentId}/annotations`, data);
-    return response.data.data as DocumentAnnotation;
-  },
-
-  async remove(annotationId: string): Promise<void> {
-    await apiClient.delete(`/api/annotations/${annotationId}`);
-  },
-
-  async createFlashcard(annotationId: string): Promise<void> {
-    await apiClient.post(`/api/annotations/${annotationId}/create-flashcard`);
-  },
-};
+export const annotationsService = createAnnotationsService(http);

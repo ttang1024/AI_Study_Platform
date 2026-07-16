@@ -2,7 +2,7 @@ import React from 'react';
 import { Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { FileText, X } from 'lucide-react-native';
 
-import { Colors, Overlay, Spacing } from '@/constants/theme';
+import { Colors, Layout, Overlay, Spacing } from '@/constants/theme';
 import type { ChatMessageAttachment } from '@/services/chatService';
 
 interface AttachmentLightboxModalProps {
@@ -29,7 +29,7 @@ export const AttachmentLightboxModal: React.FC<AttachmentLightboxModalProps> = (
 );
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: Overlay.backdropDark, alignItems: 'center', justifyContent: 'center' },
+  backdrop: { ...Layout.fillCenter, backgroundColor: Overlay.backdropDark },
   image: { width: '100%', height: '80%' },
   file: { alignItems: 'center', gap: Spacing.two },
   fileText: { color: Colors.white, fontSize: 14, fontWeight: '600' },

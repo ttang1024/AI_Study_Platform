@@ -8,12 +8,17 @@ using StudyPlatform.Domain.Interfaces;
 
 namespace StudyPlatform.Application.Documents.Commands;
 
+/// <param name="Confidence">
+/// Optional {quizId: 1|2|3} self-rating per answer. Absent when the learner skipped the rating or the
+/// client does not collect it, which is why it is stored separately rather than folded into Answers.
+/// </param>
 public record SaveQuizSubmissionCommand(
     Guid DocumentId,
     Guid UserId,
     Dictionary<string, string> Answers,
     int Score,
-    int Total) : IRequest<Result<QuizSubmissionDto>>;
+    int Total,
+    Dictionary<string, int>? Confidence = null) : IRequest<Result<QuizSubmissionDto>>;
 
 public class SaveQuizSubmissionCommandHandler : IRequestHandler<SaveQuizSubmissionCommand, Result<QuizSubmissionDto>>
 {
@@ -33,10 +38,12 @@ public class SaveQuizSubmissionCommandHandler : IRequestHandler<SaveQuizSubmissi
         var existing = await _unitOfWork.QuizSubmissions.GetByDocumentAndUserAsync(request.DocumentId, request.UserId, cancellationToken);
 
         var answersJson = JsonSerializer.Serialize(request.Answers);
+        var confidenceJson = ConfidenceSerializer.Serialize(request.Confidence);
 
         if (existing != null)
         {
             existing.AnswersJson = answersJson;
+            existing.ConfidenceJson = confidenceJson;
             existing.Score = request.Score;
             existing.Total = request.Total;
             existing.SubmittedAt = DateTime.UtcNow;
@@ -51,6 +58,7 @@ public class SaveQuizSubmissionCommandHandler : IRequestHandler<SaveQuizSubmissi
                 SourceType = "document",
                 UserId = request.UserId,
                 AnswersJson = answersJson,
+                ConfidenceJson = confidenceJson,
                 Score = request.Score,
                 Total = request.Total,
                 SubmittedAt = DateTime.UtcNow,

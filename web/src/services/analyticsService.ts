@@ -52,6 +52,50 @@ export interface StudyStreak {
   longestStreak: number;
   todaySeconds: number;
   todayMinutes: number;
+  /** Streak freezes banked (earned 1 per 7 study days, auto-spent on missed days). */
+  freezesAvailable: number;
+  /** Last scheduled vacation day (streak-protected), if any. */
+  vacationUntil: string | null;
+}
+
+// ── Retention analytics (FSRS forgetting curve) ────────────────────────────
+
+export interface ForgettingCurvePoint {
+  days: number;
+  retention: number;
+}
+
+export interface RetentionCalibrationBin {
+  binStart: number;
+  binEnd: number;
+  predictedAvg: number;
+  actualRate: number;
+  reviews: number;
+}
+
+export interface DailyReviewStat {
+  date: string;
+  reviews: number;
+  successRate: number;
+}
+
+export interface StabilityBucket {
+  label: string;
+  cards: number;
+}
+
+export interface RetentionAnalytics {
+  totalCardsTracked: number;
+  totalReviews: number;
+  reviewsLast30Days: number;
+  predictedRetentionNow: number;
+  actualRetentionRate: number;
+  averageStability: number;
+  averageDifficulty: number;
+  forgettingCurve: ForgettingCurvePoint[];
+  calibration: RetentionCalibrationBin[];
+  dailyReviews: DailyReviewStat[];
+  stabilityDistribution: StabilityBucket[];
 }
 
 export interface ReinforcementCounts {
@@ -65,6 +109,66 @@ export interface DashboardSummary {
   dueFlashcards: number;
   reinforcement: ReinforcementCounts;
   dailyGoalMinutes: number;
+}
+
+export interface ConfidenceBin {
+  level: number;
+  label: string;
+  answered: number;
+  correct: number;
+  accuracyPercent: number;
+}
+
+export interface ConfidentMistake {
+  quizId: string;
+  question: string;
+  correctAnswer: string;
+  yourAnswer: string;
+}
+
+export interface QuizCalibration {
+  bins: ConfidenceBin[];
+  ratedAnswers: number;
+  confidentWrong: number;
+  guessedRight: number;
+  /** Percentage points between being certain and being right. Null when nothing was rated confident. */
+  overconfidenceGap: number | null;
+  confidentMistakes: ConfidentMistake[];
+}
+
+export interface AiUsageTotals {
+  calls: number;
+  promptTokens: number;
+  completionTokens: number;
+  cachedPromptTokens: number;
+  totalTokens: number;
+  estimatedCostUsd: number;
+}
+
+/** Usage grouped by a key — an operation ("quiz:text") or a "provider/model". */
+export interface AiUsageGroup {
+  key: string;
+  calls: number;
+  totalTokens: number;
+  estimatedCostUsd: number;
+}
+
+export interface AiUsageDay {
+  date: string;
+  totalTokens: number;
+  estimatedCostUsd: number;
+}
+
+export interface AiUsage {
+  from: string;
+  to: string;
+  totals: AiUsageTotals;
+  byOperation: AiUsageGroup[];
+  byModel: AiUsageGroup[];
+  daily: AiUsageDay[];
+  /** Tokens allowed per UTC day. 0 means unlimited. */
+  dailyTokenLimit: number;
+  tokensUsedToday: number;
 }
 
 const SUMMARY_TTL_MS = 30_000;
@@ -122,5 +226,44 @@ export const analyticsService = {
 
   async recordStudySession(heartbeat: StudySessionHeartbeat): Promise<void> {
     await apiClient.post('/api/analytics/study-session', heartbeat);
+  },
+
+  async getRetentionAnalytics(): Promise<RetentionAnalytics> {
+    const response = await apiClient.get('/api/analytics/retention');
+    return response.data.data;
+  },
+
+  /**
+   * How the learner's self-rated confidence compares to how right they actually were. Distinct from
+   * getRetentionAnalytics' calibration, which grades the FSRS scheduler rather than the learner.
+   */
+  async getQuizCalibration(): Promise<QuizCalibration> {
+    const response = await apiClient.get('/api/analytics/calibration');
+    return response.data.data;
+  },
+
+  /**
+   * This user's own AI token spend. Keys are theirs, so the cost lands on their provider bill —
+   * this endpoint is the only place they can see where it went. Dates are ISO (YYYY-MM-DD);
+   * omitting both gives the last 30 days.
+   */
+  async getAiUsage(from?: string, to?: string): Promise<AiUsage> {
+    const params = new URLSearchParams();
+    if (from) params.append('from', from);
+    if (to) params.append('to', to);
+    const query = params.toString();
+    const response = await apiClient.get(`/api/analytics/ai-usage${query ? `?${query}` : ''}`);
+    return response.data.data;
+  },
+
+  /** Schedule streak-protected vacation days (inclusive range of ISO dates). */
+  async setVacation(startDate: string, endDate: string): Promise<void> {
+    await apiClient.post('/api/analytics/vacation', { startDate, endDate });
+    summaryCache = null;
+  },
+
+  async cancelVacation(): Promise<void> {
+    await apiClient.delete('/api/analytics/vacation');
+    summaryCache = null;
   },
 };

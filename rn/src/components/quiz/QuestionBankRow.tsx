@@ -4,7 +4,7 @@ import { CheckSquare, ChevronDown, ChevronUp, Pencil, Square, Trash2 } from 'luc
 
 import { Card } from '@/components/Card';
 import { quizOptionTextStyles } from '@/components/quiz/quizOptionTextStyles';
-import { Colors, Spacing, Typography } from '@/constants/theme';
+import { Colors, Layout, Spacing, Typography } from '@/constants/theme';
 import type { QuizQuestion } from '@/types';
 
 interface QuestionDraft {
@@ -40,7 +40,7 @@ export const QuestionBankRow: React.FC<QuestionBankRowProps> = React.memo(functi
   const [draft, setDraft] = useState<QuestionDraft | null>(null);
 
   const startEdit = () => {
-    setDraft({ question: item.question, options: [...item.options], correctAnswer: item.correctAnswer, explanation: item.explanation });
+    setDraft({ question: item.question, options: [...(item.options ?? [])], correctAnswer: item.correctAnswer, explanation: item.explanation });
     setEditing(true);
   };
 
@@ -67,7 +67,7 @@ export const QuestionBankRow: React.FC<QuestionBankRowProps> = React.memo(functi
 
       {expanded && !editing && (
         <View style={styles.detail}>
-          {item.options.map((opt) => (
+          {(item.options ?? []).map((opt) => (
             <Text key={opt} style={[quizOptionTextStyles.option, opt === item.correctAnswer && quizOptionTextStyles.optionCorrect]}>{opt}</Text>
           ))}
           <Text style={styles.explanation}>{item.explanation}</Text>
@@ -113,14 +113,14 @@ export const QuestionBankRow: React.FC<QuestionBankRowProps> = React.memo(functi
 
 const styles = StyleSheet.create({
   card: { gap: Spacing.two },
-  row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  row: { ...Layout.row, gap: Spacing.two },
   body: { flex: 1 },
   question: { ...Typography.bodyBold, color: Colors.textPrimary },
   meta: { ...Typography.caption, color: Colors.textSecondary, marginTop: 2, textTransform: 'capitalize' },
   detail: { gap: 6 },
   explanation: { ...Typography.caption, color: Colors.textSecondary, fontStyle: 'italic', marginTop: 4 },
   detailActions: { flexDirection: 'row', gap: Spacing.four, marginTop: 4 },
-  actionButton: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  actionButton: { ...Layout.row, gap: 4 },
   actionText: { ...Typography.captionBold, color: Colors.textSecondary },
   input: {
     ...Typography.body, color: Colors.textPrimary, borderWidth: 1, borderColor: Colors.border,

@@ -81,10 +81,10 @@ public class GetPendingQuizMaterialsQueryHandler : IRequestHandler<GetPendingQui
         var (documentIdsWithSubmissions, videoIdsWithSubmissions) = await _unitOfWork.QuizSubmissions.GetCoverageByUserAsync(request.UserId, cancellationToken);
         var documentIdSet = documentIdsWithSubmissions.ToHashSet();
         var videoIdSet = videoIdsWithSubmissions.ToHashSet();
-        var courseMap = (await _unitOfWork.Courses.FindAsync(c => c.UserId == request.UserId, cancellationToken))
+        var courseMap = (await _unitOfWork.Courses.FindAsNoTrackingAsync(c => c.UserId == request.UserId, cancellationToken))
             .ToDictionary(c => c.CourseId);
 
-        var documents = (await _unitOfWork.Documents.FindAsync(
+        var documents = (await _unitOfWork.Documents.FindAsNoTrackingAsync(
                 d => d.UserId == request.UserId && !documentIdSet.Contains(d.DocumentId),
                 cancellationToken))
             .Select(d =>
@@ -106,7 +106,7 @@ public class GetPendingQuizMaterialsQueryHandler : IRequestHandler<GetPendingQui
                     d.CreatedAt);
             });
 
-        var videos = (await _unitOfWork.Videos.FindAsync(
+        var videos = (await _unitOfWork.Videos.FindAsNoTrackingAsync(
                 v => v.UserId == request.UserId && !videoIdSet.Contains(v.VideoId),
                 cancellationToken))
             .Select(v =>
@@ -145,7 +145,7 @@ public class GetGeneratedQuizMaterialsQueryHandler : IRequestHandler<GetGenerate
 
     public async Task<Result<IEnumerable<PendingMaterialDto>>> Handle(GetGeneratedQuizMaterialsQuery request, CancellationToken cancellationToken)
     {
-        var generatedQuizzes = await _unitOfWork.Quizzes.FindAsync(q => q.UserId == request.UserId, cancellationToken);
+        var generatedQuizzes = await _unitOfWork.Quizzes.FindAsNoTrackingAsync(q => q.UserId == request.UserId, cancellationToken);
         var generatedDocumentIds = generatedQuizzes
             .Where(q => q.DocumentId.HasValue && q.SourceType != "video")
             .Select(q => q.DocumentId!.Value)
@@ -163,10 +163,10 @@ public class GetGeneratedQuizMaterialsQueryHandler : IRequestHandler<GetGenerate
         generatedDocumentIds.ExceptWith(documentIdsWithSubmissions);
         generatedVideoIds.ExceptWith(videoIdsWithSubmissions);
 
-        var courseMap = (await _unitOfWork.Courses.FindAsync(c => c.UserId == request.UserId, cancellationToken))
+        var courseMap = (await _unitOfWork.Courses.FindAsNoTrackingAsync(c => c.UserId == request.UserId, cancellationToken))
             .ToDictionary(c => c.CourseId);
 
-        var documents = (await _unitOfWork.Documents.FindAsync(
+        var documents = (await _unitOfWork.Documents.FindAsNoTrackingAsync(
                 d => d.UserId == request.UserId && generatedDocumentIds.Contains(d.DocumentId),
                 cancellationToken))
             .Select(d =>
@@ -188,7 +188,7 @@ public class GetGeneratedQuizMaterialsQueryHandler : IRequestHandler<GetGenerate
                     d.CreatedAt);
             });
 
-        var videos = (await _unitOfWork.Videos.FindAsync(
+        var videos = (await _unitOfWork.Videos.FindAsNoTrackingAsync(
                 v => v.UserId == request.UserId && generatedVideoIds.Contains(v.VideoId),
                 cancellationToken))
             .Select(v =>

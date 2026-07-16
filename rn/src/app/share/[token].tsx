@@ -10,7 +10,7 @@ import { AlertCircle, Calendar, Check, Pause, Play, Share2, User, X } from 'luci
 import { HtmlContent } from '@/components/HtmlContent';
 import { SummaryMarkdown } from '@/components/SummaryMarkdown';
 import { TabChipRow } from '@/components/TabChipRow';
-import { Alpha, Colors, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
+import { Alpha, Colors, Layout, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
 import { getShare, shareMediaUrl, type ShareableCard, type ShareableQuiz, type SharedContent } from '@/services/shareService';
 import { buildMindMapHtml } from '@/utils/mindMapHtml';
 import { xmindMarkToMarkdown } from '@/utils/xmindMarkdown';
@@ -311,7 +311,7 @@ const SharedQuizQuestion: React.FC<{ index: number; question: ShareableQuiz }> =
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bgApp },
   content: { padding: Spacing.three, gap: Spacing.three, paddingBottom: Spacing.six },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.bgApp, gap: Spacing.two, padding: Spacing.five },
+  center: { ...Layout.fillCenter, backgroundColor: Colors.bgApp, gap: Spacing.two, padding: Spacing.five },
   errorTitle: { ...Typography.heading, color: Colors.textPrimary },
   errorText: { ...Typography.caption, color: Colors.textSecondary, textAlign: 'center' },
   headerCard: {
@@ -319,21 +319,21 @@ const styles = StyleSheet.create({
   },
   badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.one },
   badge: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
+    ...Layout.row, gap: 5,
     backgroundColor: `${Colors.primary}${Alpha.tint}`, borderRadius: Radius.pill,
     paddingHorizontal: 10, paddingVertical: 4,
   },
   badgeText: { ...Typography.captionBold, color: Colors.primary, fontSize: 11 },
   title: { ...Typography.screenTitle, color: Colors.textPrimary },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, flexWrap: 'wrap' },
-  metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  metaRow: { ...Layout.rowWrap, gap: Spacing.three },
+  metaItem: { ...Layout.row, gap: 4 },
   metaText: { ...Typography.caption, color: Colors.textSecondary },
   expiryText: { ...Typography.caption, color: Colors.amber },
   audioBar: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.two,
+    ...Layout.row, gap: Spacing.two,
     backgroundColor: Colors.bgCard, borderRadius: Radius.lg, padding: Spacing.three, ...Shadows.card,
   },
-  audioButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center' },
+  audioButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.primary, ...Layout.center },
   audioLabel: { ...Typography.bodyBold, color: Colors.textPrimary },
   videoBox: { borderRadius: Radius.lg, overflow: 'hidden', backgroundColor: '#000' },
   sectionCard: {
@@ -350,7 +350,7 @@ const styles = StyleSheet.create({
   chatTextUser: { color: Colors.primaryForeground },
   flashcard: {
     minHeight: 200, borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.lg,
-    alignItems: 'center', justifyContent: 'center', padding: Spacing.three, gap: Spacing.two,
+    ...Layout.center, padding: Spacing.three, gap: Spacing.two,
     backgroundColor: Colors.bgSidebar,
   },
   flashcardLabel: { ...Typography.captionBold, color: Colors.textSecondary, textTransform: 'uppercase' },
@@ -368,8 +368,7 @@ const styles = StyleSheet.create({
   quizItem: { gap: Spacing.one, paddingBottom: Spacing.two },
   quizQuestion: { ...Typography.bodyBold, color: Colors.textPrimary },
   quizOption: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.md,
+    ...Layout.rowBetween, borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.md,
     paddingHorizontal: Spacing.two, paddingVertical: 10, backgroundColor: Colors.bgSidebar,
   },
   quizOptionCorrect: { borderColor: Colors.emerald, backgroundColor: `${Colors.emerald}${Alpha.tint}` },

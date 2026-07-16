@@ -3,7 +3,7 @@ import { AppState, StyleSheet, Text, View } from 'react-native';
 import { LockKeyhole } from 'lucide-react-native';
 
 import { Button } from '@/components/Button';
-import { Colors, Spacing, Typography } from '@/constants/theme';
+import { Alpha, Colors, Layout, Spacing, Typography } from '@/constants/theme';
 import { authenticateForUnlock, isAppLockEnabled } from '@/services/appLock';
 
 // Blocks the whole app behind Face ID / Touch ID when the lock is enabled in
@@ -58,13 +58,12 @@ export function AppLockGate({ children }: { children: React.ReactNode }) {
 
 const styles = StyleSheet.create({
   root: {
-    flex: 1, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: Colors.bgApp, gap: Spacing.three, padding: Spacing.five,
+    ...Layout.fillCenter, backgroundColor: Colors.bgApp, gap: Spacing.three, padding: Spacing.five,
   },
   iconCircle: {
     width: 64, height: 64, borderRadius: 32,
-    backgroundColor: `${Colors.primary}1a`,
-    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: `${Colors.primary}${Alpha.tint}`,
+    ...Layout.center,
   },
   title: { ...Typography.heading, color: Colors.textPrimary },
   subtitle: { ...Typography.caption, color: Colors.textSecondary, textAlign: 'center' },

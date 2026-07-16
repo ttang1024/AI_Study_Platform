@@ -1,5 +1,6 @@
 /// <reference types="vite/client" />
 import axios, { AxiosRequestConfig } from 'axios';
+import { buildAiHeaders } from '@core/ai';
 import { aiSettingsService } from './aiSettingsService';
 import { getApiUrl } from '../utils/env';
 
@@ -56,14 +57,11 @@ apiClient.interceptors.request.use((config) => {
 
   // Only inject AI headers from settings if not already explicitly set on this request
   if (!config.headers['X-AI-Provider']) {
-    const provider = aiSettingsService.getActiveProvider();
-    const key = aiSettingsService.getActiveKey();
-    const model = aiSettingsService.getActiveModel();
-    config.headers['X-AI-Provider'] = provider;
-    config.headers['X-AI-Model'] = model;
-    if (key) {
-      config.headers['X-AI-Key'] = key;
-    }
+    Object.assign(config.headers, buildAiHeaders({
+      provider: aiSettingsService.getActiveProvider(),
+      model: aiSettingsService.getActiveModel(),
+      key: aiSettingsService.getActiveKey() ?? '',
+    }));
   }
 
   return config;

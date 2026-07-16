@@ -57,7 +57,7 @@ public class GetLearningPathQueryHandler : IRequestHandler<GetLearningPathQuery,
 
     private async Task<LearningPathDto> ComputeAsync(Guid userId, CancellationToken cancellationToken)
     {
-        var terms = (await _unitOfWork.GlossaryTerms.FindAsync(t => t.UserId == userId, cancellationToken)).ToList();
+        var terms = (await _unitOfWork.GlossaryTerms.FindAsNoTrackingAsync(t => t.UserId == userId, cancellationToken)).ToList();
         var mastered = (await _unitOfWork.GlossaryMastered.GetMasteredTermIdsByUserAsync(userId, cancellationToken)).ToHashSet();
         var links = (await _unitOfWork.ConceptLinks.GetByUserAsync(userId, cancellationToken)).ToList();
 

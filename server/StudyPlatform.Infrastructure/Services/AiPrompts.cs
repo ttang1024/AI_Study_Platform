@@ -75,6 +75,32 @@ Beginner questions should focus on recall and understanding.
 Intermediate questions should focus on understanding and application.
 Advanced questions should focus on application and analysis.";
 
+        /// <summary>
+        /// A quiz aimed at what the learner keeps getting wrong. The focus topics come from their own
+        /// missed questions and forgotten flashcards, so the instruction is to probe the underlying
+        /// concept from a new angle — re-asking the identical question tests recall of that question,
+        /// not understanding of the idea behind it.
+        /// </summary>
+        public static string AdaptiveQuiz(string difficulty, IReadOnlyList<string> focusTopics)
+        {
+            if (focusTopics.Count == 0)
+                return QuizForDifficulty(difficulty);
+
+            var topics = string.Join("\n", focusTopics.Select(t => $"- {t}"));
+
+            return $@"{QuizForDifficulty(difficulty)}
+
+This learner has already struggled with the concepts below. Weight the quiz towards them: at least half
+the questions should test these ideas, and the rest should cover the wider material so the quiz still
+reflects the source as a whole.
+
+Concepts they are weak on:
+{topics}
+
+Do not reuse the wording above verbatim. Test the same underlying concept from a different angle, so
+that answering correctly demonstrates understanding rather than memory of a previously seen question.";
+        }
+
         public static readonly string Flashcards =
             $@"Generate 15 flashcards from the supplied study material for spaced repetition learning.
 {NoSourceMetaPhrases}
@@ -188,4 +214,55 @@ Return a JSON array only, no markdown, no code blocks:
 
         public const string GeneralTutorInstruction =
             "You are a knowledgeable AI assistant. Answer any question the user asks using your broad general knowledge. Give clear, accurate, and helpful responses. Adjust depth to match the complexity of the question — be concise for simple questions, and thorough for complex ones.";
+
+        /// <summary>
+        /// Grades a photographed, handwritten solution step by step.
+        ///
+        /// The point of the feature is locating the *first* step that goes wrong. A learner whose
+        /// algebra broke on line 2 and who then carried that error faithfully to the end has one
+        /// mistake, not five — marking every subsequent line wrong tells them nothing and teaches them
+        /// less. Hence firstErrorStep, and hence the instruction to judge later steps on whether they
+        /// follow from what the learner actually wrote.
+        /// </summary>
+        public static string GradeHandwrittenWork(string? problemStatement)
+        {
+            var problem = string.IsNullOrWhiteSpace(problemStatement)
+                ? "The problem is not given separately — read it from the image if it is written there, otherwise infer it from the work."
+                : $"The problem is:\n{problemStatement}";
+
+            return $@"You are grading a student's handwritten solution, photographed and attached. Read the
+handwriting carefully, including any crossed-out work (ignore what is crossed out).
+
+{problem}
+
+Work through the solution one step at a time and decide, for each step, whether it is mathematically and
+logically sound.
+
+Critical rules:
+- Identify the FIRST step that is actually wrong. If the student then carried that error forward
+  correctly, the later steps are ""consequent"", not new mistakes — judge each later step on whether it
+  follows correctly from what the student actually wrote on the line above, not from the ideal solution.
+- If the work is correct throughout, say so plainly. Do not invent a mistake.
+- If a step is impossible to read, mark it ""unclear"" rather than guessing and grading your guess.
+- Be specific in the feedback: name the rule or concept that was misapplied, not just ""arithmetic error"".
+
+Return ONLY a JSON object, no markdown and no code blocks:
+{{
+  ""problem"": ""the problem as you understand it"",
+  ""transcription"": ""the student's work, transcribed line by line, using LaTeX ($...$) for maths"",
+  ""isCorrect"": true|false,
+  ""firstErrorStep"": null | <1-based step number of the first genuine mistake>,
+  ""steps"": [
+    {{
+      ""step"": 1,
+      ""text"": ""what the student wrote on this step"",
+      ""verdict"": ""correct""|""incorrect""|""consequent""|""unclear"",
+      ""comment"": ""what is right or wrong with it, and why""
+    }}
+  ],
+  ""correctedStep"": ""what the first wrong step should have been — null if there is no mistake"",
+  ""summary"": ""two or three sentences to the student: what they got right, where it broke, what to review"",
+  ""concepts"": [""concept the student should review""]
+}}";
+        }
 }

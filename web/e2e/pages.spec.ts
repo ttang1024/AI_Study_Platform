@@ -58,8 +58,11 @@ test.describe('Reinforcement Center page', () => {
     await page.goto('/reinforcement-center')
   })
 
-  test('shows the reinforcement center heading and description', async ({ page }) => {
-    await expect(page.getByText(/reinforcement center/i)).toBeVisible()
+  // The standalone page was merged into Insights as a tab; /reinforcement-center is now
+  // a back-compat redirect (see ReinforcementRedirect in App.tsx). Assert that redirect
+  // still holds, rather than the retired page title.
+  test('redirects into the Insights reinforcement tab and shows its description', async ({ page }) => {
+    await expect(page).toHaveURL(/\/insights\?tab=reinforcement/)
     await expect(page.getByText(/strengthen weak areas/i)).toBeVisible()
   })
 

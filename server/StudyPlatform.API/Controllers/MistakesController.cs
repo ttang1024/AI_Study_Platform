@@ -76,6 +76,29 @@ public class MistakesController : ControllerBase
             return BadRequest(BaseResponse<IReadOnlyList<VariantQuestionDto>>.Fail(result.Message, result.ErrorCode));
         return Ok(BaseResponse<IReadOnlyList<VariantQuestionDto>>.Ok(result.Data!));
     }
+
+    /// <summary>
+    /// Promote missed questions into flashcards that are due for review immediately. Send no ids to
+    /// promote every open mistake. Mistakes that already have a card are skipped, not duplicated.
+    /// </summary>
+    [HttpPost("to-flashcards")]
+    [ProducesResponseType(typeof(BaseResponse<PromotedMistakesDto>), 200)]
+    [ProducesResponseType(typeof(BaseResponse), 400)]
+    public async Task<IActionResult> PromoteToFlashcards(
+        [FromBody] PromoteMistakesRequest? request, CancellationToken cancellationToken)
+    {
+        var userId = User.GetUserId();
+        var result = await _mediator.Send(
+            new PromoteMistakesToFlashcardsCommand(userId, request?.MistakeIds ?? []), cancellationToken);
+
+        if (!result.IsSuccess)
+            return BadRequest(BaseResponse<PromotedMistakesDto>.Fail(result.Message, result.ErrorCode));
+
+        return Ok(BaseResponse<PromotedMistakesDto>.Ok(result.Data!, result.Message));
+    }
 }
 
 public record SetMistakeStatusRequest(string Status);
+
+/// <summary>Empty or absent <see cref="MistakeIds"/> promotes every open mistake.</summary>
+public record PromoteMistakesRequest(IReadOnlyCollection<Guid>? MistakeIds);

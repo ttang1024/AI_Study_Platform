@@ -4,6 +4,7 @@ import { Info, Download, Archive, FileText, CloudDownload } from 'lucide-react';
 import { useStudy } from '../../context/StudyContext';
 import { gamificationService } from '../../services/gamificationService';
 import { useSettingsExport } from '../../hooks/useSettingsExport';
+import { ConnectedCalendarsCard } from './ConnectedCalendarsCard';
 
 export const ExportTab: React.FC = () => {
   const { allNotes } = useStudy();
@@ -148,6 +149,8 @@ export const ExportTab: React.FC = () => {
             <Download size={13} /> Download .ics
           </button>
         </div>
+
+        <ConnectedCalendarsCard />
       </div>
     </div>
   );

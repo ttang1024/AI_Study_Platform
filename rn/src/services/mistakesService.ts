@@ -1,30 +1,10 @@
-import { apiClient } from '@/services/apiClient';
-import type { Mistake, VariantQuestion } from '@/types';
+// Service logic moved to the shared package (packages/core). This file wires the
+// RN HTTP adapter into the shared factory and re-exports the types. Method names
+// were canonicalized on web's (list→getMistakes, remove→deleteMistake,
+// getVariants→generateVariants); RN call sites were renamed to match.
+import { createMistakesService } from '@core/services/mistakesService';
+import { http } from '@/services/http';
 
-export interface Mistakes {
-  items: Mistake[];
-  openCount: number;
-  resolvedCount: number;
-}
+export * from '@core/services/mistakesService';
 
-export const mistakesService = {
-  async list(status?: 'open' | 'resolved'): Promise<Mistakes> {
-    const query = status ? `?status=${status}` : '';
-    const response = await apiClient.get(`/api/mistakes${query}`);
-    return response.data.data as Mistakes;
-  },
-
-  async setStatus(mistakeId: string, status: 'open' | 'resolved'): Promise<Mistake> {
-    const response = await apiClient.post(`/api/mistakes/${mistakeId}/status`, { status });
-    return response.data.data as Mistake;
-  },
-
-  async remove(mistakeId: string): Promise<void> {
-    await apiClient.delete(`/api/mistakes/${mistakeId}`);
-  },
-
-  async getVariants(mistakeId: string): Promise<VariantQuestion[]> {
-    const response = await apiClient.post(`/api/mistakes/${mistakeId}/variants`);
-    return response.data.data as VariantQuestion[];
-  },
-};
+export const mistakesService = createMistakesService(http);

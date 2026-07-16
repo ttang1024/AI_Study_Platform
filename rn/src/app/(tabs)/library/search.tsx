@@ -6,7 +6,7 @@ import { Search as SearchIcon, Sparkles } from 'lucide-react-native';
 import { EmptyState } from '@/components/EmptyState';
 import { FilterChip } from '@/components/FilterChip';
 import { SearchBar } from '@/components/SearchBar';
-import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
+import { Colors, Layout, Radius, Spacing, Typography } from '@/constants/theme';
 import { searchService, AskLibraryAnswer, CitationType, SearchResultItem, SearchResultType } from '@/services/searchService';
 
 const TYPE_FILTERS: { id: SearchResultType; label: string }[] = [
@@ -195,9 +195,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bgCard, borderWidth: 1, borderColor: Colors.border,
     borderRadius: Radius.lg, padding: Spacing.three, gap: Spacing.two, marginBottom: Spacing.two,
   },
-  askButtonRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, justifyContent: 'center', paddingVertical: 4 },
+  askButtonRow: { ...Layout.row, gap: Spacing.two, justifyContent: 'center', paddingVertical: 4 },
   askButtonText: { ...Typography.bodyBold, color: Colors.primary },
-  askHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  askHeader: { ...Layout.row, gap: 6 },
   askHeaderText: { ...Typography.captionBold, color: Colors.primary, textTransform: 'uppercase' },
   askAnswerText: { ...Typography.body, color: Colors.textPrimary },
   askErrorText: { ...Typography.caption, color: Colors.red },

@@ -41,6 +41,13 @@ public class UnitOfWork : IUnitOfWork
     private IExamPlanRepository? _examPlans;
     private IQuizBattleRepository? _quizBattles;
     private IGroupAssignmentRepository? _groupAssignments;
+    private IFlashcardReviewLogRepository? _flashcardReviewLogs;
+    private IStreakCoverDayRepository? _streakCoverDays;
+    private IUserCalendarFeedRepository? _userCalendarFeeds;
+    private ICourseAudioOverviewRepository? _courseAudioOverviews;
+    private IGroupNoteRepository? _groupNotes;
+    private IAiJobRepository? _aiJobs;
+    private IAiUsageRepository? _aiUsage;
 
     public UnitOfWork(AppDbContext context)
     {
@@ -78,6 +85,13 @@ public class UnitOfWork : IUnitOfWork
     public IExamPlanRepository ExamPlans => _examPlans ??= new ExamPlanRepository(_context);
     public IQuizBattleRepository QuizBattles => _quizBattles ??= new QuizBattleRepository(_context);
     public IGroupAssignmentRepository GroupAssignments => _groupAssignments ??= new GroupAssignmentRepository(_context);
+    public IFlashcardReviewLogRepository FlashcardReviewLogs => _flashcardReviewLogs ??= new FlashcardReviewLogRepository(_context);
+    public IStreakCoverDayRepository StreakCoverDays => _streakCoverDays ??= new StreakCoverDayRepository(_context);
+    public IUserCalendarFeedRepository UserCalendarFeeds => _userCalendarFeeds ??= new UserCalendarFeedRepository(_context);
+    public ICourseAudioOverviewRepository CourseAudioOverviews => _courseAudioOverviews ??= new CourseAudioOverviewRepository(_context);
+    public IGroupNoteRepository GroupNotes => _groupNotes ??= new GroupNoteRepository(_context);
+    public IAiJobRepository AiJobs => _aiJobs ??= new AiJobRepository(_context);
+    public IAiUsageRepository AiUsage => _aiUsage ??= new AiUsageRepository(_context);
 
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         => await _context.SaveChangesAsync(cancellationToken);

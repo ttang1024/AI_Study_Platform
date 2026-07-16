@@ -49,6 +49,9 @@ export function PasteTextForm({ selectedCourseId, onCourseError }: PasteTextForm
         mimeType: 'text/plain',
       });
       router.push(`/(tabs)/library/document/${doc.id}?courseId=${doc.courseId}`);
+      // Clear the form so returning to the summarizer starts fresh.
+      setTitle('');
+      setText('');
     } catch {
       setError('Upload failed. Please try again.');
     } finally {

@@ -4,38 +4,14 @@ export interface User {
 	name: string
 }
 
-export interface Course {
-	id: string
-	name: string
-	color: string
-	description?: string
-}
+// Shared with rn/ via packages/core.
+export type { Course } from '@core/types'
 
-export interface Document {
-	title: string
-	id: string
-	name: string
-	type: 'pdf' | 'docx' | 'txt' | 'md' | 'audio' | 'podcast' | 'image' | 'ppt' | 'epub'
-	url: string
-	uploadDate: string
-	fileSize?: number
-	fileHash?: string
-	courseId?: string
-	summary?: string
-	mindMapText?: string
-	transcript?: string
-	originalUrl?: string
-}
+// Shared with rn/ via packages/core.
+export type { Document } from '@core/types'
 
-export interface Note {
-	id: string
-	documentId: string
-	videoId?: string
-	documentName?: string
-	videoName?: string
-	content: string
-	createdAt: string
-}
+// Shared with rn/ via packages/core.
+export type { Note } from '@core/types'
 
 export interface ChatMessageAttachment {
 	url: string
@@ -61,43 +37,14 @@ export interface ChatThreadSummary {
 	lastMessage: string | null
 }
 
-export interface QuizQuestion {
-	id: string
-	question: string
-	options?: string[]
-	answer: string
-	explanation: string
-	type: 'multiple-choice' | 'short-answer'
-	difficulty?: 'easy' | 'medium' | 'hard'
-}
+// Shared with rn/ via packages/core. Correct answer field is `correctAnswer`.
+export type { QuizQuestion } from '@core/types'
 
-export interface FlashcardSrsState {
-	state: 0 | 1 | 2 | 3    // 0=New, 1=Learning, 2=Review, 3=Relearning
-	stability: number        // days of memory stability
-	difficulty: number       // card difficulty 1–10
-	reps: number
-	lapses: number
-	due: string              // ISO datetime
-	lastReview?: string      // ISO datetime
-	retrievability: number   // recall probability 0–1
-}
+// Shared with rn/ via packages/core.
+export type { FlashcardSrsState } from '@core/types'
 
-export interface Flashcard {
-	id: string
-	documentId: string
-	videoId?: string
-	documentName?: string
-	videoName?: string
-	front: string
-	back: string
-	cardType: 'basic' | 'cloze' | 'chart'
-	difficulty: 'easy' | 'medium' | 'hard'
-	chapter?: string
-	tags: string[]
-	lastReviewed?: string
-	nextReview?: string
-	srs?: FlashcardSrsState
-}
+// Shared with rn/ via packages/core.
+export type { Flashcard, OcclusionRect } from '@core/types'
 
 export interface LearningProgress {
 	documentId: string
@@ -113,25 +60,8 @@ export interface LearningProgress {
 }
 
 // ─── Glossary ────────────────────────────────────────────────────────────────
-export interface GlossaryTerm {
-	id: string
-	term: string
-	definition: string
-	documentId?: string
-	videoId?: string
-	sourceName?: string // doc name or video title
-	courseId?: string
-	sourceKind?: 'document' | 'video' | 'article' | 'audio'
-}
-
-// ─── Shared Study Set ────────────────────────────────────────────────────────
-export interface SharedSet {
-	token: string
-	title: string
-	cards: { id: string; front: string; back: string }[]
-	createdAt: string
-	expiresAt?: string
-}
+// Shared with rn/ via packages/core.
+export type { GlossaryTerm } from '@core/types'
 
 // ─── Adaptive Quiz Profile ───────────────────────────────────────────────────
 export interface AdaptiveQuizProfile {

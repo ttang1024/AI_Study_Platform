@@ -1,5 +1,5 @@
 import { apiClient } from './apiClient';
-import { Flashcard, FlashcardSrsState } from '../types';
+import { Flashcard, FlashcardSrsState, OcclusionRect } from '../types';
 import { PendingMaterial } from './pendingMaterialService';
 
 interface BackendSrs {
@@ -27,7 +27,19 @@ interface BackendFlashcard {
   video?: string;
   title?: string;
   srs?: BackendSrs;
+  imageUrl?: string;
+  occlusionsJson?: string;
 }
+
+const parseOcclusions = (json?: string): OcclusionRect[] | undefined => {
+  if (!json) return undefined;
+  try {
+    const parsed = JSON.parse(json);
+    return Array.isArray(parsed) ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+};
 
 const mapSrs = (s: BackendSrs): FlashcardSrsState => ({
   state: s.state,
@@ -44,7 +56,7 @@ const mapFlashcard = (bf: BackendFlashcard): Flashcard => ({
   id: bf.flashcardId,
   front: bf.front,
   back: bf.back,
-  cardType: bf.cardType === 'cloze' ? 'cloze' : bf.cardType === 'chart' ? 'chart' : 'basic',
+  cardType: bf.cardType === 'cloze' ? 'cloze' : bf.cardType === 'chart' ? 'chart' : bf.cardType === 'occlusion' ? 'occlusion' : 'basic',
   difficulty: (bf.difficulty === 'easy' || bf.difficulty === 'hard') ? bf.difficulty : 'medium',
   chapter: bf.chapter ?? undefined,
   tags: bf.tags ?? [],
@@ -53,6 +65,8 @@ const mapFlashcard = (bf: BackendFlashcard): Flashcard => ({
   documentName: bf.document ?? bf.title ?? undefined,
   videoName: bf.video ?? undefined,
   srs: bf.srs ? mapSrs(bf.srs) : undefined,
+  imageUrl: bf.imageUrl ?? undefined,
+  occlusions: parseOcclusions(bf.occlusionsJson),
 });
 
 export interface PagedFlashcards {
@@ -145,6 +159,27 @@ export const flashcardService = {
 
   async createFlashcard(data: { front: string; back: string; documentId?: string }): Promise<Flashcard> {
     const response = await apiClient.post('/api/flashcards', data);
+    invalidateFlashcardListCache();
+    return mapFlashcard(response.data.data);
+  },
+
+  /** Create an image-occlusion card: image file + normalized mask rects. */
+  async createOcclusionCard(data: {
+    image: File;
+    occlusions: OcclusionRect[];
+    front?: string;
+    back?: string;
+    documentId?: string;
+  }): Promise<Flashcard> {
+    const form = new FormData();
+    form.append('image', data.image);
+    form.append('occlusions', JSON.stringify(data.occlusions));
+    if (data.front) form.append('front', data.front);
+    if (data.back) form.append('back', data.back);
+    if (data.documentId) form.append('documentId', data.documentId);
+    const response = await apiClient.post('/api/flashcards/occlusion', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
     invalidateFlashcardListCache();
     return mapFlashcard(response.data.data);
   },

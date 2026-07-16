@@ -7,13 +7,13 @@ import { Flashcards } from './Flashcards';
 import { ShareModal } from '../common/ShareModal';
 import { downloadAnkiDeck, downloadCsvDeck } from '../../services/ankiExportService';
 
-type SimpleCard = { id: string; front: string; back: string; cardType?: 'basic' | 'cloze' | 'chart' };
+type SimpleCard = { id: string; front: string; back: string; cardType?: 'basic' | 'cloze' | 'chart' | 'occlusion' };
 
 type VideoRecord = Pick<VideoListItem, 'id' | 'title' | 'thumbnailUrl' | 'courseId' | 'courseName' | 'courseColor'>;
 
 type ShareTarget = {
   title: string;
-  cards: { front: string; back: string; cardType?: 'basic' | 'cloze' | 'chart' }[];
+  cards: { front: string; back: string; cardType?: 'basic' | 'cloze' | 'chart' | 'occlusion' }[];
   sourceType?: 'youtube' | 'article' | 'audio' | 'podcast' | 'document';
   sourceUrl?: string | null;
   originalArticleUrl?: string | null;

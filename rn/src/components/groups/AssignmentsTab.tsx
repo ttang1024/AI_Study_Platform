@@ -6,7 +6,7 @@ import { Check, Circle, ClipboardList, ExternalLink, Trash2 } from 'lucide-react
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
-import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
+import { Colors, Layout, Radius, Spacing, Typography } from '@/constants/theme';
 import { studyGroupService, type Assignment } from '@/services/studyGroupService';
 
 // Assignment linkUrl can be an app-internal web path like "/quizzes" — those don't map
@@ -183,23 +183,23 @@ const styles = StyleSheet.create({
   },
   multiline: { minHeight: 60, textAlignVertical: 'top' },
   errorText: { ...Typography.caption, color: Colors.errorText },
-  formActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: Spacing.three, alignItems: 'center' },
+  formActions: { ...Layout.row, justifyContent: 'flex-end', gap: Spacing.three },
   cancelText: { ...Typography.captionBold, color: Colors.textSecondary },
   itemCard: { padding: Spacing.three },
   itemRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
   checkWrap: { marginTop: 1 },
   checkOn: {
     width: 20, height: 20, borderRadius: 10, backgroundColor: Colors.emerald,
-    alignItems: 'center', justifyContent: 'center',
+    ...Layout.center,
   },
   itemBody: { flex: 1, gap: 2 },
   itemTitle: { ...Typography.bodyBold, fontSize: 14, color: Colors.textPrimary },
   itemTitleDone: { color: Colors.textSecondary, textDecorationLine: 'line-through' },
   itemDescription: { ...Typography.caption, color: Colors.textSecondary },
-  metaRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: Spacing.two, marginTop: 2 },
+  metaRow: { ...Layout.rowWrap, gap: Spacing.two, marginTop: 2 },
   metaText: { fontSize: 11, color: Colors.textSecondary },
   metaOverdue: { color: Colors.red, fontWeight: '700' },
-  linkButton: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  linkButton: { ...Layout.row, gap: 3 },
   linkText: { fontSize: 11, fontWeight: '700', color: Colors.primary },
   completionsText: { fontSize: 10, color: Colors.textSecondary, marginTop: 2 },
 });

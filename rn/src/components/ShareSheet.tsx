@@ -4,7 +4,7 @@ import { Modal, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import { Check, Copy, Share2, X } from 'lucide-react-native';
 
 import { Button } from '@/components/Button';
-import { Alpha, Colors, Overlay, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
+import { Alpha, Colors, Layout, Overlay, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
 import {
   createShare, type ShareableCard, type ShareableQuiz,
 } from '@/services/shareService';
@@ -169,13 +169,12 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bgSidebar, borderRadius: Radius.xl, padding: Spacing.three,
     gap: Spacing.three, ...Shadows.card,
   },
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.two },
-  headerTitleGroup: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, flex: 1 },
+  headerRow: { ...Layout.rowBetween, gap: Spacing.two },
+  headerTitleGroup: { ...Layout.row, gap: Spacing.two, flex: 1 },
   headerTitle: { ...Typography.bodyBold, color: Colors.textPrimary, flex: 1 },
   itemList: { gap: Spacing.two },
   itemRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.lg,
+    ...Layout.rowBetween, borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.lg,
     paddingHorizontal: Spacing.three, paddingVertical: 12, backgroundColor: Colors.bgCard,
   },
   itemRowOn: { borderColor: Colors.primary, backgroundColor: `${Colors.primary}${Alpha.tint}` },
@@ -183,7 +182,7 @@ const styles = StyleSheet.create({
   itemLabelOn: { ...Typography.bodyBold, color: Colors.primary },
   radio: {
     width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: Colors.border,
-    alignItems: 'center', justifyContent: 'center',
+    ...Layout.center,
   },
   radioOn: { borderColor: Colors.primary, backgroundColor: Colors.primary },
   emptyText: { ...Typography.caption, color: Colors.textSecondary, textAlign: 'center', paddingVertical: Spacing.two },
@@ -191,11 +190,11 @@ const styles = StyleSheet.create({
   doneBox: { gap: Spacing.two },
   doneNote: { ...Typography.caption, color: Colors.textSecondary },
   urlBox: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.two,
+    ...Layout.row, gap: Spacing.two,
     borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.md,
     paddingHorizontal: Spacing.two, paddingVertical: 10, backgroundColor: Colors.bgCard,
   },
   urlText: { flex: 1, fontSize: 12, color: Colors.textPrimary },
-  copyButton: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  copyButton: { ...Layout.row, gap: 4 },
   copyText: { ...Typography.captionBold, color: Colors.primary },
 });

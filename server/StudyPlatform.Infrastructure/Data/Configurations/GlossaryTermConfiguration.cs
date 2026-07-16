@@ -29,6 +29,11 @@ public class GlossaryTermConfiguration : IEntityTypeConfiguration<GlossaryTerm>
         // GlossaryTerm previously had no UserId-prefixed index at all.
         builder.HasIndex(t => new { t.UserId, t.Term });
 
+        // Trigram indexes for the ILIKE '%term%' searches in GlossaryTermRepository. The (UserId, Term)
+        // B-tree above can't serve a leading wildcard, and Definition has no index at all without this.
+        builder.HasIndex(t => t.Term).HasMethod("gin").HasOperators("gin_trgm_ops");
+        builder.HasIndex(t => t.Definition).HasMethod("gin").HasOperators("gin_trgm_ops");
+
         builder.ToTable("GlossaryTerms");
     }
 }

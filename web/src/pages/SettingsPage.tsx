@@ -1,20 +1,23 @@
 import React, { useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { User, Shield, LogOut, KeyRound, Volume2, Archive } from 'lucide-react';
+import { User, Shield, LogOut, KeyRound, Volume2, Archive, Activity } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { cn } from '../utils/cn';
 import { ProfileTab } from '../components/settings/ProfileTab';
 import { SecurityTab } from '../components/settings/SecurityTab';
 import { AiServicesTab } from '../components/settings/AiServicesTab';
+import { AiUsageTab } from '../components/settings/AiUsageTab';
 import { VoiceTab } from '../components/settings/VoiceTab';
 import { ExportTab } from '../components/settings/ExportTab';
 
-type SettingsTab = 'profile' | 'security' | 'ai' | 'voice' | 'export';
+type SettingsTab = 'profile' | 'security' | 'ai' | 'ai-usage' | 'voice' | 'export';
 
 const tabs = [
   { id: 'profile', label: 'Profile', icon: User },
   { id: 'security', label: 'Security', icon: Shield },
   { id: 'ai', label: 'AI Services', icon: KeyRound },
+  // Sits next to AI Services on purpose: the keys are configured there, and this is what they cost.
+  { id: 'ai-usage', label: 'AI Usage', icon: Activity },
   { id: 'voice', label: 'Voice', icon: Volume2 },
   { id: 'export', label: 'Export', icon: Archive },
 ] as const;
@@ -66,6 +69,7 @@ export const SettingsPage: React.FC = () => {
           {activeTab === 'profile' && <ProfileTab />}
           {activeTab === 'security' && <SecurityTab />}
           {activeTab === 'ai' && <AiServicesTab />}
+          {activeTab === 'ai-usage' && <AiUsageTab />}
           {activeTab === 'voice' && <VoiceTab />}
           {activeTab === 'export' && <ExportTab />}
         </div>

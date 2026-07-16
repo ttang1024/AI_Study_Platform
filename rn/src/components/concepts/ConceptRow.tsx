@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { ChevronDown, ChevronUp } from 'lucide-react-native';
 
 import { Card } from '@/components/Card';
-import { Colors, Spacing, Typography } from '@/constants/theme';
+import { Colors, Layout, Spacing, Typography } from '@/constants/theme';
 import type { ConceptNode } from '@/services/conceptLinksService';
 import { routeForNode } from '@/utils/conceptRoutes';
 
@@ -54,7 +54,7 @@ export const ConceptRow: React.FC<ConceptRowProps> = React.memo(function Concept
 
 const styles = StyleSheet.create({
   card: { gap: Spacing.two },
-  row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  row: { ...Layout.row, gap: Spacing.two },
   body: { flex: 1, gap: 2 },
   typeBadge: { ...Typography.captionBold, color: Colors.primary, textTransform: 'uppercase' },
   title: { ...Typography.bodyBold, color: Colors.textPrimary },

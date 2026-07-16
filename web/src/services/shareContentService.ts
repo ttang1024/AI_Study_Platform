@@ -13,7 +13,7 @@ export interface ShareableQuiz {
 export interface ShareableCard {
   front: string;
   back: string;
-  cardType?: 'basic' | 'cloze' | 'chart';
+  cardType?: 'basic' | 'cloze' | 'chart' | 'occlusion';
 }
 
 export interface ShareableGlossaryTerm {

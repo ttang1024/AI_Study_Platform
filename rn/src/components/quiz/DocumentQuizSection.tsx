@@ -12,6 +12,7 @@ export const DocumentQuizSection: React.FC<DocumentQuizSectionProps> = ({ course
   <QuizRunner
     getQuiz={(difficulty) => quizService.getDocumentQuiz(courseId, documentId, difficulty)}
     generateQuiz={(difficulty) => quizService.generateForDocument(courseId, documentId, difficulty)}
-    submitQuiz={(answers, score, total) => quizService.submitDocumentQuiz(courseId, documentId, answers, score, total)}
+    submitQuiz={(answers, score, total, confidence) =>
+      quizService.submitDocumentQuiz(courseId, documentId, answers, score, total, confidence)}
   />
 );

@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using StudyPlatform.Application.Services;
 using StudyPlatform.Domain.Interfaces;
 using StudyPlatform.Infrastructure.Data;
+using StudyPlatform.Infrastructure.Http;
 using StudyPlatform.Infrastructure.Repositories;
 using StudyPlatform.Infrastructure.Services;
 
@@ -24,6 +25,10 @@ public static class InfrastructureServiceExtensions
                     maxRetryCount: 5,
                     maxRetryDelay: TimeSpan.FromSeconds(30),
                     errorCodesToAdd: null);
+
+                // Maps ContentEmbedding.Embedding to pgvector's vector type and enables the
+                // distance operators (<=>) that semantic search orders by.
+                npgsqlOptions.UseVector();
             });
         });
 
@@ -43,7 +48,21 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IDocumentTextExtractor, DocumentTextExtractorService>();
         services.AddScoped<IDocumentContentService, DocumentContentService>();
         services.AddScoped<IPasswordHasher, PasswordHasher>();
+        services.AddSingleton<IAnkiExportService, AnkiExportService>();
+        services.AddSingleton<ITtsSynthesisService, EdgeTtsService>();
         services.AddSingleton<IAppCache, DistributedAppCache>();
+        // Token accounting for every AI call. Singleton: it opens its own scope per write so usage
+        // rows never enlist in the caller's unit of work.
+        services.AddSingleton<IAiUsageRecorder, AiUsageRecorder>();
+        // External ICS calendars ("secret address" feeds) for planner busy-time import.
+        // User-supplied URL → SSRF-guarded handler that refuses private/loopback/metadata addresses
+        // on the initial request and every redirect hop.
+        services.AddHttpClient<ICalendarFeedService, CalendarFeedService>(client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(20);
+            client.DefaultRequestHeaders.Add("User-Agent", "StudyPlatform");
+        })
+        .ConfigurePrimaryHttpMessageHandler(() => SsrfGuard.CreateHandler());
         // Push notifications — the HttpClient delivers to Expo's push API for
         // native-device tokens; browser Web Push goes through the WebPush library.
         services.AddHttpClient<IPushNotificationService, WebPushNotificationService>(client =>
@@ -62,6 +81,14 @@ public static class InfrastructureServiceExtensions
         {
             client.Timeout = TimeSpan.FromSeconds(120);
         });
+
+        // Semantic search. Configured independently of the per-user chat provider: the backfill worker
+        // indexes outside any request, and Anthropic/DeepSeek publish no embeddings API at all.
+        services.AddHttpClient<IEmbeddingService, EmbeddingService>(client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(60);
+        });
+        services.AddScoped<IEmbeddingIndex, EmbeddingIndex>();
 
         // YouTubeCredentialPool: singleton so failure state is shared across all requests.
         services.AddSingleton<YouTubeCredentialPool>();
@@ -88,10 +115,7 @@ public static class InfrastructureServiceExtensions
             client.DefaultRequestHeaders.Add("User-Agent",
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
         })
-        .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
-        {
-            AutomaticDecompression = System.Net.DecompressionMethods.All
-        });
+        .ConfigurePrimaryHttpMessageHandler(() => SsrfGuard.CreateHandler());
 
         // Web Clipper — used by ClipUrl to fetch article HTML server-side
         services.AddHttpClient("WebClipper", client =>
@@ -100,10 +124,7 @@ public static class InfrastructureServiceExtensions
             client.DefaultRequestHeaders.Add("User-Agent",
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
         })
-        .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
-        {
-            AutomaticDecompression = System.Net.DecompressionMethods.All
-        });
+        .ConfigurePrimaryHttpMessageHandler(() => SsrfGuard.CreateHandler());
 
         return services;
     }

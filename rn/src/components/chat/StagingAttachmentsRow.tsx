@@ -2,7 +2,7 @@ import React from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { FileText, X } from 'lucide-react-native';
 
-import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
+import { Colors, Layout, Radius, Spacing, Typography } from '@/constants/theme';
 import type { PendingAttachment } from '@/hooks/useChatAttachments';
 
 interface StagingAttachmentsRowProps {
@@ -36,11 +36,11 @@ const styles = StyleSheet.create({
   thumb: { width: 64, height: 64, borderRadius: Radius.md, backgroundColor: Colors.zinc200 },
   file: {
     width: 64, height: 64, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.border,
-    backgroundColor: Colors.bgApp, alignItems: 'center', justifyContent: 'center', padding: 4, gap: 2,
+    backgroundColor: Colors.bgApp, ...Layout.center, padding: 4, gap: 2,
   },
   fileText: { ...Typography.caption, fontSize: 8, fontWeight: '600', color: Colors.textSecondary, textAlign: 'center' },
   remove: {
     position: 'absolute', top: -6, right: -6, width: 18, height: 18, borderRadius: 9,
-    backgroundColor: Colors.textPrimary, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: Colors.textPrimary, ...Layout.center,
   },
 });

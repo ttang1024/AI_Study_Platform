@@ -1,6 +1,6 @@
 import { apiClient } from '@/services/apiClient';
 import { streamSse } from '@/services/sse';
-import type { Document, PickedFile } from '@/types';
+import type { Document, PickedFile, SimpleCard } from '@/types';
 import { toFormDataPart } from '@/utils/formData';
 
 interface BackendDocument {
@@ -69,6 +69,10 @@ export const documentService = {
     return response.data.data;
   },
 
+  async deleteDocument(courseId: string, documentId: string): Promise<void> {
+    await apiClient.delete(`/api/courses/${courseId}/documents/${documentId}`);
+  },
+
   async uploadAudio(courseId: string, file: PickedFile): Promise<{ documentId: string }> {
     const formData = new FormData();
     formData.append('file', toFormDataPart(file));
@@ -98,4 +102,28 @@ export const documentService = {
   ): Promise<void> {
     return streamSse(`/api/courses/${courseId}/documents/${documentId}/mindmap/stream`, {}, onChunk, signal);
   },
+
+  async getFlashcards(courseId: string, documentId: string): Promise<SimpleCard[]> {
+    const response = await apiClient.get(`/api/courses/${courseId}/documents/${documentId}/flashcards`);
+    return (response.data.data as BackendDocumentFlashcard[]).map(mapDocumentFlashcard);
+  },
+
+  async generateFlashcards(courseId: string, documentId: string): Promise<SimpleCard[]> {
+    const response = await apiClient.post(`/api/courses/${courseId}/documents/${documentId}/flashcards/generate`);
+    return (response.data.data as BackendDocumentFlashcard[]).map(mapDocumentFlashcard);
+  },
 };
+
+interface BackendDocumentFlashcard {
+  flashcardId: string;
+  front: string;
+  back: string;
+  cardType?: 'basic' | 'cloze' | 'chart';
+}
+
+const mapDocumentFlashcard = (bf: BackendDocumentFlashcard): SimpleCard => ({
+  id: bf.flashcardId,
+  front: bf.front,
+  back: bf.back,
+  cardType: bf.cardType ?? 'basic',
+});

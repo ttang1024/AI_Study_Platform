@@ -4,7 +4,7 @@ import { Check, Copy, FileText, Share2, Square, Volume2 } from 'lucide-react-nat
 
 import { SummaryMarkdown } from '@/components/SummaryMarkdown';
 import { ChatBubble } from '@/components/chat/ChatBubble';
-import { Alpha, Colors, Overlay, Radius, Spacing, Typography } from '@/constants/theme';
+import { Alpha, Colors, Layout, Overlay, Radius, Spacing, Typography } from '@/constants/theme';
 import type { ChatMessageAttachment } from '@/services/chatService';
 
 export interface ChatMessage {
@@ -102,15 +102,15 @@ export const MessageBubble: React.FC<MessageBubbleProps> = React.memo(function M
 const styles = StyleSheet.create({
   bubbleError: { borderColor: Colors.red, borderWidth: 1 },
   userText: { ...Typography.body, color: Colors.primaryForeground },
-  actionsRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, marginTop: Spacing.two },
-  actionButton: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  actionsRow: { ...Layout.row, gap: Spacing.three, marginTop: Spacing.two },
+  actionButton: { ...Layout.row, gap: 4 },
   speakText: { ...Typography.caption, fontSize: 11, fontWeight: '700', color: Colors.textSecondary },
   speakTextActive: { color: Colors.primary },
 
   attachmentRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two, marginBottom: Spacing.two },
   attachmentThumb: { width: 96, height: 96, borderRadius: Radius.md, backgroundColor: Colors.zinc200 },
   attachmentChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 6, maxWidth: 160,
+    ...Layout.row, gap: 6, maxWidth: 160,
     paddingHorizontal: 10, paddingVertical: 8, borderRadius: Radius.pill,
     backgroundColor: `${Colors.primary}${Alpha.tint}`,
   },

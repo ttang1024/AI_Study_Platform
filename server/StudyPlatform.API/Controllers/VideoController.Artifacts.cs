@@ -274,7 +274,7 @@ public partial class VideoController
     {
         var userId = User.GetUserId();
         var result = await _mediator.Send(
-            new SaveVideoQuizSubmissionCommand(id, userId, request.Answers, request.Score, request.Total),
+            new SaveVideoQuizSubmissionCommand(id, userId, request.Answers, request.Score, request.Total, request.Confidence),
             cancellationToken);
         if (!result.IsSuccess)
             return NotFound(BaseResponse<QuizSubmissionDto>.Fail(result.Message, result.ErrorCode));

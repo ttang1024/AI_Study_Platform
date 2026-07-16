@@ -13,7 +13,7 @@ import {
 } from './helpers';
 import { isExternalVideoSource, type VideoSourceType } from '../../constants/videoSources';
 
-export interface SimpleCard { id: string; front: string; back: string; cardType?: 'basic' | 'cloze' | 'chart'; }
+export interface SimpleCard { id: string; front: string; back: string; cardType?: 'basic' | 'cloze' | 'chart' | 'occlusion'; }
 export interface ChatMsg { id: string; role: 'user' | 'model'; content: string; isError?: boolean; attachments?: ChatMessageAttachment[]; }
 export type VideoStudyTab = 'summary' | 'mindmap' | 'notes' | 'flashcards' | 'quiz' | 'problems' | 'chat';
 export type QuizDifficulty = 'easy' | 'medium' | 'hard';
@@ -175,7 +175,7 @@ export function useVideoDetail(propId?: string) {
           id: q.quizId,
           question: q.question,
           options: q.options,
-          answer: q.correctAnswer,
+          correctAnswer: q.correctAnswer,
           explanation: q.explanation,
           difficulty: q.difficulty ?? 'medium',
         } as QuizQuestion));
@@ -554,7 +554,7 @@ export function useVideoDetail(propId?: string) {
         id: q.quizId,
         question: q.question,
         options: q.options,
-        answer: q.correctAnswer,
+        correctAnswer: q.correctAnswer,
         explanation: q.explanation,
         difficulty: q.difficulty ?? difficulty,
       } as QuizQuestion));
@@ -592,7 +592,7 @@ export function useVideoDetail(propId?: string) {
   const submitQuiz = useCallback(async () => {
     let score = 0;
     quizQuestions.forEach(q => {
-      if (userAnswers[q.id] && isOptionCorrect(userAnswers[q.id], q.answer)) score++;
+      if (userAnswers[q.id] && isOptionCorrect(userAnswers[q.id], q.correctAnswer)) score++;
     });
     setQuizScore(score);
     setQuizScoreSets(prev => ({ ...prev, [activeQuizDifficulty]: score }));

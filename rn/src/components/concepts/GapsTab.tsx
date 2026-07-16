@@ -5,7 +5,7 @@ import { CheckCircle2 } from 'lucide-react-native';
 
 import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
-import { Colors, Spacing, Typography } from '@/constants/theme';
+import { Colors, Layout, Spacing, Typography } from '@/constants/theme';
 import type { KnowledgeGaps } from '@/services/conceptLinksService';
 
 const SEVERITY_COLOR: Record<string, string> = {
@@ -52,7 +52,7 @@ const styles = StyleSheet.create({
   statsText: { ...Typography.caption, color: Colors.textSecondary, paddingHorizontal: Spacing.three, paddingTop: Spacing.two },
   list: { padding: Spacing.three, gap: Spacing.two },
   card: { gap: 4 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  row: { ...Layout.row, gap: Spacing.two },
   dot: { width: 8, height: 8, borderRadius: 4 },
   concept: { ...Typography.bodyBold, color: Colors.textPrimary, flex: 1 },
   refCount: { ...Typography.caption, color: Colors.textSecondary },

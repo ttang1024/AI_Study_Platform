@@ -36,7 +36,6 @@ export const BentoProblemCard: React.FC = () => {
         title="Problems"
         gradient="from-emerald-400 via-green-500 to-teal-600"
         iconGlow="0 6px 22px rgba(16,185,129,0.4)"
-        isNew
       />
 
       <div className="flex-1 rounded-xl overflow-hidden mb-3" style={{ background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(255,255,255,0.06)' }}>

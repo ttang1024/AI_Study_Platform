@@ -4,7 +4,7 @@ import { CheckCircle2, ChevronDown, ChevronUp, Sparkles, Trash2 } from 'lucide-r
 
 import { Card } from '@/components/Card';
 import { quizOptionTextStyles } from '@/components/quiz/quizOptionTextStyles';
-import { Colors, Spacing, Typography } from '@/constants/theme';
+import { Colors, Layout, Spacing, Typography } from '@/constants/theme';
 import type { Mistake, VariantQuestion } from '@/types';
 
 interface MistakeRowProps {
@@ -93,6 +93,6 @@ const styles = StyleSheet.create({
   variantCard: { backgroundColor: Colors.bgApp, borderRadius: 8, padding: 8, marginTop: 4 },
   variantQuestion: { ...Typography.caption, color: Colors.textPrimary },
   detailActions: { flexDirection: 'row', gap: Spacing.three, marginTop: 4, flexWrap: 'wrap' },
-  actionButton: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  actionButton: { ...Layout.row, gap: 4 },
   actionText: { ...Typography.captionBold, color: Colors.textSecondary },
 });

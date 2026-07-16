@@ -40,7 +40,10 @@ export const NotificationBell: React.FC<Props> = ({ className }) => {
 
   const refresh = () => {
     notificationService.getNotifications()
-      .then(r => setItems(r.items))
+      // Guard the shape, not just the rejection: this bell lives in the shared app
+      // shell, so a malformed payload would throw during render and unmount every
+      // authenticated page rather than just hiding the bell.
+      .then(r => setItems(Array.isArray(r?.items) ? r.items : []))
       .catch(() => { /* silently ignore — non-critical */ });
   };
 

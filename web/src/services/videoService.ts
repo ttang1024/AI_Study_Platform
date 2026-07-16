@@ -50,7 +50,7 @@ export interface VideoFlashcard {
 	flashcardId: string
 	front: string
 	back: string
-	cardType?: 'basic' | 'cloze' | 'chart'
+	cardType?: 'basic' | 'cloze' | 'chart' | 'occlusion'
 	difficulty?: 'easy' | 'medium' | 'hard'
 	chapter?: string
 	tags?: string[]

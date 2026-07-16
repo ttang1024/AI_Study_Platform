@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using StudyPlatform.API.Extensions;
@@ -27,9 +28,10 @@ public class GroupChatHub : Hub
 
     private readonly IUnitOfWork _unitOfWork;
 
-    public GroupChatHub(IUnitOfWork unitOfWork)
+    public GroupChatHub(IUnitOfWork unitOfWork, IMediator mediator)
     {
         _unitOfWork = unitOfWork;
+        _mediator = mediator;
     }
 
     public async Task JoinGroup(string groupId)
@@ -136,6 +138,82 @@ public class GroupChatHub : Hub
         room.TimerStartedBy = user?.FullName ?? "Someone";
 
         await BroadcastRoomStateAsync(groupId);
+    }
+
+    // ── Collaborative notes (Yjs CRDT sync) ───────────────────────────────────
+    // The server relays Yjs updates between editors of the same note and persists
+    // debounced full-state snapshots; it never needs to understand the CRDT itself.
+
+    private readonly IMediator _mediator;
+
+    /// <summary>Join a note's edit session. Returns the persisted Yjs state (base64) to hydrate from.</summary>
+    public async Task<string> JoinNote(string noteId)
+    {
+        var note = await RequireNoteAccessAsync(noteId);
+        await Groups.AddToGroupAsync(Context.ConnectionId, NoteGroup(noteId));
+        return Convert.ToBase64String(note.State);
+    }
+
+    public async Task LeaveNote(string noteId)
+    {
+        await Groups.RemoveFromGroupAsync(Context.ConnectionId, NoteGroup(noteId));
+        await Clients.OthersInGroup(NoteGroup(noteId)).SendAsync("NotePeerLeft", Context.ConnectionId);
+    }
+
+    /// <summary>Relay an incremental Yjs update to everyone else editing the note.</summary>
+    public async Task SendNoteUpdate(string noteId, string updateBase64)
+    {
+        if (string.IsNullOrEmpty(updateBase64) || updateBase64.Length > 512 * 1024)
+            throw new HubException("Invalid update.");
+        await RequireNoteAccessAsync(noteId);
+        await Clients.OthersInGroup(NoteGroup(noteId)).SendAsync("ReceiveNoteUpdate", updateBase64);
+    }
+
+    /// <summary>Relay awareness (cursor/selection/name) state; not persisted.</summary>
+    public async Task SendNoteAwareness(string noteId, string awarenessBase64)
+    {
+        if (string.IsNullOrEmpty(awarenessBase64) || awarenessBase64.Length > 64 * 1024)
+            return;
+        await Clients.OthersInGroup(NoteGroup(noteId)).SendAsync("ReceiveNoteAwareness", awarenessBase64);
+    }
+
+    /// <summary>Persist the merged full document state (clients call this on a debounce).</summary>
+    public async Task SaveNoteState(string noteId, string stateBase64, string contentPreview)
+    {
+        if (!Guid.TryParse(noteId, out var noteGuid))
+            throw new HubException("Invalid note ID.");
+
+        byte[] state;
+        try
+        {
+            state = Convert.FromBase64String(stateBase64);
+        }
+        catch (FormatException)
+        {
+            throw new HubException("Invalid state encoding.");
+        }
+
+        var result = await _mediator.Send(new SaveGroupNoteStateCommand(
+            noteGuid, Context.User!.GetUserId(), state, contentPreview ?? ""));
+        if (!result.IsSuccess)
+            throw new HubException(result.Message);
+    }
+
+    private static string NoteGroup(string noteId) => $"note:{noteId}";
+
+    private async Task<GroupNote> RequireNoteAccessAsync(string noteId)
+    {
+        if (!Guid.TryParse(noteId, out var noteGuid))
+            throw new HubException("Invalid note ID.");
+        var note = await _unitOfWork.GroupNotes.GetByIdAsync(noteGuid);
+        if (note == null)
+            throw new HubException("Note not found.");
+        var userId = Context.User!.GetUserId();
+        var isMember = await _unitOfWork.StudyGroupMembers.ExistsAsync(
+            m => m.GroupId == note.GroupId && m.UserId == userId);
+        if (!isMember)
+            throw new HubException("Access denied.");
+        return note;
     }
 
     public override async Task OnDisconnectedAsync(Exception? exception)

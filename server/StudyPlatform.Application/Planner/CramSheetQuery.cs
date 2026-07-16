@@ -35,7 +35,7 @@ public class GetCramSheetQueryHandler : IRequestHandler<GetCramSheetQuery, Resul
 
     public async Task<Result<CramSheetDto>> Handle(GetCramSheetQuery request, CancellationToken ct)
     {
-        var plan = (await _unitOfWork.ExamPlans.FindAsync(
+        var plan = (await _unitOfWork.ExamPlans.FindAsNoTrackingAsync(
             p => p.ExamPlanId == request.ExamPlanId && p.UserId == request.UserId, ct)).FirstOrDefault();
         if (plan is null)
             return Result<CramSheetDto>.Failure("Exam plan not found.", "PLAN_NOT_FOUND");
@@ -50,8 +50,8 @@ public class GetCramSheetQueryHandler : IRequestHandler<GetCramSheetQuery, Resul
 
         // Course scoping: material belongs to the plan's course via its source doc/video.
         var userId = request.UserId;
-        var documents = (await _unitOfWork.Documents.FindAsync(d => d.UserId == userId, ct)).ToList();
-        var videos = (await _unitOfWork.Videos.FindAsync(v => v.UserId == userId, ct)).ToList();
+        var documents = (await _unitOfWork.Documents.FindAsNoTrackingAsync(d => d.UserId == userId, ct)).ToList();
+        var videos = (await _unitOfWork.Videos.FindAsNoTrackingAsync(v => v.UserId == userId, ct)).ToList();
         var docToCourse = documents.ToDictionary(d => d.DocumentId, d => d.CourseId);
         var videoToCourse = videos.ToDictionary(v => v.VideoId, v => v.CourseId);
 
@@ -63,7 +63,7 @@ public class GetCramSheetQueryHandler : IRequestHandler<GetCramSheetQuery, Resul
             return false;
         }
 
-        var mistakes = (await _unitOfWork.MistakeEntries.FindAsync(
+        var mistakes = (await _unitOfWork.MistakeEntries.FindAsNoTrackingAsync(
                 m => m.UserId == userId && m.Status == "open", ct))
             .Where(m => InCourse(m.DocumentId, m.VideoId))
             .OrderByDescending(m => m.TimesMissed)

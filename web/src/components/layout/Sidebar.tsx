@@ -7,7 +7,7 @@ import {
   Award, NotebookPen, X, Sparkles, ChevronLeft, ChevronRight,
   User, BookMarked, MessageSquarePlus,
   Search, Trophy, Users, Bot, Network, LineChart,
-  CalendarClock, GraduationCap,
+  CalendarClock, GraduationCap, PenLine,
 } from 'lucide-react';
 import { AchievementsPanel } from '../dashboard/AchievementsPanel';
 import { cn } from '../../utils/cn';
@@ -29,6 +29,7 @@ const navItems = [
   { icon: BrainCircuit, label: 'Flashcards', path: '/flashcards' },
   { icon: Award, label: 'Quizzes', path: '/quizzes' },
   { icon: GraduationCap, label: 'Practice', path: '/practice' },
+  { icon: PenLine, label: 'Check Working', path: '/handwriting' },
   { icon: CalendarClock, label: 'Planner', path: '/planner' },
   { icon: BookMarked, label: 'Glossary', path: '/glossary' },
   { icon: NotebookPen, label: 'Notes', path: '/notes' },

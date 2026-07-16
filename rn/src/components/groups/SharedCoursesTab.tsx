@@ -5,7 +5,7 @@ import { BookOpen, X } from 'lucide-react-native';
 import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
 import { FilterChip } from '@/components/FilterChip';
-import { Colors, Spacing, Typography } from '@/constants/theme';
+import { Colors, Layout, Spacing, Typography } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
 import { courseService } from '@/services/courseService';
 import { studyGroupService, type SharedCourse } from '@/services/studyGroupService';
@@ -105,10 +105,10 @@ const styles = StyleSheet.create({
   formLabel: { ...Typography.captionBold, color: Colors.textSecondary },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   shareButton: {
-    height: 40, borderRadius: 8, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center',
+    height: 40, borderRadius: 8, backgroundColor: Colors.primary, ...Layout.center,
   },
   shareButtonDisabled: { opacity: 0.5 },
   shareButtonText: { ...Typography.captionBold, color: Colors.primaryForeground },
-  row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  row: { ...Layout.row, gap: Spacing.two },
   courseName: { ...Typography.bodyBold, color: Colors.textPrimary, flex: 1 },
 });

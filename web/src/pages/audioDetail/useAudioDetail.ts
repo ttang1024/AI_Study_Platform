@@ -2,7 +2,6 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useStudy } from '../../context/StudyContext';
 import { documentService } from '../../services/documentService';
-import { type ChatMessageAttachment } from '../../services/aiService';
 import { useDocumentChatThreads } from '../../components/ai/useDocumentChatThreads';
 import { audioService } from '../../services/audioService';
 import { VideoNoteEditorRef } from '../../components/youtube/VideoNoteEditor';
@@ -11,8 +10,7 @@ import { QuizQuestion } from '../../types';
 import { getApiErrorCode } from '../../utils/apiError';
 import { parseTranscript, formatTime, fmtSrtTime } from './transcript';
 
-export interface SimpleCard { id: string; front: string; back: string; cardType?: 'basic' | 'cloze' | 'chart'; }
-export interface ChatMsg { id: string; role: 'user' | 'model'; content: string; isError?: boolean; attachments?: ChatMessageAttachment[]; }
+export interface SimpleCard { id: string; front: string; back: string; cardType?: 'basic' | 'cloze' | 'chart' | 'occlusion'; }
 export type AudioStudyTab = 'summary' | 'mindmap' | 'notes' | 'flashcards' | 'quiz' | 'problems' | 'chat';
 export type QuizDifficulty = 'easy' | 'medium' | 'hard';
 
@@ -434,7 +432,7 @@ export function useAudioDetail(propId?: string, propCourseId?: string) {
     quizQuestions.forEach(q => {
       if (userAnswers[q.id]) {
         const selected = userAnswers[q.id].charAt(0).toUpperCase();
-        const correct = q.answer.charAt(0).toUpperCase();
+        const correct = q.correctAnswer.charAt(0).toUpperCase();
         if (selected === correct) score++;
       }
     });

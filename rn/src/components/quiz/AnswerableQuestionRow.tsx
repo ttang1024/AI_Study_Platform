@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { CheckCircle2, ChevronDown, ChevronUp, XCircle } from 'lucide-react-native';
 
 import { Card } from '@/components/Card';
-import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
+import { Alpha, Colors, Layout, Radius, Spacing, Typography } from '@/constants/theme';
 import type { QuizQuestion } from '@/types';
 import { haptics } from '@/utils/haptics';
 import { isQuizOptionCorrect, stripQuizOptionPrefix } from '@/utils/quizAnswers';
@@ -42,7 +42,7 @@ export const AnswerableQuestionRow: React.FC<AnswerableQuestionRowProps> = React
 
         {expanded && (
           <View style={styles.options}>
-            {question.options.map((opt, i) => {
+            {(question.options ?? []).map((opt, i) => {
               const isCorrectOption = answered && isQuizOptionCorrect(opt, question.correctAnswer);
               const isWrongPick = answered && opt === answer && !isCorrectOption;
               return (
@@ -92,17 +92,17 @@ export const AnswerableQuestionRow: React.FC<AnswerableQuestionRowProps> = React
 
 const styles = StyleSheet.create({
   card: { gap: Spacing.two },
-  header: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  header: { ...Layout.row, gap: Spacing.two },
   headerBody: { flex: 1 },
   question: { ...Typography.bodyBold, color: Colors.textPrimary },
   meta: { ...Typography.caption, color: Colors.textSecondary, marginTop: 2, textTransform: 'capitalize' },
   options: { gap: 6 },
   option: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.two,
+    ...Layout.row, gap: Spacing.two,
     borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.md, padding: Spacing.two,
   },
-  optionCorrect: { borderColor: Colors.emerald, backgroundColor: `${Colors.emerald}1a` },
-  optionWrong: { borderColor: Colors.red, backgroundColor: `${Colors.red}1a` },
+  optionCorrect: { borderColor: Colors.emerald, backgroundColor: `${Colors.emerald}${Alpha.tint}` },
+  optionWrong: { borderColor: Colors.red, backgroundColor: `${Colors.red}${Alpha.tint}` },
   letter: {
     ...Typography.captionBold, color: Colors.textSecondary,
     width: 22, height: 22, lineHeight: 22, textAlign: 'center',
@@ -111,7 +111,7 @@ const styles = StyleSheet.create({
   letterCorrect: { color: Colors.emerald, borderColor: Colors.emerald },
   letterWrong: { color: Colors.red, borderColor: Colors.red },
   optionText: { ...Typography.body, color: Colors.textPrimary, flex: 1 },
-  feedbackRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
+  feedbackRow: { ...Layout.row, gap: 6, marginTop: 2 },
   feedbackText: { ...Typography.captionBold },
   explanation: { ...Typography.caption, color: Colors.textSecondary, fontStyle: 'italic' },
   tryAgain: { ...Typography.captionBold, color: Colors.primary, marginTop: 2 },

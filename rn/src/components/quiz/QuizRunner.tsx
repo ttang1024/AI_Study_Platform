@@ -1,14 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import Animated, { FadeIn, FadeInDown, ZoomIn } from 'react-native-reanimated';
 import { HelpCircle, Sparkles } from 'lucide-react-native';
 
 import { Button } from '@/components/Button';
 import { EmptyState } from '@/components/EmptyState';
+import { PressableScale } from '@/components/PressableScale';
 import { SegmentedTabs } from '@/components/SegmentedTabs';
-import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
+import { Colors, Layout, Motion, Spacing, Typography } from '@/constants/theme';
 import type { QuizQuestion } from '@/types';
 import { haptics } from '@/utils/haptics';
 import { isQuizOptionCorrect } from '@/utils/quizAnswers';
+import { ConfidencePicker } from '@/components/quiz/ConfidencePicker';
+import { QuizOption } from '@/components/quiz/QuizOption';
 
 type Difficulty = 'easy' | 'medium' | 'hard';
 
@@ -17,38 +21,63 @@ type Difficulty = 'easy' | 'medium' | 'hard';
 interface QuizRunnerProps {
   getQuiz: (difficulty: Difficulty) => Promise<QuizQuestion[]>;
   generateQuiz: (difficulty: Difficulty) => Promise<QuizQuestion[]>;
-  submitQuiz: (answers: Record<string, string>, score: number, total: number) => Promise<unknown>;
+  submitQuiz: (
+    answers: Record<string, string>,
+    score: number,
+    total: number,
+    confidence?: Record<string, number>,
+  ) => Promise<unknown>;
+}
+
+/** Questions always carry the difficulty they were fetched for, which is what
+ *  lets `loading` and `questions` below be derived rather than stored. */
+interface Session {
+  difficulty: Difficulty;
+  questions: QuizQuestion[];
 }
 
 export const QuizRunner: React.FC<QuizRunnerProps> = ({ getQuiz, generateQuiz, submitQuiz }) => {
   const [difficulty, setDifficulty] = useState<Difficulty>('medium');
-  const [questions, setQuestions] = useState<QuizQuestion[]>([]);
+  const [session, setSession] = useState<Session | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  /** {questionId: 1|2|3}. Sparse — rating is optional, and an unrated question must stay unrated. */
+  const [confidence, setConfidence] = useState<Record<string, number>>({});
   const [submitted, setSubmitted] = useState(false);
   const [score, setScore] = useState<{ correct: number; total: number } | null>(null);
-  const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
 
-  const load = React.useCallback(async () => {
-    setLoading(true);
-    setSubmitted(false);
+  // Derived, not stored: we're loading exactly while the questions we hold are
+  // for a difficulty other than the selected one. Storing a `loading` flag meant
+  // flipping it synchronously inside the fetch effect, which is a cascading
+  // render (react-hooks/set-state-in-effect) — here the effect only ever sets
+  // state from the promise callback.
+  const stale = session?.difficulty !== difficulty;
+  const loading = stale;
+  const questions = stale ? [] : session.questions;
+
+  const startSession = (next: Session) => {
+    setSession(next);
     setAnswers({});
+    setConfidence({});
+    setSubmitted(false);
     setScore(null);
-    try {
-      setQuestions(await getQuiz(difficulty));
-    } finally {
-      setLoading(false);
-    }
-  }, [getQuiz, difficulty]);
+  };
 
   useEffect(() => {
-    load();
-  }, [load]);
+    let cancelled = false;
+    getQuiz(difficulty)
+      .then((qs) => { if (!cancelled) startSession({ difficulty, questions: qs }); })
+      .catch(() => { if (!cancelled) startSession({ difficulty, questions: [] }); });
+    return () => { cancelled = true; };
+  }, [getQuiz, difficulty]);
 
   const generate = async () => {
     setGenerating(true);
     try {
-      setQuestions(await generateQuiz(difficulty));
+      // Resets the graded state too — otherwise "Retake Quiz" swapped in fresh
+      // questions while `submitted` stayed true, rendering the new quiz already
+      // marked up with the previous run's right/wrong colors.
+      startSession({ difficulty, questions: await generateQuiz(difficulty) });
     } finally {
       setGenerating(false);
     }
@@ -59,7 +88,14 @@ export const QuizRunner: React.FC<QuizRunnerProps> = ({ getQuiz, generateQuiz, s
     if (correct === questions.length) haptics.success(); else haptics.warning();
     setScore({ correct, total: questions.length });
     setSubmitted(true);
-    await submitQuiz(answers, correct, questions.length);
+    // Send nothing rather than an empty object when nothing was rated: the server treats absent as
+    // "no data", and an empty map would be neither absent nor a rating.
+    await submitQuiz(
+      answers,
+      correct,
+      questions.length,
+      Object.keys(confidence).length > 0 ? confidence : undefined,
+    );
   };
 
   const allAnswered = questions.length > 0 && questions.every((q) => !!answers[q.id]);
@@ -93,51 +129,68 @@ export const QuizRunner: React.FC<QuizRunnerProps> = ({ getQuiz, generateQuiz, s
             return (
               <View key={q.id} style={styles.questionCard}>
                 <Text style={styles.questionText}>{i + 1}. {q.question}</Text>
-                {q.options.map((opt) => {
+                {(q.options ?? []).map((opt, optIndex) => {
                   const isSelected = answer === opt;
                   const isCorrectOption = submitted && isQuizOptionCorrect(opt, q.correctAnswer);
                   const isWrongPick = submitted && isSelected && !isCorrectOption;
+                  const state = isCorrectOption ? 'correct'
+                    : isWrongPick ? 'wrong'
+                    : isSelected ? 'selected'
+                    : 'idle';
                   return (
-                    <Pressable
+                    <QuizOption
                       key={opt}
-                      style={[
-                        styles.option,
-                        isSelected && !submitted && styles.optionSelected,
-                        isCorrectOption && styles.optionCorrect,
-                        isWrongPick && styles.optionWrong,
-                      ]}
+                      label={opt}
+                      index={optIndex}
+                      state={state}
+                      disabled={submitted}
                       onPress={() => {
-                        if (submitted) return;
                         haptics.tap();
                         setAnswers((prev) => ({ ...prev, [q.id]: opt }));
                       }}
-                      disabled={submitted}
-                    >
-                      <Text style={styles.optionText}>{opt}</Text>
-                    </Pressable>
+                    />
                   );
                 })}
-                {submitted && <Text style={styles.explanation}>{q.explanation}</Text>}
+                {/* Asked only once an answer is picked, and never after submitting: rating after the
+                    result is revealed measures nothing. */}
+                {!submitted && answer && (
+                  <Animated.View entering={FadeIn.duration(Motion.duration.base)}>
+                    <ConfidencePicker
+                      value={confidence[q.id]}
+                      onChange={(level) => setConfidence((prev) => ({ ...prev, [q.id]: level }))}
+                    />
+                  </Animated.View>
+                )}
+                {submitted && (
+                  // Held back until the option colors have finished revealing, so
+                  // the explanation doesn't give the answer away early.
+                  <Animated.Text
+                    entering={FadeInDown.delay(Motion.duration.base).duration(Motion.duration.base)}
+                    style={styles.explanation}
+                  >
+                    {q.explanation}
+                  </Animated.Text>
+                )}
               </View>
             );
           })}
 
           {submitted && score ? (
-            <View style={styles.resultBanner}>
+            <Animated.View entering={ZoomIn.springify().damping(14)} style={styles.resultBanner}>
               <Text style={styles.resultText}>{score.correct} / {score.total} correct</Text>
-              <Pressable onPress={generate}>
+              <PressableScale onPress={generate} hitSlop={8}>
                 <Text style={styles.retakeText}>Retake Quiz</Text>
-              </Pressable>
-            </View>
+              </PressableScale>
+            </Animated.View>
           ) : (
             <Button title="Submit All Answers" onPress={submit} disabled={!allAnswered} />
           )}
 
           {!submitted && (
-            <Pressable style={styles.regenerateRow} onPress={generate} disabled={generating}>
+            <PressableScale style={styles.regenerateRow} onPress={generate} disabled={generating}>
               <Sparkles size={14} color={Colors.primary} />
               <Text style={styles.regenerateText}>{generating ? 'Generating…' : 'Regenerate'}</Text>
-            </Pressable>
+            </PressableScale>
           )}
         </View>
       )}
@@ -150,15 +203,10 @@ const styles = StyleSheet.create({
   questions: { gap: Spacing.three },
   questionCard: { gap: Spacing.two },
   questionText: { ...Typography.bodyBold, color: Colors.textPrimary },
-  option: { borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.md, padding: Spacing.two },
-  optionSelected: { borderColor: Colors.primary, backgroundColor: `${Colors.primary}0d` },
-  optionCorrect: { borderColor: Colors.emerald, backgroundColor: `${Colors.emerald}1a` },
-  optionWrong: { borderColor: Colors.red, backgroundColor: `${Colors.red}1a` },
-  optionText: { ...Typography.body, color: Colors.textPrimary },
   explanation: { ...Typography.caption, color: Colors.textSecondary, fontStyle: 'italic' },
-  resultBanner: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  resultBanner: { ...Layout.rowBetween },
   resultText: { ...Typography.bodyBold, color: Colors.textPrimary },
   retakeText: { ...Typography.captionBold, color: Colors.primary },
-  regenerateRow: { flexDirection: 'row', alignItems: 'center', gap: 4, justifyContent: 'center' },
+  regenerateRow: { ...Layout.row, gap: 4, justifyContent: 'center' },
   regenerateText: { ...Typography.caption, color: Colors.primary },
 });

@@ -4,7 +4,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { ExamReview } from '@/components/study/ExamReview';
 import { ExamRunning } from '@/components/study/ExamRunning';
-import { Colors, Spacing, Typography } from '@/constants/theme';
+import { Colors, Layout, Spacing, Typography } from '@/constants/theme';
 import { studyGroupService, type BattlePlay, type BattleResult } from '@/services/studyGroupService';
 
 export default function BattlePlayScreen() {
@@ -39,7 +39,7 @@ export default function BattlePlayScreen() {
         score={result.score}
         total={result.total}
         items={result.items.map((item) => ({
-          key: item.quizId,
+          key: item.questionId,
           question: item.question,
           userAnswer: item.userAnswer,
           correct: item.correct,
@@ -59,7 +59,7 @@ export default function BattlePlayScreen() {
   }
 
   const current = play.questions[index];
-  const currentAnswer = answers[current.quizId];
+  const currentAnswer = answers[current.id];
 
   const next = async () => {
     if (index + 1 < play.questions.length) {
@@ -81,7 +81,7 @@ export default function BattlePlayScreen() {
       index={index}
       total={play.questions.length}
       currentAnswer={currentAnswer}
-      onSelectOption={(opt) => setAnswers((prev) => ({ ...prev, [current.quizId]: opt }))}
+      onSelectOption={(opt) => setAnswers((prev) => ({ ...prev, [current.id]: opt }))}
       onNext={next}
       submitting={submitting}
       nextLabel="Next"
@@ -91,7 +91,7 @@ export default function BattlePlayScreen() {
 }
 
 const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.bgApp },
+  center: { ...Layout.fillCenter, backgroundColor: Colors.bgApp },
   sectionLabel: { ...Typography.subheading, color: Colors.textPrimary, marginTop: Spacing.two },
   standingRow: { ...Typography.body, color: Colors.textPrimary },
 });

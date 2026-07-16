@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, RefreshControl, SectionList, StyleSheet, Text, View } from 'react-native';
 import { SquareLibrary, WifiOff } from 'lucide-react-native';
 
 import { EmptyState } from '@/components/EmptyState';
@@ -9,7 +9,7 @@ import { LoadingScreen } from '@/components/LoadingScreen';
 import { SearchBar } from '@/components/SearchBar';
 import { GlossaryTermRow } from '@/components/study/GlossaryTermRow';
 import { TtsPlayButton } from '@/components/tts/TtsPlayButton';
-import { Colors, Spacing, Typography } from '@/constants/theme';
+import { Colors, Layout, Spacing, Typography } from '@/constants/theme';
 import { usePersistentTts } from '@/context/TtsContext';
 import { useStudyTimer } from '@/hooks/useStudyTimer';
 import { glossaryService } from '@/services/glossaryService';
@@ -25,10 +25,30 @@ const letterFor = (term: GlossaryTerm): string => {
   return first >= 'A' && first <= 'Z' ? first : '#';
 };
 
+/** Fetch + offline fallback, with no state of its own — so the mount effect can
+ *  apply the result from the promise callback instead of flipping a spinner on
+ *  synchronously (react-hooks/set-state-in-effect). */
+const fetchGlossary = async (): Promise<{ terms: GlossaryTerm[]; mastered: string[]; offlineSince: string | null }> => {
+  try {
+    const [terms, mastered] = await Promise.all([glossaryService.list(), glossaryService.getMasteredIds()]);
+    void offlineCache.cacheGlossary(terms, mastered);
+    return { terms, mastered, offlineSince: null };
+  } catch {
+    // Network unreachable — fall back to the last synced snapshot.
+    const [cachedTerms, cachedMastered, lastSync] = await Promise.all([
+      offlineCache.getCachedGlossary(),
+      offlineCache.getCachedGlossaryMastered(),
+      offlineCache.getLastSync(),
+    ]);
+    return { terms: cachedTerms, mastered: cachedMastered, offlineSince: formatLastSync(lastSync) };
+  }
+};
+
 export default function GlossaryScreen() {
   const [terms, setTerms] = useState<GlossaryTerm[]>([]);
   const [masteredIds, setMasteredIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
   const [masteryFilter, setMasteryFilter] = useState<MasteryFilter>('all');
   const [offlineSince, setOfflineSince] = useState<string | null>(null);
@@ -37,32 +57,27 @@ export default function GlossaryScreen() {
 
   useStudyTimer({ contextType: 'glossary', enabled: !loading });
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [termList, mastered] = await Promise.all([glossaryService.list(), glossaryService.getMasteredIds()]);
-      setTerms(termList);
-      setMasteredIds(new Set(mastered));
-      setOfflineSince(null);
-      void offlineCache.cacheGlossary(termList, mastered);
-    } catch {
-      // Network unreachable — fall back to the last synced snapshot.
-      const [cachedTerms, cachedMastered, lastSync] = await Promise.all([
-        offlineCache.getCachedGlossary(),
-        offlineCache.getCachedGlossaryMastered(),
-        offlineCache.getLastSync(),
-      ]);
-      setTerms(cachedTerms);
-      setMasteredIds(new Set(cachedMastered));
-      setOfflineSince(formatLastSync(lastSync));
-    } finally {
+  useEffect(() => {
+    let cancelled = false;
+    fetchGlossary().then((result) => {
+      if (cancelled) return;
+      setTerms(result.terms);
+      setMasteredIds(new Set(result.mastered));
+      setOfflineSince(result.offlineSince);
       setLoading(false);
-    }
+    });
+    return () => { cancelled = true; };
   }, []);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  // Pull-to-refresh runs from an event handler, so setState synchronously is fine.
+  const refresh = useCallback(async () => {
+    setRefreshing(true);
+    const result = await fetchGlossary();
+    setTerms(result.terms);
+    setMasteredIds(new Set(result.mastered));
+    setOfflineSince(result.offlineSince);
+    setRefreshing(false);
+  }, []);
 
   const toggleMastered = useCallback(async (termId: string) => {
     const wasMastered = masteredIds.has(termId);
@@ -194,6 +209,7 @@ export default function GlossaryScreen() {
             contentContainerStyle={styles.list}
             stickySectionHeadersEnabled
             onScrollToIndexFailed={handleScrollToIndexFailed}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={Colors.primary} />}
             renderSectionHeader={({ section }) => (
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionHeaderText}>{section.title}</Text>
@@ -235,7 +251,7 @@ export default function GlossaryScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bgApp },
   header: { padding: Spacing.three, paddingBottom: Spacing.two, gap: Spacing.two },
-  filterRow: { flexDirection: 'row', gap: Spacing.two, alignItems: 'center', flexWrap: 'wrap' },
+  filterRow: { ...Layout.rowWrap, gap: Spacing.two },
   listWrap: { flex: 1 },
   list: { paddingLeft: Spacing.three, paddingRight: Spacing.five, paddingBottom: Spacing.five },
   itemWrap: { marginBottom: Spacing.two },
@@ -243,7 +259,7 @@ const styles = StyleSheet.create({
   sectionHeaderText: { ...Typography.captionBold, color: Colors.primary, letterSpacing: 1 },
   letterRail: {
     position: 'absolute', right: 2, top: 0, bottom: 0,
-    justifyContent: 'center', alignItems: 'center',
+    ...Layout.center,
   },
   letterText: { fontSize: 10, lineHeight: 13, fontWeight: '800', color: Colors.primary, paddingHorizontal: 2 },
   letterTextDisabled: { color: Colors.border },

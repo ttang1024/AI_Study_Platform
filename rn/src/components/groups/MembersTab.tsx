@@ -3,7 +3,7 @@ import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, View }
 import { Crown, User as UserIcon, X } from 'lucide-react-native';
 
 import { Card } from '@/components/Card';
-import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
+import { Colors, Layout, Radius, Spacing, Typography } from '@/constants/theme';
 import type { GroupMember } from '@/services/studyGroupService';
 
 interface MembersTabProps {
@@ -63,8 +63,8 @@ export const MembersTab: React.FC<MembersTabProps> = ({ members, currentUserId, 
 
 const styles = StyleSheet.create({
   list: { padding: Spacing.three, gap: Spacing.two },
-  row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  icon: { width: 32, height: 32, borderRadius: Radius.sm, backgroundColor: Colors.bgApp, alignItems: 'center', justifyContent: 'center' },
+  row: { ...Layout.row, gap: Spacing.two },
+  icon: { width: 32, height: 32, borderRadius: Radius.sm, backgroundColor: Colors.bgApp, ...Layout.center },
   name: { ...Typography.bodyBold, color: Colors.textPrimary, flex: 1 },
   role: { ...Typography.captionBold, color: Colors.textSecondary, textTransform: 'uppercase' },
 });

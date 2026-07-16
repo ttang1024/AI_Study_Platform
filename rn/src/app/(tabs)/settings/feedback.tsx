@@ -6,7 +6,7 @@ import type { LucideIcon } from 'lucide-react-native';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { TextField } from '@/components/TextField';
-import { Alpha, Colors, Radius, Spacing, Typography } from '@/constants/theme';
+import { Alpha, Colors, Layout, Radius, Spacing, Typography } from '@/constants/theme';
 import { apiClient } from '@/services/apiClient';
 
 type FeedbackType = 'bug' | 'feature' | 'general';
@@ -125,15 +125,15 @@ export default function FeedbackScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bgApp },
   content: { padding: Spacing.three, gap: Spacing.two, paddingBottom: Spacing.five },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.two, padding: Spacing.four, backgroundColor: Colors.bgApp },
+  center: { ...Layout.fillCenter, gap: Spacing.two, padding: Spacing.four, backgroundColor: Colors.bgApp },
   thanksTitle: { ...Typography.heading, color: Colors.textPrimary },
   thanksSubtitle: { ...Typography.caption, color: Colors.textSecondary, textAlign: 'center', marginBottom: Spacing.two },
   sectionLabel: { ...Typography.captionBold, color: Colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.4, marginTop: Spacing.two },
-  typeCard: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, padding: Spacing.two, borderWidth: 2, borderColor: 'transparent' },
+  typeCard: { ...Layout.row, gap: Spacing.two, padding: Spacing.two, borderWidth: 2, borderColor: 'transparent' },
   typeCardActive: { borderColor: Colors.primary },
   typeIcon: {
     width: 36, height: 36, borderRadius: Radius.md, backgroundColor: Colors.bgApp,
-    alignItems: 'center', justifyContent: 'center',
+    ...Layout.center,
   },
   typeIconActive: { backgroundColor: `${Colors.primary}${Alpha.tint}` },
   typeBody: { flex: 1 },

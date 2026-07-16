@@ -1,19 +1,38 @@
+using System.IO.Compression;
 using System.Text;
 using AspNetCoreRateLimit;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
 using StudyPlatform.Infrastructure.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using StackExchange.Redis;
+using StudyPlatform.API.HealthChecks;
 using StudyPlatform.API.Hubs;
 using StudyPlatform.API.Middleware;
 using StudyPlatform.API.Services;
 using StudyPlatform.Application;
 using StudyPlatform.Application.Settings;
+using StudyPlatform.Domain.Interfaces;
 using StudyPlatform.Infrastructure.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Compress JSON responses — deployments sit behind an ALB / ingress that doesn't
+// compress, and payloads like transcripts, summaries, and library pages shrink
+// 5–10x under Brotli. SSE (text/event-stream) is not in the MIME list, so
+// streaming endpoints pass through untouched; SignalR websockets are unaffected.
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.Providers.Add<BrotliCompressionProvider>();
+    options.Providers.Add<GzipCompressionProvider>();
+    options.MimeTypes = ResponseCompressionDefaults.MimeTypes;
+});
+builder.Services.Configure<BrotliCompressionProviderOptions>(o => o.Level = CompressionLevel.Fastest);
+builder.Services.Configure<GzipCompressionProviderOptions>(o => o.Level = CompressionLevel.Fastest);
 
 // Add services to the container
 builder.Services.AddControllers();
@@ -178,6 +197,10 @@ builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>()
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<AudioTranscriptionQueue>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<AudioTranscriptionQueue>());
+builder.Services.AddSingleton<AudioOverviewQueue>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<AudioOverviewQueue>());
+builder.Services.AddSingleton<AiJobQueue>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<AiJobQueue>());
 
 // Application and Infrastructure layers
 builder.Services.AddApplication();
@@ -185,12 +208,26 @@ builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.Configure<AppLimitsOptions>(builder.Configuration.GetSection(AppLimitsOptions.SectionName));
 builder.Services.Configure<CacheOptions>(builder.Configuration.GetSection(CacheOptions.SectionName));
 builder.Services.Configure<VapidOptions>(builder.Configuration.GetSection(VapidOptions.SectionName));
+builder.Services.Configure<AiUsageOptions>(builder.Configuration.GetSection(AiUsageOptions.SectionName));
+builder.Services.Configure<EmbeddingOptions>(builder.Configuration.GetSection(EmbeddingOptions.SectionName));
+
+// Keeps the semantic index in step with the library (no-op until Embeddings:ApiKey is configured).
+builder.Services.AddHostedService<EmbeddingBackfillWorker>();
 
 // Daily "cards due" web-push reminders (no-op until VAPID keys are configured).
 builder.Services.AddHostedService<DueReviewPushWorker>();
 
-// Health checks
-builder.Services.AddHealthChecks();
+// Health checks.
+//
+// Split by intent, because the probes mean different things. Liveness asks "is this process wedged?" —
+// it must not depend on Postgres, or a database outage would make Kubernetes kill and restart every pod
+// in a loop that cannot possibly fix the database. Readiness asks "can this pod serve traffic?", which
+// does depend on Postgres.
+//
+// Tagged rather than split into two AddHealthChecks() calls so both endpoints share one registration.
+builder.Services.AddHealthChecks()
+    .AddCheck<DatabaseHealthCheck>("postgres", tags: ["ready"])
+    .AddCheck<CacheHealthCheck>("cache", tags: ["ready"]);
 
 var app = builder.Build();
 
@@ -199,9 +236,17 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.Migrate();
+
+    // The AI job queue is in-process, so a restart drops whatever was queued or mid-run. Those jobs
+    // are never coming back — fail them so the UI stops showing a spinner that will never resolve.
+    var jobs = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+    var interrupted = await jobs.AiJobs.FailInterruptedAsync("Interrupted by a server restart. Please try again.");
+    if (interrupted > 0)
+        app.Logger.LogWarning("Failed {Count} AI job(s) left in flight by a previous shutdown", interrupted);
 }
 
 // Middleware pipeline
+app.UseResponseCompression();
 app.UseCors("AllowFrontend");
 app.UseMiddleware<RequestLoggingMiddleware>();
 app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
@@ -221,7 +266,18 @@ app.UseAuthorization();
 
 app.MapControllers();
 app.MapHub<GroupChatHub>("/hubs/group-chat");
-app.MapHealthChecks("/health");
+// Liveness: no dependency checks, by design (see the registration above). If the process can route a
+// request it is alive; restarting it would not fix a sick dependency.
+app.MapHealthChecks("/health", new HealthCheckOptions { Predicate = _ => false });
+
+// Readiness: Postgres must answer (Unhealthy → 503 → pod leaves the load balancer). A cache outage
+// reports Degraded, which is still a 200 — IAppCache falls back to the Postgres cache tier, so the pod
+// keeps serving. That mapping is what keeps a Redis blip from becoming an API outage.
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("ready"),
+    ResponseWriter = HealthCheckResponse.WriteAsync,
+});
 app.MapGet("/", () => Results.Ok());
 
 app.Run();

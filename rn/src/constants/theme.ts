@@ -128,6 +128,50 @@ export const Spacing = {
   six: 64,
 } as const;
 
+// Motion tokens for `react-native-reanimated`. Animations run on the UI thread,
+// so they keep going while JS is busy (list fetches, AI streaming) — the reason
+// press/entrance feedback here is Reanimated rather than RN's `Animated`.
+//
+// Durations are deliberately short: this is a study app, and motion is there to
+// explain what moved where, not to make the user wait for it.
+export const Motion = {
+  duration: {
+    /** Press in/out, chip toggles — must feel instant. */
+    instant: 120,
+    /** Default for most state changes (progress fills, fades). */
+    base: 240,
+    /** Entrances, flips — long enough to read as a movement. */
+    slow: 380,
+  },
+  /** Per-item offset for staggered list/section entrances. Beyond ~8 items the
+   *  cumulative delay gets noticeable, so callers cap the index (see `stagger`). */
+  stagger: (index: number, step = 45) => Math.min(index, 7) * step,
+  spring: {
+    /** Press feedback — critically damped, no visible bounce. */
+    press: { damping: 18, stiffness: 320, mass: 0.6 },
+    /** Selections/reveals — a little overshoot reads as responsive. */
+    bouncy: { damping: 12, stiffness: 180, mass: 0.8 },
+    /** Card flip — heavier, so the rotation settles rather than wobbles. */
+    flip: { damping: 16, stiffness: 120, mass: 0.9 },
+  },
+  /** Scale a Pressable settles to while held. */
+  pressScale: 0.97,
+} as const;
+
+// Layout idioms that were being re-declared in nearly every StyleSheet
+// (`flexDirection: 'row'` alone appeared 200+ times). Spread these instead:
+// `row: { ...Layout.row, gap: Spacing.two }`.
+export const Layout = {
+  row: { flexDirection: 'row', alignItems: 'center' },
+  /** Row with its children pushed to the two edges. */
+  rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  /** Row that wraps — tile grids, stat rows. */
+  rowWrap: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' },
+  center: { alignItems: 'center', justifyContent: 'center' },
+  /** Fills its parent and centers a single child (loading/empty screens). */
+  fillCenter: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+} as const;
+
 // Font size/weight scale distilled from sizes already hardcoded ad hoc across
 // existing screens (e.g. LibraryScreen's 22/800 header, TextField's 12/700 label).
 export const Typography = {

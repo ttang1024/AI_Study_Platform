@@ -33,5 +33,9 @@ public class NoteConfiguration : IEntityTypeConfiguration<Note>
 
         // Serves the notes list / search: WHERE UserId = @u ORDER BY UpdatedAt DESC.
         builder.HasIndex(n => new { n.UserId, n.UpdatedAt });
+
+        // Trigram indexes for the ILIKE '%term%' searches in NoteRepository.
+        builder.HasIndex(n => n.Title).HasMethod("gin").HasOperators("gin_trgm_ops");
+        builder.HasIndex(n => n.Content).HasMethod("gin").HasOperators("gin_trgm_ops");
     }
 }

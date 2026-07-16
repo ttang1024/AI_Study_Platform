@@ -2,7 +2,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Pencil, X } from 'lucide-react-native';
 
-import { Colors, Radius, Spacing } from '@/constants/theme';
+import { Colors, Layout, Radius, Spacing } from '@/constants/theme';
 
 export interface SectionMessage {
   kind: 'success' | 'error';
@@ -55,17 +55,16 @@ export const EditableSection: React.FC<EditableSectionProps> = ({
 
 const styles = StyleSheet.create({
   section: { gap: Spacing.two },
-  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  sectionHeaderRow: { ...Layout.rowBetween },
   sectionTitle: { fontSize: 12, fontWeight: '800', color: Colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5 },
   message: { fontSize: 12, fontWeight: '600' },
 
-  editTrigger: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 4, paddingVertical: 2 },
+  editTrigger: { ...Layout.row, gap: 4, paddingHorizontal: 4, paddingVertical: 2 },
   editTriggerText: { fontSize: 12, fontWeight: '700', color: Colors.primary },
   editTriggerTextCancel: { color: Colors.textSecondary },
 
   summaryRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: Colors.bgSidebar, borderWidth: 1, borderColor: Colors.border,
+    ...Layout.rowBetween, backgroundColor: Colors.bgSidebar, borderWidth: 1, borderColor: Colors.border,
     borderRadius: Radius.md, paddingHorizontal: 14, height: 48,
   },
   summaryLabel: { fontSize: 13, color: Colors.textSecondary },

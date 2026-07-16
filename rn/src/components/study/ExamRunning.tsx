@@ -5,7 +5,7 @@ import { Button } from '@/components/Button';
 import { Alpha, Colors, Radius, Spacing, Typography } from '@/constants/theme';
 
 interface ExamRunningProps {
-  current: { question: string; options: string[] };
+  current: { question: string; options?: string[] };
   index: number;
   total: number;
   /** Countdown display; omit for untimed runs (battles, mock exams). */
@@ -37,7 +37,7 @@ export const ExamRunning: React.FC<ExamRunningProps> = ({
 
     <ScrollView contentContainerStyle={styles.questionScroll}>
       <Text style={styles.question}>{current.question}</Text>
-      {current.options.map((opt) => (
+      {(current.options ?? []).map((opt) => (
         <Pressable
           key={opt}
           style={[styles.option, currentAnswer === opt && styles.optionSelected]}

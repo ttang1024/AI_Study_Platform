@@ -5,6 +5,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { FileVideo, Link as LinkIcon, Video } from 'lucide-react-native';
 
 import { Button } from '@/components/Button';
+import { DuplicateAlert } from '@/components/summarizer/DuplicateAlert';
 import { Dropzone } from '@/components/summarizer/Dropzone';
 import { IntroCard } from '@/components/summarizer/IntroCard';
 import { SubTabChipRow } from '@/components/summarizer/SubTabChipRow';
@@ -12,6 +13,7 @@ import { TextField } from '@/components/TextField';
 import { Colors, Spacing } from '@/constants/theme';
 import { videoService } from '@/services/videoService';
 import { detectVideoSource, parseUrlVideoId, URL_SOURCE_BRANDING } from '@/constants/videoSources';
+import { useLibraryEntries } from '@/hooks/useLibraryEntries';
 import { getApiErrorMessage } from '@/utils/apiError';
 import type { PickedFile } from '@/types';
 
@@ -34,10 +36,22 @@ export function VideoForm({ selectedCourseId, onCourseError }: VideoFormProps) {
   const [file, setFile] = useState<PickedFile | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const videos = useLibraryEntries('videos');
+
+  // Reactively flag a pasted link that resolves to a video already in the library
+  // (same source + video id), mirroring web's WebVideoTab duplicate hint.
+  const trimmedUrl = url.trim();
+  const detectedSource = trimmedUrl ? detectVideoSource(trimmedUrl) : null;
+  const detectedVideoId = detectedSource ? parseUrlVideoId(detectedSource, trimmedUrl) : null;
+  const duplicate = detectedSource && detectedVideoId
+    ? videos.find((e) => e.kind === 'video' && e.data.videoId === detectedVideoId && (e.data.sourceType ?? 'youtube') === detectedSource)
+    : undefined;
 
   const submitLink = async () => {
     const trimmed = url.trim();
     if (!trimmed) return;
+    // Don't add a video that's already in the library — the duplicate banner is shown instead.
+    if (duplicate) return;
     const source = detectVideoSource(trimmed);
     if (!source) {
       setError('Unrecognized video link. Supported sites: YouTube, Bilibili, Vimeo, TED, Dailymotion, TikTok, Facebook, Instagram, X, Reddit, LinkedIn.');
@@ -85,6 +99,9 @@ export function VideoForm({ selectedCourseId, onCourseError }: VideoFormProps) {
         summary: null,
       });
       router.push(`/(tabs)/library/video/${saved.id}`);
+      // Clear the form so returning to the summarizer starts fresh.
+      setUrl('');
+      setFile(null);
     } catch (err) {
       setError(getApiErrorMessage(err, 'Failed to add video. Please try again.'));
     } finally {
@@ -109,6 +126,9 @@ export function VideoForm({ selectedCourseId, onCourseError }: VideoFormProps) {
     try {
       const saved = await videoService.uploadVideo(selectedCourseId, file);
       router.push(`/(tabs)/library/video/${saved.id}`);
+      // Clear the form so returning to the summarizer starts fresh.
+      setFile(null);
+      setUrl('');
     } catch (err) {
       setError(getApiErrorMessage(err, 'Upload failed. Please try again.'));
     } finally {
@@ -144,13 +164,21 @@ export function VideoForm({ selectedCourseId, onCourseError }: VideoFormProps) {
         />
       )}
 
+      {subTab === 'link' && duplicate?.kind === 'video' && (
+        <DuplicateAlert
+          label="video"
+          courseName={duplicate.data.courseName}
+          onView={() => router.push(`/(tabs)/library/video/${duplicate.data.id}`)}
+        />
+      )}
+
       {!!error && <Text style={styles.error}>{error}</Text>}
 
       <Button
         title="Analyze Video"
         onPress={subTab === 'link' ? submitLink : submitUpload}
         loading={loading}
-        disabled={subTab === 'link' ? !url.trim() : !file}
+        disabled={subTab === 'link' ? !url.trim() || !!duplicate : !file}
       />
     </View>
   );

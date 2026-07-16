@@ -1,11 +1,16 @@
 import { useKeepAwake } from 'expo-keep-awake';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import Animated, { FadeInDown, FadeInUp, ZoomIn } from 'react-native-reanimated';
 
+import { AnimatedNumber } from '@/components/AnimatedNumber';
 import { Button } from '@/components/Button';
 import { MathMarkdown } from '@/components/MathMarkdown';
-import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
+import { PressableScale } from '@/components/PressableScale';
+import { ProgressBar } from '@/components/ProgressBar';
+import { FlipCard } from '@/components/study/FlipCard';
+import { Colors, Layout, Motion, Radius, Spacing, Typography } from '@/constants/theme';
 import { haptics } from '@/utils/haptics';
 import { containsTexMath } from '@/utils/mathMarkdownHtml';
 import { useStudyTimer } from '@/hooks/useStudyTimer';
@@ -102,10 +107,14 @@ export default function ReviewScreen() {
     const pct = reviewedCount === 0 ? 0 : Math.round((goodCount / reviewedCount) * 100);
     return (
       <View style={styles.center}>
-        <Text style={styles.doneTitle}>Session complete</Text>
-        <Text style={styles.donePct}>{pct}% good</Text>
-        <Text style={styles.doneSubtitle}>{reviewedCount} card{reviewedCount === 1 ? '' : 's'} reviewed</Text>
-        <Button title="Done" onPress={() => router.back()} />
+        <Animated.View entering={ZoomIn.springify().damping(14)} style={styles.doneBlock}>
+          <Text style={styles.doneTitle}>Session complete</Text>
+          <AnimatedNumber value={pct} format={(n) => `${n}% good`} style={styles.donePct} />
+          <Text style={styles.doneSubtitle}>{reviewedCount} card{reviewedCount === 1 ? '' : 's'} reviewed</Text>
+        </Animated.View>
+        <Animated.View entering={FadeInUp.delay(Motion.duration.base)} style={styles.doneAction}>
+          <Button title="Done" onPress={() => router.back()} />
+        </Animated.View>
       </View>
     );
   }
@@ -115,48 +124,71 @@ export default function ReviewScreen() {
     setIndex((i) => (i + delta + queue.length) % queue.length);
   };
 
+  const faceContent = (text: string, label: string, hint?: string) => (
+    <>
+      <Text style={styles.cardLabel}>{label}</Text>
+      {containsTexMath(text) ? (
+        <View style={styles.mathWrap}>
+          <MathMarkdown value={text} pointerEventsNone />
+        </View>
+      ) : (
+        <Text style={styles.cardText}>{text}</Text>
+      )}
+      {!!hint && <Text style={styles.tapHint}>{hint}</Text>}
+    </>
+  );
+
   return (
     <View style={styles.root}>
       <View style={styles.progressRow}>
         <Text style={styles.progressText}>
           {offline ? 'Offline · read-only · ' : ''}{index + 1} / {queue.length}
         </Text>
+        <ProgressBar progress={(index + 1) / queue.length} height={4} />
       </View>
 
-      <Pressable style={styles.card} onPress={() => { haptics.tap(); setFlipped((f) => !f); }}>
-        <Text style={styles.cardLabel}>{flipped ? 'Answer' : 'Question'}</Text>
-        {containsTexMath(flipped ? backText : frontText) ? (
-          <View style={styles.mathWrap}>
-            <MathMarkdown value={flipped ? backText : frontText} pointerEventsNone />
-          </View>
-        ) : (
-          <Text style={styles.cardText}>{flipped ? backText : frontText}</Text>
-        )}
-        {!flipped && <Text style={styles.tapHint}>Tap to reveal</Text>}
-      </Pressable>
+      {/* Keyed on the card id so advancing the queue remounts the FlipCard: the
+          next card animates in face-up, rather than inheriting the previous
+          card's flipped rotation and appearing to un-flip itself. */}
+      <FlipCard
+        key={current?.id ?? index}
+        flipped={flipped}
+        onPress={() => { haptics.tap(); setFlipped((f) => !f); }}
+        style={styles.cardWrap}
+        faceStyle={styles.card}
+        front={faceContent(frontText, 'Question', 'Tap to reveal')}
+        back={faceContent(backText, 'Answer')}
+      />
 
       {offline && (
         <View style={styles.ratingRow}>
-          <Pressable style={styles.navButton} onPress={() => browse(-1)}>
+          <PressableScale style={styles.navButton} onPress={() => browse(-1)}>
             <Text style={styles.navButtonText}>‹ Previous</Text>
-          </Pressable>
-          <Pressable style={styles.navButton} onPress={() => browse(1)}>
+          </PressableScale>
+          <PressableScale style={styles.navButton} onPress={() => browse(1)}>
             <Text style={styles.navButtonText}>Next ›</Text>
-          </Pressable>
+          </PressableScale>
         </View>
       )}
 
       {flipped && !offline && (
         <View style={styles.ratingRow}>
-          {RATINGS.map((r) => (
-            <Pressable
+          {RATINGS.map((r, i) => (
+            // Staggered so the four buttons cascade in behind the flip instead
+            // of popping in as a block the instant the card starts rotating.
+            <Animated.View
               key={r.rating}
-              style={[styles.ratingButton, { backgroundColor: r.color }, submitting && styles.ratingDisabled]}
-              onPress={() => rate(r.rating)}
-              disabled={submitting}
+              entering={FadeInDown.delay(Motion.stagger(i, 40)).duration(Motion.duration.base)}
+              style={styles.ratingSlot}
             >
-              <Text style={styles.ratingText}>{r.label}</Text>
-            </Pressable>
+              <PressableScale
+                style={[styles.ratingButton, { backgroundColor: r.color }]}
+                onPress={() => rate(r.rating)}
+                disabled={submitting}
+              >
+                <Text style={styles.ratingText}>{r.label}</Text>
+              </PressableScale>
+            </Animated.View>
           ))}
         </View>
       )}
@@ -166,26 +198,33 @@ export default function ReviewScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bgApp, padding: Spacing.three, gap: Spacing.three },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.bgApp, gap: Spacing.two, padding: Spacing.five },
-  progressRow: { alignItems: 'center' },
+  center: { ...Layout.fillCenter, backgroundColor: Colors.bgApp, gap: Spacing.two, padding: Spacing.five },
+  progressRow: { alignItems: 'center', gap: Spacing.two },
   progressText: { ...Typography.captionBold, color: Colors.textSecondary },
+  cardWrap: { flex: 1 },
+  // Surface styling only — FlipCard absolutely stacks the two faces, so the
+  // face itself must not claim flex.
   card: {
-    flex: 1, backgroundColor: Colors.bgCard, borderWidth: 1, borderColor: Colors.border,
-    borderRadius: Radius.xl, alignItems: 'center', justifyContent: 'center', padding: Spacing.four, gap: Spacing.two,
+    backgroundColor: Colors.bgCard, borderWidth: 1, borderColor: Colors.border,
+    borderRadius: Radius.xl, ...Layout.center, padding: Spacing.four, gap: Spacing.two,
   },
   cardLabel: { ...Typography.captionBold, color: Colors.textSecondary, textTransform: 'uppercase' },
   cardText: { ...Typography.heading, color: Colors.textPrimary, textAlign: 'center' },
   mathWrap: { alignSelf: 'stretch' },
   tapHint: { ...Typography.caption, color: Colors.textSecondary, position: 'absolute', bottom: Spacing.three },
-  ratingRow: { flexDirection: 'row', gap: Spacing.two },
-  ratingButton: { flex: 1, paddingVertical: 14, borderRadius: Radius.md, alignItems: 'center' },
+  ratingRow: { ...Layout.row, gap: Spacing.two },
+  // The stagger wrapper carries the flex, so each of the four buttons still
+  // takes an equal share of the row.
+  ratingSlot: { flex: 1 },
+  ratingButton: { paddingVertical: 14, borderRadius: Radius.md, alignItems: 'center' },
   navButton: {
     flex: 1, paddingVertical: 14, borderRadius: Radius.md, alignItems: 'center',
     backgroundColor: Colors.bgCard, borderWidth: 1, borderColor: Colors.border,
   },
   navButtonText: { ...Typography.bodyBold, color: Colors.textPrimary },
-  ratingDisabled: { opacity: 0.6 },
   ratingText: { ...Typography.bodyBold, color: Colors.primaryForeground },
+  doneBlock: { alignItems: 'center', gap: Spacing.one },
+  doneAction: { alignSelf: 'stretch', marginTop: Spacing.two },
   doneTitle: { ...Typography.heading, color: Colors.textPrimary },
   donePct: { ...Typography.title, color: Colors.primary },
   doneSubtitle: { ...Typography.caption, color: Colors.textSecondary },

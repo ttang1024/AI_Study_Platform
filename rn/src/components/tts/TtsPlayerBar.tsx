@@ -3,7 +3,7 @@ import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'rea
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AlertCircle, Pause, Play, SkipBack, SkipForward, Timer, Volume2, X } from 'lucide-react-native';
 
-import { Alpha, Colors, Radius, Spacing } from '@/constants/theme';
+import { Alpha, Colors, Layout, Radius, Spacing } from '@/constants/theme';
 import { SLEEP_OPTIONS, type TtsState } from '@/hooks/useTts';
 
 interface TtsPlayerBarProps {
@@ -140,27 +140,25 @@ const styles = StyleSheet.create({
   },
   errorText: { flex: 1, fontSize: 13, fontWeight: '600', color: Colors.red },
   bar: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.two,
+    ...Layout.row, gap: Spacing.two,
     backgroundColor: Colors.bgSidebar, borderWidth: 1, borderColor: Colors.border,
     borderRadius: Radius.lg, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two,
     shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 6,
   },
   icon: {
-    width: 36, height: 36, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: `${Colors.primary}1a`,
+    width: 36, height: 36, borderRadius: Radius.md, ...Layout.center, backgroundColor: `${Colors.primary}${Alpha.tint}`,
   },
   info: { flex: 1, minWidth: 0 },
   subtitle: { fontSize: 10, fontWeight: '700', color: Colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.4 },
   title: { fontSize: 13, fontWeight: '600', color: Colors.textPrimary },
-  controls: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  controls: { ...Layout.row, gap: 2 },
   smallButton: { padding: 6 },
   playButton: {
-    width: 32, height: 32, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: Colors.primary,
+    width: 32, height: 32, borderRadius: Radius.md, ...Layout.center, backgroundColor: Colors.primary,
   },
   playButtonLoading: { backgroundColor: `${Colors.primary}22` },
   sleepBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
+    ...Layout.row, gap: 4,
     paddingHorizontal: 8, paddingVertical: 5, borderRadius: Radius.md,
     backgroundColor: `${Colors.amber}${Alpha.wash}`, borderWidth: 1, borderColor: `${Colors.amber}${Alpha.tint}`,
   },

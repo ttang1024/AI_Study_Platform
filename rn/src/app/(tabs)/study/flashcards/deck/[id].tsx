@@ -4,7 +4,7 @@ import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-nativ
 
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
-import { Colors, Spacing, Typography } from '@/constants/theme';
+import { Colors, Layout, Spacing, Typography } from '@/constants/theme';
 import { flashcardService } from '@/services/flashcardService';
 import type { Flashcard } from '@/types';
 import { cardBackText, cardFrontText } from '@/utils/flashcardDisplay';
@@ -61,7 +61,7 @@ export default function DeckDetailScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bgApp },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.bgApp },
+  center: { ...Layout.fillCenter, backgroundColor: Colors.bgApp },
   actions: { padding: Spacing.three },
   list: { paddingHorizontal: Spacing.three, paddingBottom: Spacing.five, gap: Spacing.two },
   cardItem: { gap: 6 },

@@ -53,18 +53,22 @@ test.describe('Authenticated application', () => {
     await expect(page.getByRole('heading', { name: /turn anything into study material/i })).toBeVisible()
     await expect(page.getByText('Biology 101').first()).toBeVisible()
 
+    // Per-site buttons (YouTube/Bilibili/…) were replaced by a single link field that
+    // detects the source from the URL itself — see the videoSources registry.
     await page.getByRole('button', { name: /^Video$/ }).click()
-    await page.getByRole('button', { name: /^YouTube$/ }).click()
-    await expect(page.getByText(/youtube/i).first()).toBeVisible()
-    await expect(page.getByPlaceholder(/youtube.*url|video.*url/i)).toBeVisible()
-
-    await page.getByRole('button', { name: /^Bilibili$/ }).click()
-    await expect(page.getByPlaceholder(/bilibili/i)).toBeVisible()
+    await expect(page.getByPlaceholder(/paste a link/i)).toBeVisible()
+    await expect(page.getByRole('button', { name: /video link/i })).toBeVisible()
+    await expect(page.getByRole('button', { name: /upload video/i })).toBeVisible()
 
     await page.getByRole('button', { name: /^Web Article$/ }).click()
     await expect(page.getByPlaceholder(/url/i)).toBeVisible()
 
+    // Audio splits into Podcast (the default) and Audio Lecture; the file drop zone
+    // lives under Audio Lecture, so the podcast sub-tab has to be stepped past.
     await page.getByRole('button', { name: /^Audio$/ }).click()
+    await expect(page.getByText(/turn any podcast into study material/i)).toBeVisible()
+
+    await page.getByRole('button', { name: /audio lecture/i }).click()
     await expect(page.getByText(/drop your audio file here/i)).toBeVisible()
     await expect(page.getByRole('button', { name: /start learning/i })).toBeVisible()
   })
@@ -95,7 +99,8 @@ test.describe('Authenticated application', () => {
     await expect(page.getByText('Which organelle makes ATP?')).toBeVisible()
 
     await page.getByRole('button', { name: /review mistakes/i }).click()
-    await expect(page.getByText(/no failed questions found|which organelle makes atp/i)).toBeVisible()
+    // With no mistakes in the fixture the notebook shows its empty state.
+    await expect(page.getByText(/no open mistakes/i)).toBeVisible()
   })
 
   test('shows notes across documents and videos with search filtering', async ({ page }) => {

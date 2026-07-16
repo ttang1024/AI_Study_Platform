@@ -1,24 +1,12 @@
 import * as SecureStore from 'expo-secure-store';
 
-export type AIProvider = 'gemini' | 'openai' | 'claude' | 'deepseek' | 'kimi' | 'doubao' | 'grok' | 'qwen' | 'wenxin';
-
-export interface AISettings {
-  provider: AIProvider;
-  keys: Partial<Record<AIProvider, string>>;
-  models: Partial<Record<AIProvider, string>>;
-}
-
-export const DEFAULT_MODELS: Record<AIProvider, string> = {
-  gemini:   'gemini-2.5-flash',
-  openai:   'gpt-4o-mini',
-  claude:   'claude-sonnet-4-5',
-  deepseek: 'deepseek-chat',
-  kimi:     'moonshot-v1-8k',
-  doubao:   'doubao-pro-32k',
-  grok:     'grok-3',
-  qwen:     'qwen-plus',
-  wenxin:   'ernie-4.0-8k',
-};
+// The provider list, default models, and settings shape are shared across
+// web/, rn/, and extension/ (see packages/core/src/ai.ts). Re-exported here so
+// existing `@/services/aiSettingsService` imports keep working unchanged.
+import { DEFAULT_MODELS } from '@core/ai';
+export { DEFAULT_MODELS } from '@core/ai';
+export type { AIProvider, AISettings } from '@core/ai';
+import type { AIProvider, AISettings } from '@core/ai';
 
 const STORAGE_KEY = 'sp_ai_settings';
 
@@ -27,6 +15,11 @@ const DEFAULT_SETTINGS: AISettings = {
   keys: {},
   models: {},
 };
+
+// Notified whenever settings are saved, so UI that reacts to key presence (e.g. the
+// missing-key banner) can re-check. RN has no window/storage events, so this stands
+// in for web's AI_SETTINGS_CHANGED_EVENT + 'storage' listeners.
+const changeListeners = new Set<() => void>();
 
 // Keys are stored on-device only (expo-secure-store, the Keychain/Keystore-backed
 // equivalent of web's localStorage) and never synced to the server — they're sent
@@ -42,6 +35,13 @@ export const aiSettingsService = {
 
   async save(settings: AISettings): Promise<void> {
     await SecureStore.setItemAsync(STORAGE_KEY, JSON.stringify(settings));
+    changeListeners.forEach((listener) => listener());
+  },
+
+  /** Subscribe to settings saves. Returns an unsubscribe function. */
+  onChange(listener: () => void): () => void {
+    changeListeners.add(listener);
+    return () => changeListeners.delete(listener);
   },
 
   async getActiveKey(): Promise<string | undefined> {

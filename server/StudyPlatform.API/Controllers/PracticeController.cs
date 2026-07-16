@@ -24,19 +24,25 @@ public class PracticeController : ControllerBase
     /// Generate a timed, mixed-source practice test sampled from the quiz bank, flashcards,
     /// glossary, and worked problems. Optionally filter by course and source types.
     /// </summary>
+    /// <param name="interleave">
+    /// Rotate across courses so consecutive questions come from different ones. Has no effect when
+    /// <paramref name="courseId"/> pins the test to a single course.
+    /// </param>
     [HttpGet("generate")]
     [ProducesResponseType(typeof(BaseResponse<PracticeTestDto>), 200)]
     public async Task<IActionResult> Generate(
         [FromQuery] int count = 15,
         [FromQuery] Guid? courseId = null,
-        [FromQuery] string? sources = null)
+        [FromQuery] string? sources = null,
+        [FromQuery] bool interleave = false)
     {
         var userId = User.GetUserId();
         var sourceList = string.IsNullOrWhiteSpace(sources)
             ? Array.Empty<string>()
             : sources.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-        var result = await _mediator.Send(new GeneratePracticeTestQuery(userId, count, courseId, sourceList));
+        var result = await _mediator.Send(
+            new GeneratePracticeTestQuery(userId, count, courseId, sourceList, interleave));
         return Ok(BaseResponse<PracticeTestDto>.Ok(result.Data!));
     }
 

@@ -19,6 +19,9 @@
     "paths": {
       "@/*": [
         "*"
+      ],
+      "@core/*": [
+        "../packages/core/src/*"
       ]
     },
     "allowImportingTsExtensions": true,

@@ -1,9 +1,11 @@
-import { apiClient } from '@/services/apiClient';
-import type { WeeklyDigest } from '@/types';
+// Service logic moved to the shared package (packages/core): the weekly digest
+// is the same endpoint web exposes via gamificationService. This file wires the
+// RN HTTP adapter into the shared factory, so existing imports keep working.
+import { createGamificationService } from '@core/services/gamificationService';
+import { http } from '@/services/http';
+
+const core = createGamificationService(http);
 
 export const notificationService = {
-  async getWeeklyDigest(): Promise<WeeklyDigest> {
-    const response = await apiClient.get('/api/notifications/weekly-digest');
-    return response.data.data as WeeklyDigest;
-  },
+  getWeeklyDigest: core.getWeeklyDigest,
 };

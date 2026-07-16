@@ -281,6 +281,7 @@ export const LibraryPage: React.FC = () => {
                     doc={item.data}
                     course={getCourse(item.data.courseId)}
                     to={(item.data.type === 'audio' || item.data.type === 'podcast') ? `/audio/${item.data.id}` : item.data.originalUrl ? `/articles/${item.data.id}` : undefined}
+                    onDeleted={() => handleDeleted()}
                     onUpdated={(updated) => setItems(prev => prev.map(it => it.kind === 'document' && it.data.id === updated.id ? { kind: 'document', data: updated } : it))}
                   />
                 ) : (

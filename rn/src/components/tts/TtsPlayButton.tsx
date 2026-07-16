@@ -2,7 +2,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
 import { Pause, Play } from 'lucide-react-native';
 
-import { Colors, Radius } from '@/constants/theme';
+import { Colors, Layout, Radius } from '@/constants/theme';
 import type { TtsState } from '@/hooks/useTts';
 
 interface TtsPlayButtonProps {
@@ -32,7 +32,7 @@ export const TtsPlayButton: React.FC<TtsPlayButtonProps> = ({ playerState, onPla
 
 const styles = StyleSheet.create({
   button: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
+    ...Layout.row, gap: 4,
     paddingHorizontal: 10, paddingVertical: 6, borderRadius: Radius.md,
     backgroundColor: Colors.primary,
   },

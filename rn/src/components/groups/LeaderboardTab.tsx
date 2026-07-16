@@ -5,7 +5,7 @@ import { Medal } from 'lucide-react-native';
 import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
 import { FilterChip } from '@/components/FilterChip';
-import { Colors, Spacing, Typography } from '@/constants/theme';
+import { Colors, Layout, Spacing, Typography } from '@/constants/theme';
 import { studyGroupService, type LeaderboardEntry } from '@/services/studyGroupService';
 
 const MEDAL_COLORS = [Colors.amber, Colors.silver, Colors.bronze];
@@ -56,7 +56,7 @@ const styles = StyleSheet.create({
   filterRow: { flexDirection: 'row', gap: Spacing.two, padding: Spacing.three, paddingBottom: 0 },
   loading: { marginTop: Spacing.five },
   list: { padding: Spacing.three, gap: Spacing.two },
-  row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
+  row: { ...Layout.row, gap: Spacing.three },
   // Opaque mint (primary wash over white) — Card carries elevation, and Android
   // elevation shadows render wrong behind translucent backgrounds.
   rowMe: { borderWidth: 1, borderColor: Colors.primary, backgroundColor: '#f2faf7' },

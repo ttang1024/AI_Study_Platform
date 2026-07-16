@@ -2,7 +2,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
 import type { LucideIcon } from 'lucide-react-native';
 
-import { Colors, Radius, Spacing } from '@/constants/theme';
+import { Colors, Layout, Radius, Spacing } from '@/constants/theme';
 
 interface DropzoneProps {
   icon: LucideIcon;
@@ -23,7 +23,7 @@ export const Dropzone: React.FC<DropzoneProps> = ({ icon: Icon, title, subtitle,
 
 const styles = StyleSheet.create({
   dropzone: {
-    alignItems: 'center', justifyContent: 'center', gap: Spacing.one,
+    ...Layout.center, gap: Spacing.one,
     borderWidth: 2, borderStyle: 'dashed', borderColor: Colors.border, borderRadius: Radius.lg,
     paddingVertical: Spacing.five, paddingHorizontal: Spacing.three, backgroundColor: Colors.bgSidebar,
   },

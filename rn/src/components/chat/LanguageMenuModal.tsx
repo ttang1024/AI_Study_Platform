@@ -3,7 +3,7 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 import { Check } from 'lucide-react-native';
 
 import { DICTATION_LANGUAGES } from '@/constants/dictationLanguages';
-import { Colors, Overlay, Radius, Spacing, Typography } from '@/constants/theme';
+import { Colors, Layout, Overlay, Radius, Spacing, Typography } from '@/constants/theme';
 
 interface LanguageMenuModalProps {
   visible: boolean;
@@ -31,7 +31,7 @@ export const LanguageMenuModal: React.FC<LanguageMenuModalProps> = ({ visible, s
 );
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: Overlay.backdrop, alignItems: 'center', justifyContent: 'center', padding: Spacing.four },
+  backdrop: { ...Layout.fillCenter, backgroundColor: Overlay.backdrop, padding: Spacing.four },
   card: {
     width: '100%', maxWidth: 320, maxHeight: '70%', borderRadius: Radius.lg,
     backgroundColor: Colors.bgSidebar, padding: Spacing.three,
@@ -39,8 +39,7 @@ const styles = StyleSheet.create({
   title: { ...Typography.bodyBold, color: Colors.textPrimary, marginBottom: Spacing.two },
   list: {},
   item: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingVertical: Spacing.two, borderBottomWidth: 1, borderBottomColor: Colors.border,
+    ...Layout.rowBetween, paddingVertical: Spacing.two, borderBottomWidth: 1, borderBottomColor: Colors.border,
   },
   itemText: { ...Typography.body, fontSize: 14, color: Colors.textPrimary },
   itemTextActive: { color: Colors.primary, fontWeight: '700' },

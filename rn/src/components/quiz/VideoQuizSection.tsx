@@ -12,6 +12,7 @@ export const VideoQuizSection: React.FC<VideoQuizSectionProps> = ({ videoId, vid
   <QuizRunner
     getQuiz={(difficulty) => quizService.getVideoQuiz(videoId, difficulty)}
     generateQuiz={(difficulty) => quizService.generateForVideo(videoId, videoUrl, difficulty)}
-    submitQuiz={(answers, score, total) => quizService.submitVideoQuiz(videoId, answers, score, total)}
+    submitQuiz={(answers, score, total, confidence) =>
+      quizService.submitVideoQuiz(videoId, answers, score, total, confidence)}
   />
 );

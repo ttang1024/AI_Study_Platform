@@ -3,7 +3,7 @@ import { File } from 'expo-file-system';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { ChevronRight, Layers, Upload, WifiOff, Zap } from 'lucide-react-native';
 
 import { EmptyState } from '@/components/EmptyState';
@@ -11,7 +11,8 @@ import { IconBadge } from '@/components/IconBadge';
 import { InfoBanner } from '@/components/InfoBanner';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { SearchBar } from '@/components/SearchBar';
-import { Alpha, Colors, Gradients, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
+import { PressableScale } from '@/components/PressableScale';
+import { Alpha, Colors, Gradients, Layout, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
 import { flashcardService } from '@/services/flashcardService';
 import { formatLastSync, offlineCache } from '@/services/offlineCache';
 import type { Flashcard } from '@/types';
@@ -19,33 +20,58 @@ import { parseAnkiExport } from '@/utils/ankiImport';
 import { getApiErrorMessage } from '@/utils/apiError';
 import { groupFlashcardSets, type FlashcardSet } from '@/utils/flashcardSets';
 
+/** Fetch + offline fallback, with no state of its own — so the mount effect can
+ *  apply the result from the promise callback instead of flipping a spinner on
+ *  synchronously (react-hooks/set-state-in-effect). */
+const fetchCards = async (): Promise<{ cards: Flashcard[]; offlineSince: string | null }> => {
+  try {
+    const { items } = await flashcardService.list();
+    void offlineCache.cacheFlashcards(items);
+    return { cards: items, offlineSince: null };
+  } catch {
+    // Network unreachable — fall back to the last synced snapshot.
+    const [cached, lastSync] = await Promise.all([offlineCache.getCachedFlashcards(), offlineCache.getLastSync()]);
+    return { cards: cached, offlineSince: formatLastSync(lastSync) };
+  }
+};
+
 export default function FlashcardsScreen() {
   const router = useRouter();
   const [cards, setCards] = useState<Flashcard[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
   const [offlineSince, setOfflineSince] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const { items } = await flashcardService.list();
-      setCards(items);
-      setOfflineSince(null);
-      void offlineCache.cacheFlashcards(items);
-    } catch {
-      // Network unreachable — fall back to the last synced snapshot.
-      const [cached, lastSync] = await Promise.all([offlineCache.getCachedFlashcards(), offlineCache.getLastSync()]);
-      setCards(cached);
-      setOfflineSince(formatLastSync(lastSync));
-    } finally {
+  useEffect(() => {
+    let cancelled = false;
+    fetchCards().then((result) => {
+      if (cancelled) return;
+      setCards(result.cards);
+      setOfflineSince(result.offlineSince);
       setLoading(false);
-    }
+    });
+    return () => { cancelled = true; };
   }, []);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  // The spinner is safe to flip on here — this runs from an event handler
+  // (after an import), not from an effect.
+  const reload = useCallback(async () => {
+    setLoading(true);
+    const result = await fetchCards();
+    setCards(result.cards);
+    setOfflineSince(result.offlineSince);
+    setLoading(false);
+  }, []);
+
+  // Pull-to-refresh drives the inline spinner instead of the full-screen loader.
+  const refresh = useCallback(async () => {
+    setRefreshing(true);
+    const result = await fetchCards();
+    setCards(result.cards);
+    setOfflineSince(result.offlineSince);
+    setRefreshing(false);
+  }, []);
 
   // Anki "Notes in Plain Text" (.txt) or generic CSV/TSV → POST /api/flashcards/import.
   const importCards = useCallback(async () => {
@@ -81,7 +107,7 @@ export default function FlashcardsScreen() {
                 'Import complete',
                 `Imported ${res.importedCount} card${res.importedCount === 1 ? '' : 's'}${res.skippedCount > 0 ? ` · ${res.skippedCount} skipped (duplicates or empty)` : ''}.`,
               );
-              load();
+              reload();
             } catch (e) {
               Alert.alert('Import failed', getApiErrorMessage(e, 'Import failed. Try again.'));
             }
@@ -89,7 +115,7 @@ export default function FlashcardsScreen() {
         },
       ],
     );
-  }, [load]);
+  }, [reload]);
 
   const sets = groupFlashcardSets(cards).filter((set) =>
     set.name.toLowerCase().includes(search.trim().toLowerCase()),
@@ -107,13 +133,13 @@ export default function FlashcardsScreen() {
           <View style={styles.searchWrap}>
             <SearchBar value={search} onChangeText={setSearch} placeholder="Search decks…" />
           </View>
-          <Pressable
-            style={({ pressed }) => [styles.importButton, pressed && styles.pressedDim]}
+          <PressableScale
+            style={styles.importButton}
             onPress={importCards}
             accessibilityLabel="Import flashcards from Anki or CSV"
           >
             <Upload size={18} color={Colors.primary} />
-          </Pressable>
+          </PressableScale>
         </View>
         {offlineSince !== null && (
           <InfoBanner icon={WifiOff} text={`Offline — showing cards saved on this device (last synced ${offlineSince}).`} />
@@ -121,15 +147,15 @@ export default function FlashcardsScreen() {
       </View>
 
       {totalDue > 0 && (
-        <Pressable
+        <PressableScale
           onPress={() => router.push('/study/flashcards/review')}
-          style={({ pressed }) => [styles.reviewBannerWrap, pressed && styles.pressedDim]}
+          style={styles.reviewBannerWrap}
         >
           <LinearGradient colors={Gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.reviewBanner}>
             <Zap size={16} color={Colors.primaryForeground} />
             <Text style={styles.reviewBannerText}>{totalDue} card{totalDue === 1 ? '' : 's'} due — start review</Text>
           </LinearGradient>
-        </Pressable>
+        </PressableScale>
       )}
 
       {sets.length === 0 ? (
@@ -139,6 +165,7 @@ export default function FlashcardsScreen() {
           data={sets}
           keyExtractor={(set) => set.key}
           contentContainerStyle={styles.list}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={Colors.primary} />}
           renderItem={({ item }) => <DeckCard set={item} onPress={() => router.push(`/study/flashcards/deck/${item.key}`)} />}
         />
       )}
@@ -147,7 +174,7 @@ export default function FlashcardsScreen() {
 }
 
 const DeckCard: React.FC<{ set: FlashcardSet; onPress: () => void }> = ({ set, onPress }) => (
-  <Pressable style={({ pressed }) => [styles.card, pressed && styles.pressedDim]} onPress={onPress}>
+  <PressableScale style={styles.card} onPress={onPress}>
     <IconBadge icon={Layers} color={Colors.amber} size={40} iconSize={18} />
     <View style={styles.cardBody}>
       <Text style={styles.cardTitle} numberOfLines={2}>{set.name}</Text>
@@ -160,28 +187,27 @@ const DeckCard: React.FC<{ set: FlashcardSet; onPress: () => void }> = ({ set, o
     ) : (
       <ChevronRight size={18} color={Colors.textSecondary} />
     )}
-  </Pressable>
+  </PressableScale>
 );
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bgApp },
-  pressedDim: { opacity: 0.85 },
   header: { padding: Spacing.three, paddingBottom: Spacing.two, gap: Spacing.two },
-  searchRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  searchRow: { ...Layout.row, gap: Spacing.two },
   searchWrap: { flex: 1 },
   importButton: {
     width: 46, height: 46, borderRadius: Radius.pill, backgroundColor: Colors.bgSidebar,
-    alignItems: 'center', justifyContent: 'center', ...Shadows.card,
+    ...Layout.center, ...Shadows.card,
   },
   reviewBannerWrap: { marginHorizontal: Spacing.three, marginBottom: Spacing.two, ...Shadows.primaryGlow },
   reviewBanner: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.two,
+    ...Layout.row, justifyContent: 'center', gap: Spacing.two,
     borderRadius: Radius.pill, paddingVertical: 12,
   },
   reviewBannerText: { ...Typography.bodyBold, color: Colors.primaryForeground },
   list: { paddingHorizontal: Spacing.three, paddingBottom: Spacing.five, gap: Spacing.two },
   card: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.three,
+    ...Layout.row, gap: Spacing.three,
     backgroundColor: Colors.bgCard, borderRadius: Radius.lg, padding: Spacing.three,
     ...Shadows.card,
   },

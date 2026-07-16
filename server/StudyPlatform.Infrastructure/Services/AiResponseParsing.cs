@@ -64,4 +64,35 @@ internal static class AiResponseParsing
 
     public static string TruncateContent(string content, int maxLength = 10000)
         => content.Length <= maxLength ? content : content[..maxLength] + "\n[Source truncated...]";
+
+    // A timestamped transcript must not be head-truncated: dropping the tail makes a
+    // "timeline" summary stop partway through the media (e.g. a 46-min video ending at 7 min).
+    // Instead, keep timestamped lines evenly spaced across the whole transcript so the AI still
+    // sees the full time range while staying within the character budget.
+    public static string CondenseTimedTranscript(string timedTranscript, int maxLength = 24000)
+    {
+        if (string.IsNullOrEmpty(timedTranscript) || timedTranscript.Length <= maxLength)
+            return timedTranscript;
+
+        var lines = timedTranscript.Split('\n');
+        if (lines.Length <= 1)
+            return TruncateContent(timedTranscript, maxLength);
+
+        // Keep 1 of every `stride` lines, always retaining the first and last so the range spans
+        // the entire media. Increase the stride until the sampled text fits the budget.
+        for (var stride = 2; stride <= lines.Length; stride++)
+        {
+            var sampled = new List<string>();
+            for (var i = 0; i < lines.Length; i++)
+            {
+                if (i % stride == 0 || i == lines.Length - 1)
+                    sampled.Add(lines[i]);
+            }
+            var joined = string.Join('\n', sampled);
+            if (joined.Length <= maxLength)
+                return joined;
+        }
+
+        return TruncateContent(timedTranscript, maxLength);
+    }
 }

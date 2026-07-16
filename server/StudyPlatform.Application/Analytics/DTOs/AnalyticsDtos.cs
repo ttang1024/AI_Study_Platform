@@ -17,8 +17,17 @@ public record CourseMasteryComponentDto(string Label, double Score, int Sample);
 
 public record CourseMasteryDto(Guid CourseId, string CourseName, string CourseColor, double MasteryScore, IEnumerable<CourseMasteryComponentDto> Components);
 
-/// <summary>Consecutive-day study streak plus today's accumulated time, for the dashboard "today" strip.</summary>
-public record StudyStreakDto(int CurrentStreak, int LongestStreak, int TodaySeconds, int TodayMinutes);
+/// <summary>Consecutive-day study streak plus today's accumulated time, for the dashboard "today" strip.
+/// Covered days (auto-applied freezes / scheduled vacation) keep the streak alive without incrementing it.</summary>
+public record StudyStreakDto(
+    int CurrentStreak,
+    int LongestStreak,
+    int TodaySeconds,
+    int TodayMinutes,
+    int FreezesAvailable = 0,
+    DateTime? VacationUntil = null);
+
+public record SetVacationRequest(DateTime StartDate, DateTime EndDate);
 
 /// <summary>The three reinforcement-center counts, computed server-side so the dashboard doesn't have to pull every submission/flashcard/term to the browser.</summary>
 public record ReinforcementCountsDto(int QuizMistakes, int UnmasteredTerms, int HardFlashcards);

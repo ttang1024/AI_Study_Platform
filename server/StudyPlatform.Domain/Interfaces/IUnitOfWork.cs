@@ -33,6 +33,13 @@ public interface IUnitOfWork : IDisposable
     IExamPlanRepository ExamPlans { get; }
     IQuizBattleRepository QuizBattles { get; }
     IGroupAssignmentRepository GroupAssignments { get; }
+    IFlashcardReviewLogRepository FlashcardReviewLogs { get; }
+    IStreakCoverDayRepository StreakCoverDays { get; }
+    IUserCalendarFeedRepository UserCalendarFeeds { get; }
+    ICourseAudioOverviewRepository CourseAudioOverviews { get; }
+    IGroupNoteRepository GroupNotes { get; }
+    IAiJobRepository AiJobs { get; }
+    IAiUsageRepository AiUsage { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     Task BeginTransactionAsync(CancellationToken cancellationToken = default);
     Task CommitTransactionAsync(CancellationToken cancellationToken = default);

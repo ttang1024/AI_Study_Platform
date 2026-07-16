@@ -202,11 +202,11 @@ public class GetQuestionBankQueryHandlerTests
         _uow.Setup(u => u.Videos).Returns(_videos.Object);
         _uow.Setup(u => u.Courses).Returns(_courses.Object);
 
-        _documents.Setup(r => r.FindAsync(It.IsAny<Expression<Func<Document, bool>>>(), default))
+        _documents.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Document, bool>>>(), default))
             .ReturnsAsync(Array.Empty<Document>());
-        _videos.Setup(r => r.FindAsync(It.IsAny<Expression<Func<Video, bool>>>(), default))
+        _videos.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Video, bool>>>(), default))
             .ReturnsAsync(Array.Empty<Video>());
-        _courses.Setup(r => r.FindAsync(It.IsAny<Expression<Func<Course, bool>>>(), default))
+        _courses.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Course, bool>>>(), default))
             .ReturnsAsync(Array.Empty<Course>());
 
         _handler = new GetQuestionBankQueryHandler(_uow.Object);
@@ -230,7 +230,7 @@ public class GetQuestionBankQueryHandlerTests
     public async Task Handle_NoFilters_ReturnsAllUserQuestions()
     {
         var quizzes = new[] { MakeQuiz(), MakeQuiz("easy") };
-        _quizzes.Setup(r => r.FindAsync(It.IsAny<Expression<Func<Quiz, bool>>>(), default))
+        _quizzes.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Quiz, bool>>>(), default))
             .ReturnsAsync(quizzes);
 
         var result = await _handler.Handle(new GetQuestionBankQuery(_userId), default);
@@ -242,7 +242,7 @@ public class GetQuestionBankQueryHandlerTests
     [Fact]
     public async Task Handle_EmptyResult_ReturnsEmptyList()
     {
-        _quizzes.Setup(r => r.FindAsync(It.IsAny<Expression<Func<Quiz, bool>>>(), default))
+        _quizzes.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Quiz, bool>>>(), default))
             .ReturnsAsync(Array.Empty<Quiz>());
 
         var result = await _handler.Handle(new GetQuestionBankQuery(_userId), default);
@@ -256,9 +256,9 @@ public class GetQuestionBankQueryHandlerTests
     {
         var docId = Guid.NewGuid();
         var quiz = MakeQuiz(documentId: docId);
-        _quizzes.Setup(r => r.FindAsync(It.IsAny<Expression<Func<Quiz, bool>>>(), default))
+        _quizzes.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Quiz, bool>>>(), default))
             .ReturnsAsync(new[] { quiz });
-        _documents.Setup(r => r.FindAsync(It.IsAny<Expression<Func<Document, bool>>>(), default))
+        _documents.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Document, bool>>>(), default))
             .ReturnsAsync(new[] { new Document { DocumentId = docId, UserId = _userId, FileName = "lecture.pdf", CourseId = Guid.Empty, BlobUrl = "", ContentType = "", CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow } });
 
         var result = await _handler.Handle(new GetQuestionBankQuery(_userId), default);

@@ -15,9 +15,10 @@ import { GroupLeaderboard } from '../components/groups/GroupLeaderboard';
 import { GroupBattles } from '../components/groups/GroupBattles';
 import { GroupAssignments } from '../components/groups/GroupAssignments';
 import { StudyRoomPanel, type StudyRoomState } from '../components/groups/StudyRoomPanel';
+import { GroupNotesList } from '../components/groups/GroupNotesList';
 import { cn } from '../utils/cn';
 
-type GroupTab = 'chat' | 'leaderboard' | 'battles' | 'assignments';
+type GroupTab = 'chat' | 'notes' | 'leaderboard' | 'battles' | 'assignments';
 
 export const StudyGroupDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -351,7 +352,7 @@ export const StudyGroupDetailPage: React.FC = () => {
         {/* Right column: chat / leaderboard / battles / assignments */}
         <div className="lg:col-span-2 flex flex-col gap-3">
           <div className="flex items-center gap-2">
-            {([['chat', 'Chat'], ['leaderboard', 'Leaderboard'], ['battles', 'Battles'], ['assignments', 'Assignments']] as [GroupTab, string][]).map(([tab, label]) => (
+            {([['chat', 'Chat'], ['notes', 'Notes'], ['leaderboard', 'Leaderboard'], ['battles', 'Battles'], ['assignments', 'Assignments']] as [GroupTab, string][]).map(([tab, label]) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -368,6 +369,11 @@ export const StudyGroupDetailPage: React.FC = () => {
           </div>
 
           <div className="bg-white border border-gray-200 rounded-xl flex flex-col flex-1 overflow-hidden" style={{ minHeight: '500px' }}>
+          {activeTab === 'notes' && id && user && (
+            <div className="p-4 flex-1 flex flex-col overflow-hidden">
+              <GroupNotesList groupId={id} myUserId={user.id} myName={user.name || user.email} />
+            </div>
+          )}
           {activeTab === 'leaderboard' && id && <GroupLeaderboard groupId={id} />}
           {activeTab === 'battles' && id && <GroupBattles groupId={id} />}
           {activeTab === 'assignments' && id && <GroupAssignments groupId={id} isOwner={isOwner} />}

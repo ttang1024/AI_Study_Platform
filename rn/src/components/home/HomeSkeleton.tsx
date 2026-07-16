@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Skeleton } from '@/components/Skeleton';
-import { Colors, Radius, Shadows, Spacing } from '@/constants/theme';
+import { Colors, Layout, Radius, Shadows, Spacing } from '@/constants/theme';
 
 // Mirrors the dashboard's layout (greeting → hero card → summarize CTA →
 // section grids) so the real content pops in without the page reflowing.
@@ -67,15 +67,14 @@ const styles = StyleSheet.create({
     padding: Spacing.three,
     backgroundColor: Colors.zinc200,
   },
-  heroHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  heroHeader: { ...Layout.rowBetween },
   heroTitleBlock: { gap: Spacing.two },
   // Blocks sitting on the (already gray) hero card need a darker tone to read.
   onHero: { backgroundColor: Colors.zinc300 },
   tileGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   gridTile: { flexGrow: 1, flexBasis: '45%' },
   ctaCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    ...Layout.row,
     gap: Spacing.two,
     backgroundColor: Colors.bgCard,
     borderRadius: Radius.lg,

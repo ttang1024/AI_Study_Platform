@@ -1,22 +1,10 @@
-export type AIProvider = 'gemini' | 'openai' | 'claude' | 'deepseek' | 'kimi' | 'doubao' | 'grok' | 'qwen' | 'wenxin';
-
-export interface AISettings {
-  provider: AIProvider;
-  keys: Partial<Record<AIProvider, string>>;
-  models: Partial<Record<AIProvider, string>>;
-}
-
-export const DEFAULT_MODELS: Record<AIProvider, string> = {
-  gemini:   'gemini-2.5-flash',
-  openai:   'gpt-4o-mini',
-  claude:   'claude-sonnet-4-5',
-  deepseek: 'deepseek-chat',
-  kimi:     'moonshot-v1-8k',
-  doubao:   'doubao-pro-32k',
-  grok:     'grok-3',
-  qwen:     'qwen-plus',
-  wenxin:   'ernie-4.0-8k',
-};
+// The provider list, default models, and settings shape are shared across
+// web/, rn/, and extension/ (see packages/core/src/ai.ts). Re-exported here so
+// existing `@/services/aiSettingsService` imports keep working unchanged.
+import { DEFAULT_MODELS } from '@core/ai';
+export { DEFAULT_MODELS } from '@core/ai';
+export type { AIProvider, AISettings } from '@core/ai';
+import type { AIProvider, AISettings } from '@core/ai';
 
 const STORAGE_KEY = 'sp_ai_settings';
 

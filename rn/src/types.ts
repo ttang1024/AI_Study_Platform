@@ -5,25 +5,11 @@ export interface PickedFile {
   mimeType: string;
 }
 
-export interface Course {
-  id: string;
-  name: string;
-  color: string;
-}
+// Shared with web/ via packages/core.
+export type { Course } from '@core/types';
 
-export interface Document {
-  id: string;
-  name: string;
-  type: 'pdf' | 'docx' | 'txt' | 'md' | 'audio' | 'podcast' | 'image' | 'ppt' | 'epub';
-  url: string;
-  uploadDate: string;
-  courseId?: string;
-  courseName?: string;
-  courseColor?: string;
-  summary?: string;
-  originalUrl?: string;
-  mindMapText?: string | null;
-}
+// Shared with web/ via packages/core.
+export type { Document } from '@core/types';
 
 export interface VideoListItem {
   id: string;
@@ -43,83 +29,32 @@ export interface StudyStreak {
   longestStreak: number;
   todaySeconds: number;
   todayMinutes: number;
+  freezesAvailable?: number;
+  vacationUntil?: string | null;
 }
 
-// FSRS state: 0=New, 1=Learning, 2=Review, 3=Relearning.
-export interface FlashcardSrsState {
-  state: 0 | 1 | 2 | 3;
-  stability: number;
-  difficulty: number;
-  reps: number;
-  lapses: number;
-  due: string;
-  lastReview?: string;
-  retrievability: number;
-}
+// Shared with web/ via packages/core.
+export type { FlashcardSrsState, FsrsRating } from '@core/types';
 
-// Rating sent to the review endpoint: 1=Again, 2=Hard, 3=Good, 4=Easy.
-export type FsrsRating = 1 | 2 | 3 | 4;
+// Shared with web/ via packages/core.
+export type { Flashcard } from '@core/types';
 
-export interface Flashcard {
+/** A flashcard reduced to just what the per-source Cards tab renders. */
+export interface SimpleCard {
   id: string;
-  documentId?: string;
-  videoId?: string;
-  documentName?: string;
-  videoName?: string;
-  courseId?: string;
-  courseName?: string;
-  courseColor?: string;
   front: string;
   back: string;
   cardType: 'basic' | 'cloze' | 'chart';
-  difficulty: 'easy' | 'medium' | 'hard';
-  chapter?: string;
-  tags: string[];
-  createdAt: string;
-  srs?: FlashcardSrsState;
 }
 
-export interface Note {
-  id: string;
-  documentId?: string;
-  videoId?: string;
-  documentName?: string;
-  videoName?: string;
-  sourceType: 'document' | 'video';
-  content: string;
-  title?: string;
-  createdAt: string;
-  updatedAt: string;
-}
+// Shared with web/ via packages/core.
+export type { Note } from '@core/types';
 
-export interface GlossaryTerm {
-  id: string;
-  term: string;
-  definition: string;
-  documentId?: string;
-  videoId?: string;
-  courseId?: string;
-  sourceName?: string;
-  sourceKind?: 'document' | 'video' | 'article' | 'audio';
-  createdAt: string;
-}
+// Shared with web/ via packages/core.
+export type { GlossaryTerm } from '@core/types';
 
-export interface QuizQuestion {
-  id: string;
-  documentId?: string;
-  videoId?: string;
-  sourceType: string;
-  courseId?: string;
-  courseName?: string;
-  courseColor?: string;
-  sourceName?: string;
-  question: string;
-  options: string[];
-  correctAnswer: string;
-  explanation: string;
-  difficulty: 'easy' | 'medium' | 'hard';
-  createdAt: string;
-}
+// Shared with web/ via packages/core.
+export type { QuizQuestion } from '@core/types';
 
 export interface QuizSubmission {
   id: string;
@@ -134,30 +69,8 @@ export interface QuizSubmission {
   title?: string;
 }
 
-export interface Mistake {
-  id: string;
-  quizId?: string;
-  documentId?: string;
-  videoId?: string;
-  sourceType: string;
-  question: string;
-  options: string[];
-  correctAnswer: string;
-  userAnswer: string;
-  explanation: string;
-  status: 'open' | 'resolved';
-  timesMissed: number;
-  firstMissedAt: string;
-  lastMissedAt: string;
-  resolvedAt?: string;
-}
-
-export interface VariantQuestion {
-  question: string;
-  options: string[];
-  correctAnswer: string;
-  explanation: string;
-}
+// Shared with web/ via packages/core.
+export type { Mistake, VariantQuestion } from '@core/services/mistakesService';
 
 export interface PendingMaterial {
   kind: string;
@@ -206,55 +119,9 @@ export interface DashboardSummary {
   dailyGoalMinutes: number;
 }
 
-export interface CourseMaterialStats {
-  courseId: string;
-  documents: number;
-  articles: number;
-  audio: number;
-  videos: number;
-  total: number;
-}
+// Shared with web/ via packages/core.
+export type { UserStats, UserXp } from '@core/services/statsService';
 
-export interface UserStats {
-  totalDocuments: number;
-  totalArticles: number;
-  totalAudio: number;
-  totalMaterials: number;
-  totalNotes: number;
-  totalFlashcards: number;
-  totalGlossaryTerms: number;
-  totalQuizQuestions: number;
-  totalQuizSubmissions: number;
-  totalVideos: number;
-  courseMaterialCounts: CourseMaterialStats[];
-  achievements: { perfectQuizzes: number; averageQuizScore: number; flashcardsMastered: number };
-}
-
-export interface UserXp {
-  totalXp: number;
-  level: number;
-  xpIntoLevel: number;
-  xpForNextLevel: number;
-  levelProgress: number;
-  breakdown: { source: string; label: string; xp: number }[];
-}
-
-export interface WeeklyDigest {
-  from: string;
-  to: string;
-  studyMinutes: number;
-  activeDays: number;
-  dailyMinutes: { date: string; minutes: number }[];
-  flashcardReviews: number;
-  quizzesTaken: number;
-  quizAccuracy: number;
-  newMaterials: number;
-  mistakesResolved: number;
-  openMistakes: number;
-  currentStreak: number;
-  weeklyXp: number;
-  topGapConcept?: string;
-  topGapReason?: string;
-  headline: string;
-}
+// Shared with web/ via packages/core.
+export type { WeeklyDigest } from '@core/services/gamificationService';
 

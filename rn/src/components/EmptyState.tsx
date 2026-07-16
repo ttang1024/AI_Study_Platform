@@ -1,9 +1,10 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import type { LucideIcon } from 'lucide-react-native';
 
-import { Colors, Gradients, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
+import { PressableScale } from '@/components/PressableScale';
+import { Colors, Gradients, Layout, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
 
 interface EmptyStateProps {
   icon: LucideIcon;
@@ -28,8 +29,8 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ icon: Icon, title, subti
     <Text style={styles.title}>{title}</Text>
     {!!subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
     {!!action && (
-      <Pressable
-        style={({ pressed }) => [styles.actionShadow, pressed && styles.actionPressed]}
+      <PressableScale
+        style={styles.actionShadow}
         onPress={action.onPress}
         disabled={action.loading}
       >
@@ -42,28 +43,27 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ icon: Icon, title, subti
           {action.loading && <ActivityIndicator size="small" color={Colors.primaryForeground} />}
           <Text style={styles.actionText}>{action.label}</Text>
         </LinearGradient>
-      </Pressable>
+      </PressableScale>
     )}
   </View>
 );
 
 const styles = StyleSheet.create({
-  root: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: Spacing.four, paddingVertical: Spacing.five },
+  root: { ...Layout.fillCenter, gap: 6, paddingHorizontal: Spacing.four, paddingVertical: Spacing.five },
   rootBordered: {
     backgroundColor: Colors.bgCard, borderRadius: Radius.lg, ...Shadows.card,
   },
   iconCircle: {
     width: 52, height: 52, borderRadius: 26,
-    alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.one,
+    ...Layout.center, marginBottom: Spacing.one,
     ...Shadows.primaryGlow,
   },
   title: { ...Typography.subheading, color: Colors.textPrimary, textAlign: 'center' },
   subtitle: { ...Typography.body, fontSize: 13, color: Colors.textSecondary, textAlign: 'center', maxWidth: 280 },
   actionShadow: { marginTop: Spacing.two, borderRadius: Radius.pill, ...Shadows.primaryGlow },
   action: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
+    ...Layout.row, gap: 8,
     paddingHorizontal: Spacing.four, height: 42, borderRadius: Radius.pill,
   },
-  actionPressed: { opacity: 0.85 },
   actionText: { fontSize: 14, fontWeight: '700', color: Colors.primaryForeground },
 });

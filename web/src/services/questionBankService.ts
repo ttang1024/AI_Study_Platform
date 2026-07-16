@@ -1,59 +1,8 @@
-import { apiClient } from './apiClient'
+// Service logic moved to the shared package (packages/core). This file wires the
+// web HTTP adapter into the shared factory, so existing imports keep working.
+import { createQuestionBankService } from '@core/services/questionBankService';
+import { http } from './http';
 
-export type QuestionDifficulty = 'easy' | 'medium' | 'hard'
+export * from '@core/services/questionBankService';
 
-export interface QuestionBankQuestion {
-  quizId: string
-  documentId?: string
-  videoId?: string
-  courseId?: string
-  sourceType: 'document' | 'video'
-  sourceName?: string
-  courseName?: string
-  courseColor?: string
-  question: string
-  options: string[]
-  correctAnswer: string
-  explanation: string
-  difficulty: QuestionDifficulty
-  createdAt: string
-}
-
-export interface QuestionBankFilters {
-  courseId?: string
-  sourceType?: 'document' | 'video'
-  difficulty?: QuestionDifficulty
-}
-
-export interface UpdateQuestionBankQuestion {
-  question: string
-  options: string[]
-  correctAnswer: string
-  explanation: string
-  difficulty: QuestionDifficulty
-}
-
-export const DIFFICULTY_LABELS: Record<QuestionDifficulty, string> = {
-  easy: 'Beginner',
-  medium: 'Intermediate',
-  hard: 'Advanced',
-};
-
-export const getDifficultyLabel = (difficulty: QuestionDifficulty | undefined): string =>
-  difficulty ? DIFFICULTY_LABELS[difficulty] : DIFFICULTY_LABELS.medium;
-
-export const questionBankService = {
-  async getQuestions(filters: QuestionBankFilters = {}): Promise<QuestionBankQuestion[]> {
-    const response = await apiClient.get('/api/question-bank', { params: filters })
-    return response.data.data ?? []
-  },
-
-  async updateQuestion(quizId: string, payload: UpdateQuestionBankQuestion): Promise<QuestionBankQuestion> {
-    const response = await apiClient.patch(`/api/question-bank/${quizId}`, payload)
-    return response.data.data
-  },
-
-  async deleteQuestion(quizId: string): Promise<void> {
-    await apiClient.delete(`/api/question-bank/${quizId}`)
-  },
-}
+export const questionBankService = createQuestionBankService(http);

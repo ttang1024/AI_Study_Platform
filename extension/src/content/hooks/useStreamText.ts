@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { connectStream } from '../../lib/messaging'
+import { connectStream, type SummaryEvent } from '../../lib/messaging'
 
 // ── streaming text (summary / mind map) ─────────────────────────────────────
 // `kind` is 'summary' | 'mindmap'; the worker saves the video and streams the
@@ -48,7 +48,7 @@ export function useStreamText(videoId: string | null, kind: 'summary' | 'mindmap
 		setLoading(true)
 		const port = connectStream()
 		portRef.current = port
-		port.onMessage.addListener((m: any) => {
+		port.onMessage.addListener((m: SummaryEvent) => {
 			if (m.type === 'chunk') setText((t) => t + m.text)
 			else if (m.type === 'done') {
 				setLoading(false)

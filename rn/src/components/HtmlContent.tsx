@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 
 import { AutoHeightWebView } from '@/components/AutoHeightWebView';
+import { Colors } from '@/constants/theme';
 
 interface HtmlContentProps {
   html: string;
@@ -20,8 +21,8 @@ const wrap = (html: string) => `<!DOCTYPE html>
   ul, ol { margin: 4px 0 8px; padding-left: 22px; }
   h1, h2, h3 { margin: 12px 0 6px; }
   img { max-width: 100%; height: auto; }
-  a { color: #059669; }
-  blockquote { border-left: 3px solid #059669; margin: 8px 0; padding-left: 10px; opacity: 0.85; }
+  a { color: ${Colors.primary}; }
+  blockquote { border-left: 3px solid ${Colors.primary}; margin: 8px 0; padding-left: 10px; opacity: 0.85; }
 </style>
 </head>
 <body>

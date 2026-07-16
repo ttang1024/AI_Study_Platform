@@ -5,14 +5,16 @@ import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from '
 import { Headphones, Mic, Rss } from 'lucide-react-native';
 
 import { Button } from '@/components/Button';
+import { DuplicateAlert } from '@/components/summarizer/DuplicateAlert';
 import { Dropzone } from '@/components/summarizer/Dropzone';
 import { IntroCard } from '@/components/summarizer/IntroCard';
 import { SubTabChipRow } from '@/components/summarizer/SubTabChipRow';
 import { TextField } from '@/components/TextField';
-import { Colors, Radius, Spacing } from '@/constants/theme';
+import { Colors, Layout, Radius, Spacing } from '@/constants/theme';
 import { documentService } from '@/services/documentService';
 import { podcastService, PodcastFeed, PodcastFeedEpisode } from '@/services/podcastService';
 import { looksLikeRssFeedUrl, validatePodcastUrl } from '@/constants/podcastSources';
+import { useLibraryEntries } from '@/hooks/useLibraryEntries';
 import { getApiErrorCode, getApiErrorMessage } from '@/utils/apiError';
 import type { PickedFile } from '@/types';
 
@@ -43,6 +45,12 @@ export function AudioForm({ selectedCourseId, onCourseError }: AudioFormProps) {
   const [lectureError, setLectureError] = useState('');
   const [lectureUploading, setLectureUploading] = useState(false);
 
+  const audioEntries = useLibraryEntries('audio');
+  const trimmedPodcastUrl = podcastUrl.trim();
+  const duplicate = trimmedPodcastUrl
+    ? audioEntries.find((e) => e.kind === 'document' && e.data.originalUrl === trimmedPodcastUrl)
+    : undefined;
+
   const loadFeed = async (url: string) => {
     setPodcastError('');
     setPodcastLoading(true);
@@ -60,6 +68,8 @@ export function AudioForm({ selectedCourseId, onCourseError }: AudioFormProps) {
   const submitPodcast = async () => {
     const trimmed = podcastUrl.trim();
     if (!trimmed) return;
+    // Don't import an episode that's already in the library — the duplicate banner is shown instead.
+    if (duplicate) return;
     const validationError = validatePodcastUrl(trimmed);
     if (validationError) {
       setPodcastError(validationError);
@@ -76,6 +86,10 @@ export function AudioForm({ selectedCourseId, onCourseError }: AudioFormProps) {
     try {
       const episode = await podcastService.create(trimmed, selectedCourseId);
       router.push(`/(tabs)/library/document/${episode.documentId}?courseId=${episode.courseId}`);
+      // Clear the form so returning to the summarizer starts fresh.
+      setPodcastUrl('');
+      setFeed(null);
+      setFeedUrl('');
     } catch (err) {
       if (getApiErrorCode(err) === 'RSS_FEED_URL') {
         await loadFeed(trimmed);
@@ -95,6 +109,11 @@ export function AudioForm({ selectedCourseId, onCourseError }: AudioFormProps) {
     try {
       const episode = await podcastService.createFromFeed(feedUrl, ep.id, selectedCourseId);
       router.push(`/(tabs)/library/document/${episode.documentId}?courseId=${episode.courseId}`);
+      // Clear the form so returning to the summarizer starts fresh.
+      setImportingId(null);
+      setPodcastUrl('');
+      setFeed(null);
+      setFeedUrl('');
     } catch (err) {
       setPodcastError(getApiErrorMessage(err, 'Failed to import this episode. Please try again.'));
       setImportingId(null);
@@ -118,6 +137,8 @@ export function AudioForm({ selectedCourseId, onCourseError }: AudioFormProps) {
     try {
       const result = await documentService.uploadAudio(selectedCourseId, file);
       router.push(`/(tabs)/library/document/${result.documentId}?courseId=${selectedCourseId}`);
+      // Clear the form so returning to the summarizer starts fresh.
+      setFile(null);
     } catch {
       setLectureError('Upload failed. Please try again.');
     } finally {
@@ -145,6 +166,14 @@ export function AudioForm({ selectedCourseId, onCourseError }: AudioFormProps) {
               style={styles.input}
             />
           </IntroCard>
+
+          {duplicate?.kind === 'document' && (
+            <DuplicateAlert
+              label="podcast episode"
+              courseName={duplicate.data.courseName ?? ''}
+              onView={() => router.push(`/(tabs)/library/document/${duplicate.data.id}?courseId=${duplicate.data.courseId}`)}
+            />
+          )}
 
           {!!podcastError && <Text style={styles.error}>{podcastError}</Text>}
 
@@ -184,7 +213,7 @@ export function AudioForm({ selectedCourseId, onCourseError }: AudioFormProps) {
             title={looksLikeRssFeedUrl(podcastUrl) ? 'Browse Episodes' : 'Analyze Episode'}
             onPress={submitPodcast}
             loading={podcastLoading}
-            disabled={!podcastUrl.trim() || importingId !== null}
+            disabled={!podcastUrl.trim() || importingId !== null || !!duplicate}
           />
         </>
       ) : (
@@ -211,14 +240,13 @@ const styles = StyleSheet.create({
   error: { fontSize: 13, color: Colors.red },
   feedCard: { borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.lg, backgroundColor: Colors.bgSidebar, overflow: 'hidden' },
   feedHeader: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    padding: Spacing.two, borderBottomWidth: 1, borderBottomColor: Colors.border,
+    ...Layout.rowBetween, padding: Spacing.two, borderBottomWidth: 1, borderBottomColor: Colors.border,
   },
   feedTitle: { flex: 1, fontSize: 13, fontWeight: '700', color: Colors.textPrimary },
   feedClose: { fontSize: 12, fontWeight: '700', color: Colors.textSecondary },
   feedList: { maxHeight: 280 },
   episodeRow: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.two,
+    ...Layout.row, gap: Spacing.two,
     padding: Spacing.two, borderBottomWidth: 1, borderBottomColor: Colors.zinc200,
   },
   episodeTitle: { flex: 1, fontSize: 13, fontWeight: '600', color: Colors.textPrimary },

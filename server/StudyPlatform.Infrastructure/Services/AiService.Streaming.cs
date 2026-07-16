@@ -23,14 +23,14 @@ public partial class AiService
 
     public async IAsyncEnumerable<string> StreamTimelineSummaryAsync(string timedTranscript, string mediaType, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var prompt = $"{AiPrompts.TimelineStreamSummary(mediaType)}\n\nTimestamped source material:\n{AiResponseParsing.TruncateContent(timedTranscript)}";
+        var prompt = $"{AiPrompts.TimelineStreamSummary(mediaType)}\n\nTimestamped source material:\n{AiResponseParsing.CondenseTimedTranscript(timedTranscript)}";
         await foreach (var chunk in StreamTextAsync(null, [("user", prompt)], 0.7, 8192, cancellationToken))
             yield return chunk;
     }
 
     public async IAsyncEnumerable<string> StreamSummaryFromYouTubeAsync(string transcriptText, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var prompt = $"{AiPrompts.TimelineStreamSummary("video")}\n\nTimestamped source material:\n{AiResponseParsing.TruncateContent(transcriptText)}";
+        var prompt = $"{AiPrompts.TimelineStreamSummary("video")}\n\nTimestamped source material:\n{AiResponseParsing.CondenseTimedTranscript(transcriptText)}";
         await foreach (var chunk in StreamTextAsync(null, [("user", prompt)], 0.7, 8192, cancellationToken))
             yield return chunk;
     }

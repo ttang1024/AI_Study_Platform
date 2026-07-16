@@ -4,7 +4,7 @@ import { Check, NotebookPen } from 'lucide-react-native';
 
 import { Button } from '@/components/Button';
 import { EmptyState } from '@/components/EmptyState';
-import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
+import { Colors, Layout, Radius, Spacing, Typography } from '@/constants/theme';
 
 interface QuickNoteFormProps {
   onSubmit: (content: string) => Promise<void>;
@@ -77,6 +77,6 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md, padding: Spacing.three, backgroundColor: Colors.bgCard,
   },
   input: { ...Typography.body, color: Colors.textPrimary, minHeight: 80, textAlignVertical: 'top' },
-  actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: Spacing.three, alignItems: 'center' },
+  actions: { ...Layout.row, justifyContent: 'flex-end', gap: Spacing.three },
   cancelText: { ...Typography.captionBold, color: Colors.textSecondary },
 });

@@ -2,7 +2,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { LucideIcon } from 'lucide-react-native';
 
-import { Colors, Radius, Spacing } from '@/constants/theme';
+import { Colors, Layout, Radius, Spacing } from '@/constants/theme';
 
 interface SubTabOption<T extends string> {
   id: T;
@@ -37,7 +37,7 @@ export function SubTabChipRow<T extends string>({ options, active, onChange }: S
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: Spacing.one, alignSelf: 'flex-start', backgroundColor: Colors.bgApp, borderRadius: Radius.md, padding: 2 },
-  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: Radius.sm },
+  chip: { ...Layout.row, gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: Radius.sm },
   chipActive: { backgroundColor: Colors.primary },
   text: { fontSize: 12, fontWeight: '700', color: Colors.textSecondary },
   textActive: { color: Colors.primaryForeground },

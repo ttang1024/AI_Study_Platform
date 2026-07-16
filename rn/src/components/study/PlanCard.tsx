@@ -5,7 +5,7 @@ import { ChevronDown, ChevronUp, Sparkles, Trash2 } from 'lucide-react-native';
 
 import { Card } from '@/components/Card';
 import { SummaryMarkdown } from '@/components/SummaryMarkdown';
-import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
+import { Colors, Layout, Radius, Spacing, Typography } from '@/constants/theme';
 import { plannerService, type CramSheet, type ExamPlan, type ExamSchedule } from '@/services/plannerService';
 import { routeForTask } from '@/utils/plannerRoutes';
 
@@ -97,7 +97,7 @@ export const PlanCard: React.FC<PlanCardProps> = React.memo(function PlanCard({ 
 
 const styles = StyleSheet.create({
   card: { gap: Spacing.two },
-  header: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  header: { ...Layout.row, gap: Spacing.two },
   headerText: { flex: 1 },
   title: { ...Typography.bodyBold, color: Colors.textPrimary },
   meta: { ...Typography.caption, color: Colors.textSecondary, marginTop: 2 },
@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
   taskRow: { paddingVertical: 4, paddingLeft: Spacing.two, borderLeftWidth: 2, borderLeftColor: Colors.border },
   taskTitle: { ...Typography.body, color: Colors.textPrimary },
   taskReason: { ...Typography.caption, color: Colors.textSecondary },
-  cramButton: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start' },
+  cramButton: { ...Layout.row, gap: 6, alignSelf: 'flex-start' },
   cramButtonText: { ...Typography.captionBold, color: Colors.primary },
   cramSheetBox: { backgroundColor: Colors.bgApp, borderRadius: Radius.md, padding: Spacing.two, gap: Spacing.two },
 });

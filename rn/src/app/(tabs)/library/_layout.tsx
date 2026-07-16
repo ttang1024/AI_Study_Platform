@@ -2,6 +2,7 @@ import { Stack, useRouter } from 'expo-router';
 import { Pressable, View } from 'react-native';
 import { Search, Sparkles } from 'lucide-react-native';
 
+import { HeaderBackButton } from '@/components/HeaderBackButton';
 import { Colors, Spacing } from '@/constants/theme';
 
 // Anchor the stack on the index screen so cross-tab pushes to a detail
@@ -37,8 +38,10 @@ export default function LibraryLayout() {
         }}
       />
       <Stack.Screen name="course/[id]" options={{ title: '' }} />
-      <Stack.Screen name="document/[id]" options={{ title: '' }} />
-      <Stack.Screen name="video/[id]" options={{ title: '' }} />
+      {/* Detail screens are also reached via cross-tab push from the AI Summarizer,
+          which doesn't always yield a default header back button — force one. */}
+      <Stack.Screen name="document/[id]" options={{ title: '', headerLeft: () => <HeaderBackButton /> }} />
+      <Stack.Screen name="video/[id]" options={{ title: '', headerLeft: () => <HeaderBackButton /> }} />
       <Stack.Screen name="scoped-chat" options={{ title: 'Chat' }} />
       <Stack.Screen name="search" options={{ title: 'Search' }} />
     </Stack>

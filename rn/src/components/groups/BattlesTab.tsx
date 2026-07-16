@@ -7,7 +7,7 @@ import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
 import { FilterChip } from '@/components/FilterChip';
-import { Colors, Spacing, Typography } from '@/constants/theme';
+import { Colors, Layout, Spacing, Typography } from '@/constants/theme';
 import { courseService } from '@/services/courseService';
 import { studyGroupService, type Battle } from '@/services/studyGroupService';
 import type { Course } from '@/types';
@@ -111,7 +111,7 @@ const styles = StyleSheet.create({
     borderRadius: 8, padding: Spacing.two,
   },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
-  formActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: Spacing.three, alignItems: 'center' },
+  formActions: { ...Layout.row, justifyContent: 'flex-end', gap: Spacing.three },
   cancelText: { ...Typography.captionBold, color: Colors.textSecondary },
   battleCard: { gap: 4 },
   battleTitle: { ...Typography.bodyBold, color: Colors.textPrimary },

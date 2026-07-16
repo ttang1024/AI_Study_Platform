@@ -32,8 +32,8 @@ public class GetSmartSessionQueryHandler : IRequestHandler<GetSmartSessionQuery,
     {
         var userId = request.UserId;
 
-        var documents = (await _unitOfWork.Documents.FindAsync(d => d.UserId == userId, ct)).ToList();
-        var videos = (await _unitOfWork.Videos.FindAsync(v => v.UserId == userId, ct)).ToList();
+        var documents = (await _unitOfWork.Documents.FindAsNoTrackingAsync(d => d.UserId == userId, ct)).ToList();
+        var videos = (await _unitOfWork.Videos.FindAsNoTrackingAsync(v => v.UserId == userId, ct)).ToList();
         var docToCourse = documents.ToDictionary(d => d.DocumentId, d => d.CourseId);
         var videoToCourse = videos.ToDictionary(v => v.VideoId, v => v.CourseId);
 
@@ -69,8 +69,13 @@ public class GetSmartSessionQueryHandler : IRequestHandler<GetSmartSessionQuery,
         }
 
         // ── 2. Open mistakes (most-missed first) ──
-        var mistakes = (await _unitOfWork.MistakeEntries.FindAsync(
-                m => m.UserId == userId && m.Status == "open", ct))
+        //
+        // Mistakes promoted to a flashcard are excluded: that card is already in pool 1 above, and FSRS
+        // is now the thing scheduling this question. Including both would deal the same question twice in
+        // one session. The entry stays "open" in the notebook — it is only resolved by answering it right —
+        // it just stops being served here directly.
+        var mistakes = (await _unitOfWork.MistakeEntries.FindAsNoTrackingAsync(
+                m => m.UserId == userId && m.Status == "open" && m.FlashcardId == null, ct))
             .OrderByDescending(m => m.TimesMissed)
             .ThenByDescending(m => m.LastMissedAt)
             .Take(MaxMistakes)

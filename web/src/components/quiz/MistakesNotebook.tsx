@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   CheckCircle2, RotateCcw, Trash2, Sparkles, ChevronDown, ChevronUp,
-  ExternalLink, X, Loader2,
+  ExternalLink, X, Loader2, Layers,
 } from 'lucide-react';
 import { mistakesService, type Mistake, type VariantQuestion } from '../../services/mistakesService';
 import { isQuizOptionCorrect } from '../../utils/quizAnswers';
@@ -193,6 +193,14 @@ const MistakeCard: React.FC<{
               <RotateCcw size={12} /> Reopen
             </button>
           )}
+          {mistake.flashcardId && (
+            <span
+              className="inline-flex items-center gap-1 text-xs font-medium text-teal-700 bg-teal-50 border border-teal-200 px-2 py-1 rounded-lg"
+              title="This mistake is a flashcard and is scheduled by spaced repetition"
+            >
+              <Layers size={11} /> Flashcard
+            </span>
+          )}
           <button
             onClick={() => onDelete(mistake)}
             className="ml-auto p-1.5 rounded-lg text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors"
@@ -217,6 +225,8 @@ export const MistakesNotebook: React.FC = () => {
   const [filter, setFilter] = useState<Filter>('open');
   const [practicing, setPracticing] = useState<Mistake | null>(null);
   const [retryQuestions, setRetryQuestions] = useState<QuizQuestion[]>([]);
+  const [promoting, setPromoting] = useState(false);
+  const [promoteNote, setPromoteNote] = useState<string | null>(null);
 
   const load = useCallback(() => {
     mistakesService.getMistakes()
@@ -243,12 +253,34 @@ export const MistakesNotebook: React.FC = () => {
 
   const openMistakes = useMemo(() => (data?.items ?? []).filter((m) => m.status === 'open'), [data]);
 
+  // Only the open mistakes that aren't already cards — the button is pointless if there's nothing new
+  // to promote, and saying so up front beats a request that comes back "0 created".
+  const promotable = useMemo(() => openMistakes.filter((m) => !m.flashcardId), [openMistakes]);
+
+  const handlePromote = async () => {
+    setPromoting(true);
+    setPromoteNote(null);
+    try {
+      const result = await mistakesService.promoteToFlashcards();
+      setPromoteNote(
+        result.created > 0
+          ? `Added ${result.created} flashcard${result.created === 1 ? '' : 's'} — due for review now.`
+          : 'Every open mistake already has a flashcard.',
+      );
+      load(); // refresh so the promoted rows show their "flashcard" badge
+    } catch {
+      setPromoteNote('Could not create flashcards.');
+    } finally {
+      setPromoting(false);
+    }
+  };
+
   const handleRetryAll = () => {
     setRetryQuestions(openMistakes.slice(0, 50).map((m) => ({
       id: m.quizId ?? m.id,
       question: m.question,
       options: m.options.length > 0 ? m.options : undefined,
-      answer: m.correctAnswer,
+      correctAnswer: m.correctAnswer,
       explanation: m.explanation,
       type: m.options.length > 0 ? 'multiple-choice' as const : 'short-answer' as const,
     })));
@@ -273,14 +305,35 @@ export const MistakesNotebook: React.FC = () => {
             {label}
           </button>
         ))}
+        {/* Promoting hands the question to FSRS, which is the thing that actually schedules repeat
+            exposure — a one-off retry does not. */}
+        <button
+          onClick={handlePromote}
+          disabled={promoting || promotable.length === 0}
+          title={
+            promotable.length === 0
+              ? 'Every open mistake already has a flashcard'
+              : 'Create flashcards from these mistakes, due for review now'
+          }
+          className="ml-auto inline-flex items-center gap-1.5 text-xs font-bold border border-gray-200 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-50 disabled:opacity-40 transition-colors"
+        >
+          {promoting ? <Loader2 size={12} className="animate-spin" /> : <Layers size={12} />}
+          {promotable.length > 0 ? `Make ${promotable.length} flashcard${promotable.length === 1 ? '' : 's'}` : 'Make flashcards'}
+        </button>
         <button
           onClick={handleRetryAll}
           disabled={openMistakes.length === 0}
-          className="ml-auto inline-flex items-center gap-1.5 text-xs font-bold bg-primary text-white px-3 py-1.5 rounded-lg hover:opacity-90 disabled:opacity-40 transition-opacity"
+          className="inline-flex items-center gap-1.5 text-xs font-bold bg-primary text-white px-3 py-1.5 rounded-lg hover:opacity-90 disabled:opacity-40 transition-opacity"
         >
           <RotateCcw size={12} /> Retry all open
         </button>
       </div>
+
+      {promoteNote && (
+        <p className="text-xs text-text-muted bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+          {promoteNote}
+        </p>
+      )}
 
       {loading ? (
         <div className="space-y-3 animate-pulse">

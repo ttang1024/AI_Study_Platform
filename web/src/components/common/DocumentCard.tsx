@@ -18,6 +18,7 @@ interface DocumentCardProps {
   to?: string;
   compact?: boolean;
   onDelete?: () => void;
+  onDeleted?: () => void;
   onUpdated?: (doc: Document) => void;
 }
 
@@ -45,7 +46,7 @@ const FILE_META: Record<string, { icon: React.ElementType; label: string; emoji:
   podcast: { icon: CONTENT_TYPE_ICONS.podcast.icon, label: 'Podcast', emoji: CONTENT_TYPE_ICONS.podcast.emoji },
 };
 
-export const DocumentCard: React.FC<DocumentCardProps> = ({ doc, course, to, compact = false, onDelete, onUpdated }) => {
+export const DocumentCard: React.FC<DocumentCardProps> = ({ doc, course, to, compact = false, onDelete, onDeleted, onUpdated }) => {
   const { courses, deleteDocument, updateDocumentInList } = useStudy();
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -99,7 +100,7 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({ doc, course, to, com
 
   const handleDelete = async () => {
     setIsDeleting(true);
-    try { await deleteDocument(doc.courseId || '', doc.id); }
+    try { await deleteDocument(doc.courseId || '', doc.id); onDeleted?.(); }
     finally { setIsDeleting(false); setShowDeleteModal(false); }
   };
 

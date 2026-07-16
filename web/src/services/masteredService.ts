@@ -1,4 +1,9 @@
-import { apiClient } from './apiClient';
+// Server calls moved to the shared package (packages/core, glossaryService);
+// the per-user localStorage cache layered on top is web-only and stays here.
+import { createGlossaryService } from '@core/services/glossaryService';
+import { http } from './http';
+
+const core = createGlossaryService(http);
 
 const CACHE_KEY = (userId: string) => `glossary_mastered_${userId}`;
 
@@ -6,8 +11,7 @@ export const masteredService = {
   /** Load mastered term IDs from the server and update the local cache. */
   async loadFromServer(userId: string): Promise<Set<string>> {
     try {
-      const res = await apiClient.get<{ data: string[] }>('/api/glossary/mastered');
-      const ids = new Set(res.data.data ?? []);
+      const ids = new Set(await core.getMasteredIds());
       localStorage.setItem(CACHE_KEY(userId), JSON.stringify([...ids]));
       return ids;
     } catch {
@@ -18,8 +22,7 @@ export const masteredService = {
 
   /** Toggle mastery on the server and return the new mastered state. */
   async toggle(userId: string, termId: string): Promise<boolean> {
-    const res = await apiClient.post<{ data: boolean }>(`/api/glossary/mastered/${termId}`);
-    return res.data.data;
+    return core.toggleMastered(termId);
   },
 
   getCached(userId: string): Set<string> {

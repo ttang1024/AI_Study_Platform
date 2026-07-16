@@ -10,7 +10,6 @@ import { PomodoroTimer } from './components/common/PomodoroTimer';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { EmailVerificationPage } from './pages/EmailVerificationPage';
-import { LandingPage } from './pages/LandingPage';
 import { OAuthCallbackPage } from './pages/OAuthCallbackPage';
 
 // All authenticated pages are lazy so heavy dependencies (d3/markmap, katex,
@@ -20,6 +19,14 @@ const lazyPage = <T extends Record<string, React.ComponentType<any>>, K extends 
   loader: () => Promise<T>,
   name: K,
 ) => lazy(() => loader().then((mod) => ({ default: mod[name] })));
+
+// The landing page is lazy too — it drags the whole motion/react animation stack
+// (~100 KB gzip) plus the bento cards into whatever chunk holds it, and signed-in
+// loads never render it. Anonymous visitors start fetching it immediately (in
+// parallel with app bootstrap) so their first paint still waits on ~one request.
+const landingLoader = () => import('./pages/LandingPage');
+if (!localStorage.getItem('sp_access_token')) void landingLoader();
+const LandingPage = lazyPage(landingLoader, 'LandingPage');
 
 const DashboardPage = lazyPage(() => import('./pages/DashboardPage'), 'DashboardPage');
 const LibraryPage = lazyPage(() => import('./pages/LibraryPage'), 'LibraryPage');
@@ -45,6 +52,7 @@ const CourseStudyPage = lazyPage(() => import('./pages/CourseStudyPage'), 'Cours
 const SharedContentPage = lazyPage(() => import('./pages/SharedContentPage'), 'SharedContentPage');
 const PlannerPage = lazyPage(() => import('./pages/PlannerPage'), 'PlannerPage');
 const PracticePage = lazyPage(() => import('./pages/PracticePage'), 'PracticePage');
+const HandwritingPage = lazyPage(() => import('./pages/HandwritingPage'), 'HandwritingPage');
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -90,6 +98,7 @@ export default function App() {
                     {/* The Today plan now lives as the dashboard hero + the Insights → Analytics tab. */}
                     <Route path="today" element={<Navigate to="/dashboard" replace />} />
                     <Route path="practice" element={<PracticePage />} />
+                    <Route path="handwriting" element={<HandwritingPage />} />
                     <Route path="library" element={<LibraryPage />} />
                     <Route path="documents" element={<Navigate to="/library" replace />} />
                     <Route path="videos" element={<Navigate to="/library?type=videos" replace />} />

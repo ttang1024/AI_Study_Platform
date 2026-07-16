@@ -3,7 +3,7 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import type { LucideIcon } from 'lucide-react-native';
 
-import { Alpha, Colors, Gradients, Radius } from '@/constants/theme';
+import { Alpha, Colors, Gradients, Layout, Radius } from '@/constants/theme';
 
 interface IconBadgeProps {
   icon: LucideIcon;
@@ -40,5 +40,5 @@ export const IconBadge: React.FC<IconBadgeProps> = ({ icon: Icon, color = Colors
 };
 
 const styles = StyleSheet.create({
-  badge: { alignItems: 'center', justifyContent: 'center' },
+  badge: { ...Layout.center },
 });

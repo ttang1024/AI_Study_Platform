@@ -1,6 +1,8 @@
 services:
   postgres:
-    image: postgres:17-alpine
+    # pgvector/pgvector is stock Postgres 17 with the vector extension preinstalled — semantic
+    # search creates it on migrate, which plain postgres:17-alpine cannot do.
+    image: pgvector/pgvector:pg17
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-studyplatform}

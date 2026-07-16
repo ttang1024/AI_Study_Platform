@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Flame, Target, CalendarClock, Loader2, Check, Pencil } from 'lucide-react';
-import { analyticsService, type DashboardSummary } from '../../services/analyticsService';
+import { Flame, Target, CalendarClock, Loader2, Check, Pencil, Snowflake, Plane, X } from 'lucide-react';
+import { analyticsService, invalidateDashboardSummaryCache, type DashboardSummary, type StudyStreak } from '../../services/analyticsService';
 
 const CARD_SHADOW = '0 1px 3px rgba(0,0,0,0.06), 0 6px 20px rgba(0,0,0,0.05)';
 const GOAL_PRESETS = [15, 30, 45, 60, 90];
@@ -26,25 +26,107 @@ const TileSkeleton: React.FC = () => (
   </Tile>
 );
 
-// ─── Streak ───────────────────────────────────────────────────────────────────────
-const StreakTile: React.FC<{ current: number; longest: number }> = ({ current, longest }) => {
+// ─── Streak (with freeze bank + vacation mode) ─────────────────────────────────────
+const StreakTile: React.FC<{ streak: StudyStreak; onChanged: () => void }> = ({ streak, onChanged }) => {
+  const { currentStreak: current, longestStreak: longest, freezesAvailable, vacationUntil } = streak;
   const lit = current > 0;
+  const [planning, setPlanning] = useState(false);
+  const [untilDate, setUntilDate] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const onVacation = vacationUntil != null && new Date(vacationUntil) >= new Date(new Date().toDateString());
+
+  const scheduleVacation = async () => {
+    if (!untilDate) return;
+    setSaving(true);
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      await analyticsService.setVacation(today, untilDate);
+      invalidateDashboardSummaryCache();
+      setPlanning(false);
+      onChanged();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const cancelVacation = async () => {
+    setSaving(true);
+    try {
+      await analyticsService.cancelVacation();
+      invalidateDashboardSummaryCache();
+      onChanged();
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <Tile>
       <div
         className="shrink-0 w-11 h-11 rounded-xl flex items-center justify-center"
-        style={{ background: lit ? 'rgba(249,115,22,0.12)' : 'rgba(0,0,0,0.04)' }}
+        style={{ background: onVacation ? 'rgba(59,130,246,0.12)' : lit ? 'rgba(249,115,22,0.12)' : 'rgba(0,0,0,0.04)' }}
       >
-        <Flame size={20} className={lit ? 'text-orange-500' : 'text-zinc-300'} fill={lit ? 'currentColor' : 'none'} />
+        {onVacation
+          ? <Plane size={20} className="text-blue-500" />
+          : <Flame size={20} className={lit ? 'text-orange-500' : 'text-zinc-300'} fill={lit ? 'currentColor' : 'none'} />}
       </div>
-      <div className="min-w-0">
-        <p className="text-[11px] font-semibold text-text-muted">Study streak</p>
-        <p className="text-2xl font-bold leading-none text-text-main tracking-tight mt-1 tabular-nums">
-          {current} <span className="text-sm font-semibold text-text-muted">day{current === 1 ? '' : 's'}</span>
-        </p>
-        <p className="text-[11px] text-text-muted mt-1">
-          {lit ? `Longest: ${longest} day${longest === 1 ? '' : 's'}` : 'Study today to start a streak'}
-        </p>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1.5">
+          <p className="text-[11px] font-semibold text-text-muted">Study streak</p>
+          {freezesAvailable > 0 && (
+            <span
+              className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-sky-50 text-sky-600 text-[10px] font-bold tabular-nums"
+              title={`${freezesAvailable} streak freeze${freezesAvailable === 1 ? '' : 's'} banked — auto-used if you miss a day`}
+            >
+              <Snowflake size={10} /> {freezesAvailable}
+            </span>
+          )}
+          <button
+            onClick={() => setPlanning(v => !v)}
+            className="text-text-muted hover:text-blue-500 transition-colors"
+            title="Vacation mode — pause your streak for planned time off"
+          >
+            <Plane size={11} />
+          </button>
+        </div>
+        {planning ? (
+          <div className="flex items-center gap-1.5 mt-1.5">
+            <input
+              type="date"
+              value={untilDate}
+              min={new Date().toISOString().slice(0, 10)}
+              onChange={e => setUntilDate(e.target.value)}
+              className="text-[11px] border border-zinc-200 rounded-md px-1.5 py-1 text-text-main"
+            />
+            <button
+              onClick={scheduleVacation}
+              disabled={!untilDate || saving}
+              className="px-2 py-1 rounded-md bg-blue-500 text-white text-[11px] font-semibold disabled:opacity-50"
+            >
+              Pause
+            </button>
+            <button onClick={() => setPlanning(false)} className="text-text-muted hover:text-text-main">
+              <X size={12} />
+            </button>
+          </div>
+        ) : (
+          <>
+            <p className="text-2xl font-bold leading-none text-text-main tracking-tight mt-1 tabular-nums">
+              {current} <span className="text-sm font-semibold text-text-muted">day{current === 1 ? '' : 's'}</span>
+            </p>
+            {onVacation ? (
+              <p className="text-[11px] text-blue-500 mt-1">
+                On vacation until {new Date(vacationUntil!).toLocaleDateString()} ·{' '}
+                <button onClick={cancelVacation} disabled={saving} className="underline hover:text-blue-600">resume</button>
+              </p>
+            ) : (
+              <p className="text-[11px] text-text-muted mt-1">
+                {lit ? `Longest: ${longest} day${longest === 1 ? '' : 's'}` : 'Study today to start a streak'}
+              </p>
+            )}
+          </>
+        )}
       </div>
     </Tile>
   );
@@ -168,7 +250,11 @@ const DueTile: React.FC<{ due: number }> = ({ due }) => {
 };
 
 // ─── Strip ────────────────────────────────────────────────────────────────────────
-export const DashboardTodayStrip: React.FC<{ summary: DashboardSummary | null; loading: boolean }> = ({ summary, loading }) => {
+export const DashboardTodayStrip: React.FC<{
+  summary: DashboardSummary | null;
+  loading: boolean;
+  onRefresh?: () => void;
+}> = ({ summary, loading, onRefresh }) => {
   if (loading || !summary) {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -181,7 +267,7 @@ export const DashboardTodayStrip: React.FC<{ summary: DashboardSummary | null; l
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-      <StreakTile current={summary.streak.currentStreak} longest={summary.streak.longestStreak} />
+      <StreakTile streak={summary.streak} onChanged={() => onRefresh?.()} />
       <GoalTile todayMinutes={summary.streak.todayMinutes} goalMinutes={summary.dailyGoalMinutes} />
       <DueTile due={summary.dueFlashcards} />
     </div>

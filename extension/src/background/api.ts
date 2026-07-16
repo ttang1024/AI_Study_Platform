@@ -2,6 +2,7 @@
 // the X-AI-* provider headers, retries once after a token refresh on 401, and
 // maps auth failures to friendly messages for the panel.
 
+import { buildAiHeaders } from '@core/ai'
 import { getAiSettings, getConfig } from './config'
 import { ensureToken, refreshAccessToken } from './auth'
 
@@ -20,9 +21,7 @@ async function buildHeaders(opts: { auth: boolean; ai: boolean; json: boolean })
 	if (opts.ai) {
 		const settings = await getAiSettings()
 		if (!settings) throw new AuthError('NO_AI')
-		headers['X-AI-Provider'] = settings.provider
-		headers['X-AI-Model'] = settings.model
-		if (settings.key) headers['X-AI-Key'] = settings.key
+		Object.assign(headers, buildAiHeaders(settings))
 	}
 	return headers
 }

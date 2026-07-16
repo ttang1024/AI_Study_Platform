@@ -16,6 +16,15 @@ public interface IVideoRepository : IRepository<Video>
     Task<(IEnumerable<VideoListItem> Items, int TotalCount)> GetPagedLiteAsync(
         Guid userId, int page, int pageSize, CancellationToken cancellationToken = default);
 
+    /// <summary>Video count per course for a user, in one grouped query.</summary>
+    Task<IReadOnlyDictionary<Guid, int>> GetCountsByCourseAsync(Guid userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Maps every one of a user's videos to the course it belongs to, without materialising the rows —
+    /// videos carry transcripts, and callers that only need the attribution should not pay for those.
+    /// </summary>
+    Task<IReadOnlyDictionary<Guid, Guid>> GetVideoCourseMapAsync(Guid userId, CancellationToken cancellationToken = default);
+
     Task<Video?> GetByIdForUserAsync(Guid id, Guid userId, CancellationToken cancellationToken = default);
     Task<Video?> GetByIdWithCourseAsync(Guid id, CancellationToken cancellationToken = default);
     Task<Video?> GetByExternalVideoIdAsync(string externalVideoId, CancellationToken cancellationToken = default);

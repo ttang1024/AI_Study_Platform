@@ -4,7 +4,7 @@ import React from 'react';
 import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Alpha, Colors, Gradients, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
+import { Alpha, Colors, Gradients, Layout, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
 
 interface AuthScaffoldProps {
   title: string;
@@ -78,8 +78,7 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: Radius.lg,
     backgroundColor: Colors.bgCard,
-    alignItems: 'center',
-    justifyContent: 'center',
+    ...Layout.center,
     marginBottom: Spacing.two,
     ...Shadows.float,
   },

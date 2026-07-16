@@ -4,6 +4,8 @@ import { defineConfig } from 'vitest/config'
 export default defineConfig({
   resolve: {
     alias: {
+      // Keep in sync with vite.config.ts — the shared packages/core package.
+      '@core': path.resolve(__dirname, '../packages/core/src'),
       '@': path.resolve(__dirname, '.'),
     },
   },

@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { BarChart } from '@/components/charts/BarChart';
 import { Card } from '@/components/Card';
@@ -29,19 +29,48 @@ export default function InsightsScreen() {
   const [timeOnTask, setTimeOnTask] = useState<TimeOnTask | null>(null);
   const [accuracy, setAccuracy] = useState<DailyQuizAccuracy[] | null>(null);
   const [mastery, setMastery] = useState<CourseMastery[] | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
+  const refresh = async () => {
+    setRefreshing(true);
     const from = new Date();
     from.setDate(from.getDate() - (days - 1));
+    try {
+      const [t, a, m] = await Promise.all([
+        analyticsService.getTimeOnTask(from),
+        analyticsService.getQuizAccuracy(from),
+        analyticsService.getCourseMastery(),
+      ]);
+      setTimeOnTask(t);
+      setAccuracy(a);
+      setMastery(m);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  // Clearing the charts happens in the range-change handler (an event), not the
+  // effect below — setState synchronously inside an effect body triggers
+  // cascading renders (react-hooks/set-state-in-effect).
+  const changeRange = (value: RangeOption) => {
+    setRangeOption(value);
     setTimeOnTask(null);
     setAccuracy(null);
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    const from = new Date();
+    from.setDate(from.getDate() - (days - 1));
     Promise.all([
       analyticsService.getTimeOnTask(from),
       analyticsService.getQuizAccuracy(from),
     ]).then(([t, a]) => {
+      if (cancelled) return;
       setTimeOnTask(t);
       setAccuracy(a);
     });
+    return () => { cancelled = true; };
   }, [days]);
 
   useEffect(() => {
@@ -65,8 +94,12 @@ export default function InsightsScreen() {
   const courseTimeTotal = topCourseTime.reduce((sum, c) => sum + c.totalSeconds, 0) || 1;
 
   return (
-    <ScrollView style={styles.root} contentContainerStyle={styles.content}>
-      <SegmentedTabs value={rangeOption} onChange={setRangeOption} options={RANGES} />
+    <ScrollView
+      style={styles.root}
+      contentContainerStyle={styles.content}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={Colors.primary} />}
+    >
+      <SegmentedTabs value={rangeOption} onChange={changeRange} options={RANGES} />
 
       <LinearGradient colors={Gradients.hero} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.heroCard}>
         <StatTile label="Time on task" value={`${totalMinutes}m`} />

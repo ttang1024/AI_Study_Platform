@@ -10,14 +10,16 @@ import { cn } from '../../utils/cn';
 import { isQuizOptionCorrect } from '../../utils/quizAnswers';
 import { getApiErrorCode } from '../../utils/apiError';
 import { EmptyGenerationState, GenerationFailedState } from '../common/GenerationStates';
+import { ConfidencePicker } from './ConfidencePicker';
 import { usePrompt } from '../common/PromptBox';
 
-type QuizDifficulty = 'easy' | 'medium' | 'hard';
+type QuizDifficulty = 'easy' | 'medium' | 'hard' | 'adaptive';
 
 const QUIZ_DIFFICULTIES: Array<{ value: QuizDifficulty; label: string; detail: string }> = [
   { value: 'easy', label: 'Beginner', detail: 'Recall + Understanding' },
   { value: 'medium', label: 'Intermediate', detail: 'Understanding + Application' },
   { value: 'hard', label: 'Advanced', detail: 'Application + Analysis' },
+  { value: 'adaptive', label: 'Adaptive', detail: 'Aimed at your weak spots' },
 ];
 
 interface DocumentQuizProps {
@@ -78,13 +80,17 @@ export const DocumentQuiz: React.FC<DocumentQuizProps> = ({
 
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [activeDifficulty, setActiveDifficulty] = useState<QuizDifficulty>(initialDifficulty);
-  const [questionSets, setQuestionSets] = useState<Record<QuizDifficulty, QuizQuestion[]>>({ easy: [], medium: [], hard: [] });
-  const [answerSets, setAnswerSets] = useState<Record<QuizDifficulty, Record<string, string>>>({ easy: {}, medium: {}, hard: {} });
-  const [submittedSets, setSubmittedSets] = useState<Record<QuizDifficulty, boolean>>({ easy: false, medium: false, hard: false });
-  const [scoreSets, setScoreSets] = useState<Record<QuizDifficulty, number>>({ easy: 0, medium: 0, hard: 0 });
-  const [errorSets, setErrorSets] = useState<Record<QuizDifficulty, string | null>>({ easy: null, medium: null, hard: null });
+  const [questionSets, setQuestionSets] = useState<Record<QuizDifficulty, QuizQuestion[]>>({ easy: [], medium: [], hard: [], adaptive: [] });
+  const [answerSets, setAnswerSets] = useState<Record<QuizDifficulty, Record<string, string>>>({ easy: {}, medium: {}, hard: {}, adaptive: {} });
+  const [submittedSets, setSubmittedSets] = useState<Record<QuizDifficulty, boolean>>({ easy: false, medium: false, hard: false, adaptive: false });
+  const [scoreSets, setScoreSets] = useState<Record<QuizDifficulty, number>>({ easy: 0, medium: 0, hard: 0, adaptive: 0 });
+  const [errorSets, setErrorSets] = useState<Record<QuizDifficulty, string | null>>({ easy: null, medium: null, hard: null, adaptive: null });
+  /** Why the server picked the level it did. Only set for the adaptive tab. */
+  const [adaptiveRationale, setAdaptiveRationale] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [userAnswers, setUserAnswers] = useState<Record<string, string>>({});
+  /** {questionId: 1|2|3}. Sparse — rating is optional, and an unrated question must stay unrated. */
+  const [confidence, setConfidence] = useState<Record<string, number>>({});
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [score, setScore] = useState(0);
   const [localError, setLocalError] = useState<string | null>(null);
@@ -94,11 +100,11 @@ export const DocumentQuiz: React.FC<DocumentQuizProps> = ({
     if (isExternal || !currentDocument?.courseId) return;
     const { courseId, id: docId } = currentDocument;
     setQuestions([]);
-    setQuestionSets({ easy: [], medium: [], hard: [] });
-    setAnswerSets({ easy: {}, medium: {}, hard: {} });
-    setSubmittedSets({ easy: false, medium: false, hard: false });
-    setScoreSets({ easy: 0, medium: 0, hard: 0 });
-    setErrorSets({ easy: null, medium: null, hard: null });
+    setQuestionSets({ easy: [], medium: [], hard: [], adaptive: [] });
+    setAnswerSets({ easy: {}, medium: {}, hard: {}, adaptive: {} });
+    setSubmittedSets({ easy: false, medium: false, hard: false, adaptive: false });
+    setScoreSets({ easy: 0, medium: 0, hard: 0, adaptive: 0 });
+    setErrorSets({ easy: null, medium: null, hard: null, adaptive: null });
     setUserAnswers({});
     setIsSubmitted(false);
     setScore(0);
@@ -110,7 +116,7 @@ export const DocumentQuiz: React.FC<DocumentQuizProps> = ({
       documentService.getQuizSubmission(courseId, docId),
     ])
       .then(([qs, submission]) => {
-        const grouped: Record<QuizDifficulty, QuizQuestion[]> = { easy: [], medium: [], hard: [] };
+        const grouped: Record<QuizDifficulty, QuizQuestion[]> = { easy: [], medium: [], hard: [], adaptive: [] };
         qs.forEach(q => grouped[(q.difficulty ?? 'medium') as QuizDifficulty].push(q));
         const targetDifficulty = targetQuestionId
           ? QUIZ_DIFFICULTIES.find(d => grouped[d.value].some(q => q.id === targetQuestionId))?.value
@@ -159,7 +165,22 @@ export const DocumentQuiz: React.FC<DocumentQuizProps> = ({
     setLocalError(null);
     setErrorSets(prev => ({ ...prev, [difficulty]: null }));
 
+    setAdaptiveRationale(null);
+
     try {
+      if (difficulty === 'adaptive') {
+        // The server chooses the level from this learner's history and aims the questions at what
+        // they keep getting wrong, so there is nothing to pass and a rationale comes back.
+        const { questions: data, rationale } = await documentService.generateAdaptiveQuiz(
+          currentDocument.courseId || '',
+          currentDocument.id,
+        );
+        setAdaptiveRationale(rationale);
+        setQuestions(data);
+        setQuestionSets(prev => ({ ...prev, adaptive: data }));
+        return;
+      }
+
       const data = await documentService.generateQuiz(
         currentDocument.courseId || '',
         currentDocument.id,
@@ -214,7 +235,7 @@ export const DocumentQuiz: React.FC<DocumentQuizProps> = ({
 
     let finalScore = 0;
     questions.forEach(q => {
-      if (userAnswers[q.id] && isQuizOptionCorrect(userAnswers[q.id], q.answer)) {
+      if (userAnswers[q.id] && isQuizOptionCorrect(userAnswers[q.id], q.correctAnswer)) {
         finalScore++;
       }
     });
@@ -236,6 +257,9 @@ export const DocumentQuiz: React.FC<DocumentQuizProps> = ({
           userAnswers,
           finalScore,
           questions.length,
+          // Send nothing rather than an empty object when the learner rated no questions — the server
+          // distinguishes "no data" from "rated", and an empty map would be neither.
+          Object.keys(confidence).length > 0 ? confidence : undefined,
         );
       } catch (error) {
         console.error('Failed to save quiz submission:', error);
@@ -253,7 +277,7 @@ export const DocumentQuiz: React.FC<DocumentQuizProps> = ({
 
   const difficultyTabs = (
     <div className="p-6 pb-0">
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
         {QUIZ_DIFFICULTIES.map(difficulty => {
           const isActive = difficulty.value === selectedDifficulty;
           const count = isExternal
@@ -277,6 +301,12 @@ export const DocumentQuiz: React.FC<DocumentQuizProps> = ({
           );
         })}
       </div>
+
+      {selectedDifficulty === 'adaptive' && adaptiveRationale && (
+        <p className="mt-3 rounded-lg border border-[var(--primary)]/20 bg-[var(--primary)]/5 px-3 py-2 text-xs text-text-muted">
+          {adaptiveRationale}
+        </p>
+      )}
     </div>
   );
 
@@ -357,7 +387,7 @@ export const DocumentQuiz: React.FC<DocumentQuizProps> = ({
             <div className="grid grid-cols-1 gap-2 pl-9">
               {q.options?.map((option) => {
                 const isSelected = activeAnswers[q.id] === option;
-                const isCorrect = isQuizOptionCorrect(option, q.answer);
+                const isCorrect = isQuizOptionCorrect(option, q.correctAnswer);
                 const showResult = activeSubmitted;
 
                 return (
@@ -382,6 +412,17 @@ export const DocumentQuiz: React.FC<DocumentQuizProps> = ({
               })}
             </div>
 
+            {/* Asked only once an answer is picked, and never after submitting: the rating has to be
+                made before the learner finds out whether they were right, or it measures nothing. */}
+            {!isExternal && !activeSubmitted && activeAnswers[q.id] && (
+              <div className="pl-9">
+                <ConfidencePicker
+                  value={confidence[q.id]}
+                  onChange={(level) => setConfidence(prev => ({ ...prev, [q.id]: level }))}
+                />
+              </div>
+            )}
+
             {activeSubmitted && (
               <div className="ml-9 p-4 rounded-xl bg-zinc-100/50 border border-zinc-200/50 space-y-2">
                 <div className="flex items-center gap-2 text-[10px] font-bold text-text-main uppercase tracking-wider">
@@ -391,6 +432,11 @@ export const DocumentQuiz: React.FC<DocumentQuizProps> = ({
                 <p className="text-[11px] text-text-muted leading-relaxed italic">
                   {q.explanation}
                 </p>
+                {confidence[q.id] === 3 && !isQuizOptionCorrect(activeAnswers[q.id] ?? '', q.correctAnswer) && (
+                  <p className="text-[11px] font-semibold text-amber-700">
+                    You were confident here and got it wrong — worth a closer look than the rest.
+                  </p>
+                )}
               </div>
             )}
           </div>

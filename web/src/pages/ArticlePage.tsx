@@ -398,7 +398,7 @@ export const ArticlePage: React.FC<{ embedded?: boolean; id?: string; courseId?:
           return qs.map(q => ({
             question: q.question,
             options: q.options ?? [],
-            correctAnswer: q.answer,
+            correctAnswer: q.correctAnswer,
             explanation: q.explanation ?? '',
             difficulty: q.difficulty ?? 'medium',
           } satisfies ShareableQuiz));

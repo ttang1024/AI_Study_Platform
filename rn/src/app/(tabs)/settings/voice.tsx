@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Check, Info } from 'lucide-react-native';
 
 import { Button } from '@/components/Button';
-import { Colors, Radius, Spacing } from '@/constants/theme';
+import { Alpha, Colors, Layout, Radius, Spacing } from '@/constants/theme';
 import { ttsSettingsService, type TtsSettings } from '@/services/ttsSettingsService';
 
 // Voice IDs mirror web/src/components/settings/VoiceTab.tsx (Microsoft Edge
@@ -143,18 +143,17 @@ export default function VoiceSettingsScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bgApp },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.bgApp },
+  center: { ...Layout.fillCenter, backgroundColor: Colors.bgApp },
   content: { padding: Spacing.three, gap: Spacing.three, paddingBottom: Spacing.six },
   hint: { fontSize: 12, color: Colors.textSecondary },
 
   section: { gap: 6 },
   sectionTitle: { fontSize: 12, fontWeight: '700', color: Colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.4 },
   voiceRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.md,
+    ...Layout.rowBetween, borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.md,
     backgroundColor: Colors.bgSidebar, paddingHorizontal: 14, paddingVertical: 12,
   },
-  voiceRowActive: { borderColor: Colors.primary, backgroundColor: `${Colors.primary}0d` },
+  voiceRowActive: { borderColor: Colors.primary, backgroundColor: `${Colors.primary}${Alpha.wash}` },
   voiceLabel: { fontSize: 14, color: Colors.textPrimary },
   voiceLabelActive: { fontWeight: '700', color: Colors.primary },
 

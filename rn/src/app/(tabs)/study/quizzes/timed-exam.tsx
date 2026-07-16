@@ -7,7 +7,7 @@ import { Button } from '@/components/Button';
 import { ExamResults } from '@/components/study/ExamResults';
 import { ExamRunning } from '@/components/study/ExamRunning';
 import { ExamSetup } from '@/components/study/ExamSetup';
-import { Colors, Spacing, Typography } from '@/constants/theme';
+import { Colors, Layout, Spacing, Typography } from '@/constants/theme';
 import type { QuizQuestion } from '@/types';
 import { examSessionStore } from '@/utils/examSession';
 import { isQuizOptionCorrect, shuffle } from '@/utils/quizAnswers';
@@ -109,6 +109,6 @@ export default function TimedExamScreen() {
 }
 
 const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.two, backgroundColor: Colors.bgApp },
+  center: { ...Layout.fillCenter, gap: Spacing.two, backgroundColor: Colors.bgApp },
   emptyText: { ...Typography.body, color: Colors.textSecondary },
 });

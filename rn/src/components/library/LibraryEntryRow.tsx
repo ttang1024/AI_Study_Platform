@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FadeInDown } from 'react-native-reanimated';
+import Swipeable, { type SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
 import {
   BookOpen,
   ChevronRight,
@@ -9,12 +11,14 @@ import {
   Newspaper,
   Play,
   Presentation,
+  Trash2,
   Video,
 } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
 
 import { IconBadge } from '@/components/IconBadge';
-import { Alpha, Colors, Overlay, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
+import { PressableScale } from '@/components/PressableScale';
+import { Alpha, Colors, Layout, Motion, Overlay, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
 import type { LibraryEntry } from '@/services/libraryService';
 import type { Document } from '@/types';
 
@@ -58,9 +62,13 @@ const formatDate = (value: string) => {
 interface LibraryEntryRowProps {
   entry: LibraryEntry;
   onPress: (entry: LibraryEntry) => void;
+  /** When provided, the row can be swiped left to reveal a Delete action. */
+  onDelete?: (entry: LibraryEntry) => void;
+  /** Position in the list — drives the entrance stagger. */
+  index?: number;
 }
 
-export const LibraryEntryRow: React.FC<LibraryEntryRowProps> = React.memo(function LibraryEntryRow({ entry, onPress }) {
+export const LibraryEntryRow: React.FC<LibraryEntryRowProps> = React.memo(function LibraryEntryRow({ entry, onPress, onDelete, index = 0 }) {
   const look = lookFor(entry);
   const title = entry.kind === 'document' ? entry.data.name : entry.data.title;
   const courseName = entry.data.courseName;
@@ -68,10 +76,28 @@ export const LibraryEntryRow: React.FC<LibraryEntryRowProps> = React.memo(functi
   const date = formatDate(entry.kind === 'document' ? entry.data.uploadDate : entry.data.createdAt);
   const thumbnailUrl = entry.kind === 'video' ? entry.data.thumbnailUrl : '';
 
-  return (
-    <Pressable
-      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+  const renderRightActions = useCallback(
+    (_progress: unknown, _translation: unknown, methods: SwipeableMethods) => (
+      <Pressable
+        style={styles.deleteAction}
+        onPress={() => { methods.close(); onDelete?.(entry); }}
+        accessibilityLabel={`Delete ${title}`}
+      >
+        <Trash2 size={20} color={Colors.white} />
+        <Text style={styles.deleteText}>Delete</Text>
+      </Pressable>
+    ),
+    [entry, onDelete, title],
+  );
+
+  const card = (
+    <PressableScale
+      style={styles.card}
       onPress={() => onPress(entry)}
+      // Rows slide in as the page lands. `Motion.stagger` caps the delay, so an
+      // appended page (index 20+) fades in promptly rather than after a
+      // second-long queue of per-item offsets.
+      entering={FadeInDown.delay(Motion.stagger(index, 35)).duration(Motion.duration.base)}
     >
       {thumbnailUrl ? (
         <View style={styles.thumbWrap}>
@@ -101,29 +127,51 @@ export const LibraryEntryRow: React.FC<LibraryEntryRowProps> = React.memo(functi
       </View>
 
       <ChevronRight size={16} color={Colors.zinc300} />
-    </Pressable>
+    </PressableScale>
+  );
+
+  if (!onDelete) return card;
+
+  return (
+    <Swipeable
+      renderRightActions={renderRightActions}
+      overshootRight={false}
+      friction={2}
+      rightThreshold={40}
+      containerStyle={styles.swipeContainer}
+    >
+      {card}
+    </Swipeable>
   );
 });
 
 const styles = StyleSheet.create({
+  // Rounded to match the card so the revealed action tucks under the row's corners.
+  swipeContainer: { borderRadius: Radius.lg },
+  deleteAction: {
+    ...Layout.center,
+    gap: 4,
+    width: 92,
+    marginLeft: Spacing.two,
+    backgroundColor: Colors.red,
+    borderRadius: Radius.lg,
+  },
+  deleteText: { fontSize: 12, fontWeight: '800', color: Colors.white },
   card: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    ...Layout.row,
     gap: 12,
     backgroundColor: Colors.bgCard,
     borderRadius: Radius.lg,
     padding: Spacing.three,
     ...Shadows.card,
   },
-  cardPressed: { opacity: 0.85 },
   thumbWrap: {
     width: 88,
     height: 52,
     borderRadius: Radius.md,
     overflow: 'hidden',
     backgroundColor: Colors.zinc200,
-    alignItems: 'center',
-    justifyContent: 'center',
+    ...Layout.center,
   },
   thumb: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   playBadge: {
@@ -131,21 +179,20 @@ const styles = StyleSheet.create({
     height: 24,
     borderRadius: 12,
     backgroundColor: Overlay.backdrop,
-    alignItems: 'center',
-    justifyContent: 'center',
+    ...Layout.center,
     // Optically center the triangular glyph.
     paddingLeft: 2,
   },
   body: { flex: 1, gap: 6 },
   title: { ...Typography.bodyBold, fontSize: 14, lineHeight: 19, color: Colors.textPrimary },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  metaRow: { ...Layout.row, gap: Spacing.two },
   typePill: {
     paddingHorizontal: Spacing.two,
     paddingVertical: 2,
     borderRadius: Radius.pill,
   },
   typePillText: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.3 },
-  courseWrap: { flexDirection: 'row', alignItems: 'center', gap: 5, flexShrink: 1 },
+  courseWrap: { ...Layout.row, gap: 5, flexShrink: 1 },
   courseDot: { width: 6, height: 6, borderRadius: 3 },
   metaText: { fontSize: 12, color: Colors.textSecondary },
 });

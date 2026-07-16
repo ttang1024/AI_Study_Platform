@@ -3,7 +3,7 @@ import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } fr
 
 import { ChatBubble } from '@/components/chat/ChatBubble';
 import { Composer } from '@/components/chat/Composer';
-import { Alpha, Colors, Radius, Spacing, Typography } from '@/constants/theme';
+import { Alpha, Colors, Layout, Radius, Spacing, Typography } from '@/constants/theme';
 import type { ConnectionState, GroupChatMessage } from '@/services/groupChatSocket';
 import { useAuth } from '@/context/AuthContext';
 
@@ -83,8 +83,7 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   statusRow: { alignItems: 'center', paddingTop: Spacing.two },
   statusPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    ...Layout.row,
     gap: 6,
     paddingHorizontal: 10,
     paddingVertical: 4,

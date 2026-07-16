@@ -1,17 +1,19 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Calendar, CalendarClock, ChevronRight, HelpCircle, Layers, Network, NotebookPen, Share2, SquareLibrary, Trophy, TrendingUp, Users, Zap } from 'lucide-react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Calendar, CalendarClock, ChevronRight, HelpCircle, Layers, Network, NotebookPen, Share2, SquareLibrary, Trophy, TrendingUp, Users, Zap , PenLine } from 'lucide-react-native';
 
 import { IconBadge } from '@/components/IconBadge';
-import { Colors, Gradients, Overlay, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
+import { PressableScale } from '@/components/PressableScale';
+import { Colors, Gradients, Layout, Overlay, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
 
 // Practice is promoted to the hero card above; everything else lives in the grid.
 const HUB_ITEMS = [
   { href: '/study/flashcards', icon: Layers, color: Colors.amber, title: 'Flashcards', subtitle: 'FSRS-scheduled review' },
   { href: '/study/quizzes', icon: HelpCircle, color: Colors.emerald, title: 'Quizzes', subtitle: 'Bank, history, mistakes' },
   { href: '/study/notes', icon: NotebookPen, color: Colors.orange, title: 'Notes', subtitle: 'Across your library' },
+  { href: '/study/handwriting', icon: PenLine, color: Colors.red, title: 'Check Working', subtitle: 'Grade handwritten solutions' },
   { href: '/study/glossary', icon: SquareLibrary, color: Colors.teal, title: 'Glossary', subtitle: 'Terms and definitions' },
   { href: '/study/planner', icon: CalendarClock, color: Colors.blue, title: 'Planner', subtitle: 'Exams, cram sheets, mocks' },
   { href: '/study/calendar', icon: Calendar, color: Colors.red, title: 'Calendar', subtitle: 'Everything, by day' },
@@ -26,7 +28,7 @@ export default function StudyHubScreen() {
   const router = useRouter();
   return (
     <ScrollView style={styles.root} contentContainerStyle={styles.content}>
-      <Pressable onPress={() => router.push('/study/practice')} style={({ pressed }) => pressed && styles.pressedDim}>
+      <PressableScale onPress={() => router.push('/study/practice')}>
         <LinearGradient colors={Gradients.hero} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
           <View style={styles.heroIcon}>
             <Zap size={22} color={Colors.white} />
@@ -37,19 +39,19 @@ export default function StudyHubScreen() {
           </View>
           <ChevronRight size={20} color={Overlay.onGradientMuted} />
         </LinearGradient>
-      </Pressable>
+      </PressableScale>
 
       <View style={styles.grid}>
         {HUB_ITEMS.map((item) => (
-          <Pressable
+          <PressableScale
             key={item.href}
-            style={({ pressed }) => [styles.tile, pressed && styles.tilePressed]}
+            style={styles.tile}
             onPress={() => router.push(item.href)}
           >
             <IconBadge icon={item.icon} color={item.color} size={44} iconSize={20} />
             <Text style={styles.tileTitle}>{item.title}</Text>
             <Text style={styles.tileSubtitle} numberOfLines={2}>{item.subtitle}</Text>
-          </Pressable>
+          </PressableScale>
         ))}
       </View>
     </ScrollView>
@@ -59,13 +61,12 @@ export default function StudyHubScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bgApp },
   content: { padding: Spacing.three, gap: Spacing.three, paddingBottom: Spacing.five },
-  pressedDim: { opacity: 0.85 },
 
   hero: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.three,
+    ...Layout.row, gap: Spacing.three,
     borderRadius: Radius.xl, padding: Spacing.three, ...Shadows.primaryGlow,
   },
-  heroIcon: { width: 44, height: 44, borderRadius: Radius.md, backgroundColor: Overlay.glass, alignItems: 'center', justifyContent: 'center' },
+  heroIcon: { width: 44, height: 44, borderRadius: Radius.md, backgroundColor: Overlay.glass, ...Layout.center },
   heroBody: { flex: 1 },
   heroTitle: { ...Typography.subheading, color: Colors.white },
   heroSubtitle: { ...Typography.caption, color: Overlay.onGradientMuted, marginTop: 2 },

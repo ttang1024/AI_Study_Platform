@@ -5,7 +5,7 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { ClipboardPaste, Share2 } from 'lucide-react-native';
 
 import { Button } from '@/components/Button';
-import { Colors, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
+import { Alpha, Colors, Layout, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
 import { extractShareToken } from '@/services/shareService';
 
 /**
@@ -73,8 +73,8 @@ const styles = StyleSheet.create({
     gap: Spacing.two, alignItems: 'stretch', ...Shadows.card,
   },
   iconWrap: {
-    width: 44, height: 44, borderRadius: Radius.md, backgroundColor: `${Colors.primary}1a`,
-    alignItems: 'center', justifyContent: 'center', alignSelf: 'center',
+    width: 44, height: 44, borderRadius: Radius.md, backgroundColor: `${Colors.primary}${Alpha.tint}`,
+    ...Layout.center, alignSelf: 'center',
   },
   heading: { ...Typography.heading, color: Colors.textPrimary, textAlign: 'center' },
   subtitle: { ...Typography.caption, color: Colors.textSecondary, textAlign: 'center' },
@@ -84,6 +84,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bgSidebar,
   },
   invalidText: { ...Typography.caption, color: Colors.red },
-  pasteRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 6 },
+  pasteRow: { ...Layout.row, justifyContent: 'center', gap: 6, paddingVertical: 6 },
   pasteText: { ...Typography.captionBold, color: Colors.primary },
 });

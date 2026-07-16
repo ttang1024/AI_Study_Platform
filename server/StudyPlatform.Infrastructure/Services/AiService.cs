@@ -15,57 +15,62 @@ public partial class AiService : IAiService
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly IAppCache _cache;
     private readonly CacheOptions _cacheOptions;
+    private readonly IAiUsageRecorder _usageRecorder;
 
     public AiService(
         HttpClient httpClient,
         ILogger<AiService> logger,
         IHttpContextAccessor httpContextAccessor,
         IAppCache cache,
-        IOptions<CacheOptions> cacheOptions)
+        IOptions<CacheOptions> cacheOptions,
+        IAiUsageRecorder usageRecorder)
     {
         _httpClient = httpClient;
         _logger = logger;
         _httpContextAccessor = httpContextAccessor;
         _cache = cache;
         _cacheOptions = cacheOptions.Value;
+        _usageRecorder = usageRecorder;
     }
 
-    // ── Request-scoped settings ───────────────────────────────────────────
+    // ── Credentials ───────────────────────────────────────────────────────
+    // Background jobs have no HttpContext, so they push the caller's captured credentials into
+    // AmbientAiCredentials before running. That takes precedence over the request headers.
 
-    private string ApiKey
+    private AiCredentials Credentials =>
+        AmbientAiCredentials.Value ?? CredentialsFromHeaders();
+
+    private AiCredentials CredentialsFromHeaders()
     {
-        get
-        {
-            var headerKey = _httpContextAccessor.HttpContext?.Request.Headers["X-AI-Key"].FirstOrDefault()?.Trim();
-            if (!string.IsNullOrWhiteSpace(headerKey))
-                return headerKey;
+        var headers = _httpContextAccessor.HttpContext?.Request.Headers;
 
-            throw new InvalidOperationException(
-                $"No API key configured for provider '{Provider}'. Please add your API key in Settings → AI Services.");
-        }
-    }
+        var provider = headers?["X-AI-Provider"].FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(provider))
+            throw new InvalidOperationException("No AI provider specified. Please configure a provider in Settings → AI Services.");
 
-    private string Model
-    {
-        get
-        {
-            var headerModel = _httpContextAccessor.HttpContext?.Request.Headers["X-AI-Model"].FirstOrDefault();
-            if (!string.IsNullOrWhiteSpace(headerModel))
-                return headerModel;
+        var model = headers?["X-AI-Model"].FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(model))
             throw new InvalidOperationException("No AI model specified. Please configure a model in Settings → AI Services.");
-        }
+
+        var key = headers?["X-AI-Key"].FirstOrDefault()?.Trim();
+        if (string.IsNullOrWhiteSpace(key))
+            throw new InvalidOperationException(
+                $"No API key configured for provider '{provider.ToLowerInvariant()}'. Please add your API key in Settings → AI Services.");
+
+        return new AiCredentials(provider.ToLowerInvariant(), model, key, CurrentUserId());
     }
 
-    private string Provider
+    private Guid CurrentUserId()
     {
-        get
-        {
-            var h = _httpContextAccessor.HttpContext?.Request.Headers["X-AI-Provider"].FirstOrDefault();
-            if (string.IsNullOrWhiteSpace(h))
-                throw new InvalidOperationException("No AI provider specified. Please configure a provider in Settings → AI Services.");
-            return h.ToLowerInvariant();
-        }
+        var claim = _httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
+                    ?? _httpContextAccessor.HttpContext?.User?.FindFirst(
+                        System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        return Guid.TryParse(claim, out var id) ? id : Guid.Empty;
     }
+
+    private string ApiKey => Credentials.ApiKey;
+    private string Model => Credentials.Model;
+    private string Provider => Credentials.Provider;
 
     // ── Gemini-only URLs (used for file/inline-data methods) ─────────────
 
@@ -119,6 +124,29 @@ public partial class AiService : IAiService
             "quiz:file",
             HashBytes(fileData, mimeType, prompt),
             ct => CallAiWithFileAsync(fileData, mimeType, prompt, ct),
+            cancellationToken);
+    }
+
+    public Task<string> GenerateAdaptiveQuizAsync(byte[] fileData, string mimeType, QuizPlan plan, CancellationToken cancellationToken = default)
+    {
+        var prompt = AiPrompts.AdaptiveQuiz(plan.Difficulty, plan.FocusTopics);
+
+        // The focus topics are part of the prompt, so they are part of the hash — a learner whose weak
+        // spots have moved on gets a fresh quiz rather than the cached one aimed at yesterday's gaps.
+        return CacheGeneratedResultAsync(
+            "quiz:adaptive:file",
+            HashBytes(fileData, mimeType, prompt),
+            ct => CallAiWithFileAsync(fileData, mimeType, prompt, ct),
+            cancellationToken);
+    }
+
+    public Task<string> GenerateAdaptiveQuizAsync(string textContent, QuizPlan plan, CancellationToken cancellationToken = default)
+    {
+        var prompt = $"{AiPrompts.AdaptiveQuiz(plan.Difficulty, plan.FocusTopics)}\n\nSource material:\n{AiResponseParsing.TruncateContent(textContent)}";
+        return CacheGeneratedResultAsync(
+            "quiz:adaptive:text",
+            HashText(prompt),
+            ct => SendTextAsync(null, [("user", prompt)], 0.7, 8192, cleanJson: true, ct),
             cancellationToken);
     }
 
@@ -300,10 +328,75 @@ Return a JSON array of suggested links only, no markdown, no code blocks:
             cancellationToken);
     }
 
+    public Task<string> GenerateAudioOverviewScriptAsync(string courseName, string materialsDigest, CancellationToken cancellationToken = default)
+    {
+        var prompt = $@"Write a lively two-host podcast dialogue that gives an engaging audio overview of the course ""{courseName}"".
+Host A (curious, asks sharp questions) and Host B (expert, explains clearly with concrete examples).
+Cover the most important concepts across the materials, connect them, and close with 2-3 key takeaways.
+Keep it conversational — short turns, natural interjections, no lists read aloud. Target 8-14 minutes of speech (roughly 1200-2000 words).
+
+Course materials digest:
+{AiResponseParsing.TruncateContent(materialsDigest, 12000)}
+
+Return ONLY a JSON array of dialogue turns, no markdown, no code blocks:
+[{{""speaker"":""A""|""B"",""text"":""...""}}]";
+        return CacheGeneratedResultAsync(
+            "audio-overview:text",
+            HashText(prompt),
+            ct => SendTextAsync(null, [("user", prompt)], 0.8, 8192, cleanJson: true, ct),
+            cancellationToken);
+    }
+
+    public Task<string> GradeHandwrittenWorkAsync(
+        IReadOnlyList<(byte[] data, string mimeType)> pages,
+        string? problemStatement,
+        CancellationToken cancellationToken = default)
+    {
+        if (pages.Count == 0)
+            throw new InvalidOperationException("At least one image of the work is required.");
+
+        var prompt = AiPrompts.GradeHandwrittenWork(problemStatement);
+
+        // Temperature is low: grading should be reproducible. A learner who re-submits the same photo
+        // and gets a different verdict has no reason to trust either one.
+        return CacheGeneratedResultAsync(
+            "grade-handwriting",
+            HashPages(pages, prompt),
+            ct => SendMultimodalTextAsync(
+                systemPrompt: null,
+                history: [],
+                userMessage: prompt,
+                attachments: pages,
+                temperature: 0.2,
+                maxTokens: 4096,
+                cleanJson: true,
+                cancellationToken: ct),
+            cancellationToken);
+    }
+
+    private static string HashPages(IReadOnlyList<(byte[] data, string mimeType)> pages, string prompt)
+    {
+        using var sha = SHA256.Create();
+        foreach (var (data, mimeType) in pages)
+        {
+            sha.TransformBlock(data, 0, data.Length, null, 0);
+            var meta = Encoding.UTF8.GetBytes(mimeType);
+            sha.TransformBlock(meta, 0, meta.Length, null, 0);
+        }
+
+        var suffix = Encoding.UTF8.GetBytes(prompt);
+        sha.TransformFinalBlock(suffix, 0, suffix.Length);
+
+        return Convert.ToHexString(sha.Hash!).ToLowerInvariant();
+    }
+
     public Task<string> ChatAsync(string documentContent, string userMessage, IEnumerable<(string role, string content)> history, CancellationToken cancellationToken = default)
     {
-        var prompt = AiPrompts.BuildDocumentChatPrompt(AiResponseParsing.TruncateContent(documentContent, 3000), string.Join("\n", history.Select(h => $"{h.role.ToUpper()}: {h.content}")), userMessage);
-        return SendTextAsync(null, [("user", prompt)], 0.7, 8192, cleanJson: false, cancellationToken);
+        // The document goes in the system block and the history stays as real turns, rather than all
+        // three being flattened into one user message. The system block is then byte-identical across
+        // a conversation, which is what lets the provider's prompt cache hit on every turn but the first.
+        var system = AiPrompts.BuildDocumentChatSystem(AiResponseParsing.TruncateContent(documentContent, 3000));
+        return SendTextAsync(system, history.Append(("user", userMessage)), 0.7, 8192, cleanJson: false, cancellationToken);
     }
 
 }

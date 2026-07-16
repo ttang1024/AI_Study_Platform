@@ -15,15 +15,18 @@ public class GenerateFlashcardsCommandHandler : IRequestHandler<GenerateFlashcar
     private readonly IUnitOfWork _unitOfWork;
     private readonly IAiService _aiService;
     private readonly IDocumentContentService _contentService;
+    private readonly IFlashcardDeduplicator _deduplicator;
 
     public GenerateFlashcardsCommandHandler(
         IUnitOfWork unitOfWork,
         IAiService aiService,
-        IDocumentContentService contentService)
+        IDocumentContentService contentService,
+        IFlashcardDeduplicator deduplicator)
     {
         _unitOfWork = unitOfWork;
         _aiService = aiService;
         _contentService = contentService;
+        _deduplicator = deduplicator;
     }
 
     public async Task<Result<IEnumerable<FlashcardDto>>> Handle(GenerateFlashcardsCommand request, CancellationToken cancellationToken)
@@ -76,12 +79,42 @@ public class GenerateFlashcardsCommandHandler : IRequestHandler<GenerateFlashcar
             };
         }).ToList();
 
-        await _unitOfWork.Flashcards.AddRangeAsync(flashcards, cancellationToken);
+        // This handler only reaches here when the document has no cards yet, so the duplicates worth
+        // catching come from *other* documents covering the same ground — the lecture slides and the
+        // textbook chapter behind them state the same facts in different words. Exact-text matching
+        // cannot see that; embeddings can. No-ops when embeddings are unconfigured.
+        var candidates = flashcards
+            .Select((f, index) => new FlashcardCandidate(index, f.Front, f.Back))
+            .ToList();
+
+        var dedup = await _deduplicator.FilterAsync(request.UserId, candidates, cancellationToken);
+        var keptKeys = dedup.Kept.Select(c => c.Key).ToHashSet();
+        var newCards = flashcards.Where((_, index) => keptKeys.Contains(index)).ToList();
+
+        if (newCards.Count == 0)
+        {
+            return Result<IEnumerable<FlashcardDto>>.Success(
+                Array.Empty<FlashcardDto>(),
+                "Every generated flashcard duplicates one you already have.");
+        }
+
+        await _unitOfWork.Flashcards.AddRangeAsync(newCards, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        var dtos = flashcards.Select(f => f.ToFlashcardDto());
+        // Index only after the insert commits: a card indexed before it exists would be a phantom the
+        // next generation deduplicates against.
+        await _deduplicator.IndexAsync(
+            request.UserId,
+            newCards.Select(f => (f.FlashcardId, f.Front, f.Back)).ToList(),
+            cancellationToken);
 
-        return Result<IEnumerable<FlashcardDto>>.Success(dtos, "Flashcards generated successfully.");
+        var dtos = newCards.Select(f => f.ToFlashcardDto());
+
+        var message = dedup.DuplicateCount > 0
+            ? $"Generated {newCards.Count} flashcard(s); skipped {dedup.DuplicateCount} that duplicate cards you already have."
+            : "Flashcards generated successfully.";
+
+        return Result<IEnumerable<FlashcardDto>>.Success(dtos, message);
     }
 
     private static List<AiFlashcardItem> DeserializeFlashcards(string flashcardsJson)

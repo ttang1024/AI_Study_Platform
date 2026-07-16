@@ -35,7 +35,6 @@ export const BentoPlayCard: React.FC = () => {
         title="Play Study Audio"
         gradient="from-teal-500 via-cyan-500 to-sky-600"
         iconGlow="0 6px 22px rgba(13,148,136,0.35)"
-        isNew
       />
 
       <div className="flex-1 rounded-xl p-4 mb-3 flex flex-col gap-3" style={{ background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(255,255,255,0.06)' }}>

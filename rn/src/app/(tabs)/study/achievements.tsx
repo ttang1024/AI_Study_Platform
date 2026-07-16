@@ -1,10 +1,10 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { ProgressBar } from '@/components/ProgressBar';
-import { Colors, Gradients, Overlay, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
+import { Colors, Gradients, Layout, Overlay, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
 import { statsService } from '@/services/statsService';
 import { ACHIEVEMENTS } from '@/utils/achievements';
 import type { UserStats } from '@/types';
@@ -19,10 +19,23 @@ const CATEGORY_COLORS: Record<string, string> = {
 export default function AchievementsScreen() {
   const [stats, setStats] = useState<UserStats | null>(null);
   const [error, setError] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     statsService.getUserStats().then(setStats).catch(() => setError(true));
   }, []);
+
+  const refresh = async () => {
+    setRefreshing(true);
+    try {
+      setStats(await statsService.getUserStats());
+      setError(false);
+    } catch {
+      setError(true);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   if (error) {
     return (
@@ -40,7 +53,11 @@ export default function AchievementsScreen() {
   const unlockedCount = all.filter((a) => a.unlocked).length;
 
   return (
-    <ScrollView style={styles.root} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.root}
+      contentContainerStyle={styles.content}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={Colors.primary} />}
+    >
       <LinearGradient colors={Gradients.amber} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
         <Text style={styles.heroCount}>{unlockedCount} / {all.length}</Text>
         <Text style={styles.heroLabel}>achievements unlocked</Text>
@@ -68,7 +85,7 @@ export default function AchievementsScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bgApp },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.bgApp },
+  center: { ...Layout.fillCenter, backgroundColor: Colors.bgApp },
   errorText: { ...Typography.caption, color: Colors.textSecondary },
   content: { padding: Spacing.three, gap: Spacing.three, paddingBottom: Spacing.five },
   hero: { borderRadius: Radius.xl, padding: Spacing.three, gap: Spacing.two, ...Shadows.card },

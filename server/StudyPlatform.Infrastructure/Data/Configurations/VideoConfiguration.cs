@@ -29,5 +29,8 @@ public class VideoConfiguration : IEntityTypeConfiguration<Video>
             .WithMany()
             .HasForeignKey(v => v.UserId)
             .OnDelete(DeleteBehavior.NoAction);
+
+        // Trigram index for the ILIKE '%term%' title search in VideoRepository/LibraryRepository.
+        builder.HasIndex(v => v.Title).HasMethod("gin").HasOperators("gin_trgm_ops");
     }
 }

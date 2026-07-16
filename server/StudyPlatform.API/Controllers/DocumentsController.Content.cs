@@ -282,7 +282,7 @@ public partial class DocumentsController
     public async Task<IActionResult> SaveQuizSubmission(Guid courseId, Guid documentId, [FromBody] SaveQuizSubmissionRequest request)
     {
         var userId = User.GetUserId();
-        var result = await _mediator.Send(new SaveQuizSubmissionCommand(documentId, userId, request.Answers, request.Score, request.Total));
+        var result = await _mediator.Send(new SaveQuizSubmissionCommand(documentId, userId, request.Answers, request.Score, request.Total, request.Confidence));
         if (!result.IsSuccess)
             return NotFound(BaseResponse<QuizSubmissionDto>.Fail(result.Message, result.ErrorCode));
 

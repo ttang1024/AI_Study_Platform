@@ -1,7 +1,7 @@
 import React from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
-import { Colors } from '@/constants/theme';
+import { Colors, Layout } from '@/constants/theme';
 
 export const LoadingScreen: React.FC = () => (
   <View style={styles.root}>
@@ -10,5 +10,5 @@ export const LoadingScreen: React.FC = () => (
 );
 
 const styles = StyleSheet.create({
-  root: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.bgApp },
+  root: { ...Layout.fillCenter, backgroundColor: Colors.bgApp },
 });

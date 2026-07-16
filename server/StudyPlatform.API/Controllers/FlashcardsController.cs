@@ -50,6 +50,47 @@ public class FlashcardsController : ControllerBase
     }
 
     /// <summary>
+    /// Export flashcards (optionally one course) as an Anki .apkg with scheduling state carried over
+    /// </summary>
+    [HttpGet("export/apkg")]
+    [ProducesResponseType(typeof(FileContentResult), 200)]
+    [ProducesResponseType(typeof(BaseResponse), 400)]
+    public async Task<IActionResult> ExportToAnki([FromQuery] Guid? courseId = null)
+    {
+        var userId = User.GetUserId();
+        var result = await _mediator.Send(new ExportFlashcardsToAnkiQuery(userId, courseId));
+        if (!result.IsSuccess)
+            return BadRequest(BaseResponse<object>.Fail(result.Message, result.ErrorCode));
+        return File(result.Data!.Bytes, "application/apkg", result.Data.FileName);
+    }
+
+    /// <summary>
+    /// Create an image-occlusion flashcard: multipart image + JSON mask rectangles
+    /// </summary>
+    [HttpPost("occlusion")]
+    [RequestSizeLimit(10 * 1024 * 1024)]
+    [ProducesResponseType(typeof(BaseResponse<FlashcardDto>), 201)]
+    [ProducesResponseType(typeof(BaseResponse), 400)]
+    public async Task<IActionResult> CreateOcclusionFlashcard(
+        IFormFile image,
+        [FromForm] string occlusions,
+        [FromForm] string? front = null,
+        [FromForm] string? back = null,
+        [FromForm] Guid? documentId = null)
+    {
+        if (image == null || image.Length == 0)
+            return BadRequest(BaseResponse<FlashcardDto>.Fail("Image file is required.", "IMAGE_REQUIRED"));
+
+        var userId = User.GetUserId();
+        await using var stream = image.OpenReadStream();
+        var result = await _mediator.Send(new CreateOcclusionFlashcardCommand(
+            userId, stream, image.FileName, image.ContentType, front ?? "", back ?? "", occlusions, documentId));
+        if (!result.IsSuccess)
+            return BadRequest(BaseResponse<FlashcardDto>.Fail(result.Message, result.ErrorCode));
+        return CreatedAtAction(nameof(GetAllFlashcards), BaseResponse<FlashcardDto>.Ok(result.Data!, result.Message));
+    }
+
+    /// <summary>
     /// Get materials that do not yet have generated flashcards for the authenticated user
     /// </summary>
     [HttpGet("pending-materials")]

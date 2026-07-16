@@ -3,7 +3,7 @@ import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from '
 import { ArrowLeft, Bot, MessageSquarePlus, Trash2 } from 'lucide-react-native';
 
 import { ChatThreadView } from '@/components/chat/ChatThreadView';
-import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
+import { Alpha, Colors, Layout, Radius, Spacing, Typography } from '@/constants/theme';
 import { chatService, ChatScopeType, ChatThreadSummary } from '@/services/chatService';
 
 interface ScopedChatPanelProps {
@@ -123,25 +123,25 @@ export const ScopedChatPanel: React.FC<ScopedChatPanelProps> = ({ sourceType, so
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bgApp },
-  backRow: { flexDirection: 'row', alignItems: 'center', gap: 6, padding: Spacing.three, paddingBottom: Spacing.two },
+  backRow: { ...Layout.row, gap: 6, padding: Spacing.three, paddingBottom: Spacing.two },
   backText: { ...Typography.captionBold, color: Colors.primary },
   newButton: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.two,
+    ...Layout.row, justifyContent: 'center', gap: Spacing.two,
     margin: Spacing.three, height: 48, borderRadius: Radius.md, backgroundColor: Colors.primary,
   },
   newButtonText: { color: Colors.primaryForeground, fontSize: 15, fontWeight: '700' },
   list: { paddingHorizontal: Spacing.three, paddingBottom: Spacing.five, gap: Spacing.two },
   card: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.two,
+    ...Layout.row, gap: Spacing.two,
     backgroundColor: Colors.bgSidebar, borderWidth: 1, borderColor: Colors.border,
     borderRadius: Radius.lg, padding: Spacing.three,
   },
-  cardIcon: { width: 36, height: 36, borderRadius: Radius.sm, backgroundColor: `${Colors.primary}1a`, alignItems: 'center', justifyContent: 'center' },
+  cardIcon: { width: 36, height: 36, borderRadius: Radius.sm, backgroundColor: `${Colors.primary}${Alpha.tint}`, ...Layout.center },
   cardBody: { flex: 1, minWidth: 0 },
   cardTitle: { fontSize: 14, fontWeight: '700', color: Colors.textPrimary },
   cardSubtitle: { fontSize: 12, color: Colors.textSecondary, marginTop: 2 },
   deleteButton: { padding: Spacing.one },
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.two, paddingHorizontal: Spacing.five },
+  empty: { ...Layout.fillCenter, gap: Spacing.two, paddingHorizontal: Spacing.five },
   emptyTitle: { fontSize: 16, fontWeight: '700', color: Colors.textPrimary },
   emptySubtitle: { fontSize: 13, color: Colors.textSecondary, textAlign: 'center' },
 });

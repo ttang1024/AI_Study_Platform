@@ -50,7 +50,7 @@ public class GetWeeklyDigestQueryHandler : IRequestHandler<GetWeeklyDigestQuery,
         var to = DateTime.UtcNow;
         var from = to.Date.AddDays(-6); // 7 calendar days including today
 
-        var sessions = (await _unitOfWork.StudySessions.FindAsync(
+        var sessions = (await _unitOfWork.StudySessions.FindAsNoTrackingAsync(
             s => s.UserId == userId && s.OccurredAt >= from, cancellationToken)).ToList();
         var minutesByDay = sessions
             .GroupBy(s => s.OccurredAt.Date)
@@ -65,7 +65,7 @@ public class GetWeeklyDigestQueryHandler : IRequestHandler<GetWeeklyDigestQuery,
         var reviews = await _unitOfWork.FlashcardSrs.CountAsync(
             s => s.UserId == userId && s.LastReview != null && s.LastReview >= from, cancellationToken);
 
-        var submissions = (await _unitOfWork.QuizSubmissions.FindAsync(
+        var submissions = (await _unitOfWork.QuizSubmissions.FindAsNoTrackingAsync(
             s => s.UserId == userId && s.SubmittedAt >= from, cancellationToken)).ToList();
         var quizCorrect = submissions.Sum(s => s.Score);
         var quizTotal = submissions.Sum(s => s.Total);

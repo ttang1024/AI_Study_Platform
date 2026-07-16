@@ -154,6 +154,79 @@ const questionBank = [
   },
 ]
 
+// The Library page reads the unified GET /api/library, not /api/documents + /api/videos.
+// These are the merged rows that endpoint returns, in its BackendLibraryItem shape.
+interface LibraryRow {
+  kind: 'document' | 'video'
+  id: string
+  courseId: string
+  courseName: string
+  courseColor: string
+  createdAt: string
+  fileName?: string
+  blobUrl?: string
+  contentType?: string
+  fileSize?: number
+  originalUrl?: string
+  summary?: string
+  title?: string
+  videoId?: string
+  videoUrl?: string
+  thumbnailUrl?: string
+  sourceType?: string
+}
+
+const libraryRows: LibraryRow[] = [
+  {
+    kind: 'document',
+    id: 'doc-cells',
+    courseId: 'course-bio',
+    courseName: 'Biology 101',
+    courseColor: '#0d9488',
+    createdAt: now,
+    fileName: 'Cell Biology.pdf',
+    blobUrl: '/fixtures/cell-biology.pdf',
+    contentType: 'application/pdf',
+    fileSize: 120_000,
+    summary: 'Cells are the basic unit of life.',
+  },
+  {
+    kind: 'document',
+    id: 'doc-article',
+    courseId: 'course-bio',
+    courseName: 'Biology 101',
+    courseColor: '#0d9488',
+    createdAt: now,
+    fileName: 'Photosynthesis Article',
+    blobUrl: 'https://example.com/photosynthesis',
+    contentType: 'text/plain',
+    fileSize: 8_000,
+    originalUrl: 'https://example.com/photosynthesis',
+    summary: 'Photosynthesis converts light into chemical energy.',
+  },
+  {
+    kind: 'video',
+    id: 'video-mitosis',
+    courseId: 'course-bio',
+    courseName: 'Biology 101',
+    courseColor: '#0d9488',
+    createdAt: now,
+    title: 'Mitosis Explained',
+    videoId: 'yt-mitosis',
+    videoUrl: 'https://youtube.com/watch?v=yt-mitosis',
+    thumbnailUrl: 'https://example.com/mitosis.jpg',
+    sourceType: 'youtube',
+  },
+]
+
+// Mirrors how the server buckets a row for the ?type= filter.
+const rowType = (i: LibraryRow): string => {
+  if (i.kind === 'video') return 'videos'
+  if (i.originalUrl) return 'articles'
+  if (i.contentType?.startsWith('audio/')) return 'audio'
+  return 'documents'
+}
+
 const paged = <T>(items: T[], pageSize = items.length || 10) => ({
   items,
   totalCount: items.length,
@@ -224,6 +297,70 @@ export async function mockStudyApi(page: Page) {
     if (path === '/api/glossary') return json(route, paged([], 20))
     if (path === '/api/search') return json(route, [])
     if (path === '/api/study-groups') return json(route, [])
+
+    // Everything below renders in the shared app shell or on the dashboard, so every
+    // authenticated page hits it. Each needs its real object shape — the [] fallback
+    // at the end of this handler is truthy and slips past the components' null-checks.
+    if (path === '/api/notifications') return json(route, { items: [], count: 0 })
+    if (path === '/api/recommendations/today') {
+      return json(route, {
+        streak: { currentStreak: 3, longestStreak: 7, lastStudiedOn: now },
+        dailyGoalMinutes: 30,
+        todayMinutes: 12,
+        completionPercent: 40,
+        goalMet: false,
+        plannedMinutes: 25,
+        dueFlashcards: 2,
+        items: [],
+        generatedAt: now,
+      })
+    }
+    if (path === '/api/stats/xp') {
+      return json(route, {
+        totalXp: 1250,
+        level: 4,
+        xpIntoLevel: 250,
+        xpForNextLevel: 500,
+        levelProgress: 0.5,
+        breakdown: [{ label: 'Flashcards', xp: 800 }],
+      })
+    }
+    if (path === '/api/notifications/weekly-digest') {
+      return json(route, {
+        from: now,
+        to: now,
+        headline: 'A steady week of study.',
+        studyMinutes: 120,
+        activeDays: 4,
+        dailyMinutes: [{ day: 'Mon', minutes: 30 }],
+        flashcardReviews: 12,
+        quizzesTaken: 2,
+        quizAccuracy: 80,
+        currentStreak: 3,
+      })
+    }
+
+    // Filtering/searching/paging are server-side for the real endpoint, so the mock
+    // has to honour ?type= and ?search= or the Library filter tests cannot pass.
+    if (path === '/api/library') {
+      const type = url.searchParams.get('type') ?? 'all'
+      const search = (url.searchParams.get('search') ?? '').toLowerCase()
+      const page = Number(url.searchParams.get('page') ?? 1)
+      const pageSize = Number(url.searchParams.get('pageSize') ?? 8)
+
+      let rows = libraryRows
+      if (type !== 'all') rows = rows.filter(i => rowType(i) === type)
+      if (search) rows = rows.filter(i => (i.fileName ?? i.title ?? '').toLowerCase().includes(search))
+
+      const start = (page - 1) * pageSize
+      return json(route, {
+        items: rows.slice(start, start + pageSize),
+        totalCount: rows.length,
+        page,
+        pageSize,
+        totalPages: Math.max(1, Math.ceil(rows.length / pageSize)),
+      })
+    }
 
     return json(route, [])
   })

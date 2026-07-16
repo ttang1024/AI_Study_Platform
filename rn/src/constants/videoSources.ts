@@ -7,14 +7,6 @@ export type ExternalVideoSource =
   | 'facebook' | 'instagram' | 'twitter' | 'reddit' | 'linkedin' | 'tiktok';
 export type VideoSourceType = 'youtube' | 'bilibili' | 'upload' | ExternalVideoSource;
 
-export const EXTERNAL_VIDEO_SOURCES: ExternalVideoSource[] = [
-  'vimeo', 'ted', 'dailymotion', 'facebook', 'instagram', 'twitter', 'reddit', 'linkedin', 'tiktok',
-];
-
-export function isExternalVideoSource(source: string | undefined | null): source is ExternalVideoSource {
-  return (EXTERNAL_VIDEO_SOURCES as string[]).includes(source ?? '');
-}
-
 /** Any source addable by pasting a URL (everything except file upload). */
 export type UrlVideoSource = 'youtube' | 'bilibili' | ExternalVideoSource;
 

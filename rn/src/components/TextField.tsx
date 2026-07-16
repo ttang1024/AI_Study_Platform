@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, TextInputProps, View } from 'react-native';
 import { Eye, EyeOff } from 'lucide-react-native';
 
-import { Alpha, Colors, Radius } from '@/constants/theme';
+import { Alpha, Colors, Layout, Radius } from '@/constants/theme';
 
 interface TextFieldProps extends TextInputProps {
   label?: string;
@@ -80,8 +80,7 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
   },
   row: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    ...Layout.row,
     borderWidth: 1,
     borderColor: Colors.border,
     borderRadius: Radius.md,

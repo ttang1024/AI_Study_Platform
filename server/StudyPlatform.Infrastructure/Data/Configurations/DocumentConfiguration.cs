@@ -38,5 +38,11 @@ public class DocumentConfiguration : IEntityTypeConfiguration<Document>
         // The (UserId, FileHash) index can't satisfy the CreatedAt ordering, so without this
         // every page load sorts the user's whole document set.
         builder.HasIndex(d => new { d.UserId, d.CreatedAt });
+
+        // Trigram indexes for the ILIKE '%term%' searches in DocumentRepository/LibraryRepository.
+        // The leading wildcard rules out a B-tree, so these are what keeps keyword search off a
+        // sequential scan of every document the user owns.
+        builder.HasIndex(d => d.FileName).HasMethod("gin").HasOperators("gin_trgm_ops");
+        builder.HasIndex(d => d.Summary).HasMethod("gin").HasOperators("gin_trgm_ops");
     }
 }

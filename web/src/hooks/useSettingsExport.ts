@@ -77,7 +77,7 @@ export function useSettingsExport() {
             questions: questions.map(q => ({
               question: q.question,
               options: q.options ?? [],
-              correctAnswer: getCorrectQuizOptionText(q.options, q.answer),
+              correctAnswer: getCorrectQuizOptionText(q.options, q.correctAnswer),
               explanation: q.explanation ?? '',
             })),
           });

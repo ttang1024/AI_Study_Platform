@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
-import { Colors, Radius, Spacing } from '@/constants/theme';
+import { PressableScale } from '@/components/PressableScale';
+import { Colors, Layout, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
 import { OAuthProvider, useOAuthLogin } from '@/hooks/useOAuthLogin';
 import { getApiErrorMessage } from '@/utils/apiError';
@@ -42,8 +43,8 @@ export function SocialLoginButtons({ onError }: SocialLoginButtonsProps) {
   return (
     <View style={styles.container}>
       {google.isConfigured && (
-        <Pressable
-          style={({ pressed }) => [styles.button, pressed && styles.pressed]}
+        <PressableScale
+          style={styles.button}
           onPress={() => handlePress('google')}
           disabled={pending !== null}
         >
@@ -55,11 +56,11 @@ export function SocialLoginButtons({ onError }: SocialLoginButtonsProps) {
               <Text style={styles.buttonText}>Continue with Google</Text>
             </>
           )}
-        </Pressable>
+        </PressableScale>
       )}
       {github.isConfigured && (
-        <Pressable
-          style={({ pressed }) => [styles.button, pressed && styles.pressed]}
+        <PressableScale
+          style={styles.button}
           onPress={() => handlePress('github')}
           disabled={pending !== null}
         >
@@ -71,7 +72,7 @@ export function SocialLoginButtons({ onError }: SocialLoginButtonsProps) {
               <Text style={styles.buttonText}>Continue with GitHub</Text>
             </>
           )}
-        </Pressable>
+        </PressableScale>
       )}
       <View style={styles.dividerRow}>
         <View style={styles.dividerLine} />
@@ -119,8 +120,7 @@ function GitHubIcon() {
 const styles = StyleSheet.create({
   container: { gap: Spacing.two, marginBottom: Spacing.two },
   button: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    ...Layout.row,
     justifyContent: 'center',
     gap: Spacing.two,
     height: 48,
@@ -129,9 +129,8 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     backgroundColor: Colors.white,
   },
-  pressed: { opacity: 0.85 },
   buttonText: { fontSize: 14, fontWeight: '600', color: Colors.textPrimary },
-  dividerRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, marginTop: Spacing.one },
+  dividerRow: { ...Layout.row, gap: Spacing.two, marginTop: Spacing.one },
   dividerLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: Colors.border },
   dividerText: { fontSize: 11, fontWeight: '700', color: Colors.textSecondary, letterSpacing: 1 },
 });

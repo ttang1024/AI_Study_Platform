@@ -51,7 +51,7 @@ export const QuizModal: React.FC = () => {
   const handleSubmit = () => {
     if (!selectedAnswer) return;
     setIsSubmitted(true);
-    if (isQuizOptionCorrect(selectedAnswer, questions[currentIndex].answer)) {
+    if (isQuizOptionCorrect(selectedAnswer, questions[currentIndex].correctAnswer)) {
       setScore(prev => prev + 1);
     }
   };
@@ -118,19 +118,19 @@ export const QuizModal: React.FC = () => {
                     className={`w-full flex items-center justify-between rounded-xl border p-4 text-left transition-all ${selectedAnswer === option
                       ? 'border-primary bg-primary/10 text-primary'
                       : 'border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50'
-                      } ${isSubmitted && isQuizOptionCorrect(option, currentQuestion.answer)
+                      } ${isSubmitted && isQuizOptionCorrect(option, currentQuestion.correctAnswer)
                         ? 'border-emerald-500 bg-emerald-50 text-emerald-900'
                         : ''
-                      } ${isSubmitted && selectedAnswer === option && !isQuizOptionCorrect(option, currentQuestion.answer)
+                      } ${isSubmitted && selectedAnswer === option && !isQuizOptionCorrect(option, currentQuestion.correctAnswer)
                         ? 'border-red-500 bg-red-50 text-red-900'
                         : ''
                       }`}
                   >
                     <span>{option}</span>
-                    {isSubmitted && isQuizOptionCorrect(option, currentQuestion.answer) && (
+                    {isSubmitted && isQuizOptionCorrect(option, currentQuestion.correctAnswer) && (
                       <CheckCircle2 size={20} className="text-emerald-500" />
                     )}
-                    {isSubmitted && selectedAnswer === option && !isQuizOptionCorrect(option, currentQuestion.answer) && (
+                    {isSubmitted && selectedAnswer === option && !isQuizOptionCorrect(option, currentQuestion.correctAnswer) && (
                       <XCircle size={20} className="text-red-500" />
                     )}
                   </button>

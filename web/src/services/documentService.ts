@@ -67,6 +67,8 @@ interface BackendFlashcard {
 	difficulty?: string
 	chapter?: string
 	tags?: string[]
+	imageUrl?: string
+	occlusionsJson?: string
 }
 
 const AUDIO_EXTENSIONS = ['.mp3', '.m4a', '.m4b', '.wav', '.ogg', '.aac', '.flac', '.webm', '.opus', '.aiff', '.aif', '.wma', '.amr', '.mka']
@@ -160,7 +162,7 @@ const mapQuiz = (bq: BackendQuiz): QuizQuestion => ({
 	id: bq.quizId,
 	question: bq.question,
 	options: Array.isArray(bq.options) ? bq.options : [],
-	answer: bq.correctAnswer,
+	correctAnswer: bq.correctAnswer,
 	explanation: bq.explanation,
 	type: 'multiple-choice',
 	difficulty: bq.difficulty ?? 'medium',
@@ -170,11 +172,19 @@ const mapFlashcard = (bf: BackendFlashcard): Flashcard => ({
 	id: bf.flashcardId,
 	front: bf.front,
 	back: bf.back,
-	cardType: bf.cardType === 'cloze' ? 'cloze' : bf.cardType === 'chart' ? 'chart' : 'basic',
+	cardType: bf.cardType === 'cloze' ? 'cloze' : bf.cardType === 'chart' ? 'chart' : bf.cardType === 'occlusion' ? 'occlusion' : 'basic',
 	difficulty: bf.difficulty === 'easy' || bf.difficulty === 'hard' ? bf.difficulty : 'medium',
 	chapter: bf.chapter ?? undefined,
 	tags: bf.tags ?? [],
 	documentId: bf.documentId || '',
+	imageUrl: bf.imageUrl ?? undefined,
+	occlusions: (() => {
+		if (!bf.occlusionsJson) return undefined
+		try {
+			const parsed = JSON.parse(bf.occlusionsJson)
+			return Array.isArray(parsed) ? parsed : undefined
+		} catch { return undefined }
+	})(),
 })
 
 const mapQuizSubmission = (bs: any): QuizSubmission => ({
@@ -359,6 +369,24 @@ export const documentService = {
 		return (response.data.data as BackendQuiz[]).map(mapQuiz)
 	},
 
+	/**
+	 * Asks the server to pick the difficulty and target the learner's weak spots, rather than making
+	 * them choose a level for themselves. The rationale explains the choice ("you're averaging 91%
+	 * here…") so the difficulty doesn't look arbitrary.
+	 */
+	async generateAdaptiveQuiz(
+		courseId: string,
+		documentId: string,
+	): Promise<{ questions: QuizQuestion[]; rationale: string }> {
+		const response = await apiClient.post(
+			`/api/courses/${courseId}/documents/${documentId}/quiz/generate?difficulty=adaptive`,
+		)
+		return {
+			questions: (response.data.data as BackendQuiz[]).map(mapQuiz),
+			rationale: (response.data.message as string) ?? '',
+		}
+	},
+
 	async getQuiz(
 		courseId: string,
 		documentId: string,
@@ -515,16 +543,21 @@ export const documentService = {
 		await apiClient.delete(`/api/courses/${courseId}/documents/${documentId}/notes/${noteId}`)
 	},
 
+	/**
+	 * @param confidence Optional {questionId: 1|2|3} self-rating (1 = guessing, 3 = confident).
+	 *   Omitted when the learner rated nothing — the server treats absent as "no data", not "unsure".
+	 */
 	async saveQuizSubmission(
 		courseId: string,
 		documentId: string,
 		answers: Record<string, string>,
 		score: number,
 		total: number,
+		confidence?: Record<string, number>,
 	): Promise<QuizSubmission> {
 		const response = await apiClient.post(
 			`/api/courses/${courseId}/documents/${documentId}/quiz/submission`,
-			{ answers, score, total },
+			{ answers, score, total, confidence },
 		)
 		return mapQuizSubmission(response.data.data)
 	},

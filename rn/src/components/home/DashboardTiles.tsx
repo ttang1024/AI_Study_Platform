@@ -1,9 +1,11 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import type { LucideIcon } from 'lucide-react-native';
 
+import { AnimatedNumber } from '@/components/AnimatedNumber';
 import { IconBadge } from '@/components/IconBadge';
-import { Alpha, Colors, Overlay, Radius, Spacing, Typography } from '@/constants/theme';
+import { PressableScale } from '@/components/PressableScale';
+import { Alpha, Colors, Layout, Overlay, Radius, Spacing, Typography } from '@/constants/theme';
 
 // Small presentational pieces used only by the home dashboard — grouped in one
 // file rather than split further since each is a handful of lines.
@@ -16,6 +18,8 @@ export const SectionLabel: React.FC<{ label: string }> = ({ label }) => (
 );
 
 // Rendered on the gradient hero card — frosted-glass tile with white text.
+// `value` is pre-formatted (e.g. "12m"), so it isn't counted up; the tiles that
+// show a bare count use `CountTile` below.
 export const StatTile: React.FC<{ label: string; value: string }> = ({ label, value }) => (
   <View style={styles.statTile}>
     <Text style={styles.statValue}>{value}</Text>
@@ -30,17 +34,17 @@ export const CountTile: React.FC<{ icon: LucideIcon; color?: string; label: stri
   value,
   onPress,
 }) => (
-  <Pressable
-    style={({ pressed }) => [styles.countTile, { backgroundColor: `${color}${Alpha.wash}` }, pressed && styles.countTilePressed]}
+  <PressableScale
+    style={[styles.countTile, { backgroundColor: `${color}${Alpha.wash}` }]}
     onPress={onPress}
     disabled={!onPress}
   >
     <IconBadge icon={icon} color={color} size={40} />
     <View style={styles.countTextBlock}>
-      <Text style={styles.countValue} numberOfLines={1}>{value}</Text>
+      <AnimatedNumber value={value} style={styles.countValue} numberOfLines={1} />
       <Text style={styles.countLabel} numberOfLines={1}>{label}</Text>
     </View>
-  </Pressable>
+  </PressableScale>
 );
 
 export const ReinforceCard: React.FC<{ label: string; value: number; color?: string; onPress: () => void }> = ({
@@ -49,13 +53,13 @@ export const ReinforceCard: React.FC<{ label: string; value: number; color?: str
   color = Colors.red,
   onPress,
 }) => (
-  <Pressable
-    style={({ pressed }) => [styles.reinforceCard, { backgroundColor: `${color}${Alpha.wash}` }, pressed && styles.countTilePressed]}
+  <PressableScale
+    style={[styles.reinforceCard, { backgroundColor: `${color}${Alpha.wash}` }]}
     onPress={onPress}
   >
-    <Text style={[styles.reinforceValue, { color }]}>{value}</Text>
+    <AnimatedNumber value={value} style={[styles.reinforceValue, { color }]} />
     <Text style={styles.reinforceLabel}>{label}</Text>
-  </Pressable>
+  </PressableScale>
 );
 
 export const DigestStat: React.FC<{ label: string; value: string }> = ({ label, value }) => (
@@ -66,7 +70,7 @@ export const DigestStat: React.FC<{ label: string; value: string }> = ({ label, 
 );
 
 const styles = StyleSheet.create({
-  sectionRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: Spacing.two, marginBottom: 2 },
+  sectionRow: { ...Layout.row, gap: 8, marginTop: Spacing.two, marginBottom: 2 },
   sectionAccent: { width: 4, height: 14, borderRadius: 2, backgroundColor: Colors.primary },
   sectionLabel: {
     ...Typography.captionBold, color: Colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.8,
@@ -80,10 +84,9 @@ const styles = StyleSheet.create({
   statLabel: { ...Typography.caption, color: Overlay.onGradientMuted },
 
   countTile: {
-    flexGrow: 1, flexBasis: '45%', flexDirection: 'row', alignItems: 'center', gap: Spacing.two,
+    flexGrow: 1, flexBasis: '45%', ...Layout.row, gap: Spacing.two,
     borderRadius: Radius.lg, padding: Spacing.three,
   },
-  countTilePressed: { opacity: 0.7 },
   countTextBlock: { flex: 1, gap: 2 },
   countValue: { ...Typography.heading, color: Colors.textPrimary },
   countLabel: { ...Typography.caption, color: Colors.textSecondary },

@@ -7,7 +7,7 @@ import { Button } from '@/components/Button';
 import { InfoBanner } from '@/components/InfoBanner';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { TextField } from '@/components/TextField';
-import { Alpha, Colors, Radius, Spacing } from '@/constants/theme';
+import { Alpha, Colors, Layout, Radius, Spacing } from '@/constants/theme';
 import { apiClient } from '@/services/apiClient';
 import { aiSettingsService, DEFAULT_MODELS, type AIProvider, type AISettings } from '@/services/aiSettingsService';
 
@@ -126,7 +126,6 @@ export default function AiServicesScreen() {
             </Pressable>
           ) : (
             <View style={styles.activeBadge}>
-              <View style={[styles.statusDot, styles.statusDotActive]} />
               <Text style={styles.activeBadgeText}>Active provider</Text>
             </View>
           )}
@@ -192,7 +191,7 @@ const styles = StyleSheet.create({
 
   providerRow: { gap: Spacing.two, paddingVertical: 2 },
   providerCard: {
-    alignItems: 'center', justifyContent: 'center', gap: 4,
+    ...Layout.center, gap: 4,
     paddingHorizontal: Spacing.three, paddingVertical: Spacing.two,
     borderRadius: Radius.lg, borderWidth: 1, borderColor: Colors.border,
     backgroundColor: Colors.bgSidebar,
@@ -205,22 +204,22 @@ const styles = StyleSheet.create({
   statusDotConfigured: { backgroundColor: Colors.zinc300 },
 
   section: { gap: Spacing.three },
-  providerHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  providerHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  providerHeader: { ...Layout.rowBetween },
+  providerHeaderLeft: { ...Layout.row, gap: 8 },
   providerTitle: { fontSize: 15, fontWeight: '700', color: Colors.textPrimary },
   badge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: Radius.sm, backgroundColor: `${Colors.primary}26` },
   badgeText: { fontSize: 9, fontWeight: '700', color: Colors.primary },
   setActiveButton: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.primary },
   setActiveButtonText: { fontSize: 12, fontWeight: '600', color: Colors.primary },
-  activeBadge: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  activeBadge: { ...Layout.row, gap: 6 },
   activeBadgeText: { fontSize: 12, fontWeight: '600', color: Colors.emerald },
 
   field: { gap: 6 },
   docsHint: { fontSize: 10, color: Colors.textSecondary },
 
-  testRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, flexWrap: 'wrap' },
+  testRow: { ...Layout.rowWrap, gap: Spacing.two },
   testButton: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
+    ...Layout.row, gap: 8,
     paddingHorizontal: 14, paddingVertical: 10, borderRadius: Radius.md,
     borderWidth: 1, borderColor: Colors.border,
   },

@@ -1,74 +1,28 @@
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using MediatR;
-using StudyPlatform.Application.Analytics.Queries;
 using StudyPlatform.Application.Common;
-using StudyPlatform.Application.Flashcards.Commands;
-using StudyPlatform.Application.Services;
-using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
 
 namespace StudyPlatform.Application.Practice.Queries;
-
-// ── DTOs ──────────────────────────────────────────────────────────────────────
-
-/// <summary>
-/// One item in a practice test. <c>Format</c> is "mc" (auto-graded multiple choice) or "recall"
-/// (self-graded — the learner reveals the answer and rates themselves). <c>Answer</c> is the
-/// correct option text (mc) or the back/definition/solution (recall).
-/// </summary>
-public record PracticeQuestionDto(
-    string Id,
-    string Source,          // quiz | glossary | flashcard | problem
-    string SourceId,
-    string Format,          // mc | recall
-    string Prompt,
-    string[]? Options,
-    string Answer,
-    string? Explanation,
-    string Difficulty,
-    string? CourseId);
-
-public record PracticeTestDto(IReadOnlyList<PracticeQuestionDto> Questions, int Count, DateTime GeneratedAt);
-
-public record PracticeResultItem(string Source, Guid SourceId, bool IsCorrect);
-
-public record SubmitPracticeTestRequest(IReadOnlyList<PracticeResultItem> Results);
-
-public record PracticeTestSummaryDto(int Total, int Correct, double AccuracyPercent);
-
-/// <summary>
-/// Turns a flashcard into a practice prompt/answer pair. Cloze cards carry their
-/// answer inline as <c>{{term}}</c> in the front (the back is often empty), so the
-/// terms are blanked out of the prompt and surfaced as the answer.
-/// </summary>
-public static class PracticeFlashcardFormat
-{
-    private static readonly Regex ClozeRegex = new(@"\{\{([^}]+)\}\}", RegexOptions.Compiled);
-
-    /// <summary>Null when the card has no answer to reveal (no cloze terms and a blank back).</summary>
-    public static (string Prompt, string Answer)? ToPromptAnswer(string front, string? back)
-    {
-        var matches = ClozeRegex.Matches(front);
-        if (matches.Count == 0)
-            return string.IsNullOrWhiteSpace(back) ? null : (front, back!);
-
-        var prompt = ClozeRegex.Replace(front, "_____");
-        var terms = string.Join(", ", matches.Select(m => m.Groups[1].Value.Trim()));
-        var answer = string.IsNullOrWhiteSpace(back) ? terms : $"{terms} — {back}";
-        return (prompt, answer);
-    }
-}
-
-// ── Generate ──────────────────────────────────────────────────────────────────
 
 /// <summary>
 /// Assembles a timed, mixed-source practice test by sampling the user's quiz bank, flashcards,
 /// glossary terms, and worked problems. Pure read — nothing is persisted until results come back
 /// via <see cref="SubmitPracticeTestCommand"/>.
 /// </summary>
+/// <param name="CourseId">Restrict the test to one course. Null draws from the whole library.</param>
+/// <param name="InterleaveCourses">
+/// Rotate across courses so consecutive questions come from different ones, instead of shuffling.
+/// Interleaved practice is harder and slower in the moment but retains better, because the learner has
+/// to identify which approach a question needs rather than coasting on one course's context. Ignored
+/// when <paramref name="CourseId"/> pins the test to a single course — there is nothing to interleave.
+/// </param>
 public record GeneratePracticeTestQuery(
-    Guid UserId, int Count, Guid? CourseId, IReadOnlyCollection<string> Sources) : IRequest<Result<PracticeTestDto>>;
+    Guid UserId,
+    int Count,
+    Guid? CourseId,
+    IReadOnlyCollection<string> Sources,
+    bool InterleaveCourses = false) : IRequest<Result<PracticeTestDto>>;
 
 public class GeneratePracticeTestQueryHandler : IRequestHandler<GeneratePracticeTestQuery, Result<PracticeTestDto>>
 {
@@ -91,8 +45,8 @@ public class GeneratePracticeTestQueryHandler : IRequestHandler<GeneratePractice
             .ToHashSet();
 
         // Course mapping so we can filter any source down to a single course.
-        var documents = (await _unitOfWork.Documents.FindAsync(d => d.UserId == userId, ct)).ToList();
-        var videos = (await _unitOfWork.Videos.FindAsync(v => v.UserId == userId, ct)).ToList();
+        var documents = (await _unitOfWork.Documents.FindAsNoTrackingAsync(d => d.UserId == userId, ct)).ToList();
+        var videos = (await _unitOfWork.Videos.FindAsNoTrackingAsync(v => v.UserId == userId, ct)).ToList();
         var docToCourse = documents.ToDictionary(d => d.DocumentId, d => d.CourseId);
         var videoToCourse = videos.ToDictionary(v => v.VideoId, v => v.CourseId);
 
@@ -110,7 +64,7 @@ public class GeneratePracticeTestQueryHandler : IRequestHandler<GeneratePractice
         // ── Quiz bank (multiple choice, auto-graded) ──
         if (sources.Contains("quiz"))
         {
-            var quizzes = (await _unitOfWork.Quizzes.FindAsync(q => q.UserId == userId, ct)).ToList();
+            var quizzes = (await _unitOfWork.Quizzes.FindAsNoTrackingAsync(q => q.UserId == userId, ct)).ToList();
             var pool = new List<PracticeQuestionDto>();
             foreach (var q in quizzes)
             {
@@ -197,9 +151,43 @@ public class GeneratePracticeTestQueryHandler : IRequestHandler<GeneratePractice
             Shuffle(pool);
 
         var selected = RoundRobin(pools.Values, count);
-        Shuffle(selected); // mix the sources so it doesn't go quiz-block then flashcard-block
+
+        if (request.InterleaveCourses && !request.CourseId.HasValue)
+        {
+            // Rotate across courses rather than shuffling. A shuffle only mixes courses on average and
+            // will happily deal three consecutive questions from the same one; rotating guarantees the
+            // switch, which is the property interleaved practice actually depends on.
+            selected = InterleaveByCourse(selected);
+        }
+        else
+        {
+            Shuffle(selected); // mix the sources so it doesn't go quiz-block then flashcard-block
+        }
 
         return Result<PracticeTestDto>.Success(new PracticeTestDto(selected, selected.Count, DateTime.UtcNow));
+    }
+
+    /// <summary>
+    /// Reorders a selection so consecutive questions come from different courses wherever the pool
+    /// allows. Questions with no course (an artifact we could not attribute) are bucketed together and
+    /// rotated like any other group rather than dropped.
+    /// </summary>
+    private static List<PracticeQuestionDto> InterleaveByCourse(List<PracticeQuestionDto> questions)
+    {
+        var byCourse = questions
+            .GroupBy(q => q.CourseId ?? string.Empty)
+            .Select(group =>
+            {
+                var bucket = group.ToList();
+                Shuffle(bucket); // vary the order within a course between sessions
+                return bucket;
+            })
+            // Largest course first: it gets dealt on every rotation, so its questions spread across the
+            // whole session instead of clumping at the end once the smaller courses run dry.
+            .OrderByDescending(bucket => bucket.Count)
+            .ToList();
+
+        return RoundRobin(byCourse, questions.Count);
     }
 
     private static List<PracticeQuestionDto> RoundRobin(IEnumerable<List<PracticeQuestionDto>> pools, int count)
@@ -262,95 +250,4 @@ public class GeneratePracticeTestQueryHandler : IRequestHandler<GeneratePractice
     }
 
     private static string? NullIfBlank(string? s) => string.IsNullOrWhiteSpace(s) ? null : s;
-}
-
-// ── Submit ────────────────────────────────────────────────────────────────────
-
-/// <summary>
-/// Records practice-test results, feeding every mastery signal the platform already tracks:
-/// quiz attempts (accuracy analytics), FSRS reviews for flashcards, and the mastered flags for
-/// glossary terms / worked problems answered correctly. No new tables — it reuses existing paths.
-/// </summary>
-public record SubmitPracticeTestCommand(Guid UserId, IReadOnlyList<PracticeResultItem> Results)
-    : IRequest<Result<PracticeTestSummaryDto>>;
-
-public class SubmitPracticeTestCommandHandler : IRequestHandler<SubmitPracticeTestCommand, Result<PracticeTestSummaryDto>>
-{
-    private const int RatingGood = 3;
-    private const int RatingAgain = 1;
-
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMediator _mediator;
-    private readonly IAppCache _cache;
-
-    public SubmitPracticeTestCommandHandler(IUnitOfWork unitOfWork, IMediator mediator, IAppCache cache)
-    {
-        _unitOfWork = unitOfWork;
-        _mediator = mediator;
-        _cache = cache;
-    }
-
-    public async Task<Result<PracticeTestSummaryDto>> Handle(SubmitPracticeTestCommand request, CancellationToken ct)
-    {
-        var results = request.Results ?? Array.Empty<PracticeResultItem>();
-        var userId = request.UserId;
-
-        var masteredTerms = (await _unitOfWork.GlossaryMastered.GetMasteredTermIdsByUserAsync(userId, ct)).ToHashSet();
-        var masteredProblems = (await _unitOfWork.WorkedProblemMastered.GetMasteredProblemIdsByUserAsync(userId, ct)).ToHashSet();
-
-        foreach (var item in results)
-        {
-            switch (item.Source)
-            {
-                case "quiz":
-                    await _mediator.Send(new RecordQuizAttemptCommand(userId, item.SourceId, item.IsCorrect), ct);
-                    break;
-
-                case "flashcard":
-                    await _mediator.Send(new ReviewFlashcardCommand(item.SourceId, userId, item.IsCorrect ? RatingGood : RatingAgain), ct);
-                    break;
-
-                case "glossary":
-                    if (item.IsCorrect && masteredTerms.Add(item.SourceId))
-                        await _unitOfWork.GlossaryMastered.AddAsync(
-                            new GlossaryMastered { Id = Guid.NewGuid(), UserId = userId, GlossaryTermId = item.SourceId, MasteredAt = DateTime.UtcNow }, ct);
-                    break;
-
-                case "problem":
-                    if (item.IsCorrect && masteredProblems.Add(item.SourceId))
-                        await _unitOfWork.WorkedProblemMastered.AddAsync(
-                            new WorkedProblemMastered { Id = Guid.NewGuid(), UserId = userId, WorkedProblemId = item.SourceId, MasteredAt = DateTime.UtcNow }, ct);
-                    break;
-
-                case "mistake":
-                    // Smart-session redo of a mistake-notebook entry: a correct answer
-                    // resolves it, a wrong one bumps its missed counter.
-                    var mistake = (await _unitOfWork.MistakeEntries.FindAsync(
-                        m => m.MistakeEntryId == item.SourceId && m.UserId == userId, ct)).FirstOrDefault();
-                    if (mistake is null) break;
-                    if (item.IsCorrect)
-                    {
-                        mistake.Status = "resolved";
-                        mistake.ResolvedAt = DateTime.UtcNow;
-                    }
-                    else
-                    {
-                        mistake.TimesMissed++;
-                        mistake.LastMissedAt = DateTime.UtcNow;
-                    }
-                    break;
-            }
-        }
-
-        await _unitOfWork.SaveChangesAsync(ct);
-
-        // Mastery signals changed — drop the cached summaries so the dashboard/today plan refresh.
-        await _cache.RemoveAsync(DashboardSummaryCache.Key(userId), ct);
-        await _cache.RemoveAsync($"recommendations:user:{userId}", ct);
-
-        var total = results.Count;
-        var correct = results.Count(r => r.IsCorrect);
-        var accuracy = total > 0 ? Math.Round(correct * 100.0 / total, 1) : 0;
-        return Result<PracticeTestSummaryDto>.Success(new PracticeTestSummaryDto(total, correct, accuracy));
-    }
 }

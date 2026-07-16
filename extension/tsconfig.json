@@ -13,7 +13,11 @@
     "jsx": "react-jsx",
     "strict": true,
     "noUnusedLocals": false,
-    "types": ["chrome", "vite/client"]
+    "types": ["chrome", "vite/client"],
+    "baseUrl": ".",
+    "paths": {
+      "@core/*": ["../packages/core/src/*"]
+    }
   },
   "include": ["src", "vite.config.ts"]
 }

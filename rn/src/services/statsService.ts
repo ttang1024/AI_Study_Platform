@@ -1,14 +1,8 @@
-import { apiClient } from '@/services/apiClient';
-import type { UserStats, UserXp } from '@/types';
+// Service logic moved to the shared package (packages/core). This file wires the
+// RN HTTP adapter into the shared factory, so existing imports keep working.
+import { createStatsService } from '@core/services/statsService';
+import { http } from '@/services/http';
 
-export const statsService = {
-  async getUserStats(): Promise<UserStats> {
-    const response = await apiClient.get('/api/stats');
-    return response.data.data as UserStats;
-  },
+export * from '@core/services/statsService';
 
-  async getXp(): Promise<UserXp> {
-    const response = await apiClient.get('/api/stats/xp');
-    return response.data.data as UserXp;
-  },
-};
+export const statsService = createStatsService(http);

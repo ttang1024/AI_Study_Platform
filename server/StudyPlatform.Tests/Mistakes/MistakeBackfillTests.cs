@@ -26,7 +26,7 @@ public class MistakeBackfillTests
 
         // The in-memory store stands in for the MistakeEntries table so the handler's
         // re-read after backfill sees what capture wrote.
-        _mistakes.Setup(r => r.FindAsync(It.IsAny<Expression<Func<MistakeEntry, bool>>>(), default))
+        _mistakes.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<MistakeEntry, bool>>>(), default))
             .ReturnsAsync(() => _store.ToList());
         _mistakes.Setup(r => r.AddAsync(It.IsAny<MistakeEntry>(), default))
             .Callback<MistakeEntry, CancellationToken>((e, _) => _store.Add(e))
@@ -39,7 +39,7 @@ public class MistakeBackfillTests
         var documentId = Guid.NewGuid();
         var quizRight = new Quiz { QuizId = Guid.NewGuid(), UserId = _userId, DocumentId = documentId, SourceType = "document", Question = "Q1", CorrectAnswer = "A", OptionsJson = "[]" };
         var quizWrong = new Quiz { QuizId = Guid.NewGuid(), UserId = _userId, DocumentId = documentId, SourceType = "document", Question = "Q2", CorrectAnswer = "B", OptionsJson = "[]" };
-        _quizzes.Setup(r => r.FindAsync(It.IsAny<Expression<Func<Quiz, bool>>>(), default))
+        _quizzes.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Quiz, bool>>>(), default))
             .ReturnsAsync(new[] { quizRight, quizWrong });
 
         var submittedAt = DateTime.UtcNow.AddDays(-10);
@@ -58,7 +58,7 @@ public class MistakeBackfillTests
             Total = 2,
             SubmittedAt = submittedAt,
         };
-        _submissions.Setup(r => r.FindAsync(It.IsAny<Expression<Func<QuizSubmission, bool>>>(), default))
+        _submissions.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<QuizSubmission, bool>>>(), default))
             .ReturnsAsync(new[] { submission });
 
         var handler = new GetMistakesQueryHandler(_uow.Object);
@@ -91,7 +91,7 @@ public class MistakeBackfillTests
 
         Assert.True(result.IsSuccess);
         Assert.Single(result.Data!.Items);
-        _submissions.Verify(r => r.FindAsync(It.IsAny<Expression<Func<QuizSubmission, bool>>>(), default), Times.Never);
+        _submissions.Verify(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<QuizSubmission, bool>>>(), default), Times.Never);
         _uow.Verify(u => u.SaveChangesAsync(default), Times.Never);
     }
 }

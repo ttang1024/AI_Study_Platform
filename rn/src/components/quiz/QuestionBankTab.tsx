@@ -7,7 +7,7 @@ import { Button } from '@/components/Button';
 import { EmptyState } from '@/components/EmptyState';
 import { SearchBar } from '@/components/SearchBar';
 import { QuestionBankRow } from '@/components/quiz/QuestionBankRow';
-import { Colors, Spacing } from '@/constants/theme';
+import { Colors, Layout, Spacing } from '@/constants/theme';
 import { questionBankService } from '@/services/questionBankService';
 import type { QuizQuestion } from '@/types';
 import { examSessionStore } from '@/utils/examSession';
@@ -58,7 +58,7 @@ export const QuestionBankTab: React.FC = () => {
   };
 
   const saveEdit = useCallback(async (item: QuizQuestion, draft: { question: string; options: string[]; correctAnswer: string; explanation: string }) => {
-    const updated = await questionBankService.update(item.id, { ...draft, difficulty: item.difficulty });
+    const updated = await questionBankService.update(item.id, { ...draft, difficulty: item.difficulty ?? 'medium' });
     setQuestions((prev) => prev.map((q) => (q.id === item.id ? updated : q)));
   }, []);
 
@@ -115,7 +115,7 @@ export const QuestionBankTab: React.FC = () => {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  center: { ...Layout.fillCenter },
   header: { padding: Spacing.three, gap: Spacing.two },
   list: { paddingHorizontal: Spacing.three, paddingBottom: Spacing.five, gap: Spacing.two },
 });

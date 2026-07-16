@@ -3,7 +3,7 @@ import { Alert, StyleSheet, Switch, Text, View } from 'react-native';
 import { Fingerprint } from 'lucide-react-native';
 
 import { IconBadge } from '@/components/IconBadge';
-import { Colors, Radius, Shadows, Spacing } from '@/constants/theme';
+import { Colors, Layout, Radius, Shadows, Spacing } from '@/constants/theme';
 import {
   authenticateForUnlock,
   biometricLabel,
@@ -69,7 +69,7 @@ export function SecuritySection() {
 
 const styles = StyleSheet.create({
   card: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.three,
+    ...Layout.row, gap: Spacing.three,
     backgroundColor: Colors.bgCard,
     borderRadius: Radius.lg, padding: Spacing.three,
     ...Shadows.card,

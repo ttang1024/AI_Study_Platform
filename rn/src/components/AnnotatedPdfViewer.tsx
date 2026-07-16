@@ -6,7 +6,7 @@ import {
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 import { BrainCircuit, ChevronLeft, ChevronRight, Highlighter, Trash2, X } from 'lucide-react-native';
 
-import { Alpha, Colors, Overlay, Radius, Spacing, Typography } from '@/constants/theme';
+import { Alpha, Colors, Layout, Overlay, Radius, Spacing, Typography } from '@/constants/theme';
 import { annotationsService, type DocumentAnnotation } from '@/services/annotationsService';
 import { buildAnnotatedPdfHtml } from '@/utils/annotatedPdfHtml';
 
@@ -73,7 +73,7 @@ export const AnnotatedPdfViewer: React.FC<AnnotatedPdfViewerProps> = ({ document
   const html = useMemo(() => buildAnnotatedPdfHtml(), []);
 
   useEffect(() => {
-    annotationsService.getByDocument(documentId).then(setAnnotations).catch(() => {});
+    annotationsService.getByDocument(documentId).then((res) => setAnnotations(res.data.data ?? [])).catch(() => {});
   }, [documentId]);
 
   useEffect(() => {
@@ -145,13 +145,15 @@ export const AnnotatedPdfViewer: React.FC<AnnotatedPdfViewerProps> = ({ document
   const saveAnnotation = async (color: string, makeFlashcard = false) => {
     if (!selection) return;
     try {
-      const created = await annotationsService.create(documentId, {
-        highlightedText: selection.text,
-        note: note.trim() || undefined,
-        color,
-        pageNumber: page,
-        rectJson: JSON.stringify(selection.rects),
-      });
+      const created = (
+        await annotationsService.create(documentId, {
+          highlightedText: selection.text,
+          note: note.trim() || undefined,
+          color,
+          pageNumber: page,
+          rectJson: JSON.stringify(selection.rects),
+        })
+      ).data.data;
       const next = [...annotations, created];
       setAnnotations(next);
       pushHighlights(page, next);
@@ -173,7 +175,7 @@ export const AnnotatedPdfViewer: React.FC<AnnotatedPdfViewerProps> = ({ document
         text: 'Delete',
         style: 'destructive',
         onPress: async () => {
-          await annotationsService.remove(annotation.documentAnnotationId).catch(() => {});
+          await annotationsService.delete(annotation.documentAnnotationId).catch(() => {});
           const next = annotations.filter((a) => a.documentAnnotationId !== annotation.documentAnnotationId);
           setAnnotations(next);
           pushHighlights(page, next);
@@ -294,7 +296,7 @@ export const AnnotatedPdfViewer: React.FC<AnnotatedPdfViewerProps> = ({ document
 const styles = StyleSheet.create({
   root: { gap: Spacing.two },
   pager: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.two,
+    ...Layout.row, gap: Spacing.two,
     backgroundColor: Colors.bgSidebar, borderWidth: 1, borderColor: Colors.border,
     borderRadius: Radius.md, paddingHorizontal: Spacing.two, paddingVertical: 8,
   },
@@ -307,28 +309,28 @@ const styles = StyleSheet.create({
   webview: { flex: 1, backgroundColor: 'transparent' },
   loadingOverlay: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-    alignItems: 'center', justifyContent: 'center', backgroundColor: Overlay.panel,
+    ...Layout.center, backgroundColor: Overlay.panel,
   },
   actionBar: {
     position: 'absolute', left: Spacing.two, right: Spacing.two, bottom: Spacing.two,
     backgroundColor: Overlay.panel, borderWidth: 1, borderColor: Colors.border,
     borderRadius: Radius.lg, padding: Spacing.two, gap: Spacing.two,
   },
-  actionHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  actionHeader: { ...Layout.row, gap: Spacing.two },
   actionText: { ...Typography.caption, color: Colors.textSecondary, flex: 1, fontStyle: 'italic' },
   noteInput: {
     borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.sm,
     paddingHorizontal: Spacing.two, paddingVertical: 6, fontSize: 13, color: Colors.textPrimary,
     backgroundColor: Colors.bgCard,
   },
-  actionRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  actionRow: { ...Layout.row, gap: Spacing.two },
   colorDot: {
     width: 28, height: 28, borderRadius: 14,
     borderWidth: 1, borderColor: `${Colors.textPrimary}${Alpha.strong}`,
   },
   actionSpacer: { flex: 1 },
   flashcardButton: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
+    ...Layout.row, gap: 5,
     backgroundColor: Colors.primary, borderRadius: Radius.pill,
     paddingHorizontal: 12, paddingVertical: 7,
   },
@@ -342,7 +344,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bgSidebar, borderWidth: 1, borderColor: Colors.border,
     borderRadius: Radius.lg, padding: Spacing.three, gap: Spacing.two,
   },
-  listHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  listHeader: { ...Layout.row, gap: 6 },
   listTitle: { ...Typography.captionBold, color: Colors.primary },
   annotationRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
   annotationDot: { width: 10, height: 10, borderRadius: 5, marginTop: 5 },

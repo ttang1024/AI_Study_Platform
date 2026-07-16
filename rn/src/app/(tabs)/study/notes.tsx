@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, FlatList, StyleSheet, View } from 'react-native';
+import { Alert, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { NotebookPen } from 'lucide-react-native';
 
 import { EmptyState } from '@/components/EmptyState';
@@ -9,7 +9,7 @@ import { LoadingScreen } from '@/components/LoadingScreen';
 import { SearchBar } from '@/components/SearchBar';
 import { NoteRow } from '@/components/study/NoteRow';
 import { TtsPlayButton } from '@/components/tts/TtsPlayButton';
-import { Colors, Spacing } from '@/constants/theme';
+import { Colors, Layout, Spacing } from '@/constants/theme';
 import { usePersistentTts } from '@/context/TtsContext';
 import { noteService } from '@/services/noteService';
 import type { Note } from '@/types';
@@ -22,22 +22,29 @@ export default function NotesScreen() {
   const router = useRouter();
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all');
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  // Pull-to-refresh runs from an event handler, so the synchronous setState here
+  // is fine (unlike the mount effect below).
+  const refresh = useCallback(async () => {
+    setRefreshing(true);
     try {
       const { items } = await noteService.list(1, 100);
       setNotes(items);
     } finally {
-      setLoading(false);
+      setRefreshing(false);
     }
   }, []);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    let cancelled = false;
+    noteService.list(1, 100)
+      .then(({ items }) => { if (!cancelled) setNotes(items); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
 
   const editNote = useCallback((note: Note) => {
     noteEditorStore.set({
@@ -104,6 +111,7 @@ export default function NotesScreen() {
           data={filtered}
           keyExtractor={(n) => n.id}
           contentContainerStyle={styles.list}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={Colors.primary} />}
           renderItem={({ item }) => <NoteRow note={item} onEdit={editNote} onDelete={deleteNote} />}
         />
       )}
@@ -114,6 +122,6 @@ export default function NotesScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bgApp },
   header: { padding: Spacing.three, paddingBottom: Spacing.two, gap: Spacing.two },
-  filterRow: { flexDirection: 'row', gap: Spacing.two, alignItems: 'center', flexWrap: 'wrap' },
+  filterRow: { ...Layout.rowWrap, gap: Spacing.two },
   list: { paddingHorizontal: Spacing.three, paddingBottom: Spacing.five, gap: Spacing.two },
 });

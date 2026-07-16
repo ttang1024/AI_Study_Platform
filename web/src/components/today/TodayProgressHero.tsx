@@ -67,7 +67,10 @@ export const TodayProgressHero: React.FC = () => {
 
   useEffect(() => {
     todayService.getTodayPlan()
-      .then(setPlan)
+      // Degrade to the `!plan` branch on a malformed payload as well as a rejection:
+      // plan.streak is dereferenced unguarded below, and a non-conforming value
+      // (e.g. []) is truthy enough to slip straight past that check.
+      .then(p => setPlan(p?.streak ? p : null))
       .catch(() => setPlan(null))
       .finally(() => setLoading(false));
   }, []);

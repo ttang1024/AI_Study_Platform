@@ -17,7 +17,7 @@ export const SESSION_RATINGS: { rating: SessionRating; label: string; color: str
 ];
 
 interface FlashcardSessionCardProps {
-  card: Pick<Flashcard, 'id' | 'front' | 'back'> & { cardType?: FlashcardCardType };
+  card: Pick<Flashcard, 'id' | 'front' | 'back'> & Pick<Partial<Flashcard>, 'imageUrl' | 'occlusions'> & { cardType?: FlashcardCardType };
   flipped: boolean;
   onFlip: () => void;
   onRate: (rating: SessionRating) => void;
@@ -74,6 +74,8 @@ export const FlashcardSessionCard: React.FC<FlashcardSessionCardProps> = ({
           front={card.front}
           back={card.back}
           cardType={card.cardType}
+          imageUrl={card.imageUrl}
+          occlusions={card.occlusions}
           isFlipped={flipped}
           onFlip={onFlip}
           variant="review"
@@ -101,6 +103,8 @@ interface SessionDeckCard {
   front: string;
   back: string;
   cardType?: FlashcardCardType;
+  imageUrl?: string;
+  occlusions?: Flashcard['occlusions'];
 }
 
 interface FlashcardSessionDeckProps {
@@ -336,6 +340,8 @@ export const FlashcardSessionDeck: React.FC<FlashcardSessionDeckProps> = ({
                   front={current.front}
                   back={current.back}
                   cardType={getFlashcardCardType(current)}
+                  imageUrl={current.imageUrl}
+                  occlusions={current.occlusions}
                   isFlipped={flipped}
                   onFlip={() => setFlipped(f => !f)}
                   variant="review"

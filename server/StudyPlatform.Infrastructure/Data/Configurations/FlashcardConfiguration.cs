@@ -37,5 +37,9 @@ public class FlashcardConfiguration : IEntityTypeConfiguration<Flashcard>
 
         // Serves the flashcards list / search: WHERE UserId = @u ORDER BY CreatedAt DESC.
         builder.HasIndex(f => new { f.UserId, f.CreatedAt });
+
+        // Trigram indexes for the ILIKE '%term%' searches in FlashcardRepository.
+        builder.HasIndex(f => f.Front).HasMethod("gin").HasOperators("gin_trgm_ops");
+        builder.HasIndex(f => f.Back).HasMethod("gin").HasOperators("gin_trgm_ops");
     }
 }

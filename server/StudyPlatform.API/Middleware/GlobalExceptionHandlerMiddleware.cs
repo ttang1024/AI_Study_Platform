@@ -38,6 +38,11 @@ public class GlobalExceptionHandlerMiddleware
             _logger.LogWarning(ex, "Resource not found");
             await HandleExceptionAsync(context, HttpStatusCode.NotFound, ex.Message, "NOT_FOUND", Array.Empty<string>());
         }
+        catch (AiQuotaExceededException ex)
+        {
+            _logger.LogInformation("User exhausted their daily AI token budget ({Used}/{Limit})", ex.TokensUsed, ex.DailyLimit);
+            await HandleExceptionAsync(context, HttpStatusCode.TooManyRequests, ex.Message, "AI_QUOTA_EXCEEDED", Array.Empty<string>());
+        }
         catch (YouTubeTranscriptUnavailableException ex)
         {
             _logger.LogWarning(ex, "YouTube transcript upstream is temporarily unavailable");

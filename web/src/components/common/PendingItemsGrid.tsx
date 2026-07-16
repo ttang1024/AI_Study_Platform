@@ -83,7 +83,7 @@ export const PendingItemsGrid: React.FC<PendingItemsGridProps> = ({
           questions = raw.map(q => ({ id: q.quizId, question: q.question, options: q.options, answer: q.correctAnswer, explanation: q.explanation }));
         } else {
           const raw = await documentService.generateQuiz(item.doc.courseId || '', item.doc.id);
-          questions = raw.map(q => ({ id: q.id, question: q.question, options: q.options, answer: q.answer, explanation: q.explanation }));
+          questions = raw.map(q => ({ id: q.id, question: q.question, options: q.options, answer: q.correctAnswer, explanation: q.explanation }));
         }
         generatedItemRef.current = item;
         setModal({ kind: 'quiz', name, detailTo: to, questions, item, phase: 'answering', currentQ: 0, selected: {} });

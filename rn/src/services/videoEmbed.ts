@@ -18,20 +18,24 @@ export function buildEmbedSource(embedUrl: string): { html: string; baseUrl: str
   return { html, baseUrl };
 }
 
-export function buildEmbedUrl(sourceType: string | undefined, videoId: string, originalUrl: string): string | null {
+// `startSeconds` is best-effort: iframe embeds without a JS seek API are reloaded
+// at an offset (see the video detail screen). Providers that ignore the param
+// simply restart from 0 — harmless.
+export function buildEmbedUrl(sourceType: string | undefined, videoId: string, originalUrl: string, startSeconds = 0): string | null {
+  const start = Math.max(0, Math.floor(startSeconds));
   switch (sourceType) {
     case 'youtube':
-      return `https://www.youtube.com/embed/${videoId}`;
+      return `https://www.youtube.com/embed/${videoId}${start ? `?start=${start}` : ''}`;
     case 'bilibili': {
       const parsed = parseBilibiliVideo(originalUrl) ?? { bvid: videoId, page: 1 };
-      return `https://player.bilibili.com/player.html?bvid=${parsed.bvid}&page=${parsed.page}`;
+      return `https://player.bilibili.com/player.html?bvid=${parsed.bvid}&page=${parsed.page}${start ? `&t=${start}` : ''}`;
     }
     case 'vimeo':
-      return `https://player.vimeo.com/video/${videoId}`;
+      return `https://player.vimeo.com/video/${videoId}${start ? `#t=${start}s` : ''}`;
     case 'ted':
       return `https://embed.ted.com/talks/${videoId}`;
     case 'dailymotion':
-      return `https://www.dailymotion.com/embed/video/${videoId}`;
+      return `https://www.dailymotion.com/embed/video/${videoId}${start ? `?start=${start}` : ''}`;
     case 'facebook':
       return `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(originalUrl)}&show_text=false`;
     case 'instagram':

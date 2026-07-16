@@ -1,24 +1,20 @@
-import { apiClient } from '@/services/apiClient';
+// Service logic moved to the shared package (packages/core). This shim keeps
+// rn's historical method names (list/update/remove) and its `QuizQuestion`
+// mapping over the shared web-canonical factory.
+import {
+  createQuestionBankService,
+  type QuestionBankFilters,
+  type QuestionBankQuestion,
+  type UpdateQuestionBankQuestion,
+} from '@core/services/questionBankService';
+import { http } from '@/services/http';
 import type { QuizQuestion } from '@/types';
 
-interface BackendQuestionBankQuestion {
-  quizId: string;
-  documentId?: string;
-  videoId?: string;
-  courseId?: string;
-  sourceType: string;
-  sourceName?: string;
-  courseName?: string;
-  courseColor?: string;
-  question: string;
-  options: string[];
-  correctAnswer: string;
-  explanation: string;
-  difficulty: 'easy' | 'medium' | 'hard';
-  createdAt: string;
-}
+export type { QuestionBankFilters };
 
-const mapQuestion = (bq: BackendQuestionBankQuestion): QuizQuestion => ({
+const core = createQuestionBankService(http);
+
+const mapQuestion = (bq: QuestionBankQuestion): QuizQuestion => ({
   id: bq.quizId,
   documentId: bq.documentId,
   videoId: bq.videoId,
@@ -35,35 +31,19 @@ const mapQuestion = (bq: BackendQuestionBankQuestion): QuizQuestion => ({
   createdAt: bq.createdAt,
 });
 
-export interface QuestionBankFilters {
-  courseId?: string;
-  sourceType?: 'document' | 'video';
-  difficulty?: 'easy' | 'medium' | 'hard';
-}
-
 export const questionBankService = {
   async list(filters: QuestionBankFilters = {}): Promise<QuizQuestion[]> {
-    const params = new URLSearchParams();
-    if (filters.courseId) params.set('courseId', filters.courseId);
-    if (filters.sourceType) params.set('sourceType', filters.sourceType);
-    if (filters.difficulty) params.set('difficulty', filters.difficulty);
-    const query = params.toString();
-    const response = await apiClient.get(`/api/question-bank${query ? `?${query}` : ''}`);
-    return (response.data.data as BackendQuestionBankQuestion[]).map(mapQuestion);
+    return (await core.getQuestions(filters)).map(mapQuestion);
   },
 
-  async update(quizId: string, data: { question: string; options: string[]; correctAnswer: string; explanation: string; difficulty: string }): Promise<QuizQuestion> {
-    const response = await apiClient.patch(`/api/question-bank/${quizId}`, data);
-    return mapQuestion(response.data.data);
+  async update(quizId: string, data: UpdateQuestionBankQuestion): Promise<QuizQuestion> {
+    return mapQuestion(await core.updateQuestion(quizId, data));
   },
 
   async remove(quizId: string): Promise<void> {
-    await apiClient.delete(`/api/question-bank/${quizId}`);
+    await core.deleteQuestion(quizId);
   },
 
   /** Wrong answers land in the mistake notebook; correct ones resolve an open entry. */
-  async recordAttempt(quizId: string, selectedAnswer: string): Promise<{ isCorrect: boolean }> {
-    const response = await apiClient.post(`/api/question-bank/${quizId}/attempt`, { selectedAnswer });
-    return response.data.data as { isCorrect: boolean };
-  },
+  recordAttempt: core.recordAttempt,
 };

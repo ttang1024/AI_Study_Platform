@@ -1,77 +1,32 @@
-import { apiClient } from '@/services/apiClient';
+// Service logic moved to the shared package (packages/core). This shim keeps
+// rn's historical method names (list/create/update/remove/createForDocument)
+// and mapped `Note` returns over the shared web-canonical factory.
+import { createNoteService, mapBackendNote, type PagedNotes } from '@core/services/noteService';
+import { http } from '@/services/http';
 import type { Note } from '@/types';
 
-interface BackendNote {
-  noteId: string;
-  documentId?: string;
-  videoId?: string;
-  sourceType: 'document' | 'video';
-  content: string;
-  title?: string;
-  createdAt: string;
-  updatedAt: string;
-  document?: string;
-  video?: string;
-}
+export type { PagedNotes };
 
-interface PaginatedNotes {
-  items: BackendNote[];
-  totalCount: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
-}
-
-export interface PagedNotes {
-  items: Note[];
-  totalCount: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
-}
-
-const mapNote = (bn: BackendNote): Note => ({
-  id: bn.noteId,
-  documentId: bn.documentId,
-  videoId: bn.videoId,
-  documentName: bn.sourceType === 'document' ? bn.document : undefined,
-  videoName: bn.sourceType === 'video' ? bn.video : undefined,
-  sourceType: bn.sourceType,
-  content: bn.content,
-  title: bn.title,
-  createdAt: bn.createdAt,
-  updatedAt: bn.updatedAt,
-});
+const core = createNoteService(http);
 
 export const noteService = {
-  async list(page = 1, pageSize = 20): Promise<PagedNotes> {
-    const response = await apiClient.get(`/api/notes?page=${page}&pageSize=${pageSize}`);
-    const data = response.data.data as PaginatedNotes;
-    return {
-      items: data.items.map(mapNote),
-      totalCount: data.totalCount,
-      page: data.page,
-      pageSize: data.pageSize,
-      totalPages: data.totalPages,
-    };
+  list(page = 1, pageSize = 20): Promise<PagedNotes> {
+    return core.getAllNotes(page, pageSize);
   },
 
   async create(data: { content: string; title?: string; documentId?: string; videoId?: string }): Promise<Note> {
-    const response = await apiClient.post('/api/notes', data);
-    return mapNote(response.data.data);
+    return mapBackendNote(await core.createNote(data));
   },
 
   async update(noteId: string, data: { content: string; title?: string }): Promise<Note> {
-    const response = await apiClient.put(`/api/notes/${noteId}`, data);
-    return mapNote(response.data.data);
+    return mapBackendNote(await core.updateNote(noteId, data));
   },
 
   async remove(noteId: string): Promise<void> {
-    await apiClient.delete(`/api/notes/${noteId}`);
+    await core.deleteNote(noteId);
   },
 
   async createForDocument(courseId: string, documentId: string, content: string): Promise<Note> {
-    const response = await apiClient.post(`/api/courses/${courseId}/documents/${documentId}/notes`, { content });
-    return mapNote(response.data.data);
+    return mapBackendNote(await core.createNoteForDocument(courseId, documentId, content));
   },
 };

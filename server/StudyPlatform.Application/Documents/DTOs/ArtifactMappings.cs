@@ -24,7 +24,9 @@ public static class ArtifactMappings
         CardType: f.CardType,
         Difficulty: f.Difficulty,
         Chapter: f.Chapter,
-        Tags: f.Tags);
+        Tags: f.Tags,
+        ImageUrl: f.ImageUrl,
+        OcclusionsJson: f.OcclusionsJson);
 
     public static FlashcardSrsDto ToSrsDto(this FlashcardSrsData srs) => new(
         srs.FlashcardId, srs.State, srs.Stability, srs.Difficulty, srs.Reps, srs.Lapses,

@@ -3,7 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BookOpen, Coffee, LogIn, LogOut, Timer, Users } from 'lucide-react-native';
 
 import { Card } from '@/components/Card';
-import { Alpha, Colors, Radius, Spacing, Typography } from '@/constants/theme';
+import { Alpha, Colors, Layout, Radius, Spacing, Typography } from '@/constants/theme';
 import type { StudyRoomState, StudyRoomStatus } from '@/services/groupChatSocket';
 
 interface StudyRoomTabProps {
@@ -135,27 +135,27 @@ export const StudyRoomTab: React.FC<StudyRoomTabProps> = ({
 const styles = StyleSheet.create({
   root: { padding: Spacing.three },
   card: { gap: Spacing.three },
-  headerRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  headerRow: { ...Layout.row, gap: Spacing.two },
   headerText: { ...Typography.bodyBold, fontSize: 14, color: Colors.textPrimary, flex: 1 },
   joinButton: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
+    ...Layout.row, gap: 4,
     backgroundColor: Colors.teal, borderRadius: Radius.md, paddingHorizontal: 12, paddingVertical: 7,
   },
   joinButtonText: { fontSize: 12, fontWeight: '700', color: Colors.primaryForeground },
   leaveButton: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
+    ...Layout.row, gap: 4,
     borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.md, paddingHorizontal: 12, paddingVertical: 7,
   },
   leaveButtonText: { fontSize: 12, fontWeight: '700', color: Colors.textSecondary },
   disabled: { opacity: 0.5 },
   timerBox: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.two,
+    ...Layout.row, gap: Spacing.two,
     backgroundColor: `${Colors.teal}${Alpha.tint}`, borderRadius: Radius.md, padding: Spacing.three,
   },
   timerBody: { flex: 1 },
   timerValue: { fontSize: 22, fontWeight: '800', color: Colors.teal, fontVariant: ['tabular-nums'] },
   timerMeta: { fontSize: 11, color: Colors.teal, marginTop: 2 },
-  timerStartRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  timerStartRow: { ...Layout.row, gap: Spacing.two },
   timerOption: {
     borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.md,
     paddingHorizontal: 12, paddingVertical: 7,
@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
   timerOptionText: { fontSize: 12, fontWeight: '700', color: Colors.textPrimary },
   mutedText: { ...Typography.caption, fontSize: 12, color: Colors.textSecondary },
   memberList: { gap: Spacing.two },
-  memberRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  memberRow: { ...Layout.row, gap: Spacing.two },
   statusDot: { width: 8, height: 8, borderRadius: 4 },
   memberName: { ...Typography.caption, color: Colors.textPrimary, flex: 1 },
   memberStatus: { fontSize: 11, color: Colors.textSecondary },
@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', gap: Spacing.two, borderTopWidth: 1, borderTopColor: Colors.border, paddingTop: Spacing.two,
   },
   statusToggle: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
+    flex: 1, ...Layout.row, justifyContent: 'center', gap: 5,
     borderRadius: Radius.md, paddingVertical: 8,
   },
   statusToggleStudying: { backgroundColor: `${Colors.emerald}${Alpha.wash}` },

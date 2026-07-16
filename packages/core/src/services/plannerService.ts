@@ -1,0 +1,124 @@
+import type { HttpClient } from '../http';
+
+export interface ExamPlan {
+  id: string;
+  courseId?: string;
+  courseName?: string;
+  title: string;
+  examDate: string;
+  dailyMinutes: number;
+  daysRemaining: number;
+  createdAt: string;
+}
+
+export interface PlanTask {
+  // Known values: 'flashcards' | 'concept' | 'mistakes' | 'mock-exam' | 'practice' | 'review'.
+  type: string;
+  title: string;
+  reason: string;
+  minutes: number;
+  url?: string;
+}
+
+export interface PlanDay {
+  date: string;
+  label: string;
+  minutes: number;
+  tasks: PlanTask[];
+}
+
+export interface ExamSchedule {
+  plan: ExamPlan;
+  days: PlanDay[];
+}
+
+export interface MockExamQuestion {
+  quizId: string;
+  question: string;
+  options: string[];
+}
+
+export interface MockExam {
+  courseId?: string;
+  questions: MockExamQuestion[];
+  suggestedMinutes: number;
+}
+
+export interface MockExamResultItem {
+  quizId: string;
+  question: string;
+  correctAnswer: string;
+  userAnswer: string;
+  correct: boolean;
+  explanation: string;
+}
+
+export interface MockExamResult {
+  score: number;
+  total: number;
+  items: MockExamResultItem[];
+}
+
+export interface CramSheet {
+  examPlanId: string;
+  title: string;
+  examDate: string;
+  markdown: string;
+  generatedAt: string;
+}
+
+export function createPlannerService(http: HttpClient) {
+  return {
+    async getExamPlans(): Promise<ExamPlan[]> {
+      const res = await http.get<{ data: ExamPlan[] }>('/api/planner/exam-plans');
+      return res.data.data;
+    },
+
+    async createExamPlan(data: {
+      title: string;
+      examDate: string;
+      courseId?: string;
+      dailyMinutes: number;
+    }): Promise<ExamPlan> {
+      const res = await http.post<{ data: ExamPlan }>('/api/planner/exam-plans', data);
+      return res.data.data;
+    },
+
+    async deleteExamPlan(planId: string): Promise<void> {
+      await http.delete(`/api/planner/exam-plans/${planId}`);
+    },
+
+    async getSchedule(planId: string): Promise<ExamSchedule> {
+      const res = await http.get<{ data: ExamSchedule }>(`/api/planner/exam-plans/${planId}/schedule`);
+      return res.data.data;
+    },
+
+    /** AI one-page cheat sheet from weak material; cached daily server-side. */
+    async getCramSheet(planId: string, refresh = false): Promise<CramSheet> {
+      const res = await http.get<{ data: CramSheet }>(`/api/planner/exam-plans/${planId}/cram-sheet`, {
+        params: { refresh },
+      });
+      return res.data.data;
+    },
+
+    async getMockExam(courseId?: string, count = 10): Promise<MockExam> {
+      const res = await http.get<{ data: MockExam }>('/api/planner/mock-exam', {
+        params: { courseId, count },
+      });
+      return res.data.data;
+    },
+
+    async gradeMockExam(
+      answers: Record<string, string>,
+      durationSeconds: number,
+    ): Promise<MockExamResult> {
+      const res = await http.post<{ data: MockExamResult }>('/api/planner/mock-exam/grade', {
+        answers,
+        durationSeconds,
+      });
+      return res.data.data;
+    },
+  };
+}
+
+export type PlannerService = ReturnType<typeof createPlannerService>;

@@ -21,5 +21,13 @@ public class MistakeEntryConfiguration : IEntityTypeConfiguration<MistakeEntry>
             .WithMany()
             .HasForeignKey(m => m.UserId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        // No navigation on either side — the mistake only needs to know a card exists. SetNull rather
+        // than Cascade: deleting the promoted card must not delete the mistake it came from, it should
+        // just unlink it, which is exactly what lets the user promote the mistake again.
+        builder.HasOne<Flashcard>()
+            .WithMany()
+            .HasForeignKey(m => m.FlashcardId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

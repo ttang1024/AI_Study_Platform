@@ -92,7 +92,7 @@ export const TimedExamModal: React.FC<TimedExamModalProps> = ({
     const newAnswers = [...answers, {
       questionId: q.id,
       selected,
-      correct: isQuizOptionCorrect(selected, q.answer),
+      correct: isQuizOptionCorrect(selected, q.correctAnswer),
     }];
     setAnswers(newAnswers);
     setSelected(null);
@@ -266,7 +266,7 @@ export const TimedExamModal: React.FC<TimedExamModalProps> = ({
                             {!ans?.correct && (
                               <>
                                 <p className="text-[10px] mt-0.5"><span className="text-text-muted">Your: </span><span className="text-red-600 font-bold">{ans?.selected || '—'}</span></p>
-                                <p className="text-[10px]"><span className="text-text-muted">Correct: </span><span className="text-emerald-600 font-bold">{getCorrectQuizOptionText(q.options, q.answer)}</span></p>
+                                <p className="text-[10px]"><span className="text-text-muted">Correct: </span><span className="text-emerald-600 font-bold">{getCorrectQuizOptionText(q.options, q.correctAnswer)}</span></p>
                               </>
                             )}
                             {q.explanation && <p className="text-[10px] text-text-muted mt-0.5 italic">{q.explanation}</p>}

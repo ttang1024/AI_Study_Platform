@@ -1,0 +1,10 @@
+{
+  "name": "@study/core",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Platform-agnostic domain logic shared by web/ and rn/ (services over an injected HttpClient, pure utils, domain types). No runtime dependencies — consumers inject the HTTP client.",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "sideEffects": false
+}

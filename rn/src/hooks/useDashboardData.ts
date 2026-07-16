@@ -4,6 +4,7 @@ import { analyticsService } from '@/services/analyticsService';
 import { notificationService } from '@/services/notificationService';
 import { recommendationService, type RecommendationItem } from '@/services/recommendationService';
 import { statsService } from '@/services/statsService';
+import { syncWidgetData } from '@/services/widgetBridge';
 import type { DashboardSummary, TodayPlan, UserStats, UserXp, WeeklyDigest } from '@/types';
 
 export interface DashboardData {
@@ -33,6 +34,7 @@ export function useDashboardData() {
         recommendationService.getRecommendations(),
       ]);
       setData({ today, summary, stats, xp, digest, nextBestContent: recommendations.nextBestContent });
+      syncWidgetData(summary);
     } finally {
       setLoading(false);
       setRefreshing(false);

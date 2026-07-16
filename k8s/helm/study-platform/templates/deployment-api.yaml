@@ -49,15 +49,20 @@ spec:
           volumeMounts:
             - name: dataprotection-keys
               mountPath: /root/.aspnet/DataProtection-Keys
+          # Liveness checks no dependencies on purpose: if Postgres goes down, restarting the API cannot
+          # bring it back, and a dependency-aware liveness probe would just crash-loop every pod.
           livenessProbe:
             httpGet:
               path: /health
               port: {{ .Values.api.port }}
             initialDelaySeconds: 20
             periodSeconds: 15
+          # Readiness does check dependencies. Postgres down => 503 => this pod stops taking traffic.
+          # A Redis outage reports Degraded, which is still a 200, because the API falls back to the
+          # Postgres cache tier and can serve correctly without it.
           readinessProbe:
             httpGet:
-              path: /health
+              path: /health/ready
               port: {{ .Values.api.port }}
             initialDelaySeconds: 10
             periodSeconds: 10

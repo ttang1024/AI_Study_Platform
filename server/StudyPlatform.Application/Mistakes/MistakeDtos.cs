@@ -15,7 +15,9 @@ public record MistakeDto(
     int TimesMissed,
     DateTime FirstMissedAt,
     DateTime LastMissedAt,
-    DateTime? ResolvedAt);
+    DateTime? ResolvedAt,
+    /// <summary>The flashcard promoted from this mistake, if any. Non-null means "already a card".</summary>
+    Guid? FlashcardId);
 
 public record MistakesDto(IReadOnlyList<MistakeDto> Items, int OpenCount, int ResolvedCount);
 

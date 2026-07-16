@@ -1,8 +1,9 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text } from 'react-native';
 
-import { Colors, Gradients, Radius, Shadows } from '@/constants/theme';
+import { PressableScale } from '@/components/PressableScale';
+import { Colors, Gradients, Layout, Radius, Shadows } from '@/constants/theme';
 
 interface ButtonProps {
   title: string;
@@ -21,14 +22,10 @@ export const Button: React.FC<ButtonProps> = ({ title, onPress, variant = 'prima
   );
 
   return (
-    <Pressable
+    <PressableScale
       onPress={onPress}
       disabled={disabled || loading}
-      style={({ pressed }) => [
-        isPrimary ? styles.primaryShadow : styles.secondary,
-        (disabled || loading) && styles.disabled,
-        pressed && !disabled && !loading && styles.pressed,
-      ]}
+      style={isPrimary ? styles.primaryShadow : styles.secondary}
     >
       {isPrimary ? (
         <LinearGradient
@@ -42,7 +39,7 @@ export const Button: React.FC<ButtonProps> = ({ title, onPress, variant = 'prima
       ) : (
         inner
       )}
-    </Pressable>
+    </PressableScale>
   );
 };
 
@@ -50,8 +47,7 @@ const styles = StyleSheet.create({
   base: {
     height: 48,
     borderRadius: Radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
+    ...Layout.center,
     paddingHorizontal: 20,
   },
   primaryShadow: {
@@ -61,19 +57,12 @@ const styles = StyleSheet.create({
   secondary: {
     height: 48,
     borderRadius: Radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
+    ...Layout.center,
     paddingHorizontal: 20,
     backgroundColor: Colors.bgCard,
     borderWidth: 1,
     borderColor: Colors.border,
     ...Shadows.card,
-  },
-  disabled: {
-    opacity: 0.5,
-  },
-  pressed: {
-    opacity: 0.85,
   },
   text: {
     fontSize: 15,

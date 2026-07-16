@@ -191,6 +191,22 @@ public class FsrsServiceTests
         Assert.True(easy.Stability > good.Stability);
     }
 
+    [Fact]
+    public void ReviewCard_Good_EarlyReview_StabilityStillGrows()
+    {
+        // Reviewing well before the due date (high retrievability) must never shrink stability.
+        var card = NewCard();
+        card.State = 2;
+        card.Stability = 30.0;
+        card.Difficulty = 5.0;
+        card.LastReview = ReviewTime.AddDays(-1);
+
+        var result = FsrsService.Review(card, 3, ReviewTime);
+
+        Assert.True(result.Stability >= card.Stability,
+            $"Early successful review shrank stability: {card.Stability} → {result.Stability}");
+    }
+
     // ─── Relearning card (State 3) ─────────────────────────────────────────────
 
     [Fact]

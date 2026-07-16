@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Calendar, ChevronLeft, ChevronRight, FileText, Globe, Mic, Video, X } from 'lucide-react-native';
 
-import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
+import { Alpha, Colors, Layout, Overlay, Radius, Spacing, Typography } from '@/constants/theme';
 import { libraryService, type LibraryEntry } from '@/services/libraryService';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -223,18 +223,17 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.lg,
     backgroundColor: Colors.bgCard, overflow: 'hidden',
   },
-  loadingCard: { minHeight: 160, alignItems: 'center', justifyContent: 'center' },
+  loadingCard: { minHeight: 160, ...Layout.center },
 
   header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: Spacing.three, paddingVertical: Spacing.two,
+    ...Layout.rowBetween, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two,
     borderBottomWidth: 1, borderColor: Colors.border,
   },
-  headerLabel: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  headerLabel: { ...Layout.row, gap: Spacing.two },
   headerText: { ...Typography.bodyBold, color: Colors.textPrimary },
-  headerNav: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  headerNav: { ...Layout.row, gap: 4 },
   navButton: { padding: 6, borderRadius: Radius.sm },
-  todayButton: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: Radius.md, backgroundColor: `${Colors.primary}1a` },
+  todayButton: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: Radius.md, backgroundColor: `${Colors.primary}${Alpha.tint}` },
   todayButtonText: { ...Typography.captionBold, color: Colors.primary },
 
   weekdayRow: { flexDirection: 'row', borderBottomWidth: 1, borderColor: Colors.border },
@@ -245,7 +244,7 @@ const styles = StyleSheet.create({
 
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   cellEmpty: {
-    width: '14.28%', minHeight: 76, backgroundColor: `${Colors.textSecondary}0d`,
+    width: '14.28%', minHeight: 76, backgroundColor: `${Colors.textSecondary}${Alpha.wash}`,
     borderRightWidth: 1, borderBottomWidth: 1, borderColor: Colors.border,
   },
   cell: {
@@ -254,7 +253,7 @@ const styles = StyleSheet.create({
   },
   cellFuture: { opacity: 0.4 },
 
-  dayBadge: { width: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  dayBadge: { width: 18, height: 18, borderRadius: 9, ...Layout.center },
   dayBadgeToday: { backgroundColor: Colors.primary },
   dayNumber: { fontSize: 11, fontWeight: '700', color: Colors.textPrimary },
   dayNumberToday: { color: Colors.white },
@@ -263,18 +262,17 @@ const styles = StyleSheet.create({
   chipText: { fontSize: 8, fontWeight: '600' },
   overflowText: { fontSize: 8, fontWeight: '700', color: Colors.textSecondary },
 
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center', padding: Spacing.four },
+  modalBackdrop: { ...Layout.fillCenter, backgroundColor: Overlay.backdrop, padding: Spacing.four },
   modalCard: {
     width: '100%', maxHeight: '70%', backgroundColor: Colors.bgCard, borderRadius: Radius.lg,
     borderWidth: 1, borderColor: Colors.border, overflow: 'hidden',
   },
   modalHeader: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    padding: Spacing.three, borderBottomWidth: 1, borderColor: Colors.border,
+    ...Layout.rowBetween, padding: Spacing.three, borderBottomWidth: 1, borderColor: Colors.border,
   },
   modalList: { padding: Spacing.two },
-  modalRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, padding: Spacing.two, borderRadius: Radius.md },
-  modalIcon: { width: 28, height: 28, borderRadius: Radius.sm, alignItems: 'center', justifyContent: 'center' },
+  modalRow: { ...Layout.row, gap: Spacing.two, padding: Spacing.two, borderRadius: Radius.md },
+  modalIcon: { width: 28, height: 28, borderRadius: Radius.sm, ...Layout.center },
   modalRowBody: { flex: 1 },
   modalRowTitle: { ...Typography.bodyBold, fontSize: 13, color: Colors.textPrimary },
   modalRowSubtitle: { ...Typography.caption, fontSize: 10, color: Colors.textSecondary, textTransform: 'capitalize', marginTop: 1 },

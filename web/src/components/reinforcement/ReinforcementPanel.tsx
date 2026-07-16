@@ -33,7 +33,7 @@ const toQuizQuestion = (q: QuestionBankQuestion): QuizQuestion => ({
   id: q.quizId,
   question: q.question,
   options: q.options,
-  answer: q.correctAnswer,
+  correctAnswer: q.correctAnswer,
   explanation: q.explanation,
   type: 'multiple-choice',
   difficulty: q.difficulty,

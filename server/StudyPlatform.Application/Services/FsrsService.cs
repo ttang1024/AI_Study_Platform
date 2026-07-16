@@ -134,6 +134,10 @@ public static class FsrsService
             Retrievability: Math.Round(r, 4));
     }
 
+    /// <summary>Model-predicted recall probability after <paramref name="elapsedDays"/> days for a given stability.</summary>
+    public static double PredictRetention(double stability, double elapsedDays)
+        => stability <= 0 ? 0 : Math.Round(Retrievability(stability, Math.Max(0, elapsedDays)), 4);
+
     public static double ComputeRetrievability(double stability, DateTime? lastReview)
     {
         if (!lastReview.HasValue || stability <= 0) return 0;
@@ -153,10 +157,11 @@ public static class FsrsService
     {
         double hardPenalty = g == 2 ? W[15] : 1.0;
         double easyBonus = g == 4 ? W[16] : 1.0;
-        return s * Math.Exp(W[8]) * (11 - d)
-               * Math.Pow(s, -W[9])
-               * (Math.Exp(W[10] * (1 - r)) - 1)
-               * hardPenalty * easyBonus;
+        // S' = S · (1 + SInc): stability can only grow on a successful recall.
+        return s * (1 + Math.Exp(W[8]) * (11 - d)
+                        * Math.Pow(s, -W[9])
+                        * (Math.Exp(W[10] * (1 - r)) - 1)
+                        * hardPenalty * easyBonus);
     }
 
     private static double NextForgetStability(double d, double s, double r)

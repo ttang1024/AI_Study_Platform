@@ -13,7 +13,7 @@ import { LeaderboardTab } from '@/components/groups/LeaderboardTab';
 import { MembersTab } from '@/components/groups/MembersTab';
 import { SharedCoursesTab } from '@/components/groups/SharedCoursesTab';
 import { StudyRoomTab } from '@/components/groups/StudyRoomTab';
-import { Colors, Gradients, Overlay, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
+import { Colors, Gradients, Layout, Overlay, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
 import {
   GroupChatSocket, type ConnectionState, type GroupChatMessage, type StudyRoomState,
@@ -205,7 +205,7 @@ export default function GroupDetailScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bgApp },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.bgApp },
+  center: { ...Layout.fillCenter, backgroundColor: Colors.bgApp },
   header: {
     paddingHorizontal: Spacing.three,
     paddingBottom: Spacing.three,
@@ -213,13 +213,12 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: Radius.xl,
     gap: Spacing.two,
   },
-  headerRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  headerRow: { ...Layout.row, gap: Spacing.two },
   glassButton: {
     width: 36,
     height: 36,
     borderRadius: Radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
+    ...Layout.center,
     backgroundColor: Overlay.glass,
     borderWidth: 1,
     borderColor: Overlay.glassBorder,
@@ -227,8 +226,7 @@ const styles = StyleSheet.create({
   title: { ...Typography.screenTitle, color: Colors.white, flex: 1, textAlign: 'center' },
   pillRow: { flexDirection: 'row', justifyContent: 'center', gap: Spacing.two },
   glassPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    ...Layout.row,
     gap: 6,
     paddingHorizontal: 12,
     paddingVertical: 6,
