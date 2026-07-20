@@ -24,6 +24,7 @@ import { TABS } from '../constants/tab';
 import { cn } from '../utils/cn';
 import { Document } from '../types';
 import { getApiErrorCode } from '../utils/apiError';
+import { normalizeSummaryText } from '@core/utils/summary';
 import { getApiUrl } from '../utils/env';
 import { useStudyTimer } from '../hooks/useStudyTimer';
 
@@ -146,20 +147,7 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
     if (!currentDocument) return;
 
     setSummaryError(null);
-    if (currentDocument.summary) {
-      try {
-        const parsed = JSON.parse(currentDocument.summary);
-        const summaryText = (parsed.summary || '')
-          + (parsed.keyPoints && parsed.keyPoints.length > 0
-            ? '\n\n**Key Points:**\n' + parsed.keyPoints.map((p: string) => `- ${p}`).join('\n')
-            : '');
-        setSummary(summaryText || currentDocument.summary);
-      } catch {
-        setSummary(currentDocument.summary);
-      }
-    } else {
-      setSummary(null);
-    }
+    setSummary(normalizeSummaryText(currentDocument.summary));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentDocument?.id, currentDocument?.summary]);
 

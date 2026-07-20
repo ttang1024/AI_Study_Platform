@@ -11,18 +11,8 @@ export type { Course } from '@core/types';
 // Shared with web/ via packages/core.
 export type { Document } from '@core/types';
 
-export interface VideoListItem {
-  id: string;
-  courseId: string;
-  courseName: string;
-  courseColor: string;
-  videoId: string;
-  videoUrl: string;
-  sourceType?: string;
-  title: string;
-  thumbnailUrl: string;
-  createdAt: string;
-}
+// Shared with web/ via packages/core.
+export type { VideoListItem } from '@core/services/videoService';
 
 export interface StudyStreak {
   currentStreak: number;
@@ -72,22 +62,8 @@ export interface QuizSubmission {
 // Shared with web/ via packages/core.
 export type { Mistake, VariantQuestion } from '@core/services/mistakesService';
 
-export interface PendingMaterial {
-  kind: string;
-  id: string;
-  courseId: string;
-  courseName: string;
-  courseColor: string;
-  name: string;
-  contentType?: string;
-  blobUrl?: string;
-  originalUrl?: string;
-  videoId?: string;
-  videoUrl?: string;
-  thumbnailUrl?: string;
-  createdAt: string;
-  sourceType?: string;
-}
+// Shared with web/ via packages/core.
+export type { PendingMaterial } from '@core/types';
 
 export interface TodayPlanItem {
   id: string;
@@ -112,12 +88,8 @@ export interface TodayPlan {
   items: TodayPlanItem[];
 }
 
-export interface DashboardSummary {
-  streak: StudyStreak;
-  dueFlashcards: number;
-  reinforcement: { quizMistakes: number; unmasteredTerms: number; hardFlashcards: number };
-  dailyGoalMinutes: number;
-}
+// Shared with web/ via packages/core.
+export type { DashboardSummary, ReinforcementCounts } from '@core/services/analyticsService';
 
 // Shared with web/ via packages/core.
 export type { UserStats, UserXp } from '@core/services/statsService';

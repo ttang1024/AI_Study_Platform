@@ -126,7 +126,9 @@ describe('flashcardService', () => {
       const result = await flashcardService.createFlashcard({ front: 'Q', back: 'A' })
       expect(result.videoId).toBe('yt-1')
       expect(result.videoName).toBe('My Video')
-      expect(result.documentId).toBe('')
+      // No documentId on video cards — undefined (not '') so `documentId ?? videoId`
+      // deck grouping falls through to the videoId.
+      expect(result.documentId).toBeUndefined()
     })
   })
 

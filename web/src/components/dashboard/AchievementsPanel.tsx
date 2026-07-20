@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Trophy } from 'lucide-react';
-import { achievementsService, Achievement, AchievementStats } from '../../services/achievementsService';
+import { achievementsService, Achievement, AchievementProgress } from '../../services/achievementsService';
 import { useAuth } from '../../context/AuthContext';
 import { useStudy } from '../../context/StudyContext';
 import { cn } from '../../utils/cn';
@@ -20,15 +20,13 @@ export const AchievementsPanel: React.FC = () => {
 
   const [newlyUnlocked, setNewlyUnlocked] = useState<Achievement[]>([]);
 
-  const stats = useMemo<AchievementStats>(() => {
+  const stats = useMemo<AchievementProgress>(() => {
     return {
       totalFlashcards,
       totalQuizSubmissions,
       totalNotes,
       totalDocuments,
-      perfectQuizzes: achievementStats.perfectQuizzes,
-      averageQuizScore: achievementStats.averageQuizScore,
-      flashcardsMastered: achievementStats.flashcardsMastered,
+      achievements: achievementStats,
     };
   }, [achievementStats, totalFlashcards, totalNotes, totalDocuments, totalQuizSubmissions]);
 

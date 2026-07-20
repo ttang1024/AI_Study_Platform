@@ -3,11 +3,31 @@
 // (Document, Flashcard, Note, QuizQuestion) have diverged in shape between web/
 // and rn/ and must be reconciled per-entity before they can be single-sourced.
 
+import type { VideoSourceType } from './videoSources';
+
 export interface Course {
   id: string;
   name: string;
   color: string;
   description?: string;
+}
+
+/** A library item that has no generated study artifacts yet (flashcards "pending materials" list). */
+export interface PendingMaterial {
+  kind: 'document' | 'video';
+  id: string;
+  courseId: string;
+  courseName: string;
+  courseColor: string;
+  name: string;
+  contentType?: string | null;
+  blobUrl?: string | null;
+  originalUrl?: string | null;
+  videoId?: string | null;
+  videoUrl?: string | null;
+  thumbnailUrl?: string | null;
+  sourceType?: VideoSourceType | null;
+  createdAt: string;
 }
 
 // FSRS-4.5 card state. Identical across web/ and rn/.

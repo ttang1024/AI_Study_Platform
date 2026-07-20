@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/common/Button';
 import { cn } from '../utils/cn';
 import { getPublicEnv } from '../utils/env';
+import { validatePassword } from '@core/utils/validatePassword';
 
 const GOOGLE_CLIENT_ID = getPublicEnv('NEXT_PUBLIC_GOOGLE_CLIENT_ID') ?? getPublicEnv('VITE_GOOGLE_CLIENT_ID');
 const GITHUB_CLIENT_ID = getPublicEnv('NEXT_PUBLIC_GITHUB_CLIENT_ID') ?? getPublicEnv('VITE_GITHUB_CLIENT_ID');
@@ -35,16 +36,6 @@ export const RegisterPage: React.FC = () => {
     if (countdown > 0) timer = setTimeout(() => setCountdown(countdown - 1), 1000);
     return () => clearTimeout(timer);
   }, [countdown]);
-
-  const validatePassword = (pass: string) => {
-    if (pass.length < 8 || pass.length > 20) return false;
-    let types = 0;
-    if (/[A-Z]/.test(pass)) types++;
-    if (/[a-z]/.test(pass)) types++;
-    if (/[0-9]/.test(pass)) types++;
-    if (/[^A-Za-z0-9]/.test(pass)) types++;
-    return types >= 3;
-  };
 
   const handleSendCode = async () => {
     if (!email) { setError('Please enter your email first.'); return; }

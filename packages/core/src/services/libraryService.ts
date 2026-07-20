@@ -1,10 +1,14 @@
 import type { HttpClient } from '../http';
+import type { Document } from '../types';
+import type { VideoSourceType } from '../videoSources';
+import { mapDocument, type BackendDocument } from './documentService';
+import type { VideoListItem } from './videoService';
 
 /**
  * Unified library row from GET /api/library — either a document or a video.
- * Field superset of what web and rn read; how a row maps into each app's
- * Document/VideoListItem models still differs per platform (those DTOs have
- * not been reconciled yet), so consumers inject `mapItem`.
+ * Field superset of what web and rn read. Both apps now share the Document /
+ * VideoListItem DTOs, so `mapLibraryItem` below is the standard row mapper;
+ * `createLibraryService` stays generic for callers that want a custom shape.
  */
 export interface BackendLibraryItem {
   kind: 'document' | 'video';
@@ -38,6 +42,53 @@ export interface PagedLibraryOf<TEntry> {
 }
 
 export type LibraryFilterType = 'all' | 'documents' | 'articles' | 'audio' | 'videos';
+
+// Normalized shape the library pages render — a document or video row.
+export type LibraryEntry =
+  | { kind: 'document'; data: Document }
+  | { kind: 'video'; data: VideoListItem };
+
+export type PagedLibrary = PagedLibraryOf<LibraryEntry>;
+
+const toDocument = (i: BackendLibraryItem): Document => ({
+  ...mapDocument({
+    documentId: i.id,
+    courseId: i.courseId,
+    fileName: i.fileName ?? '',
+    blobUrl: i.blobUrl ?? '',
+    contentType: i.contentType ?? '',
+    fileSize: i.fileSize ?? 0,
+    fileHash: i.fileHash ?? undefined,
+    originalUrl: i.originalUrl ?? undefined,
+    summary: i.summary ?? undefined,
+    createdAt: i.createdAt,
+  } satisfies BackendDocument),
+  // Library rows carry course labeling the per-course document endpoints don't.
+  courseName: i.courseName,
+  courseColor: i.courseColor,
+});
+
+const toVideo = (i: BackendLibraryItem): VideoListItem => ({
+  id: i.id,
+  courseId: i.courseId,
+  courseName: i.courseName,
+  courseColor: i.courseColor,
+  videoId: i.videoId ?? '',
+  videoUrl: i.videoUrl ?? '',
+  sourceType: (i.sourceType as VideoSourceType | null) ?? 'youtube',
+  title: i.title ?? '',
+  thumbnailUrl: i.thumbnailUrl ?? '',
+  summary: null,
+  noteContent: null,
+  flashcardsJson: null,
+  quizJson: null,
+  createdAt: i.createdAt,
+});
+
+export const mapLibraryItem = (i: BackendLibraryItem): LibraryEntry =>
+  i.kind === 'video'
+    ? { kind: 'video', data: toVideo(i) }
+    : { kind: 'document', data: toDocument(i) };
 
 export interface GetLibraryParams {
   type?: LibraryFilterType;

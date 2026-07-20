@@ -35,19 +35,10 @@ async function post<T>(url: string, body: unknown): Promise<T> {
 	}
 }
 
-/** An image/PDF attachment uploaded with a chat turn. `data` is raw base64 (no data: URL prefix). */
-export interface ChatAttachment {
-	mimeType: string;
-	data: string;
-	fileName?: string;
-}
-
-/** An attachment as displayed on a message. `url` is a presigned URL (history) or data: URL (optimistic). */
-export interface ChatMessageAttachment {
-	url: string;
-	mimeType: string;
-	fileName?: string;
-}
+// The attachment DTOs moved to the shared package (packages/core/src/chat.ts) —
+// re-exported so existing `./aiService` imports keep working unchanged.
+import type { ChatAttachment, ChatMessageAttachment } from '@core/chat'
+export type { ChatAttachment, ChatMessageAttachment } from '@core/chat'
 
 /** Builds inline data: URLs from staged attachments so an optimistic user message can show thumbnails immediately. */
 export function attachmentsToDisplay(attachments?: ChatAttachment[]): ChatMessageAttachment[] | undefined {

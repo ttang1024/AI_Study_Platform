@@ -4,16 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { cn } from '../../utils/cn';
 import { SettingsAlert } from './SettingsAlert';
 import { SaveFooter } from './SaveFooter';
-
-const validatePassword = (pass: string) => {
-  if (pass.length < 8 || pass.length > 20) return false;
-  let types = 0;
-  if (/[A-Z]/.test(pass)) types++;
-  if (/[a-z]/.test(pass)) types++;
-  if (/[0-9]/.test(pass)) types++;
-  if (/[^A-Za-z0-9]/.test(pass)) types++;
-  return types >= 3;
-};
+import { validatePassword } from '@core/utils/validatePassword';
 
 export const SecurityTab: React.FC = () => {
   const { changePassword } = useAuth();

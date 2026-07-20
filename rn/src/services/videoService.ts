@@ -1,61 +1,32 @@
+// Service logic moved to the shared package (packages/core). This file wires the
+// RN HTTP + SSE adapters into the shared factory. RN-local overrides: PickedFile
+// upload, the async token-in-query stream URL (SecureStore token), SimpleCard
+// flashcard mapping, and streamSummary keeping rn's record-id semantics (core's
+// streamSummary takes a videoUrl; its record-id variant is streamVideoSummary).
+import { createVideoService, type VideoDetail, type VideoFlashcard } from '@core/services/videoService';
 import { apiClient } from '@/services/apiClient';
+import { http } from '@/services/http';
+import { streamSse } from '@/services/sse';
 import { API_URL } from '@/constants/env';
 import { tokenStore } from '@/services/tokenStore';
 import type { PickedFile, SimpleCard } from '@/types';
-import type { VideoSourceType } from '@/constants/videoSources';
 import { toFormDataPart } from '@/utils/formData';
-import { streamSse } from '@/services/sse';
 
-export interface VideoDetail {
-  id: string;
-  courseId: string;
-  videoId: string;
-  videoUrl: string;
-  sourceType?: string;
-  title: string;
-  thumbnailUrl: string;
-  summary: string | null;
-  createdAt: string;
-}
-
-export interface CreateVideoData {
-  courseId: string;
-  videoId: string;
-  videoUrl: string;
-  sourceType?: VideoSourceType;
-  title: string;
-  thumbnailUrl: string;
-  summary: null;
-}
-
-export interface PlaylistVideoItemData {
-  videoId: string;
-  title: string;
-  thumbnailUrl: string;
-  videoUrl?: string;
-}
-
-export interface TranscriptSegment {
-  startSeconds: number;
-  text: string;
-}
+export * from '@core/services/videoService';
 
 const VIDEO_API = '/api/videos';
 
+const coreService = createVideoService(http, streamSse);
+
+const mapVideoFlashcard = (bf: VideoFlashcard): SimpleCard => ({
+  id: bf.flashcardId,
+  front: bf.front,
+  back: bf.back,
+  cardType: bf.cardType === 'cloze' || bf.cardType === 'chart' ? bf.cardType : 'basic',
+});
+
 export const videoService = {
-  async getVideo(id: string): Promise<VideoDetail> {
-    const res = await apiClient.get<{ data: VideoDetail }>(`${VIDEO_API}/${id}`);
-    return res.data.data;
-  },
-
-  async deleteVideo(id: string): Promise<void> {
-    await apiClient.delete(`${VIDEO_API}/${id}`);
-  },
-
-  async createVideo(data: CreateVideoData): Promise<VideoDetail> {
-    const res = await apiClient.post<{ data: VideoDetail }>(VIDEO_API, data);
-    return res.data.data;
-  },
+  ...coreService,
 
   /** No thumbnail capture on mobile v1 (web captures a canvas first-frame; no direct RN equivalent). */
   async uploadVideo(courseId: string, file: PickedFile): Promise<VideoDetail> {
@@ -65,25 +36,8 @@ export const videoService = {
     const res = await apiClient.post<{ data: VideoDetail }>(`${VIDEO_API}/upload`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
+    coreService.invalidateVideoListCache();
     return res.data.data;
-  },
-
-  async getVideoMetadata(videoUrl: string): Promise<{ title: string; thumbnailUrl: string } | null> {
-    try {
-      const res = await apiClient.get<{ data: { title: string; thumbnailUrl: string } }>(
-        `${VIDEO_API}/video-metadata?videoUrl=${encodeURIComponent(videoUrl)}`,
-      );
-      return res.data.data ?? null;
-    } catch {
-      return null;
-    }
-  },
-
-  async getBilibiliItems(videoUrl: string): Promise<PlaylistVideoItemData[]> {
-    const res = await apiClient.get<{ data: PlaylistVideoItemData[] }>(
-      `${VIDEO_API}/bilibili-items?videoUrl=${encodeURIComponent(videoUrl)}`,
-    );
-    return res.data.data ?? [];
   },
 
   /** Bearer-token-in-query stream URL for videos uploaded directly (sourceType 'upload'). */
@@ -93,51 +47,14 @@ export const videoService = {
     return token ? `${API_URL}${path}?access_token=${encodeURIComponent(token)}` : `${API_URL}${path}`;
   },
 
-  /** No non-streaming summary endpoint exists for saved videos; consume the SSE stream and let the caller accumulate chunks. */
-  async streamSummary(videoRecordId: string, onChunk: (chunk: string) => void, signal?: AbortSignal): Promise<void> {
-    return streamSse(`${VIDEO_API}/${videoRecordId}/summary/stream`, {}, onChunk, signal);
-  },
-
-  /** Captions for a YouTube video, keyed by its source video id (the backend falls back to raw subtitles). */
-  async getTranscript(videoId: string): Promise<TranscriptSegment[]> {
-    const res = await apiClient.get<{ data: TranscriptSegment[] }>(
-      `${VIDEO_API}/transcript?videoId=${encodeURIComponent(videoId)}`,
-    );
-    return res.data.data ?? [];
-  },
-
-  /** Captions for a saved video record (non-YouTube sources), keyed by its record id. */
-  async getVideoTranscript(videoRecordId: string): Promise<TranscriptSegment[]> {
-    const res = await apiClient.get<{ data: TranscriptSegment[] }>(
-      `${VIDEO_API}/${videoRecordId}/transcript`,
-    );
-    return res.data.data ?? [];
-  },
+  /** rn's historical name: summary stream for a SAVED video record (core's streamVideoSummary). */
+  streamSummary: coreService.streamVideoSummary,
 
   async getFlashcards(videoId: string): Promise<SimpleCard[]> {
-    const res = await apiClient.get<{ data: BackendVideoFlashcard[] }>(`${VIDEO_API}/${videoId}/flashcards`);
-    return (res.data.data ?? []).map(mapVideoFlashcard);
+    return (await coreService.getFlashcards(videoId)).map(mapVideoFlashcard);
   },
 
   async generateFlashcards(videoId: string, videoUrl: string): Promise<SimpleCard[]> {
-    const res = await apiClient.post<{ data: BackendVideoFlashcard[] }>(
-      `${VIDEO_API}/${videoId}/flashcards/generate`,
-      { videoUrl },
-    );
-    return (res.data.data ?? []).map(mapVideoFlashcard);
+    return (await coreService.generateFlashcards(videoId, videoUrl)).map(mapVideoFlashcard);
   },
 };
-
-interface BackendVideoFlashcard {
-  flashcardId: string;
-  front: string;
-  back: string;
-  cardType?: 'basic' | 'cloze' | 'chart';
-}
-
-const mapVideoFlashcard = (bf: BackendVideoFlashcard): SimpleCard => ({
-  id: bf.flashcardId,
-  front: bf.front,
-  back: bf.back,
-  cardType: bf.cardType ?? 'basic',
-});

@@ -15,6 +15,30 @@ export type AIProvider =
   | 'qwen'
   | 'wenxin';
 
+/** Settings-screen metadata per provider (web AiServicesTab + rn ai-services). */
+export interface AiProviderInfo {
+  id: AIProvider;
+  label: string;
+  shortLabel: string;
+  placeholder: string;
+  docsHint: string;
+  badge?: string;
+}
+
+export const AI_PROVIDERS: AiProviderInfo[] = [
+  { id: 'gemini', label: 'Google Gemini', shortLabel: 'Gemini', placeholder: 'AIza...', docsHint: 'aistudio.google.com' },
+  { id: 'openai', label: 'OpenAI', shortLabel: 'OpenAI', placeholder: 'sk-...', docsHint: 'platform.openai.com' },
+  { id: 'claude', label: 'Anthropic Claude', shortLabel: 'Claude', placeholder: 'sk-ant-...', docsHint: 'console.anthropic.com' },
+  { id: 'grok', label: 'xAI Grok', shortLabel: 'Grok', placeholder: 'xai-...', docsHint: 'console.x.ai' },
+  { id: 'deepseek', label: 'DeepSeek', shortLabel: 'DeepSeek', placeholder: 'sk-...', docsHint: 'platform.deepseek.com', badge: 'Low cost' },
+  { id: 'kimi', label: 'Kimi AI', shortLabel: 'Kimi', placeholder: 'sk-...', docsHint: 'platform.moonshot.cn' },
+  { id: 'doubao', label: 'Doubao', shortLabel: 'Doubao', placeholder: 'your-doubao-key', docsHint: 'console.volcengine.com' },
+  { id: 'qwen', label: 'Alibaba Qwen', shortLabel: 'Qwen', placeholder: 'sk-...', docsHint: 'dashscope.aliyuncs.com' },
+  { id: 'wenxin', label: 'Wenxin Yiyan', shortLabel: 'Wenxin', placeholder: 'bce-v3/ALXXXXXXXXXX/...', docsHint: 'console.bce.baidu.com/qianfan' },
+];
+
+export const AI_PROVIDER_IDS: AIProvider[] = AI_PROVIDERS.map((p) => p.id);
+
 export const DEFAULT_MODELS: Record<AIProvider, string> = {
   gemini: 'gemini-2.5-flash',
   openai: 'gpt-4o-mini',

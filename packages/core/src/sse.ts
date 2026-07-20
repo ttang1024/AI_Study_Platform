@@ -95,3 +95,16 @@ export async function readSseTextStream(
     }
   }
 }
+
+/**
+ * The per-platform SSE transport contract: POST `body` to `url` and invoke
+ * `onChunk` per text chunk. web/ implements it with browser fetch + localStorage
+ * headers (streamSse.ts); rn/ with expo/fetch + SecureStore (sse.ts). Shared
+ * services that stream take one of these as a second factory argument.
+ */
+export type SseStreamFn = (
+  url: string,
+  body: unknown,
+  onChunk: (chunk: string) => void,
+  signal?: AbortSignal,
+) => Promise<void>;

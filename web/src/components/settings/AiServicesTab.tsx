@@ -2,22 +2,11 @@ import React, { useState } from 'react';
 import { Eye, EyeOff, Info, Wifi } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { aiSettingsService, DEFAULT_MODELS, type AIProvider, type AISettings } from '../../services/aiSettingsService';
+import { AI_PROVIDERS } from '@core/ai';
 import { apiClient } from '../../services/apiClient';
 import { ProviderIcon } from './ProviderIcon';
 import { SettingsAlert } from './SettingsAlert';
 import { SaveFooter } from './SaveFooter';
-
-const AI_PROVIDERS: { id: AIProvider; label: string; shortLabel: string; placeholder: string; docsHint: string; badge?: string }[] = [
-  { id: 'gemini', label: 'Google Gemini', shortLabel: 'Gemini', placeholder: 'AIza...', docsHint: 'aistudio.google.com' },
-  { id: 'openai', label: 'OpenAI', shortLabel: 'OpenAI', placeholder: 'sk-...', docsHint: 'platform.openai.com' },
-  { id: 'claude', label: 'Anthropic Claude', shortLabel: 'Claude', placeholder: 'sk-ant-...', docsHint: 'console.anthropic.com' },
-  { id: 'grok', label: 'xAI Grok', shortLabel: 'Grok', placeholder: 'xai-...', docsHint: 'console.x.ai' },
-  { id: 'deepseek', label: 'DeepSeek', shortLabel: 'DeepSeek', placeholder: 'sk-...', docsHint: 'platform.deepseek.com', badge: 'Low cost' },
-  { id: 'kimi', label: 'Kimi AI', shortLabel: 'Kimi', placeholder: 'sk-...', docsHint: 'platform.moonshot.cn' },
-  { id: 'doubao', label: 'Doubao', shortLabel: 'Doubao', placeholder: 'your-doubao-key', docsHint: 'console.volcengine.com' },
-  { id: 'qwen', label: 'Alibaba Qwen', shortLabel: 'Qwen', placeholder: 'sk-...', docsHint: 'dashscope.aliyuncs.com' },
-  { id: 'wenxin', label: 'Wenxin Yiyan', shortLabel: 'Wenxin', placeholder: 'bce-v3/ALXXXXXXXXXX/...', docsHint: 'console.bce.baidu.com/qianfan' },
-];
 
 export const AiServicesTab: React.FC = () => {
   const [aiSettings, setAISettings] = useState<AISettings>(() => aiSettingsService.load());

@@ -37,8 +37,8 @@ export default function InsightsScreen() {
     from.setDate(from.getDate() - (days - 1));
     try {
       const [t, a, m] = await Promise.all([
-        analyticsService.getTimeOnTask(from),
-        analyticsService.getQuizAccuracy(from),
+        analyticsService.getTimeOnTask(from.toISOString()),
+        analyticsService.getQuizAccuracy(from.toISOString()),
         analyticsService.getCourseMastery(),
       ]);
       setTimeOnTask(t);
@@ -63,8 +63,8 @@ export default function InsightsScreen() {
     const from = new Date();
     from.setDate(from.getDate() - (days - 1));
     Promise.all([
-      analyticsService.getTimeOnTask(from),
-      analyticsService.getQuizAccuracy(from),
+      analyticsService.getTimeOnTask(from.toISOString()),
+      analyticsService.getQuizAccuracy(from.toISOString()),
     ]).then(([t, a]) => {
       if (cancelled) return;
       setTimeOnTask(t);

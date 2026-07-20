@@ -10,18 +10,7 @@ import { TextField } from '@/components/TextField';
 import { Alpha, Colors, Layout, Radius, Spacing } from '@/constants/theme';
 import { apiClient } from '@/services/apiClient';
 import { aiSettingsService, DEFAULT_MODELS, type AIProvider, type AISettings } from '@/services/aiSettingsService';
-
-const AI_PROVIDERS: { id: AIProvider; label: string; shortLabel: string; placeholder: string; docsHint: string; badge?: string }[] = [
-  { id: 'gemini', label: 'Google Gemini', shortLabel: 'Gemini', placeholder: 'AIza...', docsHint: 'aistudio.google.com' },
-  { id: 'openai', label: 'OpenAI', shortLabel: 'OpenAI', placeholder: 'sk-...', docsHint: 'platform.openai.com' },
-  { id: 'claude', label: 'Anthropic Claude', shortLabel: 'Claude', placeholder: 'sk-ant-...', docsHint: 'console.anthropic.com' },
-  { id: 'grok', label: 'xAI Grok', shortLabel: 'Grok', placeholder: 'xai-...', docsHint: 'console.x.ai' },
-  { id: 'deepseek', label: 'DeepSeek', shortLabel: 'DeepSeek', placeholder: 'sk-...', docsHint: 'platform.deepseek.com', badge: 'Low cost' },
-  { id: 'kimi', label: 'Kimi AI', shortLabel: 'Kimi', placeholder: 'sk-...', docsHint: 'platform.moonshot.cn' },
-  { id: 'doubao', label: 'Doubao', shortLabel: 'Doubao', placeholder: 'your-doubao-key', docsHint: 'console.volcengine.com' },
-  { id: 'qwen', label: 'Alibaba Qwen', shortLabel: 'Qwen', placeholder: 'sk-...', docsHint: 'dashscope.aliyuncs.com' },
-  { id: 'wenxin', label: 'Wenxin Yiyan', shortLabel: 'Wenxin', placeholder: 'bce-v3/ALXXXXXXXXXX/...', docsHint: 'console.bce.baidu.com/qianfan' },
-];
+import { AI_PROVIDERS } from '@core/ai';
 
 export default function AiServicesScreen() {
   const insets = useSafeAreaInsets();

@@ -13,29 +13,11 @@ export type { Document } from '@core/types'
 // Shared with rn/ via packages/core.
 export type { Note } from '@core/types'
 
-export interface ChatMessageAttachment {
-	url: string
-	mimeType: string
-	fileName?: string
-}
+// Shared with rn/ via packages/core.
+export type { ChatMessageAttachment } from '@core/chat'
 
-export interface ChatMessage {
-	id: string
-	role: 'user' | 'model'
-	content: string
-	timestamp: string
-	attachments?: ChatMessageAttachment[]
-}
-
-/** One chat thread of a video or document (thread-switcher lists). */
-export interface ChatThreadSummary {
-	conversationId: string
-	title: string
-	createdAt: string
-	updatedAt: string
-	messageCount: number
-	lastMessage: string | null
-}
+// Shared with rn/ via packages/core.
+export type { ChatMessage, ChatThreadSummary } from '@core/chat'
 
 // Shared with rn/ via packages/core. Correct answer field is `correctAnswer`.
 export type { QuizQuestion } from '@core/types'

@@ -5,14 +5,14 @@
 // YouTube panel reuses the same login and AI keys without re-entering anything.
 // Read-only: it never writes to the app, only mirrors values into the worker.
 
-const AI_PROVIDERS = ['gemini', 'openai', 'claude', 'deepseek', 'kimi', 'doubao', 'grok', 'qwen', 'wenxin']
+import { AI_PROVIDER_IDS } from '@core/ai'
 
 function readAi(): { provider: string; model: string; key: string } | null {
 	try {
 		const raw = localStorage.getItem('sp_ai_settings')
 		if (!raw) return null
 		const s = JSON.parse(raw)
-		const provider = AI_PROVIDERS.includes(s.provider) ? s.provider : 'gemini'
+		const provider = (AI_PROVIDER_IDS as string[]).includes(s.provider) ? s.provider : 'gemini'
 		return {
 			provider,
 			model: s.models?.[provider] || '',
