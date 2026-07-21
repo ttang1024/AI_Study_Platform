@@ -1,7 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import type { LucideIcon } from 'lucide-react-native';
+import { type LucideIcon } from 'lucide-react-native';
 
 import { Alpha, Colors, Gradients, Layout, Radius } from '@/constants/theme';
 

@@ -1,7 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import type { LucideIcon } from 'lucide-react-native';
+import { type LucideIcon } from 'lucide-react-native';
 
 import { PressableScale } from '@/components/PressableScale';
 import { Colors, Gradients, Layout, Radius, Shadows, Spacing, Typography } from '@/constants/theme';

@@ -1,4 +1,4 @@
-import { Bot, Captions, FileText, HelpCircle, Layers, ListChecks, NotebookPen, Sparkles } from 'lucide-react-native';
+import { Bot, Captions, FileText, Layers, ListChecks, NotebookPen, Sparkles, HelpCircle } from 'lucide-react-native';
 
 export type Tab = 'summary' | 'transcript' | 'chat' | 'notes' | 'glossary' | 'cards' | 'quiz' | 'practice';
 

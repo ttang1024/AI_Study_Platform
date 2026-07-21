@@ -2,7 +2,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Activity, Bell, ChevronRight, KeyRound, MessageSquarePlus, UserCircle, Volume2 } from 'lucide-react-native';
+import { Activity, Bell, ChevronRight, KeyRound, MessageSquarePlus, Volume2, UserCircle } from 'lucide-react-native';
 
 import { Button } from '@/components/Button';
 import { IconBadge } from '@/components/IconBadge';

@@ -1,4 +1,5 @@
 using StudyPlatform.Domain.Entities;
+using StudyPlatform.Domain.Projections;
 
 namespace StudyPlatform.Domain.Interfaces;
 
@@ -42,4 +43,12 @@ public interface IDocumentRepository : IRepository<Document>
     Task<Document?> GetByUserIdAndFileHashAsync(Guid userId, string fileHash, CancellationToken cancellationToken = default);
     Task<int> CountByUserIdAsync(Guid userId, CancellationToken cancellationToken = default);
     Task<IEnumerable<Document>> SearchByUserAsync(Guid userId, string query, int limit, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Most recent documents not in <paramref name="excludeDocumentIds"/>, projected to lightweight rows
+    /// (no heavy text columns). Used by the recommendations engine's "materials you haven't been quizzed
+    /// on yet" section, which only needs a handful of candidates rather than the whole library.
+    /// </summary>
+    Task<IReadOnlyList<DocumentListItem>> GetRecentUntestedAsync(
+        Guid userId, IReadOnlyCollection<Guid> excludeDocumentIds, int limit, CancellationToken cancellationToken = default);
 }

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { synthesizeSpeech } from '../../services/edgeTtsService';
 import { markdownToPlainText } from './ChatMarkdown';
 
@@ -12,18 +12,21 @@ export const useSpeakReplies = () => {
   // Stop any in-flight speech when the panel unmounts.
   useEffect(() => () => audioRef.current?.pause(), []);
 
-  const stopSpeaking = () => {
+  const stopSpeaking = useCallback(() => {
     audioRef.current?.pause();
     audioRef.current = null;
     onDoneRef.current = null;
     setSpeakingId(null);
-  };
+  }, []);
 
   /**
    * Read a model reply aloud. Passing the same id again toggles playback off.
    * `onDone` fires after the last audio chunk finishes (not on manual stop).
+   *
+   * Stable across re-renders (except when speakingId itself changes) so consumers like
+   * ChatMessageRow's React.memo aren't invalidated by unrelated parent re-renders.
    */
-  const speak = async (id: string, content: string, onDone?: () => void) => {
+  const speak = useCallback(async (id: string, content: string, onDone?: () => void) => {
     if (speakingId === id) { stopSpeaking(); return; }
     audioRef.current?.pause();
     onDoneRef.current = onDone ?? null;
@@ -48,7 +51,7 @@ export const useSpeakReplies = () => {
       setSpeakingId(null);
       onDoneRef.current = null;
     }
-  };
+  }, [speakingId, stopSpeaking]);
 
   return { speakReplies, setSpeakReplies, speakingId, speak, stopSpeaking };
 };

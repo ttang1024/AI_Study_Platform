@@ -1,20 +1,9 @@
 import React, { useCallback } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
 import { FadeInDown } from 'react-native-reanimated';
 import Swipeable, { type SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
-import {
-  BookOpen,
-  ChevronRight,
-  FileImage,
-  FileText,
-  Headphones,
-  Newspaper,
-  Play,
-  Presentation,
-  Trash2,
-  Video,
-} from 'lucide-react-native';
-import type { LucideIcon } from 'lucide-react-native';
+import { BookOpen, ChevronRight, FileImage, FileText, Headphones, Newspaper, Play, Presentation, Trash2, Video, type LucideIcon } from 'lucide-react-native';
 
 import { IconBadge } from '@/components/IconBadge';
 import { PressableScale } from '@/components/PressableScale';
@@ -101,7 +90,7 @@ export const LibraryEntryRow: React.FC<LibraryEntryRowProps> = React.memo(functi
     >
       {thumbnailUrl ? (
         <View style={styles.thumbWrap}>
-          <Image source={{ uri: thumbnailUrl }} style={styles.thumb} />
+          <Image source={{ uri: thumbnailUrl }} style={styles.thumb} contentFit="cover" cachePolicy="disk" transition={150} />
           <View style={styles.playBadge}>
             <Play size={11} color={Colors.white} fill={Colors.white} />
           </View>

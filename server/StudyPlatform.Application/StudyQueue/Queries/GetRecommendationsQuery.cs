@@ -7,6 +7,7 @@ using StudyPlatform.Application.Services;
 using StudyPlatform.Application.Settings;
 using StudyPlatform.Application.StudyQueue.DTOs;
 using StudyPlatform.Domain.Interfaces;
+using StudyPlatform.Domain.Projections;
 
 namespace StudyPlatform.Application.StudyQueue.Queries;
 
@@ -78,9 +79,22 @@ public class GetRecommendationsQueryHandler : IRequestHandler<GetRecommendations
             .ThenByDescending(x => x.Sub.SubmittedAt)
             .Take(MaxPerSection)
             .ToList();
+
+        // Batch-resolve titles for the weak-quiz sources instead of one DB round trip per submission.
+        var weakDocIds = weakSubs.Where(x => x.Sub.DocumentId.HasValue).Select(x => x.Sub.DocumentId!.Value).ToHashSet();
+        var weakVideoIds = weakSubs.Where(x => x.Sub.VideoId.HasValue).Select(x => x.Sub.VideoId!.Value).ToHashSet();
+        var docTitles = weakDocIds.Count == 0
+            ? new Dictionary<Guid, string>()
+            : (await _unitOfWork.Documents.FindAsNoTrackingAsync(d => weakDocIds.Contains(d.DocumentId), ct))
+                .ToDictionary(d => d.DocumentId, d => d.FileName);
+        var videoTitles = weakVideoIds.Count == 0
+            ? new Dictionary<Guid, string>()
+            : (await _unitOfWork.Videos.FindAsNoTrackingAsync(v => weakVideoIds.Contains(v.VideoId), ct))
+                .ToDictionary(v => v.VideoId, v => v.Title);
+
         foreach (var x in weakSubs)
         {
-            var (title, url) = await ResolveSourceAsync(x.Sub.DocumentId, x.Sub.VideoId, ct);
+            var (title, url) = ResolveSource(x.Sub.DocumentId, x.Sub.VideoId, docTitles, videoTitles);
             reviewQueue.Add(new RecommendationItemDto(
                 $"quiz-{x.Sub.SubmissionId}", "quiz", $"Retry quiz: {title}",
                 $"You scored {Math.Round(x.Accuracy)}% last time.", (int)Math.Clamp(100 - x.Accuracy, 30, 100),
@@ -130,12 +144,10 @@ public class GetRecommendationsQueryHandler : IRequestHandler<GetRecommendations
 
         // 6. Materials you haven't been quizzed on yet.
         var submittedDocIds = submissions.Where(s => s.DocumentId.HasValue).Select(s => s.DocumentId!.Value).ToHashSet();
-        var (documents, _) = await _unitOfWork.Documents.GetAllByUserIdAsync(userId, 1, int.MaxValue, null, ct);
-        var untested = documents
-            .Where(d => !submittedDocIds.Contains(d.DocumentId))
-            .OrderByDescending(d => d.CreatedAt)
-            .Take(MaxPerSection - nextBest.Count)
-            .ToList();
+        var remainingSlots = MaxPerSection - nextBest.Count;
+        var untested = remainingSlots <= 0
+            ? new List<DocumentListItem>()
+            : (await _unitOfWork.Documents.GetRecentUntestedAsync(userId, submittedDocIds, remainingSlots, ct)).ToList();
         foreach (var d in untested)
         {
             nextBest.Add(new RecommendationItemDto(
@@ -150,18 +162,13 @@ public class GetRecommendationsQueryHandler : IRequestHandler<GetRecommendations
             now);
     }
 
-    private async Task<(string Title, string? Url)> ResolveSourceAsync(Guid? documentId, Guid? videoId, CancellationToken ct)
+    private static (string Title, string? Url) ResolveSource(
+        Guid? documentId, Guid? videoId, IReadOnlyDictionary<Guid, string> docTitles, IReadOnlyDictionary<Guid, string> videoTitles)
     {
-        if (documentId.HasValue)
-        {
-            var doc = await _unitOfWork.Documents.GetByIdAsync(documentId.Value, ct);
-            if (doc != null) return (doc.FileName, $"/documents/{doc.DocumentId}");
-        }
-        if (videoId.HasValue)
-        {
-            var video = await _unitOfWork.Videos.GetByIdAsync(videoId.Value, ct);
-            if (video != null) return (video.Title, $"/videos/{video.VideoId}");
-        }
+        if (documentId.HasValue && docTitles.TryGetValue(documentId.Value, out var docTitle))
+            return (docTitle, $"/documents/{documentId.Value}");
+        if (videoId.HasValue && videoTitles.TryGetValue(videoId.Value, out var videoTitle))
+            return (videoTitle, $"/videos/{videoId.Value}");
         return ("a previous quiz", null);
     }
 }

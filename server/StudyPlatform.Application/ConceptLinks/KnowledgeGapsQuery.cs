@@ -109,9 +109,11 @@ public class GetKnowledgeGapsQueryHandler : IRequestHandler<GetKnowledgeGapsQuer
             knownConcepts[title] = id;
         }
 
+        var matcher = new ConceptMatcher(knownConcepts);
+
         void CountReferences(string? text, string? courseId)
         {
-            foreach (var conceptId in FindConceptsInText(text, knownConcepts))
+            foreach (var conceptId in matcher.FindConcepts(text))
             {
                 if (!concepts.TryGetValue(conceptId, out var agg)) continue;
                 agg.References++;
@@ -184,17 +186,6 @@ public class GetKnowledgeGapsQueryHandler : IRequestHandler<GetKnowledgeGapsQuer
     }
 
     private static int SeverityRank(string severity) => severity switch { "high" => 0, "medium" => 1, _ => 2 };
-
-    private static IEnumerable<string> FindConceptsInText(string? text, Dictionary<string, string> knownConcepts)
-    {
-        if (string.IsNullOrWhiteSpace(text)) yield break;
-        foreach (var concept in knownConcepts)
-        {
-            if (concept.Key.Length < 3) continue;
-            if (text.Contains(concept.Key, StringComparison.OrdinalIgnoreCase))
-                yield return concept.Value;
-        }
-    }
 
     private static string NormalizeConcept(string term)
         => Regex.Replace(term.Trim().ToLowerInvariant(), @"[^a-z0-9]+", "-").Trim('-');

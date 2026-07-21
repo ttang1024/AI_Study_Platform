@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import type { LucideIcon } from 'lucide-react-native';
+import { type LucideIcon } from 'lucide-react-native';
 
 import { Colors, Layout, Radius, Spacing } from '@/constants/theme';
 

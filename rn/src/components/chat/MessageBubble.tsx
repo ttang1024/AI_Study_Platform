@@ -1,5 +1,6 @@
 import React from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
 import { Check, Copy, FileText, Share2, Square, Volume2 } from 'lucide-react-native';
 
 import { SummaryMarkdown } from '@/components/SummaryMarkdown';
@@ -44,7 +45,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = React.memo(function M
           {m.attachments.map((att, i) => (
             <Pressable key={i} onPress={() => onPreviewAttachment(att)}>
               {att.mimeType.startsWith('image/') ? (
-                <Image source={{ uri: att.url }} style={styles.attachmentThumb} />
+                <Image source={{ uri: att.url }} style={styles.attachmentThumb} contentFit="cover" cachePolicy="disk" transition={150} />
               ) : (
                 <View style={[styles.attachmentChip, m.role === 'user' && styles.attachmentChipUser]}>
                   <FileText size={14} color={m.role === 'user' ? Colors.primaryForeground : Colors.primary} />

@@ -10,7 +10,9 @@
     "ios": {
       "bundleIdentifier": "com.totoai.app",
       "entitlements": {
-        "com.apple.security.application-groups": ["group.com.totoai.app.widget"]
+        "com.apple.security.application-groups": [
+          "group.com.totoai.app.widget"
+        ]
       }
     },
     "android": {
@@ -70,10 +72,13 @@
             "NSExtensionActivationSupportsWebURLWithMaxCount": 1,
             "NSExtensionActivationSupportsWebPageWithMaxCount": 1
           },
-          "androidIntentFilters": ["text/*"]
+          "androidIntentFilters": [
+            "text/*"
+          ]
         }
       ],
-      "@bacons/apple-targets"
+      "@bacons/apple-targets",
+      "expo-image"
     ],
     "experiments": {
       "typedRoutes": true,

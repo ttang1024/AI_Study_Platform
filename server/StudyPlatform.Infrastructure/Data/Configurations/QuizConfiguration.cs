@@ -9,6 +9,7 @@ public class QuizConfiguration : IEntityTypeConfiguration<Quiz>
     public void Configure(EntityTypeBuilder<Quiz> builder)
     {
         builder.HasKey(q => q.QuizId);
+        builder.HasIndex(q => q.UserId);
         builder.Property(q => q.Question).IsRequired().HasColumnType("text");
         builder.Property(q => q.OptionsJson).IsRequired().HasColumnType("jsonb");
         builder.Property(q => q.CorrectAnswer).IsRequired().HasMaxLength(10);

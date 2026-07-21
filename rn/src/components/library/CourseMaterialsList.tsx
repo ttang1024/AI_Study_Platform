@@ -1,6 +1,6 @@
 import React from 'react';
 import { FlatList, Pressable, StyleSheet, View } from 'react-native';
-import { BookOpen, CheckCircle2, Circle } from 'lucide-react-native';
+import { BookOpen, Circle, CheckCircle2 } from 'lucide-react-native';
 
 import { EmptyState } from '@/components/EmptyState';
 import { SearchBar } from '@/components/SearchBar';

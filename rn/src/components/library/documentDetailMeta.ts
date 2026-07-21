@@ -1,7 +1,4 @@
-import {
-  BookOpen, Bot, Brain, FileImage, FileText, Headphones, HelpCircle, Highlighter,
-  Layers, ListChecks, NotebookPen, Presentation, Sparkles,
-} from 'lucide-react-native';
+import { BookOpen, Bot, Brain, FileImage, FileText, Headphones, Highlighter, Layers, ListChecks, NotebookPen, Presentation, Sparkles, HelpCircle } from 'lucide-react-native';
 
 import type { Document } from '@/types';
 

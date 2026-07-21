@@ -1,6 +1,6 @@
-import { Info } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { Info } from 'lucide-react-native';
 
 import { Button } from '@/components/Button';
 import { SocialLoginButtons } from '@/components/SocialLoginButtons';

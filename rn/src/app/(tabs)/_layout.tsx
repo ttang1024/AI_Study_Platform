@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
 import { View } from 'react-native';
-import { Home, Library, GraduationCap, Bot, Settings } from 'lucide-react-native';
+import { Library, GraduationCap, Bot, Settings, Home } from 'lucide-react-native';
 
 import { AIProviderBanner } from '@/components/AIProviderBanner';
 import { Colors, Shadows } from '@/constants/theme';

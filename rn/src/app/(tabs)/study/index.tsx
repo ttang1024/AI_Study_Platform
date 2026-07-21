@@ -2,7 +2,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Calendar, CalendarClock, ChevronRight, HelpCircle, Layers, Network, NotebookPen, Share2, SquareLibrary, Trophy, TrendingUp, Users, Zap , PenLine } from 'lucide-react-native';
+import { Calendar, CalendarClock, ChevronRight, Layers, Network, NotebookPen, Share2, SquareLibrary, Trophy, TrendingUp, Users, Zap, PenLine, HelpCircle } from 'lucide-react-native';
 
 import { IconBadge } from '@/components/IconBadge';
 import { PressableScale } from '@/components/PressableScale';

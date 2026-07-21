@@ -1,7 +1,7 @@
 import React from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AlertCircle, Pause, Play, SkipBack, SkipForward, Timer, Volume2, X } from 'lucide-react-native';
+import { Pause, Play, SkipBack, SkipForward, Timer, Volume2, X, AlertCircle } from 'lucide-react-native';
 
 import { Alpha, Colors, Layout, Radius, Spacing } from '@/constants/theme';
 import { SLEEP_OPTIONS, type TtsState } from '@/hooks/useTts';

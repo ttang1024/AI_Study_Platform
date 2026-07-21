@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
+import React, { useState, useRef, useEffect, useImperativeHandle, useCallback, forwardRef } from 'react';
 import { Send, Sparkles, Mic, MicOff, Volume2, VolumeX, Loader2, Paperclip, X, FileText, Camera } from 'lucide-react';
 import type { ChatAttachment, ChatMessageAttachment } from '../../services/aiService';
 import 'katex/dist/katex.min.css';
@@ -108,13 +108,14 @@ export const ChatPanel = forwardRef<ChatPanelRef, ChatPanelProps>(({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [listening]);
 
-  const handleCopy = (id: string, text: string) => {
+  // Stable identities so React.memo on ChatMessageRow actually skips re-renders while composing.
+  const handleCopy = useCallback((id: string, text: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
-  };
+  }, []);
 
-  const handleAddToNotes = (content: string) => {
+  const handleAddToNotes = useCallback((content: string) => {
     const formattedContent = `<p>${content.replace(/\n/g, '</p><p>')}</p>`;
     if (onExternalAddToNote) {
       onExternalAddToNote(formattedContent);
@@ -127,7 +128,7 @@ export const ChatPanel = forwardRef<ChatPanelRef, ChatPanelProps>(({
     if (onTabChange) {
       onTabChange('notes');
     }
-  };
+  }, [onExternalAddToNote, onTabChange, setNoteInput]);
 
   const handleSend = async () => {
     const msg = input.trim();

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Bug, CheckCircle2, Lightbulb, MessageCircle, Star } from 'lucide-react-native';
-import type { LucideIcon } from 'lucide-react-native';
+import { Bug, Lightbulb, MessageCircle, Star, CheckCircle2, type LucideIcon } from 'lucide-react-native';
 
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';

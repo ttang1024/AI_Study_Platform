@@ -111,6 +111,9 @@ public class GenerateAudioOverviewCommandHandler : IRequestHandler<GenerateAudio
     private const int MaxTurns = 80;
     // edge-tts emits 24 kbit/s MP3; used to estimate duration without decoding.
     private const int BytesPerSecond = 3000;
+    // Each turn shells out to a separate edge-tts process; bounding concurrency keeps a full
+    // 80-turn script from spawning 80 processes at once while still parallelizing the wait.
+    private const int TtsConcurrency = 4;
 
     private readonly IUnitOfWork _unitOfWork;
     private readonly IAiService _aiService;
@@ -155,14 +158,32 @@ public class GenerateAudioOverviewCommandHandler : IRequestHandler<GenerateAudio
             overview.ScriptJson = JsonSerializer.Serialize(turns);
             await _unitOfWork.SaveChangesAsync(ct);
 
-            // Synthesize each turn with its host's voice; MP3 frames concatenate cleanly.
-            using var stitched = new MemoryStream();
-            foreach (var turn in turns.Take(MaxTurns))
+            // Synthesize each turn with its host's voice, several at a time — MP3 frames concatenate
+            // cleanly so turns are written in script order once all syntheses finish, not as each
+            // one lands.
+            var scriptTurns = turns.Take(MaxTurns).ToList();
+            var audioByTurn = new byte[scriptTurns.Count][];
+            using (var throttle = new SemaphoreSlim(TtsConcurrency))
             {
-                var voice = turn.Speaker.Equals("A", StringComparison.OrdinalIgnoreCase) ? VoiceA : VoiceB;
-                var bytes = await _tts.SynthesizeAsync(turn.Text, voice, ct);
-                stitched.Write(bytes);
+                var synthesisTasks = scriptTurns.Select(async (turn, index) =>
+                {
+                    await throttle.WaitAsync(ct);
+                    try
+                    {
+                        var voice = turn.Speaker.Equals("A", StringComparison.OrdinalIgnoreCase) ? VoiceA : VoiceB;
+                        audioByTurn[index] = await _tts.SynthesizeAsync(turn.Text, voice, ct);
+                    }
+                    finally
+                    {
+                        throttle.Release();
+                    }
+                });
+                await Task.WhenAll(synthesisTasks);
             }
+
+            using var stitched = new MemoryStream();
+            foreach (var bytes in audioByTurn)
+                stitched.Write(bytes);
 
             stitched.Position = 0;
             var blobName = $"audio-overviews/{overview.UserId:N}/{overview.Id:N}.mp3";

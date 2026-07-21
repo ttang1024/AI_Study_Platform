@@ -150,32 +150,33 @@ export function useAudioDetail(propId?: string, propCourseId?: string) {
         audioObjectUrlRef.current = null;
       }
 
-      if (doc.contentType === 'audio/podcast') {
-        const directUrl = await audioService.getAudioUrl(cId, docId);
-        setAudioUrl(directUrl);
+      // Independent reads (audio URL resolution, notes, flashcards, quiz, quiz submission)
+      // fire together instead of one-at-a-time.
+      const isPodcastDoc = doc.contentType === 'audio/podcast';
+      const [resolvedAudioUrl, notes, cards, questions, sub] = await Promise.all([
+        isPodcastDoc ? audioService.getAudioUrl(cId, docId) : audioService.getAudioBlobUrl(cId, docId),
+        documentService.getNotes(cId, docId).catch(() => []),
+        documentService.getFlashcards(cId, docId).catch(() => null),
+        documentService.getQuiz(cId, docId).catch(() => null),
+        documentService.getQuizSubmission(cId, docId).catch(() => null),
+      ]);
+
+      if (isPodcastDoc) {
+        setAudioUrl(resolvedAudioUrl);
       } else {
-        const objectUrl = await audioService.getAudioBlobUrl(cId, docId);
-        audioObjectUrlRef.current = objectUrl;
-        setAudioUrl(objectUrl);
+        audioObjectUrlRef.current = resolvedAudioUrl;
+        setAudioUrl(resolvedAudioUrl);
       }
 
-      // Load saved notes
-      try {
-        const notes = await documentService.getNotes(cId, docId);
-        if (notes.length > 0) { setNoteContent(notes[0].content); setNoteId(notes[0].id); }
-      } catch { }
+      if (notes.length > 0) { setNoteContent(notes[0].content); setNoteId(notes[0].id); }
 
-      // Load flashcards
-      try {
-        const cards = await documentService.getFlashcards(cId, docId);
+      if (cards) {
         setFlashcards(cards.map(c => ({ id: c.id, front: c.front, back: c.back, cardType: c.cardType })));
-      } catch { }
+      }
 
-      // Load quiz
       let loadedQuizDifficulty = activeQuizDifficulty;
       let loadedQuizQuestionSets = emptyQuizSets();
-      try {
-        const questions = await documentService.getQuiz(cId, docId);
+      if (questions) {
         const grouped = emptyQuizSets();
         questions.forEach(q => grouped[(q.difficulty ?? 'medium') as QuizDifficulty].push(q));
         const targetDifficulty = targetQuizQuestionId
@@ -191,25 +192,21 @@ export function useAudioDetail(propId?: string, propCourseId?: string) {
         setQuizQuestionSets(grouped);
         setActiveQuizDifficulty(loadedDifficulty);
         setQuizQuestions(grouped[loadedDifficulty]);
-      } catch { }
+      }
 
-      // Load quiz submission
-      try {
-        const sub = await documentService.getQuizSubmission(cId, docId);
-        if (sub) {
-          const submittedDifficulty = (['easy', 'medium', 'hard'] as QuizDifficulty[]).find(difficulty =>
-            Object.keys(sub.answers ?? {}).some(questionId => loadedQuizQuestionSets[difficulty].some(q => q.id === questionId)))
-            ?? loadedQuizDifficulty;
-          setActiveQuizDifficulty(submittedDifficulty);
-          setQuizQuestions(loadedQuizQuestionSets[submittedDifficulty]);
-          setUserAnswers(sub.answers);
-          setQuizAnswerSets(prev => ({ ...prev, [submittedDifficulty]: sub.answers }));
-          setQuizScore(sub.score);
-          setQuizScoreSets(prev => ({ ...prev, [submittedDifficulty]: sub.score }));
-          setIsQuizSubmitted(true);
-          setQuizSubmittedSets(prev => ({ ...prev, [submittedDifficulty]: true }));
-        }
-      } catch { }
+      if (sub) {
+        const submittedDifficulty = (['easy', 'medium', 'hard'] as QuizDifficulty[]).find(difficulty =>
+          Object.keys(sub.answers ?? {}).some(questionId => loadedQuizQuestionSets[difficulty].some(q => q.id === questionId)))
+          ?? loadedQuizDifficulty;
+        setActiveQuizDifficulty(submittedDifficulty);
+        setQuizQuestions(loadedQuizQuestionSets[submittedDifficulty]);
+        setUserAnswers(sub.answers);
+        setQuizAnswerSets(prev => ({ ...prev, [submittedDifficulty]: sub.answers }));
+        setQuizScore(sub.score);
+        setQuizScoreSets(prev => ({ ...prev, [submittedDifficulty]: sub.score }));
+        setIsQuizSubmitted(true);
+        setQuizSubmittedSets(prev => ({ ...prev, [submittedDifficulty]: true }));
+      }
 
     } catch {
       navigate(-1);

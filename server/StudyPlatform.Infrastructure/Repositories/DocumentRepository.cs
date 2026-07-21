@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
+using StudyPlatform.Domain.Projections;
 using StudyPlatform.Infrastructure.Data;
 
 namespace StudyPlatform.Infrastructure.Repositories;
@@ -127,4 +128,14 @@ public class DocumentRepository : Repository<Document>, IDocumentRepository
             .Take(limit)
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<IReadOnlyList<DocumentListItem>> GetRecentUntestedAsync(
+        Guid userId, IReadOnlyCollection<Guid> excludeDocumentIds, int limit, CancellationToken cancellationToken = default)
+        => await _dbSet
+            .AsNoTracking()
+            .Where(d => d.UserId == userId && !excludeDocumentIds.Contains(d.DocumentId))
+            .OrderByDescending(d => d.CreatedAt)
+            .Take(limit)
+            .Select(d => new DocumentListItem(d.DocumentId, d.CourseId, d.FileName, d.CreatedAt))
+            .ToListAsync(cancellationToken);
 }

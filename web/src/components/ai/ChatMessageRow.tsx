@@ -16,8 +16,12 @@ interface ChatMessageRowProps {
   onPreviewAttachment: (att: ChatMessageAttachment) => void;
 }
 
-/** One message in the chat scrollback: avatar, bubble, and hover actions. */
-export const ChatMessageRow: React.FC<ChatMessageRowProps> = ({
+/**
+ * One message in the chat scrollback: avatar, bubble, and hover actions. Memoized because a long
+ * thread re-renders every row on each keystroke in the composer otherwise — this re-runs the
+ * markdown/KaTeX pipeline for every prior message just to type one character.
+ */
+export const ChatMessageRow: React.FC<ChatMessageRowProps> = React.memo(({
   msg, copied, onCopy, speakingId, onSpeak, showAddToNotes, onAddToNotes, onPreviewAttachment,
 }) => (
   <div
@@ -126,4 +130,4 @@ export const ChatMessageRow: React.FC<ChatMessageRowProps> = ({
       </div>
     </div>
   </div>
-);
+));

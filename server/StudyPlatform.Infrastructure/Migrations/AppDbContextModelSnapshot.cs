@@ -1258,6 +1258,8 @@ namespace StudyPlatform.Infrastructure.Migrations
 
                     b.HasIndex("DocumentId");
 
+                    b.HasIndex("UserId");
+
                     b.HasIndex("VideoId");
 
                     b.ToTable("Quizzes", t =>

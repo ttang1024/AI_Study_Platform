@@ -3,7 +3,7 @@ import { Stack, useRouter } from 'expo-router';
 import { useShareIntentContext } from 'expo-share-intent';
 import React, { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { ChevronLeft, Link2, FileText as FileTextIcon } from 'lucide-react-native';
+import { ChevronLeft, Link2, FileTextIcon } from 'lucide-react-native';
 
 import { Button } from '@/components/Button';
 import { CourseChipPicker } from '@/components/summarizer/CourseChipPicker';
