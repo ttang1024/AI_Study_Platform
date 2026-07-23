@@ -1,6 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { ClipboardPaste, FileText, Headphones, Newspaper, Video } from 'lucide-react-native';
+import ClipboardPaste from 'lucide-react-native/icons/clipboard-paste';
+import FileText from 'lucide-react-native/icons/file-text';
+import Headphones from 'lucide-react-native/icons/headphones';
+import Newspaper from 'lucide-react-native/icons/newspaper';
+import Video from 'lucide-react-native/icons/video';
 
 import { TabChipRow } from '@/components/TabChipRow';
 import { Colors, Spacing, Typography } from '@/constants/theme';

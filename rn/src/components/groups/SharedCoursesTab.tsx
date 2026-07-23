@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import { BookOpen, X } from 'lucide-react-native';
+import BookOpen from 'lucide-react-native/icons/book-open';
+import X from 'lucide-react-native/icons/x';
 
 import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';

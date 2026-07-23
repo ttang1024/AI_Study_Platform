@@ -1,9 +1,11 @@
+using System.Linq.Expressions;
 using Moq;
 using StudyPlatform.Application.Courses.Commands;
 using StudyPlatform.Application.Courses.Queries;
 using StudyPlatform.Application.Services;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
+using StudyPlatform.Domain.Projections;
 using Xunit;
 
 namespace StudyPlatform.Tests.Courses;
@@ -55,12 +57,14 @@ public class UpdateCourseCommandHandlerTests
 {
     private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<ICourseRepository> _courses = new();
+    private readonly Mock<IDocumentRepository> _documents = new();
     private readonly UpdateCourseCommandHandler _handler;
     private readonly Guid _userId = Guid.NewGuid();
 
     public UpdateCourseCommandHandlerTests()
     {
         _uow.Setup(u => u.Courses).Returns(_courses.Object);
+        _uow.Setup(u => u.Documents).Returns(_documents.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
         _handler = new UpdateCourseCommandHandler(_uow.Object);
     }
@@ -70,15 +74,14 @@ public class UpdateCourseCommandHandlerTests
         CourseId = Guid.NewGuid(),
         UserId = userId ?? _userId,
         CourseName = "Old Name",
-        CourseColor = "#000000",
-        Documents = new List<Document>()
+        CourseColor = "#000000"
     };
 
     [Fact]
     public async Task Handle_OwnedCourse_UpdatesAndReturnsDto()
     {
         var course = MakeCourse();
-        _courses.Setup(r => r.GetByIdWithDocumentsAsync(course.CourseId, default)).ReturnsAsync(course);
+        _courses.Setup(r => r.GetByIdAsync(course.CourseId, default)).ReturnsAsync(course);
 
         var result = await _handler.Handle(new UpdateCourseCommand(course.CourseId, _userId, "New Name", "#FF5733"), default);
 
@@ -92,7 +95,7 @@ public class UpdateCourseCommandHandlerTests
     [Fact]
     public async Task Handle_CourseNotFound_ReturnsFailure()
     {
-        _courses.Setup(r => r.GetByIdWithDocumentsAsync(It.IsAny<Guid>(), default)).ReturnsAsync((Course?)null);
+        _courses.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), default)).ReturnsAsync((Course?)null);
 
         var result = await _handler.Handle(new UpdateCourseCommand(Guid.NewGuid(), _userId, "Name", "#fff"), default);
 
@@ -105,7 +108,7 @@ public class UpdateCourseCommandHandlerTests
     public async Task Handle_CourseOwnedByOtherUser_ReturnsFailure()
     {
         var course = MakeCourse(userId: Guid.NewGuid());
-        _courses.Setup(r => r.GetByIdWithDocumentsAsync(course.CourseId, default)).ReturnsAsync(course);
+        _courses.Setup(r => r.GetByIdAsync(course.CourseId, default)).ReturnsAsync(course);
 
         var result = await _handler.Handle(new UpdateCourseCommand(course.CourseId, _userId, "Name", "#fff"), default);
 
@@ -114,16 +117,29 @@ public class UpdateCourseCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_DocumentCountReflectsCollectionSize()
+    public async Task Handle_DocumentCountComesFromCountQuery()
     {
         var course = MakeCourse();
-        course.Documents.Add(new Document());
-        course.Documents.Add(new Document());
-        _courses.Setup(r => r.GetByIdWithDocumentsAsync(course.CourseId, default)).ReturnsAsync(course);
+        _courses.Setup(r => r.GetByIdAsync(course.CourseId, default)).ReturnsAsync(course);
+        _documents
+            .Setup(r => r.CountAsync(It.IsAny<Expression<Func<Document, bool>>>(), default))
+            .ReturnsAsync(2);
 
         var result = await _handler.Handle(new UpdateCourseCommand(course.CourseId, _userId, "Name", "#abc"), default);
 
         Assert.Equal(2, result.Data!.DocumentCount);
+    }
+
+    [Fact]
+    public async Task Handle_DoesNotLoadTheCourseDocuments()
+    {
+        var course = MakeCourse();
+        _courses.Setup(r => r.GetByIdAsync(course.CourseId, default)).ReturnsAsync(course);
+
+        await _handler.Handle(new UpdateCourseCommand(course.CourseId, _userId, "Name", "#abc"), default);
+
+        // Renaming a course must not read every document's text just to report how many there are.
+        _documents.Verify(r => r.GetByCourseIdAsync(It.IsAny<Guid>(), default), Times.Never);
     }
 }
 
@@ -131,6 +147,7 @@ public class DeleteCourseCommandHandlerTests
 {
     private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<ICourseRepository> _courses = new();
+    private readonly Mock<IDocumentRepository> _documents = new();
     private readonly Mock<IBlobStorageService> _blob = new();
     private readonly DeleteCourseCommandHandler _handler;
     private readonly Guid _userId = Guid.NewGuid();
@@ -138,6 +155,9 @@ public class DeleteCourseCommandHandlerTests
     public DeleteCourseCommandHandlerTests()
     {
         _uow.Setup(u => u.Courses).Returns(_courses.Object);
+        _uow.Setup(u => u.Documents).Returns(_documents.Object);
+        _documents.Setup(r => r.GetBlobUrlsByCourseAsync(It.IsAny<Guid>(), default))
+            .ReturnsAsync(Array.Empty<string>());
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
         _handler = new DeleteCourseCommandHandler(_uow.Object, _blob.Object);
     }
@@ -145,15 +165,17 @@ public class DeleteCourseCommandHandlerTests
     private Course MakeCourse(Guid? userId = null) => new()
     {
         CourseId = Guid.NewGuid(),
-        UserId = userId ?? _userId,
-        Documents = new List<Document>()
+        UserId = userId ?? _userId
     };
+
+    private void WithBlobUrls(Guid courseId, params string[] urls)
+        => _documents.Setup(r => r.GetBlobUrlsByCourseAsync(courseId, default)).ReturnsAsync(urls);
 
     [Fact]
     public async Task Handle_OwnedCourse_DeletesAndReturnsSuccess()
     {
         var course = MakeCourse();
-        _courses.Setup(r => r.GetByIdWithDocumentsAsync(course.CourseId, default)).ReturnsAsync(course);
+        _courses.Setup(r => r.GetByIdAsync(course.CourseId, default)).ReturnsAsync(course);
 
         var result = await _handler.Handle(new DeleteCourseCommand(course.CourseId, _userId), default);
 
@@ -165,7 +187,7 @@ public class DeleteCourseCommandHandlerTests
     [Fact]
     public async Task Handle_CourseNotFound_ReturnsFailure()
     {
-        _courses.Setup(r => r.GetByIdWithDocumentsAsync(It.IsAny<Guid>(), default)).ReturnsAsync((Course?)null);
+        _courses.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), default)).ReturnsAsync((Course?)null);
 
         var result = await _handler.Handle(new DeleteCourseCommand(Guid.NewGuid(), _userId), default);
 
@@ -178,9 +200,8 @@ public class DeleteCourseCommandHandlerTests
     public async Task Handle_CourseWithDocuments_DeletesBlobsBeforeRemoving()
     {
         var course = MakeCourse();
-        course.Documents.Add(new Document { BlobUrl = "blob://doc1" });
-        course.Documents.Add(new Document { BlobUrl = "blob://doc2" });
-        _courses.Setup(r => r.GetByIdWithDocumentsAsync(course.CourseId, default)).ReturnsAsync(course);
+        WithBlobUrls(course.CourseId, "blob://doc1", "blob://doc2");
+        _courses.Setup(r => r.GetByIdAsync(course.CourseId, default)).ReturnsAsync(course);
         _blob.Setup(b => b.DeleteAsync(It.IsAny<string>(), default)).Returns(Task.CompletedTask);
 
         var result = await _handler.Handle(new DeleteCourseCommand(course.CourseId, _userId), default);
@@ -194,8 +215,8 @@ public class DeleteCourseCommandHandlerTests
     public async Task Handle_BlobDeletionFails_StillDeletesCourse()
     {
         var course = MakeCourse();
-        course.Documents.Add(new Document { BlobUrl = "blob://bad" });
-        _courses.Setup(r => r.GetByIdWithDocumentsAsync(course.CourseId, default)).ReturnsAsync(course);
+        WithBlobUrls(course.CourseId, "blob://bad");
+        _courses.Setup(r => r.GetByIdAsync(course.CourseId, default)).ReturnsAsync(course);
         _blob.Setup(b => b.DeleteAsync(It.IsAny<string>(), default)).ThrowsAsync(new Exception("Storage error"));
 
         var result = await _handler.Handle(new DeleteCourseCommand(course.CourseId, _userId), default);
@@ -208,7 +229,7 @@ public class DeleteCourseCommandHandlerTests
     public async Task Handle_CourseOwnedByOtherUser_ReturnsFailure()
     {
         var course = MakeCourse(userId: Guid.NewGuid());
-        _courses.Setup(r => r.GetByIdWithDocumentsAsync(course.CourseId, default)).ReturnsAsync(course);
+        _courses.Setup(r => r.GetByIdAsync(course.CourseId, default)).ReturnsAsync(course);
 
         var result = await _handler.Handle(new DeleteCourseCommand(course.CourseId, _userId), default);
 
@@ -234,17 +255,9 @@ public class GetAllCoursesQueryHandlerTests
     [Fact]
     public async Task Handle_ReturnsMappedCourseDtos()
     {
-        var course = new Course
-        {
-            CourseId = Guid.NewGuid(),
-            UserId = _userId,
-            CourseName = "Math",
-            CourseColor = "#3B82F6",
-            Documents = new List<Document> { new(), new() },
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
-        };
-        _courses.Setup(r => r.GetByUserIdAsync(_userId, default)).ReturnsAsync(new[] { course });
+        var course = new CourseListItem(
+            Guid.NewGuid(), _userId, "Math", "#3B82F6", 2, DateTime.UtcNow, DateTime.UtcNow);
+        _courses.Setup(r => r.GetListItemsByUserAsync(_userId, default)).ReturnsAsync(new[] { course });
 
         var result = await _handler.Handle(new GetAllCoursesQuery(_userId), default);
 
@@ -257,7 +270,7 @@ public class GetAllCoursesQueryHandlerTests
     [Fact]
     public async Task Handle_NoCourses_ReturnsEmptyCollection()
     {
-        _courses.Setup(r => r.GetByUserIdAsync(_userId, default)).ReturnsAsync(Array.Empty<Course>());
+        _courses.Setup(r => r.GetListItemsByUserAsync(_userId, default)).ReturnsAsync(Array.Empty<CourseListItem>());
 
         var result = await _handler.Handle(new GetAllCoursesQuery(_userId), default);
 

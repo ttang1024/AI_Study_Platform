@@ -19,11 +19,10 @@ public class QuizSubmissionRepository : Repository<QuizSubmission>, IQuizSubmiss
 
     public async Task<IEnumerable<QuizSubmission>> GetAllByUserAsync(Guid userId, CancellationToken cancellationToken = default)
         => await _dbSet
-            .Include(s => s.Document)
-            .Include(s => s.Video)
+            .AsNoTracking()
             .Where(s => s.UserId == userId)
             .OrderByDescending(s => s.SubmittedAt)
-            .ToListAsync(cancellationToken);
+            .ToListWithSourcesAsync(cancellationToken);
 
     public async Task<IEnumerable<QuizSubmission>> GetByDateRangeAsync(Guid userId, DateTime from, DateTime to, CancellationToken cancellationToken = default)
         => await _dbSet
@@ -34,15 +33,13 @@ public class QuizSubmissionRepository : Repository<QuizSubmission>, IQuizSubmiss
     {
         var query = _dbSet
             .AsNoTracking()
-            .Include(s => s.Document)
-            .Include(s => s.Video)
             .Where(s => s.UserId == userId);
         var totalCount = await query.CountAsync(cancellationToken);
         var items = await query
             .OrderByDescending(s => s.SubmittedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .ToListAsync(cancellationToken);
+            .ToListWithSourcesAsync(cancellationToken);
         return (items, totalCount);
     }
 

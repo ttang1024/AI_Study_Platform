@@ -75,13 +75,19 @@ public class DocumentRepository : Repository<Document>, IDocumentRepository
             .OrderByDescending(d => d.CreatedAt)
             .ToListAsync(cancellationToken);
 
-    public async Task<Document?> GetByIdWithDetailsAsync(Guid documentId, CancellationToken cancellationToken = default)
+    public async Task<DocumentSourceRef?> GetSourceRefAsync(Guid documentId, CancellationToken cancellationToken = default)
         => await _dbSet
-            .Include(d => d.Notes)
-            .Include(d => d.Quizzes)
-            .Include(d => d.Flashcards)
-            .Include(d => d.ChatMessages)
-            .FirstOrDefaultAsync(d => d.DocumentId == documentId, cancellationToken);
+            .AsNoTracking()
+            .Where(d => d.DocumentId == documentId)
+            .Select(d => new DocumentSourceRef(d.ContentType, d.BlobUrl))
+            .FirstOrDefaultAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<string>> GetBlobUrlsByCourseAsync(Guid courseId, CancellationToken cancellationToken = default)
+        => await _dbSet
+            .AsNoTracking()
+            .Where(d => d.CourseId == courseId)
+            .Select(d => d.BlobUrl)
+            .ToListAsync(cancellationToken);
 
     public async Task<bool> BelongsToUserAsync(Guid documentId, Guid userId, CancellationToken cancellationToken = default)
         => await _dbSet.AnyAsync(d => d.DocumentId == documentId && d.UserId == userId, cancellationToken);
@@ -137,5 +143,21 @@ public class DocumentRepository : Repository<Document>, IDocumentRepository
             .OrderByDescending(d => d.CreatedAt)
             .Take(limit)
             .Select(d => new DocumentListItem(d.DocumentId, d.CourseId, d.FileName, d.CreatedAt))
+            .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<DocumentGraphNode>> GetGraphNodesAsync(Guid userId, CancellationToken cancellationToken = default)
+        => await _dbSet
+            .AsNoTracking()
+            .Where(d => d.UserId == userId)
+            .Select(d => new DocumentGraphNode(
+                d.DocumentId,
+                d.CourseId,
+                d.FileName,
+                d.ContentType,
+                d.OriginalUrl,
+                // Evaluated as a NOT NULL / <> '' test in SQL — the text itself is never read.
+                (d.Summary != null && d.Summary != "")
+                    || (d.MindMapText != null && d.MindMapText != "")
+                    || (d.Transcript != null && d.Transcript != "")))
             .ToListAsync(cancellationToken);
 }

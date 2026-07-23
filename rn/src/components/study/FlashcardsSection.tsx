@@ -11,7 +11,7 @@ import { haptics } from '@/utils/haptics';
 import { cardBackText, cardFrontText } from '@/utils/flashcardDisplay';
 import { containsTexMath } from '@/utils/mathMarkdownHtml';
 import type { SimpleCard } from '@/types';
-import { Layers } from 'lucide-react-native';
+import Layers from 'lucide-react-native/icons/layers';
 
 interface FlashcardsSectionProps {
   /** Cards already generated for this source; loaded once on mount. */

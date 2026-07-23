@@ -45,7 +45,7 @@ public class GetCourseMasteryQueryHandler : IRequestHandler<GetCourseMasteryQuer
 
     private async Task<CourseMasteryDto[]> ComputeAsync(Guid userId, CancellationToken ct)
     {
-        var courses = (await _unitOfWork.Courses.GetByUserIdAsync(userId, ct)).ToList();
+        var courses = (await _unitOfWork.Courses.GetListItemsByUserAsync(userId, ct)).ToList();
         if (courses.Count == 0)
             return Array.Empty<CourseMasteryDto>();
 

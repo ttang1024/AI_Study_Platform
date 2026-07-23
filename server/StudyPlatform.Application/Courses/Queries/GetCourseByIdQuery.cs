@@ -18,7 +18,7 @@ public class GetCourseByIdQueryHandler : IRequestHandler<GetCourseByIdQuery, Res
 
     public async Task<Result<CourseDto>> Handle(GetCourseByIdQuery request, CancellationToken cancellationToken)
     {
-        var course = await _unitOfWork.Courses.GetByIdWithDocumentsAsync(request.CourseId, cancellationToken);
+        var course = await _unitOfWork.Courses.GetListItemByIdAsync(request.CourseId, cancellationToken);
         if (course == null)
             return Result<CourseDto>.Failure("Course not found.", "COURSE_NOT_FOUND");
 
@@ -37,7 +37,7 @@ public class GetCourseByIdQueryHandler : IRequestHandler<GetCourseByIdQuery, Res
             course.UserId,
             course.CourseName,
             course.CourseColor,
-            course.Documents?.Count ?? 0,
+            course.DocumentCount,
             course.CreatedAt,
             course.UpdatedAt);
 

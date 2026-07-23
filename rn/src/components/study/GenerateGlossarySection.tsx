@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Sparkles } from 'lucide-react-native';
+import Sparkles from 'lucide-react-native/icons/sparkles';
 
 import { EmptyState } from '@/components/EmptyState';
 

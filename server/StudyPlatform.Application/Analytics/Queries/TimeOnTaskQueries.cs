@@ -76,7 +76,7 @@ public class GetTimeOnTaskQueryHandler : IRequestHandler<GetTimeOnTaskQuery, Res
             async ct =>
             {
                 var sessions = (await _unitOfWork.StudySessions.GetByDateRangeAsync(request.UserId, request.From, request.To, ct)).ToList();
-                var courses = await _unitOfWork.Courses.GetByUserIdAsync(request.UserId, ct);
+                var courses = await _unitOfWork.Courses.GetListItemsByUserAsync(request.UserId, ct);
                 var coursesById = courses.ToDictionary(c => c.CourseId);
 
                 var daily = sessions

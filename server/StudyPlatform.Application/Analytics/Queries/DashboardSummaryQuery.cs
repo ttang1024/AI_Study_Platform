@@ -90,7 +90,7 @@ public class GetDashboardSummaryQueryHandler : IRequestHandler<GetDashboardSumma
         var now = DateTime.UtcNow;
 
         var streak = await ComputeStreakAsync(userId, now, ct);
-        var dueFlashcards = (await _unitOfWork.FlashcardSrs.GetDueByUserIdAsync(userId, now, ct)).Count();
+        var dueFlashcards = await _unitOfWork.FlashcardSrs.CountDueByUserIdAsync(userId, now, ct);
         var reinforcement = await ComputeReinforcementCountsAsync(userId, ct);
 
         var user = await _unitOfWork.Users.GetByIdAsync(userId, ct);
@@ -203,14 +203,11 @@ public class GetDashboardSummaryQueryHandler : IRequestHandler<GetDashboardSumma
 
     private async Task<ReinforcementCountsDto> ComputeReinforcementCountsAsync(Guid userId, CancellationToken ct)
     {
-        // Hard flashcards.
-        var flashcards = await _unitOfWork.Flashcards.GetByUserIdAsync(userId, ct);
-        var hardFlashcards = flashcards.Count(f => string.Equals(f.Difficulty, "hard", StringComparison.OrdinalIgnoreCase));
-
-        // Unmastered glossary terms.
-        var allTerms = (await _unitOfWork.GlossaryTerms.GetByUserWithSourcesAsync(userId, ct)).ToList();
-        var mastered = (await _unitOfWork.GlossaryMastered.GetMasteredTermIdsByUserAsync(userId, ct)).ToHashSet();
-        var unmasteredTerms = allTerms.Count(t => !mastered.Contains(t.GlossaryTermId));
+        // Hard flashcards and unmastered glossary terms. Both are counted in the database: this handler
+        // renders three integers, and loading a user's whole card and term library to arrive at them was
+        // the most expensive thing the dashboard did.
+        var hardFlashcards = await _unitOfWork.Flashcards.CountByDifficultyAsync(userId, "hard", ct);
+        var unmasteredTerms = await _unitOfWork.GlossaryTerms.CountUnmasteredByUserAsync(userId, ct);
 
         // Quiz mistakes: questions answered wrong at least once and never since answered correctly.
         var quizMistakes = await ComputeQuizMistakesAsync(userId, ct);
@@ -227,6 +224,14 @@ public class GetDashboardSummaryQueryHandler : IRequestHandler<GetDashboardSumma
         var byId = quizzes.GroupBy(q => q.QuizId).ToDictionary(g => g.Key, g => g.First());
         var submissions = await _unitOfWork.QuizSubmissions.GetAllByUserAsync(userId, ct);
 
+        // Questions bucketed by the source they belong to, once. Re-filtering the whole question bank
+        // inside the submission loop instead is a full scan per submission — quadratic for anyone with
+        // a real quiz history.
+        var byVideo = quizzes.Where(q => q.SourceType == "video")
+            .GroupBy(q => q.VideoId).ToDictionary(g => g.Key, g => g.ToList());
+        var byDocument = quizzes.Where(q => q.SourceType == "document")
+            .GroupBy(q => q.DocumentId).ToDictionary(g => g.Key, g => g.ToList());
+
         var seen = new HashSet<Guid>();        // wrong at least once
         var everCorrect = new HashSet<Guid>(); // correct at least once (overrides "seen")
 
@@ -238,12 +243,11 @@ public class GetDashboardSummaryQueryHandler : IRequestHandler<GetDashboardSumma
 
             // Prefer questions belonging to this submission's source; fall back to whatever the answer keys resolve to.
             var isVideo = submission.VideoId.HasValue || submission.SourceType == "video";
-            var sourceQuestions = quizzes.Where(q => isVideo
-                    ? q.SourceType == "video" && q.VideoId == submission.VideoId
-                    : q.SourceType == "document" && q.DocumentId == submission.DocumentId)
-                .ToList();
+            var sourceQuestions = isVideo
+                ? byVideo.GetValueOrDefault(submission.VideoId)
+                : byDocument.GetValueOrDefault(submission.DocumentId);
 
-            var candidates = sourceQuestions.Count > 0
+            var candidates = sourceQuestions is { Count: > 0 }
                 ? sourceQuestions
                 : answers.Keys
                     .Select(id => Guid.TryParse(id, out var g) && byId.TryGetValue(g, out var q) ? q : null)

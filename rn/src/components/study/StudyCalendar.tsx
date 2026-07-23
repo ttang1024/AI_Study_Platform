@@ -1,7 +1,14 @@
 import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Calendar, ChevronLeft, ChevronRight, FileText, Globe, Mic, Video, X } from 'lucide-react-native';
+import Calendar from 'lucide-react-native/icons/calendar';
+import ChevronLeft from 'lucide-react-native/icons/chevron-left';
+import ChevronRight from 'lucide-react-native/icons/chevron-right';
+import FileText from 'lucide-react-native/icons/file-text';
+import Globe from 'lucide-react-native/icons/globe';
+import Mic from 'lucide-react-native/icons/mic';
+import Video from 'lucide-react-native/icons/video';
+import X from 'lucide-react-native/icons/x';
 
 import { Alpha, Colors, Layout, Overlay, Radius, Spacing, Typography } from '@/constants/theme';
 import { libraryService, type LibraryEntry } from '@/services/libraryService';

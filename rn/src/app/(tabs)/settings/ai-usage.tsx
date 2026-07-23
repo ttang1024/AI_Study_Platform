@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Info } from 'lucide-react-native';
+import Info from 'lucide-react-native/icons/info';
 
 import { Colors, Layout, Radius, Spacing, Typography } from '@/constants/theme';
 import { analyticsService, type AiUsage, type AiUsageGroup } from '@/services/analyticsService';

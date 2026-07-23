@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
-import { Pause, Play } from 'lucide-react-native';
+import Pause from 'lucide-react-native/icons/pause';
+import Play from 'lucide-react-native/icons/play';
 
 import { Colors, Layout, Radius } from '@/constants/theme';
 import type { TtsState } from '@/hooks/useTts';

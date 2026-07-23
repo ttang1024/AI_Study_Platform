@@ -4,7 +4,12 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Check, ChevronLeft, Copy, LogOut, Trash2, Users } from 'lucide-react-native';
+import Check from 'lucide-react-native/icons/check';
+import ChevronLeft from 'lucide-react-native/icons/chevron-left';
+import Copy from 'lucide-react-native/icons/copy';
+import LogOut from 'lucide-react-native/icons/log-out';
+import Trash2 from 'lucide-react-native/icons/trash-2';
+import Users from 'lucide-react-native/icons/users';
 
 import { AssignmentsTab } from '@/components/groups/AssignmentsTab';
 import { BattlesTab } from '@/components/groups/BattlesTab';

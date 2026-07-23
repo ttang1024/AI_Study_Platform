@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Check, X } from 'lucide-react-native';
+import Check from 'lucide-react-native/icons/check';
+import X from 'lucide-react-native/icons/x';
 
 import { Alpha, Colors, Layout, Radius, Spacing, Typography } from '@/constants/theme';
 import type { ShareableQuiz } from '@/services/shareService';

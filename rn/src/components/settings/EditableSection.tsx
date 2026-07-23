@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Pencil, X } from 'lucide-react-native';
+import Pencil from 'lucide-react-native/icons/pencil';
+import X from 'lucide-react-native/icons/x';
 
 import { Colors, Layout, Radius, Spacing } from '@/constants/theme';
 

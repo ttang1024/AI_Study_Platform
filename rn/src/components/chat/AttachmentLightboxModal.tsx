@@ -1,6 +1,7 @@
 import React from 'react';
 import { Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { FileText, X } from 'lucide-react-native';
+import FileText from 'lucide-react-native/icons/file-text';
+import X from 'lucide-react-native/icons/x';
 
 import { Colors, Layout, Overlay, Spacing } from '@/constants/theme';
 import type { ChatMessageAttachment } from '@/services/chatService';

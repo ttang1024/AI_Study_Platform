@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, TextInput, TextInputProps, View } from 'react-native';
-import { Search } from 'lucide-react-native';
+import Search from 'lucide-react-native/icons/search';
 
 import { Colors, Layout, Radius, Shadows, Spacing } from '@/constants/theme';
 

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { BrainCircuit, X } from 'lucide-react-native';
+import BrainCircuit from 'lucide-react-native/icons/brain-circuit';
+import X from 'lucide-react-native/icons/x';
 
 import { Alpha, Colors, Layout, Overlay, Radius, Spacing, Typography } from '@/constants/theme';
 import { HIGHLIGHT_COLORS, type PdfSelection } from '@/hooks/useAnnotatedPdfViewer';

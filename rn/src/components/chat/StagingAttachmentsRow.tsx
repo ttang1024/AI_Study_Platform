@@ -1,6 +1,7 @@
 import React from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { FileText, X } from 'lucide-react-native';
+import FileText from 'lucide-react-native/icons/file-text';
+import X from 'lucide-react-native/icons/x';
 
 import { Colors, Layout, Radius, Spacing, Typography } from '@/constants/theme';
 import type { PendingAttachment } from '@/hooks/useChatAttachments';
@@ -10,24 +11,30 @@ interface StagingAttachmentsRowProps {
   onRemove: (id: string) => void;
 }
 
-export const StagingAttachmentsRow: React.FC<StagingAttachmentsRowProps> = ({ attachments, onRemove }) => (
-  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
-    {attachments.map((a) => (
-      <View key={a.id} style={styles.item}>
-        {a.isImage ? (
-          <Image source={{ uri: a.previewUri }} style={styles.thumb} />
-        ) : (
-          <View style={styles.file}>
-            <FileText size={18} color={Colors.primary} />
-            <Text style={styles.fileText} numberOfLines={2}>{a.fileName}</Text>
+// Memoized because it lives above the composer: typing re-renders the thread on every
+// keystroke, and both props (`attachments` state, `onRemove` callback) are already stable.
+export const StagingAttachmentsRow: React.FC<StagingAttachmentsRowProps> = React.memo(
+  function StagingAttachmentsRow({ attachments, onRemove }) {
+    return (
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
+        {attachments.map((a) => (
+          <View key={a.id} style={styles.item}>
+            {a.isImage ? (
+              <Image source={{ uri: a.previewUri }} style={styles.thumb} />
+            ) : (
+              <View style={styles.file}>
+                <FileText size={18} color={Colors.primary} />
+                <Text style={styles.fileText} numberOfLines={2}>{a.fileName}</Text>
+              </View>
+            )}
+            <Pressable style={styles.remove} onPress={() => onRemove(a.id)} hitSlop={6}>
+              <X size={11} color={Colors.white} />
+            </Pressable>
           </View>
-        )}
-        <Pressable style={styles.remove} onPress={() => onRemove(a.id)} hitSlop={6}>
-          <X size={11} color={Colors.white} />
-        </Pressable>
-      </View>
-    ))}
-  </ScrollView>
+        ))}
+      </ScrollView>
+    );
+  },
 );
 
 const styles = StyleSheet.create({

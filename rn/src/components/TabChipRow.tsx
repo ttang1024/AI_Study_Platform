@@ -1,7 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
-import { type LucideIcon } from 'lucide-react-native';
+import type { LucideIcon } from 'lucide-react-native';
 
 import { CHIP_HEIGHT } from '@/components/FilterChip';
 import { Colors, Gradients, Layout, Radius, Spacing } from '@/constants/theme';

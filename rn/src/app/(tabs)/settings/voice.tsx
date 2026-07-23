@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Check, Info } from 'lucide-react-native';
+import Check from 'lucide-react-native/icons/check';
+import Info from 'lucide-react-native/icons/info';
 
 import { Button } from '@/components/Button';
 import { Alpha, Colors, Layout, Radius, Spacing } from '@/constants/theme';

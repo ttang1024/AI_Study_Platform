@@ -5,6 +5,7 @@ using StudyPlatform.Application.Services;
 using StudyPlatform.Application.Settings;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
+using StudyPlatform.Domain.Projections;
 using System.Text.RegularExpressions;
 
 namespace StudyPlatform.Application.ConceptLinks;
@@ -46,14 +47,18 @@ public class GetKnowledgeGraphQueryHandler : IRequestHandler<GetKnowledgeGraphQu
     private async Task<KnowledgeGraphDto> ComputeAsync(Guid userId, CancellationToken cancellationToken)
     {
         var links = (await _unitOfWork.ConceptLinks.GetByUserAsync(userId, cancellationToken)).ToList();
-        var documents = (await _unitOfWork.Documents.FindAsync(d => d.UserId == userId, cancellationToken)).ToList();
-        var videos = (await _unitOfWork.Videos.FindAsync(v => v.UserId == userId, cancellationToken)).ToList();
+        var documents = await _unitOfWork.Documents.GetGraphNodesAsync(userId, cancellationToken);
+        var videos = await _unitOfWork.Videos.GetGraphNodesAsync(userId, cancellationToken);
         var notes = (await _unitOfWork.Notes.GetByUserIdAsync(userId, cancellationToken)).ToList();
-        var quizzes = (await _unitOfWork.Quizzes.FindAsync(q => q.UserId == userId, cancellationToken)).ToList();
+        var quizzes = (await _unitOfWork.Quizzes.FindAsNoTrackingAsync(q => q.UserId == userId, cancellationToken)).ToList();
         var glossaryTerms = (await _unitOfWork.GlossaryTerms.GetByUserWithSourcesAsync(userId, cancellationToken)).ToList();
 
         var nodes = new Dictionary<string, NodeDto>(StringComparer.OrdinalIgnoreCase);
         var edgeWeights = new Dictionary<(string Source, string Target, string Label), int>();
+        // Same pairs as edgeWeights but label-blind, so "are these two already connected?" is a lookup
+        // rather than a scan of every edge built so far — the per-course chaining below asks it once
+        // per material, which made the whole pass quadratic in edges.
+        var connectedPairs = new HashSet<(string Source, string Target)>(EdgePairComparer.Instance);
         var knownConcepts = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         void AddNode(NodeDto node)
@@ -75,12 +80,7 @@ public class GetKnowledgeGraphQueryHandler : IRequestHandler<GetKnowledgeGraphQu
                 : (target, source);
 
         bool HasEdgeBetween(string source, string target)
-        {
-            var pair = GetEdgePair(source, target);
-            return edgeWeights.Keys.Any(k =>
-                k.Source.Equals(pair.Source, StringComparison.OrdinalIgnoreCase)
-                && k.Target.Equals(pair.Target, StringComparison.OrdinalIgnoreCase));
-        }
+            => connectedPairs.Contains(GetEdgePair(source, target));
 
         void AddEdge(string source, string target, string label)
         {
@@ -88,6 +88,7 @@ public class GetKnowledgeGraphQueryHandler : IRequestHandler<GetKnowledgeGraphQu
             var pair = GetEdgePair(source, target);
             var key = (pair.Source, pair.Target, label);
             edgeWeights[key] = edgeWeights.TryGetValue(key, out var weight) ? weight + 1 : 1;
+            connectedPairs.Add(pair);
         }
 
         void AddEdgeIfUnconnected(string source, string target, string label)
@@ -110,14 +111,13 @@ public class GetKnowledgeGraphQueryHandler : IRequestHandler<GetKnowledgeGraphQu
 
         foreach (var doc in documents)
         {
-            var type = GetDocumentNodeType(doc);
             AddNode(new NodeDto(
                 $"document:{doc.DocumentId}",
-                type,
+                GetDocumentNodeType(doc.ContentType, doc.FileName, doc.OriginalUrl),
                 doc.FileName,
-                GetDocumentSubtitle(doc),
-                GetDocumentUrl(doc),
-                HasStudyArtifacts(doc) ? 3 : 1,
+                GetDocumentSubtitle(doc.ContentType, doc.FileName, doc.OriginalUrl),
+                GetDocumentUrl(doc.DocumentId, doc.ContentType, doc.FileName, doc.OriginalUrl),
+                doc.HasStudyArtifacts ? 3 : 1,
                 null,
                 doc.CourseId.ToString()));
         }
@@ -130,7 +130,7 @@ public class GetKnowledgeGraphQueryHandler : IRequestHandler<GetKnowledgeGraphQu
                 string.IsNullOrWhiteSpace(video.Title) ? video.ExternalVideoId : video.Title,
                 "Video",
                 $"/videos/{video.VideoId}",
-                HasStudyArtifacts(video) ? 3 : 1,
+                video.HasStudyArtifacts ? 3 : 1,
                 null,
                 video.CourseId.ToString()));
         }
@@ -233,7 +233,12 @@ public class GetKnowledgeGraphQueryHandler : IRequestHandler<GetKnowledgeGraphQu
                 var doc = await _unitOfWork.Documents.GetByIdAsync(id, cancellationToken);
                 nodes[nodeId] = doc is null
                     ? new NodeDto(nodeId, "document", id.ToString())
-                    : new NodeDto(nodeId, GetDocumentNodeType(doc), doc.FileName, GetDocumentSubtitle(doc), GetDocumentUrl(doc));
+                    : new NodeDto(
+                        nodeId,
+                        GetDocumentNodeType(doc.ContentType, doc.FileName, doc.OriginalUrl),
+                        doc.FileName,
+                        GetDocumentSubtitle(doc.ContentType, doc.FileName, doc.OriginalUrl),
+                        GetDocumentUrl(doc.DocumentId, doc.ContentType, doc.FileName, doc.OriginalUrl));
                 break;
             case "video":
                 var video = await _unitOfWork.Videos.GetByIdAsync(id, cancellationToken);
@@ -277,12 +282,6 @@ public class GetKnowledgeGraphQueryHandler : IRequestHandler<GetKnowledgeGraphQu
             ? "video"
             : type.Trim().ToLowerInvariant();
 
-    private static bool HasStudyArtifacts(Document doc)
-        => !string.IsNullOrWhiteSpace(doc.Summary) || !string.IsNullOrWhiteSpace(doc.MindMapText) || !string.IsNullOrWhiteSpace(doc.Transcript);
-
-    private static bool HasStudyArtifacts(Video video)
-        => !string.IsNullOrWhiteSpace(video.Summary) || !string.IsNullOrWhiteSpace(video.MindMapText) || !string.IsNullOrWhiteSpace(video.Transcript);
-
     private static bool IsCourseMaterialNode(NodeDto node)
         => !string.IsNullOrWhiteSpace(node.CourseId)
            && node.Type is "document" or "video" or "audio" or "podcast" or "article";
@@ -298,18 +297,18 @@ public class GetKnowledgeGraphQueryHandler : IRequestHandler<GetKnowledgeGraphQu
             _ => 5
         };
 
-    private static string GetDocumentNodeType(Document doc)
+    private static string GetDocumentNodeType(string documentContentType, string documentFileName, string? originalUrl)
     {
-        var contentType = doc.ContentType.ToLowerInvariant();
-        var fileName = doc.FileName.ToLowerInvariant();
+        var contentType = documentContentType.ToLowerInvariant();
+        var fileName = documentFileName.ToLowerInvariant();
         if (contentType == "audio/podcast") return "podcast";
         if (contentType.StartsWith("audio/") || Regex.IsMatch(fileName, @"\.(mp3|m4a|wav|ogg|aac|flac|webm)$")) return "audio";
-        if (!string.IsNullOrWhiteSpace(doc.OriginalUrl)) return "article";
+        if (!string.IsNullOrWhiteSpace(originalUrl)) return "article";
         return "document";
     }
 
-    private static string GetDocumentSubtitle(Document doc)
-        => GetDocumentNodeType(doc) switch
+    private static string GetDocumentSubtitle(string contentType, string fileName, string? originalUrl)
+        => GetDocumentNodeType(contentType, fileName, originalUrl) switch
         {
             "podcast" => "Podcast episode",
             "audio" => "Audio material",
@@ -317,12 +316,12 @@ public class GetKnowledgeGraphQueryHandler : IRequestHandler<GetKnowledgeGraphQu
             _ => "Document"
         };
 
-    private static string GetDocumentUrl(Document doc)
-        => GetDocumentNodeType(doc) switch
+    private static string GetDocumentUrl(Guid documentId, string contentType, string fileName, string? originalUrl)
+        => GetDocumentNodeType(contentType, fileName, originalUrl) switch
         {
-            "podcast" or "audio" => $"/audio/{doc.DocumentId}",
-            "article" => $"/articles/{doc.DocumentId}",
-            _ => $"/documents/{doc.DocumentId}"
+            "podcast" or "audio" => $"/audio/{documentId}",
+            "article" => $"/articles/{documentId}",
+            _ => $"/documents/{documentId}"
         };
 
     private static IEnumerable<string> FindConceptsInText(string? text, Dictionary<string, string> knownConcepts)
@@ -344,4 +343,19 @@ public class GetKnowledgeGraphQueryHandler : IRequestHandler<GetKnowledgeGraphQu
 
     private static string Truncate(string text, int maxLength)
         => text.Length <= maxLength ? text : text[..maxLength].TrimEnd() + "...";
+
+    /// <summary>Case-insensitive on both ends, matching how edge pairs are ordered and compared.</summary>
+    private sealed class EdgePairComparer : IEqualityComparer<(string Source, string Target)>
+    {
+        public static readonly EdgePairComparer Instance = new();
+
+        public bool Equals((string Source, string Target) x, (string Source, string Target) y)
+            => string.Equals(x.Source, y.Source, StringComparison.OrdinalIgnoreCase)
+               && string.Equals(x.Target, y.Target, StringComparison.OrdinalIgnoreCase);
+
+        public int GetHashCode((string Source, string Target) pair)
+            => HashCode.Combine(
+                StringComparer.OrdinalIgnoreCase.GetHashCode(pair.Source),
+                StringComparer.OrdinalIgnoreCase.GetHashCode(pair.Target));
+    }
 }

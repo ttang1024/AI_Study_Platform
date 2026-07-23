@@ -1,7 +1,11 @@
 import * as Linking from 'expo-linking';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { Check, Circle, ClipboardList, ExternalLink, Trash2 } from 'lucide-react-native';
+import Check from 'lucide-react-native/icons/check';
+import Circle from 'lucide-react-native/icons/circle';
+import ClipboardList from 'lucide-react-native/icons/clipboard-list';
+import ExternalLink from 'lucide-react-native/icons/external-link';
+import Trash2 from 'lucide-react-native/icons/trash-2';
 
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';

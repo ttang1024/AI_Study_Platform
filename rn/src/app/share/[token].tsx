@@ -1,6 +1,6 @@
 import React from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { AlertCircle } from 'lucide-react-native';
+import AlertCircle from 'lucide-react-native/icons/circle-alert';
 
 import { TabChipRow } from '@/components/TabChipRow';
 import { Colors, Layout, Spacing, Typography } from '@/constants/theme';

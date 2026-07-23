@@ -11,11 +11,10 @@ public class NoteRepository : Repository<Note>, INoteRepository
 
     public async Task<IEnumerable<Note>> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
         => await _dbSet
-            .Include(n => n.Document)
-            .Include(n => n.Video)
+            .AsNoTracking()
             .Where(n => n.UserId == userId)
             .OrderByDescending(n => n.UpdatedAt)
-            .ToListAsync(cancellationToken);
+            .ToListWithSourcesAsync(cancellationToken);
 
     public async Task<IEnumerable<Note>> GetByDocumentIdAsync(Guid documentId, CancellationToken cancellationToken = default)
         => await _dbSet
@@ -36,15 +35,13 @@ public class NoteRepository : Repository<Note>, INoteRepository
     {
         var query = _dbSet
             .AsNoTracking()
-            .Include(n => n.Document)
-            .Include(n => n.Video)
             .Where(n => n.UserId == userId);
         var totalCount = await query.CountAsync(cancellationToken);
         var items = await query
             .OrderByDescending(n => n.UpdatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .ToListAsync(cancellationToken);
+            .ToListWithSourcesAsync(cancellationToken);
         return (items, totalCount);
     }
 

@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { BookOpen } from 'lucide-react-native';
+import BookOpen from 'lucide-react-native/icons/book-open';
 
 import { EmptyState } from '@/components/EmptyState';
 import { LoadingScreen } from '@/components/LoadingScreen';

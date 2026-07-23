@@ -10,6 +10,21 @@ public class VideoRepository : Repository<Video>, IVideoRepository
 {
     public VideoRepository(AppDbContext context) : base(context) { }
 
+    public async Task<IReadOnlyList<VideoGraphNode>> GetGraphNodesAsync(Guid userId, CancellationToken cancellationToken = default)
+        => await _dbSet
+            .AsNoTracking()
+            .Where(v => v.UserId == userId)
+            .Select(v => new VideoGraphNode(
+                v.VideoId,
+                v.CourseId,
+                v.Title,
+                v.ExternalVideoId,
+                // Evaluated as a NOT NULL / <> '' test in SQL — the transcript itself is never read.
+                (v.Summary != null && v.Summary != "")
+                    || (v.MindMapText != null && v.MindMapText != "")
+                    || (v.Transcript != null && v.Transcript != "")))
+            .ToListAsync(cancellationToken);
+
     public async Task<(IEnumerable<Video> Items, int TotalCount)> GetPagedAsync(
         Guid userId, Guid? courseId, string? search, int page, int pageSize,
         CancellationToken cancellationToken = default)

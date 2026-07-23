@@ -11,11 +11,16 @@ public class GlossaryTermRepository : Repository<GlossaryTerm>, IGlossaryTermRep
 
     public async Task<IEnumerable<GlossaryTerm>> GetByUserWithSourcesAsync(Guid userId, CancellationToken cancellationToken = default)
         => await _dbSet
-            .Include(t => t.Document)
-            .Include(t => t.Video)
+            .AsNoTracking()
             .Where(t => t.UserId == userId)
             .OrderBy(t => t.Term)
-            .ToListAsync(cancellationToken);
+            .ToListWithSourcesAsync(cancellationToken);
+
+    public async Task<int> CountUnmasteredByUserAsync(Guid userId, CancellationToken cancellationToken = default)
+        => await _dbSet
+            .Where(t => t.UserId == userId
+                && !_context.GlossaryMastered.Any(m => m.UserId == userId && m.GlossaryTermId == t.GlossaryTermId))
+            .CountAsync(cancellationToken);
 
     public async Task<IEnumerable<GlossaryTerm>> GetByDocumentIdAsync(Guid documentId, CancellationToken cancellationToken = default)
         => await _dbSet

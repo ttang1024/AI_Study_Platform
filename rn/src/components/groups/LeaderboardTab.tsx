@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
-import { Medal } from 'lucide-react-native';
+import Medal from 'lucide-react-native/icons/medal';
 
 import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';

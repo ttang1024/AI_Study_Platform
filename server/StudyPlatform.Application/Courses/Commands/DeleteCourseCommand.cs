@@ -20,15 +20,18 @@ public class DeleteCourseCommandHandler : IRequestHandler<DeleteCourseCommand, R
 
     public async Task<Result> Handle(DeleteCourseCommand request, CancellationToken cancellationToken)
     {
-        var course = await _unitOfWork.Courses.GetByIdWithDocumentsAsync(request.CourseId, cancellationToken);
+        var course = await _unitOfWork.Courses.GetByIdAsync(request.CourseId, cancellationToken);
         if (course == null || course.UserId != request.UserId)
             return Result.Failure("Course not found.", "COURSE_NOT_FOUND");
 
-        foreach (var document in course.Documents)
+        // Only the blob locations, not the document rows — the rows themselves are deleted by the
+        // Course -> Document cascade, so loading them (and their text) would be for the URL alone.
+        var blobUrls = await _unitOfWork.Documents.GetBlobUrlsByCourseAsync(request.CourseId, cancellationToken);
+        foreach (var blobUrl in blobUrls)
         {
             try
             {
-                await _blobStorageService.DeleteAsync(document.BlobUrl, cancellationToken);
+                await _blobStorageService.DeleteAsync(blobUrl, cancellationToken);
             }
             catch
             {

@@ -23,7 +23,7 @@ public class GetMistakesQueryHandler : IRequestHandler<GetMistakesQuery, Result<
         // Mistakes are normally captured at submission time, but submissions that predate the
         // notebook never went through capture. First time a user with history opens an empty
         // notebook, replay their stored submissions once.
-        if (entries.Count == 0 && await BackfillFromSubmissionsAsync(request.UserId, cancellationToken))
+        if (entries.Count == 0 && await TryBackfillOnceAsync(request.UserId, cancellationToken))
             entries = (await _unitOfWork.MistakeEntries.FindAsNoTrackingAsync(m => m.UserId == request.UserId, cancellationToken)).ToList();
 
         var openCount = entries.Count(m => m.Status == "open");
@@ -43,6 +43,24 @@ public class GetMistakesQueryHandler : IRequestHandler<GetMistakesQuery, Result<
         return Result<MistakesDto>.Success(new MistakesDto(items, openCount, resolvedCount));
     }
 
+    /// <summary>
+    /// Runs the submission replay at most once per user, then stamps the user so an empty notebook
+    /// (a spotless quiz record backfills nothing) can't re-scan the whole history on every open.
+    /// Returns true if the replay wrote anything.
+    /// </summary>
+    private async Task<bool> TryBackfillOnceAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        var user = await _unitOfWork.Users.GetByIdAsync(userId, cancellationToken);
+        if (user is null || user.MistakesBackfilledAt.HasValue) return false;
+
+        var wroteAnything = await BackfillFromSubmissionsAsync(userId, cancellationToken);
+
+        user.MistakesBackfilledAt = DateTime.UtcNow;
+        _unitOfWork.Users.Update(user);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return wroteAnything;
+    }
+
     /// <summary>Replays stored quiz submissions through the capture logic. Returns true if anything was written.</summary>
     private async Task<bool> BackfillFromSubmissionsAsync(Guid userId, CancellationToken cancellationToken)
     {
@@ -51,6 +69,13 @@ public class GetMistakesQueryHandler : IRequestHandler<GetMistakesQuery, Result<
 
         var quizzes = (await _unitOfWork.Quizzes.FindAsNoTrackingAsync(q => q.UserId == userId, cancellationToken)).ToList();
         if (quizzes.Count == 0) return false;
+
+        // Indexed once up front — the per-submission source lookup below used to re-scan the
+        // user's whole quiz list, which is O(submissions x quizzes) over a full history.
+        // A submission whose own source id is null matches nothing (it can't identify a source),
+        // rather than sweeping up every quiz that happens to have a null id on that column.
+        var quizzesByDocument = QuizzesBySource(quizzes, q => q.DocumentId);
+        var quizzesByVideo = QuizzesBySource(quizzes, q => q.VideoId);
 
         var wroteAnything = false;
         // Oldest first so a re-missed question's First/LastMissedAt come out in order.
@@ -68,8 +93,8 @@ public class GetMistakesQueryHandler : IRequestHandler<GetMistakesQuery, Result<
             if (answers == null || answers.Count == 0) continue;
 
             var sourceQuizzes = submission.SourceType == "video"
-                ? quizzes.Where(q => q.VideoId == submission.VideoId).ToList()
-                : quizzes.Where(q => q.DocumentId == submission.DocumentId).ToList();
+                ? LookupSource(quizzesByVideo, submission.VideoId)
+                : LookupSource(quizzesByDocument, submission.DocumentId);
             if (sourceQuizzes.Count == 0) continue;
 
             await MistakeCapture.CaptureForQuizzesAsync(
@@ -77,10 +102,21 @@ public class GetMistakesQueryHandler : IRequestHandler<GetMistakesQuery, Result<
             wroteAnything = true;
         }
 
-        if (wroteAnything)
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
         return wroteAnything;
     }
+
+    private static Dictionary<Guid, List<Domain.Entities.Quiz>> QuizzesBySource(
+        List<Domain.Entities.Quiz> quizzes, Func<Domain.Entities.Quiz, Guid?> sourceId)
+        => quizzes
+            .Where(q => sourceId(q).HasValue)
+            .GroupBy(q => sourceId(q)!.Value)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+    private static IReadOnlyList<Domain.Entities.Quiz> LookupSource(
+        Dictionary<Guid, List<Domain.Entities.Quiz>> bySource, Guid? sourceId)
+        => sourceId.HasValue && bySource.TryGetValue(sourceId.Value, out var quizzes)
+            ? quizzes
+            : Array.Empty<Domain.Entities.Quiz>();
 
     internal static MistakeDto ToDto(Domain.Entities.MistakeEntry m) => new(
         m.MistakeEntryId, m.QuizId, m.DocumentId, m.VideoId, m.SourceType,

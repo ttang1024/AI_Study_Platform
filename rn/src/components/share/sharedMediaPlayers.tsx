@@ -2,7 +2,8 @@ import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Pause, Play } from 'lucide-react-native';
+import Pause from 'lucide-react-native/icons/pause';
+import Play from 'lucide-react-native/icons/play';
 
 import { Colors, Layout, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
 

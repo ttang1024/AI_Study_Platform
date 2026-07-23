@@ -36,7 +36,19 @@ public interface IDocumentRepository : IRepository<Document>
 
     Task<IEnumerable<Document>> GetByCourseIdAsync(Guid courseId, Guid userId, CancellationToken cancellationToken = default);
     Task<IEnumerable<Document>> GetByCourseIdAsync(Guid courseId, CancellationToken cancellationToken = default);
-    Task<Document?> GetByIdWithDetailsAsync(Guid documentId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Content type and blob location for one document, and nothing else — what the anonymous share
+    /// endpoints need in order to redirect or stream. They never read the document's own text.
+    /// </summary>
+    Task<DocumentSourceRef?> GetSourceRefAsync(Guid documentId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Blob locations of every document in a course, for deleting the underlying files when the course
+    /// goes. Loading the rows themselves would pull each document's full text along with the URL.
+    /// </summary>
+    Task<IReadOnlyList<string>> GetBlobUrlsByCourseAsync(Guid courseId, CancellationToken cancellationToken = default);
+
     Task<bool> BelongsToUserAsync(Guid documentId, Guid userId, CancellationToken cancellationToken = default);
     Task<IEnumerable<Document>> GetByUserIdAsync(Guid userId, DateTime date, CancellationToken cancellationToken = default);
     Task<(IEnumerable<Document> Items, int TotalCount)> GetAllByUserIdAsync(Guid userId, int page, int pageSize, Guid? courseId, CancellationToken cancellationToken = default);
@@ -51,4 +63,7 @@ public interface IDocumentRepository : IRepository<Document>
     /// </summary>
     Task<IReadOnlyList<DocumentListItem>> GetRecentUntestedAsync(
         Guid userId, IReadOnlyCollection<Guid> excludeDocumentIds, int limit, CancellationToken cancellationToken = default);
+
+    /// <summary>Every one of a user's documents as knowledge-graph nodes — labels and flags only, no text.</summary>
+    Task<IReadOnlyList<DocumentGraphNode>> GetGraphNodesAsync(Guid userId, CancellationToken cancellationToken = default);
 }

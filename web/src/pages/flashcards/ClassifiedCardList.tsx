@@ -4,6 +4,7 @@ import { BrainCircuit, Pencil } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../../utils/cn';
 import { getDocDisplayName } from '../../utils/docName';
+import { getDocumentRoute } from '../../utils/documentRoute';
 import { Flashcard, Document } from '../../types';
 import { VideoListItem } from '../../services/videoService';
 import { Pagination } from '../../components/common/Pagination';
@@ -99,12 +100,8 @@ export const ClassifiedCardList: React.FC<ClassifiedCardListProps> = ({
                         const state = { activeTab: 'flashcards' };
                         if (card.videoId) {
                           navigate(`/videos/${card.videoId}`, { state });
-                        } else if (doc?.originalUrl) {
-                          navigate(`/articles/${card.documentId}`, { state });
-                        } else if (doc?.type === 'audio' || doc?.type === 'podcast') {
-                          navigate(`/audio/${card.documentId}`, { state });
                         } else if (card.documentId) {
-                          navigate(`/documents/${card.documentId}`, { state });
+                          navigate(getDocumentRoute(card.documentId, doc), { state });
                         }
                       }}
                       className="text-[10px] text-text-muted ml-0.5 hover:text-[var(--primary)] hover:underline transition-colors"

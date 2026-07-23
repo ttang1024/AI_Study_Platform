@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Info } from 'lucide-react-native';
+import Info from 'lucide-react-native/icons/info';
 
 import { Button } from '@/components/Button';
 import { EditableSection, type SectionMessage } from '@/components/settings/EditableSection';

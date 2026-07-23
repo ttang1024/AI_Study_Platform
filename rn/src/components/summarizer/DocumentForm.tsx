@@ -3,7 +3,9 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import React, { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { Camera, FileText, Upload } from 'lucide-react-native';
+import Camera from 'lucide-react-native/icons/camera';
+import FileText from 'lucide-react-native/icons/file-text';
+import Upload from 'lucide-react-native/icons/upload';
 
 import { Button } from '@/components/Button';
 import { Dropzone } from '@/components/summarizer/Dropzone';

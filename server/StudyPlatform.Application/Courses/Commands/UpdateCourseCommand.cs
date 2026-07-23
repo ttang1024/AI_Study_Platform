@@ -22,9 +22,12 @@ public class UpdateCourseCommandHandler : IRequestHandler<UpdateCourseCommand, R
 
     public async Task<Result<CourseDto>> Handle(UpdateCourseCommand request, CancellationToken cancellationToken)
     {
-        var course = await _unitOfWork.Courses.GetByIdWithDocumentsAsync(request.CourseId, cancellationToken);
+        var course = await _unitOfWork.Courses.GetByIdAsync(request.CourseId, cancellationToken);
         if (course == null || course.UserId != request.UserId)
             return Result<CourseDto>.Failure("Course not found.", "COURSE_NOT_FOUND");
+
+        // A COUNT for the response DTO, rather than loading every document (and its text) to call .Count.
+        var documentCount = await _unitOfWork.Documents.CountAsync(d => d.CourseId == request.CourseId, cancellationToken);
 
         course.CourseName = request.CourseName;
         course.CourseColor = request.CourseColor;
@@ -38,7 +41,7 @@ public class UpdateCourseCommandHandler : IRequestHandler<UpdateCourseCommand, R
             course.UserId,
             course.CourseName,
             course.CourseColor,
-            course.Documents.Count,
+            documentCount,
             course.CreatedAt,
             course.UpdatedAt);
 

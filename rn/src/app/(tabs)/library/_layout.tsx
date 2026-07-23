@@ -1,6 +1,7 @@
 import { Stack, useRouter } from 'expo-router';
 import { Pressable, View } from 'react-native';
-import { Search, Sparkles } from 'lucide-react-native';
+import Search from 'lucide-react-native/icons/search';
+import Sparkles from 'lucide-react-native/icons/sparkles';
 
 import { HeaderBackButton } from '@/components/HeaderBackButton';
 import { Colors, Spacing } from '@/constants/theme';

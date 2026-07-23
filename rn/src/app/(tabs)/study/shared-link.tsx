@@ -2,7 +2,8 @@ import * as Clipboard from 'expo-clipboard';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { ClipboardPaste, Share2 } from 'lucide-react-native';
+import ClipboardPaste from 'lucide-react-native/icons/clipboard-paste';
+import Share2 from 'lucide-react-native/icons/share-2';
 
 import { Button } from '@/components/Button';
 import { Alpha, Colors, Layout, Radius, Shadows, Spacing, Typography } from '@/constants/theme';

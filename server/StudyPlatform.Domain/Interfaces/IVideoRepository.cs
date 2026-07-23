@@ -25,6 +25,9 @@ public interface IVideoRepository : IRepository<Video>
     /// </summary>
     Task<IReadOnlyDictionary<Guid, Guid>> GetVideoCourseMapAsync(Guid userId, CancellationToken cancellationToken = default);
 
+    /// <summary>Every one of a user's videos as knowledge-graph nodes — labels and flags only, no transcript.</summary>
+    Task<IReadOnlyList<VideoGraphNode>> GetGraphNodesAsync(Guid userId, CancellationToken cancellationToken = default);
+
     Task<Video?> GetByIdForUserAsync(Guid id, Guid userId, CancellationToken cancellationToken = default);
     Task<Video?> GetByIdWithCourseAsync(Guid id, CancellationToken cancellationToken = default);
     Task<Video?> GetByExternalVideoIdAsync(string externalVideoId, CancellationToken cancellationToken = default);

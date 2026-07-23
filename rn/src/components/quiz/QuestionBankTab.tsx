@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
-import { Square } from 'lucide-react-native';
+import Square from 'lucide-react-native/icons/square';
 
 import { Button } from '@/components/Button';
 import { EmptyState } from '@/components/EmptyState';

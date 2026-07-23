@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { Users } from 'lucide-react-native';
+import Users from 'lucide-react-native/icons/users';
 
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';

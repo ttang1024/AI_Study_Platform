@@ -2,9 +2,13 @@ import * as DocumentPicker from 'expo-document-picker';
 import { File } from 'expo-file-system';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
-import { ChevronRight, Layers, Upload, WifiOff, Zap } from 'lucide-react-native';
+import ChevronRight from 'lucide-react-native/icons/chevron-right';
+import Layers from 'lucide-react-native/icons/layers';
+import Upload from 'lucide-react-native/icons/upload';
+import WifiOff from 'lucide-react-native/icons/wifi-off';
+import Zap from 'lucide-react-native/icons/zap';
 
 import { EmptyState } from '@/components/EmptyState';
 import { IconBadge } from '@/components/IconBadge';
@@ -117,10 +121,24 @@ export default function FlashcardsScreen() {
     );
   }, [reload]);
 
-  const sets = groupFlashcardSets(cards).filter((set) =>
-    set.name.toLowerCase().includes(search.trim().toLowerCase()),
+  // Grouping rebuilds every FlashcardSet object, so it has to be memoized for the memoized
+  // rows below to hold — filtering keeps the surviving objects by reference, which is what
+  // lets rows skip re-rendering while the search box is being typed in.
+  const allSets = useMemo(() => groupFlashcardSets(cards), [cards]);
+  const sets = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return query ? allSets.filter((set) => set.name.toLowerCase().includes(query)) : allSets;
+  }, [allSets, search]);
+  const totalDue = useMemo(() => sets.reduce((sum, set) => sum + set.dueCount, 0), [sets]);
+
+  const openDeck = useCallback(
+    (key: string) => router.push(`/study/flashcards/deck/${key}`),
+    [router],
   );
-  const totalDue = sets.reduce((sum, set) => sum + set.dueCount, 0);
+  const renderDeck = useCallback(
+    ({ item }: { item: FlashcardSet }) => <DeckCard set={item} onOpen={openDeck} />,
+    [openDeck],
+  );
 
   if (loading) {
     return <LoadingScreen />;
@@ -166,28 +184,34 @@ export default function FlashcardsScreen() {
           keyExtractor={(set) => set.key}
           contentContainerStyle={styles.list}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={Colors.primary} />}
-          renderItem={({ item }) => <DeckCard set={item} onPress={() => router.push(`/study/flashcards/deck/${item.key}`)} />}
+          renderItem={renderDeck}
         />
       )}
     </View>
   );
 }
 
-const DeckCard: React.FC<{ set: FlashcardSet; onPress: () => void }> = ({ set, onPress }) => (
-  <PressableScale style={styles.card} onPress={onPress}>
-    <IconBadge icon={Layers} color={Colors.amber} size={40} iconSize={18} />
-    <View style={styles.cardBody}>
-      <Text style={styles.cardTitle} numberOfLines={2}>{set.name}</Text>
-      <Text style={styles.cardSubtitle}>{set.count} card{set.count === 1 ? '' : 's'}</Text>
-    </View>
-    {set.dueCount > 0 ? (
-      <View style={styles.dueBadge}>
-        <Text style={styles.dueBadgeText}>{set.dueCount} due</Text>
-      </View>
-    ) : (
-      <ChevronRight size={18} color={Colors.textSecondary} />
-    )}
-  </PressableScale>
+// `onOpen` takes the key rather than closing over it, so the whole prop set stays
+// reference-stable and the memo survives a parent re-render (e.g. typing in the search box).
+const DeckCard: React.FC<{ set: FlashcardSet; onOpen: (key: string) => void }> = React.memo(
+  function DeckCard({ set, onOpen }) {
+    return (
+      <PressableScale style={styles.card} onPress={() => onOpen(set.key)}>
+        <IconBadge icon={Layers} color={Colors.amber} size={40} iconSize={18} />
+        <View style={styles.cardBody}>
+          <Text style={styles.cardTitle} numberOfLines={2}>{set.name}</Text>
+          <Text style={styles.cardSubtitle}>{set.count} card{set.count === 1 ? '' : 's'}</Text>
+        </View>
+        {set.dueCount > 0 ? (
+          <View style={styles.dueBadge}>
+            <Text style={styles.dueBadgeText}>{set.dueCount} due</Text>
+          </View>
+        ) : (
+          <ChevronRight size={18} color={Colors.textSecondary} />
+        )}
+      </PressableScale>
+    );
+  },
 );
 
 const styles = StyleSheet.create({

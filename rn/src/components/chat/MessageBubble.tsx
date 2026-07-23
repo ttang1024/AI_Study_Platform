@@ -1,7 +1,12 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
-import { Check, Copy, FileText, Share2, Square, Volume2 } from 'lucide-react-native';
+import Check from 'lucide-react-native/icons/check';
+import Copy from 'lucide-react-native/icons/copy';
+import FileText from 'lucide-react-native/icons/file-text';
+import Share2 from 'lucide-react-native/icons/share-2';
+import Square from 'lucide-react-native/icons/square';
+import Volume2 from 'lucide-react-native/icons/volume-2';
 
 import { SummaryMarkdown } from '@/components/SummaryMarkdown';
 import { ChatBubble } from '@/components/chat/ChatBubble';

@@ -1,7 +1,14 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
-import { Brain, Check, Pencil, RotateCcw, Sparkles, X, ZoomIn, ZoomOut } from 'lucide-react-native';
+import Brain from 'lucide-react-native/icons/brain';
+import Check from 'lucide-react-native/icons/check';
+import Pencil from 'lucide-react-native/icons/pencil';
+import RotateCcw from 'lucide-react-native/icons/rotate-ccw';
+import Sparkles from 'lucide-react-native/icons/sparkles';
+import X from 'lucide-react-native/icons/x';
+import ZoomIn from 'lucide-react-native/icons/zoom-in';
+import ZoomOut from 'lucide-react-native/icons/zoom-out';
 
 import { EmptyState } from '@/components/EmptyState';
 import { Alpha, Colors, Layout, Overlay, Radius, Spacing, Typography } from '@/constants/theme';

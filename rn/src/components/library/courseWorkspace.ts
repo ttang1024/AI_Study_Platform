@@ -1,4 +1,8 @@
-import { BookMarked, BrainCircuit, NotebookPen, HelpCircle, type LucideIcon } from 'lucide-react-native';
+import BookMarked from 'lucide-react-native/icons/book-marked';
+import BrainCircuit from 'lucide-react-native/icons/brain-circuit';
+import HelpCircle from 'lucide-react-native/icons/circle-question-mark';
+import NotebookPen from 'lucide-react-native/icons/notebook-pen';
+import type { LucideIcon } from 'lucide-react-native';
 
 import { Colors } from '@/constants/theme';
 import type { Flashcard, GlossaryTerm, Note, QuizQuestion } from '@/types';

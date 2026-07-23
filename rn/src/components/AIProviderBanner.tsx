@@ -2,7 +2,8 @@ import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { KeyRound, X } from 'lucide-react-native';
+import KeyRound from 'lucide-react-native/icons/key-round';
+import X from 'lucide-react-native/icons/x';
 
 import { Colors, Layout, Spacing } from '@/constants/theme';
 import { aiSettingsService } from '@/services/aiSettingsService';

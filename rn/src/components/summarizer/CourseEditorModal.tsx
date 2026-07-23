@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { Check } from 'lucide-react-native';
+import Check from 'lucide-react-native/icons/check';
 
 import { Button } from '@/components/Button';
 import { Colors, Layout, Overlay, Radius, Spacing, Typography } from '@/constants/theme';

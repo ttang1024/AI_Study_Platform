@@ -1,6 +1,8 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { Calendar, Share2, User } from 'lucide-react-native';
+import Calendar from 'lucide-react-native/icons/calendar';
+import Share2 from 'lucide-react-native/icons/share-2';
+import User from 'lucide-react-native/icons/user';
 
 import { Alpha, Colors, Layout, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
 import type { SharedContent } from '@/services/shareService';

@@ -1,4 +1,16 @@
-import { BookOpen, Bot, Brain, FileImage, FileText, Headphones, Highlighter, Layers, ListChecks, NotebookPen, Presentation, Sparkles, HelpCircle } from 'lucide-react-native';
+import BookOpen from 'lucide-react-native/icons/book-open';
+import Bot from 'lucide-react-native/icons/bot';
+import Brain from 'lucide-react-native/icons/brain';
+import FileImage from 'lucide-react-native/icons/file-image';
+import FileText from 'lucide-react-native/icons/file-text';
+import Headphones from 'lucide-react-native/icons/headphones';
+import HelpCircle from 'lucide-react-native/icons/circle-question-mark';
+import Highlighter from 'lucide-react-native/icons/highlighter';
+import Layers from 'lucide-react-native/icons/layers';
+import ListChecks from 'lucide-react-native/icons/list-checks';
+import NotebookPen from 'lucide-react-native/icons/notebook-pen';
+import Presentation from 'lucide-react-native/icons/presentation';
+import Sparkles from 'lucide-react-native/icons/sparkles';
 
 import type { Document } from '@/types';
 

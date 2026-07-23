@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { Newspaper } from 'lucide-react-native';
+import Newspaper from 'lucide-react-native/icons/newspaper';
 
 import { Button } from '@/components/Button';
 import { DuplicateAlert } from '@/components/summarizer/DuplicateAlert';

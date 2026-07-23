@@ -1,6 +1,8 @@
 import React from 'react';
 import { FlatList, Pressable, StyleSheet, View } from 'react-native';
-import { BookOpen, Circle, CheckCircle2 } from 'lucide-react-native';
+import BookOpen from 'lucide-react-native/icons/book-open';
+import CheckCircle2 from 'lucide-react-native/icons/circle-check';
+import Circle from 'lucide-react-native/icons/circle';
 
 import { EmptyState } from '@/components/EmptyState';
 import { SearchBar } from '@/components/SearchBar';

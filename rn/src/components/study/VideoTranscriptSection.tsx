@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Captions, RotateCcw } from 'lucide-react-native';
+import Captions from 'lucide-react-native/icons/captions';
+import RotateCcw from 'lucide-react-native/icons/rotate-ccw';
 
 import { EmptyState } from '@/components/EmptyState';
 import { Colors, Layout, Radius, Spacing, Typography } from '@/constants/theme';

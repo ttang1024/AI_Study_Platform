@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { CheckCircle2 } from 'lucide-react-native';
+import CheckCircle2 from 'lucide-react-native/icons/circle-check';
 
 import { Button } from '@/components/Button';
 import { EmptyState } from '@/components/EmptyState';

@@ -1,7 +1,10 @@
 import * as Clipboard from 'expo-clipboard';
 import React, { useState } from 'react';
 import { Modal, Pressable, Share, StyleSheet, Text, View } from 'react-native';
-import { Check, Copy, Share2, X } from 'lucide-react-native';
+import Check from 'lucide-react-native/icons/check';
+import Copy from 'lucide-react-native/icons/copy';
+import Share2 from 'lucide-react-native/icons/share-2';
+import X from 'lucide-react-native/icons/x';
 
 import { Button } from '@/components/Button';
 import { Alpha, Colors, Layout, Overlay, Radius, Shadows, Spacing, Typography } from '@/constants/theme';

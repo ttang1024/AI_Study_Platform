@@ -1,6 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
-import { ArrowLeft, Bot, MessageSquarePlus, Trash2 } from 'lucide-react-native';
+import ArrowLeft from 'lucide-react-native/icons/arrow-left';
+import Bot from 'lucide-react-native/icons/bot';
+import MessageSquarePlus from 'lucide-react-native/icons/message-square-plus';
+import Trash2 from 'lucide-react-native/icons/trash-2';
 
 import { ChatThreadView } from '@/components/chat/ChatThreadView';
 import { Alpha, Colors, Layout, Radius, Spacing, Typography } from '@/constants/theme';

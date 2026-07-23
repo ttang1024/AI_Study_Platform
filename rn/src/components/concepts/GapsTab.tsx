@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
-import { CheckCircle2 } from 'lucide-react-native';
+import CheckCircle2 from 'lucide-react-native/icons/circle-check';
 
 import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';

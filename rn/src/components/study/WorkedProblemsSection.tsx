@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { ChevronDown, ChevronUp, ListChecks } from 'lucide-react-native';
+import ChevronDown from 'lucide-react-native/icons/chevron-down';
+import ChevronUp from 'lucide-react-native/icons/chevron-up';
+import ListChecks from 'lucide-react-native/icons/list-checks';
 
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';

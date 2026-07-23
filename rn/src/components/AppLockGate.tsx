@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, StyleSheet, Text, View } from 'react-native';
-import { LockKeyhole } from 'lucide-react-native';
+import LockKeyhole from 'lucide-react-native/icons/lock-keyhole';
 
 import { Button } from '@/components/Button';
 import { Alpha, Colors, Layout, Spacing, Typography } from '@/constants/theme';

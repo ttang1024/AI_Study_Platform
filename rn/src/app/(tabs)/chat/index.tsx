@@ -2,7 +2,11 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
-import { Bot, FileText, MessageSquarePlus, Trash2, Video } from 'lucide-react-native';
+import Bot from 'lucide-react-native/icons/bot';
+import FileText from 'lucide-react-native/icons/file-text';
+import MessageSquarePlus from 'lucide-react-native/icons/message-square-plus';
+import Trash2 from 'lucide-react-native/icons/trash-2';
+import Video from 'lucide-react-native/icons/video';
 
 import { EmptyState } from '@/components/EmptyState';
 import { IconBadge } from '@/components/IconBadge';

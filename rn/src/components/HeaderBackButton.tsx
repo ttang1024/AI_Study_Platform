@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { Pressable } from 'react-native';
-import { ChevronLeft } from 'lucide-react-native';
+import ChevronLeft from 'lucide-react-native/icons/chevron-left';
 
 import { Colors } from '@/constants/theme';
 

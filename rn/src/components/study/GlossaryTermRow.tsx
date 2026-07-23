@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { Circle, Pencil, Trash2, CheckCircle2 } from 'lucide-react-native';
+import CheckCircle2 from 'lucide-react-native/icons/circle-check';
+import Circle from 'lucide-react-native/icons/circle';
+import Pencil from 'lucide-react-native/icons/pencil';
+import Trash2 from 'lucide-react-native/icons/trash-2';
 
 import { Card } from '@/components/Card';
 import { Colors, Spacing, Typography } from '@/constants/theme';

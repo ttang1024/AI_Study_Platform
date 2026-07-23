@@ -2,7 +2,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Activity, Bell, ChevronRight, KeyRound, MessageSquarePlus, Volume2, UserCircle } from 'lucide-react-native';
+import Activity from 'lucide-react-native/icons/activity';
+import Bell from 'lucide-react-native/icons/bell';
+import ChevronRight from 'lucide-react-native/icons/chevron-right';
+import KeyRound from 'lucide-react-native/icons/key-round';
+import MessageSquarePlus from 'lucide-react-native/icons/message-square-plus';
+import UserCircle from 'lucide-react-native/icons/circle-user';
+import Volume2 from 'lucide-react-native/icons/volume-2';
 
 import { Button } from '@/components/Button';
 import { IconBadge } from '@/components/IconBadge';

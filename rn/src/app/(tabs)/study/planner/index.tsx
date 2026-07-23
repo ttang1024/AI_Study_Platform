@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { CalendarClock } from 'lucide-react-native';
+import CalendarClock from 'lucide-react-native/icons/calendar-clock';
 
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';

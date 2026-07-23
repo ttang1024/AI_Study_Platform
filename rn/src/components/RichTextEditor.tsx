@@ -1,7 +1,11 @@
 import React, { useMemo, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
-import { Bold, Italic, List, ListOrdered, type LucideIcon } from 'lucide-react-native';
+import Bold from 'lucide-react-native/icons/bold';
+import Italic from 'lucide-react-native/icons/italic';
+import List from 'lucide-react-native/icons/list';
+import ListOrdered from 'lucide-react-native/icons/list-ordered';
+import type { LucideIcon } from 'lucide-react-native';
 
 import { PressableScale } from '@/components/PressableScale';
 import { Colors, Layout, Radius, Spacing } from '@/constants/theme';

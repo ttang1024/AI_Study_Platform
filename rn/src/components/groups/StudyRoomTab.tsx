@@ -1,6 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { BookOpen, Coffee, LogIn, LogOut, Timer, Users } from 'lucide-react-native';
+import BookOpen from 'lucide-react-native/icons/book-open';
+import Coffee from 'lucide-react-native/icons/coffee';
+import LogIn from 'lucide-react-native/icons/log-in';
+import LogOut from 'lucide-react-native/icons/log-out';
+import Timer from 'lucide-react-native/icons/timer';
+import Users from 'lucide-react-native/icons/users';
 
 import { Card } from '@/components/Card';
 import { Alpha, Colors, Layout, Radius, Spacing, Typography } from '@/constants/theme';

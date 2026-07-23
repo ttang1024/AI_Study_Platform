@@ -1,6 +1,10 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { ChevronDown, ChevronUp, Sparkles, Trash2, CheckCircle2 } from 'lucide-react-native';
+import CheckCircle2 from 'lucide-react-native/icons/circle-check';
+import ChevronDown from 'lucide-react-native/icons/chevron-down';
+import ChevronUp from 'lucide-react-native/icons/chevron-up';
+import Sparkles from 'lucide-react-native/icons/sparkles';
+import Trash2 from 'lucide-react-native/icons/trash-2';
 
 import { Card } from '@/components/Card';
 import { quizOptionTextStyles } from '@/components/quiz/quizOptionTextStyles';

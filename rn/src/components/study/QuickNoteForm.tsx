@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { Check, NotebookPen } from 'lucide-react-native';
+import Check from 'lucide-react-native/icons/check';
+import NotebookPen from 'lucide-react-native/icons/notebook-pen';
 
 import { Button } from '@/components/Button';
 import { EmptyState } from '@/components/EmptyState';

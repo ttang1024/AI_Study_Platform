@@ -18,14 +18,14 @@ public class GetAllCoursesQueryHandler : IRequestHandler<GetAllCoursesQuery, Res
 
     public async Task<Result<IEnumerable<CourseDto>>> Handle(GetAllCoursesQuery request, CancellationToken cancellationToken)
     {
-        var courses = await _unitOfWork.Courses.GetByUserIdAsync(request.UserId, cancellationToken);
+        var courses = await _unitOfWork.Courses.GetListItemsByUserAsync(request.UserId, cancellationToken);
 
         var dtos = courses.Select(c => new CourseDto(
             c.CourseId,
             c.UserId,
             c.CourseName,
             c.CourseColor,
-            c.Documents?.Count ?? 0,
+            c.DocumentCount,
             c.CreatedAt,
             c.UpdatedAt));
 

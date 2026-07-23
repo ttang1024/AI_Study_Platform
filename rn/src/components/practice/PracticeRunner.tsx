@@ -1,6 +1,9 @@
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Check, Clock, Eye, X } from 'lucide-react-native';
+import Check from 'lucide-react-native/icons/check';
+import Clock from 'lucide-react-native/icons/clock';
+import Eye from 'lucide-react-native/icons/eye';
+import X from 'lucide-react-native/icons/x';
 
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';

@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Crown, UserIcon, X } from 'lucide-react-native';
+import Crown from 'lucide-react-native/icons/crown';
+import UserIcon from 'lucide-react-native/icons/user';
+import X from 'lucide-react-native/icons/x';
 
 import { Card } from '@/components/Card';
 import { Colors, Layout, Radius, Spacing, Typography } from '@/constants/theme';

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Plus } from 'lucide-react-native';
+import Plus from 'lucide-react-native/icons/plus';
 
 import { Colors, Layout, Radius, Spacing } from '@/constants/theme';
 import type { Course } from '@/types';

@@ -1,5 +1,6 @@
 import { CONTENT_TYPE_ICONS } from '../../constants/contentTypeIcons';
 import { getDocDisplayName } from '../../utils/docName';
+import { getDocumentKind, getDocumentRoute } from '../../utils/documentRoute';
 import { Course } from '../../types';
 import { VideoListItem, videoService } from '../../services/videoService';
 import type { PendingItem } from './PendingItemsGrid';
@@ -57,17 +58,14 @@ export function getItemMeta(item: PendingItem, courses: Course[]) {
   }
   const { doc } = item;
   const course = courses.find(c => c.id === doc.courseId);
-  const isArticle = !!doc.originalUrl;
-  const kind: keyof typeof TYPE_META =
-    doc.type === 'audio' ? 'audio' : isArticle ? 'article' : 'document';
-  const m = TYPE_META[kind];
+  const m = TYPE_META[getDocumentKind(doc)];
   return {
     ...m,
     id: doc.id,
     name: getDocDisplayName(doc),
     accentColor: course?.color || m.fallbackColor,
     courseName: course?.name || '',
-    to: doc.type === 'audio' ? `/audio/${doc.id}` : isArticle ? `/articles/${doc.id}` : `/documents/${doc.id}`,
+    to: getDocumentRoute(doc.id, doc),
   };
 }
 

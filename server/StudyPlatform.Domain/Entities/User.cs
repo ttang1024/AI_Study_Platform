@@ -13,6 +13,13 @@ public class User
     /// <summary>User's daily study-time goal in minutes, shown on the dashboard. Defaults to 30.</summary>
     public int DailyStudyGoalMinutes { get; set; } = 30;
 
+    /// <summary>
+    /// When the one-time replay of pre-notebook quiz submissions into the mistake notebook ran.
+    /// Null means it still needs to run; it is stamped even when the replay finds nothing, so an
+    /// empty notebook doesn't re-trigger a full history scan on every open.
+    /// </summary>
+    public DateTime? MistakesBackfilledAt { get; set; }
+
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public ICollection<Course> Courses { get; set; } = new List<Course>();

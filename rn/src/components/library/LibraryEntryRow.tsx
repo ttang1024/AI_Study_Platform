@@ -3,7 +3,17 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { FadeInDown } from 'react-native-reanimated';
 import Swipeable, { type SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
-import { BookOpen, ChevronRight, FileImage, FileText, Headphones, Newspaper, Play, Presentation, Trash2, Video, type LucideIcon } from 'lucide-react-native';
+import BookOpen from 'lucide-react-native/icons/book-open';
+import ChevronRight from 'lucide-react-native/icons/chevron-right';
+import FileImage from 'lucide-react-native/icons/file-image';
+import FileText from 'lucide-react-native/icons/file-text';
+import Headphones from 'lucide-react-native/icons/headphones';
+import Newspaper from 'lucide-react-native/icons/newspaper';
+import Play from 'lucide-react-native/icons/play';
+import Presentation from 'lucide-react-native/icons/presentation';
+import Trash2 from 'lucide-react-native/icons/trash-2';
+import Video from 'lucide-react-native/icons/video';
+import type { LucideIcon } from 'lucide-react-native';
 
 import { IconBadge } from '@/components/IconBadge';
 import { PressableScale } from '@/components/PressableScale';

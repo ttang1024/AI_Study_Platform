@@ -1,6 +1,9 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Eye, EyeOff, FileText, Share2 } from 'lucide-react-native';
+import Eye from 'lucide-react-native/icons/eye';
+import EyeOff from 'lucide-react-native/icons/eye-off';
+import FileText from 'lucide-react-native/icons/file-text';
+import Share2 from 'lucide-react-native/icons/share-2';
 
 import { Alpha, Colors, Layout, Radius, Spacing, Typography } from '@/constants/theme';
 import { DocumentAudioPlayer } from '@/components/library/DocumentAudioPlayer';

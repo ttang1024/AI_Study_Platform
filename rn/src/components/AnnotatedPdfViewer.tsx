@@ -1,7 +1,8 @@
 import React from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { WebView } from 'react-native-webview';
-import { ChevronLeft, ChevronRight } from 'lucide-react-native';
+import ChevronLeft from 'lucide-react-native/icons/chevron-left';
+import ChevronRight from 'lucide-react-native/icons/chevron-right';
 
 import { Colors, Layout, Overlay, Radius, Spacing, Typography } from '@/constants/theme';
 import { useAnnotatedPdfViewer } from '@/hooks/useAnnotatedPdfViewer';

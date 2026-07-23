@@ -7,8 +7,16 @@ import {
 import { mistakesService, type Mistake, type VariantQuestion } from '../../services/mistakesService';
 import { isQuizOptionCorrect } from '../../utils/quizAnswers';
 import { TimedExamModal } from './TimedExamModal';
-import type { QuizQuestion } from '../../types';
+import type { Document, QuizQuestion } from '../../types';
+import { useStudy } from '../../context/StudyContext';
+import { getDocumentRoute } from '../../utils/documentRoute';
 import { cn } from '../../utils/cn';
+
+const sourceRoute = (mistake: Mistake, documents: Document[]): string | null => {
+  if (mistake.documentId)
+    return getDocumentRoute(mistake.documentId, documents.find((d) => d.id === mistake.documentId));
+  return mistake.videoId ? `/videos/${mistake.videoId}` : null;
+};
 
 type Filter = 'all' | 'open' | 'resolved';
 
@@ -94,13 +102,10 @@ const MistakeCard: React.FC<{
 }> = ({ mistake, onResolve, onDelete, onPractice }) => {
   const [expanded, setExpanded] = useState(false);
   const navigate = useNavigate();
+  const { documents } = useStudy();
   const isOpen = mistake.status === 'open';
 
-  const sourceUrl = mistake.documentId
-    ? `/documents/${mistake.documentId}`
-    : mistake.videoId
-      ? `/videos/${mistake.videoId}`
-      : null;
+  const sourceUrl = sourceRoute(mistake, documents);
 
   return (
     <div className={cn(
@@ -227,6 +232,11 @@ export const MistakesNotebook: React.FC = () => {
   const [retryQuestions, setRetryQuestions] = useState<QuizQuestion[]>([]);
   const [promoting, setPromoting] = useState(false);
   const [promoteNote, setPromoteNote] = useState<string | null>(null);
+  const { ensureDocuments } = useStudy();
+
+  // StudyContext loads documents lazily; without this the rows can't tell an article or an audio
+  // episode from a plain document and every source link would fall back to /documents.
+  useEffect(() => { void ensureDocuments(); }, [ensureDocuments]);
 
   const load = useCallback(() => {
     mistakesService.getMistakes()

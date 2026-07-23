@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Highlighter, Trash2 } from 'lucide-react-native';
+import Highlighter from 'lucide-react-native/icons/highlighter';
+import Trash2 from 'lucide-react-native/icons/trash-2';
 
 import { Colors, Layout, Radius, Spacing, Typography } from '@/constants/theme';
 import type { DocumentAnnotation } from '@/services/annotationsService';

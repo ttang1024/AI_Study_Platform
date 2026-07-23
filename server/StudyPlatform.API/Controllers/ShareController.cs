@@ -91,7 +91,7 @@ public class ShareController : ControllerBase
         string? fileType = null;
         if (share.SourceType == "document" && share.SourceUrl != null && TryParseDocPath(share.SourceUrl, out var fileDocId))
         {
-            var fileDoc = await _unitOfWork.Documents.GetByIdWithDetailsAsync(fileDocId, cancellationToken);
+            var fileDoc = await _unitOfWork.Documents.GetSourceRefAsync(fileDocId, cancellationToken);
             if (fileDoc != null)
                 fileType = fileDoc.ContentType;
         }
@@ -131,7 +131,7 @@ public class ShareController : ControllerBase
         if (!TryParseDocPath(share.SourceUrl, out var docId))
             return NotFound();
 
-        var doc = await _unitOfWork.Documents.GetByIdWithDetailsAsync(docId, cancellationToken);
+        var doc = await _unitOfWork.Documents.GetSourceRefAsync(docId, cancellationToken);
         if (doc == null) return NotFound();
 
         // Podcast episodes store a direct MP3 URL — no SAS generation needed
@@ -156,7 +156,7 @@ public class ShareController : ControllerBase
         if (!TryParseDocPath(share.SourceUrl, out var docId))
             return NotFound();
 
-        var doc = await _unitOfWork.Documents.GetByIdWithDetailsAsync(docId, cancellationToken);
+        var doc = await _unitOfWork.Documents.GetSourceRefAsync(docId, cancellationToken);
         if (doc == null) return NotFound();
 
         var stream = await _blobStorage.DownloadAsync(doc.BlobUrl, cancellationToken);
@@ -177,7 +177,7 @@ public class ShareController : ControllerBase
         if (!TryParseDocPath(share.SourceUrl, out var docId))
             return NotFound();
 
-        var doc = await _unitOfWork.Documents.GetByIdWithDetailsAsync(docId, cancellationToken);
+        var doc = await _unitOfWork.Documents.GetSourceRefAsync(docId, cancellationToken);
         if (doc == null) return NotFound();
 
         var stream = await _blobStorage.DownloadAsync(doc.BlobUrl, cancellationToken);

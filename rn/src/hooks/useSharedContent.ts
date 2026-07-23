@@ -4,7 +4,12 @@ import { useLocalSearchParams } from 'expo-router';
 import { getShare, type SharedContent } from '@/services/shareService';
 import { buildMindMapHtml } from '@/utils/mindMapHtml';
 import { xmindMarkToMarkdown } from '@/utils/xmindMarkdown';
-import { FileText, Brain, NotebookPen, Layers, SquareLibrary, HelpCircle } from 'lucide-react-native';
+import Brain from 'lucide-react-native/icons/brain';
+import FileText from 'lucide-react-native/icons/file-text';
+import HelpCircle from 'lucide-react-native/icons/circle-question-mark';
+import Layers from 'lucide-react-native/icons/layers';
+import NotebookPen from 'lucide-react-native/icons/notebook-pen';
+import SquareLibrary from 'lucide-react-native/icons/square-library';
 
 export type SharedTab = 'summary' | 'mindmap' | 'notes' | 'flashcards' | 'glossary' | 'quiz';
 

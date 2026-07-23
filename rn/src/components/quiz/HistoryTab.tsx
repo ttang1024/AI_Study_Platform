@@ -1,7 +1,8 @@
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { ChevronRight, History } from 'lucide-react-native';
+import ChevronRight from 'lucide-react-native/icons/chevron-right';
+import History from 'lucide-react-native/icons/history';
 
 import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';

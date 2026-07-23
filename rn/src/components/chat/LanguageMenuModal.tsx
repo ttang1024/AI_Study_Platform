@@ -1,6 +1,6 @@
 import React from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text } from 'react-native';
-import { Check } from 'lucide-react-native';
+import Check from 'lucide-react-native/icons/check';
 
 import { DICTATION_LANGUAGES } from '@/constants/dictationLanguages';
 import { Colors, Layout, Overlay, Radius, Spacing, Typography } from '@/constants/theme';

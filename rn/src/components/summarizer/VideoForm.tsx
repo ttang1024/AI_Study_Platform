@@ -2,7 +2,9 @@ import { useRouter } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
 import React, { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { LinkIcon, Video, FileVideo } from 'lucide-react-native';
+import FileVideo from 'lucide-react-native/icons/file-play';
+import LinkIcon from 'lucide-react-native/icons/link';
+import Video from 'lucide-react-native/icons/video';
 
 import { Button } from '@/components/Button';
 import { DuplicateAlert } from '@/components/summarizer/DuplicateAlert';

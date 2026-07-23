@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Pressable, RefreshControl, SectionList, StyleSheet, Text, View } from 'react-native';
-import { SquareLibrary, WifiOff } from 'lucide-react-native';
+import SquareLibrary from 'lucide-react-native/icons/square-library';
+import WifiOff from 'lucide-react-native/icons/wifi-off';
 
 import { EmptyState } from '@/components/EmptyState';
 import { FilterChip } from '@/components/FilterChip';

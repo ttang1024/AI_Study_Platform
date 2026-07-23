@@ -33,17 +33,16 @@ public class ExportFlashcardsToAnkiQueryHandler : IRequestHandler<ExportFlashcar
                 return Result<AnkiPackageDto>.Failure("Course not found.", "COURSE_NOT_FOUND");
             deckName = course.CourseName;
 
-            var courseDocIds = (await _unitOfWork.Documents.FindAsNoTrackingAsync(
-                d => d.UserId == request.UserId && d.CourseId == request.CourseId.Value, ct))
-                .Select(d => d.DocumentId).ToHashSet();
-            var courseVideoIds = (await _unitOfWork.Videos.FindAsNoTrackingAsync(
-                v => v.UserId == request.UserId && v.CourseId == request.CourseId.Value, ct))
-                .Select(v => v.VideoId).ToHashSet();
+            // The attribution maps, not the rows: this only needs to know which source belongs to the
+            // course, and materialising the documents and videos to find out drags their text along.
+            var docToCourse = await _unitOfWork.Documents.GetDocumentCourseMapAsync(request.UserId, ct);
+            var videoToCourse = await _unitOfWork.Videos.GetVideoCourseMapAsync(request.UserId, ct);
 
-            flashcards = flashcards
-                .Where(f => (f.DocumentId.HasValue && courseDocIds.Contains(f.DocumentId.Value))
-                         || (f.VideoId.HasValue && courseVideoIds.Contains(f.VideoId.Value)))
-                .ToList();
+            bool InCourse(Guid? documentId, Guid? videoId)
+                => (documentId.HasValue && docToCourse.TryGetValue(documentId.Value, out var docCourse) && docCourse == request.CourseId.Value)
+                   || (videoId.HasValue && videoToCourse.TryGetValue(videoId.Value, out var videoCourse) && videoCourse == request.CourseId.Value);
+
+            flashcards = flashcards.Where(f => InCourse(f.DocumentId, f.VideoId)).ToList();
         }
 
         if (flashcards.Count == 0)

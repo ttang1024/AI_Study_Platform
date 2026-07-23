@@ -72,7 +72,7 @@ public class GetUserStatsQueryHandler : IRequestHandler<GetUserStatsQuery, Resul
         var totalQuizSubmissions = await _unitOfWork.QuizSubmissions.CountAsync(q => q.UserId == userId, cancellationToken);
         var totalVideos = await _unitOfWork.Videos.CountAsync(v => v.UserId == userId, cancellationToken);
 
-        var courses = await _unitOfWork.Courses.GetByUserIdAsync(userId, cancellationToken);
+        var courses = await _unitOfWork.Courses.GetListItemsByUserAsync(userId, cancellationToken);
         var materialsByCourse = await _unitOfWork.Documents.GetMaterialCountsByCourseAsync(userId, cancellationToken);
         var videosByCourse = await _unitOfWork.Videos.GetCountsByCourseAsync(userId, cancellationToken);
 

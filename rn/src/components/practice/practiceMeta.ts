@@ -1,4 +1,9 @@
-import { Award, BookMarked, BrainCircuit, RotateCcw, Sigma, type LucideIcon } from 'lucide-react-native';
+import Award from 'lucide-react-native/icons/award';
+import BookMarked from 'lucide-react-native/icons/book-marked';
+import BrainCircuit from 'lucide-react-native/icons/brain-circuit';
+import RotateCcw from 'lucide-react-native/icons/rotate-ccw';
+import Sigma from 'lucide-react-native/icons/sigma';
+import type { LucideIcon } from 'lucide-react-native';
 
 import { Colors } from '@/constants/theme';
 import type { PracticeQuestion, PracticeResultItem, PracticeSource, PracticeTestSummary } from '@/services/practiceService';

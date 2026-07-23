@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, StyleSheet, Switch, Text, View } from 'react-native';
-import { Fingerprint } from 'lucide-react-native';
+import Fingerprint from 'lucide-react-native/icons/fingerprint-pattern';
 
 import { IconBadge } from '@/components/IconBadge';
 import { Colors, Layout, Radius, Shadows, Spacing } from '@/constants/theme';

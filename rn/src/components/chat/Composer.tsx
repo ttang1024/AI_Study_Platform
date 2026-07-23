@@ -1,7 +1,11 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
-import { Languages, Mic, MicOff, Paperclip, Send } from 'lucide-react-native';
+import Languages from 'lucide-react-native/icons/languages';
+import Mic from 'lucide-react-native/icons/mic';
+import MicOff from 'lucide-react-native/icons/mic-off';
+import Paperclip from 'lucide-react-native/icons/paperclip';
+import Send from 'lucide-react-native/icons/send';
 
 import { Alpha, Colors, Gradients, Layout, Radius, Shadows, Spacing } from '@/constants/theme';
 

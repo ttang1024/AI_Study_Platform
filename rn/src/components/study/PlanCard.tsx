@@ -1,7 +1,10 @@
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import { ChevronDown, ChevronUp, Sparkles, Trash2 } from 'lucide-react-native';
+import ChevronDown from 'lucide-react-native/icons/chevron-down';
+import ChevronUp from 'lucide-react-native/icons/chevron-up';
+import Sparkles from 'lucide-react-native/icons/sparkles';
+import Trash2 from 'lucide-react-native/icons/trash-2';
 
 import { Card } from '@/components/Card';
 import { SummaryMarkdown } from '@/components/SummaryMarkdown';

@@ -1,6 +1,9 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { ChevronDown, ChevronUp, CheckCircle2, XCircle } from 'lucide-react-native';
+import CheckCircle2 from 'lucide-react-native/icons/circle-check';
+import ChevronDown from 'lucide-react-native/icons/chevron-down';
+import ChevronUp from 'lucide-react-native/icons/chevron-up';
+import XCircle from 'lucide-react-native/icons/circle-x';
 
 import { Card } from '@/components/Card';
 import { Alpha, Colors, Layout, Radius, Spacing, Typography } from '@/constants/theme';

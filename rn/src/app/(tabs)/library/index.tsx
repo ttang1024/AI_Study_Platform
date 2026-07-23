@@ -1,6 +1,6 @@
 import React from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { LibraryIcon } from 'lucide-react-native';
+import LibraryIcon from 'lucide-react-native/icons/library';
 
 import { EmptyState } from '@/components/EmptyState';
 import { CHIP_HEIGHT, FilterChip } from '@/components/FilterChip';

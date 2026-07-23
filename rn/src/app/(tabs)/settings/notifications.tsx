@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
-import { BellRing, Info } from 'lucide-react-native';
+import BellRing from 'lucide-react-native/icons/bell-ring';
+import Info from 'lucide-react-native/icons/info';
 
 import { FilterChip } from '@/components/FilterChip';
 import { InfoBanner } from '@/components/InfoBanner';
