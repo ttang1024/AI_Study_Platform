@@ -1,6 +1,0 @@
-apiVersion: v2
-name: study-platform
-description: AI Study Platform — API, web, admin, and backing services (Postgres, Redis, MinIO)
-type: application
-version: 0.1.0
-appVersion: "1.0.0"

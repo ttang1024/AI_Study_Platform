@@ -174,10 +174,6 @@ Web `:3000` · Admin `:4200` · API + Swagger `:5001` · MinIO console `:9001`
 
 > `VITE_*` variables are baked in at build time — rebuild frontend images after changing them. MinIO credentials and bucket come from `.env` (`MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` / `S3_BUCKET_NAME`); `S3_PUBLIC_SERVICE_URL` must be reachable from the host browser.
 
-### Kubernetes (Helm)
-
-Cloud-agnostic chart at [`k8s/helm/study-platform/`](k8s/README.md) running the same stack (API, web, admin, in-cluster Postgres/Redis/MinIO) on any cluster — kind/minikube locally, EKS/GKE in production. Note: the API is single-replica by design (in-process background workers + SignalR without a backplane).
-
 ### AWS
 
 `./deploy.sh` provisions ECS on a low-cost EC2 instance (`t3.micro`, `ECS_MEMORY=768` by default — override for more headroom), an ALB for the API, RDS PostgreSQL, ElastiCache Redis, S3 buckets, and static `web` / `admin` frontends. Export `DB_PASS`, `JWT_SECRET`, `GOOGLE_CLIENT_ID/SECRET`, `GITHUB_CLIENT_ID/SECRET`, `SMTP_USER`, and `SMTP_PASSWORD` before running it.
