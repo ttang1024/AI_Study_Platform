@@ -53,16 +53,14 @@ export const TimedExamModal: React.FC<TimedExamModalProps> = ({
     if (!isOpen) { setPhase('setup'); setAnswers([]); setCurrentIndex(0); setSelected(null); }
   }, [isOpen]);
 
+  // The tick is a pure decrement — submitting from inside the updater would run
+  // against whatever `answers`/`timeRemaining` the closure captured when the exam
+  // started (i.e. an empty answer list), and would fire twice under StrictMode.
   useEffect(() => {
-    if (phase === 'exam') {
-      setTimeRemaining(timeLimit * 60);
-      intervalRef.current = setInterval(() => {
-        setTimeRemaining(t => {
-          if (t <= 1) { clearInterval(intervalRef.current!); handleAutoSubmit(); return 0; }
-          return t - 1;
-        });
-      }, 1000);
-    }
+    if (phase !== 'exam') return undefined;
+    intervalRef.current = setInterval(() => {
+      setTimeRemaining(t => (t <= 1 ? 0 : t - 1));
+    }, 1000);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [phase]);
 
@@ -72,6 +70,12 @@ export const TimedExamModal: React.FC<TimedExamModalProps> = ({
     onComplete?.(answers.filter(a => a.correct).map(a => a.questionId));
   }, [timeLimit, timeRemaining, answers, onComplete]);
 
+  // Hand off to the submit once the clock actually reaches zero, so it reads the
+  // live answers. Leaving 'exam' tears the interval down via the effect above.
+  useEffect(() => {
+    if (phase === 'exam' && timeRemaining <= 0) handleAutoSubmit();
+  }, [phase, timeRemaining, handleAutoSubmit]);
+
   const handleStart = () => {
     const q = shuffle(questions);
     setShuffled(q);
@@ -79,6 +83,9 @@ export const TimedExamModal: React.FC<TimedExamModalProps> = ({
     setAnswers([]);
     setSelected(null);
     setTimeTaken(0);
+    // Batched with the phase change so the exam header paints the full clock and
+    // the zero-check below never sees a previous run's exhausted timer.
+    setTimeRemaining(timeLimit * 60);
     setPhase('exam');
   };
 
@@ -87,7 +94,7 @@ export const TimedExamModal: React.FC<TimedExamModalProps> = ({
   };
 
   const handleNext = () => {
-    if (selected === null) return;
+    if (!selected?.trim()) return;
     const q = shuffled[currentIndex];
     const newAnswers = [...answers, {
       questionId: q.id,
@@ -180,7 +187,7 @@ export const TimedExamModal: React.FC<TimedExamModalProps> = ({
                       min={1}
                       max={60}
                       value={timeLimit}
-                      onChange={e => setTimeLimit(parseInt(e.target.value))}
+                      onChange={e => setTimeLimit(parseInt(e.target.value, 10))}
                       className="flex-1 accent-primary"
                     />
                     <span className="text-lg font-black text-primary w-12 text-center">{timeLimit}m</span>
@@ -225,6 +232,7 @@ export const TimedExamModal: React.FC<TimedExamModalProps> = ({
                     <input
                       type="text"
                       placeholder="Type your answer..."
+                      value={selected ?? ''}
                       onChange={e => setSelected(e.target.value)}
                       className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-sidebar)] px-4 py-3 text-sm outline-none focus:border-primary"
                     />
@@ -233,7 +241,7 @@ export const TimedExamModal: React.FC<TimedExamModalProps> = ({
 
                 <button
                   onClick={handleNext}
-                  disabled={selected === null}
+                  disabled={!selected?.trim()}
                   className="w-full rounded-xl bg-primary py-3 text-sm font-black text-white disabled:opacity-40 hover:opacity-90 transition-all flex items-center justify-center gap-2"
                 >
                   {currentIndex + 1 >= shuffled.length ? 'Submit Exam' : 'Next Question'}
