@@ -6,8 +6,10 @@ import { pomodoroSettings } from '../../services/pomodoroSettings';
 import { pushService } from '../../services/pushService';
 import { SettingsAlert } from './SettingsAlert';
 import { SaveFooter } from './SaveFooter';
+import { LOCALES, useTranslation, type LocaleCode } from '../../i18n';
 
 export const ProfileTab: React.FC = () => {
+  const { locale, setLocale, t } = useTranslation();
   const { user, updateProfile } = useAuth();
   const [name, setName] = useState(user?.name ?? '');
   const [timerEnabled, setTimerEnabled] = useState(() => pomodoroSettings.isEnabled());
@@ -174,6 +176,24 @@ export const ProfileTab: React.FC = () => {
             </div>
           )}
           {pushError && <p className="mt-2 text-xs text-red-500">{pushError}</p>}
+        </div>
+
+        {/* Applied immediately and stored locally — the interface language is a device preference,
+            not account data, so it does not wait for Save. */}
+        <div>
+          <label className="block text-sm font-semibold text-text-main mb-1.5">{t('settings.language')}</label>
+          <select
+            value={locale}
+            onChange={(e) => setLocale(e.target.value as LocaleCode)}
+            className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-app)] px-3 py-2 text-sm"
+          >
+            {LOCALES.map((l) => (
+              <option key={l.code} value={l.code}>
+                {l.nativeName}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1.5 text-xs text-text-muted">{t('settings.languageHelp')}</p>
         </div>
 
         {error && <SettingsAlert kind="error">{error}</SettingsAlert>}

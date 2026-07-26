@@ -152,7 +152,7 @@ export function useArtifactFilters(
       return next;
     });
     try {
-      await masteredService.toggle(userId, termId);
+      await masteredService.toggle(termId);
     } catch {
       // revert optimistic update
       setMasteredIds(prev => {

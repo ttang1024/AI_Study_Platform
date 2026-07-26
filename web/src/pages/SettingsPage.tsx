@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { User, Shield, LogOut, KeyRound, Volume2, Archive, Activity } from 'lucide-react';
+import { User, Shield, LogOut, KeyRound, Volume2, Archive, Activity, CreditCard } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { cn } from '../utils/cn';
 import { ProfileTab } from '../components/settings/ProfileTab';
 import { SecurityTab } from '../components/settings/SecurityTab';
 import { AiServicesTab } from '../components/settings/AiServicesTab';
 import { AiUsageTab } from '../components/settings/AiUsageTab';
+import { PlanTab } from '../components/settings/PlanTab';
 import { VoiceTab } from '../components/settings/VoiceTab';
 import { ExportTab } from '../components/settings/ExportTab';
 
-type SettingsTab = 'profile' | 'security' | 'ai' | 'ai-usage' | 'voice' | 'export';
+type SettingsTab = 'profile' | 'security' | 'ai' | 'ai-usage' | 'plan' | 'voice' | 'export';
 
 const tabs = [
   { id: 'profile', label: 'Profile', icon: User },
@@ -18,6 +19,8 @@ const tabs = [
   { id: 'ai', label: 'AI Services', icon: KeyRound },
   // Sits next to AI Services on purpose: the keys are configured there, and this is what they cost.
   { id: 'ai-usage', label: 'AI Usage', icon: Activity },
+  // Directly after usage: the limit shown there is set by the plan shown here.
+  { id: 'plan', label: 'Plan', icon: CreditCard },
   { id: 'voice', label: 'Voice', icon: Volume2 },
   { id: 'export', label: 'Export', icon: Archive },
 ] as const;
@@ -70,6 +73,7 @@ export const SettingsPage: React.FC = () => {
           {activeTab === 'security' && <SecurityTab />}
           {activeTab === 'ai' && <AiServicesTab />}
           {activeTab === 'ai-usage' && <AiUsageTab />}
+          {activeTab === 'plan' && <PlanTab />}
           {activeTab === 'voice' && <VoiceTab />}
           {activeTab === 'export' && <ExportTab />}
         </div>

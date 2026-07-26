@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mail, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Mail, CheckCircle2 } from 'lucide-react';
 import { Button } from '../components/common/Button';
 
 export const EmailVerificationPage: React.FC = () => {

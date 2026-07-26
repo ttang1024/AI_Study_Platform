@@ -15,6 +15,7 @@ public class GenerateFlashcardsCommandHandlerTests
     private readonly Mock<IFlashcardRepository> _flashcards = new();
     private readonly Mock<IAiService> _ai = new();
     private readonly Mock<IDocumentContentService> _content = new();
+    private readonly Mock<IDocumentTextProvider> _textProvider = new();
     private readonly Mock<IFlashcardDeduplicator> _deduplicator = new();
     private readonly GenerateFlashcardsCommandHandler _handler;
 
@@ -46,7 +47,7 @@ public class GenerateFlashcardsCommandHandlerTests
         };
 
         _handler = new GenerateFlashcardsCommandHandler(
-            _uow.Object, _ai.Object, _content.Object, _deduplicator.Object);
+            _uow.Object, _ai.Object, _content.Object, _deduplicator.Object, _textProvider.Object);
     }
 
     [Fact]
@@ -252,6 +253,7 @@ public class GenerateGlossaryCommandHandlerTests
     private readonly Mock<IGlossaryTermRepository> _glossary = new();
     private readonly Mock<IAiService> _ai = new();
     private readonly Mock<IDocumentContentService> _content = new();
+    private readonly Mock<IDocumentTextProvider> _textProvider = new();
     private readonly GenerateGlossaryCommandHandler _handler;
 
     private readonly Guid _userId = Guid.NewGuid();
@@ -267,7 +269,8 @@ public class GenerateGlossaryCommandHandlerTests
         _glossary.Setup(r => r.AddRangeAsync(It.IsAny<IEnumerable<GlossaryTerm>>(), default)).Returns(Task.CompletedTask);
 
         _doc = new Document { DocumentId = _docId, UserId = _userId, ContentType = "text/plain", BlobUrl = "blob://g" };
-        _handler = new GenerateGlossaryCommandHandler(_uow.Object, _ai.Object, _content.Object);
+        _handler = new GenerateGlossaryCommandHandler(
+            _uow.Object, _ai.Object, _content.Object, _textProvider.Object);
     }
 
     [Fact]
@@ -341,6 +344,7 @@ public class GenerateQuizCommandHandlerTests
     private readonly Mock<IQuizRepository> _quizzes = new();
     private readonly Mock<IAiService> _ai = new();
     private readonly Mock<IDocumentContentService> _content = new();
+    private readonly Mock<IDocumentTextProvider> _textProvider = new();
     private readonly Mock<IAdaptiveQuizPlanner> _planner = new();
     private readonly GenerateQuizCommandHandler _handler;
 
@@ -356,7 +360,8 @@ public class GenerateQuizCommandHandlerTests
         _quizzes.Setup(r => r.AddRangeAsync(It.IsAny<IEnumerable<Quiz>>(), default)).Returns(Task.CompletedTask);
 
         _doc = new Document { DocumentId = _docId, UserId = _userId, ContentType = "text/plain", BlobUrl = "blob://q" };
-        _handler = new GenerateQuizCommandHandler(_uow.Object, _ai.Object, _content.Object, _planner.Object);
+        _handler = new GenerateQuizCommandHandler(
+            _uow.Object, _ai.Object, _content.Object, _planner.Object, _textProvider.Object);
     }
 
     private static string QuizJson(string answer = "A") => JsonSerializer.Serialize(new[]

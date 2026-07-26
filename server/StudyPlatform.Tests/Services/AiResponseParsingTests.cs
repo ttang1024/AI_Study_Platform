@@ -1,4 +1,3 @@
-using System.Linq;
 using StudyPlatform.Infrastructure.Services;
 using Xunit;
 

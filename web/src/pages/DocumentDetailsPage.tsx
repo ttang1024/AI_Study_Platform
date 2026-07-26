@@ -3,6 +3,8 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { FileText, Sparkles, ChevronLeft, Share2, Highlighter } from 'lucide-react';
 import { useStudy } from '../context/StudyContext';
 import { DocumentViewer } from '../components/document/DocumentViewer';
+import StaleSourceBanner from '../components/document/StaleSourceBanner';
+import DocumentSourceView from '../components/document/DocumentSourceView';
 import { AnnotatedPdfViewer } from '../components/AnnotatedPdfViewer';
 import { ChatPanel, ChatPanelRef } from '../components/ai/ChatPanel';
 import { ChatConversationBar } from '../components/ai/ChatConversationBar';
@@ -20,7 +22,7 @@ import { apiClient } from '../services/apiClient';
 import { ShareModal } from '../components/common/ShareModal';
 import { DetailPageSkeleton } from '../components/common/DetailPageSkeleton';
 import { ShareableQuiz, ShareableCard } from '../services/shareContentService';
-import { TABS } from '../constants/tab';
+import { DOCUMENT_TABS } from '../constants/tab';
 import { cn } from '../utils/cn';
 import { Document } from '../types';
 import { getApiErrorCode } from '../utils/apiError';
@@ -38,9 +40,19 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
   // The document list is loaded lazily by StudyContext; pull it so we can resolve
   // this document (and its courseId) on direct navigation / refresh.
   useEffect(() => { void ensureDocuments(); }, [ensureDocuments]);
-  const initialTab = (location.state as any)?.activeTab ?? 'summary';
+  // A citation links here as ?highlight=start-end. Parsed before the initial tab is chosen so
+  // arriving from one opens straight onto the passage rather than the summary.
+  const citationHighlight = useMemo(() => {
+    const raw = new URLSearchParams(location.search).get('highlight');
+    if (!raw) return null;
+
+    const [start, end] = raw.split('-').map(Number);
+    return Number.isFinite(start) && Number.isFinite(end) && end > start ? { start, end } : null;
+  }, [location.search]);
+
+  const initialTab = citationHighlight ? 'source' : ((location.state as any)?.activeTab ?? 'summary');
   const targetQuizQuestionId = (location.state as any)?.targetQuizQuestionId as string | undefined;
-  const [activeTab, setActiveTab] = useState<'summary' | 'mindmap' | 'notes' | 'flashcards' | 'quiz' | 'problems' | 'chat'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'summary' | 'mindmap' | 'notes' | 'flashcards' | 'quiz' | 'problems' | 'chat' | 'source'>(initialTab);
   const [summary, setSummary] = useState<string | null>(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [summaryStreamText, setSummaryStreamText] = useState('');
@@ -362,7 +374,7 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
           <div className="flex flex-col h-full w-full">
             {/* Horizontal Tab Bar */}
             <div className="flex items-center border-b border-[var(--border-color)] bg-[var(--bg-sidebar)] shrink-0 overflow-x-auto no-scrollbar">
-              {TABS.map((tab) => (
+              {DOCUMENT_TABS.map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
@@ -381,6 +393,14 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
 
             {/* Tab Content */}
             <div className="flex-1 flex flex-col overflow-hidden bg-[var(--bg-sidebar)]">
+
+              {/* Above the tabs' content, not inside one: a replaced source invalidates every kind
+                  of generated material, so the warning belongs to the document, not to a tab. */}
+              {id && (
+                <div className="px-4 pt-4">
+                  <StaleSourceBanner documentId={id} />
+                </div>
+              )}
 
               <div className={cn("flex-1 overflow-y-auto no-scrollbar", activeTab === 'chat' && "hidden")}>
                 <div className={cn("h-full", activeTab !== 'summary' && "hidden")}>
@@ -424,6 +444,10 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
                   {currentDocument.courseId && (
                     <WorkedProblemsPanel documentId={currentDocument.id} />
                   )}
+                </div>
+
+                <div className={cn("h-full overflow-y-auto no-scrollbar", activeTab !== 'source' && "hidden")}>
+                  <DocumentSourceView documentId={currentDocument.id} highlight={citationHighlight} />
                 </div>
 
 

@@ -17,6 +17,12 @@
 
 	--color-text-main: var(--text-primary);
 	--color-text-muted: var(--text-secondary);
+
+	/* Card/border tokens as Tailwind utilities (bg-surface, bg-surface-hover, border-border).
+	   Aliases of the same :root variables the bg-[var(--bg-card)] call sites use. */
+	--color-surface: var(--bg-card);
+	--color-surface-hover: var(--surface-hover);
+	--color-border: var(--border-color);
 }
 
 :root {
@@ -26,6 +32,7 @@
 	--bg-app: #f5f5f7;
 	--bg-sidebar: #ffffff;
 	--bg-card: #ffffff;
+	--surface-hover: #f0f0f2;
 	--border-color: #d2d2d7;
 	--text-primary: #1d1d1f;
 	--text-secondary: #6e6e73;

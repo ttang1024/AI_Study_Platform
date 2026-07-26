@@ -17,3 +17,8 @@ export { BentoHandwritingCard } from './BentoHandwritingCard';
 export { BentoKnowledgeGraphCard } from './BentoKnowledgeGraphCard';
 export { BentoOfflineCard } from './BentoOfflineCard';
 export { BentoEverywhereCard } from './BentoEverywhereCard';
+export { BentoClassroomCard } from './BentoClassroomCard';
+export { BentoEssayCard } from './BentoEssayCard';
+export { BentoCodeCard } from './BentoCodeCard';
+export { BentoLanguageCard } from './BentoLanguageCard';
+export { BentoCitationCard } from './BentoCitationCard';

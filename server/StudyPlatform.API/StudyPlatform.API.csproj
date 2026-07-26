@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.1" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.StackExchangeRedis" Version="9.0.1" />
     <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="9.0.5" />
     <PackageReference Include="AspNetCoreRateLimit" Version="5.0.0" />
     <PackageReference Include="SmartReader" Version="0.11.0" />
@@ -23,6 +24,12 @@
   <ItemGroup>
     <ProjectReference Include="..\StudyPlatform.Application\StudyPlatform.Application.csproj" />
     <ProjectReference Include="..\StudyPlatform.Infrastructure\StudyPlatform.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Matches Application and Infrastructure: lets tests exercise internal helpers without
+         widening the public surface. -->
+    <InternalsVisibleTo Include="StudyPlatform.Tests" />
   </ItemGroup>
 
 </Project>

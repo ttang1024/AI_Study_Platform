@@ -157,6 +157,10 @@ builder.Services.AddCors(options =>
 
 // Rate Limiting
 builder.Services.AddMemoryCache();
+// Reused below by the SignalR backplane: without one, a hub message only reaches the clients
+// connected to the replica that produced it, so group chat silently half-works when scaled out.
+ConfigurationOptions? signalRRedisConfiguration = null;
+
 var redisEnabled = builder.Configuration.GetValue("Redis:Enabled", false);
 var redisConnectionString = builder.Configuration.GetConnectionString("Redis")
     ?? builder.Configuration["Redis:ConnectionString"];
@@ -165,6 +169,7 @@ if (redisEnabled)
     if (TryGetRedisConfiguration(redisConnectionString, out var redisConfiguration, out var redisConfigurationError))
     {
         ConfigureRedisTimeouts(redisConfiguration!, builder.Configuration);
+        signalRRedisConfiguration = redisConfiguration;
 
         builder.Services.AddStackExchangeRedisCache(options =>
         {
@@ -193,8 +198,31 @@ builder.Services.AddInMemoryRateLimiting();
 builder.Services.Configure<IpRateLimitOptions>(builder.Configuration.GetSection("IpRateLimiting"));
 builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
 
-// SignalR
-builder.Services.AddSignalR();
+// SignalR. The Redis backplane is added only when Redis is actually configured, so single-node
+// development and self-hosted installs keep working with no extra service to run.
+var signalR = builder.Services.AddSignalR();
+if (signalRRedisConfiguration != null)
+{
+    signalR.AddStackExchangeRedis(options =>
+    {
+        options.Configuration = signalRRedisConfiguration;
+        // Namespaced so several environments can share one Redis without cross-talking.
+        options.Configuration.ChannelPrefix =
+            RedisChannel.Literal(builder.Configuration["Redis:InstanceName"] ?? "StudyPlatform:");
+    });
+}
+else if (builder.Configuration.GetValue("Api:RequireScaleOutBackplane", false))
+{
+    // Opt-in guard for multi-replica deployments: failing to start is far better than starting and
+    // delivering chat messages to only the third of users who happen to share a replica.
+    throw new InvalidOperationException(
+        "Api:RequireScaleOutBackplane is set but Redis is not configured. SignalR needs a backplane "
+        + "to run more than one API replica.");
+}
+// Fails jobs stranded by a restart, a crash, or a hung provider call. Without it those rows sit at
+// "queued" forever and the user watches a spinner that will never resolve.
+builder.Services.AddHostedService<StaleAiJobReaper>();
+
 builder.Services.AddSingleton<AudioTranscriptionQueue>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<AudioTranscriptionQueue>());
 builder.Services.AddSingleton<AudioOverviewQueue>();
@@ -210,6 +238,8 @@ builder.Services.Configure<CacheOptions>(builder.Configuration.GetSection(CacheO
 builder.Services.Configure<VapidOptions>(builder.Configuration.GetSection(VapidOptions.SectionName));
 builder.Services.Configure<AiUsageOptions>(builder.Configuration.GetSection(AiUsageOptions.SectionName));
 builder.Services.Configure<EmbeddingOptions>(builder.Configuration.GetSection(EmbeddingOptions.SectionName));
+builder.Services.Configure<BillingOptions>(builder.Configuration.GetSection(BillingOptions.SectionName));
+builder.Services.Configure<HostedAiOptions>(builder.Configuration.GetSection(HostedAiOptions.SectionName));
 
 // Keeps the semantic index in step with the library (no-op until Embeddings:ApiKey is configured).
 builder.Services.AddHostedService<EmbeddingBackfillWorker>();
@@ -263,6 +293,10 @@ if (app.Environment.IsDevelopment())
 app.UseIpRateLimiting();
 app.UseAuthentication();
 app.UseAuthorization();
+
+// After authentication so the caller's identity is known: resolves their plan once per request and
+// leaves it on the HttpContext for the hosted-key and quota paths, which cannot await.
+app.UseEntitlements();
 
 app.MapControllers();
 app.MapHub<GroupChatHub>("/hubs/group-chat");

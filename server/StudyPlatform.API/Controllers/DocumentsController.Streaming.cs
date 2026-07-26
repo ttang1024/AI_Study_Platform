@@ -46,6 +46,8 @@ public partial class DocumentsController
         return await this.StreamAiToSseAsync(stream, cancellationToken, onCompleted: async (text, ct) =>
         {
             document.MindMapText = text;
+            // Built from the file as it stands now, so it is current by definition.
+            document.MindMapVersion = document.ContentVersion;
             document.UpdatedAt = DateTime.UtcNow;
             _unitOfWork.Documents.Update(document);
             await _unitOfWork.SaveChangesAsync(ct);
@@ -93,6 +95,8 @@ public partial class DocumentsController
         return await this.StreamAiToSseAsync(stream, cancellationToken, onCompleted: async (text, ct) =>
         {
             document.Summary = text;
+            // Built from the file as it stands now, so it is current by definition.
+            document.SummaryVersion = document.ContentVersion;
             document.UpdatedAt = DateTime.UtcNow;
             _unitOfWork.Documents.Update(document);
             await _unitOfWork.SaveChangesAsync(ct);

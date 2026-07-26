@@ -11,23 +11,31 @@ import { noteEditorStore } from '@/utils/noteEditorStore';
 export default function NoteEditorScreen() {
   const router = useRouter();
   const navigation = useNavigation();
-  const [note, setNote] = useState<Note | null>(null);
+  // `peek` is side-effect free, so it is safe in an initializer React invokes twice under
+  // StrictMode. Consuming the hand-off is the effect's job below.
+  const [session] = useState(noteEditorStore.peek);
+
+  // The note never changes after the hand-off — it was state only so an effect could assign it.
+  const note = session?.note ?? null;
+
   const [saving, setSaving] = useState(false);
   const draftRef = useRef('');
   const onSavedRef = useRef<((updated: Note) => void) | null>(null);
 
   useEffect(() => {
-    const session = noteEditorStore.take();
+    // Clearing here, not at read time, so the store is emptied exactly once the screen has taken
+    // ownership — and a remount without a fresh hand-off correctly finds nothing.
+    noteEditorStore.clear();
+
     if (!session) {
       // Opened without a hand-off (e.g. deep link) — nothing to edit.
       router.back();
       return;
     }
-    setNote(session.note);
     draftRef.current = session.note.content;
     onSavedRef.current = session.onSaved;
     navigation.setOptions({ title: session.note.documentName ?? session.note.videoName ?? 'Edit note' });
-  }, [router, navigation]);
+  }, [session, router, navigation]);
 
   const save = async () => {
     if (!note || saving) return;

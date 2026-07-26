@@ -16,6 +16,7 @@ public partial class AiService : IAiService
     private readonly IAppCache _cache;
     private readonly CacheOptions _cacheOptions;
     private readonly IAiUsageRecorder _usageRecorder;
+    private readonly IHostedAiKeyProvider _hostedKeys;
 
     public AiService(
         HttpClient httpClient,
@@ -23,7 +24,8 @@ public partial class AiService : IAiService
         IHttpContextAccessor httpContextAccessor,
         IAppCache cache,
         IOptions<CacheOptions> cacheOptions,
-        IAiUsageRecorder usageRecorder)
+        IAiUsageRecorder usageRecorder,
+        IHostedAiKeyProvider hostedKeys)
     {
         _httpClient = httpClient;
         _logger = logger;
@@ -31,6 +33,7 @@ public partial class AiService : IAiService
         _cache = cache;
         _cacheOptions = cacheOptions.Value;
         _usageRecorder = usageRecorder;
+        _hostedKeys = hostedKeys;
     }
 
     // ── Credentials ───────────────────────────────────────────────────────
@@ -45,19 +48,31 @@ public partial class AiService : IAiService
         var headers = _httpContextAccessor.HttpContext?.Request.Headers;
 
         var provider = headers?["X-AI-Provider"].FirstOrDefault();
+        var model = headers?["X-AI-Model"].FirstOrDefault();
+        var key = headers?["X-AI-Key"].FirstOrDefault()?.Trim();
+
+        // A user who brought their own key always uses it, even on a hosted-key plan: it is the one
+        // they chose, and silently spending ours instead would be billing them for nothing.
+        var hasOwnCredentials =
+            !string.IsNullOrWhiteSpace(provider)
+            && !string.IsNullOrWhiteSpace(model)
+            && !string.IsNullOrWhiteSpace(key);
+
+        if (hasOwnCredentials)
+            return new AiCredentials(provider!.ToLowerInvariant(), model!, key!, CurrentUserId());
+
+        var hosted = _hostedKeys.TryGetForCurrentRequest();
+        if (hosted != null)
+            return hosted;
+
         if (string.IsNullOrWhiteSpace(provider))
             throw new InvalidOperationException("No AI provider specified. Please configure a provider in Settings → AI Services.");
 
-        var model = headers?["X-AI-Model"].FirstOrDefault();
         if (string.IsNullOrWhiteSpace(model))
             throw new InvalidOperationException("No AI model specified. Please configure a model in Settings → AI Services.");
 
-        var key = headers?["X-AI-Key"].FirstOrDefault()?.Trim();
-        if (string.IsNullOrWhiteSpace(key))
-            throw new InvalidOperationException(
-                $"No API key configured for provider '{provider.ToLowerInvariant()}'. Please add your API key in Settings → AI Services.");
-
-        return new AiCredentials(provider.ToLowerInvariant(), model, key, CurrentUserId());
+        throw new InvalidOperationException(
+            $"No API key configured for provider '{provider.ToLowerInvariant()}'. Please add your API key in Settings → AI Services.");
     }
 
     private Guid CurrentUserId()

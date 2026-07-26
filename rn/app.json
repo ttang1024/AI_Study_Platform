@@ -41,7 +41,12 @@
       ],
       "expo-secure-store",
       "expo-video",
-      "expo-audio",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Allow toto.ai to use the microphone to check your pronunciation."
+        }
+      ],
       [
         "expo-image-picker",
         {
@@ -78,7 +83,8 @@
         }
       ],
       "@bacons/apple-targets",
-      "expo-image"
+      "expo-image",
+      "expo-localization"
     ],
     "experiments": {
       "typedRoutes": true,

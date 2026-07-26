@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { BrainCircuit, Mail, Lock, User, ArrowRight, ShieldCheck, ShieldAlert, Info, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, User, ArrowRight, ShieldCheck, ShieldAlert, Info, Eye, EyeOff } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/common/Button';

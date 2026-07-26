@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
-  Globe, ChevronLeft, Sparkles, AlertCircle, Share2,
+  Globe, ChevronLeft, Sparkles, Share2,
 } from 'lucide-react';
 import { useStudy } from '../context/StudyContext';
 import { ChatPanel, ChatPanelRef } from '../components/ai/ChatPanel';

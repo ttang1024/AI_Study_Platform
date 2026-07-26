@@ -1,6 +1,5 @@
 using Moq;
 using StudyPlatform.Application.Flashcards.Commands;
-using StudyPlatform.Application.Services;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
 using Xunit;

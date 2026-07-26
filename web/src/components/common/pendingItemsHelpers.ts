@@ -69,9 +69,6 @@ export function getItemMeta(item: PendingItem, courses: Course[]) {
   };
 }
 
-export function isCorrectOption(option: string, answer: string) {
-  return option.trim().charAt(0).toUpperCase() === answer.trim().toUpperCase();
-}
 
 export function getVideoThumbnailSrc(video: VideoListItem) {
   if (video.sourceType === 'upload') return videoService.getUploadedVideoThumbnailUrl(video.id);

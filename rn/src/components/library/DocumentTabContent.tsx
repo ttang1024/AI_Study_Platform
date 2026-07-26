@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { AnnotatedPdfViewer } from '@/components/AnnotatedPdfViewer';
 import { SummaryMarkdown } from '@/components/SummaryMarkdown';
+import { TranslateButton } from '@/components/study/TranslateButton';
 import { ScopedChatPanel } from '@/components/chat/ScopedChatPanel';
 import { DocumentQuizSection } from '@/components/quiz/DocumentQuizSection';
 import { FlashcardsSection } from '@/components/study/FlashcardsSection';
@@ -30,6 +31,12 @@ interface Props {
 }
 
 export function DocumentTabContent({ doc, setDoc, courseId, id, downloadUrl, tab, summaryText }: Props) {
+  // Stores the summary the translation was made from, not just the translation. Deriving staleness
+  // during render is what lets a regenerated summary drop its translation without an effect that
+  // resets state — the pattern the compiler's effect analysis (rightly) rejects.
+  const [translation, setTranslation] = useState<{ source: string; text: string } | null>(null);
+  const translated = translation && translation.source === summaryText ? translation.text : null;
+
   if (tab === 'chat') {
     return <ScopedChatPanel sourceType="document" sourceId={id} courseId={courseId} title={doc.name} />;
   }
@@ -40,7 +47,15 @@ export function DocumentTabContent({ doc, setDoc, courseId, id, downloadUrl, tab
         <View style={styles.summaryCard}>
           <Text style={styles.summaryLabel}>Summary</Text>
           {summaryText ? (
-            <SummaryMarkdown value={summaryText} />
+            <>
+              <SummaryMarkdown value={translated ?? summaryText} />
+              {/* Held in local state only, so a regenerated summary can never leave a stale
+                  translation showing beside it. */}
+              <TranslateButton
+                text={summaryText}
+                onTranslated={(text) => setTranslation(text === null ? null : { source: summaryText, text })}
+              />
+            </>
           ) : (
             <GenerateSummarySection
               onGenerate={() => documentService.generateSummary(courseId, id).then((d) => d.summary ?? '')}

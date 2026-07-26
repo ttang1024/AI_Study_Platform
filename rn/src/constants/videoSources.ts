@@ -3,8 +3,9 @@
 // Re-exported here so existing imports keep working unchanged. Only the branding
 // stays rn-local: a plain hex-color map (StyleSheet, not Tailwind) instead of the
 // web version's Tailwind class bags.
-export * from '@core/videoSources';
 import type { UrlVideoSource } from '@core/videoSources';
+
+export * from '@core/videoSources';
 
 export interface UrlSourceBranding {
   label: string;

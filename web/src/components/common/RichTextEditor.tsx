@@ -169,10 +169,9 @@ function ColorPicker({ editor }: { editor: any }) {
 interface RichTextEditorProps {
   content: string;
   onChange: (content: string) => void;
-  placeholder?: string;
 }
 
-export const RichTextEditor: React.FC<RichTextEditorProps> = ({ content, onChange, placeholder }) => {
+export const RichTextEditor: React.FC<RichTextEditorProps> = ({ content, onChange }) => {
   const editor = useEditor({
     extensions: [StarterKit, TextStyle, Color, FontSize],
     content,

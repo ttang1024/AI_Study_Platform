@@ -9,6 +9,8 @@ import KeyRound from 'lucide-react-native/icons/key-round';
 import MessageSquarePlus from 'lucide-react-native/icons/message-square-plus';
 import UserCircle from 'lucide-react-native/icons/circle-user';
 import Volume2 from 'lucide-react-native/icons/volume-2';
+import CreditCard from 'lucide-react-native/icons/credit-card';
+import Languages from 'lucide-react-native/icons/languages';
 
 import { Button } from '@/components/Button';
 import { IconBadge } from '@/components/IconBadge';
@@ -59,6 +61,23 @@ export default function SettingsScreen() {
           <View style={styles.navBody}>
             <Text style={styles.navTitle}>AI Usage</Text>
             <Text style={styles.navSubtitle}>What your AI calls have cost, by feature and model</Text>
+          </View>
+          <ChevronRight size={18} color={Colors.textSecondary} />
+        </Pressable>
+        {/* After usage: the limit shown there is set by the plan shown here. */}
+        <Pressable style={styles.navRow} onPress={() => router.push('/settings/plan')}>
+          <IconBadge icon={CreditCard} size={36} />
+          <View style={styles.navBody}>
+            <Text style={styles.navTitle}>Plan</Text>
+            <Text style={styles.navSubtitle}>Your plan, today&apos;s AI usage, and what each tier includes</Text>
+          </View>
+          <ChevronRight size={18} color={Colors.textSecondary} />
+        </Pressable>
+        <Pressable style={styles.navRow} onPress={() => router.push('/settings/language')}>
+          <IconBadge icon={Languages} size={36} />
+          <View style={styles.navBody}>
+            <Text style={styles.navTitle}>Language</Text>
+            <Text style={styles.navSubtitle}>Interface language; your study material is not translated</Text>
           </View>
           <ChevronRight size={18} color={Colors.textSecondary} />
         </Pressable>

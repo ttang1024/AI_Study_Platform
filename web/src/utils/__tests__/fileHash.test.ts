@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { calculateSha256 } from '../fileHash'
 
 // jsdom does not implement File/Blob.arrayBuffer — polyfill it

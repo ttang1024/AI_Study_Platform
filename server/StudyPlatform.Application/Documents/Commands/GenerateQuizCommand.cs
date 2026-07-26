@@ -17,17 +17,20 @@ public class GenerateQuizCommandHandler : IRequestHandler<GenerateQuizCommand, R
     private readonly IAiService _aiService;
     private readonly IDocumentContentService _contentService;
     private readonly IAdaptiveQuizPlanner _planner;
+    private readonly IDocumentTextProvider _textProvider;
 
     public GenerateQuizCommandHandler(
         IUnitOfWork unitOfWork,
         IAiService aiService,
         IDocumentContentService contentService,
-        IAdaptiveQuizPlanner planner)
+        IAdaptiveQuizPlanner planner,
+        IDocumentTextProvider textProvider)
     {
         _unitOfWork = unitOfWork;
         _aiService = aiService;
         _contentService = contentService;
         _planner = planner;
+        _textProvider = textProvider;
     }
 
     public async Task<Result<IEnumerable<QuizDto>>> Handle(GenerateQuizCommand request, CancellationToken cancellationToken)
@@ -82,21 +85,31 @@ public class GenerateQuizCommandHandler : IRequestHandler<GenerateQuizCommand, R
             return Result<IEnumerable<QuizDto>>.Failure("AI returned an unexpected response format. Please try again.", "PARSE_ERROR");
         }
 
-        var quizzes = quizItems.Select(q => new Quiz
+        // See GenerateFlashcardsCommand: anchored against the stored canonical text so PDFs, which
+        // reach the model as bytes, are citable too.
+        var anchorSource = await _textProvider.GetTextAsync(document, cancellationToken);
+
+        var quizzes = quizItems.Select(q =>
         {
-            QuizId = Guid.NewGuid(),
-            DocumentId = request.DocumentId,
-            SourceType = "document",
-            UserId = request.UserId,
-            Question = q.Question,
-            OptionsJson = JsonSerializer.Serialize(q.Options),
-            CorrectAnswer = NormalizeCorrectAnswer(q.Options, q.CorrectAnswer),
-            Explanation = q.Explanation,
-            // Adaptive quizzes are stored under their own key rather than the difficulty they resolved
-            // to, so that clearing them can't take a regular easy/medium/hard quiz down with it, and so
-            // that asking for "hard" never silently serves a quiz built for someone else's weak spots.
-            Difficulty = isAdaptive ? QuizDifficulty.Adaptive : difficulty,
-            CreatedAt = DateTime.UtcNow
+            var anchor = SourceAnchorResolver.Resolve(anchorSource, q.Quote);
+            return new Quiz
+            {
+                QuizId = Guid.NewGuid(),
+                DocumentId = request.DocumentId,
+                SourceType = "document",
+                UserId = request.UserId,
+                Question = q.Question,
+                OptionsJson = JsonSerializer.Serialize(q.Options),
+                CorrectAnswer = NormalizeCorrectAnswer(q.Options, q.CorrectAnswer),
+                Explanation = q.Explanation,
+                SourceAnchorJson = anchor == null ? null : SourceAnchorResolver.Serialize(anchor),
+                SourceVersion = document.ContentVersion,
+                // Adaptive quizzes are stored under their own key rather than the difficulty they resolved
+                // to, so that clearing them can't take a regular easy/medium/hard quiz down with it, and so
+                // that asking for "hard" never silently serves a quiz built for someone else's weak spots.
+                Difficulty = isAdaptive ? QuizDifficulty.Adaptive : difficulty,
+                CreatedAt = DateTime.UtcNow
+            };
         }).ToList();
 
         await _unitOfWork.Quizzes.AddRangeAsync(quizzes, cancellationToken);

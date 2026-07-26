@@ -8,7 +8,6 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
-import { useStudy } from '../../context/StudyContext';
 import { TextSelectionToolbar } from './TextSelectionToolbar';
 import { Loader2 } from 'lucide-react';
 

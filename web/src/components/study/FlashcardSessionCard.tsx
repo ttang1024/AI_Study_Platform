@@ -6,6 +6,7 @@ import { Flashcard } from '../../types';
 import { useStudy } from '../../context/StudyContext';
 import { flashcardService } from '../../services/flashcardService';
 import { FlashcardCardType, FlashcardFlipCard, getFlashcardCardType } from './FlashcardFlipCard';
+import SourceCitation from '../common/SourceCitation';
 
 export type SessionRating = 1 | 2 | 3 | 4;
 
@@ -17,7 +18,9 @@ export const SESSION_RATINGS: { rating: SessionRating; label: string; color: str
 ];
 
 interface FlashcardSessionCardProps {
-  card: Pick<Flashcard, 'id' | 'front' | 'back'> & Pick<Partial<Flashcard>, 'imageUrl' | 'occlusions'> & { cardType?: FlashcardCardType };
+  card: Pick<Flashcard, 'id' | 'front' | 'back'>
+    & Pick<Partial<Flashcard>, 'imageUrl' | 'occlusions' | 'citation' | 'documentId' | 'videoId'>
+    & { cardType?: FlashcardCardType };
   flipped: boolean;
   onFlip: () => void;
   onRate: (rating: SessionRating) => void;
@@ -91,6 +94,9 @@ export const FlashcardSessionCard: React.FC<FlashcardSessionCardProps> = ({
           exit={{ opacity: 0, height: 0 }}
           className="mt-4 space-y-2 overflow-hidden"
         >
+          {/* Only once the answer is revealed — showing the source quote alongside the question
+              would give the answer away. */}
+          <SourceCitation citation={card.citation} documentId={card.documentId} videoId={card.videoId} />
           <RatingControls onRate={onRate} submitting={submitting} />
         </motion.div>
       )}
@@ -105,6 +111,9 @@ interface SessionDeckCard {
   cardType?: FlashcardCardType;
   imageUrl?: string;
   occlusions?: Flashcard['occlusions'];
+  citation?: Flashcard['citation'];
+  documentId?: string;
+  videoId?: string;
 }
 
 interface FlashcardSessionDeckProps {
@@ -361,6 +370,11 @@ export const FlashcardSessionDeck: React.FC<FlashcardSessionDeckProps> = ({
 
         {flipped && !editing && (
           <div className="px-4 pb-8 space-y-2">
+            <SourceCitation
+              citation={current.citation}
+              documentId={current.documentId}
+              videoId={current.videoId}
+            />
             <RatingControls
               onRate={(rating) => void rate(rating)}
               submitting={submitting}

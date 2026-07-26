@@ -5,6 +5,10 @@ import { API_URL } from '@/constants/env';
 import { aiSettingsService } from '@/services/aiSettingsService';
 import { tokenStore } from '@/services/tokenStore';
 
+// axios's type declarations expose only `export default axios`. The `create` the lint rule detects
+// is a runtime property of the CJS object, not an importable named export, so `import { create }`
+// would not typecheck — `axios.create` is the only correct form here.
+// eslint-disable-next-line import/no-named-as-default-member
 export const apiClient = axios.create({ baseURL: API_URL });
 
 // AuthContext registers this so a failed silent refresh (e.g. expired/revoked

@@ -22,7 +22,6 @@ export const BentoKnowledgeGraphCard: React.FC = () => (
       title="Knowledge Graph"
       gradient="from-emerald-500 to-teal-600"
       iconGlow="0 6px 22px rgba(16,185,129,0.4)"
-      isNew
     />
 
     <div className="flex-1 rounded-xl p-3 mb-3 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(255,255,255,0.06)' }}>

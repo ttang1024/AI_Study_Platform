@@ -1,7 +1,7 @@
-import React, { Suspense, useState, useCallback } from 'react';
+import React, { Suspense, useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Menu, Search, Keyboard } from 'lucide-react';
+import { Menu, Search } from 'lucide-react';
 import { Sidebar } from './Sidebar';
 import { NotificationBell } from './NotificationBell';
 import { cn } from '../../utils/cn';

@@ -21,7 +21,7 @@ export const masteredService = {
   },
 
   /** Toggle mastery on the server and return the new mastered state. */
-  async toggle(userId: string, termId: string): Promise<boolean> {
+  async toggle(termId: string): Promise<boolean> {
     return core.toggleMastered(termId);
   },
 

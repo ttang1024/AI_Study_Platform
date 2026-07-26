@@ -13,6 +13,7 @@ export type {
   Note,
   OcclusionRect,
   QuizQuestion,
+  SourceCitation,
 } from './types';
 export * from './ai';
 export * from './chat';

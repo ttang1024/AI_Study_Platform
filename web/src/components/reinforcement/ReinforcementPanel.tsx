@@ -206,7 +206,7 @@ export const ReinforcementPanel: React.FC = () => {
       return next;
     });
     try {
-      await masteredService.toggle(userId, termId);
+      await masteredService.toggle(termId);
     } catch {
       setMasteredIds(prev => {
         const next = new Set(prev);

@@ -12,11 +12,26 @@ const MEDAL_COLORS = [Colors.amber, Colors.silver, Colors.bronze];
 
 export const LeaderboardTab: React.FC<{ groupId: string }> = ({ groupId }) => {
   const [days, setDays] = useState<7 | 30>(7);
-  const [entries, setEntries] = useState<LeaderboardEntry[] | null>(null);
+
+  // Stores which (group, window) the rows belong to rather than blanking them in an effect.
+  // Deriving during render is what makes switching windows show the spinner immediately without a
+  // reset-then-fetch pass, and the cancel flag stops a slow 7-day response from landing after the
+  // user has already switched to 30.
+  const [loaded, setLoaded] = useState<{ key: string; entries: LeaderboardEntry[] } | null>(null);
+  const key = `${groupId}:${days}`;
+  const entries = loaded?.key === key ? loaded.entries : null;
 
   useEffect(() => {
-    setEntries(null);
-    studyGroupService.getLeaderboard(groupId, days).then((result) => setEntries(result.entries));
+    let cancelled = false;
+
+    void (async () => {
+      const result = await studyGroupService.getLeaderboard(groupId, days);
+      if (!cancelled) setLoaded({ key: `${groupId}:${days}`, entries: result.entries });
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [groupId, days]);
 
   return (

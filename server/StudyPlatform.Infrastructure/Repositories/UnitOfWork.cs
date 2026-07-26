@@ -48,6 +48,14 @@ public class UnitOfWork : IUnitOfWork
     private IGroupNoteRepository? _groupNotes;
     private IAiJobRepository? _aiJobs;
     private IAiUsageRepository? _aiUsage;
+    private IOrganizationRepository? _organizations;
+    private IOrganizationMemberRepository? _organizationMembers;
+    private IClassroomRepository? _classrooms;
+    private IClassroomEnrollmentRepository? _classroomEnrollments;
+    private IClassroomCourseRepository? _classroomCourses;
+    private ISubscriptionRepository? _subscriptions;
+    private IRubricRepository? _rubrics;
+    private IEssaySubmissionRepository? _essaySubmissions;
 
     public UnitOfWork(AppDbContext context)
     {
@@ -92,6 +100,14 @@ public class UnitOfWork : IUnitOfWork
     public IGroupNoteRepository GroupNotes => _groupNotes ??= new GroupNoteRepository(_context);
     public IAiJobRepository AiJobs => _aiJobs ??= new AiJobRepository(_context);
     public IAiUsageRepository AiUsage => _aiUsage ??= new AiUsageRepository(_context);
+    public IOrganizationRepository Organizations => _organizations ??= new OrganizationRepository(_context);
+    public IOrganizationMemberRepository OrganizationMembers => _organizationMembers ??= new OrganizationMemberRepository(_context);
+    public IClassroomRepository Classrooms => _classrooms ??= new ClassroomRepository(_context);
+    public IClassroomEnrollmentRepository ClassroomEnrollments => _classroomEnrollments ??= new ClassroomEnrollmentRepository(_context);
+    public IClassroomCourseRepository ClassroomCourses => _classroomCourses ??= new ClassroomCourseRepository(_context);
+    public ISubscriptionRepository Subscriptions => _subscriptions ??= new SubscriptionRepository(_context);
+    public IRubricRepository Rubrics => _rubrics ??= new RubricRepository(_context);
+    public IEssaySubmissionRepository EssaySubmissions => _essaySubmissions ??= new EssaySubmissionRepository(_context);
 
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         => await _context.SaveChangesAsync(cancellationToken);

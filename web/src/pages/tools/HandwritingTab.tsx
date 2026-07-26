@@ -1,9 +1,9 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { AlertTriangle, Camera, CheckCircle2, HelpCircle, Loader2, PenLine, Trash2, X } from 'lucide-react';
-import { GradePage, HandwritingGrade, StepVerdict, handwritingService } from '../services/handwritingService';
-import { getApiErrorCode } from '../utils/apiError';
-import { cn } from '../utils/cn';
+import { GradePage, HandwritingGrade, StepVerdict, handwritingService } from '../../services/handwritingService';
+import { getApiErrorCode } from '../../utils/apiError';
+import { cn } from '../../utils/cn';
 
 const MAX_PAGES = 8;
 const MAX_PAGE_BYTES = 20 * 1024 * 1024;
@@ -23,7 +23,7 @@ const VERDICT_STYLE: Record<StepVerdict, { label: string; icon: React.ElementTyp
 	unclear: { label: 'Could not read', icon: HelpCircle, className: 'border-[var(--border-color)] bg-[var(--bg-card)] text-text-muted' },
 };
 
-export const HandwritingPage: React.FC = () => {
+export const HandwritingTab: React.FC = () => {
 	const [photos, setPhotos] = useState<Photo[]>([]);
 	const [problem, setProblem] = useState('');
 	const [grade, setGrade] = useState<HandwritingGrade | null>(null);
@@ -92,18 +92,7 @@ export const HandwritingPage: React.FC = () => {
 	};
 
 	return (
-		<div className="mx-auto max-w-4xl space-y-6 p-6 pb-24">
-			<header className="space-y-1">
-				<h1 className="flex items-center gap-2 text-2xl font-bold text-text-main">
-					<PenLine className="text-[var(--primary)]" size={24} />
-					Check my working
-				</h1>
-				<p className="text-sm text-text-muted">
-					Photograph a worked solution and find out where the reasoning first went wrong — not just
-					whether the final answer matched.
-				</p>
-			</header>
-
+		<div className="max-w-4xl space-y-6">
 			<section className="space-y-4 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-6">
 				<div>
 					<label htmlFor="problem" className="block text-sm font-semibold text-text-main">
@@ -263,4 +252,4 @@ const GradeResult: React.FC<{ grade: HandwritingGrade }> = ({ grade }) => (
 	</motion.section>
 );
 
-export default HandwritingPage;
+export default HandwritingTab;

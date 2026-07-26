@@ -1,3 +1,5 @@
+import type { SourceCitation } from '@core/types';
+
 /** A file selected via expo-document-picker, ready to append to a multipart FormData part. */
 export interface PickedFile {
   uri: string;
@@ -35,7 +37,12 @@ export interface SimpleCard {
   front: string;
   back: string;
   cardType: 'basic' | 'cloze' | 'chart';
+  /** Where in the source this card came from, when the supporting quote could be located. */
+  citation?: SourceCitation;
 }
+
+// Shared with web/ via packages/core.
+export type { SourceCitation } from '@core/types';
 
 // Shared with web/ via packages/core.
 export type { Note } from '@core/types';

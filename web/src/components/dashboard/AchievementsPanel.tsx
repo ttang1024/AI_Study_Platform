@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Trophy } from 'lucide-react';
 import { achievementsService, Achievement, AchievementProgress } from '../../services/achievementsService';
 import { useAuth } from '../../context/AuthContext';
 import { useStudy } from '../../context/StudyContext';

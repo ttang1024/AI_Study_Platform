@@ -16,6 +16,10 @@ import TrendingUp from 'lucide-react-native/icons/trending-up';
 import Trophy from 'lucide-react-native/icons/trophy';
 import Users from 'lucide-react-native/icons/users';
 import Zap from 'lucide-react-native/icons/zap';
+import School from 'lucide-react-native/icons/school';
+import FilePen from 'lucide-react-native/icons/file-pen';
+import Languages from 'lucide-react-native/icons/languages';
+import Terminal from 'lucide-react-native/icons/terminal';
 
 import { IconBadge } from '@/components/IconBadge';
 import { PressableScale } from '@/components/PressableScale';
@@ -27,10 +31,14 @@ const HUB_ITEMS = [
   { href: '/study/quizzes', icon: HelpCircle, color: Colors.emerald, title: 'Quizzes', subtitle: 'Bank, history, mistakes' },
   { href: '/study/notes', icon: NotebookPen, color: Colors.orange, title: 'Notes', subtitle: 'Across your library' },
   { href: '/study/handwriting', icon: PenLine, color: Colors.red, title: 'Check Working', subtitle: 'Grade handwritten solutions' },
+  { href: '/study/essays', icon: FilePen, color: Colors.purple, title: 'Writing', subtitle: 'Rubric feedback on drafts' },
+  { href: '/study/code', icon: Terminal, color: Colors.blue, title: 'Code', subtitle: 'Run Python on device' },
+  { href: '/study/language', icon: Languages, color: Colors.teal, title: 'Language', subtitle: 'Pronunciation and sentence mining' },
   { href: '/study/glossary', icon: SquareLibrary, color: Colors.teal, title: 'Glossary', subtitle: 'Terms and definitions' },
   { href: '/study/planner', icon: CalendarClock, color: Colors.blue, title: 'Planner', subtitle: 'Exams, cram sheets, mocks' },
   { href: '/study/calendar', icon: Calendar, color: Colors.red, title: 'Calendar', subtitle: 'Everything, by day' },
   { href: '/study/groups', icon: Users, color: Colors.purple, title: 'Study Groups', subtitle: 'Chat, boards, battles' },
+  { href: '/study/classrooms', icon: School, color: Colors.purple, title: 'Classrooms', subtitle: 'Assigned courses and grades' },
   { href: '/study/insights', icon: TrendingUp, color: Colors.primary, title: 'Insights', subtitle: 'Time, accuracy, mastery' },
   { href: '/study/concepts', icon: Network, color: Colors.blue, title: 'Concepts', subtitle: 'Links, gaps, learning path' },
   { href: '/study/achievements', icon: Trophy, color: Colors.amber, title: 'Achievements', subtitle: 'Milestones unlocked' },

@@ -40,6 +40,14 @@ public interface IUnitOfWork : IDisposable
     IGroupNoteRepository GroupNotes { get; }
     IAiJobRepository AiJobs { get; }
     IAiUsageRepository AiUsage { get; }
+    IOrganizationRepository Organizations { get; }
+    IOrganizationMemberRepository OrganizationMembers { get; }
+    IClassroomRepository Classrooms { get; }
+    IClassroomEnrollmentRepository ClassroomEnrollments { get; }
+    IClassroomCourseRepository ClassroomCourses { get; }
+    ISubscriptionRepository Subscriptions { get; }
+    IRubricRepository Rubrics { get; }
+    IEssaySubmissionRepository EssaySubmissions { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     Task BeginTransactionAsync(CancellationToken cancellationToken = default);
     Task CommitTransactionAsync(CancellationToken cancellationToken = default);

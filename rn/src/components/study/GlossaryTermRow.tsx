@@ -8,6 +8,7 @@ import Trash2 from 'lucide-react-native/icons/trash-2';
 import { Card } from '@/components/Card';
 import { Colors, Spacing, Typography } from '@/constants/theme';
 import type { GlossaryTerm } from '@/types';
+import { SourceCitation } from '@/components/study/SourceCitation';
 
 interface GlossaryTermRowProps {
   term: GlossaryTerm;
@@ -66,6 +67,11 @@ export const GlossaryTermRow: React.FC<GlossaryTermRowProps> = ({ term, mastered
               <Text style={styles.term}>{term.term}</Text>
               <Text style={styles.definition}>{term.definition}</Text>
               {!!term.sourceName && <Text style={styles.sourceName}>{term.sourceName}</Text>}
+              <SourceCitation
+                citation={term.citation}
+                documentId={term.documentId}
+                videoId={term.videoId}
+              />
             </>
           )}
         </View>

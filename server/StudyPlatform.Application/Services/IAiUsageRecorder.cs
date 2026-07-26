@@ -18,8 +18,14 @@ public sealed record AiUsageRecord(
 /// </summary>
 public interface IAiUsageRecorder
 {
-    /// <summary>Tokens a user may spend per UTC day. Zero means unlimited.</summary>
+    /// <summary>
+    /// Configured default budget, used where no user is in hand. Zero means unlimited.
+    /// Prefer <see cref="GetDailyTokenLimitAsync"/>, which accounts for the user's plan.
+    /// </summary>
     long DailyTokenLimit { get; }
+
+    /// <summary>The user's effective daily budget, from their plan. Zero means unlimited.</summary>
+    Task<long> GetDailyTokenLimitAsync(Guid userId, CancellationToken cancellationToken = default);
 
     Task RecordAsync(AiUsageRecord usage, CancellationToken cancellationToken = default);
 

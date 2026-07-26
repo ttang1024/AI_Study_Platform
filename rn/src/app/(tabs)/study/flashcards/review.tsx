@@ -19,6 +19,7 @@ import { offlineCache } from '@/services/offlineCache';
 import type { Flashcard, FsrsRating } from '@/types';
 import { cardBackText, cardFrontText } from '@/utils/flashcardDisplay';
 import { isCardDue } from '@/utils/flashcardSets';
+import { SourceCitation } from '@/components/study/SourceCitation';
 
 const MAX_NEW_PER_SESSION = 20;
 
@@ -171,6 +172,18 @@ export default function ReviewScreen() {
         </View>
       )}
 
+      {/* Only once the answer is revealed — showing the source quote alongside the question would
+          give the answer away. */}
+      {flipped && !!current && (
+        <View style={styles.citationRow}>
+          <SourceCitation
+            citation={current.citation}
+            documentId={current.documentId}
+            videoId={current.videoId}
+          />
+        </View>
+      )}
+
       {flipped && !offline && (
         <View style={styles.ratingRow}>
           {RATINGS.map((r, i) => (
@@ -212,6 +225,7 @@ const styles = StyleSheet.create({
   cardText: { ...Typography.heading, color: Colors.textPrimary, textAlign: 'center' },
   mathWrap: { alignSelf: 'stretch' },
   tapHint: { ...Typography.caption, color: Colors.textSecondary, position: 'absolute', bottom: Spacing.three },
+  citationRow: { paddingHorizontal: Spacing.three, marginBottom: Spacing.two },
   ratingRow: { ...Layout.row, gap: Spacing.two },
   // The stagger wrapper carries the flex, so each of the four buttons still
   // takes an equal share of the row.

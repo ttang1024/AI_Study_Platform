@@ -1,4 +1,3 @@
-using System.Net;
 using StudyPlatform.Infrastructure.Http;
 using Xunit;
 

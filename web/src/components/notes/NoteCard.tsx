@@ -68,7 +68,7 @@ export const NoteCard: React.FC<NoteCardProps> = ({
     <div className={cn('p-6 group relative', isEditing ? 'bg-[var(--primary)]/5' : 'hover:bg-zinc-50/30')}>
       {isEditing ? (
         <div className="space-y-4">
-          <RichTextEditor content={editContent} onChange={onEditContentChange} placeholder="Edit your note..." />
+          <RichTextEditor content={editContent} onChange={onEditContentChange} />
           <div className="flex gap-2 justify-end">
             <Button onClick={onCancel} variant="outline" size="sm"><X size={14} className="mr-1" />Cancel</Button>
             <Button onClick={onSave} size="sm"><Check size={14} className="mr-1" />Save</Button>

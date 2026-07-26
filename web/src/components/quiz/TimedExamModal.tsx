@@ -263,7 +263,7 @@ export const TimedExamModal: React.FC<TimedExamModalProps> = ({
                 </div>
 
                 <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {shuffled.map((q, i) => {
+                  {shuffled.map((q) => {
                     const ans = answers.find(a => a.questionId === q.id);
                     return (
                       <div key={q.id} className={cn('rounded-xl border p-3', ans?.correct ? 'border-emerald-200 bg-emerald-50/50' : 'border-red-200 bg-red-50/50')}>

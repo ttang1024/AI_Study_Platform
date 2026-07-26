@@ -1,5 +1,6 @@
 import type { HttpClient } from '../http';
-import type { GlossaryTerm } from '../types';
+import type { GlossaryTerm, SourceCitation } from '../types';
+import { normalizeCitation } from '../types';
 
 /**
  * Optional offline tier for `getAllGlossary` (web injects its idb-backed
@@ -20,6 +21,7 @@ interface BackendTerm {
   courseId?: string;
   sourceName?: string;
   sourceKind?: GlossaryTerm['sourceKind'];
+  citation?: SourceCitation;
 }
 
 export function createGlossaryService(http: HttpClient, offlineCache?: GlossaryOfflineCache) {
@@ -36,6 +38,7 @@ export function createGlossaryService(http: HttpClient, offlineCache?: GlossaryO
           courseId: t.courseId,
           sourceName: t.sourceName,
           sourceKind: t.sourceKind,
+          citation: normalizeCitation(t.citation),
         }));
         if (terms.length > 0 && offlineCache) void offlineCache.cacheGlossary(terms);
         return terms;

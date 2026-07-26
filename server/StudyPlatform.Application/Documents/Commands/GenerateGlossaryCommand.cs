@@ -15,15 +15,18 @@ public class GenerateGlossaryCommandHandler : IRequestHandler<GenerateGlossaryCo
     private readonly IUnitOfWork _unitOfWork;
     private readonly IAiService _aiService;
     private readonly IDocumentContentService _contentService;
+    private readonly IDocumentTextProvider _textProvider;
 
     public GenerateGlossaryCommandHandler(
         IUnitOfWork unitOfWork,
         IAiService aiService,
-        IDocumentContentService contentService)
+        IDocumentContentService contentService,
+        IDocumentTextProvider textProvider)
     {
         _unitOfWork = unitOfWork;
         _aiService = aiService;
         _contentService = contentService;
+        _textProvider = textProvider;
     }
 
     public async Task<Result<IEnumerable<GlossaryTermDto>>> Handle(GenerateGlossaryCommand request, CancellationToken cancellationToken)
@@ -53,14 +56,24 @@ public class GenerateGlossaryCommandHandler : IRequestHandler<GenerateGlossaryCo
                 return Result<IEnumerable<GlossaryTermDto>>.Failure("AI returned an unexpected response format. Please try again.", "PARSE_ERROR");
             }
 
-            var terms = items.Select(i => new GlossaryTerm
+            // See GenerateFlashcardsCommand: anchored against the stored canonical text so PDFs, which
+            // reach the model as bytes, are citable too.
+            var anchorSource = await _textProvider.GetTextAsync(document, cancellationToken);
+
+            var terms = items.Select(i =>
             {
-                GlossaryTermId = Guid.NewGuid(),
-                DocumentId = request.DocumentId,
-                UserId = request.UserId,
-                Term = i.Term,
-                Definition = i.Definition,
-                CreatedAt = DateTime.UtcNow
+                var anchor = SourceAnchorResolver.Resolve(anchorSource, i.Quote);
+                return new GlossaryTerm
+                {
+                    GlossaryTermId = Guid.NewGuid(),
+                    DocumentId = request.DocumentId,
+                    UserId = request.UserId,
+                    Term = i.Term,
+                    Definition = i.Definition,
+                    SourceAnchorJson = anchor == null ? null : SourceAnchorResolver.Serialize(anchor),
+                    SourceVersion = document.ContentVersion,
+                    CreatedAt = DateTime.UtcNow
+                };
             }).ToList();
 
             await _unitOfWork.GlossaryTerms.AddRangeAsync(terms, cancellationToken);

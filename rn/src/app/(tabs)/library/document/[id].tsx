@@ -11,6 +11,7 @@ import { useDocumentDetail } from '@/hooks/useDocumentDetail';
 import { quizService } from '@/services/quizService';
 import { fetchDocumentShareCards } from '@/services/shareService';
 import { normalizeSummaryText } from '@/utils/summary';
+import { StaleSourceBanner } from '@/components/library/StaleSourceBanner';
 
 export default function DocumentDetailScreen() {
   const { id, courseId, doc, setDoc, downloadUrl, loading, error, tab, setTab } = useDocumentDetail();
@@ -31,6 +32,10 @@ export default function DocumentDetailScreen() {
         onTogglePreview={() => setShowPreview((v) => !v)}
         onOpenShare={() => setShowShare(true)}
       />
+
+      {/* Above the tabs: a replaced source invalidates every kind of generated material, so the
+          warning belongs to the document rather than to one tab. */}
+      <StaleSourceBanner documentId={id} />
 
       <TabChipRow tabs={resolveTabs(doc.type === 'pdf')} active={tab} onChange={setTab} />
 

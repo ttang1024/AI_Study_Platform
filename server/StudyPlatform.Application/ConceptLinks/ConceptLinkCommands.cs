@@ -5,7 +5,6 @@ using StudyPlatform.Application.Services;
 using StudyPlatform.Application.Settings;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
-using StudyPlatform.Domain.Projections;
 using System.Text.RegularExpressions;
 
 namespace StudyPlatform.Application.ConceptLinks;

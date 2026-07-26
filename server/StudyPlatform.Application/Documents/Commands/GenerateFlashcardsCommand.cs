@@ -16,17 +16,20 @@ public class GenerateFlashcardsCommandHandler : IRequestHandler<GenerateFlashcar
     private readonly IAiService _aiService;
     private readonly IDocumentContentService _contentService;
     private readonly IFlashcardDeduplicator _deduplicator;
+    private readonly IDocumentTextProvider _textProvider;
 
     public GenerateFlashcardsCommandHandler(
         IUnitOfWork unitOfWork,
         IAiService aiService,
         IDocumentContentService contentService,
-        IFlashcardDeduplicator deduplicator)
+        IFlashcardDeduplicator deduplicator,
+        IDocumentTextProvider textProvider)
     {
         _unitOfWork = unitOfWork;
         _aiService = aiService;
         _contentService = contentService;
         _deduplicator = deduplicator;
+        _textProvider = textProvider;
     }
 
     public async Task<Result<IEnumerable<FlashcardDto>>> Handle(GenerateFlashcardsCommand request, CancellationToken cancellationToken)
@@ -58,6 +61,11 @@ public class GenerateFlashcardsCommandHandler : IRequestHandler<GenerateFlashcar
             return Result<IEnumerable<FlashcardDto>>.Failure("AI returned an unexpected response format. Please try again.", "PARSE_ERROR");
         }
 
+        // Anchored against the document's canonical stored text, not against `text` above: PDFs and
+        // images are sent to the model as bytes, so `text` is null for them and they would never be
+        // citable. The provider extracts once and persists, which is also what the source view renders.
+        var anchorSource = await _textProvider.GetTextAsync(document, cancellationToken);
+
         var flashcards = flashcardItems.Select(f =>
         {
             var isChart = string.Equals(f.Type, "chart", StringComparison.OrdinalIgnoreCase);
@@ -65,6 +73,8 @@ public class GenerateFlashcardsCommandHandler : IRequestHandler<GenerateFlashcar
             var back = isChart && f.ChartData.HasValue
                 ? JsonSerializer.Serialize(f.ChartData.Value)
                 : f.Back;
+            var anchor = SourceAnchorResolver.Resolve(anchorSource, f.Quote);
+
             return new Flashcard
             {
                 FlashcardId = Guid.NewGuid(),
@@ -74,6 +84,8 @@ public class GenerateFlashcardsCommandHandler : IRequestHandler<GenerateFlashcar
                 Front = f.Front,
                 Back = back,
                 CardType = isChart ? "chart" : isCloze ? "cloze" : "basic",
+                SourceAnchorJson = anchor == null ? null : SourceAnchorResolver.Serialize(anchor),
+                SourceVersion = document.ContentVersion,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
             };
@@ -163,7 +175,9 @@ public class GenerateFlashcardsCommandHandler : IRequestHandler<GenerateFlashcar
             return false;
         }
 
-        flashcard = new AiFlashcardItem(front, back, type, chartData);
+        var quote = GetContent(element, "quote", "evidence", "sourceQuote", "source_quote");
+
+        flashcard = new AiFlashcardItem(front, back, type, chartData, quote);
         return true;
     }
 

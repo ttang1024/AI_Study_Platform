@@ -25,6 +25,18 @@ Source context:
 
 Discuss ideas directly and do not mention the source format or use phrases like ""this document"", ""the document"", ""this video"", ""the video"", ""the transcript"", ""the source material"", or ""the content"" unless quoting the user.";
 
+        /// <summary>
+        /// Appended to every generation prompt whose output gets a source anchor.
+        ///
+        /// The instruction asks for a verbatim quote rather than a position, because models cannot
+        /// count characters — SourceAnchorResolver locates the quote in the source afterwards. The
+        /// explicit permission to omit the field matters: without it a model will invent a
+        /// plausible-looking quote rather than return null, which is precisely the failure the
+        /// resolver then has to catch.
+        /// </summary>
+        private const string SupportingQuoteInstruction =
+            @"Additionally, give each item a ""quote"" field containing a SHORT VERBATIM excerpt (10-25 words) copied exactly from the supplied material, which is the evidence for that item. Copy the wording character for character; do not paraphrase, summarize, translate, or correct it. If no single passage supports the item, omit the ""quote"" field entirely rather than inventing one.";
+
         private const string NoSourceMetaPhrases =
             @"Do not mention the source format or refer to the material with meta phrases such as ""this document"", ""the document"", ""this video"", ""the video"", ""the transcript"", ""the source material"", ""the content"", ""the text"", ""the speaker"", ""the lecture"", or similar wording. Discuss the ideas directly.";
 
@@ -65,8 +77,9 @@ Main Topic
 {NoSourceMetaPhrases}
 Each question must have exactly 4 options. Each option must start with ""A. "", ""B. "", ""C. "", ""D. "" respectively.
 correctAnswer MUST be only the matching letter: ""A"", ""B"", ""C"", or ""D"". Do not put the answer text in correctAnswer.
+{SupportingQuoteInstruction}
 Return a JSON array only, no markdown, no code blocks:
-[{{""question"": ""..."", ""options"": [""A. ..."",""B. ..."",""C. ..."",""D. ...""], ""correctAnswer"": ""A"", ""explanation"": ""...""}}]";
+[{{""question"": ""..."", ""options"": [""A. ..."",""B. ..."",""C. ..."",""D. ...""], ""correctAnswer"": ""A"", ""explanation"": ""..."", ""quote"": ""...""}}]";
 
         public static string QuizForDifficulty(string difficulty) =>
             $@"{Quiz}
@@ -110,8 +123,9 @@ Use up to three card types — about 55% basic, 35% cloze, and up to 10% chart (
 - chart: front is a question about data; back is empty; add a chartData object.
   Only use chart when the source contains clear numerical or comparative data.
   chartData schema: {{""type"":""bar""|""line""|""pie"",""title"":""..."",""labels"":[...],""datasets"":[{{""label"":""..."",""data"":[numbers]}}]}}
+{SupportingQuoteInstruction}
 Return a JSON array only, no markdown, no code blocks:
-[{{""type"":""basic"",""front"":""..."",""back"":""...""}},{{""type"":""cloze"",""front"":""..{{{{term}}}}..."",""back"":""""}},{{""type"":""chart"",""front"":""..."",""back"":"""",""chartData"":{{""type"":""bar"",""title"":""..."",""labels"":[""A"",""B""],""datasets"":[{{""label"":""X"",""data"":[1,2]}}]}}}}]";
+[{{""type"":""basic"",""front"":""..."",""back"":""..."",""quote"":""...""}},{{""type"":""cloze"",""front"":""..{{{{term}}}}..."",""back"":""""}},{{""type"":""chart"",""front"":""..."",""back"":"""",""chartData"":{{""type"":""bar"",""title"":""..."",""labels"":[""A"",""B""],""datasets"":[{{""label"":""X"",""data"":[1,2]}}]}}}}]";
 
         public const string ExtractText =
             @"Transcribe ALL readable text content from the supplied file, preserving the natural reading order.
@@ -125,7 +139,8 @@ If the file contains no readable text, output nothing.";
             $@"Extract 10-20 key terms and their definitions from the supplied study material.
 {NoSourceMetaPhrases}
 Focus on technical terms, concepts, and domain-specific vocabulary.
-Return a JSON array only, no markdown, no code blocks: [{{""term"": ""..."", ""definition"": ""...""}}]";
+{SupportingQuoteInstruction}
+Return a JSON array only, no markdown, no code blocks: [{{""term"": ""..."", ""definition"": ""..."", ""quote"": ""...""}}]";
 
         public static readonly string StreamSummary =
             $"Write a Markdown study summary. Start with exactly one concise, professional, academic overview paragraph covering the main thesis and conclusions. {NoSourceMetaPhrases} Follow with a '## Key Concepts' section explaining the most important ideas in detail. Then add a '## Key Takeaways' bullet list of 3-6 specific, informative points using '- '.";
@@ -206,8 +221,9 @@ Use up to three card types — about 55% basic, 35% cloze, and up to 10% chart (
 - cloze: a sentence with ONE key term in {{{{double braces}}}}. Leave back empty or a short hint.
 - chart: front is a question; back is empty; include a chartData object (only when clear numerical data exists).
   chartData schema: {{""type"":""bar""|""line""|""pie"",""title"":""..."",""labels"":[...],""datasets"":[{{""label"":""..."",""data"":[numbers]}}]}}
+{SupportingQuoteInstruction}
 Return a JSON array only, no markdown, no code blocks:
-[{{""type"":""basic"",""front"":""..."",""back"":""...""}},{{""type"":""cloze"",""front"":""..{{{{term}}}}..."",""back"":""""}}]";
+[{{""type"":""basic"",""front"":""..."",""back"":""..."",""quote"":""...""}},{{""type"":""cloze"",""front"":""..{{{{term}}}}..."",""back"":"""",""quote"":""...""}}]";
 
         public static readonly string YouTubeTutorInstruction =
             $"You are a knowledgeable AI assistant. Answer questions using your broad general knowledge. Source context may be supplied as supplementary context; use it when relevant, but do not restrict answers to only that context. If the user asks something beyond the context, answer from general knowledge. {NoSourceMetaPhrases}";
@@ -224,6 +240,57 @@ Return a JSON array only, no markdown, no code blocks:
         /// less. Hence firstErrorStep, and hence the instruction to judge later steps on whether they
         /// follow from what the learner actually wrote.
         /// </summary>
+        /// <summary>
+        /// Grades a piece of writing against a rubric.
+        ///
+        /// The hard part of automated essay feedback is that models default to flattery — they
+        /// award near-full marks and describe every draft as strong, which makes the score useless
+        /// and the feedback unactionable. So the instructions demand a quotation for every point
+        /// made, forbid praise that is not tied to a specific passage, and require the model to
+        /// name what would earn the next band up rather than only what was done well.
+        /// </summary>
+        public static string GradeEssay(string criteriaJson, string? promptText, string essayText)
+        {
+            var task = string.IsNullOrWhiteSpace(promptText)
+                ? "No prompt was supplied. Judge the writing on its own terms."
+                : $"The student was asked:\n{promptText}";
+
+            return $@"You are marking a student's writing against a rubric. Be accurate and useful, not kind.
+
+{task}
+
+Rubric criteria, as JSON:
+{criteriaJson}
+
+The student's writing:
+---
+{essayText}
+---
+
+Rules:
+- Award each criterion a score out of its maxPoints. Use the full range. Most first drafts are not
+  near-perfect, and inflating scores makes the rubric meaningless.
+- Every strength and every improvement MUST quote the specific phrase or sentence it refers to,
+  copied verbatim from the writing. Do not offer a comment you cannot ground in a quotation.
+- For each criterion, state concretely what would earn a higher score on THIS piece — not generic
+  advice like ""add more detail"".
+- Judge only what is written. Do not reward intent you have inferred, and do not penalise the
+  student for not covering something the prompt did not ask for.
+- If the writing is too short or off-topic to mark against a criterion, score it low and say why
+  rather than declining to score it.
+
+Return ONLY a JSON object, no markdown and no code blocks:
+{{
+  ""overallComment"": ""two or three sentences on where this piece stands and the single highest-value change"",
+  ""strengths"": [{{ ""point"": ""..."", ""quote"": ""..."" }}],
+  ""improvements"": [{{ ""point"": ""..."", ""quote"": ""..."", ""suggestion"": ""..."" }}],
+  ""criteria"": [
+    {{ ""name"": ""criterion name exactly as given"", ""score"": <number>, ""maxPoints"": <number>,
+       ""comment"": ""why this score"", ""toImprove"": ""what would earn a higher score here"" }}
+  ]
+}}";
+        }
+
         public static string GradeHandwrittenWork(string? problemStatement)
         {
             var problem = string.IsNullOrWhiteSpace(problemStatement)

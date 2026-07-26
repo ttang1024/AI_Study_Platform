@@ -1,5 +1,6 @@
 import type { HttpClient } from '../http';
-import type { Flashcard, FlashcardSrsState, FsrsRating, OcclusionRect, PendingMaterial } from '../types';
+import type { Flashcard, FlashcardSrsState, FsrsRating, OcclusionRect, PendingMaterial, SourceCitation } from '../types';
+import { normalizeCitation } from '../types';
 
 interface BackendSrs {
   state: 0 | 1 | 2 | 3;
@@ -29,6 +30,7 @@ export interface BackendFlashcard {
   srs?: BackendSrs;
   imageUrl?: string;
   occlusionsJson?: string;
+  citation?: SourceCitation;
 }
 
 const parseOcclusions = (json?: string): OcclusionRect[] | undefined => {
@@ -70,6 +72,7 @@ export const mapBackendFlashcard = (bf: BackendFlashcard): Flashcard => ({
   srs: bf.srs ? mapSrs(bf.srs) : undefined,
   imageUrl: bf.imageUrl ?? undefined,
   occlusions: parseOcclusions(bf.occlusionsJson),
+  citation: normalizeCitation(bf.citation),
 });
 
 export interface PagedFlashcards {

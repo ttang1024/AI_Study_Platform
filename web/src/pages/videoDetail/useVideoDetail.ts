@@ -195,6 +195,24 @@ export function useVideoDetail(propId?: string) {
     }
   };
 
+  // A `?t=` in the URL means we arrived from a citation's "jump to source" link. Seek once the
+  // player exists, and only once — re-seeking on every render would fight the user's own scrubbing.
+  const deepLinkSeekedRef = useRef(false);
+  useEffect(() => {
+    if (deepLinkSeekedRef.current || isLoadingVideo) return;
+
+    const raw = new URLSearchParams(location.search).get('t');
+    if (!raw) return;
+
+    const seconds = Number(raw);
+    if (!Number.isFinite(seconds) || seconds < 0) return;
+
+    deepLinkSeekedRef.current = true;
+    seekTo(seconds);
+    // seekTo is recreated every render and is not a meaningful dependency; the ref guards re-entry.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoadingVideo, location.search]);
+
   // ─── Generation handlers ─────────────────────────────────────────────────────
 
   const doGenerateSummary = async (url: string) => {

@@ -20,6 +20,18 @@ public class User
     /// </summary>
     public DateTime? MistakesBackfilledAt { get; set; }
 
+    /// <summary>
+    /// When the user dismissed the getting-started checklist, or finished it.
+    ///
+    /// Only the dismissal is stored. Which steps are *done* is derived from their actual library on
+    /// every read, so the checklist can never disagree with reality — a stored "uploaded a document"
+    /// flag would survive them deleting that document.
+    /// </summary>
+    public DateTime? OnboardingDismissedAt { get; set; }
+
+    /// <summary>Set when the sample course was seeded, so it is never seeded twice.</summary>
+    public DateTime? DemoContentSeededAt { get; set; }
+
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public ICollection<Course> Courses { get; set; } = new List<Course>();

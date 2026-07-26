@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.Extensions.Logging;
 using StudyPlatform.Application.Common;
+using StudyPlatform.Application.Services;
 using StudyPlatform.Application.Documents.Commands;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
@@ -117,10 +118,17 @@ public class RunAiJobCommandHandler : IRequestHandler<RunAiJobCommand, Result>
     private readonly IMediator _mediator;
     private readonly ILogger<RunAiJobCommandHandler> _logger;
 
-    public RunAiJobCommandHandler(IUnitOfWork unitOfWork, IMediator mediator, ILogger<RunAiJobCommandHandler> logger)
+    private readonly IInstanceIdentity _instance;
+
+    public RunAiJobCommandHandler(
+        IUnitOfWork unitOfWork,
+        IMediator mediator,
+        IInstanceIdentity instance,
+        ILogger<RunAiJobCommandHandler> logger)
     {
         _unitOfWork = unitOfWork;
         _mediator = mediator;
+        _instance = instance;
         _logger = logger;
     }
 
@@ -132,6 +140,10 @@ public class RunAiJobCommandHandler : IRequestHandler<RunAiJobCommand, Result>
 
         job.Status = AiJobStatus.Running;
         job.StartedAt = DateTime.UtcNow;
+
+        // Stamped at claim time, which is when ownership becomes real: this is the instance holding
+        // the job's in-memory credentials, and therefore the only one that can run it.
+        job.OwnerInstanceId = _instance.Id;
         _unitOfWork.AiJobs.Update(job);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 

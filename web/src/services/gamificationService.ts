@@ -8,8 +8,6 @@ import { http } from './http';
 export type { DigestDay, WeeklyDigest } from '@core/services/gamificationService';
 export type { UserXp } from '@core/services/statsService';
 
-export type XpBreakdown = import('@core/services/statsService').UserXp['breakdown'][number];
-
 const core = createGamificationService(http);
 const stats = createStatsService(http);
 

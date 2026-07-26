@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Sparkles, Loader2, X, ChevronLeft, ChevronRight, ExternalLink, CheckCircle2, XCircle, Trophy } from 'lucide-react';
+import { Sparkles, Loader2, ExternalLink } from 'lucide-react';
 import { CONTENT_TYPE_ICONS } from '../../constants/contentTypeIcons';
 import { Pagination } from './Pagination';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
 import { cn } from '../../utils/cn';
-import { getDocDisplayName } from '../../utils/docName';
 import { Course, Document } from '../../types';
 import { VideoListItem } from '../../services/videoService';
 import { documentService } from '../../services/documentService';

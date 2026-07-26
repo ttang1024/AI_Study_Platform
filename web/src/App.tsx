@@ -1,6 +1,7 @@
 import React, { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { I18nProvider } from './i18n';
 import { StudyProvider } from './context/StudyContext';
 import { TtsProvider } from './context/TtsContext';
 import { MainLayout } from './components/layout/MainLayout';
@@ -43,6 +44,9 @@ const AudioDetailPage = lazyPage(() => import('./pages/AudioDetailPage'), 'Audio
 const SearchResultsPage = lazyPage(() => import('./pages/SearchResultsPage'), 'SearchResultsPage');
 const StudyGroupsPage = lazyPage(() => import('./pages/StudyGroupsPage'), 'StudyGroupsPage');
 const StudyGroupDetailPage = lazyPage(() => import('./pages/StudyGroupDetailPage'), 'StudyGroupDetailPage');
+const ClassroomsPage = lazyPage(() => import('./pages/ClassroomsPage'), 'ClassroomsPage');
+const ToolsPage = lazyPage(() => import('./pages/ToolsPage'), 'ToolsPage');
+const ClassroomDetailPage = lazyPage(() => import('./pages/ClassroomDetailPage'), 'ClassroomDetailPage');
 const ChatListPage = lazyPage(() => import('./pages/ChatListPage'), 'ChatListPage');
 const KnowledgeGraphPage = lazyPage(() => import('./pages/KnowledgeGraphPage'), 'KnowledgeGraphPage');
 const InsightsPage = lazyPage(() => import('./pages/InsightsPage'), 'InsightsPage');
@@ -52,7 +56,6 @@ const CourseStudyPage = lazyPage(() => import('./pages/CourseStudyPage'), 'Cours
 const SharedContentPage = lazyPage(() => import('./pages/SharedContentPage'), 'SharedContentPage');
 const PlannerPage = lazyPage(() => import('./pages/PlannerPage'), 'PlannerPage');
 const PracticePage = lazyPage(() => import('./pages/PracticePage'), 'PracticePage');
-const HandwritingPage = lazyPage(() => import('./pages/HandwritingPage'), 'HandwritingPage');
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -77,7 +80,8 @@ const ReinforcementRedirect: React.FC = () => {
 
 export default function App() {
   return (
-    <AuthProvider>
+    <I18nProvider>
+      <AuthProvider>
       <StudyProvider>
         <PromptProvider>
           <TtsProvider>
@@ -98,7 +102,9 @@ export default function App() {
                     {/* The Today plan now lives as the dashboard hero + the Insights → Analytics tab. */}
                     <Route path="today" element={<Navigate to="/dashboard" replace />} />
                     <Route path="practice" element={<PracticePage />} />
-                    <Route path="handwriting" element={<HandwritingPage />} />
+                    <Route path="tools" element={<ToolsPage />} />
+                    {/* Check Working / Writing / Language were three pages; they are tabs of /tools now. */}
+                    <Route path="handwriting" element={<Navigate to="/tools?tab=working" replace />} />
                     <Route path="library" element={<LibraryPage />} />
                     <Route path="documents" element={<Navigate to="/library" replace />} />
                     <Route path="videos" element={<Navigate to="/library?type=videos" replace />} />
@@ -117,6 +123,10 @@ export default function App() {
                     <Route path="feedback" element={<FeedbackPage />} />
                     <Route path="search" element={<SearchResultsPage />} />
                     <Route path="groups" element={<StudyGroupsPage />} />
+                    <Route path="essays" element={<Navigate to="/tools?tab=writing" replace />} />
+                    <Route path="language" element={<Navigate to="/tools?tab=language" replace />} />
+                    <Route path="classrooms" element={<ClassroomsPage />} />
+                    <Route path="classrooms/:id" element={<ClassroomDetailPage />} />
                     <Route path="chat" element={<ChatListPage />} />
                     {/* The mistake notebook lives in the Quiz Center; the tutor lives in AI Chat. */}
                     <Route path="mistakes" element={<Navigate to="/quizzes?tab=mistakes" replace />} />
@@ -165,6 +175,7 @@ export default function App() {
           </TtsProvider>
         </PromptProvider>
       </StudyProvider>
-    </AuthProvider>
+      </AuthProvider>
+    </I18nProvider>
   );
 }

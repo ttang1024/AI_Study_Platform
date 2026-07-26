@@ -26,7 +26,8 @@ public record QuizDto(
     string CorrectAnswer,
     string Explanation,
     DateTime CreatedAt,
-    string Difficulty = "medium");
+    string Difficulty = "medium",
+    SourceCitationDto? Citation = null);
 
 public record FlashcardSrsDto(
     Guid FlashcardId,
@@ -58,7 +59,8 @@ public record FlashcardDto(
     string? Chapter = null,
     IEnumerable<string>? Tags = null,
     string? ImageUrl = null,
-    string? OcclusionsJson = null);
+    string? OcclusionsJson = null,
+    SourceCitationDto? Citation = null);
 
 public record ChatMessageDto(
     Guid MessageId,
@@ -139,4 +141,20 @@ public record GlossaryTermDto(
     Guid? VideoId = null,
     Guid? CourseId = null,
     string? SourceName = null,
-    string? SourceKind = null);
+    string? SourceKind = null,
+    SourceCitationDto? Citation = null);
+
+/// <summary>
+/// Where a generated artifact came from in its source material.
+///
+/// <para><c>StartOffset</c>/<c>EndOffset</c> are character positions in the source's extracted text
+/// and are null when the supporting quote could not be located — the client then shows the quote as
+/// plain attribution with no jump target. <c>Page</c> and <c>StartSeconds</c> are set only for
+/// paginated documents and timed media respectively.</para>
+/// </summary>
+public record SourceCitationDto(
+    string Quote,
+    int? StartOffset = null,
+    int? EndOffset = null,
+    int? Page = null,
+    double? StartSeconds = null);

@@ -34,6 +34,11 @@ import {
   BentoKnowledgeGraphCard,
   BentoOfflineCard,
   BentoEverywhereCard,
+  BentoClassroomCard,
+  BentoEssayCard,
+  BentoCodeCard,
+  BentoLanguageCard,
+  BentoCitationCard,
 } from '../components/landing/bento';
 
 export const LandingPage: React.FC = () => {
@@ -148,10 +153,8 @@ export const LandingPage: React.FC = () => {
         <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.52 }}
           className="max-w-2xl text-lg sm:text-xl text-white/45 leading-relaxed mb-10">
-          Turn documents in 80+ formats, videos from 11 sites (YouTube, Bilibili, Vimeo, TED, TikTok &amp; more), podcasts from any app or RSS feed, audio lectures, and web articles into AI summaries,
-          mind maps, flashcards, quizzes — then master it all with spaced repetition, one-button smart sessions,
-          timed mock exams, AI grading of your handwritten work, and a hands-free voice tutor. On the web, on iOS
-          &amp; Android, even offline.
+          Turn any document, video, podcast, or article into AI summaries, mind maps, flashcards, and quizzes —
+          then master it with spaced repetition, mock exams, and a voice tutor. Web, iOS &amp; Android, even offline.
         </motion.p>
 
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
@@ -179,7 +182,7 @@ export const LandingPage: React.FC = () => {
           transition={{ duration: 0.8, delay: 0.9 }}
           className="flex flex-wrap justify-center gap-5 mt-14">
           {[
-            { to: 20, suffix: '+', label: 'AI-powered tools' },
+            { to: 25, suffix: '+', label: 'AI-powered tools' },
             { to: 100, suffix: '%', label: 'Free to start' },
             { to: 12, suffix: ' content types', label: '' },
           ].map((s, i) => (
@@ -223,7 +226,7 @@ export const LandingPage: React.FC = () => {
             <span style={{ background: 'linear-gradient(135deg, #e0f7ff, #a5f3fc)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Your Complete</span>{' '}
             <span style={{ background: 'linear-gradient(135deg, #14b8a6, #0891b2)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Study Suite</span>
           </h2>
-          <p className="mt-4 text-white/40 max-w-lg mx-auto">20+ AI-powered tools working together for every study session.</p>
+          <p className="mt-4 text-white/40 max-w-lg mx-auto">25+ AI-powered tools working together — for a solo cram session or a whole classroom.</p>
         </FadeIn>
 
         <div className="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-auto">
@@ -273,15 +276,30 @@ export const LandingPage: React.FC = () => {
             <BentoKnowledgeGraphCard />
           </FadeIn>
           <FadeIn delay={0.38}>
-            <BentoOfflineCard />
+            <BentoCitationCard />
           </FadeIn>
-          <FadeIn delay={0.38} className="lg:col-span-2 lg:row-span-1">
-            <BentoEverywhereCard />
+          <FadeIn delay={0.38}>
+            <BentoEssayCard />
           </FadeIn>
-          <FadeIn delay={0.42}>
-            <BentoSearchCard />
+          <FadeIn delay={0.38}>
+            <BentoCodeCard />
           </FadeIn>
           <FadeIn delay={0.42} className="lg:col-span-2 lg:row-span-1">
+            <BentoClassroomCard />
+          </FadeIn>
+          <FadeIn delay={0.42}>
+            <BentoLanguageCard />
+          </FadeIn>
+          <FadeIn delay={0.46}>
+            <BentoOfflineCard />
+          </FadeIn>
+          <FadeIn delay={0.46} className="lg:col-span-2 lg:row-span-1">
+            <BentoEverywhereCard />
+          </FadeIn>
+          <FadeIn delay={0.50}>
+            <BentoSearchCard />
+          </FadeIn>
+          <FadeIn delay={0.50} className="lg:col-span-2 lg:row-span-1">
             <BentoShareCard />
           </FadeIn>
         </div>

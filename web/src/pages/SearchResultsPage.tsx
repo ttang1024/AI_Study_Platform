@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useSearchParams, useNavigate, Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Search, FileText, BrainCircuit, Loader2, Sparkles } from 'lucide-react';
+import { Search, FileText, Loader2, Sparkles } from 'lucide-react';
 import { STUDY_TYPE_ICONS } from '../constants/contentTypeIcons';
 import { searchService, SearchResultItem, AskLibraryAnswer } from '../services/searchService';
 import { cn } from '../utils/cn';

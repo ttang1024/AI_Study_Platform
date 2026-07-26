@@ -84,6 +84,50 @@ export interface OcclusionRect {
 // createdAt. documentId is optional (video cards have none; web's readers all
 // accept an optional id). rn never emits 'occlusion' (its mappers collapse to
 // the narrower set), so widening cardType is safe.
+/**
+ * Where a generated artifact came from in its source material.
+ *
+ * `startOffset`/`endOffset` are character positions in the source's extracted text and are absent
+ * when the supporting quote could not be located — render the quote as plain attribution with no
+ * jump target in that case, rather than guessing a position.
+ */
+export interface SourceCitation {
+  quote: string;
+  startOffset?: number;
+  endOffset?: number;
+  /** 1-based, paginated documents only. */
+  page?: number;
+  /** Timed media only. */
+  startSeconds?: number;
+}
+
+/** Wire shape: the API serializes absent citation fields as explicit nulls, not by omitting them. */
+type WireCitation = {
+  quote: string;
+  startOffset?: number | null;
+  endOffset?: number | null;
+  page?: number | null;
+  startSeconds?: number | null;
+};
+
+/**
+ * Converts the wire's nulls to `undefined` so `field !== undefined` means what it reads like.
+ *
+ * Without this the API's `"startSeconds": null` is truthy against an `undefined` check, and every
+ * unlocatable citation renders a confident "Jump to 0:00" link to a position nobody resolved. Every
+ * mapper that surfaces a citation must go through here.
+ */
+export const normalizeCitation = (c?: WireCitation | null): SourceCitation | undefined =>
+  c == null
+    ? undefined
+    : {
+        quote: c.quote,
+        startOffset: c.startOffset ?? undefined,
+        endOffset: c.endOffset ?? undefined,
+        page: c.page ?? undefined,
+        startSeconds: c.startSeconds ?? undefined,
+      };
+
 export interface Flashcard {
   id: string;
   documentId?: string;
@@ -105,6 +149,7 @@ export interface Flashcard {
   srs?: FlashcardSrsState;
   imageUrl?: string;
   occlusions?: OcclusionRect[];
+  citation?: SourceCitation;
 }
 
 // Reconciled web/rn union. Canonical field is `correctAnswer` (the backend name,
@@ -117,6 +162,7 @@ export interface QuizQuestion {
   options?: string[]; // undefined for web short-answer questions; always set by rn
   correctAnswer: string;
   explanation: string;
+  citation?: SourceCitation;
   difficulty?: 'easy' | 'medium' | 'hard';
   type?: 'multiple-choice' | 'short-answer';
   documentId?: string;
@@ -156,5 +202,6 @@ export interface GlossaryTerm {
   courseId?: string;
   sourceName?: string; // doc name or video title
   sourceKind?: 'document' | 'video' | 'article' | 'audio';
+  citation?: SourceCitation;
   createdAt?: string;
 }

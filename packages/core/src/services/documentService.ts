@@ -1,6 +1,7 @@
 import type { HttpClient } from '../http';
 import type { SseStreamFn } from '../sse';
-import type { Document, Flashcard, Note, PendingMaterial, QuizQuestion } from '../types';
+import type { Document, Flashcard, Note, PendingMaterial, QuizQuestion, SourceCitation } from '../types';
+import { normalizeCitation } from '../types';
 import type { ChatAttachment, ChatMessage, ChatThreadSummary } from '../chat';
 
 export interface QuizSubmission {
@@ -55,6 +56,7 @@ interface BackendQuiz {
   correctAnswer: string;
   explanation: string;
   difficulty?: 'easy' | 'medium' | 'hard';
+  citation?: SourceCitation;
 }
 
 interface BackendFlashcard {
@@ -157,12 +159,25 @@ const mapChatMessage = (bm: BackendChatMessage): ChatMessage => ({
   attachments: bm.attachments ?? undefined,
 });
 
+export interface DocumentStaleness {
+  documentId: string;
+  contentVersion: number;
+  sourceChangedAt?: string;
+  staleFlashcards: number;
+  staleQuizzes: number;
+  staleGlossaryTerms: number;
+  summaryStale: boolean;
+  mindMapStale: boolean;
+  hasStaleArtifacts: boolean;
+}
+
 const mapQuiz = (bq: BackendQuiz): QuizQuestion => ({
   id: bq.quizId,
   question: bq.question,
   options: Array.isArray(bq.options) ? bq.options : [],
   correctAnswer: bq.correctAnswer,
   explanation: bq.explanation,
+  citation: normalizeCitation(bq.citation),
   type: 'multiple-choice',
   difficulty: bq.difficulty ?? 'medium',
 });
@@ -224,6 +239,40 @@ export function createDocumentService(http: HttpClient, streamSse: SseStreamFn) 
 
   return {
     invalidateDocumentListCache,
+
+    /**
+     * The document's plain text — the exact string citation offsets index into. Extracted and
+     * persisted server-side on first request, so repeated calls and every stored anchor agree.
+     */
+    getText: (documentId: string) =>
+      http.get<{ data: { documentId: string; text: string | null; contentVersion: number } }>(
+        `/api/documents/${documentId}/text`,
+      ),
+
+    /** How much of this document's generated material predates its current source version. */
+    getStaleness: (documentId: string) =>
+      http.get<{ data: DocumentStaleness }>(`/api/documents/${documentId}/staleness`),
+
+    /**
+     * Replaces the document's file. Existing artifacts are kept but marked out of date —
+     * regenerating is a separate, explicit step so a re-upload never discards review history.
+     */
+    replaceSource: (documentId: string, file: File | Blob, fileName: string) => {
+      const form = new FormData();
+      form.append('file', file, fileName);
+      return http.put<{ data: DocumentStaleness }>(`/api/documents/${documentId}/source`, form);
+    },
+
+    regenerateStale: (
+      documentId: string,
+      kinds: { flashcards?: boolean; quizzes?: boolean; glossary?: boolean } = {},
+    ) =>
+      http.post<{ data: DocumentStaleness }>(`/api/documents/${documentId}/regenerate`, {
+        flashcards: kinds.flashcards ?? true,
+        quizzes: kinds.quizzes ?? true,
+        glossary: kinds.glossary ?? true,
+      }),
+
 
     async getAllDocuments(page = 1, pageSize = 3, courseId?: string): Promise<PagedDocuments> {
       const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });

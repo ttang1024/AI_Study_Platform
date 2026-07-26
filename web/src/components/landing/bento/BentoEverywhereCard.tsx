@@ -32,7 +32,6 @@ export const BentoEverywhereCard: React.FC = () => {
         title="Study Everywhere"
         gradient="from-indigo-500 to-violet-600"
         iconGlow="0 6px 22px rgba(129,140,248,0.4)"
-        isNew
       />
 
       <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">

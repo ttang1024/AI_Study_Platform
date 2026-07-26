@@ -179,6 +179,38 @@ public partial class VideoController
     }
 
     // Returns transcript from Redis → DB → YouTube fetch (in that order), persisting to DB and Redis on miss.
+    /// <summary>
+    /// Character offsets at which each timed transcript segment begins, for turning a citation's
+    /// located quote into a timestamp the player can seek to.
+    ///
+    /// The offsets must match the transcript string the model actually saw, so this reproduces the
+    /// exact <c>string.Join(" ", …)</c> that GetOrFetchTranscriptAsync uses. Returns null when only
+    /// an untimed transcript is stored — those citations stay quote-only rather than inventing a
+    /// timestamp.
+    /// </summary>
+    private async Task<List<(double StartSeconds, int TextOffset)>?> GetTranscriptSegmentOffsetsAsync(
+        Video video, CancellationToken cancellationToken)
+    {
+        var transcriptKey = $"{NormalizeSourceType(video.SourceType)}:{video.ExternalVideoId}";
+
+        var segments = await GetStoredTranscriptSegmentsAsync(transcriptKey, SubtitlesKind, cancellationToken)
+                       ?? await GetStoredTranscriptSegmentsAsync(transcriptKey, TranscriptKind, cancellationToken);
+
+        if (segments is not { Count: > 0 })
+            return null;
+
+        var offsets = new List<(double, int)>(segments.Count);
+        var cursor = 0;
+
+        foreach (var segment in segments)
+        {
+            offsets.Add((segment.StartSeconds, cursor));
+            cursor += segment.Text.Length + 1; // +1 for the single space the join inserts
+        }
+
+        return offsets;
+    }
+
     private async Task<string?> GetOrFetchTranscriptAsync(Video video, CancellationToken cancellationToken)
     {
         var transcriptKey = $"{NormalizeSourceType(video.SourceType)}:{video.ExternalVideoId}";

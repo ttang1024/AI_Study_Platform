@@ -3,6 +3,7 @@ import { Loader2, CheckCircle2, Circle, Pencil, Trash2, Check, X, CheckSquare, S
 import { CONTENT_TYPE_ICONS } from '../../constants/contentTypeIcons';
 import { cn } from '../../utils/cn';
 import { GlossaryTerm } from '../../types';
+import SourceCitation from './SourceCitation';
 
 interface GlossaryTermCardProps {
   term: GlossaryTerm;
@@ -151,7 +152,15 @@ export const GlossaryTermCard: React.FC<GlossaryTermCardProps> = ({
         className="w-full rounded-lg border border-primary/50 bg-[var(--bg-app)] px-2 py-1.5 text-sm text-text-muted outline-none resize-none"
       />
     ) : (
-      <p className="text-sm text-text-muted leading-relaxed">{term.definition}</p>
+      <>
+        <p className="text-sm text-text-muted leading-relaxed">{term.definition}</p>
+        <SourceCitation
+          citation={term.citation}
+          documentId={term.documentId}
+          videoId={term.videoId}
+          className="mt-2"
+        />
+      </>
     )}
   </div>
 );

@@ -92,8 +92,6 @@ export const DocumentQuiz: React.FC<DocumentQuizProps> = ({
   /** {questionId: 1|2|3}. Sparse — rating is optional, and an unrated question must stay unrated. */
   const [confidence, setConfidence] = useState<Record<string, number>>({});
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const [score, setScore] = useState(0);
-  const [localError, setLocalError] = useState<string | null>(null);
 
   // Load previously generated quiz and any saved submission when the document opens (internal mode only)
   useEffect(() => {
@@ -107,8 +105,6 @@ export const DocumentQuiz: React.FC<DocumentQuizProps> = ({
     setErrorSets({ easy: null, medium: null, hard: null, adaptive: null });
     setUserAnswers({});
     setIsSubmitted(false);
-    setScore(0);
-    setLocalError(null);
     setIsLoading(true);
 
     Promise.all([
@@ -135,7 +131,6 @@ export const DocumentQuiz: React.FC<DocumentQuizProps> = ({
           setAnswerSets(prev => ({ ...prev, [loadedDifficulty]: submission.answers }));
           setIsSubmitted(true);
           setSubmittedSets(prev => ({ ...prev, [loadedDifficulty]: true }));
-          setScore(submission.score);
           setScoreSets(prev => ({ ...prev, [loadedDifficulty]: submission.score }));
         }
       })
@@ -156,13 +151,11 @@ export const DocumentQuiz: React.FC<DocumentQuizProps> = ({
     setIsLoading(true);
     setQuestions([]);
     setQuestionSets(prev => ({ ...prev, [difficulty]: [] }));
-    setScore(0);
     setScoreSets(prev => ({ ...prev, [difficulty]: 0 }));
     setIsSubmitted(false);
     setSubmittedSets(prev => ({ ...prev, [difficulty]: false }));
     setUserAnswers({});
     setAnswerSets(prev => ({ ...prev, [difficulty]: {} }));
-    setLocalError(null);
     setErrorSets(prev => ({ ...prev, [difficulty]: null }));
 
     setAdaptiveRationale(null);
@@ -190,7 +183,6 @@ export const DocumentQuiz: React.FC<DocumentQuizProps> = ({
       setQuestionSets(prev => ({ ...prev, [difficulty]: data }));
     } catch (error) {
       console.error('Quiz generation error:', error);
-      setLocalError(getApiErrorCode(error));
       setErrorSets(prev => ({ ...prev, [difficulty]: getApiErrorCode(error) }));
     } finally {
       setIsLoading(false);
@@ -206,8 +198,6 @@ export const DocumentQuiz: React.FC<DocumentQuizProps> = ({
     setQuestions(questionSets[difficulty]);
     setUserAnswers(answerSets[difficulty]);
     setIsSubmitted(submittedSets[difficulty]);
-    setScore(scoreSets[difficulty]);
-    setLocalError(errorSets[difficulty]);
   };
 
   const handleAnswer = (questionId: string, option: string) => {
@@ -240,7 +230,6 @@ export const DocumentQuiz: React.FC<DocumentQuizProps> = ({
       }
     });
 
-    setScore(finalScore);
     setScoreSets(prev => ({ ...prev, [activeDifficulty]: finalScore }));
     setIsSubmitted(true);
     setSubmittedSets(prev => ({ ...prev, [activeDifficulty]: true }));

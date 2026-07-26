@@ -1,7 +1,6 @@
 using MediatR;
 using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Documents.DTOs;
-using StudyPlatform.Application.Flashcards.DTOs;
 using StudyPlatform.Application.Services;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;

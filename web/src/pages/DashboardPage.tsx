@@ -6,6 +6,7 @@ import { CONTENT_TYPE_ICONS, STUDY_TYPE_ICONS } from '../constants/contentTypeIc
 import { useAuth } from '../context/AuthContext';
 import { useStudy } from '../context/StudyContext';
 import { StudyCalendar } from '../components/common/StudyCalendar';
+import OnboardingChecklist from '../components/dashboard/OnboardingChecklist';
 import { ReinforcementSummaryCards } from '../components/dashboard/ReinforcementSummaryCards';
 import { XpDigestCards } from '../components/dashboard/XpDigestCards';
 import { TodayProgressHero } from '../components/today/TodayProgressHero';
@@ -195,10 +196,30 @@ export const DashboardPage: React.FC = () => {
         </h1>
       </motion.div>
 
+      {/* ── Getting started: renders nothing once dismissed or complete ──── */}
+      <motion.div variants={item}>
+        <OnboardingChecklist />
+      </motion.div>
+
       {/* ── Today's plan hero: progress, streak & next action ────────────── */}
       <motion.div variants={item}>
         <TodayProgressHero />
       </motion.div>
+
+      {/* ── Courses ──────────────────────────────────────────────────────── */}
+      {courses.length > 0 && (
+        <motion.div variants={item} className="space-y-3">
+          <SectionLabel>Your Courses</SectionLabel>
+          <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
+            {courses.map((course, i) => {
+              const counts = courseMaterialCounts.find(c => c.courseId === course.id);
+              const docCount = (counts?.documents ?? 0) + (counts?.articles ?? 0) + (counts?.audio ?? 0);
+              const videoCount = counts?.videos ?? 0;
+              return <CourseCard key={course.id} course={course} i={i} docCount={docCount} videoCount={videoCount} />;
+            })}
+          </div>
+        </motion.div>
+      )}
 
       {/* ── Content Library ──────────────────────────────────────────────── */}
       <motion.div variants={item}>
@@ -249,21 +270,6 @@ export const DashboardPage: React.FC = () => {
         <SectionLabel>Progress</SectionLabel>
         <XpDigestCards />
       </motion.div>
-
-      {/* ── Courses ──────────────────────────────────────────────────────── */}
-      {courses.length > 0 && (
-        <motion.div variants={item} className="space-y-3">
-          <SectionLabel>Your Courses</SectionLabel>
-          <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
-            {courses.map((course, i) => {
-              const counts = courseMaterialCounts.find(c => c.courseId === course.id);
-              const docCount = (counts?.documents ?? 0) + (counts?.articles ?? 0) + (counts?.audio ?? 0);
-              const videoCount = counts?.videos ?? 0;
-              return <CourseCard key={course.id} course={course} i={i} docCount={docCount} videoCount={videoCount} />;
-            })}
-          </div>
-        </motion.div>
-      )}
 
       {/* ── Study Calendar ────────────────────────────────────────────────── */}
       <motion.div variants={item} className="space-y-3">

@@ -24,6 +24,7 @@ import { PressableScale } from '@/components/PressableScale';
 import { ProgressBar } from '@/components/ProgressBar';
 import { CountTile, DigestStat, ReinforceCard, SectionLabel, StatTile } from '@/components/home/DashboardTiles';
 import { HomeSkeleton } from '@/components/home/HomeSkeleton';
+import { OnboardingChecklist } from '@/components/home/OnboardingChecklist';
 import { StudyCalendar } from '@/components/study/StudyCalendar';
 import { Colors, Gradients, Layout, Motion, Overlay, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
@@ -73,7 +74,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
-  const { data, loading, refreshing, reload } = useDashboardData();
+  const { data, loading, refreshing, refresh } = useDashboardData();
 
   if (loading || !data) {
     return <HomeSkeleton />;
@@ -87,14 +88,20 @@ export default function HomeScreen() {
     <ScrollView
       style={styles.root}
       contentContainerStyle={[styles.content, { paddingTop: insets.top + Spacing.three }]}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => reload(true)} tintColor={Colors.primary} />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={Colors.primary} />}
     >
       <Section index={0} style={styles.greetBlock}>
         <Text style={styles.eyebrow}>{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</Text>
         <Text style={styles.greeting}>{greeting()}{user?.name ? `, ${user.name.split(' ')[0]}` : ''}</Text>
       </Section>
 
+      {/* Above the hero: a new account has nothing to show there yet, so the checklist is the
+          most useful thing on the screen until it is finished. */}
       <Section index={1}>
+        <OnboardingChecklist />
+      </Section>
+
+      <Section index={2}>
         <LinearGradient colors={Gradients.hero} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.heroCard}>
           <View style={styles.heroHeader}>
             <View>
@@ -139,7 +146,7 @@ export default function HomeScreen() {
         </LinearGradient>
       </Section>
 
-      <Section index={2}>
+      <Section index={3}>
         <PressableScale style={styles.summarizeCta} onPress={() => router.push('/summarizer')}>
           <IconBadge icon={Sparkles} size={40} gradient />
           <View style={styles.summarizeBody}>
@@ -150,7 +157,7 @@ export default function HomeScreen() {
         </PressableScale>
       </Section>
 
-      <Section index={3} style={styles.section}>
+      <Section index={4} style={styles.section}>
         <SectionLabel label="Content Library" />
         <View style={styles.grid}>
           <CountTile icon={FileText} color={Colors.blue} label="Documents" value={stats.totalDocuments} onPress={() => router.push({ pathname: '/library', params: { type: 'documents' } })} />
@@ -160,7 +167,7 @@ export default function HomeScreen() {
         </View>
       </Section>
 
-      <Section index={4} style={styles.section}>
+      <Section index={5} style={styles.section}>
         <SectionLabel label="Study Tools" />
         <View style={styles.grid}>
           <CountTile icon={Layers} color={Colors.yellow} label="Flashcards" value={stats.totalFlashcards} onPress={() => router.push('/study/flashcards')} />
@@ -170,7 +177,7 @@ export default function HomeScreen() {
         </View>
       </Section>
 
-      <Section index={5} style={styles.section}>
+      <Section index={6} style={styles.section}>
         <SectionLabel label="Reinforcement" />
         <View style={styles.reinforceRow}>
           <ReinforceCard label="Quiz mistakes" value={summary.reinforcement.quizMistakes} color={Colors.red} onPress={() => router.push('/study/quizzes')} />
@@ -179,7 +186,7 @@ export default function HomeScreen() {
         </View>
       </Section>
 
-      <Section index={6}>
+      <Section index={7}>
         <Card style={styles.xpCard}>
           <View style={styles.xpHeader}>
             <IconBadge icon={Zap} color={Colors.amber} size={32} />
@@ -191,7 +198,7 @@ export default function HomeScreen() {
         </Card>
       </Section>
 
-      <Section index={7}>
+      <Section index={8}>
         <Card style={styles.digestCard}>
           <View style={styles.xpHeader}>
             <IconBadge icon={TrendingUp} size={32} />
@@ -207,7 +214,7 @@ export default function HomeScreen() {
         </Card>
       </Section>
 
-      <Section index={8} style={styles.section}>
+      <Section index={9} style={styles.section}>
         <SectionLabel label="Study Calendar" />
         <StudyCalendar />
       </Section>

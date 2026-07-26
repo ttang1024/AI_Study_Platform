@@ -8,6 +8,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AppLockGate } from '@/components/AppLockGate';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
+import { I18nProvider } from '@/context/I18nContext';
 import { TtsProvider } from '@/context/TtsContext';
 import { Colors, Layout } from '@/constants/theme';
 import { configureNotificationHandling } from '@/services/pushService';
@@ -84,11 +85,13 @@ export default function RootLayout() {
           onResetShareIntent: () => router.replace('/'),
         }}
       >
-        <AppLockGate>
-          <AuthProvider>
-            <RootNavigator />
-          </AuthProvider>
-        </AppLockGate>
+        <I18nProvider>
+          <AppLockGate>
+            <AuthProvider>
+              <RootNavigator />
+            </AuthProvider>
+          </AppLockGate>
+        </I18nProvider>
       </ShareIntentProvider>
     </GestureHandlerRootView>
   );

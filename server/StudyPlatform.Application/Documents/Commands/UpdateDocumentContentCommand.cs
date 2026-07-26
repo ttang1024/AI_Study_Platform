@@ -22,10 +22,18 @@ public class UpdateDocumentContentCommandHandler : IRequestHandler<UpdateDocumen
         if (document == null || document.UserId != request.UserId)
             return Result<DocumentDto>.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
 
+        // Editing counts as bringing it up to date: the user has just read this text against the
+        // current file. Leaving the stamp alone would keep telling them it was out of date.
         if (request.Summary != null)
+        {
             document.Summary = request.Summary;
+            document.SummaryVersion = document.ContentVersion;
+        }
         if (request.MindMapText != null)
+        {
             document.MindMapText = request.MindMapText;
+            document.MindMapVersion = document.ContentVersion;
+        }
         document.UpdatedAt = DateTime.UtcNow;
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);

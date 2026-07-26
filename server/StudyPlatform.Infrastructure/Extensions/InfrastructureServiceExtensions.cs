@@ -1,7 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using StudyPlatform.Application.Billing;
 using StudyPlatform.Application.Services;
+using StudyPlatform.Application.Settings;
 using StudyPlatform.Domain.Interfaces;
 using StudyPlatform.Infrastructure.Data;
 using StudyPlatform.Infrastructure.Http;
@@ -37,6 +39,7 @@ public static class InfrastructureServiceExtensions
 
         // Admin platform-wide analytics (reads across all users; admin-only endpoints)
         services.AddScoped<IAdminAnalyticsRepository, AdminAnalyticsRepository>();
+        services.AddScoped<IClassroomGradebookRepository, ClassroomGradebookRepository>();
 
         // Unified library list (documents + videos merged, server-paginated)
         services.AddScoped<ILibraryRepository, LibraryRepository>();
@@ -47,6 +50,10 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IBlobStorageService, S3BlobStorageService>();
         services.AddScoped<IDocumentTextExtractor, DocumentTextExtractorService>();
         services.AddScoped<IDocumentContentService, DocumentContentService>();
+        services.AddScoped<IDocumentTextProvider, DocumentTextProvider>();
+        // Deferred so a document whose text is already stored can be read without constructing the
+        // blob-storage chain the extractor depends on.
+        services.AddScoped<Func<IDocumentTextExtractor>>(sp => sp.GetRequiredService<IDocumentTextExtractor>);
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddSingleton<IAnkiExportService, AnkiExportService>();
         services.AddSingleton<ITtsSynthesisService, EdgeTtsService>();
@@ -54,6 +61,25 @@ public static class InfrastructureServiceExtensions
         // Token accounting for every AI call. Singleton: it opens its own scope per write so usage
         // rows never enlist in the caller's unit of work.
         services.AddSingleton<IAiUsageRecorder, AiUsageRecorder>();
+        services.AddSingleton<IInstanceIdentity, InstanceIdentity>();
+
+        // Singleton: the quota gate is a singleton and consults entitlements on every AI call.
+        services.AddSingleton<IEntitlementService, EntitlementService>();
+        services.AddScoped<IHostedAiKeyProvider, HostedAiKeyProvider>();
+
+        // Billing binds to a real processor only when one is configured; otherwise a no-op provider
+        // keeps every user on the free plan and the UI hides upgrade affordances.
+        var billingConfigured = !string.IsNullOrWhiteSpace(
+            configuration[$"{BillingOptions.SectionName}:SecretKey"]);
+
+        if (billingConfigured)
+            services.AddHttpClient<IBillingProvider, StripeBillingProvider>(client =>
+            {
+                client.Timeout = TimeSpan.FromSeconds(30);
+            });
+        else
+            services.AddSingleton<IBillingProvider, NullBillingProvider>();
+
         // External ICS calendars ("secret address" feeds) for planner busy-time import.
         // User-supplied URL → SSRF-guarded handler that refuses private/loopback/metadata addresses
         // on the initial request and every redirect hop.

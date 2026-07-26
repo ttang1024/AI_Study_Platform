@@ -4,10 +4,11 @@
 // the lightweight card shape), and generateSummary keeping rn's Document return
 // (core's parses the {summary, keyPoints} blob instead).
 import { createDocumentService, mapDocument, type BackendDocument } from '@core/services/documentService';
+import { normalizeCitation } from '@core/types';
 import { apiClient } from '@/services/apiClient';
 import { http } from '@/services/http';
 import { streamSse } from '@/services/sse';
-import type { Document, PickedFile, SimpleCard } from '@/types';
+import type { Document, PickedFile, SimpleCard, SourceCitation } from '@/types';
 import { toFormDataPart } from '@/utils/formData';
 
 export * from '@core/services/documentService';
@@ -19,6 +20,7 @@ interface BackendDocumentFlashcard {
   front: string;
   back: string;
   cardType?: 'basic' | 'cloze' | 'chart';
+  citation?: SourceCitation;
 }
 
 const mapDocumentFlashcard = (bf: BackendDocumentFlashcard): SimpleCard => ({
@@ -26,6 +28,7 @@ const mapDocumentFlashcard = (bf: BackendDocumentFlashcard): SimpleCard => ({
   front: bf.front,
   back: bf.back,
   cardType: bf.cardType ?? 'basic',
+  citation: normalizeCitation(bf.citation),
 });
 
 export const documentService = {

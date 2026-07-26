@@ -5,6 +5,7 @@ import { useTts } from '../../hooks/useTts';
 import { TtsPlayer } from '../common/TtsPlayer';
 import { EmptyGenerationState, GenerationFailedState } from '../common/GenerationStates';
 import { SummaryMarkdown } from './SummaryMarkdown';
+import TranslateButton from '../common/TranslateButton';
 
 interface SummaryPanelProps {
 	summary: string | null;
@@ -52,6 +53,12 @@ export const SummaryPanel: React.FC<SummaryPanelProps> = ({
 	generateDisabledReason,
 	onSaveSummary,
 }) => {
+	const [translated, setTranslated] = React.useState<string | null>(null);
+
+	// Drop a translation when the underlying summary changes, so it can never be shown against
+	// material it was not translated from.
+	React.useEffect(() => setTranslated(null), [summary]);
+
 	const ttsItems = React.useMemo(
 		() => summary ? [{ text: stripMarkdown(summary), title: 'Summary' }] : [],
 		[summary],
@@ -165,8 +172,11 @@ export const SummaryPanel: React.FC<SummaryPanelProps> = ({
 					className="summary-content select-text"
 					onMouseUp={onMouseUp}
 				>
-					<SummaryMarkdown value={summary} onTimelineSeek={onTimelineSeek} />
+					<SummaryMarkdown value={translated ?? summary} onTimelineSeek={onTimelineSeek} />
 				</div>
+				{/* Translation is a view over the summary, held in local state only — nothing is saved,
+				    so a regenerated summary can never leave a stale translation behind. */}
+				<TranslateButton text={summary} onTranslated={setTranslated} className="mt-3" />
 				{(playerState !== 'idle' || ttsError) && (
 					<TtsPlayer
 						state={playerState}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { motion, AnimatePresence } from 'motion/react';
+import { AnimatePresence } from 'motion/react';
 import { Globe, Loader2 } from 'lucide-react';
 import { DocumentCard } from '../common/DocumentCard';
 import { useStudy } from '../../context/StudyContext';

@@ -6,6 +6,7 @@ import { documentService } from '../../services/documentService';
 import { useStudy } from '../../context/StudyContext';
 import { CheckCircle2, XCircle, ChevronRight, Loader2 } from 'lucide-react';
 import { isQuizOptionCorrect } from '../../utils/quizAnswers';
+import SourceCitation from '../common/SourceCitation';
 
 export const QuizModal: React.FC = () => {
   const { currentDocument, updateProgress } = useStudy();
@@ -152,6 +153,12 @@ export const QuizModal: React.FC = () => {
             <div className="rounded-xl bg-zinc-50 p-4">
               <p className="text-sm font-medium text-zinc-900">Explanation:</p>
               <p className="mt-1 text-sm text-zinc-600">{currentQuestion.explanation}</p>
+              <SourceCitation
+                citation={currentQuestion.citation}
+                documentId={currentQuestion.documentId}
+                videoId={currentQuestion.videoId}
+                className="mt-3"
+              />
             </div>
           )}
 

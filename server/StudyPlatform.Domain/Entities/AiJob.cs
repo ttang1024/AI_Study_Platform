@@ -42,6 +42,16 @@ public class AiJob
 
     public string? Error { get; set; }
 
+    /// <summary>
+    /// Which API instance accepted this job.
+    ///
+    /// <para>Jobs are replica-affine and cannot be handed over: the provider credentials live only
+    /// in the accepting instance's in-memory queue entry, never in this row, so no other replica
+    /// could run it even if it wanted to. Recording the owner keeps a second replica from claiming
+    /// a job it cannot execute, and makes a stranded job traceable to the instance that lost it.</para>
+    /// </summary>
+    public string? OwnerInstanceId { get; set; }
+
     public DateTime CreatedAt { get; set; }
     public DateTime? StartedAt { get; set; }
     public DateTime? CompletedAt { get; set; }

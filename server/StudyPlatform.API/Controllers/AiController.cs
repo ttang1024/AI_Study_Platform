@@ -34,7 +34,7 @@ public record GeneralChatConversationDto(
 [Route("api/ai")]
 [Authorize]
 [Produces("application/json")]
-public class AiController : ControllerBase
+public partial class AiController : ControllerBase
 {
     private readonly IAiService _aiService;
     private readonly IUnitOfWork _unitOfWork;

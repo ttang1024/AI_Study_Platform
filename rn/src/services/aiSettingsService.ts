@@ -4,9 +4,10 @@ import * as SecureStore from 'expo-secure-store';
 // web/, rn/, and extension/ (see packages/core/src/ai.ts). Re-exported here so
 // existing `@/services/aiSettingsService` imports keep working unchanged.
 import { DEFAULT_MODELS } from '@core/ai';
+import type { AIProvider, AISettings } from '@core/ai';
+
 export { DEFAULT_MODELS } from '@core/ai';
 export type { AIProvider, AISettings } from '@core/ai';
-import type { AIProvider, AISettings } from '@core/ai';
 
 const STORAGE_KEY = 'sp_ai_settings';
 

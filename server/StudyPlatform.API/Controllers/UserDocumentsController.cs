@@ -16,7 +16,7 @@ namespace StudyPlatform.API.Controllers;
 [Route("api/documents")]
 [Authorize]
 [Produces("application/json")]
-public class UserDocumentsController : ControllerBase
+public partial class UserDocumentsController : ControllerBase
 {
     private readonly IMediator _mediator;
     private readonly ILogger<UserDocumentsController> _logger;

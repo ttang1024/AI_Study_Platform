@@ -43,6 +43,8 @@ export default function LibraryLayout() {
           which doesn't always yield a default header back button — force one. */}
       <Stack.Screen name="document/[id]" options={{ title: '', headerLeft: () => <HeaderBackButton /> }} />
       <Stack.Screen name="video/[id]" options={{ title: '', headerLeft: () => <HeaderBackButton /> }} />
+      {/* Where a citation's "jump to source" lands. */}
+      <Stack.Screen name="document/source" options={{ title: 'Source', headerLeft: () => <HeaderBackButton /> }} />
       <Stack.Screen name="scoped-chat" options={{ title: 'Chat' }} />
       <Stack.Screen name="search" options={{ title: 'Search' }} />
     </Stack>

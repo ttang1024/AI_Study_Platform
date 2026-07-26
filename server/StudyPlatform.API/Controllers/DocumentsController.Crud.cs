@@ -4,6 +4,7 @@ using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Documents.Commands;
 using StudyPlatform.Application.Documents.DTOs;
 using StudyPlatform.Application.Documents.Queries;
+using StudyPlatform.Application.Services;
 
 namespace StudyPlatform.API.Controllers;
 
@@ -227,14 +228,21 @@ public partial class DocumentsController
     /// </summary>
     [HttpGet("{documentId:guid}/text")]
     [Produces("text/plain")]
-    public async Task<IActionResult> GetDocumentText(Guid courseId, Guid documentId, CancellationToken cancellationToken)
+    public async Task<IActionResult> GetDocumentText(
+        Guid courseId,
+        Guid documentId,
+        [FromServices] IDocumentTextProvider textProvider,
+        CancellationToken cancellationToken)
     {
         var userId = User.GetUserId();
         var document = await _unitOfWork.Documents.GetByIdAsync(documentId, cancellationToken);
         if (document == null || document.UserId != userId)
             return NotFound();
 
-        var (_, text) = await _contentService.GetContentAsync(document, cancellationToken);
+        // Goes through the text provider rather than re-extracting: it returns the one stored copy,
+        // which is also what citation offsets index into. Re-extracting here would hand the viewer a
+        // different string for PDFs and images, whose extraction falls back to AI transcription.
+        var text = await textProvider.GetTextAsync(document, cancellationToken);
         return Content(text ?? string.Empty, "text/plain; charset=utf-8");
     }
 

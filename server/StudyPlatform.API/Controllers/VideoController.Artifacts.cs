@@ -60,6 +60,7 @@ public partial class VideoController
         if (transcript == null)
             return BadRequest(BaseResponse<IEnumerable<FlashcardDto>>.Fail("No subtitles available for this video.", "NO_TRANSCRIPT"));
 
+        var segmentOffsets = await GetTranscriptSegmentOffsetsAsync(video, cancellationToken);
         var resultJson = await _aiService.GenerateFlashcardsFromYouTubeAsync(transcript, cancellationToken);
 
         List<AiFlashcardItem> cards;
@@ -80,6 +81,7 @@ public partial class VideoController
             var back = isChart && card.ChartData.HasValue
                 ? JsonSerializer.Serialize(card.ChartData.Value)
                 : card.Back;
+            var anchor = SourceAnchorResolver.ResolveWithTimestamps(transcript, card.Quote, segmentOffsets);
             await _unitOfWork.Flashcards.AddAsync(new Flashcard
             {
                 FlashcardId = Guid.NewGuid(),
@@ -88,6 +90,7 @@ public partial class VideoController
                 SourceType = "video",
                 Front = card.Front,
                 Back = back,
+                SourceAnchorJson = anchor == null ? null : SourceAnchorResolver.Serialize(anchor),
                 CardType = isChart ? "chart" : isCloze ? "cloze" : "basic",
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
@@ -140,6 +143,7 @@ public partial class VideoController
             if (transcript == null)
                 return BadRequest(BaseResponse<IEnumerable<GlossaryTermDto>>.Fail("No subtitles available for this video.", "NO_TRANSCRIPT"));
 
+            var segmentOffsets = await GetTranscriptSegmentOffsetsAsync(video, cancellationToken);
             var resultJson = await _aiService.GenerateGlossaryAsync(transcript, cancellationToken);
 
             List<AiGlossaryItem> items;
@@ -155,6 +159,7 @@ public partial class VideoController
 
             foreach (var item in items)
             {
+                var anchor = SourceAnchorResolver.ResolveWithTimestamps(transcript, item.Quote, segmentOffsets);
                 await _unitOfWork.GlossaryTerms.AddAsync(new StudyPlatform.Domain.Entities.GlossaryTerm
                 {
                     GlossaryTermId = Guid.NewGuid(),
@@ -162,6 +167,7 @@ public partial class VideoController
                     VideoId = id,
                     Term = item.Term,
                     Definition = item.Definition,
+                    SourceAnchorJson = anchor == null ? null : SourceAnchorResolver.Serialize(anchor),
                     CreatedAt = DateTime.UtcNow
                 }, cancellationToken);
             }
@@ -231,6 +237,7 @@ public partial class VideoController
         if (transcript == null)
             return BadRequest(BaseResponse<IEnumerable<QuizDto>>.Fail("No subtitles available for this video.", "NO_TRANSCRIPT"));
 
+        var segmentOffsets = await GetTranscriptSegmentOffsetsAsync(video, cancellationToken);
         var resultJson = await _aiService.GenerateQuizFromYouTubeAsync(transcript, normalizedDifficulty, cancellationToken);
 
         List<AiQuizItem> quizItems;
@@ -246,6 +253,7 @@ public partial class VideoController
 
         foreach (var item in quizItems)
         {
+            var anchor = SourceAnchorResolver.ResolveWithTimestamps(transcript, item.Quote, segmentOffsets);
             await _unitOfWork.Quizzes.AddAsync(new Quiz
             {
                 QuizId = Guid.NewGuid(),
@@ -256,6 +264,7 @@ public partial class VideoController
                 OptionsJson = JsonSerializer.Serialize(item.Options),
                 CorrectAnswer = item.CorrectAnswer,
                 Explanation = item.Explanation,
+                SourceAnchorJson = anchor == null ? null : SourceAnchorResolver.Serialize(anchor),
                 Difficulty = normalizedDifficulty,
                 CreatedAt = DateTime.UtcNow
             }, cancellationToken);

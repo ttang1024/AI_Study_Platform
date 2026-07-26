@@ -12,7 +12,7 @@ import { isKnownTab, type SeekHandle, type Tab } from '@/components/library/vide
  * the offset (bump the nonce to force a fresh WebView) — mirrors web.
  */
 export function useVideoDetail() {
-  const { id, tab: initialTab } = useLocalSearchParams<{ id: string; tab?: string }>();
+  const { id, tab: initialTab, t: seekParam } = useLocalSearchParams<{ id: string; tab?: string; t?: string }>();
   const navigation = useNavigation();
   const [video, setVideo] = useState<VideoDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -36,6 +36,25 @@ export function useVideoDetail() {
       setEmbedSeekNonce((n) => n + 1);
     }
   }, [video?.sourceType]);
+
+  // A `t` param means we arrived from a citation's "jump to source". Seek once the video has
+  // loaded — before that the player refs are empty and the seek would be dropped — and only once,
+  // or it would fight the user's own scrubbing on every re-render.
+  const deepLinkSeeked = useRef(false);
+  useEffect(() => {
+    if (deepLinkSeeked.current || !video || !seekParam) return;
+
+    const seconds = Number(seekParam);
+    if (!Number.isFinite(seconds) || seconds < 0) return;
+
+    deepLinkSeeked.current = true;
+
+    // Deferred a frame rather than seeking inline. The player mounts in the same commit that sets
+    // `video`, so its imperative ref is not attached yet and an immediate seek would be dropped —
+    // and for embed sources seekTo sets state, which must not happen in an effect body.
+    const timer = setTimeout(() => seekTo(seconds), 0);
+    return () => clearTimeout(timer);
+  }, [video, seekParam, seekTo]);
 
   // Attribute watch/study time on this video to its course in analytics.
   useStudyTimer({ contextType: 'video', courseId: video?.courseId, contextId: id, enabled: !loading && !error });

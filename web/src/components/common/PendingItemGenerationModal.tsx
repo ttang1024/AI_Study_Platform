@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../../utils/cn';
 import { documentService } from '../../services/documentService';
 import { videoService } from '../../services/videoService';
-import { isCorrectOption, type ModalState } from './pendingItemsHelpers';
+import type { ModalState } from './pendingItemsHelpers';
 
 interface PendingItemGenerationModalProps {
   modal: ModalState;

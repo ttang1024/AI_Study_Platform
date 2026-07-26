@@ -43,6 +43,11 @@ export interface UseTtsReturn {
 // changes every chunk/item — useAudioPlayer's hook form assumes one source
 // per component). `didJustFinish` on the player's status event stands in for
 // the web version's `audio.onended`.
+/**
+ * `items` is only the initial queue. The sole caller (TtsContext) passes a stable empty constant and
+ * populates the queue through `replaceItems`, so in practice this argument never changes after mount
+ * — the render-time sync below exists to keep the hook correct if that ever stops being true.
+ */
 export function useTts(items: TtsItem[]): UseTtsReturn {
   const [storedItems, setStoredItems] = useState(items);
   const [playerState, setPlayerState] = useState<TtsState>('idle');
@@ -60,10 +65,20 @@ export function useTts(items: TtsItem[]): UseTtsReturn {
   const sleepTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sleepCountdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  useEffect(() => {
-    itemsRef.current = items;
+  // Adjusting state during render rather than in an effect — React's documented pattern for "reset
+  // state when a prop changes". The effect form cost an extra committed render on every change of
+  // `items`, and re-entered the same setState the compiler's effect analysis rejects. `replaceItems`
+  // can still override locally; a later render with an unchanged `items` reference leaves it alone,
+  // which is exactly what the effect's dependency array used to guarantee.
+  const [itemsSource, setItemsSource] = useState(items);
+  if (items !== itemsSource) {
+    setItemsSource(items);
     setStoredItems(items);
-  }, [items]);
+  }
+
+  // The ref stays on the effect: it is read by playback callbacks, and moving the write into render
+  // would mutate it during a render React may discard.
+  useEffect(() => { itemsRef.current = items; }, [items]);
   useEffect(() => { currentIndexRef.current = currentIndex; }, [currentIndex]);
 
   const replaceItems = useCallback((nextItems: TtsItem[]) => {

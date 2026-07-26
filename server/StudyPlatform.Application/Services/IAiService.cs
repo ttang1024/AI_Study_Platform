@@ -37,6 +37,19 @@ public interface IAiService
     Task<string> AnswerQuestionAsync(string documentContent, string question, CancellationToken cancellationToken = default);
     Task<string> EvaluateExplanationAsync(string topic, string reference, string explanation, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Translates generated study material into another language, preserving Markdown and LaTeX.
+    /// </summary>
+    Task<string> TranslateAsync(
+        string text, string targetLanguage, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Marks a piece of writing against a rubric. Returns the JSON described by AiPrompts.GradeEssay:
+    /// an overall comment, quoted strengths and improvements, and a score per criterion.
+    /// </summary>
+    Task<string> GradeEssayAsync(
+        string criteriaJson, string? promptText, string essayText, CancellationToken cancellationToken = default);
+
     // Phase 3 additions
     Task<string> GenerateFlashcardBackAsync(string frontText, CancellationToken cancellationToken = default);
     Task<string> SuggestConceptLinksAsync(string documentContent, string entityType, Guid entityId, string existingTerms, CancellationToken cancellationToken = default);

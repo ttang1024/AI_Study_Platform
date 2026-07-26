@@ -7,11 +7,13 @@ import {
   Award, NotebookPen, X, Sparkles, ChevronLeft, ChevronRight,
   User, BookMarked, MessageSquarePlus,
   Search, Trophy, Users, Bot, Network, LineChart,
-  CalendarClock, GraduationCap, PenLine,
+  CalendarClock, GraduationCap, PenLine, School,
 } from 'lucide-react';
 import { AchievementsPanel } from '../dashboard/AchievementsPanel';
 import { cn } from '../../utils/cn';
 import { useAuth } from '../../context/AuthContext';
+import { useTranslation } from '../../i18n';
+import type { TranslationKey } from '../../i18n';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -21,21 +23,24 @@ interface SidebarProps {
   onSearchOpen?: () => void;
 }
 
-const navItems = [
-  { icon: Sparkles, label: 'AI Summarizer', path: '/summarizer' },
-  { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
-  { icon: LineChart, label: 'Insights', path: '/insights' },
-  { icon: Library, label: 'Library', path: '/library' },
-  { icon: BrainCircuit, label: 'Flashcards', path: '/flashcards' },
-  { icon: Award, label: 'Quizzes', path: '/quizzes' },
-  { icon: GraduationCap, label: 'Practice', path: '/practice' },
-  { icon: PenLine, label: 'Check Working', path: '/handwriting' },
-  { icon: CalendarClock, label: 'Planner', path: '/planner' },
-  { icon: BookMarked, label: 'Glossary', path: '/glossary' },
-  { icon: NotebookPen, label: 'Notes', path: '/notes' },
-  { icon: Bot, label: 'AI Chat', path: '/chat' },
-  { icon: Network, label: 'Knowledge Graph', path: '/knowledge-graph' },
-  { icon: Users, label: 'Study Groups', path: '/groups' },
+// `labelKey` rather than a literal: the label is resolved at render time so switching language
+// re-renders the nav without rebuilding this list.
+const navItems: { icon: typeof LayoutDashboard; labelKey: TranslationKey; path: string }[] = [
+  { icon: Sparkles, labelKey: 'nav.summarizer', path: '/summarizer' },
+  { icon: LayoutDashboard, labelKey: 'nav.dashboard', path: '/dashboard' },
+  { icon: LineChart, labelKey: 'nav.insights', path: '/insights' },
+  { icon: Library, labelKey: 'nav.library', path: '/library' },
+  { icon: BrainCircuit, labelKey: 'nav.flashcards', path: '/flashcards' },
+  { icon: Award, labelKey: 'nav.quizzes', path: '/quizzes' },
+  { icon: GraduationCap, labelKey: 'nav.practice', path: '/practice' },
+  { icon: PenLine, labelKey: 'nav.tools', path: '/tools' },
+  { icon: CalendarClock, labelKey: 'nav.planner', path: '/planner' },
+  { icon: BookMarked, labelKey: 'nav.glossary', path: '/glossary' },
+  { icon: NotebookPen, labelKey: 'nav.notes', path: '/notes' },
+  { icon: Bot, labelKey: 'nav.chat', path: '/chat' },
+  { icon: Network, labelKey: 'nav.knowledgeGraph', path: '/knowledge-graph' },
+  { icon: Users, labelKey: 'nav.groups', path: '/groups' },
+  { icon: School, labelKey: 'nav.classrooms', path: '/classrooms' },
   // Offline moved out of the sidebar — it lives in Settings → Export as a utility.
 ];
 
@@ -43,6 +48,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isCollapsed, 
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { t } = useTranslation();
 
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isAchievementsOpen, setIsAchievementsOpen] = useState(false);
@@ -161,7 +167,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isCollapsed, 
           {onSearchOpen && (
             <button
               onClick={onSearchOpen}
-              onMouseEnter={(e) => isCollapsed && showTooltip(e, 'Search')}
+              onMouseEnter={(e) => isCollapsed && showTooltip(e, t('nav.search'))}
               onMouseLeave={() => setTooltip(null)}
               className={cn(
                 'group w-full flex items-center rounded-xl text-sm font-medium transition-all duration-200 text-text-muted hover:bg-zinc-100 hover:text-text-main mb-1',
@@ -170,7 +176,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isCollapsed, 
             >
               <Search size={20} className="shrink-0 text-zinc-400 group-hover:text-primary transition-colors" />
               {!isCollapsed && (
-                <span className="flex-1 text-left">Search</span>
+                <span className="flex-1 text-left">{t('nav.search')}</span>
               )}
               {!isCollapsed && (
                 <kbd className="rounded border border-zinc-200 px-1.5 py-0.5 text-[10px] font-mono text-zinc-400">/</kbd>
@@ -185,7 +191,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isCollapsed, 
                 key={item.path}
                 to={item.path}
                 onClick={() => { if (window.innerWidth < 1024) onClose(); }}
-                onMouseEnter={(e) => isCollapsed && showTooltip(e, item.label)}
+                onMouseEnter={(e) => isCollapsed && showTooltip(e, t(item.labelKey))}
                 onMouseLeave={() => setTooltip(null)}
                 className={cn(
                   'group relative flex items-center rounded-xl text-sm font-medium transition-all duration-200',
@@ -199,7 +205,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isCollapsed, 
                   'shrink-0 transition-transform group-hover:scale-110',
                   isActive ? 'text-white' : 'text-zinc-400 group-hover:text-primary',
                 )} />
-                {!isCollapsed && item.label}
+                {!isCollapsed && t(item.labelKey)}
                 {isActive && !isCollapsed && (
                   <div className="absolute right-2 h-1.5 w-1.5 rounded-full bg-white/50" />
                 )}

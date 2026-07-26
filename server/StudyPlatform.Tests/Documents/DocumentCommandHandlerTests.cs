@@ -1,4 +1,3 @@
-using System.Linq.Expressions;
 using Moq;
 using StudyPlatform.Application.Documents.Commands;
 using StudyPlatform.Application.Services;

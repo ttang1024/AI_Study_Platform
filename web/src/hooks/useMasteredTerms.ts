@@ -20,7 +20,7 @@ export const useMasteredTerms = (userId: string) => {
       return next;
     });
     // Sync to server
-    masteredService.toggle(userId, id).catch(() => {
+    masteredService.toggle(id).catch(() => {
       // Revert on failure
       setMasteredIds(prev => {
         const next = new Set(prev);
