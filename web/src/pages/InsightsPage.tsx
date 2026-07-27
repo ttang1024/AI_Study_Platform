@@ -1,100 +1,92 @@
-import React from 'react';
+import React, { lazy } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
-import { motion, AnimatePresence } from 'motion/react';
-import { BarChart3, Target, Brain } from 'lucide-react';
-import { cn } from '../utils/cn';
+import { BarChart3, Target, Brain, Network } from 'lucide-react';
 import { AnalyticsSection } from '../components/dashboard/AnalyticsSection';
 import { ReinforcementPanel } from '../components/reinforcement/ReinforcementPanel';
 import { RetentionSection } from '../components/dashboard/RetentionSection';
 import { CalibrationSection } from '../components/dashboard/CalibrationSection';
+import { PageTab, PageTabBar, PageTabBlurb, PageTabPanels, useTabParam } from '../components/common/PageTabs';
 
-type Tab = 'analytics' | 'reinforcement' | 'retention';
+type Tab = 'analytics' | 'retention' | 'reinforcement' | 'graph';
 
-const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
-  { id: 'analytics', label: 'Analytics', icon: BarChart3 },
-  { id: 'retention', label: 'Retention', icon: Brain },
-  { id: 'reinforcement', label: 'Reinforcement', icon: Target },
+/** Two kinds of calibration, side by side: RetentionSection grades the FSRS scheduler's predicted
+ *  recall, CalibrationSection grades the learner's own sense of what they know. */
+const RetentionPanel: React.FC = () => (
+  <div className="space-y-6">
+    <RetentionSection />
+    <CalibrationSection />
+  </div>
+);
+
+// d3 and the graph simulation are worth ~a page of their own, so this tab stays behind a lazy
+// import even though the rest of Insights is eager.
+const GraphTab = lazy(() => import('./knowledgeGraph/GraphTab').then(m => ({ default: m.GraphTab })));
+
+const TABS: PageTab<Tab>[] = [
+  {
+    id: 'analytics',
+    label: 'Analytics',
+    icon: BarChart3,
+    panel: AnalyticsSection,
+    blurb: 'Time on task, course mastery and how your week actually went.',
+  },
+  {
+    id: 'retention',
+    label: 'Retention',
+    icon: Brain,
+    panel: RetentionPanel,
+    blurb: 'How well the scheduler predicts your recall — and how well you predict it yourself.',
+  },
+  {
+    id: 'reinforcement',
+    label: 'Reinforcement',
+    icon: Target,
+    panel: ReinforcementPanel,
+    blurb: 'Strengthen weak areas from quiz mistakes, hard flashcards and unmastered terms.',
+  },
+  {
+    id: 'graph',
+    label: 'Concept map',
+    icon: Network,
+    panel: GraphTab,
+    blurb: 'Connect concepts, notes, quizzes, flashcards and materials across courses.',
+  },
 ];
 
+const TAB_IDS = TABS.map(t => t.id);
+
 export const InsightsPage: React.FC = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
+
+  // Practice moved into the Practice Center, and the old standalone /knowledge-graph page is the
+  // Concept map tab below. Old deep links still arrive here — forward the practice ones.
   const param = searchParams.get('tab');
 
-  // Practice graduated to its own top-level page. Old deep links (dashboard
-  // bookmarks, cached recommendation URLs) still arrive here — forward them.
+  // `module` belongs to Reinforcement; drop it when the user moves to another tab.
+  const { active, select } = useTabParam(TAB_IDS, 'analytics', {
+    clearOnLeave: tab => (tab === 'reinforcement' ? [] : ['module']),
+  });
+
   if (param === 'practice') {
     const smart = searchParams.get('smart');
-    return <Navigate to={`/practice${smart ? `?smart=${smart}` : ''}`} replace />;
+    return <Navigate to={`/quizzes?tab=practice${smart ? `&smart=${smart}` : ''}`} replace />;
   }
 
-  const activeTab: Tab = param === 'reinforcement' ? 'reinforcement' : param === 'retention' ? 'retention' : 'analytics';
-
-  const selectTab = (tab: Tab) => {
-    const next = new URLSearchParams(searchParams);
-    if (tab === 'analytics') next.delete('tab');
-    else next.set('tab', tab);
-    if (tab !== 'reinforcement') next.delete('module');
-    setSearchParams(next, { replace: true });
-  };
+  const current = TABS.find(t => t.id === active)!;
 
   return (
-    <div className="space-y-6">
-
-      {/* ── Header ───────────────────────────────────────────────────────── */}
+    <div className="space-y-5">
       <div>
         <h1 className="text-4xl font-semibold tracking-tight text-text-main leading-tight">
           Your <span className="text-[var(--primary)]">Insights</span>
         </h1>
+        <PageTabBlurb tabKey={active}>{current.blurb}</PageTabBlurb>
       </div>
 
-      {/* ── Tab bar ──────────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-1 border-b border-[var(--border-color)]">
-        {TABS.map(tab => {
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => selectTab(tab.id)}
-              className={cn(
-                'relative flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors',
-                isActive ? 'text-[var(--primary)]' : 'text-text-muted hover:text-text-main',
-              )}
-            >
-              <tab.icon size={16} />
-              {tab.label}
-              {isActive && (
-                <motion.div
-                  layoutId="insights-tab-underline"
-                  className="absolute -bottom-px left-0 right-0 h-0.5 rounded-full bg-[var(--primary)]"
-                />
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* ── Tab content ──────────────────────────────────────────────────── */}
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={activeTab}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -8 }}
-          transition={{ duration: 0.18 }}
-        >
-          {activeTab === 'analytics' && <AnalyticsSection />}
-          {/* Two kinds of calibration, side by side: RetentionSection grades the FSRS scheduler's
-              predicted recall, CalibrationSection grades the learner's own sense of what they know. */}
-          {activeTab === 'retention' && (
-            <div className="space-y-6">
-              <RetentionSection />
-              <CalibrationSection />
-            </div>
-          )}
-          {activeTab === 'reinforcement' && <ReinforcementPanel />}
-        </motion.div>
-      </AnimatePresence>
-
+      <PageTabBar idPrefix="insights" ariaLabel="Insights" tabs={TABS} active={active} onSelect={select} />
+      <PageTabPanels idPrefix="insights" tabs={TABS} active={active} />
     </div>
   );
 };
+
+export default InsightsPage;

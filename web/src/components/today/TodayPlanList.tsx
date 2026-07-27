@@ -114,7 +114,7 @@ export const TodayPlanList: React.FC = () => {
             <Check size={28} className="mx-auto text-[var(--primary)] mb-2" />
             <p className="text-sm font-semibold text-text-main">You’re all caught up</p>
             <p className="text-[12px] text-text-muted mt-1">No reviews due. Add new material or revisit a course to keep momentum.</p>
-            <Link to="/summarizer" className="inline-flex items-center gap-1 text-[12px] font-semibold text-[var(--primary)] mt-3 hover:opacity-75">
+            <Link to="/library?view=add" className="inline-flex items-center gap-1 text-[12px] font-semibold text-[var(--primary)] mt-3 hover:opacity-75">
               Add material <ArrowRight size={13} />
             </Link>
           </div>

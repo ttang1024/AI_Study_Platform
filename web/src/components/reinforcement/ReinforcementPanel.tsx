@@ -329,9 +329,7 @@ export const ReinforcementPanel: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <p className="text-sm text-zinc-500 font-medium -mt-1">
-        Strengthen weak areas by combining quiz mistakes, hard flashcards, and unmastered glossary terms.
-      </p>
+      {/* No description here — the Insights tab bar above states what this panel is for. */}
 
       {/* Module selector cards */}
       <div className="grid grid-cols-3 gap-3">
@@ -411,7 +409,7 @@ export const ReinforcementPanel: React.FC = () => {
                   )}
                 </div>
                 <button
-                  onClick={() => navigate('/glossary?mastery=unmastered')}
+                  onClick={() => navigate('/materials?tab=glossary&mastery=unmastered')}
                   className="flex items-center gap-1 text-xs text-text-muted hover:text-[var(--primary)] transition-colors"
                 >
                   View all <ChevronRight size={12} />

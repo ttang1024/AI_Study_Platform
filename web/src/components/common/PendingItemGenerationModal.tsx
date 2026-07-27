@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../../utils/cn';
 import { documentService } from '../../services/documentService';
 import { videoService } from '../../services/videoService';
+import { FlashcardFlipCard, getFlashcardCardType } from '../study/FlashcardFlipCard';
 import type { ModalState } from './pendingItemsHelpers';
 
 interface PendingItemGenerationModalProps {
@@ -64,7 +65,11 @@ export const PendingItemGenerationModal: React.FC<PendingItemGenerationModalProp
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 16 }}
               transition={{ type: 'spring', stiffness: 340, damping: 26 }}
-              className="relative flex h-[60vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+              className={cn(
+                'relative flex w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl',
+                // Flashcards need room for the full-size review card; the quiz keeps its old height.
+                modal.kind === 'flashcards' ? 'h-[70vh] min-h-[480px] max-h-[90vh]' : 'h-[60vh]',
+              )}
             >
               {/* Modal header */}
               <div className="flex items-center justify-between px-5 py-4 sm:px-7 border-b border-zinc-100 shrink-0">
@@ -95,37 +100,33 @@ export const PendingItemGenerationModal: React.FC<PendingItemGenerationModalProp
                     />
                   </div>
 
-                  {/* Flip card */}
-                  <div className="flex-1 overflow-hidden flex flex-col px-5 py-5 sm:px-8 sm:py-6 gap-5">
+                  {/* Flip card — same presentation as an already-generated set's review deck */}
+                  <div className="flex-1 overflow-y-auto flex flex-col px-5 py-5 sm:px-8 sm:py-6 gap-5">
                     {/* Card */}
-                    <div
-                      className="flex-1 min-h-0 cursor-pointer select-none"
-                      style={{ perspective: '1000px' }}
-                      onClick={() => setModal(m => m?.kind === 'flashcards' ? { ...m, isFlipped: !m.isFlipped } : m)}
-                    >
-                      <div
-                        className="relative w-full h-full transition-transform duration-500"
-                        style={{ transformStyle: 'preserve-3d', transform: modal.isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }}
-                      >
-                        {/* Front */}
-                        <div
-                          className="absolute inset-0 rounded-2xl border-2 border-zinc-100 bg-zinc-50 flex flex-col items-center justify-center gap-3 p-6 overflow-y-auto"
-                          style={{ backfaceVisibility: 'hidden' }}
+                    <div className="flex-1 flex items-center justify-center select-none">
+                      <AnimatePresence mode="wait">
+                        <motion.div
+                          key={modal.cards[modal.idx].id + (modal.isFlipped ? '-back' : '-front')}
+                          initial={{ opacity: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.9 }}
+                          className="w-full max-w-md"
                         >
-                          <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Question</span>
-                          <p className="text-base font-semibold text-zinc-800 leading-relaxed text-center">{modal.cards[modal.idx].front}</p>
-                          <span className="mt-2 text-[10px] text-zinc-400 font-medium">Tap to reveal answer</span>
-                        </div>
-                        {/* Back */}
-                        <div
-                          className="absolute inset-0 rounded-2xl border-2 border-primary/20 bg-primary/5 flex flex-col items-center justify-center gap-3 p-6 overflow-y-auto"
-                          style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
-                        >
-                          <span className="text-[9px] font-black uppercase tracking-widest text-primary/60">Answer</span>
-                          <p className="text-base text-zinc-700 leading-relaxed text-center">{modal.cards[modal.idx].back}</p>
-                          <span className="mt-2 text-[10px] text-zinc-400 font-medium">Tap to flip back</span>
-                        </div>
-                      </div>
+                          <FlashcardFlipCard
+                            front={modal.cards[modal.idx].front}
+                            back={modal.cards[modal.idx].back}
+                            cardType={getFlashcardCardType(modal.cards[modal.idx])}
+                            imageUrl={modal.cards[modal.idx].imageUrl}
+                            occlusions={modal.cards[modal.idx].occlusions}
+                            isFlipped={modal.isFlipped}
+                            onFlip={() => setModal(m => m?.kind === 'flashcards' ? { ...m, isFlipped: !m.isFlipped } : m)}
+                            variant="review"
+                            hint="Tap to reveal"
+                            className="w-full max-w-md rounded-3xl border-0 bg-[var(--bg-app)] shadow-xl"
+                            style={{ minHeight: 280 }}
+                          />
+                        </motion.div>
+                      </AnimatePresence>
                     </div>
 
                     {/* Card nav */}

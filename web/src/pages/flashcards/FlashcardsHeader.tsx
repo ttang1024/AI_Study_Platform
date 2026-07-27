@@ -28,11 +28,11 @@ export const FlashcardsHeader: React.FC<FlashcardsHeaderProps> = ({
       <h1 className="text-4xl font-black tracking-tight text-text-main">
         Study <span className="text-primary">Flashcards</span>
       </h1>
-      <p className="text-lg text-zinc-500 font-medium max-w-2xl">
+      <p className="text-sm text-zinc-500 font-medium max-w-2xl">
         Master your subjects with active recall and spaced repetition.
       </p>
       <Link
-        to="/practice"
+        to="/quizzes?tab=practice"
         className="inline-flex w-fit items-center gap-1.5 rounded-xl border border-[var(--primary)]/30 bg-[var(--primary)]/10 px-3 py-1.5 text-sm font-semibold text-[var(--primary)] hover:bg-[var(--primary)]/15 transition-colors"
       >
         <GraduationCap size={15} /> Start a practice test

@@ -1,5 +1,5 @@
 import { useNavigation, useRouter } from 'expo-router';
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { RichTextEditor } from '@/components/RichTextEditor';

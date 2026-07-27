@@ -1,4 +1,3 @@
-import React from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import LibraryIcon from 'lucide-react-native/icons/library';
 

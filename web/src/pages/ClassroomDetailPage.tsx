@@ -48,7 +48,7 @@ export const ClassroomDetailPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <Link to="/classrooms" className="inline-flex items-center gap-1 text-sm text-text-muted hover:text-text-main">
+      <Link to="/spaces?tab=classrooms" className="inline-flex items-center gap-1 text-sm text-text-muted hover:text-text-main">
         <ArrowLeft className="w-4 h-4" /> All classrooms
       </Link>
 

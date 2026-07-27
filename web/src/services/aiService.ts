@@ -127,24 +127,6 @@ export const aiService = {
 		)
 	},
 
-	// --- Document-based (these are already handled by the Documents API; kept for compatibility) ---
-
-	async generateSummary(_text: string): Promise<string> {
-		throw new Error('Use the Documents API to generate summaries from documents.')
-	},
-
-	async generateMindMap(_text: string): Promise<unknown> {
-		throw new Error('Use the Documents API to generate mind maps from documents.')
-	},
-
-	async generateQuiz(_text: string): Promise<unknown> {
-		throw new Error('Use the Documents API to generate quizzes from documents.')
-	},
-
-	async generateFlashcards(_text: string): Promise<unknown> {
-		throw new Error('Use the Documents API to generate flashcards from documents.')
-	},
-
 	async chat(history: ChatHistoryEntry[], message: string): Promise<string> {
 		return post<string>('/api/ai/chat', {
 			message,

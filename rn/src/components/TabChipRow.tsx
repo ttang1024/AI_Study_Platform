@@ -1,5 +1,4 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 import type { LucideIcon } from 'lucide-react-native';
 

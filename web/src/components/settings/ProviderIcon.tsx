@@ -1,4 +1,3 @@
-import React from 'react';
 import type { AIProvider } from '../../services/aiSettingsService';
 
 export const PROVIDER_ICON_SRC: Partial<Record<AIProvider, string>> = {

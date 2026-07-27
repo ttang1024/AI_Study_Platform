@@ -59,19 +59,32 @@ export function usePythonRunner() {
           resolve(result);
         };
 
-        const timer = setTimeout(() => {
-          // The only way to stop WebAssembly mid-execution.
-          disposeWorker();
-          finish({
-            ok: false,
-            stdout: '',
-            stderr: `Stopped after ${RUN_TIMEOUT_MS / 1000} seconds. Check for a loop that never ends.`,
-            timedOut: true,
-          });
-        }, RUN_TIMEOUT_MS);
+        const startTimer = () =>
+          setTimeout(() => {
+            // The only way to stop WebAssembly mid-execution.
+            disposeWorker();
+            finish({
+              ok: false,
+              stdout: '',
+              stderr: `Stopped after ${RUN_TIMEOUT_MS / 1000} seconds. Check for a loop that never ends.`,
+              timedOut: true,
+            });
+          }, RUN_TIMEOUT_MS);
 
-        const onMessage = (event: MessageEvent<RunResult & { id: string }>) => {
+        let timer = startTimer();
+
+        const onMessage = (
+          event: MessageEvent<(RunResult & { id: string }) | { id: string; type: 'ready' }>,
+        ) => {
           if (event.data.id !== id) return;
+          if ('type' in event.data) {
+            // The interpreter is up. Restart the clock so the limit measures the learner's code
+            // rather than the tens of megabytes the first run has to download.
+            setReady(true);
+            clearTimeout(timer);
+            timer = startTimer();
+            return;
+          }
           setReady(true);
           finish(event.data);
         };

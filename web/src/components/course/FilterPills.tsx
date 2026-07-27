@@ -1,4 +1,3 @@
-import React from 'react';
 import { cn } from '../../utils/cn';
 
 export interface FilterPillOption<K extends string> {

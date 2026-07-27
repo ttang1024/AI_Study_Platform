@@ -19,6 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\StudyPlatform.API\StudyPlatform.API.csproj" />
     <ProjectReference Include="..\StudyPlatform.Application\StudyPlatform.Application.csproj" />
     <ProjectReference Include="..\StudyPlatform.Domain\StudyPlatform.Domain.csproj" />
     <ProjectReference Include="..\StudyPlatform.Infrastructure\StudyPlatform.Infrastructure.csproj" />

@@ -5,7 +5,10 @@ import { QuestionBankQuestion } from '../../services/questionBankService';
 export const PAGE_SIZE = 5;
 export const BANK_PAGE_SIZE = 10;
 
-export type MainTab = 'history' | 'failed' | 'bank';
+// The Practice Center's tabs. `practice` and `planner` arrived when the standalone /practice and
+// /planner pages were merged in; `mistakes` was `failed` before the tab id became URL-visible.
+// `code` used to live here too and is now a tab of /tools.
+export type MainTab = 'practice' | 'planner' | 'history' | 'mistakes' | 'bank';
 
 export function docToQuizType(doc: Document | undefined): Exclude<QuizItemType, 'video'> {
   if (doc?.type === 'podcast') return 'podcast';

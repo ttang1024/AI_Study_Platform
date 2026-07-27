@@ -1,4 +1,3 @@
-import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Highlighter from 'lucide-react-native/icons/highlighter';
 import Trash2 from 'lucide-react-native/icons/trash-2';

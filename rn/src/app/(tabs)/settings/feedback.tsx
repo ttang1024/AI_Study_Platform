@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Bug from 'lucide-react-native/icons/bug';
 import CheckCircle2 from 'lucide-react-native/icons/circle-check';

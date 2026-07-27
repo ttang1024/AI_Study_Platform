@@ -31,7 +31,7 @@ test.describe('Settings page', () => {
   })
 })
 
-// ─── Glossary page ─────────────────────────────────────────────────────────────
+// ─── Glossary (a tab of the Materials page) ────────────────────────────────────
 
 test.describe('Glossary page', () => {
   test.beforeEach(async ({ page }) => {
@@ -39,8 +39,10 @@ test.describe('Glossary page', () => {
     await page.goto('/glossary')
   })
 
-  test('shows the glossary heading and description', async ({ page }) => {
-    await expect(page.getByText(/study glossary/i)).toBeVisible()
+  test('redirects into the Materials glossary tab and shows its description', async ({ page }) => {
+    await expect(page).toHaveURL(/\/materials\?tab=glossary/)
+    await expect(page.getByRole('heading', { name: /study materials/i })).toBeVisible()
+    await expect(page.getByRole('tab', { name: /glossary/i })).toHaveAttribute('aria-selected', 'true')
     await expect(page.getByText(/ai-extracted key terms/i)).toBeVisible()
   })
 
@@ -129,5 +131,15 @@ test.describe('Library navigation', () => {
     await page.getByRole('button', { name: /videos/i }).click()
     await page.getByText('Mitosis Explained').click()
     await expect(page).toHaveURL(/\/videos\/video-mitosis/)
+  })
+})
+
+test.describe('Dashboard page', () => {
+  test('the hero card links straight to Library → Add', async ({ page }) => {
+    await setupAuthenticatedStudyApp(page)
+    await page.goto('/dashboard')
+    await page.getByRole('link', { name: /add content/i }).click()
+    await expect(page).toHaveURL(/\/library\?view=add/)
+    await expect(page.getByRole('tab', { name: /add content/i })).toHaveAttribute('aria-selected', 'true')
   })
 })

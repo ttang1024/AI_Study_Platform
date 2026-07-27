@@ -1,4 +1,3 @@
-import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 import Check from 'lucide-react-native/icons/check';
 

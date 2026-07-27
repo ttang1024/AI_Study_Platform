@@ -31,5 +31,4 @@ public interface IVideoRepository : IRepository<Video>
     Task<Video?> GetByIdForUserAsync(Guid id, Guid userId, CancellationToken cancellationToken = default);
     Task<Video?> GetByIdWithCourseAsync(Guid id, CancellationToken cancellationToken = default);
     Task<Video?> GetByExternalVideoIdAsync(string externalVideoId, CancellationToken cancellationToken = default);
-    Task<Video?> GetByExternalVideoIdForUserAsync(string externalVideoId, Guid userId, CancellationToken cancellationToken = default);
 }

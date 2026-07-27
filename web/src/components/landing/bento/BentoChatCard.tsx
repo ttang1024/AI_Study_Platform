@@ -3,8 +3,8 @@ import { motion, useInView } from 'motion/react';
 import { Bot, Sparkles } from 'lucide-react';
 import { BentoCardShell, BentoCardHeader } from './BentoCardShell';
 
-const CHAT_QUESTION = 'Summarize this lecture for me';
-const CHAT_ANSWER = 'Key idea: cells turn glucose into ATP — glycolysis splits glucose, the Krebs cycle harvests electrons…';
+const CHAT_QUESTION = 'Why does the Krebs cycle need oxygen?';
+const CHAT_ANSWER = 'It does not use oxygen directly — but without it the electron transport chain stalls, NADH never recycles, and the cycle halts…';
 
 export const BentoChatCard: React.FC = () => {
   const ref = useRef<HTMLDivElement>(null);
@@ -34,7 +34,7 @@ export const BentoChatCard: React.FC = () => {
     >
       <BentoCardHeader
         icon={Bot}
-        title={<>AI Chat &amp; Summaries</>}
+        title="AI Chat"
         gradient="from-teal-500 via-cyan-500 to-sky-600"
         iconGlow="0 6px 22px rgba(13,148,136,0.4)"
       />
@@ -63,7 +63,7 @@ export const BentoChatCard: React.FC = () => {
       </div>
 
       <p className="text-sm text-white/40 leading-relaxed">
-        Chat with your documents, videos, audio, podcasts, and web articles using AI. Get streaming summaries, ask questions.
+        Ask anything about your documents, videos, audio, podcasts, and web articles. Answers stream back grounded in the source you are studying.
       </p>
     </BentoCardShell>
   );

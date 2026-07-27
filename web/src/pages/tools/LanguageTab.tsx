@@ -45,7 +45,7 @@ const PronunciationPractice: React.FC = () => {
         <input
           value={phrase}
           onChange={(e) => setPhrase(e.target.value)}
-          placeholder="e.g. ¿Dónde está la estación?"
+          placeholder="e.g. Where is the train station?"
           className="w-full px-3 py-2 rounded-xl border border-[var(--border-color)] bg-[var(--bg-app)]"
         />
       </div>

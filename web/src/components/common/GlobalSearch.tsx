@@ -115,7 +115,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) =
           title: note.documentName ?? note.videoName ?? 'Note',
           subtitle: preview,
           type: 'note',
-          href: '/notes',
+          href: '/materials?tab=notes',
         });
       }
     }
@@ -127,7 +127,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) =
           title: term.term,
           subtitle: term.definition,
           type: 'glossary',
-          href: '/glossary',
+          href: '/materials?tab=glossary',
         });
       }
     }

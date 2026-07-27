@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import SearchIcon from 'lucide-react-native/icons/search';
 import Sparkles from 'lucide-react-native/icons/sparkles';

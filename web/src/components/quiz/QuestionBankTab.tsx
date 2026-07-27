@@ -79,7 +79,7 @@ export const QuestionBankTab: React.FC<QuestionBankTabProps> = ({
       </div>
     </div>
 
-    <div className="flex items-center justify-between text-sm text-text-muted">
+    <div className="flex items-center justify-between text-sm text-text-muted mt-3 mb-2">
       <span className="inline-flex items-center gap-2">
         <Filter size={14} /> {totalCount ?? questions.length} questions
       </span>

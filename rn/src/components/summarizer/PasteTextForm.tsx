@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { File, Paths } from 'expo-file-system';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Button } from '@/components/Button';

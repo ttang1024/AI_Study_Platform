@@ -1,4 +1,3 @@
-import React from 'react';
 import { ActivityIndicator, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { WebView } from 'react-native-webview';
 

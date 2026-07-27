@@ -1,15 +1,16 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Award, Download } from 'lucide-react';
-import { CramSheetModal } from '../components/planner/CramSheetModal';
-import { MockExamRunner } from '../components/planner/MockExamRunner';
-import { ExamPlanList } from '../components/planner/ExamPlanList';
-import { MockExamLauncher } from '../components/planner/MockExamLauncher';
-import { PlannerSchedule } from '../components/planner/PlannerSchedule';
-import { useStudy } from '../context/StudyContext';
-import { usePlanner } from './planner/usePlanner';
+import { CramSheetModal } from '../../components/planner/CramSheetModal';
+import { MockExamRunner } from '../../components/planner/MockExamRunner';
+import { ExamPlanList } from '../../components/planner/ExamPlanList';
+import { MockExamLauncher } from '../../components/planner/MockExamLauncher';
+import { PlannerSchedule } from '../../components/planner/PlannerSchedule';
+import { useStudy } from '../../context/StudyContext';
+import { usePlanner } from './usePlanner';
 
-export const PlannerPage: React.FC = () => {
+/** The Planner tab of the Practice Center. The old /planner route redirects to ?tab=planner. */
+export const PlannerTab: React.FC = () => {
   const navigate = useNavigate();
   const { courses } = useStudy();
   const p = usePlanner();
@@ -22,7 +23,7 @@ export const PlannerPage: React.FC = () => {
             <Award size={20} />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-text-main">Mock Exam</h1>
+            <h2 className="text-xl font-bold text-text-main">Mock Exam</h2>
             <p className="text-sm text-text-muted">{p.mockExam.questions.length} questions · suggested {p.mockExam.suggestedMinutes} min</p>
           </div>
         </div>
@@ -33,15 +34,8 @@ export const PlannerPage: React.FC = () => {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-        <div className="flex flex-col gap-3">
-          <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-text-main">
-            Study <span className="text-primary">Planner</span>
-          </h1>
-          <p className="text-base sm:text-lg text-zinc-500 font-medium max-w-3xl">
-            Set an exam date — your daily plan blends due reviews, knowledge gaps and practice.
-          </p>
-        </div>
+      {/* Actions only — the title and blurb belong to the hub shell above the tab bar. */}
+      <div className="flex justify-end">
         <button
           onClick={p.handleDownloadIcs}
           className="inline-flex items-center gap-1.5 text-xs font-medium border border-gray-200 px-3 py-2 rounded-lg text-gray-600 bg-white hover:text-black"

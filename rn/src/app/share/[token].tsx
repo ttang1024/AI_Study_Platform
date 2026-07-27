@@ -1,4 +1,3 @@
-import React from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import AlertCircle from 'lucide-react-native/icons/circle-alert';
 

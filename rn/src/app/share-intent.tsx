@@ -1,7 +1,7 @@
 import { File, Paths } from 'expo-file-system';
 import { Stack, useRouter } from 'expo-router';
 import { useShareIntentContext } from 'expo-share-intent';
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import ChevronLeft from 'lucide-react-native/icons/chevron-left';
 import FileTextIcon from 'lucide-react-native/icons/file-text';

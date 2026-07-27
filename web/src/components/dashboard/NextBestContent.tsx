@@ -53,7 +53,9 @@ export const NextBestContent: React.FC = () => {
   useEffect(() => {
     let cancelled = false;
     recommendationService.getRecommendations()
-      .then(r => { if (!cancelled) setNextBest(r.nextBestContent); })
+      // `?? []` because a response without the field should read as "no recommendations", not
+      // throw below and take the whole page down with it.
+      .then(r => { if (!cancelled) setNextBest(r.nextBestContent ?? []); })
       .catch(() => { /* empty state */ })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };

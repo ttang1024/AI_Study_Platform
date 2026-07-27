@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 import { School, KeyRound } from 'lucide-react';
 import { BentoCardShell, BentoCardHeader } from './BentoCardShell';
 
-const COURSES = ['Organic Chem', 'Cell Biology'];
+const COURSES = ['Org Chem', 'Cell Bio'];
 
 // `null` is "not started", which the gradebook deliberately renders differently from a real 0%.
 const ROWS: { name: string; scores: (number | null)[]; minutes: number }[] = [
@@ -27,23 +27,21 @@ export const BentoClassroomCard: React.FC = () => (
       gradient="from-indigo-500 to-blue-700"
       iconGlow="0 6px 22px rgba(99,102,241,0.4)"
       isNew
-      right={
-        <span className="hidden sm:flex items-center gap-1.5 text-[10px] font-semibold px-2.5 py-1 rounded-full"
-          style={{ background: 'rgba(99,102,241,0.12)', color: '#a5b4fc', border: '1px solid rgba(99,102,241,0.3)' }}>
-          <KeyRound className="w-3 h-3" /> Join code 7K3QDX
-        </span>
-      }
     />
 
-    <div className="flex-1 rounded-xl p-3 mb-3 overflow-x-auto" style={{ background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(255,255,255,0.06)' }}>
-      <table className="w-full min-w-[320px] border-collapse">
+    <div className="flex-1 rounded-xl p-3 mb-3" style={{ background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(255,255,255,0.06)' }}>
+      <span className="inline-flex items-center gap-1.5 mb-2.5 text-[10px] font-semibold px-2.5 py-1 rounded-full"
+        style={{ background: 'rgba(99,102,241,0.12)', color: '#a5b4fc', border: '1px solid rgba(99,102,241,0.3)' }}>
+        <KeyRound className="w-3 h-3" /> Join code 7K3QDX
+      </span>
+      <table className="w-full border-collapse">
         <thead>
           <tr>
             <th className="text-left text-[10px] font-semibold text-white/35 uppercase tracking-wide pb-2">Student</th>
             {COURSES.map(c => (
-              <th key={c} className="text-right text-[10px] font-semibold text-white/35 uppercase tracking-wide pb-2 pl-3">{c}</th>
+              <th key={c} className="text-right text-[10px] font-semibold text-white/35 uppercase tracking-wide pb-2 pl-2">{c}</th>
             ))}
-            <th className="text-right text-[10px] font-semibold text-white/35 uppercase tracking-wide pb-2 pl-3">Time</th>
+            <th className="text-right text-[10px] font-semibold text-white/35 uppercase tracking-wide pb-2 pl-2">Time</th>
           </tr>
         </thead>
         <tbody>
@@ -58,12 +56,12 @@ export const BentoClassroomCard: React.FC = () => (
             >
               <td className="py-1.5 text-[11px] font-semibold text-white/55 whitespace-nowrap">{r.name}</td>
               {r.scores.map((s, j) => (
-                <td key={j} className="py-1.5 pl-3 text-right font-mono text-[11px]"
+                <td key={j} className="py-1.5 pl-2 text-right font-mono text-[11px] whitespace-nowrap"
                   style={{ color: s === null ? 'rgba(255,255,255,0.2)' : scoreColor(s) }}>
                   {s === null ? 'not started' : `${s}%`}
                 </td>
               ))}
-              <td className="py-1.5 pl-3 text-right font-mono text-[11px] text-white/35">{r.minutes}m</td>
+              <td className="py-1.5 pl-2 text-right font-mono text-[11px] text-white/35">{r.minutes}m</td>
             </motion.tr>
           ))}
         </tbody>
@@ -72,8 +70,8 @@ export const BentoClassroomCard: React.FC = () => (
     </div>
 
     <p className="text-sm text-white/40 leading-relaxed">
-      Teachers spin up an organization, assign courses with due dates, and share a join code. The gradebook
-      tracks quiz scores, problems attempted, and time on task per student — no spreadsheet required.
+      Teachers assign courses with due dates and share a join code. The gradebook tracks quiz scores,
+      problems attempted, and time on task per student — no spreadsheet required.
     </p>
   </BentoCardShell>
 );

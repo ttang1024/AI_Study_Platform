@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { MessageSquarePlus, Bug, Lightbulb, MessageCircle, Star, CheckCircle2, Send } from 'lucide-react';
-import { Button } from '../components/common/Button';
-import { cn } from '../utils/cn';
-import { apiClient } from '../services/apiClient';
+import { Button } from '../common/Button';
+import { cn } from '../../utils/cn';
+import { apiClient } from '../../services/apiClient';
 
 type FeedbackType = 'bug' | 'feature' | 'general';
 
@@ -13,7 +13,8 @@ const feedbackTypes: { id: FeedbackType; label: string; icon: React.ElementType;
   { id: 'general', label: 'General Feedback', icon: MessageCircle, description: 'Share your thoughts or experience' },
 ];
 
-export const FeedbackPage: React.FC = () => {
+/** The Feedback tab of /settings. The old standalone /feedback route redirects to ?tab=feedback. */
+export const FeedbackTab: React.FC = () => {
   const [type, setType] = useState<FeedbackType>('general');
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
@@ -61,7 +62,7 @@ export const FeedbackPage: React.FC = () => {
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--primary)]/10 text-[var(--primary)]">
             <MessageSquarePlus size={22} />
           </div>
-          <h1 className="text-2xl font-bold text-text-main">Feedback</h1>
+          <h2 className="text-2xl font-bold text-text-main">Feedback</h2>
         </div>
         <p className="text-sm text-text-muted ml-[52px]">Help us improve Easy Study by sharing your thoughts</p>
       </motion.div>

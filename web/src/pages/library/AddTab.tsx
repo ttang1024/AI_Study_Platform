@@ -1,49 +1,60 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Upload, Files, FileVideo, ClipboardPaste, Wand2 } from 'lucide-react';
-import { CONTENT_TYPE_ICONS } from '../constants/contentTypeIcons';
-import { BulkUploadSection } from '../components/common/BulkUploadSection';
-import { cn } from '../utils/cn';
-import { CoursePicker } from '../components/common/CoursePicker';
-import { DocumentTab } from '../components/summarizer/DocumentTab';
-import { UploadVideoTab } from '../components/summarizer/UploadVideoTab';
-import { AudioTab } from '../components/summarizer/AudioTab';
-import { PodcastTab } from '../components/summarizer/PodcastTab';
-import { WebTab } from '../components/summarizer/WebTab';
-import { PasteTextTab } from '../components/summarizer/PasteTextTab';
-import { WebVideoTab } from '../components/summarizer/WebVideoTab';
-import { isExternalVideoSource } from '../constants/videoSources';
+import { CONTENT_TYPE_ICONS } from '../../constants/contentTypeIcons';
+import { BulkUploadSection } from '../../components/common/BulkUploadSection';
+import { cn } from '../../utils/cn';
+import { CoursePicker } from '../../components/common/CoursePicker';
+import { DocumentTab } from '../../components/summarizer/DocumentTab';
+import { UploadVideoTab } from '../../components/summarizer/UploadVideoTab';
+import { AudioTab } from '../../components/summarizer/AudioTab';
+import { PodcastTab } from '../../components/summarizer/PodcastTab';
+import { WebTab } from '../../components/summarizer/WebTab';
+import { PasteTextTab } from '../../components/summarizer/PasteTextTab';
+import { WebVideoTab } from '../../components/summarizer/WebVideoTab';
+import { isExternalVideoSource } from '../../constants/videoSources';
 
 type Tab = 'document' | 'video' | 'web' | 'audio' | 'text';
 type DocSubTab = 'single' | 'bulk';
 type AudioSubTab = 'lecture' | 'podcast';
 type VideoSubTab = 'link' | 'upload';
 
-export const AISummarizerPage: React.FC = () => {
+const tabFromParam = (t: string | null): Tab => {
+  if (t === 'youtube' || t === 'bilibili' || t === 'video' || t === 'upload-video' || t === 'link' || isExternalVideoSource(t)) return 'video';
+  if (t === 'web') return 'web';
+  if (t === 'audio' || t === 'podcast') return 'audio';
+  if (t === 'text' || t === 'paste') return 'text';
+  return 'document';
+};
+
+/**
+ * The Add half of /library — the old AI Summarizer page. It keeps `?tab=` for its own input
+ * modes (the outer browse/add switch uses `?view=` precisely so these two don't collide).
+ */
+export const AddTab: React.FC = () => {
   const [searchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState<Tab>(() => {
-    const t = searchParams.get('tab');
-    if (t === 'youtube' || t === 'bilibili' || t === 'video' || t === 'upload-video' || t === 'link' || isExternalVideoSource(t)) return 'video';
-    if (t === 'web') return 'web';
-    if (t === 'audio' || t === 'podcast') return 'audio';
-    if (t === 'text' || t === 'paste') return 'text';
-    return 'document';
-  });
-  const [docSubTab, setDocSubTab] = useState<DocSubTab>(() =>
-    searchParams.get('tab') === 'bulk' ? 'bulk' : 'single',
-  );
+  const tabParam = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState<Tab>(() => tabFromParam(tabParam));
+  const [docSubTab, setDocSubTab] = useState<DocSubTab>(() => (tabParam === 'bulk' ? 'bulk' : 'single'));
   // Podcast is the leading sub-tab; explicit ?tab=audio deep-links (e.g. from
   // the library) still land on the lecture upload.
-  const [audioSubTab, setAudioSubTab] = useState<AudioSubTab>(() =>
-    searchParams.get('tab') === 'audio' ? 'lecture' : 'podcast',
-  );
-  const [videoSubTab, setVideoSubTab] = useState<VideoSubTab>(() => {
-    const t = searchParams.get('tab');
-    if (t === 'upload-video') return 'upload';
-    return 'link';
-  });
+  const [audioSubTab, setAudioSubTab] = useState<AudioSubTab>(() => (tabParam === 'audio' ? 'lecture' : 'podcast'));
+  const [videoSubTab, setVideoSubTab] = useState<VideoSubTab>(() => (tabParam === 'upload-video' ? 'upload' : 'link'));
   const [selectedCourseId, setSelectedCourseId] = useState(searchParams.get('courseId') ?? '');
+
+  // This panel stays mounted once opened, so the initial-state reads above only fire on the first
+  // visit. Later arrivals — the library's "Analyze a Video" empty state, an /summarizer?tab=…
+  // redirect — change the param on an already-mounted panel, so mirror it here too.
+  const firstRender = useRef(true);
+  useEffect(() => {
+    if (firstRender.current) { firstRender.current = false; return; }
+    if (tabParam === null) return;
+    setActiveTab(tabFromParam(tabParam));
+    setDocSubTab(tabParam === 'bulk' ? 'bulk' : 'single');
+    setAudioSubTab(tabParam === 'audio' ? 'lecture' : 'podcast');
+    setVideoSubTab(tabParam === 'upload-video' ? 'upload' : 'link');
+  }, [tabParam]);
   const [courseError, setCourseError] = useState(false);
 
   const handleTabChange = (tab: Tab) => {
@@ -67,9 +78,9 @@ export const AISummarizerPage: React.FC = () => {
 
         {/* Right — Header + Tabs + Form */}
         <div className="flex-1 flex flex-col gap-4 md:gap-5 min-w-0 overflow-y-auto pb-4 md:pb-0">
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-text-main">
+          <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-text-main">
             Turn anything into <span className="text-primary">study material</span>
-          </h1>
+          </h2>
 
           {/* Main Tabs */}
           <div className="flex rounded-xl bg-zinc-100 p-1 gap-1">

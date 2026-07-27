@@ -219,7 +219,7 @@ export const ArticlePage: React.FC<{ embedded?: boolean; id?: string; courseId?:
           <div className="flex h-full items-center justify-center">
             <div className="text-center">
               <p className="text-text-muted">Article not found.</p>
-              <button onClick={() => navigate('/summarizer')} className="mt-4 text-sm text-[var(--primary)] hover:underline">
+              <button onClick={() => navigate('/library?view=add')} className="mt-4 text-sm text-[var(--primary)] hover:underline">
                 Back to Summarizer
               </button>
             </div>

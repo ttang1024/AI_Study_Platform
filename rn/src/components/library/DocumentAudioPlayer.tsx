@@ -1,5 +1,4 @@
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
-import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Pause from 'lucide-react-native/icons/pause';
 import Play from 'lucide-react-native/icons/play';

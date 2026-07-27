@@ -142,7 +142,7 @@ export const KnowledgeGraphSidebar: React.FC<Props> = ({
             {learningPath.steps.filter(s => s.status !== 'mastered').slice(0, 20).map(step => (
               <Link
                 key={step.termId}
-                to={step.url ?? '/glossary'}
+                to={step.url ?? '/materials?tab=glossary'}
                 className="block rounded-xl border border-black/[0.06] p-2.5 transition hover:border-[var(--primary)]/40 hover:bg-[var(--bg-app)]"
               >
                 <div className="flex items-center gap-2">

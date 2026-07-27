@@ -3,8 +3,6 @@ namespace StudyPlatform.Application.Services;
 public interface IAiService
 {
     // Document-based (file bytes)
-    Task<string> GenerateMindMapAsync(byte[] fileData, string mimeType, CancellationToken cancellationToken = default);
-    Task<string> GenerateMindMapAsync(string textContent, CancellationToken cancellationToken = default);
     Task<string> GenerateQuizAsync(byte[] fileData, string mimeType, string difficulty = "medium", CancellationToken cancellationToken = default);
     Task<string> GenerateQuizAsync(string textContent, string difficulty = "medium", CancellationToken cancellationToken = default);
 
@@ -52,7 +50,6 @@ public interface IAiService
 
     // Phase 3 additions
     Task<string> GenerateFlashcardBackAsync(string frontText, CancellationToken cancellationToken = default);
-    Task<string> SuggestConceptLinksAsync(string documentContent, string entityType, Guid entityId, string existingTerms, CancellationToken cancellationToken = default);
 
     // Audio overview (NotebookLM-style two-host dialogue)
     Task<string> GenerateAudioOverviewScriptAsync(string courseName, string materialsDigest, CancellationToken cancellationToken = default);

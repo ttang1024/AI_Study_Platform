@@ -22,6 +22,7 @@ import {
   BentoProblemCard,
   BentoStudyGroupCard,
   BentoChatCard,
+  BentoSummaryCard,
   BentoMindMapCard,
   BentoQuizCard,
   BentoPlannerCard,
@@ -45,7 +46,7 @@ export const LandingPage: React.FC = () => {
   const auth = useOptionalAuth();
   const isAuthenticated = auth?.isAuthenticated ?? false;
   const username = auth?.user?.name || auth?.user?.email || 'Open app';
-  const go = () => window.location.assign(isAuthenticated ? '/summarizer' : '/login');
+  const go = () => window.location.assign(isAuthenticated ? '/library?view=add' : '/login');
   useGoogleOneTap();
 
   return (
@@ -234,9 +235,12 @@ export const LandingPage: React.FC = () => {
             <BentoChatCard />
           </FadeIn>
           <FadeIn delay={0.05}>
-            <BentoMindMapCard />
+            <BentoSummaryCard />
           </FadeIn>
           <FadeIn delay={0.05}>
+            <BentoMindMapCard />
+          </FadeIn>
+          <FadeIn delay={0.1}>
             <BentoQuizCard />
           </FadeIn>
           <FadeIn delay={0.18}>
@@ -284,17 +288,17 @@ export const LandingPage: React.FC = () => {
           <FadeIn delay={0.38}>
             <BentoCodeCard />
           </FadeIn>
-          <FadeIn delay={0.42} className="lg:col-span-2 lg:row-span-1">
+          <FadeIn delay={0.42}>
             <BentoClassroomCard />
           </FadeIn>
           <FadeIn delay={0.42}>
             <BentoLanguageCard />
           </FadeIn>
-          <FadeIn delay={0.46}>
-            <BentoOfflineCard />
-          </FadeIn>
           <FadeIn delay={0.46} className="lg:col-span-2 lg:row-span-1">
             <BentoEverywhereCard />
+          </FadeIn>
+          <FadeIn delay={0.46}>
+            <BentoOfflineCard />
           </FadeIn>
           <FadeIn delay={0.50}>
             <BentoSearchCard />

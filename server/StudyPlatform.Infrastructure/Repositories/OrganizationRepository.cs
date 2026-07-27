@@ -78,13 +78,6 @@ public class ClassroomEnrollmentRepository : Repository<ClassroomEnrollment>, IC
 {
     public ClassroomEnrollmentRepository(AppDbContext context) : base(context) { }
 
-    public async Task<IEnumerable<ClassroomEnrollment>> GetActiveByClassroomAsync(Guid classroomId, CancellationToken cancellationToken = default)
-        => await _dbSet
-            .Include(e => e.User)
-            .Where(e => e.ClassroomId == classroomId && e.RemovedAt == null)
-            .OrderBy(e => e.EnrolledAt)
-            .ToListAsync(cancellationToken);
-
     public async Task<ClassroomEnrollment?> GetActiveEnrollmentAsync(Guid classroomId, Guid userId, CancellationToken cancellationToken = default)
         => await _dbSet.FirstOrDefaultAsync(
             e => e.ClassroomId == classroomId && e.UserId == userId && e.RemovedAt == null, cancellationToken);
@@ -93,19 +86,4 @@ public class ClassroomEnrollmentRepository : Repository<ClassroomEnrollment>, IC
 public class ClassroomCourseRepository : Repository<ClassroomCourse>, IClassroomCourseRepository
 {
     public ClassroomCourseRepository(AppDbContext context) : base(context) { }
-
-    public async Task<IEnumerable<ClassroomCourse>> GetByClassroomAsync(Guid classroomId, CancellationToken cancellationToken = default)
-        => await _dbSet
-            .Include(cc => cc.Course)
-            .Where(cc => cc.ClassroomId == classroomId)
-            .OrderByDescending(cc => cc.AssignedAt)
-            .ToListAsync(cancellationToken);
-
-    public async Task<IEnumerable<ClassroomCourse>> GetForStudentAsync(Guid userId, CancellationToken cancellationToken = default)
-        => await _dbSet
-            .Include(cc => cc.Course)
-            .Include(cc => cc.Classroom)
-            .Where(cc => cc.Classroom.Enrollments.Any(e => e.UserId == userId && e.RemovedAt == null))
-            .OrderBy(cc => cc.DueAt ?? DateTime.MaxValue)
-            .ToListAsync(cancellationToken);
 }

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Users, Plus, LogIn, X } from 'lucide-react';
-import studyGroupService, { type StudyGroup } from '../services/studyGroupService';
+import studyGroupService, { type StudyGroup } from '../../services/studyGroupService';
 
-export const StudyGroupsPage: React.FC = () => {
+/** The Groups half of /spaces. Group detail still has its own route, /groups/:id. */
+export const GroupsTab: React.FC = () => {
   const navigate = useNavigate();
   const [groups, setGroups] = useState<StudyGroup[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,28 +62,22 @@ export const StudyGroupsPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-4xl font-bold text-text-main">Study <span className="text-teal-600">Groups</span></h1>
-          <p className="text-sm text-text-muted mt-1">Collaborate and share resources with classmates</p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => { setShowJoin(true); setShowCreate(false); setError(''); }}
-            className="flex items-center gap-2 border border-gray-200 text-gray-700 px-4 py-2 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors"
-          >
-            <LogIn size={16} />
-            Join Group
-          </button>
-          <button
-            onClick={() => { setShowCreate(true); setShowJoin(false); setError(''); }}
-            className="flex items-center gap-2 bg-teal-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-teal-700 transition-colors"
-          >
-            <Plus size={16} />
-            Create Group
-          </button>
-        </div>
+      {/* Actions only — the title and blurb belong to the /spaces shell above the tab bar. */}
+      <div className="flex flex-wrap justify-end gap-2">
+        <button
+          onClick={() => { setShowJoin(true); setShowCreate(false); setError(''); }}
+          className="flex items-center gap-2 border border-gray-200 text-gray-700 px-4 py-2 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors"
+        >
+          <LogIn size={16} />
+          Join Group
+        </button>
+        <button
+          onClick={() => { setShowCreate(true); setShowJoin(false); setError(''); }}
+          className="flex items-center gap-2 bg-teal-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-teal-700 transition-colors"
+        >
+          <Plus size={16} />
+          Create Group
+        </button>
       </div>
 
       {/* Create modal */}

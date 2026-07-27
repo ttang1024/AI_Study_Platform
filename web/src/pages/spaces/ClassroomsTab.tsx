@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GraduationCap, Plus, LogIn, Building2, X } from 'lucide-react';
-import classroomService, { type Classroom, type Organization } from '../services/classroomService';
+import classroomService, { type Classroom, type Organization } from '../../services/classroomService';
 
-export const ClassroomsPage: React.FC = () => {
+/** The Classrooms half of /spaces. Classroom detail still has its own route, /classrooms/:id. */
+export const ClassroomsTab: React.FC = () => {
   const navigate = useNavigate();
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
@@ -98,27 +99,21 @@ export const ClassroomsPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-4xl font-bold text-text-main">
-            Class<span className="text-teal-600">rooms</span>
-          </h1>
-          <p className="text-sm text-text-muted mt-1">Courses assigned by an instructor, and the classes you teach</p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setModal('join')}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-text-main hover:bg-surface-hover transition-colors"
-          >
-            <LogIn className="w-4 h-4" /> Join a class
-          </button>
-          <button
-            onClick={() => setModal(organizations.length ? 'create' : 'org')}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-teal-600 text-white hover:bg-teal-700 transition-colors"
-          >
-            <Plus className="w-4 h-4" /> New classroom
-          </button>
-        </div>
+      {/* Actions only — the title and blurb belong to the /spaces shell above the tab bar. */}
+      {/* text-sm/font-medium keeps these the same height as the Study groups tab's actions. */}
+      <div className="flex flex-wrap justify-end gap-2">
+        <button
+          onClick={() => setModal('join')}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-text-main text-sm font-medium hover:bg-surface-hover transition-colors"
+        >
+          <LogIn className="w-4 h-4" /> Join a class
+        </button>
+        <button
+          onClick={() => setModal(organizations.length ? 'create' : 'org')}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-teal-600 text-white text-sm font-medium hover:bg-teal-700 transition-colors"
+        >
+          <Plus className="w-4 h-4" /> New classroom
+        </button>
       </div>
 
       {loading ? (
@@ -325,4 +320,4 @@ const ModalActions: React.FC<{
   </div>
 );
 
-export default ClassroomsPage;
+export default ClassroomsTab;

@@ -52,7 +52,7 @@ export function useGoogleOneTap() {
       const handleCredential = ({ credential }: { credential?: string }) => {
         if (!credential) return;
         auth.loginWithGoogleCredential(credential)
-          .then(() => window.location.assign('/summarizer'))
+          .then(() => window.location.assign('/library?view=add'))
           .catch(() => setGoogleError('Google sign-in failed. Please try again.'));
       };
 

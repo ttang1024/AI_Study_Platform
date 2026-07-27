@@ -1,24 +1,25 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useStudy } from '../context/StudyContext';
-import { useAuth } from '../context/AuthContext';
+import { useStudy } from '../../context/StudyContext';
+import { useAuth } from '../../context/AuthContext';
 import { motion } from 'motion/react';
 import { BookMarked, Search, X } from 'lucide-react';
-import { GlossaryTerm } from '../types';
-import { getDocDisplayName } from '../utils/docName';
-import { SourceFilterBar, SourceType } from '../components/common/SourceFilterBar';
-import { GlossaryShareModal } from '../components/common/GlossaryShareModal';
-import { GlossaryTermCard } from '../components/common/GlossaryTermCard';
-import { GlossaryGeneratePanel } from '../components/glossary/GlossaryGeneratePanel';
-import { GlossaryHeader } from '../components/glossary/GlossaryHeader';
-import { GlossaryMasteryFilter, MasteryFilter } from '../components/glossary/GlossaryMasteryFilter';
-import { GlossaryLetterNav } from '../components/glossary/GlossaryLetterNav';
-import { useStudyTimer } from '../hooks/useStudyTimer';
-import { useGlossaryAudio } from '../hooks/useGlossaryAudio';
-import { useGlossaryTerms, getDocKind } from '../hooks/useGlossaryTerms';
-import { useMasteredTerms } from '../hooks/useMasteredTerms';
+import { GlossaryTerm } from '../../types';
+import { getDocDisplayName } from '../../utils/docName';
+import { SourceFilterBar, SourceType } from '../../components/common/SourceFilterBar';
+import { GlossaryShareModal } from '../../components/common/GlossaryShareModal';
+import { GlossaryTermCard } from '../../components/common/GlossaryTermCard';
+import { GlossaryGeneratePanel } from '../../components/glossary/GlossaryGeneratePanel';
+import { GlossaryHeader } from '../../components/glossary/GlossaryHeader';
+import { GlossaryMasteryFilter, MasteryFilter } from '../../components/glossary/GlossaryMasteryFilter';
+import { GlossaryLetterNav } from '../../components/glossary/GlossaryLetterNav';
+import { useStudyTimer } from '../../hooks/useStudyTimer';
+import { useGlossaryAudio } from '../../hooks/useGlossaryAudio';
+import { useGlossaryTerms, getDocKind } from '../../hooks/useGlossaryTerms';
+import { useMasteredTerms } from '../../hooks/useMasteredTerms';
 
-export const GlossaryPage: React.FC = () => {
+/** The Glossary half of /materials. The old /glossary route redirects to ?tab=glossary. */
+export const GlossaryTab: React.FC = () => {
   const { documents, courses, videos, ensureDocuments, ensureVideos } = useStudy();
   // The document and video lists (used to label glossary sources) load lazily.
   useEffect(() => { void ensureDocuments(); void ensureVideos(); }, [ensureDocuments, ensureVideos]);
@@ -325,7 +326,7 @@ export const GlossaryPage: React.FC = () => {
           </p>
           {allTerms.length === 0 && (
             <button
-              onClick={() => navigate(documents.length > 0 ? '/library' : '/summarizer')}
+              onClick={() => navigate(documents.length > 0 ? '/library' : '/library?view=add')}
               className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[var(--primary)] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-opacity"
             >
               {documents.length > 0 ? 'Go to Library' : 'Add Content'}

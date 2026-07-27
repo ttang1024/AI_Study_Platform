@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ChevronDown, History, MessageSquarePlus, Trash2 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import type { ChatThreadSummary } from '../../types';

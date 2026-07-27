@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import ClipboardPaste from 'lucide-react-native/icons/clipboard-paste';
 import FileText from 'lucide-react-native/icons/file-text';

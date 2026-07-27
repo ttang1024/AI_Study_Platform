@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import FileVideo from 'lucide-react-native/icons/file-play';
 import LinkIcon from 'lucide-react-native/icons/link';

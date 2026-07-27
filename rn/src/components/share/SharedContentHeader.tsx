@@ -1,4 +1,3 @@
-import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Calendar from 'lucide-react-native/icons/calendar';
 import Share2 from 'lucide-react-native/icons/share-2';

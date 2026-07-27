@@ -4,10 +4,9 @@ import { motion } from 'motion/react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Library, Settings, LogOut, BrainCircuit,
-  Award, NotebookPen, X, Sparkles, ChevronLeft, ChevronRight,
-  User, BookMarked, MessageSquarePlus,
-  Search, Trophy, Users, Bot, Network, LineChart,
-  CalendarClock, GraduationCap, PenLine, School,
+  Award, NotebookPen, X, ChevronLeft, ChevronRight,
+  User, MessageSquarePlus, Search, Trophy, Users, Bot,
+  LineChart, PenLine,
 } from 'lucide-react';
 import { AchievementsPanel } from '../dashboard/AchievementsPanel';
 import { cn } from '../../utils/cn';
@@ -25,22 +24,20 @@ interface SidebarProps {
 
 // `labelKey` rather than a literal: the label is resolved at render time so switching language
 // re-renders the nav without rebuilding this list.
+// Nine entries, not fifteen: pages that answered the same question were merged into one page with
+// tabs, and the nav follows. Add content → Library, Practice/Planner → Practice Center, Glossary →
+// Materials, Concept map → Insights, Classrooms → Spaces. One entry per page, so Library covers
+// both browsing and adding — the Add tab is reached from inside it.
 const navItems: { icon: typeof LayoutDashboard; labelKey: TranslationKey; path: string }[] = [
-  { icon: Sparkles, labelKey: 'nav.summarizer', path: '/summarizer' },
   { icon: LayoutDashboard, labelKey: 'nav.dashboard', path: '/dashboard' },
-  { icon: LineChart, labelKey: 'nav.insights', path: '/insights' },
   { icon: Library, labelKey: 'nav.library', path: '/library' },
   { icon: BrainCircuit, labelKey: 'nav.flashcards', path: '/flashcards' },
-  { icon: Award, labelKey: 'nav.quizzes', path: '/quizzes' },
-  { icon: GraduationCap, labelKey: 'nav.practice', path: '/practice' },
+  { icon: Award, labelKey: 'nav.practiceCenter', path: '/quizzes' },
+  { icon: NotebookPen, labelKey: 'nav.materials', path: '/materials' },
   { icon: PenLine, labelKey: 'nav.tools', path: '/tools' },
-  { icon: CalendarClock, labelKey: 'nav.planner', path: '/planner' },
-  { icon: BookMarked, labelKey: 'nav.glossary', path: '/glossary' },
-  { icon: NotebookPen, labelKey: 'nav.notes', path: '/notes' },
+  { icon: LineChart, labelKey: 'nav.insights', path: '/insights' },
   { icon: Bot, labelKey: 'nav.chat', path: '/chat' },
-  { icon: Network, labelKey: 'nav.knowledgeGraph', path: '/knowledge-graph' },
-  { icon: Users, labelKey: 'nav.groups', path: '/groups' },
-  { icon: School, labelKey: 'nav.classrooms', path: '/classrooms' },
+  { icon: Users, labelKey: 'nav.spaces', path: '/spaces' },
   // Offline moved out of the sidebar — it lives in Settings → Export as a utility.
 ];
 
@@ -274,7 +271,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isCollapsed, 
                   Settings
                 </button>
                 <button
-                  onClick={() => { navigate('/feedback'); setIsProfileOpen(false); }}
+                  onClick={() => { navigate('/settings?tab=feedback'); setIsProfileOpen(false); }}
                   className="flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-sm text-text-main hover:bg-[var(--primary)]/10 hover:text-[var(--primary)] transition-all"
                 >
                   <MessageSquarePlus size={16} />

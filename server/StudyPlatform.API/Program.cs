@@ -3,6 +3,8 @@ using System.Text;
 using AspNetCoreRateLimit;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.ResponseCompression;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.AspNetCore.SignalR.StackExchangeRedis;
 using Microsoft.EntityFrameworkCore;
 using StudyPlatform.Infrastructure.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -198,26 +200,55 @@ builder.Services.AddInMemoryRateLimiting();
 builder.Services.Configure<IpRateLimitOptions>(builder.Configuration.GetSection("IpRateLimiting"));
 builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
 
-// SignalR. The Redis backplane is added only when Redis is actually configured, so single-node
-// development and self-hosted installs keep working with no extra service to run.
+// SignalR. The Redis backplane is added only when Redis is actually configured *and reachable*:
+// unlike the cache tier, the backplane has no fallback path, so a RedisHubLifetimeManager pointed at
+// a dead server fails every hub connect and broadcast. Probing here keeps a developer who hasn't
+// started `docker compose up redis` — or an install whose Redis is down at boot — on the in-memory
+// lifetime manager, which serves a single replica perfectly well.
 var signalR = builder.Services.AddSignalR();
-if (signalRRedisConfiguration != null)
+string? backplaneUnavailableReason = null;
+if (signalRRedisConfiguration == null)
+{
+    backplaneUnavailableReason = "Redis is not configured";
+}
+else if (!TryConnectRedis(signalRRedisConfiguration, out var backplaneProbeError))
+{
+    backplaneUnavailableReason = $"Redis is unreachable: {backplaneProbeError}";
+}
+
+if (backplaneUnavailableReason == null)
 {
     signalR.AddStackExchangeRedis(options =>
     {
-        options.Configuration = signalRRedisConfiguration;
+        // Cloned so the ChannelPrefix below doesn't leak into the cache's copy of the same options.
+        options.Configuration = signalRRedisConfiguration!.Clone();
         // Namespaced so several environments can share one Redis without cross-talking.
         options.Configuration.ChannelPrefix =
             RedisChannel.Literal(builder.Configuration["Redis:InstanceName"] ?? "StudyPlatform:");
     });
+
+    // …and wrap it so an outage *after* startup degrades to instance-local delivery instead of
+    // failing every send. Registered last, so it wins over the manager AddStackExchangeRedis just
+    // registered — which it now owns as its backplane. The probe above matters here too: it
+    // guarantees the Redis manager's one-time channel subscriptions happen against a live server.
+    builder.Services.AddSingleton(typeof(RedisHubLifetimeManager<>));
+    builder.Services.AddSingleton(typeof(DefaultHubLifetimeManager<>));
+    builder.Services.AddSingleton(typeof(HubLifetimeManager<>), typeof(RedisResilientHubLifetimeManager<>));
 }
 else if (builder.Configuration.GetValue("Api:RequireScaleOutBackplane", false))
 {
     // Opt-in guard for multi-replica deployments: failing to start is far better than starting and
     // delivering chat messages to only the third of users who happen to share a replica.
     throw new InvalidOperationException(
-        "Api:RequireScaleOutBackplane is set but Redis is not configured. SignalR needs a backplane "
-        + "to run more than one API replica.");
+        $"Api:RequireScaleOutBackplane is set but {backplaneUnavailableReason}. SignalR needs a "
+        + "backplane to run more than one API replica.");
+}
+else if (signalRRedisConfiguration != null)
+{
+    Console.Error.WriteLine(
+        $"SignalR Redis backplane disabled: {backplaneUnavailableReason}. Real-time messages will "
+        + "reach only clients on this instance — fine for a single replica, not for scale-out. "
+        + "Set Api:RequireScaleOutBackplane=true to make this a startup failure instead.");
 }
 // Fails jobs stranded by a restart, a crash, or a hung provider call. Without it those rows sit at
 // "queued" forever and the user watches a spinner that will never resolve.
@@ -356,6 +387,36 @@ static bool TryGetRedisConfiguration(
     {
         error = ex.Message;
         configuration = null;
+        return false;
+    }
+}
+
+// Best-effort reachability check. Bounded by ConnectTimeout/SyncTimeout (1s each by default), so a
+// down Redis costs a couple of seconds of startup, not a hang.
+static bool TryConnectRedis(ConfigurationOptions configuration, out string? error)
+{
+    error = null;
+
+    var probeConfiguration = configuration.Clone();
+    probeConfiguration.AbortOnConnectFail = false;
+    probeConfiguration.ConnectRetry = 1;
+    probeConfiguration.ClientName = "StudyPlatform.BackplaneProbe";
+
+    try
+    {
+        using var probe = ConnectionMultiplexer.Connect(probeConfiguration);
+        if (!probe.IsConnected)
+        {
+            error = $"no endpoint answered within {probeConfiguration.ConnectTimeout} ms";
+            return false;
+        }
+
+        probe.GetDatabase().Ping();
+        return true;
+    }
+    catch (Exception ex)
+    {
+        error = ex.Message;
         return false;
     }
 }

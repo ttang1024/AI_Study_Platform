@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Flame, Award, Target, Play, Pencil } from 'lucide-react';
+import { Flame, Target, Play, Pencil, Plus } from 'lucide-react';
 import { todayService, type TodayPlan } from '../../services/todayService';
 import { analyticsService } from '../../services/analyticsService';
 import { CARD_SHADOW, loadDone } from './todayCommon';
@@ -89,7 +89,6 @@ export const TodayProgressHero: React.FC = () => {
 
   const core = useMemo(() => (plan?.items ?? []).filter(i => !i.stretch), [plan]);
   const coreRemaining = core.filter(i => !done.has(i.id)).length;
-  const firstActionUrl = (core.find(i => !done.has(i.id) && i.url) ?? core.find(i => i.url))?.url ?? '/practice';
 
   if (loading) {
     return (
@@ -114,8 +113,9 @@ export const TodayProgressHero: React.FC = () => {
 
           {/* CTA placeholders */}
           <div className="shrink-0 self-stretch lg:self-center flex lg:flex-col gap-2.5">
-            <div className="flex-1 lg:flex-none h-[50px] w-full lg:w-40 rounded-2xl bg-zinc-100" />
-            <div className="flex-1 lg:flex-none h-[50px] w-full lg:w-40 rounded-2xl bg-zinc-100" />
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="flex-1 lg:flex-none h-[50px] w-full lg:w-40 rounded-2xl bg-zinc-100" />
+            ))}
           </div>
         </div>
       </div>
@@ -168,16 +168,17 @@ export const TodayProgressHero: React.FC = () => {
         {/* CTA */}
         <div className="shrink-0 self-stretch lg:self-center flex lg:flex-col gap-2.5">
           <Link
-            to={firstActionUrl}
+            to="/quizzes?tab=practice&smart=1"
             className="flex-1 lg:flex-none inline-flex items-center justify-center gap-2 rounded-2xl bg-[var(--primary)] text-white px-6 py-3.5 text-[15px] font-bold hover:opacity-90 transition-opacity whitespace-nowrap"
           >
-            <Play size={16} /> Start session
+            <Play size={16} /> Smart session
           </Link>
+          {/* Nothing to study is the other reason to be here — go straight to Library → Add. */}
           <Link
-            to="/practice?smart=1"
-            className="flex-1 lg:flex-none inline-flex items-center justify-center gap-2 rounded-2xl bg-zinc-100 text-text-main px-6 py-3.5 text-[15px] font-bold hover:bg-zinc-200 transition-colors whitespace-nowrap"
+            to="/library?view=add"
+            className="flex-1 lg:flex-none inline-flex items-center justify-center gap-2 rounded-2xl border border-[var(--border-color)] text-text-main px-6 py-3.5 text-[15px] font-bold hover:bg-zinc-100 transition-colors whitespace-nowrap"
           >
-            <Award size={16} /> Smart session
+            <Plus size={16} /> Add content
           </Link>
         </div>
       </div>

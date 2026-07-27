@@ -32,7 +32,7 @@ export const OAuthCallbackPage: React.FC = () => {
     const redirectUri = `${window.location.origin}/auth/callback`;
 
     loginWithOAuth(state, code, redirectUri)
-      .then(() => navigate('/summarizer', { replace: true }))
+      .then(() => navigate('/library?view=add', { replace: true }))
       .catch((err: any) => {
         setError(err?.response?.data?.message || 'Authentication failed. Please try again.');
       });

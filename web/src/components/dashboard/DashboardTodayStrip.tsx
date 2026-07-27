@@ -255,7 +255,9 @@ export const DashboardTodayStrip: React.FC<{
   loading: boolean;
   onRefresh?: () => void;
 }> = ({ summary, loading, onRefresh }) => {
-  if (loading || !summary) {
+  // `summary.streak` is checked, not just `summary`: a partial payload used to throw in the tiles
+  // below and blank whichever page hosts the strip, since nothing here catches a render error.
+  if (loading || !summary?.streak) {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <TileSkeleton />

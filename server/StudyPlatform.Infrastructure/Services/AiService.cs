@@ -122,16 +122,6 @@ public partial class AiService : IAiService
 
     // ── File-based methods — always use Gemini (inline base64 data) ───────
 
-    public async Task<string> GenerateMindMapAsync(byte[] fileData, string mimeType, CancellationToken cancellationToken = default)
-    {
-        var result = await CacheGeneratedResultAsync(
-            "mindmap:file",
-            HashBytes(fileData, mimeType, AiPrompts.MindMap),
-            ct => CallAiWithFileAsync(fileData, mimeType, AiPrompts.MindMap, ct, cleanJson: false),
-            cancellationToken);
-        return AiResponseParsing.CleanTextResponse(result);
-    }
-
     public Task<string> GenerateQuizAsync(byte[] fileData, string mimeType, string difficulty = "medium", CancellationToken cancellationToken = default)
     {
         var prompt = AiPrompts.QuizForDifficulty(difficulty);
@@ -190,17 +180,6 @@ public partial class AiService : IAiService
     }
 
     // ── Text-based methods — provider-agnostic ────────────────────────────
-
-    public async Task<string> GenerateMindMapAsync(string textContent, CancellationToken cancellationToken = default)
-    {
-        var prompt = $"{AiPrompts.MindMap}\n\nSource material:\n{AiResponseParsing.TruncateContent(textContent)}";
-        var result = await CacheGeneratedResultAsync(
-            "mindmap:text",
-            HashText(prompt),
-            ct => SendTextAsync(null, [("user", prompt)], 0.7, 8192, cleanJson: false, ct),
-            cancellationToken);
-        return AiResponseParsing.CleanTextResponse(result);
-    }
 
     public Task<string> GenerateQuizAsync(string textContent, string difficulty = "medium", CancellationToken cancellationToken = default)
     {
@@ -321,25 +300,6 @@ public partial class AiService : IAiService
             "flashcard-back:text",
             HashText(prompt),
             ct => SendTextAsync(null, [("user", prompt)], 0.5, 512, cleanJson: false, ct),
-            cancellationToken);
-    }
-
-    public Task<string> SuggestConceptLinksAsync(string documentContent, string entityType, Guid entityId, string existingTerms, CancellationToken cancellationToken = default)
-    {
-        var prompt = $@"Analyze the supplied study material and suggest concept links to related entities.
-Do not use meta phrases such as ""this document"", ""the document"", ""this video"", ""the video"", ""the transcript"", ""the source material"", ""the content"", or similar wording in generated titles or labels.
-Existing terms/concepts available: {existingTerms}
-Entity type: {entityType}, Entity ID: {entityId}
-
-Source material:
-{AiResponseParsing.TruncateContent(documentContent, 2000)}
-
-Return a JSON array of suggested links only, no markdown, no code blocks:
-[{{""targetType"":""document""|""note""|""flashcard""|""glossary"",""targetTitle"":""..."",""label"":""relates to""|""defines""|""expands on""|""contradicts""}}]";
-        return CacheGeneratedResultAsync(
-            "concept-links:text",
-            HashText(prompt),
-            ct => SendTextAsync(null, [("user", prompt)], 0.5, 2048, cleanJson: true, ct),
             cancellationToken);
     }
 

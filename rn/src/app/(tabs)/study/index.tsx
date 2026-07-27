@@ -1,6 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import Calendar from 'lucide-react-native/icons/calendar';
 import CalendarClock from 'lucide-react-native/icons/calendar-clock';

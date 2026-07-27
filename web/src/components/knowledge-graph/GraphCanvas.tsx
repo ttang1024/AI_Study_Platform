@@ -58,7 +58,7 @@ export const GraphCanvas: React.FC<Props> = ({
           <Network size={34} className="text-text-muted" />
           <p className="mt-3 text-sm font-semibold text-text-main">No graph nodes match this view</p>
           <p className="mt-1 max-w-md text-sm text-text-muted">Generate glossary terms or mind maps from your materials to add concept relationships.</p>
-          <Link to="/summarizer" className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-white">
+          <Link to="/library?view=add" className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-white">
             Add material
             <ArrowRight size={15} />
           </Link>

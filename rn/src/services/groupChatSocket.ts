@@ -41,11 +41,10 @@ interface GroupChatListeners {
   onConnectionStateChange?: (state: ConnectionState) => void;
 }
 
-// Ports web's ad hoc signalr usage in StudyGroupDetailPage.tsx. Two backend quirks this closes
-// over: (1) `POST /{id}/chat` doesn't broadcast — sends must go through `SendMessage` on the hub,
-// never the REST route; (2) web never re-invokes `JoinGroup` after `onreconnected`, which silently
-// drops you out of the group after any network blip — this class does, since mobile networks flap
-// more than desktop.
+// Ports web's ad hoc signalr usage in StudyGroupDetailPage.tsx. One backend quirk this closes over:
+// `POST /{id}/chat` doesn't broadcast — sends must go through `SendMessage` on the hub, never the
+// REST route. Re-invoking `JoinGroup` after `onreconnected` is essential (hub group membership is
+// per connection id, so a network blip silently drops you out of the group); web does the same now.
 export class GroupChatSocket {
   private connection: signalR.HubConnection | null = null;
   private groupId: string | null = null;

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Pressable, RefreshControl, SectionList, StyleSheet, Text, View } from 'react-native';
 import SquareLibrary from 'lucide-react-native/icons/square-library';
 import WifiOff from 'lucide-react-native/icons/wifi-off';

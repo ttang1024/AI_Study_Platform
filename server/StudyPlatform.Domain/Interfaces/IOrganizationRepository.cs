@@ -29,16 +29,9 @@ public interface IClassroomRepository : IRepository<Classroom>
 
 public interface IClassroomEnrollmentRepository : IRepository<ClassroomEnrollment>
 {
-    /// <summary>Active (not removed) enrollments for a classroom, with User loaded.</summary>
-    Task<IEnumerable<ClassroomEnrollment>> GetActiveByClassroomAsync(Guid classroomId, CancellationToken cancellationToken = default);
-
     Task<ClassroomEnrollment?> GetActiveEnrollmentAsync(Guid classroomId, Guid userId, CancellationToken cancellationToken = default);
 }
 
 public interface IClassroomCourseRepository : IRepository<ClassroomCourse>
 {
-    Task<IEnumerable<ClassroomCourse>> GetByClassroomAsync(Guid classroomId, CancellationToken cancellationToken = default);
-
-    /// <summary>Course assignments visible to a student across every classroom they are enrolled in.</summary>
-    Task<IEnumerable<ClassroomCourse>> GetForStudentAsync(Guid userId, CancellationToken cancellationToken = default);
 }

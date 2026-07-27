@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, StyleSheet, Switch, Text, View } from 'react-native';
 import Fingerprint from 'lucide-react-native/icons/fingerprint-pattern';
 

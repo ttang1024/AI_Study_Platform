@@ -48,7 +48,7 @@ export const StudyGroupDetailPage: React.FC = () => {
     if (!id) return;
     studyGroupService.getDetail(id)
       .then((res) => setGroup(res.data?.data ?? null))
-      .catch(() => navigate('/groups'))
+      .catch(() => navigate('/spaces'))
       .finally(() => setLoading(false));
 
     studyGroupService.getChat(id)
@@ -85,7 +85,7 @@ export const StudyGroupDetailPage: React.FC = () => {
     connection.on('MemberRemoved', (userId: string) => {
       setGroup((g) => g ? { ...g, members: g.members.filter((m) => m.userId !== userId) } : g);
       // Navigate away if the current user was removed
-      if (userId === user?.id) navigate('/groups');
+      if (userId === user?.id) navigate('/spaces');
     });
 
     connection.on('CourseShared', (course: { courseId: string; courseName: string; sharedAt: string; sharedByUserId: string }) => {
@@ -100,6 +100,12 @@ export const StudyGroupDetailPage: React.FC = () => {
     });
 
     connection.on('RoomState', (state: StudyRoomState) => setRoomState(state));
+
+    // A reconnect gets a brand-new connection id, and hub group membership is per connection — so
+    // without re-joining, the chat looks connected while receiving nothing.
+    connection.onreconnected(() => {
+      connection.invoke('JoinGroup', id).catch(() => {});
+    });
 
     connection.start()
       .then(() => connection.invoke('JoinGroup', id))
@@ -174,7 +180,7 @@ export const StudyGroupDetailPage: React.FC = () => {
     setDeleting(true);
     try {
       await studyGroupService.deleteGroup(id);
-      navigate('/groups');
+      navigate('/spaces');
     } catch {
       setDeleting(false);
     }
@@ -185,7 +191,7 @@ export const StudyGroupDetailPage: React.FC = () => {
     setLeaving(true);
     try {
       await studyGroupService.leave(id);
-      navigate('/groups');
+      navigate('/spaces');
     } catch {
       setLeaving(false);
     }
@@ -211,7 +217,7 @@ export const StudyGroupDetailPage: React.FC = () => {
     <div className="space-y-6 max-w-4xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <button onClick={() => navigate('/groups')} className="text-gray-400 hover:text-gray-600 transition-colors">
+        <button onClick={() => navigate('/spaces')} className="text-gray-400 hover:text-gray-600 transition-colors">
           <ArrowLeft size={20} />
         </button>
         <div className="flex-1">

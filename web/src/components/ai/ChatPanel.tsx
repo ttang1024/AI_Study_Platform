@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useImperativeHandle, useCallback, forwardRef } from 'react';
+import { useState, useRef, useEffect, useImperativeHandle, useCallback, forwardRef } from 'react';
 import { Send, Sparkles, Mic, MicOff, Volume2, VolumeX, Loader2, Paperclip, X, FileText, Camera } from 'lucide-react';
 import type { ChatAttachment, ChatMessageAttachment } from '../../services/aiService';
 import 'katex/dist/katex.min.css';

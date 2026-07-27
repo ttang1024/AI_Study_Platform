@@ -154,21 +154,6 @@ public class S3BlobStorageService : IBlobStorageService
         return response.ResponseStream;
     }
 
-    public async Task<string> GetFileContentAsync(string blobUrl, CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            await using var stream = await DownloadAsync(blobUrl, cancellationToken);
-            using var reader = new StreamReader(stream);
-            return await reader.ReadToEndAsync(cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to get file content from S3 object: {BlobUrl}", blobUrl);
-            return string.Empty;
-        }
-    }
-
     public string GetSasUrl(string blobUrl, int expiryMinutes)
     {
         var request = new GetPreSignedUrlRequest

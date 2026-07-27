@@ -1,6 +1,6 @@
 import * as Clipboard from 'expo-clipboard';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import BookOpen from 'lucide-react-native/icons/book-open';
 import Check from 'lucide-react-native/icons/check';

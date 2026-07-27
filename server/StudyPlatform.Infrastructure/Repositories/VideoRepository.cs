@@ -108,8 +108,4 @@ public class VideoRepository : Repository<Video>, IVideoRepository
     public async Task<Video?> GetByExternalVideoIdAsync(string externalVideoId, CancellationToken cancellationToken = default)
         => await _dbSet
             .FirstOrDefaultAsync(v => v.ExternalVideoId == externalVideoId, cancellationToken);
-
-    public async Task<Video?> GetByExternalVideoIdForUserAsync(string externalVideoId, Guid userId, CancellationToken cancellationToken = default)
-        => await _dbSet
-            .FirstOrDefaultAsync(v => v.ExternalVideoId == externalVideoId && v.UserId == userId, cancellationToken);
 }

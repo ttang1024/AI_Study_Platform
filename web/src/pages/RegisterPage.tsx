@@ -59,7 +59,7 @@ export const RegisterPage: React.FC = () => {
     setIsSubmitting(true);
     try {
       await register({ email, fullName: name, password, otpCode: verificationCode });
-      navigate('/summarizer');
+      navigate('/library?view=add');
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Registration failed. Please check your details and try again.');
     } finally {

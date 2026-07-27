@@ -5,6 +5,7 @@ export { BentoGlossaryCard } from './BentoGlossaryCard';
 export { BentoProblemCard } from './BentoProblemCard';
 export { BentoStudyGroupCard } from './BentoStudyGroupCard';
 export { BentoChatCard } from './BentoChatCard';
+export { BentoSummaryCard } from './BentoSummaryCard';
 export { BentoMindMapCard } from './BentoMindMapCard';
 export { BentoQuizCard } from './BentoQuizCard';
 export { BentoPlannerCard } from './BentoPlannerCard';

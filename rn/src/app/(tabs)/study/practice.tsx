@@ -1,4 +1,3 @@
-import React from 'react';
 
 import { PracticeReport } from '@/components/practice/PracticeReport';
 import { PracticeRunner } from '@/components/practice/PracticeRunner';

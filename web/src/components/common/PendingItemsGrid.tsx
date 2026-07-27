@@ -68,10 +68,17 @@ export const PendingItemsGrid: React.FC<PendingItemsGridProps> = ({
         let cards: CardData[];
         if (item.kind === 'video') {
           const raw = await videoService.generateFlashcards(item.video.id, item.video.videoUrl);
-          cards = raw.map(c => ({ id: c.flashcardId, front: c.front, back: c.back }));
+          cards = raw.map(c => ({ id: c.flashcardId, front: c.front, back: c.back, cardType: c.cardType }));
         } else {
           const raw = await documentService.generateFlashcards(item.doc.courseId || '', item.doc.id);
-          cards = raw.map(c => ({ id: c.id, front: c.front, back: c.back }));
+          cards = raw.map(c => ({
+            id: c.id,
+            front: c.front,
+            back: c.back,
+            cardType: c.cardType,
+            imageUrl: c.imageUrl,
+            occlusions: c.occlusions,
+          }));
         }
         generatedItemRef.current = item;
         setModal({ kind: 'flashcards', name, detailTo: to, cards, idx: 0, isFlipped: false });
@@ -109,7 +116,7 @@ export const PendingItemsGrid: React.FC<PendingItemsGridProps> = ({
   return (
     <>
       {/* Section header */}
-      <div className="space-y-4">
+      <div className="space-y-4 mt-6 mb-3">
         <div className="flex items-center gap-3">
           <div className="h-px flex-1 bg-[var(--border-color)]" />
           <div className="flex items-center gap-2">

@@ -10,25 +10,29 @@ test.describe('Authenticated application', () => {
     await page.goto('/dashboard')
 
     await expect(page.getByRole('heading', { name: /test student/i })).toBeVisible()
-    await expect(page.getByText('Content Library')).toBeVisible()
-    await expect(page.getByText('Study Tools')).toBeVisible()
-    await expect(page.getByText('Biology 101')).toBeVisible()
+    // Scoped to the page body: several of these labels also name a sidebar entry.
+    const main = page.locator('#main-scroll')
+    await expect(main.getByText('Content Library')).toBeVisible()
+    await expect(main.getByText('Study Tools')).toBeVisible()
+    await expect(main.getByText('Biology 101')).toBeVisible()
 
     await page.getByRole('link', { name: /library/i }).click()
     await expect(page).toHaveURL(/\/library/)
-    await expect(page.getByRole('heading', { name: 'Library' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Content Library' })).toBeVisible()
 
     await page.getByRole('link', { name: /flashcards/i }).click()
     await expect(page).toHaveURL(/\/flashcards/)
     await expect(page.getByRole('heading', { name: /study flashcards/i })).toBeVisible()
 
-    await page.getByRole('link', { name: /quizzes/i }).click()
+    // Quizzes, practice and the planner are one page with tabs now, reached from a single nav entry.
+    await page.getByRole('link', { name: /practice center/i }).click()
     await expect(page).toHaveURL(/\/quizzes/)
-    await expect(page.getByRole('heading', { name: /quiz center/i })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /practice center/i })).toBeVisible()
 
-    await page.getByRole('link', { name: /notes/i }).click()
-    await expect(page).toHaveURL(/\/notes/)
-    await expect(page.getByRole('heading', { name: /study notes/i })).toBeVisible()
+    // Likewise notes and the glossary, under Materials.
+    await page.getByRole('link', { name: /materials/i }).click()
+    await expect(page).toHaveURL(/\/materials/)
+    await expect(page.getByRole('heading', { name: /study materials/i })).toBeVisible()
   })
 
   test('renders library content and supports type and search filters', async ({ page }) => {
@@ -88,25 +92,28 @@ test.describe('Authenticated application', () => {
   })
 
   test('covers quiz history and question bank tabs', async ({ page }) => {
-    await page.goto('/quizzes')
+    // The Practice Center opens on Practice; history is a tab of the same page.
+    await page.goto('/quizzes?tab=history')
 
-    await expect(page.getByRole('heading', { name: /quiz center/i })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /practice center/i })).toBeVisible()
     await expect(page.getByText('Cell Biology.pdf')).toBeVisible()
     await expect(page.getByText('4/5')).toBeVisible()
 
-    await page.getByRole('button', { name: /question bank/i }).click()
+    await page.getByRole('tab', { name: /question bank/i }).click()
     await expect(page.getByPlaceholder(/search questions/i)).toBeVisible()
     await expect(page.getByText('Which organelle makes ATP?')).toBeVisible()
 
-    await page.getByRole('button', { name: /review mistakes/i }).click()
+    await page.getByRole('tab', { name: /review mistakes/i }).click()
     // With no mistakes in the fixture the notebook shows its empty state.
     await expect(page.getByText(/no open mistakes/i)).toBeVisible()
   })
 
   test('shows notes across documents and videos with search filtering', async ({ page }) => {
+    // /notes is a redirect into the Materials page's Notes tab.
     await page.goto('/notes')
+    await expect(page).toHaveURL(/\/materials\?tab=notes/)
 
-    await expect(page.getByRole('heading', { name: /study notes/i })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /study materials/i })).toBeVisible()
     await expect(page.getByText('Cell Biology.pdf')).toBeVisible()
     await expect(page.getByText(/mitochondria generate atp/i)).toBeVisible()
     await expect(page.getByText('Mitosis Explained')).toBeVisible()

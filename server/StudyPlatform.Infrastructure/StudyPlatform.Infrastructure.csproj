@@ -10,6 +10,10 @@
   <ItemGroup>
     <PackageReference Include="DocumentFormat.OpenXml" Version="3.4.1" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.1" />
+    <!-- Pinned ahead of what Microsoft.Data.Sqlite asks for (2.1.10/2.1.11): those bundle a SQLite
+         older than 3.50.2 and carry CVE-2025-6965. 2.1.12 is the same 2.1.x line, so it stays
+         compatible with Microsoft.Data.Sqlite.Core. Drop the pin once that package catches up. -->
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="2.1.12" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.1" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.1">

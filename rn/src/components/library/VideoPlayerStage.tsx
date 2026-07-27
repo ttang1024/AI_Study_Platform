@@ -1,4 +1,4 @@
-import React, { useMemo, type RefObject } from 'react';
+import { useMemo, type RefObject } from 'react';
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { WebView } from 'react-native-webview';
 

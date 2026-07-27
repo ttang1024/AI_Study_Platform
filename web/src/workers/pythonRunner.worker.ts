@@ -21,6 +21,12 @@ interface RunRequest {
   tests?: string;
 }
 
+/** Sent once the interpreter is up, so the host's time limit covers the code and not the download. */
+interface ReadyMessage {
+  id: string;
+  type: 'ready';
+}
+
 interface RunResponse {
   id: string;
   ok: boolean;
@@ -30,12 +36,14 @@ interface RunResponse {
   testsPassed?: boolean;
 }
 
-declare const loadPyodide: (options: { indexURL: string }) => Promise<PyodideApi>;
-
 interface PyodideApi {
   runPythonAsync(code: string): Promise<unknown>;
   setStdout(options: { batched: (s: string) => void }): void;
   setStderr(options: { batched: (s: string) => void }): void;
+}
+
+interface PyodideModule {
+  loadPyodide: (options: { indexURL: string }) => Promise<PyodideApi>;
 }
 
 let pyodidePromise: Promise<PyodideApi> | null = null;
@@ -43,12 +51,19 @@ let pyodidePromise: Promise<PyodideApi> | null = null;
 const getPyodide = (): Promise<PyodideApi> => {
   if (!pyodidePromise) {
     pyodidePromise = (async () => {
-      // importScripts is synchronous and defines the global `loadPyodide`.
-      (self as unknown as { importScripts: (url: string) => void }).importScripts(
-        `${PYODIDE_BASE}pyodide.js`,
-      );
+      // This is a module worker, where importScripts() is unavailable — Pyodide publishes an ESM
+      // build next to the classic one for exactly this case. @vite-ignore keeps the bundler from
+      // trying to resolve a CDN URL it can only see at runtime.
+      const { loadPyodide } = (await import(
+        /* @vite-ignore */ `${PYODIDE_BASE}pyodide.mjs`
+      )) as PyodideModule;
       return loadPyodide({ indexURL: PYODIDE_BASE });
     })();
+    // A failed load must not be cached, or every later run in this worker replays the same
+    // rejection with no way for the learner to retry.
+    pyodidePromise.catch(() => {
+      pyodidePromise = null;
+    });
   }
   return pyodidePromise;
 };
@@ -61,6 +76,9 @@ self.onmessage = async (event: MessageEvent<RunRequest>) => {
 
   try {
     const pyodide = await getPyodide();
+
+    const ready: ReadyMessage = { id, type: 'ready' };
+    self.postMessage(ready);
 
     pyodide.setStdout({ batched: (s) => (stdout += s + '\n') });
     pyodide.setStderr({ batched: (s) => (stderr += s + '\n') });

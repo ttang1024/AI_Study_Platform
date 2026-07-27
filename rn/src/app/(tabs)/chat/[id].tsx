@@ -1,5 +1,4 @@
 import { useLocalSearchParams } from 'expo-router';
-import React from 'react';
 
 import { ChatThreadView } from '@/components/chat/ChatThreadView';
 import { chatService } from '@/services/chatService';

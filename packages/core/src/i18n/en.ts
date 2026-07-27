@@ -3,13 +3,18 @@
  * elsewhere falls back to English rather than rendering the raw key at the user.
  */
 export const en = {
-  'nav.summarizer': 'AI Summarizer',
   'nav.dashboard': 'Dashboard',
   'nav.insights': 'Insights',
   'nav.library': 'Library',
+  // The web nav shows the merged pages; the per-page keys below are still used by the mobile
+  // app, which keeps these as separate screens under its Study tab.
+  'nav.practiceCenter': 'Practice Center',
+  'nav.materials': 'Materials',
+  'nav.spaces': 'Spaces',
   'nav.flashcards': 'Flashcards',
   'nav.quizzes': 'Quizzes',
   'nav.practice': 'Practice',
+  'nav.summarizer': 'AI Summarizer',
   // Check Working / Writing / Language are tabs of one page now, not three nav entries.
   'nav.tools': 'Study Tools',
   'nav.planner': 'Planner',

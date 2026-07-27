@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useNavigation } from 'expo-router';
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 
 import { ScopedChatPanel } from '@/components/chat/ScopedChatPanel';
 import { ChatScopeType } from '@/services/chatService';

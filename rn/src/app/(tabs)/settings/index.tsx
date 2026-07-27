@@ -1,6 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Activity from 'lucide-react-native/icons/activity';
 import Bell from 'lucide-react-native/icons/bell';

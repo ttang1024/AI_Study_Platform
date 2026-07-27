@@ -28,7 +28,10 @@ export const OnboardingChecklist: React.FC = () => {
     void load();
   }, [load]);
 
-  if (!state || state.dismissed || state.complete) return null;
+  // `steps` is checked too, not just `state`: a response that arrives without it (an older API, a
+  // proxy returning an empty envelope) used to throw here and blank the whole dashboard, since
+  // nothing on this route catches a render error.
+  if (!state || state.dismissed || state.complete || !state.steps?.length) return null;
 
   const dismiss = async () => {
     setState(null); // Optimistic: the panel should vanish on click, not after a round trip.

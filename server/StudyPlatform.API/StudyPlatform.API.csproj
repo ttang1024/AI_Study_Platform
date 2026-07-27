@@ -10,10 +10,13 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.1" />
-    <PackageReference Include="Microsoft.AspNetCore.SignalR.StackExchangeRedis" Version="9.0.1" />
+    <!-- 10.0.9 is the first release whose MessagePack dependency (>= 2.5.301) is not vulnerable. -->
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.StackExchangeRedis" Version="10.0.10" />
     <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="9.0.5" />
     <PackageReference Include="AspNetCoreRateLimit" Version="5.0.0" />
-    <PackageReference Include="SmartReader" Version="0.11.0" />
+    <!-- 0.11.1 moves to AngleSharp 1.5.2, which fixes an mXSS sanitizer bypass in the HTML parser
+         this feeds every clipped web article through. -->
+    <PackageReference Include="SmartReader" Version="0.11.1" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="7.3.1" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.1">
       <PrivateAssets>all</PrivateAssets>

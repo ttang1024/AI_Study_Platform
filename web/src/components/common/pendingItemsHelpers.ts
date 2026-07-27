@@ -1,13 +1,21 @@
 import { CONTENT_TYPE_ICONS } from '../../constants/contentTypeIcons';
 import { getDocDisplayName } from '../../utils/docName';
 import { getDocumentKind, getDocumentRoute } from '../../utils/documentRoute';
-import { Course } from '../../types';
+import { Course, OcclusionRect } from '../../types';
+import type { FlashcardCardType } from '../study/FlashcardFlipCard';
 import { VideoListItem, videoService } from '../../services/videoService';
 import type { PendingItem } from './PendingItemsGrid';
 
 // ── internal types ────────────────────────────────────────────────────────────
 
-export type CardData = { id: string; front: string; back: string };
+export type CardData = {
+  id: string;
+  front: string;
+  back: string;
+  cardType?: FlashcardCardType;
+  imageUrl?: string;
+  occlusions?: OcclusionRect[];
+};
 export type QuestionData = { id: string; question: string; options?: string[]; answer: string; explanation: string };
 
 export type QuizPhase = 'answering' | 'submitted';

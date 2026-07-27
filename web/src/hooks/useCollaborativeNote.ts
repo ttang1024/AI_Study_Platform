@@ -134,23 +134,33 @@ export function useCollaborativeNote(noteId: string | null, myName: string): Use
       }, SAVE_DEBOUNCE_MS);
     };
 
+    const joinAndHydrate = async () => {
+      setConnected(true);
+      const hydrateBase64: string = await connection.invoke('JoinNote', noteId);
+      if (hydrateBase64) {
+        Y.applyUpdate(doc, fromBase64(hydrateBase64), 'remote');
+      } else {
+        // Brand-new note: fall back to the REST snapshot in case the hub state is stale.
+        try {
+          const { data } = await groupNotesService.getNote(noteId);
+          const remoteState = data.data.stateBase64;
+          if (remoteState) Y.applyUpdate(doc, fromBase64(remoteState), 'remote');
+        } catch { /* leave empty */ }
+      }
+      syncTextState();
+      broadcastAwareness();
+    };
+
+    // A reconnect gets a brand-new connection id, and hub group membership is per connection — so
+    // without re-joining, the editor looks connected while no peer edits arrive. Re-hydrating is
+    // safe: Yjs updates merge idempotently, so this also catches up on edits missed while offline.
+    connection.onreconnected(() => {
+      joinAndHydrate().catch(() => setConnected(false));
+    });
+    connection.onreconnecting(() => setConnected(false));
+
     connection.start()
-      .then(async () => {
-        setConnected(true);
-        const hydrateBase64: string = await connection.invoke('JoinNote', noteId);
-        if (hydrateBase64) {
-          Y.applyUpdate(doc, fromBase64(hydrateBase64), 'remote');
-        } else {
-          // Brand-new note: fall back to the REST snapshot in case the hub state is stale.
-          try {
-            const { data } = await groupNotesService.getNote(noteId);
-            const remoteState = data.data.stateBase64;
-            if (remoteState) Y.applyUpdate(doc, fromBase64(remoteState), 'remote');
-          } catch { /* leave empty */ }
-        }
-        syncTextState();
-        broadcastAwareness();
-      })
+      .then(joinAndHydrate)
       .catch(() => setConnected(false));
 
     const broadcastAwareness = () => {

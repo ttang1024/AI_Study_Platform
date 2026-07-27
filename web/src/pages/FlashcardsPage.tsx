@@ -140,7 +140,7 @@ export const FlashcardsPage: React.FC = () => {
             </p>
             {!s.searchQuery && s.allSets.length === 0 && (
               <button
-                onClick={() => navigate(s.documents.length > 0 ? '/library' : '/summarizer')}
+                onClick={() => navigate(s.documents.length > 0 ? '/library' : '/library?view=add')}
                 className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[var(--primary)] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-opacity"
               >
                 {s.documents.length > 0 ? 'Go to Library' : 'Add Content'}

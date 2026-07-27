@@ -38,7 +38,7 @@ export const QuizHistoryTab: React.FC<QuizHistoryTabProps> = ({ history, context
         hideTypeTabs={true}
       />
 
-      <div className="space-y-3">
+      <div className="space-y-3 mt-3">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-text-main">All Quizzes</h2>
           <span className="text-sm text-text-muted">{filteredItems.length} items</span>
@@ -55,7 +55,7 @@ export const QuizHistoryTab: React.FC<QuizHistoryTabProps> = ({ history, context
             <p className="text-text-muted">Start a quiz from any document to see your results here.</p>
             {allItems.length === 0 && (
               <button
-                onClick={() => navigate(documents.length > 0 ? '/library' : '/summarizer')}
+                onClick={() => navigate(documents.length > 0 ? '/library' : '/library?view=add')}
                 className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[var(--primary)] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-opacity"
               >
                 {documents.length > 0 ? 'Go to Library' : 'Add Content'}

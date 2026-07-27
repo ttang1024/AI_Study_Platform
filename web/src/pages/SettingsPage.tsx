@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useLocation } from 'react-router-dom';
-import { User, Shield, LogOut, KeyRound, Volume2, Archive, Activity, CreditCard } from 'lucide-react';
+import { User, Shield, LogOut, KeyRound, Volume2, Archive, Activity, CreditCard, MessageSquarePlus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { cn } from '../utils/cn';
+import { useTabParam } from '../components/common/PageTabs';
 import { ProfileTab } from '../components/settings/ProfileTab';
 import { SecurityTab } from '../components/settings/SecurityTab';
 import { AiServicesTab } from '../components/settings/AiServicesTab';
@@ -10,8 +11,9 @@ import { AiUsageTab } from '../components/settings/AiUsageTab';
 import { PlanTab } from '../components/settings/PlanTab';
 import { VoiceTab } from '../components/settings/VoiceTab';
 import { ExportTab } from '../components/settings/ExportTab';
+import { FeedbackTab } from '../components/settings/FeedbackTab';
 
-type SettingsTab = 'profile' | 'security' | 'ai' | 'ai-usage' | 'plan' | 'voice' | 'export';
+type SettingsTab = 'profile' | 'security' | 'ai' | 'ai-usage' | 'plan' | 'voice' | 'export' | 'feedback';
 
 const tabs = [
   { id: 'profile', label: 'Profile', icon: User },
@@ -23,14 +25,19 @@ const tabs = [
   { id: 'plan', label: 'Plan', icon: CreditCard },
   { id: 'voice', label: 'Voice', icon: Volume2 },
   { id: 'export', label: 'Export', icon: Archive },
+  // Was its own page reached from the profile menu; both menu entries land in Settings now.
+  { id: 'feedback', label: 'Feedback', icon: MessageSquarePlus },
 ] as const;
+
+const TAB_IDS = tabs.map(t => t.id) as readonly SettingsTab[];
 
 export const SettingsPage: React.FC = () => {
   const { logout } = useAuth();
   const location = useLocation();
-  const [activeTab, setActiveTab] = useState<SettingsTab>(
-    (location.state as any)?.activeTab ?? 'profile'
-  );
+  // The tab is in the URL (so /feedback can redirect to ?tab=feedback), but callers that push
+  // a tab through router state — the AI-provider banner, the plan upsell — still work.
+  const stateTab = (location.state as { activeTab?: SettingsTab } | null)?.activeTab;
+  const { active: activeTab, select: setActiveTab } = useTabParam(TAB_IDS, stateTab ?? 'profile');
 
   return (
     <div className="max-w-7xl mx-auto space-y-8">
@@ -76,6 +83,7 @@ export const SettingsPage: React.FC = () => {
           {activeTab === 'plan' && <PlanTab />}
           {activeTab === 'voice' && <VoiceTab />}
           {activeTab === 'export' && <ExportTab />}
+          {activeTab === 'feedback' && <FeedbackTab />}
         </div>
       </div>
     </div>

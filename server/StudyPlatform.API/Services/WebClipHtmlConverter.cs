@@ -8,11 +8,43 @@ namespace StudyPlatform.API.Services;
 /// </summary>
 internal static class WebClipHtmlConverter
 {
+    // Private-use characters: they survive tag stripping, entity decoding and the
+    // inline-formatting passes untouched, so a parked code block cannot be corrupted.
+    private const char CodeOpen = '\uE000';
+    private const char CodeClose = '\uE001';
+
     /// <summary>
     /// Converts article HTML to Markdown, handling code blocks, math formulas, images and figures.
     /// </summary>
     public static string ConvertHtmlToMarkdown(string html)
     {
+        // Code blocks are converted up-front and parked behind placeholders. Everything
+        // that follows (tag stripping, entity decoding, de-indenting, blank-line
+        // collapsing) would otherwise mangle code that legitimately contains "<", "&"
+        // or leading whitespace, and would let a wrapping <code> element re-wrap an
+        // already-fenced block into a broken fence.
+        var codeBlocks = new List<string>();
+
+        string Park(string language, string rawCode)
+        {
+            var code = System.Net.WebUtility.HtmlDecode(StripTags(rawCode)).Trim('\r', '\n');
+            codeBlocks.Add($"```{language}\n{code}\n```");
+            return $"\n\n{CodeOpen}{codeBlocks.Count - 1}{CodeClose}\n\n";
+        }
+
+        // Emphasis markers must hug the text, but the space that sat next to the element
+        // has to survive outside them — otherwise "<code>redis </code>Python" collapses to
+        // "`redis`Python", and a whitespace-only <i> turns into a stray "__".
+        static string Inline(string rawInner, string marker)
+        {
+            var text = StripTags(rawInner);
+            var trimmed = text.Trim();
+            if (trimmed.Length == 0) return text.Length > 0 ? " " : "";
+            var lead = char.IsWhiteSpace(text[0]) ? " " : "";
+            var trail = char.IsWhiteSpace(text[^1]) ? " " : "";
+            return $"{lead}{marker}{trimmed}{marker}{trail}";
+        }
+
         // --- Math: GFG uses <gfg-tex> for LaTeX ---
         // Block formulas: <blockquote><p><gfg-tex>...</gfg-tex></p></blockquote>
         html = Regex.Replace(html,
@@ -25,46 +57,52 @@ internal static class WebClipHtmlConverter
             RegexOptions.IgnoreCase | RegexOptions.Singleline);
 
         // --- Code blocks: must run before inline <code> ---
+        // Inverted nesting — GeeksforGeeks emits
+        // <code class="language-python3"><div class="highlight"><pre>…</pre></div></code>.
+        // Handled first, otherwise the <pre> rule converts the inner block and the inline
+        // <code> rule then wraps that fence in backticks, producing a stray ```` fence that
+        // swallows the rest of the article.
+        html = Regex.Replace(html,
+            @"<code\b[^>]*class=""[^""]*language-([\w+#.-]+)[^""]*""[^>]*>\s*(?:<div[^>]*>\s*)*<pre[^>]*>(.*?)</pre>\s*(?:</div>\s*)*</code>",
+            m => Park(m.Groups[1].Value.Trim(), m.Groups[2].Value),
+            RegexOptions.IgnoreCase | RegexOptions.Singleline);
+        html = Regex.Replace(html,
+            @"<code\b[^>]*>\s*(?:<div[^>]*>\s*)*<pre[^>]*>(.*?)</pre>\s*(?:</div>\s*)*</code>",
+            m => Park("", m.Groups[1].Value),
+            RegexOptions.IgnoreCase | RegexOptions.Singleline);
         // <pre><code class="language-X">
         html = Regex.Replace(html,
-            @"<pre[^>]*><code[^>]*class=""[^""]*language-(\w+)[^""]*""[^>]*>(.*?)</code></pre>",
-            m =>
-            {
-                var lang = m.Groups[1].Value.Trim();
-                var code = System.Net.WebUtility.HtmlDecode(StripTags(m.Groups[2].Value));
-                return $"\n\n```{lang}\n{code}\n```\n\n";
-            },
+            @"<pre\b[^>]*><code[^>]*class=""[^""]*language-([\w+#.-]+)[^""]*""[^>]*>(.*?)</code></pre>",
+            m => Park(m.Groups[1].Value.Trim(), m.Groups[2].Value),
             RegexOptions.IgnoreCase | RegexOptions.Singleline);
         // <pre><code> without language
-        html = Regex.Replace(html, @"<pre[^>]*><code[^>]*>(.*?)</code></pre>",
-            m =>
-            {
-                var code = System.Net.WebUtility.HtmlDecode(StripTags(m.Groups[1].Value));
-                return $"\n\n```\n{code}\n```\n\n";
-            },
+        html = Regex.Replace(html, @"<pre\b[^>]*><code[^>]*>(.*?)</code></pre>",
+            m => Park("", m.Groups[1].Value),
             RegexOptions.IgnoreCase | RegexOptions.Singleline);
         // <pre> without nested <code>
-        html = Regex.Replace(html, @"<pre[^>]*>(.*?)</pre>",
+        html = Regex.Replace(html, @"<pre\b[^>]*>(.*?)</pre>",
+            m => Park("", m.Groups[1].Value),
+            RegexOptions.IgnoreCase | RegexOptions.Singleline);
+        // Inline <code> — a parked block that is still wrapped in <code> stays a block.
+        html = Regex.Replace(html, @"<code\b[^>]*>(.*?)</code>",
             m =>
             {
-                var code = System.Net.WebUtility.HtmlDecode(StripTags(m.Groups[1].Value));
-                return $"\n\n```\n{code}\n```\n\n";
+                var inner = StripTags(m.Groups[1].Value).Trim();
+                if (inner.IndexOf(CodeOpen) >= 0 || inner.Contains('\n'))
+                    return $"\n\n{inner}\n\n";
+                return Inline(m.Groups[1].Value, "`");
             },
-            RegexOptions.IgnoreCase | RegexOptions.Singleline);
-        // Inline <code>
-        html = Regex.Replace(html, @"<code[^>]*>(.*?)</code>",
-            m => $"`{StripTags(m.Groups[1].Value).Trim()}`",
             RegexOptions.IgnoreCase | RegexOptions.Singleline);
 
         // --- Figures (images with captions) ---
-        html = Regex.Replace(html, @"<figure[^>]*>(.*?)</figure>",
+        html = Regex.Replace(html, @"<figure\b[^>]*>(.*?)</figure>",
             m =>
             {
                 var inner = m.Groups[1].Value;
                 var imgSrc = ExtractImgSrc(inner);
                 if (string.IsNullOrEmpty(imgSrc)) return "";
                 var alt = Regex.Match(inner, @"\balt=""([^""]*)""", RegexOptions.IgnoreCase).Groups[1].Value.Trim();
-                var captionMatch = Regex.Match(inner, @"<figcaption[^>]*>(.*?)</figcaption>",
+                var captionMatch = Regex.Match(inner, @"<figcaption\b[^>]*>(.*?)</figcaption>",
                     RegexOptions.IgnoreCase | RegexOptions.Singleline);
                 var caption = captionMatch.Success ? StripTags(captionMatch.Groups[1].Value).Trim() : "";
                 var sb = $"\n\n![{alt}]({imgSrc})\n\n";
@@ -83,15 +121,18 @@ internal static class WebClipHtmlConverter
         }
 
         // --- Inline formatting ---
-        html = Regex.Replace(html, @"<(strong|b)[^>]*>(.*?)</\1>",
-            m => $"**{StripTags(m.Groups[2].Value).Trim()}**",
+        // \b after the tag name is load-bearing: without it "<b" also matches <blockquote>
+        // and "<i" also matches <img>/<input>, and the lazy body then runs to the next
+        // real </b> or </i>, folding entire sections into one bold or italic run.
+        html = Regex.Replace(html, @"<(strong|b)\b[^>]*>(.*?)</\1>",
+            m => Inline(m.Groups[2].Value, "**"),
             RegexOptions.IgnoreCase | RegexOptions.Singleline);
-        html = Regex.Replace(html, @"<(em|i)[^>]*>(.*?)</\1>",
-            m => $"_{StripTags(m.Groups[2].Value).Trim()}_",
+        html = Regex.Replace(html, @"<(em|i)\b[^>]*>(.*?)</\1>",
+            m => Inline(m.Groups[2].Value, "_"),
             RegexOptions.IgnoreCase | RegexOptions.Singleline);
 
         // --- Remaining images (not inside figures) ---
-        html = Regex.Replace(html, @"<img[^>]*/?>",
+        html = Regex.Replace(html, @"<img\b[^>]*/?>",
             m =>
             {
                 var src = ExtractImgSrc(m.Value);
@@ -102,30 +143,39 @@ internal static class WebClipHtmlConverter
             RegexOptions.IgnoreCase);
 
         // --- Links ---
-        html = Regex.Replace(html, @"<a[^>]*href=""([^""]*)""[^>]*>(.*?)</a>",
+        html = Regex.Replace(html, @"<a\b[^>]*href=""([^""]*)""[^>]*>(.*?)</a>",
             m => $"[{StripTags(m.Groups[2].Value).Trim()}]({m.Groups[1].Value})",
             RegexOptions.IgnoreCase | RegexOptions.Singleline);
 
         // --- Blockquotes ---
-        html = Regex.Replace(html, @"<blockquote[^>]*>(.*?)</blockquote>",
-            m => string.Join("\n", StripTags(m.Groups[1].Value).Trim().Split('\n').Select(l => $"> {l}")),
+        html = Regex.Replace(html, @"<blockquote\b[^>]*>(.*?)</blockquote>",
+            m =>
+            {
+                // Keep paragraph breaks inside the quote instead of running them together.
+                var inner = Regex.Replace(m.Groups[1].Value, @"</p>|<br\s*/?>", "\n", RegexOptions.IgnoreCase);
+                var lines = StripTags(inner).Trim().Split('\n').Select(l => $"> {l.Trim()}".TrimEnd());
+                return "\n\n" + string.Join("\n", lines) + "\n\n";
+            },
             RegexOptions.IgnoreCase | RegexOptions.Singleline);
 
         // --- Lists ---
-        html = Regex.Replace(html, @"<li[^>]*>(.*?)</li>",
+        html = Regex.Replace(html, @"<li\b[^>]*>(.*?)</li>",
             m => $"\n- {StripTags(m.Groups[1].Value).Trim()}",
             RegexOptions.IgnoreCase | RegexOptions.Singleline);
-        html = Regex.Replace(html, @"<(ul|ol)[^>]*>", "\n", RegexOptions.IgnoreCase);
+        html = Regex.Replace(html, @"<(ul|ol)\b[^>]*>", "\n", RegexOptions.IgnoreCase);
         html = Regex.Replace(html, @"</(ul|ol)>", "\n", RegexOptions.IgnoreCase);
 
         // --- Block structure ---
-        html = Regex.Replace(html, @"<p[^>]*>", "\n\n", RegexOptions.IgnoreCase);
+        html = Regex.Replace(html, @"<p\b[^>]*>", "\n\n", RegexOptions.IgnoreCase);
         html = Regex.Replace(html, @"</p>", "\n\n", RegexOptions.IgnoreCase);
         html = Regex.Replace(html, @"<br\s*/?>", "\n", RegexOptions.IgnoreCase);
         html = Regex.Replace(html, @"<hr\s*/?>", "\n\n---\n\n", RegexOptions.IgnoreCase);
         // Divs and other block containers → line break so adjacent text doesn't merge
-        html = Regex.Replace(html, @"<(div|section|article|header|footer|main|aside)[^>]*>", "\n", RegexOptions.IgnoreCase);
+        html = Regex.Replace(html, @"<(div|section|article|header|footer|main|aside)\b[^>]*>", "\n", RegexOptions.IgnoreCase);
         html = Regex.Replace(html, @"</(div|section|article|header|footer|main|aside)>", "\n", RegexOptions.IgnoreCase);
+
+        // Tab labels of code widgets duplicate the fence language — drop them
+        html = Regex.Replace(html, @"<gfg-tab\b[^>]*>.*?</gfg-tab>", "", RegexOptions.IgnoreCase | RegexOptions.Singleline);
 
         // Strip remaining tags
         html = StripTags(html);
@@ -133,10 +183,22 @@ internal static class WebClipHtmlConverter
         // Decode HTML entities
         html = System.Net.WebUtility.HtmlDecode(html);
 
-        // Normalize whitespace
-        html = Regex.Replace(html, @"\n{3,}", "\n\n");
+        // Shortcodes left behind by the CMS ([GFGTABS] … [/GFGTABS])
+        html = Regex.Replace(html, @"\[/?GFGTABS\]", "\n\n", RegexOptions.IgnoreCase);
 
-        return html.Trim();
+        // Source-HTML indentation survives tag stripping; four or more leading spaces
+        // would turn ordinary prose into a Markdown indented code block. Real code is
+        // parked behind placeholders at this point, so this cannot touch it.
+        html = Regex.Replace(html, @"^[ \t]+", "", RegexOptions.Multiline);
+
+        // Normalize whitespace
+        html = Regex.Replace(html, @"[ \t]+$", "", RegexOptions.Multiline);
+        html = Regex.Replace(html, @"\n{3,}", "\n\n");
+        html = html.Trim();
+
+        // Restore parked code blocks
+        return Regex.Replace(html, $"{CodeOpen}(\\d+){CodeClose}",
+            m => codeBlocks[int.Parse(m.Groups[1].Value)]);
     }
 
     public static string ExtractImgSrc(string imgTag)
@@ -160,7 +222,7 @@ internal static class WebClipHtmlConverter
 
     public static string ExtractTitleFallback(string html)
     {
-        var m = Regex.Match(html, @"<title[^>]*>(.*?)</title>", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+        var m = Regex.Match(html, @"<title\b[^>]*>(.*?)</title>", RegexOptions.IgnoreCase | RegexOptions.Singleline);
         if (m.Success)
         {
             var raw = m.Groups[1].Value.Trim();

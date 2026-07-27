@@ -1,4 +1,3 @@
-import React from 'react';
 import { ScrollView, StyleSheet, Text } from 'react-native';
 
 import { CodeCell } from '@/components/study/CodeCell';

@@ -245,8 +245,8 @@ export const DashboardPage: React.FC = () => {
           {([
             { label: 'Flashcards', value: totalFlashcards, icon: STUDY_TYPE_ICONS.flashcard.icon, color: STUDY_TYPE_ICONS.flashcard.color, bg: STUDY_TYPE_ICONS.flashcard.bg, link: '/flashcards' },
             { label: 'Quizzes', value: totalQuizQuestions, icon: STUDY_TYPE_ICONS.quiz.icon, color: STUDY_TYPE_ICONS.quiz.color, bg: STUDY_TYPE_ICONS.quiz.bg, link: '/quizzes' },
-            { label: 'Notes', value: totalNotes, icon: STUDY_TYPE_ICONS.notes.icon, color: STUDY_TYPE_ICONS.notes.color, bg: STUDY_TYPE_ICONS.notes.bg, link: '/notes' },
-            { label: 'Glossary', value: totalGlossaryTerms, icon: STUDY_TYPE_ICONS.glossary.icon, color: STUDY_TYPE_ICONS.glossary.color, bg: STUDY_TYPE_ICONS.glossary.bg, link: '/glossary' },
+            { label: 'Notes', value: totalNotes, icon: STUDY_TYPE_ICONS.notes.icon, color: STUDY_TYPE_ICONS.notes.color, bg: STUDY_TYPE_ICONS.notes.bg, link: '/materials?tab=notes' },
+            { label: 'Glossary', value: totalGlossaryTerms, icon: STUDY_TYPE_ICONS.glossary.icon, color: STUDY_TYPE_ICONS.glossary.color, bg: STUDY_TYPE_ICONS.glossary.bg, link: '/materials?tab=glossary' },
           ] as ToolCardProps[]).map(tool => (
             <ToolCard key={tool.label} {...tool} />
           ))}

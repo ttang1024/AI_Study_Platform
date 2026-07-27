@@ -1,4 +1,3 @@
-import React from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import BrainCircuit from 'lucide-react-native/icons/brain-circuit';
 import X from 'lucide-react-native/icons/x';
