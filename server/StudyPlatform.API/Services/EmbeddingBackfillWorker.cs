@@ -51,9 +51,11 @@ public sealed class EmbeddingBackfillWorker : BackgroundService
         {
             try
             {
-                var indexed = await RunSweepAsync(stoppingToken);
-                if (indexed > 0)
-                    _logger.LogInformation("Embedding backfill indexed {Count} source(s)", indexed);
+                var (indexed, pruned) = await RunSweepAsync(stoppingToken);
+                if (indexed > 0 || pruned > 0)
+                    _logger.LogInformation(
+                        "Embedding backfill indexed {Count} source(s) and pruned {Pruned} orphaned chunk(s)",
+                        indexed, pruned);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -68,11 +70,16 @@ public sealed class EmbeddingBackfillWorker : BackgroundService
         while (await timer.WaitForNextTickAsync(stoppingToken));
     }
 
-    private async Task<int> RunSweepAsync(CancellationToken cancellationToken)
+    private async Task<(int Indexed, int Pruned)> RunSweepAsync(CancellationToken cancellationToken)
     {
         using var scope = _scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var index = scope.ServiceProvider.GetRequiredService<IEmbeddingIndex>();
+
+        // Delete paths prune their own user's chunks, so this is the backstop: content deleted while
+        // embeddings were switched off, chunks left behind by a failed prune, and anything deleted
+        // straight out of the database.
+        var pruned = await index.PruneOrphansAsync(cancellationToken: cancellationToken);
 
         var candidates = await FindStaleAsync(db, cancellationToken);
 
@@ -98,7 +105,7 @@ public sealed class EmbeddingBackfillWorker : BackgroundService
             }
         }
 
-        return indexed;
+        return (indexed, pruned);
     }
 
     /// <summary>
@@ -117,10 +124,10 @@ public sealed class EmbeddingBackfillWorker : BackgroundService
             .AsNoTracking()
             .Where(d => (d.Transcript != null && d.Transcript != "") || (d.Summary != null && d.Summary != ""))
             .Where(d => !db.ContentEmbeddings.Any(e =>
-                e.SourceType == "document" && e.SourceId == d.DocumentId && e.Model == model && e.CreatedAt >= d.UpdatedAt))
+                e.SourceType == EmbeddingSourceTypes.Document && e.SourceId == d.DocumentId && e.Model == model && e.CreatedAt >= d.UpdatedAt))
             .OrderBy(d => d.UpdatedAt)
             .Take(budget)
-            .Select(d => new IndexCandidate(d.UserId, "document", d.DocumentId, d.FileName, d.Transcript ?? d.Summary!))
+            .Select(d => new IndexCandidate(d.UserId, EmbeddingSourceTypes.Document, d.DocumentId, d.FileName, d.Transcript ?? d.Summary!))
             .ToListAsync(cancellationToken);
         candidates.AddRange(documents);
 
@@ -128,10 +135,10 @@ public sealed class EmbeddingBackfillWorker : BackgroundService
             .AsNoTracking()
             .Where(n => n.Content != "")
             .Where(n => !db.ContentEmbeddings.Any(e =>
-                e.SourceType == "note" && e.SourceId == n.NoteId && e.Model == model && e.CreatedAt >= n.UpdatedAt))
+                e.SourceType == EmbeddingSourceTypes.Note && e.SourceId == n.NoteId && e.Model == model && e.CreatedAt >= n.UpdatedAt))
             .OrderBy(n => n.UpdatedAt)
             .Take(budget)
-            .Select(n => new IndexCandidate(n.UserId, "note", n.NoteId, n.Title ?? "Note", n.Content))
+            .Select(n => new IndexCandidate(n.UserId, EmbeddingSourceTypes.Note, n.NoteId, n.Title ?? "Note", n.Content))
             .ToListAsync(cancellationToken);
         candidates.AddRange(notes);
 
@@ -139,9 +146,9 @@ public sealed class EmbeddingBackfillWorker : BackgroundService
             .AsNoTracking()
             .Where(v => (v.Transcript != null && v.Transcript != "") || (v.Summary != null && v.Summary != ""))
             .Where(v => !db.ContentEmbeddings.Any(e =>
-                e.SourceType == "video" && e.SourceId == v.VideoId && e.Model == model))
+                e.SourceType == EmbeddingSourceTypes.Video && e.SourceId == v.VideoId && e.Model == model))
             .Take(budget)
-            .Select(v => new IndexCandidate(v.UserId, "video", v.VideoId, v.Title, v.Transcript ?? v.Summary!))
+            .Select(v => new IndexCandidate(v.UserId, EmbeddingSourceTypes.Video, v.VideoId, v.Title, v.Transcript ?? v.Summary!))
             .ToListAsync(cancellationToken);
         candidates.AddRange(videos);
 
@@ -149,9 +156,9 @@ public sealed class EmbeddingBackfillWorker : BackgroundService
             .AsNoTracking()
             .Where(t => t.Definition != "")
             .Where(t => !db.ContentEmbeddings.Any(e =>
-                e.SourceType == "glossary" && e.SourceId == t.GlossaryTermId && e.Model == model))
+                e.SourceType == EmbeddingSourceTypes.Glossary && e.SourceId == t.GlossaryTermId && e.Model == model))
             .Take(budget)
-            .Select(t => new IndexCandidate(t.UserId, "glossary", t.GlossaryTermId, t.Term, t.Term + ": " + t.Definition))
+            .Select(t => new IndexCandidate(t.UserId, EmbeddingSourceTypes.Glossary, t.GlossaryTermId, t.Term, t.Term + ": " + t.Definition))
             .ToListAsync(cancellationToken);
         candidates.AddRange(terms);
 

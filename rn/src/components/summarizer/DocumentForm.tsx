@@ -8,10 +8,14 @@ import FileText from 'lucide-react-native/icons/file-text';
 import Upload from 'lucide-react-native/icons/upload';
 
 import { Button } from '@/components/Button';
+import { DuplicateAlert } from '@/components/summarizer/DuplicateAlert';
 import { Dropzone } from '@/components/summarizer/Dropzone';
+import { findDuplicateDocument } from '@/components/summarizer/duplicateFile';
 import { Colors, Layout, Radius, Spacing } from '@/constants/theme';
 import { documentService } from '@/services/documentService';
 import { isAcceptedDocumentFile } from '@/constants/documentUpload';
+import { useLibraryEntries } from '@/hooks/useLibraryEntries';
+import { useSubmitLock } from '@/hooks/useSubmitLock';
 import type { PickedFile } from '@/types';
 
 interface DocumentFormProps {
@@ -24,6 +28,10 @@ export function DocumentForm({ selectedCourseId, onCourseError }: DocumentFormPr
   const [file, setFile] = useState<PickedFile | null>(null);
   const [error, setError] = useState('');
   const [uploading, setUploading] = useState(false);
+  const documents = useLibraryEntries('documents');
+  const runExclusive = useSubmitLock();
+
+  const duplicate = findDuplicateDocument(documents, file);
 
   const pickFile = async () => {
     setError('');
@@ -34,7 +42,12 @@ export function DocumentForm({ selectedCourseId, onCourseError }: DocumentFormPr
       setError('That file type isn’t supported.');
       return;
     }
-    setFile({ uri: asset.uri, name: asset.name, mimeType: asset.mimeType ?? 'application/octet-stream' });
+    setFile({
+      uri: asset.uri,
+      name: asset.name,
+      mimeType: asset.mimeType ?? 'application/octet-stream',
+      size: asset.size,
+    });
   };
 
   // Photograph a textbook page or handwritten notes — the backend's AI OCR
@@ -53,11 +66,14 @@ export function DocumentForm({ selectedCourseId, onCourseError }: DocumentFormPr
       uri: asset.uri,
       name: asset.fileName ?? `scan-${Date.now()}.jpg`,
       mimeType: asset.mimeType ?? 'image/jpeg',
+      size: asset.fileSize,
     });
   };
 
   const upload = async () => {
     if (!file) return;
+    // Already uploaded — the duplicate banner offers the way to it instead.
+    if (duplicate) return;
     if (!selectedCourseId) { onCourseError(true); return; }
     onCourseError(false);
     setError('');
@@ -97,9 +113,22 @@ export function DocumentForm({ selectedCourseId, onCourseError }: DocumentFormPr
         </View>
       )}
 
+      {duplicate && (
+        <DuplicateAlert
+          label="file"
+          courseName={duplicate.courseName ?? ''}
+          onView={() => router.push(`/(tabs)/library/document/${duplicate.id}?courseId=${duplicate.courseId}`)}
+        />
+      )}
+
       {!!error && <Text style={styles.error}>{error}</Text>}
 
-      <Button title="Upload & Analyze" onPress={upload} loading={uploading} disabled={!file} />
+      <Button
+        title={duplicate ? 'Already in Library' : 'Upload & Analyze'}
+        onPress={() => runExclusive(upload)}
+        loading={uploading}
+        disabled={!file || !!duplicate}
+      />
     </View>
   );
 }

@@ -98,6 +98,8 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ selectedCourseId, onCour
     e?.preventDefault();
     const trimmed = urlInput.trim();
     if (!trimmed) return;
+    // Already in the library — the DuplicateAlert offers the "View" path instead.
+    if (dupPodcast) return;
     const validationError = validatePodcastUrl(trimmed);
     if (validationError) {
       setError(validationError);
@@ -205,10 +207,10 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ selectedCourseId, onCour
       </motion.div>
 
       <AnimatePresence>
-        {dupPodcast && dupPodcastCourse && (
+        {dupPodcast && (
           <DuplicateAlert
             label="podcast episode"
-            courseName={dupPodcastCourse.name}
+            courseName={dupPodcastCourse?.name}
             to={`/audio/${dupPodcast.id}`}
           />
         )}
@@ -307,20 +309,22 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ selectedCourseId, onCour
 
       <motion.div variants={item}>
         <Button
-          disabled={!urlInput.trim() || isAnalyzing || importingId !== null}
+          disabled={!urlInput.trim() || isAnalyzing || importingId !== null || !!dupPodcast}
           onClick={handleAnalyze}
           className={cn(
             'h-12 w-full rounded-xl text-base font-black shadow-md transition-all duration-300',
-            urlInput.trim() && selectedCourseId && !isAnalyzing && importingId === null
+            urlInput.trim() && selectedCourseId && !isAnalyzing && importingId === null && !dupPodcast
               ? 'bg-teal-500 text-white shadow-teal-500/20 hover:shadow-teal-500/40 hover:scale-[1.02] active:scale-95'
               : 'bg-zinc-100 text-zinc-400',
           )}
         >
           {isAnalyzing
             ? <span className="flex items-center gap-2"><Loader2 size={18} className="animate-spin" /> {isFeedInput ? 'Loading feed…' : 'Fetching episode…'}</span>
-            : isFeedInput
-              ? <span className="flex items-center gap-2"><Rss size={18} /> Browse Episodes</span>
-              : <span className="flex items-center gap-2"><Zap size={18} fill="currentColor" /> Analyze Episode</span>}
+            : dupPodcast
+              ? <span className="flex items-center gap-2"><Check size={18} /> Already in Library</span>
+              : isFeedInput
+                ? <span className="flex items-center gap-2"><Rss size={18} /> Browse Episodes</span>
+                : <span className="flex items-center gap-2"><Zap size={18} fill="currentColor" /> Analyze Episode</span>}
         </Button>
       </motion.div>
 

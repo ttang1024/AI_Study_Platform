@@ -1,6 +1,7 @@
 using MediatR;
 using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Documents.DTOs;
+using StudyPlatform.Application.Services;
 using StudyPlatform.Domain.Interfaces;
 
 namespace StudyPlatform.Application.Glossary.Commands;
@@ -91,7 +92,13 @@ public record DeleteGlossaryTermCommand(Guid UserId, Guid TermId) : IRequest<Res
 public class DeleteGlossaryTermCommandHandler : IRequestHandler<DeleteGlossaryTermCommand, Result<bool>>
 {
     private readonly IUnitOfWork _unitOfWork;
-    public DeleteGlossaryTermCommandHandler(IUnitOfWork unitOfWork) { _unitOfWork = unitOfWork; }
+    private readonly IEmbeddingIndex _embeddingIndex;
+
+    public DeleteGlossaryTermCommandHandler(IUnitOfWork unitOfWork, IEmbeddingIndex embeddingIndex)
+    {
+        _unitOfWork = unitOfWork;
+        _embeddingIndex = embeddingIndex;
+    }
 
     public async Task<Result<bool>> Handle(DeleteGlossaryTermCommand request, CancellationToken cancellationToken)
     {
@@ -101,6 +108,7 @@ public class DeleteGlossaryTermCommandHandler : IRequestHandler<DeleteGlossaryTe
 
         _unitOfWork.GlossaryTerms.Remove(term);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await _embeddingIndex.PruneOrphansAsync(request.UserId, cancellationToken);
         return Result<bool>.Success(true, "Term deleted.");
     }
 }

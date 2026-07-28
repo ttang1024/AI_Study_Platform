@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Youtube, Clapperboard, Link, Loader2, ListVideo, Zap, ArrowRight, Brain, Captions, PlayCircle, Award, Wand2 } from 'lucide-react';
+import { Youtube, Clapperboard, Link, Loader2, ListVideo, Zap, ArrowRight, Brain, Captions, PlayCircle, Award, Wand2, CheckCircle2 } from 'lucide-react';
 import { Button } from '../common/Button';
 import { VideoCard } from '../common/VideoCard';
 import { usePrompt } from '../common/PromptBox';
@@ -99,8 +99,10 @@ export const WebVideoTab: React.FC<WebVideoTabProps> = ({ selectedCourseId, onCo
   const [allVideos, setAllVideos] = useState<VideoListItem[]>([]);
   const [playlistModal, setPlaylistModal] = useState<{ source: 'youtube'; playlistId: string } | { source: 'bilibili'; videoUrl: string } | null>(null);
 
+  // The lite list so duplicate detection (and the playlist modal's "already imported" marks) see
+  // the whole library, not just the newest page. VideoCard reads none of the fields it drops.
   const loadAllVideos = useCallback(() => {
-    videoService.getVideos({ page: 1, pageSize: 10 })
+    videoService.getVideosLite({ pageSize: 500 })
       .then(data => setAllVideos(data.items))
       .catch(() => { });
   }, []);
@@ -123,6 +125,8 @@ export const WebVideoTab: React.FC<WebVideoTabProps> = ({ selectedCourseId, onCo
     e?.preventDefault();
     const url = urlInput.trim();
     if (!url) return;
+    // Already in the library — the DuplicateAlert offers the "View" path instead.
+    if (dupVideo) return;
     if (!selectedCourseIdRef.current) { onCourseError(true); return; }
     onCourseError(false);
 
@@ -303,20 +307,22 @@ export const WebVideoTab: React.FC<WebVideoTabProps> = ({ selectedCourseId, onCo
 
         <motion.div variants={item}>
           <Button
-            disabled={!urlInput.trim() || isAnalyzing}
+            disabled={!urlInput.trim() || isAnalyzing || !!dupVideo}
             onClick={handleAnalyze}
             className={cn(
               'h-12 w-full rounded-xl text-base font-black shadow-md transition-all duration-300',
-              urlInput.trim() && selectedCourseId && !isAnalyzing
+              urlInput.trim() && selectedCourseId && !isAnalyzing && !dupVideo
                 ? cn(brand.buttonBg, 'hover:scale-[1.02] active:scale-95')
                 : 'bg-zinc-100 text-zinc-400',
             )}
           >
             {isAnalyzing
               ? <span className="flex items-center gap-2"><Loader2 size={18} className="animate-spin" /> Saving…</span>
-              : detectedPlaylist
-                ? <span className="flex items-center gap-2"><ListVideo size={18} /> Browse Playlist</span>
-                : <span className="flex items-center gap-2"><Zap size={18} fill="currentColor" /> Analyze {detectedSource ? `${brand.label} Video` : 'Video'}</span>}
+              : dupVideo
+                ? <span className="flex items-center gap-2"><CheckCircle2 size={18} /> Already in Library</span>
+                : detectedPlaylist
+                  ? <span className="flex items-center gap-2"><ListVideo size={18} /> Browse Playlist</span>
+                  : <span className="flex items-center gap-2"><Zap size={18} fill="currentColor" /> Analyze {detectedSource ? `${brand.label} Video` : 'Video'}</span>}
           </Button>
         </motion.div>
 

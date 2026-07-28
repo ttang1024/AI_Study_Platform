@@ -1,14 +1,12 @@
-import { apiClient } from '@/services/apiClient';
+// Moved to the shared package (packages/core) — web's TranslateButton posted the
+// same request inline. This shim keeps the existing import path working.
+import { createLanguageService } from '@core/services/languageService';
+import { http } from '@/services/http';
 
-/**
- * On-demand translation of generated study material. Nothing is stored: a translation is a view of
- * the material, not a second copy, and a stored one would drift when the source is regenerated.
- */
+const core = createLanguageService(http);
+
 export const translationService = {
-  async translate(text: string, targetLanguage: string): Promise<string> {
-    const res = await apiClient.post('/api/ai/translate', { text, targetLanguage });
-    return res.data.data as string;
-  },
+  translate: core.translate,
 };
 
 export default translationService;

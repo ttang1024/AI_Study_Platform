@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Languages, Loader2 } from 'lucide-react';
-import { apiClient } from '../../services/apiClient';
+import { languageService } from '../../services/languageService';
 import { useTranslation, LOCALES } from '../../i18n';
 import { getApiErrorMessage } from '../../utils/apiError';
 
@@ -39,8 +39,7 @@ export const TranslateButton: React.FC<Props> = ({ text, onTranslated, className
     setBusy(true);
     setError('');
     try {
-      const res = await apiClient.post('/api/ai/translate', { text, targetLanguage: language });
-      const translated = res.data?.data as string | undefined;
+      const translated = await languageService.translate(text, language);
       if (translated) {
         onTranslated(translated);
         setShowing(true);

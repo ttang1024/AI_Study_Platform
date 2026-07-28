@@ -58,12 +58,40 @@ export function parseYouTubeId(url: string): string | null {
   return null;
 }
 
+/**
+ * A Bilibili video reference: the `BV…` id, the 1-based page of a multi-part
+ * upload, and `key` — the videoId convention the backend stores (`BV…`, or
+ * `BV…:pN` past page 1). URL parsing first so `?p=` is read as a real query
+ * param; the regex fallback covers pasted fragments that aren't valid URLs.
+ */
+export interface BilibiliVideoRef {
+  bvid: string;
+  page: number;
+  key: string;
+}
+
+export function parseBilibiliVideo(url: string): BilibiliVideoRef | null {
+  const ref = (bvid: string, page: number): BilibiliVideoRef => ({
+    bvid,
+    page,
+    key: page > 1 ? `${bvid}:p${page}` : bvid,
+  });
+  try {
+    const u = new URL(url.trim());
+    const m = u.pathname.match(/\/video\/(BV[0-9A-Za-z]+)/i);
+    if (!m) return null;
+    return ref(m[1], Math.max(1, Number.parseInt(u.searchParams.get('p') ?? '1', 10) || 1));
+  } catch {
+    const m = url.match(/bilibili\.com\/video\/(BV[0-9A-Za-z]+).*?[?&]p=(\d+)/i)
+      ?? url.match(/bilibili\.com\/video\/(BV[0-9A-Za-z]+)/i);
+    if (!m) return null;
+    return ref(m[1], Math.max(1, Number.parseInt(m[2] ?? '1', 10) || 1));
+  }
+}
+
 /** Bilibili videoId key matching the stored convention: `BV…` or `BV…:pN` for multi-part pages. */
 export function parseBilibiliKey(url: string): string | null {
-  const m = url.match(/bilibili\.com\/video\/(BV[0-9A-Za-z]+)/i);
-  if (!m) return null;
-  const page = Number.parseInt(url.match(/[?&]p=(\d+)/)?.[1] ?? '1', 10) || 1;
-  return page > 1 ? `${m[1]}:p${page}` : m[1];
+  return parseBilibiliVideo(url)?.key ?? null;
 }
 
 /** Parse the platform-native video id for any URL-based source. */
@@ -191,4 +219,43 @@ export function buildExternalEmbedUrl(
     case 'tiktok':
       return `https://www.tiktok.com/embed/v2/${videoId}`;
   }
+}
+
+/** Bilibili's iframe player. `video` is what `parseBilibiliVideo` returned. */
+export function buildBilibiliEmbedUrl(video: { bvid: string; page: number }, startSeconds = 0): string {
+  const params = new URLSearchParams({ bvid: video.bvid, page: String(video.page) });
+  const s = Math.max(0, Math.floor(startSeconds));
+  if (s > 0) {
+    params.set('t', String(s));
+    params.set('autoplay', '1');
+  }
+  return `https://player.bilibili.com/player.html?${params.toString()}`;
+}
+
+export function buildYouTubeEmbedUrl(videoId: string, startSeconds = 0): string {
+  const s = Math.max(0, Math.floor(startSeconds));
+  return `https://www.youtube.com/embed/${videoId}${s > 0 ? `?start=${s}&autoplay=1` : ''}`;
+}
+
+/**
+ * Embed URL for any source, dispatching on the stored `sourceType`. Null for
+ * `upload` (which streams from our own API) and anything unrecognized, so
+ * callers can fall back to their own player. `originalUrl` matters to the
+ * sources whose embed wraps the full post URL (Bilibili pages, Facebook, Reddit).
+ */
+export function buildEmbedUrl(
+  sourceType: string | undefined | null,
+  videoId: string,
+  originalUrl: string,
+  startSeconds = 0,
+): string | null {
+  if (sourceType === 'youtube') return buildYouTubeEmbedUrl(videoId, startSeconds);
+  if (sourceType === 'bilibili') {
+    const video = parseBilibiliVideo(originalUrl) ?? { bvid: videoId, page: 1 };
+    return buildBilibiliEmbedUrl(video, startSeconds);
+  }
+  if (isExternalVideoSource(sourceType)) {
+    return buildExternalEmbedUrl(sourceType, videoId, originalUrl, startSeconds);
+  }
+  return null;
 }

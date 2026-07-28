@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AnimatePresence } from 'motion/react';
-import { Globe, Loader2 } from 'lucide-react';
+import { Globe, Loader2, CheckCircle2 } from 'lucide-react';
 import { DocumentCard } from '../common/DocumentCard';
 import { useStudy } from '../../context/StudyContext';
 import { apiClient } from '../../services/apiClient';
@@ -40,6 +40,8 @@ export const WebTab: React.FC<WebTabProps> = ({ selectedCourseId, onCourseError 
 
   const handleClipUrl = async () => {
     if (!webUrl) return;
+    // Already in the library — the DuplicateAlert offers the "View" path instead.
+    if (dupArticle) return;
     if (!selectedCourseId) { onCourseError(true); return; }
     onCourseError(false);
     setClippingUrl(true);
@@ -69,18 +71,18 @@ export const WebTab: React.FC<WebTabProps> = ({ selectedCourseId, onCourseError 
         />
         <button
           onClick={handleClipUrl}
-          disabled={!webUrl || clippingUrl}
-          className="flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-white hover:opacity-90 disabled:opacity-50 transition-opacity sm:w-auto"
+          disabled={!webUrl || clippingUrl || !!dupArticle}
+          className="flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:opacity-50 transition-opacity sm:w-auto"
         >
-          {clippingUrl ? <Loader2 size={16} className="animate-spin" /> : <Globe size={16} />}
-          {clippingUrl ? 'Clipping...' : 'Clip Article'}
+          {clippingUrl ? <Loader2 size={16} className="animate-spin" /> : dupArticle ? <CheckCircle2 size={16} /> : <Globe size={16} />}
+          {clippingUrl ? 'Clipping...' : dupArticle ? 'Already in Library' : 'Clip Article'}
         </button>
       </div>
       <AnimatePresence>
-        {dupArticle && dupArticleCourse && (
+        {dupArticle && (
           <DuplicateAlert
             label="article"
-            courseName={dupArticleCourse.name}
+            courseName={dupArticleCourse?.name}
             to={`/articles/${dupArticle.id}`}
           />
         )}

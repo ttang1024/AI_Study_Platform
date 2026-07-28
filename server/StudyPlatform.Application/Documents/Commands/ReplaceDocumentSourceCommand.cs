@@ -191,11 +191,14 @@ public class RegenerateStaleArtifactsCommandHandler
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMediator _mediator;
+    private readonly IEmbeddingIndex _embeddingIndex;
 
-    public RegenerateStaleArtifactsCommandHandler(IUnitOfWork unitOfWork, IMediator mediator)
+    public RegenerateStaleArtifactsCommandHandler(
+        IUnitOfWork unitOfWork, IMediator mediator, IEmbeddingIndex embeddingIndex)
     {
         _unitOfWork = unitOfWork;
         _mediator = mediator;
+        _embeddingIndex = embeddingIndex;
     }
 
     public async Task<Result<StalenessDto>> Handle(
@@ -229,6 +232,10 @@ public class RegenerateStaleArtifactsCommandHandler
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // Dropped flashcards and glossary terms are regenerated from the new source text, so their old
+        // chunks would linger alongside the replacements as duplicates of a version nobody can open.
+        await _embeddingIndex.PruneOrphansAsync(request.UserId, cancellationToken);
 
         return await _mediator.Send(new GetDocumentStalenessQuery(request.UserId, request.DocumentId), cancellationToken);
     }

@@ -93,6 +93,35 @@ test.describe('Search page', () => {
     await page.keyboard.press('Enter')
     await expect(page).toHaveURL(/q=mitosis/)
   })
+
+  test('renders server results for a query', async ({ page }) => {
+    await page.goto('/search?q=mitochondria')
+    await expect(page.getByText(/cellular respiration/i)).toBeVisible()
+  })
+
+  // The only route into this page: the command palette matches loaded text only, so anything the
+  // server knows and the client does not is unreachable without this row.
+  test('is reachable from the command palette', async ({ page }) => {
+    await page.goto('/dashboard')
+    await page.getByRole('button', { name: /^search/i }).first().click()
+
+    const palette = page.getByPlaceholder(/search documents, flashcards, quizzes/i)
+    await expect(palette).toBeVisible()
+    await palette.fill('mitochondria')
+
+    await page.getByText(/search everything for/i).click()
+
+    await expect(page).toHaveURL(/\/search\?q=mitochondria/)
+    await expect(page.getByText(/cellular respiration/i)).toBeVisible()
+  })
+
+  test('answers the query from the library with citations', async ({ page }) => {
+    await page.goto('/search?q=mitochondria')
+    await page.getByRole('button', { name: /ask ai/i }).click()
+
+    await expect(page.getByText(/mitochondria generate atp/i)).toBeVisible()
+    await expect(page.getByText('Cell Biology.pdf').first()).toBeVisible()
+  })
 })
 
 // ─── Document detail page ──────────────────────────────────────────────────────

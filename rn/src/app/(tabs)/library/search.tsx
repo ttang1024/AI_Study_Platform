@@ -7,6 +7,7 @@ import Sparkles from 'lucide-react-native/icons/sparkles';
 import { EmptyState } from '@/components/EmptyState';
 import { FilterChip } from '@/components/FilterChip';
 import { SearchBar } from '@/components/SearchBar';
+import { SummaryMarkdown } from '@/components/SummaryMarkdown';
 import { Colors, Layout, Radius, Spacing, Typography } from '@/constants/theme';
 import { searchService, AskLibraryAnswer, CitationType, SearchResultItem, SearchResultType } from '@/services/searchService';
 
@@ -138,7 +139,7 @@ export default function SearchScreen() {
                     <Sparkles size={14} color={Colors.primary} />
                     <Text style={styles.askHeaderText}>AI Answer</Text>
                   </View>
-                  <Text style={styles.askAnswerText}>{askAnswer.answer}</Text>
+                  <SummaryMarkdown value={askAnswer.answer} />
                   {askAnswer.citations.length > 0 && (
                     <View style={styles.citationRow}>
                       {askAnswer.citations.map((c) => (
@@ -200,7 +201,6 @@ const styles = StyleSheet.create({
   askButtonText: { ...Typography.bodyBold, color: Colors.primary },
   askHeader: { ...Layout.row, gap: 6 },
   askHeaderText: { ...Typography.captionBold, color: Colors.primary, textTransform: 'uppercase' },
-  askAnswerText: { ...Typography.body, color: Colors.textPrimary },
   askErrorText: { ...Typography.caption, color: Colors.red },
   citationRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   citationChip: { backgroundColor: Colors.bgApp, borderRadius: Radius.sm, paddingHorizontal: 10, paddingVertical: 6 },

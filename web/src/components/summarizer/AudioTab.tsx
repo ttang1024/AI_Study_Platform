@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Mic, X, Loader2, ShieldCheck, Zap, ArrowRight } from 'lucide-react';
+import { Mic, X, Loader2, ShieldCheck, Zap, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { Button } from '../common/Button';
 import { DocumentCard } from '../common/DocumentCard';
 import { usePrompt } from '../common/PromptBox';
@@ -11,6 +11,7 @@ import { cn } from '../../utils/cn';
 import { getApiErrorMessage } from '../../utils/apiError';
 import { calculateSha256 } from '../../utils/fileHash';
 import { DuplicateAlert } from './DuplicateAlert';
+import { getDuplicateDocRoute } from './duplicateDocRoute';
 
 const container = {
   hidden: { opacity: 0, y: 24 },
@@ -65,11 +66,6 @@ export const AudioTab: React.FC<AudioTabProps> = ({ selectedCourseId, onCourseEr
     ? documents.find(doc => doc.fileHash === audioFileHash) ?? null
     : null;
   const duplicateAudioCourse = duplicateAudio?.courseId ? courses.find(c => c.id === duplicateAudio.courseId) : undefined;
-  const duplicateAudioTo = duplicateAudio?.type === 'audio' || duplicateAudio?.type === 'podcast'
-    ? `/audio/${duplicateAudio.id}`
-    : duplicateAudio?.type === 'md' || duplicateAudio?.originalUrl
-      ? `/articles/${duplicateAudio.id}`
-      : `/documents/${duplicateAudio?.id}`;
 
   const validateAndSetFile = (f: File) => {
     const exts = ['.mp3', '.m4a', '.m4b', '.wav', '.ogg', '.aac', '.flac', '.opus', '.aiff', '.aif', '.wma', '.amr', '.mka'];
@@ -87,6 +83,9 @@ export const AudioTab: React.FC<AudioTabProps> = ({ selectedCourseId, onCourseEr
 
   const handleUpload = async () => {
     if (!audioFile) return;
+    // Already uploaded — the server rejects it with DUPLICATE_DOCUMENT anyway; the
+    // DuplicateAlert offers the "View" path instead.
+    if (duplicateAudio) return;
     if (!selectedCourseId) { onCourseError(true); return; }
     onCourseError(false);
     setUploading(true);
@@ -194,11 +193,11 @@ export const AudioTab: React.FC<AudioTabProps> = ({ selectedCourseId, onCourseEr
       </motion.div>
 
       <AnimatePresence>
-        {duplicateAudio && duplicateAudioCourse && (
+        {duplicateAudio && (
           <DuplicateAlert
             label="file"
-            courseName={duplicateAudioCourse.name}
-            to={duplicateAudioTo}
+            courseName={duplicateAudioCourse?.name}
+            to={getDuplicateDocRoute(duplicateAudio)}
           />
         )}
       </AnimatePresence>
@@ -222,18 +221,20 @@ export const AudioTab: React.FC<AudioTabProps> = ({ selectedCourseId, onCourseEr
 
       <motion.div variants={item}>
         <Button
-          disabled={!audioFile || uploading}
+          disabled={!audioFile || uploading || !!duplicateAudio}
           onClick={handleUpload}
           className={cn(
             'h-12 w-full rounded-xl text-base font-black shadow-md transition-all duration-300',
-            audioFile && !uploading && selectedCourseId
+            audioFile && !uploading && selectedCourseId && !duplicateAudio
               ? 'bg-primary text-white shadow-primary/20 hover:shadow-primary/40 hover:scale-[1.02] active:scale-95'
               : 'bg-zinc-100 text-zinc-400',
           )}
         >
           {uploading
             ? <span className="flex items-center gap-2"><Loader2 size={18} className="animate-spin" /> Processing...</span>
-            : <span className="flex items-center gap-2"><Zap size={18} fill="currentColor" /> Start Learning</span>}
+            : duplicateAudio
+              ? <span className="flex items-center gap-2"><CheckCircle2 size={18} /> Already in Library</span>
+              : <span className="flex items-center gap-2"><Zap size={18} fill="currentColor" /> Start Learning</span>}
         </Button>
       </motion.div>
 

@@ -1,11 +1,13 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Upload, X, CheckCircle2, Loader2, AlertCircle, Files, Plus, CircleFadingArrowUp, ExternalLink } from 'lucide-react';
+import { Upload, X, CheckCircle2, Loader2, AlertCircle, AlertTriangle, Files, Plus, CircleFadingArrowUp, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useStudy } from '../../context/StudyContext';
 import { cn } from '../../utils/cn';
 import { getApiErrorMessage } from '../../utils/apiError';
+import { calculateSha256 } from '../../utils/fileHash';
 import { usePrompt } from './PromptBox';
+import { getDuplicateDocRoute } from '../summarizer/duplicateDocRoute';
 import { DOCUMENT_ACCEPT_ATTR, isAcceptedDocumentFile } from '../../constants/documentUpload';
 
 function getDocRoute(fileName: string, docId: string): string {
@@ -15,10 +17,15 @@ function getDocRoute(fileName: string, docId: string): string {
 interface FileEntry {
   id: string;
   file: File;
-  status: 'pending' | 'uploading' | 'done' | 'error';
+  /** 'duplicate' — same bytes as a library document or as another file in this batch; never uploaded. */
+  status: 'pending' | 'hashing' | 'uploading' | 'done' | 'error' | 'duplicate';
   progress: number;
   docId?: string;
   error?: string;
+  hash?: string;
+  /** Where the existing copy lives — absent when the twin is another not-yet-uploaded file here. */
+  duplicateTo?: string;
+  duplicateOfName?: string;
 }
 
 const isValidFile = isAcceptedDocumentFile;
@@ -29,13 +36,47 @@ interface BulkUploadSectionProps {
 }
 
 export const BulkUploadSection: React.FC<BulkUploadSectionProps> = ({ selectedCourseId, onCourseError }) => {
-  const { addDocument } = useStudy();
+  const { addDocument, documents, ensureDocuments } = useStudy();
   const { showPrompt } = usePrompt();
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // documents is loaded lazily by StudyContext; pull it for duplicate detection. Read through a ref
+  // because the hashing below resolves asynchronously, after the closure that started it is stale.
+  useEffect(() => { void ensureDocuments(); }, [ensureDocuments]);
+  const documentsRef = useRef(documents);
+  useEffect(() => { documentsRef.current = documents; }, [documents]);
+
+  /** Flags an entry as a duplicate of a library document or of another file in the same batch. */
+  const hashAndFlag = async (entryId: string, file: File) => {
+    const hash = await calculateSha256(file).catch(() => null);
+    setFiles(prev => {
+      const current = prev.find(f => f.id === entryId);
+      // Removed, or already uploaded by a click that beat the hash.
+      if (!current || current.status !== 'hashing') return prev;
+      if (!hash) return prev.map(f => f.id === entryId ? { ...f, status: 'pending' } : f);
+
+      const existingDoc = documentsRef.current.find(d => d.fileHash === hash);
+      const queuedTwin = prev.find(f => f.id !== entryId && f.hash === hash && f.status !== 'error');
+      if (!existingDoc && !queuedTwin) {
+        return prev.map(f => f.id === entryId ? { ...f, hash, status: 'pending' } : f);
+      }
+      return prev.map(f => f.id === entryId
+        ? {
+          ...f,
+          hash,
+          status: 'duplicate',
+          duplicateTo: existingDoc
+            ? getDuplicateDocRoute(existingDoc)
+            : queuedTwin?.docId ? getDocRoute(queuedTwin.file.name, queuedTwin.docId) : undefined,
+          duplicateOfName: existingDoc ? existingDoc.name : queuedTwin?.file.name,
+        }
+        : f);
+    });
+  };
 
   const addFiles = (newFiles: File[]) => {
     const valid = newFiles.filter(isValidFile);
@@ -48,10 +89,11 @@ export const BulkUploadSection: React.FC<BulkUploadSectionProps> = ({ selectedCo
       .map(f => ({
         id: `${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
         file: f,
-        status: 'pending',
+        status: 'hashing',
         progress: 0,
       }));
     setFiles(prev => [...prev, ...entries]);
+    entries.forEach(entry => { void hashAndFlag(entry.id, entry.file); });
   };
 
   const removeFile = (id: string) => {
@@ -111,6 +153,9 @@ export const BulkUploadSection: React.FC<BulkUploadSectionProps> = ({ selectedCo
   const pendingCount = files.filter(f => f.status === 'pending').length;
   const doneCount = files.filter(f => f.status === 'done').length;
   const errorCount = files.filter(f => f.status === 'error').length;
+  const duplicateCount = files.filter(f => f.status === 'duplicate').length;
+  // Uploading while a hash is still in flight could push a file the check would have caught.
+  const hashingCount = files.filter(f => f.status === 'hashing').length;
 
   return (
     <div className="space-y-4">
@@ -173,21 +218,26 @@ export const BulkUploadSection: React.FC<BulkUploadSectionProps> = ({ selectedCo
                 onClick={() => {
                   if (entry.status === 'done' && entry.docId) {
                     navigate(getDocRoute(entry.file.name, entry.docId));
+                  } else if (entry.status === 'duplicate' && entry.duplicateTo) {
+                    navigate(entry.duplicateTo);
                   }
                 }}
                 className={cn(
                   'flex items-center gap-3 rounded-xl border px-4 py-2.5',
                   entry.status === 'done' ? 'border-emerald-200 bg-emerald-50/50 cursor-pointer hover:border-emerald-400 hover:bg-emerald-50 transition-colors'
                     : entry.status === 'error' ? 'border-red-200 bg-red-50/50'
-                      : entry.status === 'uploading' ? 'border-primary/30 bg-primary/5'
-                        : 'border-[var(--border-color)] bg-[var(--bg-sidebar)]',
+                      : entry.status === 'duplicate' ? cn('border-amber-200 bg-amber-50/50', entry.duplicateTo && 'cursor-pointer hover:border-amber-400 hover:bg-amber-50 transition-colors')
+                        : entry.status === 'uploading' ? 'border-primary/30 bg-primary/5'
+                          : 'border-[var(--border-color)] bg-[var(--bg-sidebar)]',
                 )}
               >
                 {/* Status icon */}
                 <div className="shrink-0">
                   {entry.status === 'done' && <CheckCircle2 size={16} className="text-emerald-500" />}
                   {entry.status === 'error' && <AlertCircle size={16} className="text-red-500" />}
+                  {entry.status === 'duplicate' && <AlertTriangle size={16} className="text-amber-500" />}
                   {entry.status === 'uploading' && <Loader2 size={16} className="animate-spin text-primary" />}
+                  {entry.status === 'hashing' && <Loader2 size={16} className="animate-spin text-zinc-400" />}
                   {entry.status === 'pending' && <CircleFadingArrowUp size={16} className="text-gray-500" />}
                 </div>
 
@@ -206,6 +256,13 @@ export const BulkUploadSection: React.FC<BulkUploadSectionProps> = ({ selectedCo
                   {entry.status === 'error' && (
                     <p className="text-[10px] text-red-500 mt-0.5">{entry.error}</p>
                   )}
+                  {entry.status === 'duplicate' && (
+                    <p className="text-[10px] text-amber-600 mt-0.5 flex items-center gap-1">
+                      {entry.duplicateTo
+                        ? <>Already in your library{entry.duplicateOfName ? ` as “${entry.duplicateOfName}”` : ''} · click to open <ExternalLink size={9} /></>
+                        : <>Same file as “{entry.duplicateOfName}” in this batch — skipped</>}
+                    </p>
+                  )}
                   {entry.status === 'done' && (
                     <p className="text-[10px] text-emerald-600 mt-0.5 flex items-center gap-1">
                       Uploaded · click to open <ExternalLink size={9} />
@@ -216,8 +273,8 @@ export const BulkUploadSection: React.FC<BulkUploadSectionProps> = ({ selectedCo
                 {/* Size */}
                 <span className="text-[10px] text-text-muted shrink-0">{(entry.file.size / 1024 / 1024).toFixed(1)}MB</span>
 
-                {/* Remove (only pending) */}
-                {entry.status === 'pending' && (
+                {/* Remove (anything not in flight) */}
+                {(entry.status === 'pending' || entry.status === 'duplicate') && (
                   <button
                     onClick={e => { e.stopPropagation(); removeFile(entry.id); }}
                     className="shrink-0 rounded-full p-1 text-zinc-400 hover:bg-red-50 hover:text-red-500 transition-all"
@@ -233,10 +290,11 @@ export const BulkUploadSection: React.FC<BulkUploadSectionProps> = ({ selectedCo
               <div className="flex items-center gap-3 text-xs text-text-muted">
                 {doneCount > 0 && <span className="text-emerald-600 font-bold">{doneCount} done</span>}
                 {errorCount > 0 && <span className="text-red-500 font-bold">{errorCount} failed</span>}
+                {duplicateCount > 0 && <span className="text-amber-600 font-bold">{duplicateCount} duplicate{duplicateCount !== 1 ? 's' : ''}</span>}
                 {pendingCount > 0 && <span>{pendingCount} pending</span>}
               </div>
               <div className="flex items-center gap-2">
-                {!isProcessing && files.some(f => f.status === 'done') && (
+                {!isProcessing && files.some(f => f.status === 'done' || f.status === 'duplicate') && (
                   <button
                     onClick={() => setFiles([])}
                     className="text-xs text-text-muted hover:text-primary transition-colors"
@@ -244,15 +302,17 @@ export const BulkUploadSection: React.FC<BulkUploadSectionProps> = ({ selectedCo
                     Clear all
                   </button>
                 )}
-                {pendingCount > 0 && (
+                {(pendingCount > 0 || hashingCount > 0) && (
                   <button
                     onClick={handleUploadAll}
-                    disabled={isProcessing}
-                    className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-bold text-white disabled:opacity-60 hover:opacity-90 transition-all"
+                    disabled={isProcessing || hashingCount > 0 || pendingCount === 0}
+                    className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-bold text-white disabled:opacity-60 disabled:cursor-not-allowed hover:opacity-90 transition-all"
                   >
                     {isProcessing
                       ? <><Loader2 size={14} className="animate-spin" /> Processing...</>
-                      : <><Plus size={14} /> Upload {pendingCount} file{pendingCount !== 1 ? 's' : ''}</>}
+                      : hashingCount > 0
+                        ? <><Loader2 size={14} className="animate-spin" /> Checking files...</>
+                        : <><Plus size={14} /> Upload {pendingCount} file{pendingCount !== 1 ? 's' : ''}</>}
                   </button>
                 )}
               </div>

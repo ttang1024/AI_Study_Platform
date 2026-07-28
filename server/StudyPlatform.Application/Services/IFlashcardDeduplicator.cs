@@ -1,11 +1,5 @@
 namespace StudyPlatform.Application.Services;
 
-/// <summary>The source type flashcards are stored under in the embedding index.</summary>
-public static class EmbeddingSourceTypes
-{
-    public const string Flashcard = "flashcard";
-}
-
 /// <summary>A freshly generated card, before it has been persisted.</summary>
 /// <param name="Key">Whatever the caller needs to map the verdict back to its own object.</param>
 public sealed record FlashcardCandidate(int Key, string Front, string Back);

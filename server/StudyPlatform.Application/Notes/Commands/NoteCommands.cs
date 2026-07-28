@@ -1,6 +1,7 @@
 using MediatR;
 using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Notes.DTOs;
+using StudyPlatform.Application.Services;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
 
@@ -82,7 +83,13 @@ public record DeleteNoteCommand(Guid NoteId, Guid UserId) : IRequest<Result>;
 public class DeleteNoteCommandHandler : IRequestHandler<DeleteNoteCommand, Result>
 {
     private readonly IUnitOfWork _unitOfWork;
-    public DeleteNoteCommandHandler(IUnitOfWork unitOfWork) { _unitOfWork = unitOfWork; }
+    private readonly IEmbeddingIndex _embeddingIndex;
+
+    public DeleteNoteCommandHandler(IUnitOfWork unitOfWork, IEmbeddingIndex embeddingIndex)
+    {
+        _unitOfWork = unitOfWork;
+        _embeddingIndex = embeddingIndex;
+    }
 
     public async Task<Result> Handle(DeleteNoteCommand request, CancellationToken cancellationToken)
     {
@@ -91,6 +98,7 @@ public class DeleteNoteCommandHandler : IRequestHandler<DeleteNoteCommand, Resul
 
         _unitOfWork.Notes.Remove(note);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await _embeddingIndex.PruneOrphansAsync(request.UserId, cancellationToken);
         return Result.Success("Note deleted successfully.");
     }
 }
@@ -100,12 +108,19 @@ public record BulkDeleteNotesCommand(IEnumerable<Guid> NoteIds, Guid UserId) : I
 public class BulkDeleteNotesCommandHandler : IRequestHandler<BulkDeleteNotesCommand, Result>
 {
     private readonly IUnitOfWork _unitOfWork;
-    public BulkDeleteNotesCommandHandler(IUnitOfWork unitOfWork) { _unitOfWork = unitOfWork; }
+    private readonly IEmbeddingIndex _embeddingIndex;
+
+    public BulkDeleteNotesCommandHandler(IUnitOfWork unitOfWork, IEmbeddingIndex embeddingIndex)
+    {
+        _unitOfWork = unitOfWork;
+        _embeddingIndex = embeddingIndex;
+    }
 
     public async Task<Result> Handle(BulkDeleteNotesCommand request, CancellationToken cancellationToken)
     {
         await _unitOfWork.Notes.DeleteByIdsAsync(request.NoteIds, request.UserId, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await _embeddingIndex.PruneOrphansAsync(request.UserId, cancellationToken);
         return Result.Success("Notes deleted successfully.");
     }
 }

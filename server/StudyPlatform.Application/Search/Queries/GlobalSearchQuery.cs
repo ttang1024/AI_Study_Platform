@@ -51,6 +51,9 @@ public class GlobalSearchQueryHandler : IRequestHandler<GlobalSearchQuery, Resul
     /// </summary>
     private const double MaxSemanticDistance = 0.55;
 
+    /// <summary>Searched when the caller names no categories. Must match the ids the UI's filter tabs send.</summary>
+    private static readonly string[] DefaultCategories = ["documents", "notes", "flashcards", "glossary"];
+
     private readonly IUnitOfWork _unitOfWork;
     private readonly IEmbeddingIndex _embeddingIndex;
     private readonly ILogger<GlobalSearchQueryHandler> _logger;
@@ -71,16 +74,22 @@ public class GlobalSearchQueryHandler : IRequestHandler<GlobalSearchQuery, Resul
             return Result<SearchResultsDto>.Success(new SearchResultsDto([], 0, request.Page, request.PageSize));
 
         var q = request.Query.ToLowerInvariant();
-        var types = request.EntityTypes?.Select(t => t.ToLowerInvariant()).ToHashSet()
-                    ?? new HashSet<string> { "documents", "notes", "flashcards", "glossary" };
 
-        var keywordTask = SearchKeywordAsync(request.UserId, q, types, cancellationToken);
-        var semanticTask = SearchSemanticAsync(request.UserId, request.Query, types, cancellationToken);
-        await Task.WhenAll(keywordTask, semanticTask);
+        // Empty means "no filter", not "match nothing": ASP.NET Core binds a missing `types` query
+        // parameter to an empty array rather than null, so a null check alone left the unfiltered
+        // search — the default the UI sends — with no categories to search and no results ever.
+        var types = request.EntityTypes is { Length: > 0 } requested
+            ? requested.Select(t => t.ToLowerInvariant()).ToHashSet()
+            : DefaultCategories.ToHashSet();
 
-        var results = keywordTask.Result;
+        // Sequential, not Task.WhenAll: every one of these queries runs on the same scoped DbContext,
+        // and EF Core throws "a second operation was started on this context instance" if two of them
+        // overlap. They are indexed, capped lookups, so serialising them costs little.
+        var results = await SearchKeywordAsync(request.UserId, q, types, cancellationToken);
+        var semantic = await SearchSemanticAsync(request.UserId, request.Query, types, cancellationToken);
+
         var seen = results.Select(r => $"{r.Type}:{r.Id}").ToHashSet();
-        foreach (var item in semanticTask.Result)
+        foreach (var item in semantic)
         {
             if (seen.Add($"{item.Type}:{item.Id}"))
                 results.Add(item);
@@ -164,19 +173,26 @@ public class GlobalSearchQueryHandler : IRequestHandler<GlobalSearchQuery, Resul
     private async Task<List<SearchResultItemDto>> SearchKeywordAsync(
         Guid userId, string q, HashSet<string> types, CancellationToken cancellationToken)
     {
-        var tasks = new List<Task<IEnumerable<SearchResultItemDto>>>();
+        var results = new List<SearchResultItemDto>();
 
+        // One category at a time — see the note in Handle about the shared DbContext.
         if (types.Contains("documents"))
-            tasks.Add(SearchDocumentsAsync(userId, q, cancellationToken));
+        {
+            results.AddRange(await SearchDocumentsAsync(userId, q, cancellationToken));
+            // Same rule the semantic layer uses: videos have no filter tab of their own, so they ride
+            // along with documents. Without this a video is only findable through its transcript's
+            // embeddings, which leaves one with no transcript yet unfindable by any means — including
+            // by the exact words in its title.
+            results.AddRange(await SearchVideosAsync(userId, q, cancellationToken));
+        }
         if (types.Contains("notes"))
-            tasks.Add(SearchNotesAsync(userId, q, cancellationToken));
+            results.AddRange(await SearchNotesAsync(userId, q, cancellationToken));
         if (types.Contains("flashcards"))
-            tasks.Add(SearchFlashcardsAsync(userId, q, cancellationToken));
+            results.AddRange(await SearchFlashcardsAsync(userId, q, cancellationToken));
         if (types.Contains("glossary"))
-            tasks.Add(SearchGlossaryAsync(userId, q, cancellationToken));
+            results.AddRange(await SearchGlossaryAsync(userId, q, cancellationToken));
 
-        var allResults = await Task.WhenAll(tasks);
-        return allResults.SelectMany(batch => batch).ToList();
+        return results;
     }
 
     private async Task<IEnumerable<SearchResultItemDto>> SearchDocumentsAsync(
@@ -189,6 +205,18 @@ public class GlobalSearchQueryHandler : IRequestHandler<GlobalSearchQuery, Resul
             d.FileName,
             Snippet(d.Summary ?? d.FileName, q),
             $"/documents/{d.DocumentId}"));
+    }
+
+    private async Task<IEnumerable<SearchResultItemDto>> SearchVideosAsync(
+        Guid userId, string q, CancellationToken cancellationToken)
+    {
+        var videos = await _unitOfWork.Videos.SearchByUserAsync(userId, q, PerCategoryLimit, cancellationToken);
+        return videos.Select(v => new SearchResultItemDto(
+            v.VideoId.ToString(),
+            "video",
+            v.Title,
+            Snippet(v.Summary ?? v.Title, q),
+            $"/videos/{v.VideoId}"));
     }
 
     private async Task<IEnumerable<SearchResultItemDto>> SearchNotesAsync(

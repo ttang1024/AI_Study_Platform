@@ -6,8 +6,8 @@ import {
 } from 'lucide-react';
 import { SharedContent } from '../../services/shareContentService';
 import {
-  isExternalVideoSource, parseExternalVideoId, buildExternalEmbedUrl, EXTERNAL_SOURCE_BRANDING,
-  type VideoSourceType,
+  isExternalVideoSource, parseExternalVideoId, buildExternalEmbedUrl, buildBilibiliEmbedUrl,
+  parseBilibiliVideo, EXTERNAL_SOURCE_BRANDING, type VideoSourceType,
 } from '../../constants/videoSources';
 import { getApiUrl } from '../../utils/env';
 import { SharedDocumentViewer } from './SharedDocumentViewer';
@@ -18,21 +18,7 @@ export function parseVideoId(url: string): string | null {
   return url.match(/(?:[?&]v=|youtu\.be\/|shorts\/|embed\/)([^&?/\s]{11})/)?.[1] ?? null;
 }
 
-export function parseBilibiliVideo(url: string): { bvid: string; page: number } | null {
-  try {
-    const u = new URL(url.trim());
-    const match = u.pathname.match(/\/video\/(BV[0-9A-Za-z]+)/i);
-    if (!match) return null;
-    const page = Math.max(1, Number.parseInt(u.searchParams.get('p') ?? '1', 10) || 1);
-    return { bvid: match[1], page };
-  } catch {
-    const match = url.match(/bilibili\.com\/video\/(BV[0-9A-Za-z]+).*?[?&]p=(\d+)/i)
-      ?? url.match(/bilibili\.com\/video\/(BV[0-9A-Za-z]+)/i);
-    if (!match) return null;
-    const page = Math.max(1, Number.parseInt(match[2] ?? '1', 10) || 1);
-    return { bvid: match[1], page };
-  }
-}
+export { parseBilibiliVideo };
 
 export type NormalizedSourceType =
   | VideoSourceType | 'audio' | 'podcast' | 'article' | 'document' | 'chat';
@@ -96,7 +82,7 @@ export const SharedMedia: React.FC<SharedMediaProps> = ({
         </a>
         <div style={{ aspectRatio: '16/9' }}>
           <iframe
-            src={`https://player.bilibili.com/player.html?bvid=${video.bvid}&page=${video.page}`}
+            src={buildBilibiliEmbedUrl(video)}
             title={content.title}
             allow="autoplay; fullscreen; picture-in-picture"
             allowFullScreen

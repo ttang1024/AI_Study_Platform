@@ -1,18 +1,12 @@
 import { useCallback, useRef, useState } from 'react';
 import { apiClient } from '../services/apiClient';
 import { getApiErrorMessage } from '../utils/apiError';
+import type { PronunciationResult } from '../services/languageService';
 
-export interface WordScore {
-  word: string;
-  correct: boolean;
-}
-
-export interface PronunciationResult {
-  targetPhrase: string;
-  heard: string;
-  score: number;
-  words: WordScore[];
-}
+// The scorecard shape is shared with rn (packages/core). Only the upload differs:
+// web posts a MediaRecorder Blob, rn a file URI from expo-audio — which is why
+// this call stays here rather than moving into the shared service.
+export type { PronunciationResult, WordScore } from '../services/languageService';
 
 /**
  * Records a spoken attempt and has the server score it.

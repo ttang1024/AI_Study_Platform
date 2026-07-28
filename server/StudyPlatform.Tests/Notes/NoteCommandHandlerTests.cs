@@ -1,5 +1,6 @@
 using Moq;
 using StudyPlatform.Application.Notes.Commands;
+using StudyPlatform.Application.Services;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
 using Xunit;
@@ -108,6 +109,7 @@ public class DeleteNoteCommandHandlerTests
 {
     private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<INoteRepository> _notes = new();
+    private readonly Mock<IEmbeddingIndex> _embeddingIndex = new();
     private readonly DeleteNoteCommandHandler _handler;
     private readonly Guid _userId = Guid.NewGuid();
 
@@ -115,7 +117,7 @@ public class DeleteNoteCommandHandlerTests
     {
         _uow.Setup(u => u.Notes).Returns(_notes.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new DeleteNoteCommandHandler(_uow.Object);
+        _handler = new DeleteNoteCommandHandler(_uow.Object, _embeddingIndex.Object);
     }
 
     [Fact]
@@ -189,6 +191,7 @@ public class BulkDeleteNotesCommandHandlerTests
 {
     private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<INoteRepository> _notes = new();
+    private readonly Mock<IEmbeddingIndex> _embeddingIndex = new();
     private readonly BulkDeleteNotesCommandHandler _handler;
     private readonly Guid _userId = Guid.NewGuid();
 
@@ -196,7 +199,7 @@ public class BulkDeleteNotesCommandHandlerTests
     {
         _uow.Setup(u => u.Notes).Returns(_notes.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new BulkDeleteNotesCommandHandler(_uow.Object);
+        _handler = new BulkDeleteNotesCommandHandler(_uow.Object, _embeddingIndex.Object);
     }
 
     [Fact]

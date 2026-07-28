@@ -95,6 +95,19 @@ public class VideoRepository : Repository<Video>, IVideoRepository
             .Select(v => new { v.VideoId, v.CourseId })
             .ToDictionaryAsync(r => r.VideoId, r => r.CourseId, cancellationToken);
 
+    public async Task<IEnumerable<Video>> SearchByUserAsync(Guid userId, string query, int limit, CancellationToken cancellationToken = default)
+    {
+        var pattern = $"%{query}%";
+        return await _dbSet
+            .AsNoTracking()
+            .Where(v => v.UserId == userId &&
+                        (EF.Functions.ILike(v.Title, pattern) ||
+                         (v.Summary != null && EF.Functions.ILike(v.Summary, pattern))))
+            .OrderByDescending(v => v.CreatedAt)
+            .Take(limit)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<Video?> GetByIdForUserAsync(Guid id, Guid userId, CancellationToken cancellationToken = default)
         => await _dbSet
             .Include(v => v.Course)

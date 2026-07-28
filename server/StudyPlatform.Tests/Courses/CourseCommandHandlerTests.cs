@@ -149,6 +149,7 @@ public class DeleteCourseCommandHandlerTests
     private readonly Mock<ICourseRepository> _courses = new();
     private readonly Mock<IDocumentRepository> _documents = new();
     private readonly Mock<IBlobStorageService> _blob = new();
+    private readonly Mock<IEmbeddingIndex> _embeddingIndex = new();
     private readonly DeleteCourseCommandHandler _handler;
     private readonly Guid _userId = Guid.NewGuid();
 
@@ -159,7 +160,7 @@ public class DeleteCourseCommandHandlerTests
         _documents.Setup(r => r.GetBlobUrlsByCourseAsync(It.IsAny<Guid>(), default))
             .ReturnsAsync(Array.Empty<string>());
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new DeleteCourseCommandHandler(_uow.Object, _blob.Object);
+        _handler = new DeleteCourseCommandHandler(_uow.Object, _blob.Object, _embeddingIndex.Object);
     }
 
     private Course MakeCourse(Guid? userId = null) => new()

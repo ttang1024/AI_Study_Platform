@@ -1,19 +1,13 @@
-import { apiClient } from '@/services/apiClient';
+// Service logic moved to the shared package (packages/core) — web/ had the same
+// endpoints and the same user mapping. This shim wires the RN HTTP adapter into
+// the shared factory and keeps rn's method names and its refreshToken-carrying
+// result shape (a native app has no cookie jar, so it stores the token itself).
+import { createAuthService, type AuthUser } from '@core/services/authService';
+import { http } from '@/services/http';
 
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-}
+const core = createAuthService(http);
 
-interface AuthResponseData {
-  userId: string;
-  email: string;
-  fullName: string;
-  accessToken: string;
-  refreshToken: string;
-  accessTokenExpiry: string;
-}
+export type User = AuthUser;
 
 export interface LoginResult {
   accessToken: string;
@@ -21,44 +15,32 @@ export interface LoginResult {
   user: User;
 }
 
-const mapAuthResponse = (d: AuthResponseData): LoginResult => ({
-  accessToken: d.accessToken,
-  refreshToken: d.refreshToken,
-  user: { id: d.userId, email: d.email, name: d.fullName },
+const toRnResult = ({ accessToken, refreshToken, user }: Awaited<ReturnType<typeof core.login>>): LoginResult => ({
+  accessToken,
+  refreshToken,
+  user,
 });
 
 export const authService = {
-  async sendOtp(email: string, purpose: 'registration' | 'passwordReset'): Promise<void> {
-    await apiClient.post('/api/auth/send-otp', { email, purpose });
-  },
+  sendOtp: core.sendOtp,
 
-  async register(data: { email: string; fullName: string; password: string; otpCode: string }): Promise<void> {
-    await apiClient.post('/api/auth/register', data);
-  },
+  register: core.register,
 
   async login(email: string, password: string): Promise<LoginResult> {
-    const response = await apiClient.post('/api/auth/login', { email, password });
-    return mapAuthResponse(response.data.data);
+    return toRnResult(await core.login(email, password));
   },
 
   async oauthLogin(provider: 'google' | 'github', code: string, redirectUri: string): Promise<LoginResult> {
-    const response = await apiClient.post('/api/auth/oauth', { provider, code, redirectUri });
-    return mapAuthResponse(response.data.data);
+    return toRnResult(await core.loginWithOAuth(provider, code, redirectUri));
   },
 
-  async resetPassword(data: { email: string; otpCode: string; newPassword: string }): Promise<void> {
-    await apiClient.post('/api/auth/reset-password', data);
-  },
+  resetPassword: core.resetPassword,
 
-  async changePassword(data: { currentPassword: string; newPassword: string }): Promise<void> {
-    await apiClient.post('/api/auth/change-password', data);
-  },
+  changePassword: core.changePassword,
 
-  async updateProfile(data: { fullName: string }): Promise<void> {
-    await apiClient.put('/api/auth/update-profile', data);
-  },
+  updateProfile: core.updateProfile,
 
-  async logout(refreshToken: string | null): Promise<void> {
-    await apiClient.post('/api/auth/logout', { refreshToken });
+  logout(refreshToken: string | null): Promise<void> {
+    return core.logout(refreshToken);
   },
 };

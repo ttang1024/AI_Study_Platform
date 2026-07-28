@@ -1,83 +1,24 @@
-import { apiClient } from './apiClient';
+// Service logic moved to the shared package (packages/core) — rn/'s shareService
+// posted the identical payload (including the JSON-stringified collections) and
+// read the identical SharedContent. This file wires the web HTTP adapter into
+// the shared factory and adds the one web-local part: the public share URL,
+// built from web's own share base URL.
+import { createShareService, type CreateSharePayload } from '@core/services/shareService';
+import { http } from './http';
 import { getShareBaseUrl } from '../utils/env';
-import type { VideoSourceType } from '../constants/videoSources';
 
-export interface ShareableQuiz {
-  question: string;
-  options: string[];
-  correctAnswer: string;
-  explanation: string;
-  difficulty?: 'easy' | 'medium' | 'hard';
-}
+export * from '@core/services/shareService';
 
-export interface ShareableCard {
-  front: string;
-  back: string;
-  cardType?: 'basic' | 'cloze' | 'chart' | 'occlusion';
-}
-
-export interface ShareableGlossaryTerm {
-  term: string;
-  definition: string;
-}
-
-export interface CreateSharePayload {
-  title: string;
-  summary?: string | null;
-  mindMapText?: string | null;
-  notesHtml?: string | null;
-  quizzes?: ShareableQuiz[] | null;
-  flashcards?: ShareableCard[] | null;
-  glossaryTerms?: ShareableGlossaryTerm[] | null;
-  expiresInDays?: number | null;
-  sourceType?: VideoSourceType | 'article' | 'audio' | 'podcast' | 'document' | 'chat' | null;
-  sourceUrl?: string | null;
-  originalArticleUrl?: string | null;
-}
+const core = createShareService(http);
 
 export interface ShareResult {
   token: string;
   shareUrl: string;
 }
 
-export interface SharedContent {
-  token: string;
-  title: string;
-  ownerName: string;
-  summary?: string | null;
-  mindMapText?: string | null;
-  notesHtml?: string | null;
-  quizzes?: ShareableQuiz[] | null;
-  flashcards?: ShareableCard[] | null;
-  glossary?: ShareableGlossaryTerm[] | null;
-  createdAt: string;
-  expiresAt?: string | null;
-  sourceType?: string | null;
-  sourceUrl?: string | null;
-  originalArticleUrl?: string | null;
-  fileType?: string | null;
-}
-
 export async function createShare(payload: CreateSharePayload): Promise<ShareResult> {
-  const res = await apiClient.post<{ data: { token: string; shareUrl: string } }>('/api/share', {
-    title: payload.title,
-    summary: payload.summary ?? null,
-    mindMapText: payload.mindMapText ?? null,
-    notesHtml: payload.notesHtml ?? null,
-    quizzesJson: payload.quizzes ? JSON.stringify(payload.quizzes) : null,
-    flashcardsJson: payload.flashcards ? JSON.stringify(payload.flashcards) : null,
-    glossaryJson: payload.glossaryTerms ? JSON.stringify(payload.glossaryTerms) : null,
-    expiresInDays: payload.expiresInDays ?? null,
-    sourceType: payload.sourceType ?? null,
-    sourceUrl: payload.sourceUrl ?? null,
-    originalArticleUrl: payload.originalArticleUrl ?? null,
-  });
-  const { token } = res.data.data;
-  const shareBaseUrl = getShareBaseUrl();
-  return { token, shareUrl: `${shareBaseUrl}/share/${token}` };
+  const { token } = await core.createShare(payload);
+  return { token, shareUrl: `${getShareBaseUrl()}/share/${token}` };
 }
 
-export async function getShare(token: string): Promise<SharedContent> {
-  const res = await apiClient.get<{ data: SharedContent }>(`/api/share/${token}`);
-  return res.data.data;
-}
+export const getShare = core.getShare;

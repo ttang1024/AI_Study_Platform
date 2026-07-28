@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
@@ -105,6 +106,46 @@ public class EmbeddingIndex : IEmbeddingIndex
             .Where(e => e.SourceType == sourceType && e.SourceId == sourceId)
             .ExecuteDeleteAsync(cancellationToken);
 
+    public async Task<int> PruneOrphansAsync(Guid? userId = null, CancellationToken cancellationToken = default)
+    {
+        if (!_embeddings.IsEnabled)
+            return 0;
+
+        // Scoping by user first is what lets the (UserId, SourceType, SourceId) index carry the request-path
+        // calls; the unscoped form is the background sweep and is expected to scan.
+        var scoped = userId is { } id
+            ? _context.ContentEmbeddings.Where(e => e.UserId == id)
+            : _context.ContentEmbeddings;
+
+        try
+        {
+            return
+                await PruneAsync(scoped, EmbeddingSourceTypes.Document,
+                    e => !_context.Documents.Any(d => d.DocumentId == e.SourceId)) +
+                await PruneAsync(scoped, EmbeddingSourceTypes.Video,
+                    e => !_context.Videos.Any(v => v.VideoId == e.SourceId)) +
+                await PruneAsync(scoped, EmbeddingSourceTypes.Note,
+                    e => !_context.Notes.Any(n => n.NoteId == e.SourceId)) +
+                await PruneAsync(scoped, EmbeddingSourceTypes.Glossary,
+                    e => !_context.GlossaryTerms.Any(t => t.GlossaryTermId == e.SourceId)) +
+                await PruneAsync(scoped, EmbeddingSourceTypes.Flashcard,
+                    e => !_context.Flashcards.Any(f => f.FlashcardId == e.SourceId));
+        }
+        catch (Exception ex)
+        {
+            // Callers prune as a side effect of a delete that has already committed. Surfacing this would
+            // turn a successful delete into a failed request; the next sweep picks the rows up anyway.
+            _logger.LogWarning(ex, "Failed to prune orphaned embeddings for {Scope}", userId?.ToString() ?? "all users");
+            return 0;
+        }
+
+        Task<int> PruneAsync(
+            IQueryable<ContentEmbedding> source,
+            string sourceType,
+            Expression<Func<ContentEmbedding, bool>> isOrphaned)
+            => source.Where(e => e.SourceType == sourceType).Where(isOrphaned).ExecuteDeleteAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<EmbeddingHit>> SearchAsync(
         Guid userId,
         string query,
@@ -128,7 +169,11 @@ public class EmbeddingIndex : IEmbeddingIndex
         }
 
         var vector = new Vector(queryVector);
-        var types = sourceTypes.ToArray();
+        // A List, not an array: on .NET 10 `array.Contains(x)` binds to the ReadOnlySpan overload of
+        // MemoryExtensions, which EF cannot translate — it failed the whole query, and because the
+        // caller treats semantic search as optional the only symptom was keyword-only results.
+        // List<T>.Contains is an instance method, so it still translates to `= ANY(@types)`.
+        var types = sourceTypes.ToList();
 
         // Ordering by <=> (cosine distance) is what the HNSW index accelerates. Only vectors from the
         // current model are comparable, so rows left behind by a model change are filtered out.

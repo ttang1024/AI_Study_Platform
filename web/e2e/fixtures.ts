@@ -154,6 +154,27 @@ const questionBank = [
   },
 ]
 
+// Server-side search hits, in the SearchResultItem shape GET /api/search returns. Separate from the
+// documents/notes fixtures because the real endpoint searches transcripts and embeddings, so it can
+// return things the client-side palette never sees.
+const searchResults = [
+  {
+    id: 'doc-cells',
+    type: 'document',
+    title: 'Cell Biology.pdf',
+    snippet: 'Mitochondria perform cellular respiration and generate ATP.',
+    url: '/documents/doc-cells',
+  },
+]
+
+// The AI answer for POST /api/search/ask, with the [n] citations the page renders.
+const askLibraryAnswer = {
+  answer: 'Mitochondria generate ATP through cellular respiration [1].',
+  citations: [
+    { index: 1, type: 'document', id: 'doc-cells', title: 'Cell Biology.pdf', url: '/documents/doc-cells' },
+  ],
+}
+
 // The Library page reads the unified GET /api/library, not /api/documents + /api/videos.
 // These are the merged rows that endpoint returns, in its BackendLibraryItem shape.
 interface LibraryRow {
@@ -284,6 +305,9 @@ export async function mockStudyApi(page: Page) {
       if (doc) return json(route, doc)
     }
     if (path === '/api/videos') return json(route, paged(videos, Number(url.searchParams.get('pageSize') ?? 8)))
+    // The add-content video tabs read the lite list (whole library, heavy fields dropped) so they
+    // can flag an already-saved link or file.
+    if (path === '/api/videos/lite') return json(route, paged(videos, Number(url.searchParams.get('pageSize') ?? 500)))
     if (path === '/api/notes') return json(route, paged(notes, Number(url.searchParams.get('pageSize') ?? 20)))
     if (path === '/api/flashcards') return json(route, paged(flashcards, Number(url.searchParams.get('pageSize') ?? 20)))
     if (path === '/api/flashcards/coverage') return json(route, { documentIds: ['doc-cells'], videoIds: ['video-mitosis'] })
@@ -295,7 +319,14 @@ export async function mockStudyApi(page: Page) {
     if (path === '/api/quiz-submissions/generated-materials') return json(route, [])
     if (path === '/api/question-bank') return json(route, questionBank)
     if (path === '/api/glossary') return json(route, paged([], 20))
-    if (path === '/api/search') return json(route, [])
+    if (path === '/api/search/ask') return json(route, askLibraryAnswer)
+    // The search page reads res.items, so the [] fallback blanked it the moment a query ran. Matching
+    // ?q= keeps the empty-state assertions honest.
+    if (path === '/api/search') {
+      const q = (url.searchParams.get('q') ?? '').toLowerCase()
+      const hits = searchResults.filter(r => `${r.title} ${r.snippet}`.toLowerCase().includes(q))
+      return json(route, { items: hits, totalCount: hits.length, page: 1, pageSize: 20 })
+    }
     if (path === '/api/study-groups') return json(route, [])
 
     // Everything below renders in the shared app shell or on the dashboard, so every

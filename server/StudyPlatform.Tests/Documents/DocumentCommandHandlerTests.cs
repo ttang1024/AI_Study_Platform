@@ -14,6 +14,7 @@ public class DeleteDocumentCommandHandlerTests
     private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IDocumentRepository> _documents = new();
     private readonly Mock<IBlobStorageService> _storage = new();
+    private readonly Mock<IEmbeddingIndex> _embeddingIndex = new();
     private readonly DeleteDocumentCommandHandler _handler;
     private readonly Guid _userId = Guid.NewGuid();
 
@@ -21,7 +22,7 @@ public class DeleteDocumentCommandHandlerTests
     {
         _uow.Setup(u => u.Documents).Returns(_documents.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new DeleteDocumentCommandHandler(_uow.Object, _storage.Object);
+        _handler = new DeleteDocumentCommandHandler(_uow.Object, _storage.Object, _embeddingIndex.Object);
     }
 
     private Document MakeDocument(Guid? userId = null) => new()
@@ -51,6 +52,29 @@ public class DeleteDocumentCommandHandlerTests
     }
 
     [Fact]
+    public async Task Handle_OwnedDocument_PrunesEmbeddingsAfterSaving()
+    {
+        var doc = MakeDocument();
+        _documents.Setup(r => r.GetByIdAsync(doc.DocumentId, default)).ReturnsAsync(doc);
+
+        var saved = false;
+        _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1).Callback(() => saved = true);
+
+        var savedBeforePrune = false;
+        _embeddingIndex
+            .Setup(i => i.PruneOrphansAsync(_userId, default))
+            .Callback(() => savedBeforePrune = saved)
+            .ReturnsAsync(0);
+
+        await _handler.Handle(new DeleteDocumentCommand(doc.DocumentId, _userId), default);
+
+        // Pruning before the save would see the document (and its cascaded artifacts) still present and
+        // leave every chunk behind.
+        _embeddingIndex.Verify(i => i.PruneOrphansAsync(_userId, default), Times.Once);
+        Assert.True(savedBeforePrune);
+    }
+
+    [Fact]
     public async Task Handle_DocumentNotFound_ReturnsFailure()
     {
         _documents.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), default)).ReturnsAsync((Document?)null);
@@ -59,6 +83,7 @@ public class DeleteDocumentCommandHandlerTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal("DOCUMENT_NOT_FOUND", result.ErrorCode);
+        _embeddingIndex.Verify(i => i.PruneOrphansAsync(It.IsAny<Guid?>(), default), Times.Never);
     }
 
     [Fact]

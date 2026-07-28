@@ -5,6 +5,8 @@ export interface PickedFile {
   uri: string;
   name: string;
   mimeType: string;
+  /** Byte size when the picker reports one — used to spot a file that's already in the library. */
+  size?: number;
 }
 
 // Shared with web/ via packages/core.

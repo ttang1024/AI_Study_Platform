@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Search, FileText, Loader2, Sparkles } from 'lucide-react';
-import { STUDY_TYPE_ICONS } from '../constants/contentTypeIcons';
+import { CONTENT_TYPE_ICONS, STUDY_TYPE_ICONS } from '../constants/contentTypeIcons';
 import { searchService, SearchResultItem, AskLibraryAnswer } from '../services/searchService';
 import { cn } from '../utils/cn';
 import { Pagination } from '../components/common/Pagination';
+import { ChatBubbleMarkdown } from '../components/ai/ChatBubbleMarkdown';
 
 const ENTITY_TYPES = [
   { id: 'all',       label: 'All' },
@@ -15,8 +16,11 @@ const ENTITY_TYPES = [
   { id: 'glossary',  label: 'Glossary',  icon: STUDY_TYPE_ICONS.glossary.icon  },
 ];
 
+// Videos have no filter tab of their own but do come back under the Documents scope, so results have
+// to be able to render one.
 const TYPE_ICONS: Record<string, React.ElementType> = {
   document: FileText,
+  video:    CONTENT_TYPE_ICONS.video.icon,
   note:     STUDY_TYPE_ICONS.notes.icon,
   flashcard:STUDY_TYPE_ICONS.flashcard.icon,
   glossary: STUDY_TYPE_ICONS.glossary.icon,
@@ -24,6 +28,7 @@ const TYPE_ICONS: Record<string, React.ElementType> = {
 
 const TYPE_COLORS: Record<string, string> = {
   document: 'text-teal-600 bg-teal-50',
+  video: 'text-red-500 bg-red-50',
   note: 'text-amber-500 bg-amber-50',
   flashcard: 'text-teal-500 bg-teal-50',
   glossary: 'text-emerald-500 bg-emerald-50',
@@ -177,7 +182,9 @@ export const SearchResultsPage: React.FC = () => {
               <div className="flex items-center gap-2 text-xs font-bold text-primary uppercase tracking-wider">
                 <Sparkles size={13} /> Answer from your library
               </div>
-              <p className="text-sm text-text-main whitespace-pre-wrap leading-relaxed">{aiAnswer.answer}</p>
+              <div className="text-sm text-text-main leading-relaxed">
+                <ChatBubbleMarkdown>{aiAnswer.answer}</ChatBubbleMarkdown>
+              </div>
               {aiAnswer.citations.length > 0 && (
                 <div className="flex flex-wrap gap-2 pt-1 border-t border-[var(--border-color)]">
                   {aiAnswer.citations.map((c) => (

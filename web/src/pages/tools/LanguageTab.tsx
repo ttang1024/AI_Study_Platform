@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Check, Loader2, Mic, Square, X } from 'lucide-react';
 import { usePronunciationPractice } from '../../hooks/usePronunciationPractice';
-import { apiClient } from '../../services/apiClient';
+import { languageService } from '../../services/languageService';
 import { getApiErrorMessage } from '../../utils/apiError';
 
 type Mode = 'speak' | 'mine';
@@ -121,7 +121,7 @@ const SentenceMining: React.FC = () => {
     setError('');
     setMessage('');
     try {
-      await apiClient.post('/api/language/mine', {
+      await languageService.mineSentence({
         sentence,
         targetWord: word,
         meaning: meaning.trim() || undefined,

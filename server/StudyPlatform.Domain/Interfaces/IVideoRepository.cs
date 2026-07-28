@@ -28,6 +28,13 @@ public interface IVideoRepository : IRepository<Video>
     /// <summary>Every one of a user's videos as knowledge-graph nodes — labels and flags only, no transcript.</summary>
     Task<IReadOnlyList<VideoGraphNode>> GetGraphNodesAsync(Guid userId, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Title/summary matches for global search. Deliberately excludes the transcript: it is the largest
+    /// column in the schema and an unanchored ILIKE over it would scan every one of the user's videos.
+    /// Transcript content is reachable through the embedding index instead.
+    /// </summary>
+    Task<IEnumerable<Video>> SearchByUserAsync(Guid userId, string query, int limit, CancellationToken cancellationToken = default);
+
     Task<Video?> GetByIdForUserAsync(Guid id, Guid userId, CancellationToken cancellationToken = default);
     Task<Video?> GetByIdWithCourseAsync(Guid id, CancellationToken cancellationToken = default);
     Task<Video?> GetByExternalVideoIdAsync(string externalVideoId, CancellationToken cancellationToken = default);

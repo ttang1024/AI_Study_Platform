@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { FileVideo, Loader2, ShieldCheck, Upload, X, Zap, ArrowRight } from 'lucide-react';
+import { FileVideo, Loader2, ShieldCheck, Upload, X, Zap, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { Button } from '../common/Button';
 import { VideoCard } from '../common/VideoCard';
 import { usePrompt } from '../common/PromptBox';
@@ -9,6 +9,7 @@ import { useStudy } from '../../context/StudyContext';
 import { videoService, VideoListItem } from '../../services/videoService';
 import { cn } from '../../utils/cn';
 import { getApiErrorMessage } from '../../utils/apiError';
+import { DuplicateAlert } from './DuplicateAlert';
 
 const container = {
   hidden: { opacity: 0, y: 24 },
@@ -89,13 +90,21 @@ export const UploadVideoTab: React.FC<UploadVideoTabProps> = ({ selectedCourseId
   const [progress, setProgress] = useState(0);
   const [uploadedVideos, setUploadedVideos] = useState<VideoListItem[]>([]);
 
+  // The lite list so duplicate detection sees the whole library, not just the newest page.
   const loadUploadedVideos = useCallback(() => {
-    videoService.getVideos({ page: 1, pageSize: 10 })
+    videoService.getVideosLite({ pageSize: 500 })
       .then(data => setUploadedVideos(data.items.filter(v => v.sourceType === 'upload')))
       .catch(() => { });
   }, []);
 
   useEffect(() => { loadUploadedVideos(); }, [loadUploadedVideos]);
+
+  // Uploaded videos carry no file hash server-side (their id is generated, not derived from the
+  // bytes), so the file name — which is what the upload stores as the title — is the only signal.
+  const baseName = (name: string) => name.replace(/\.[^.]+$/, '').trim().toLowerCase();
+  const duplicateVideo = file
+    ? uploadedVideos.find(v => v.title.trim().toLowerCase() === baseName(file.name)) ?? null
+    : null;
 
   const validateAndSetFile = (f?: File) => {
     if (!f) return;
@@ -114,6 +123,8 @@ export const UploadVideoTab: React.FC<UploadVideoTabProps> = ({ selectedCourseId
 
   const handleUpload = async () => {
     if (!file) return;
+    // Already uploaded — the DuplicateAlert offers the "View" path instead.
+    if (duplicateVideo) return;
     if (!selectedCourseId) { onCourseError(true); return; }
     onCourseError(false);
     setUploading(true);
@@ -201,6 +212,16 @@ export const UploadVideoTab: React.FC<UploadVideoTabProps> = ({ selectedCourseId
       </motion.div>
 
       <AnimatePresence>
+        {duplicateVideo && (
+          <DuplicateAlert
+            label="video file"
+            courseName={duplicateVideo.courseName}
+            to={`/videos/${duplicateVideo.id}`}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
         {uploading && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="space-y-1.5 overflow-hidden">
             <div className="flex items-center justify-between">
@@ -218,8 +239,12 @@ export const UploadVideoTab: React.FC<UploadVideoTabProps> = ({ selectedCourseId
       </AnimatePresence>
 
       <motion.div variants={item}>
-        <Button disabled={!file || uploading} onClick={handleUpload} className={cn('h-12 w-full rounded-xl text-base font-black shadow-md transition-all duration-300', file && !uploading && selectedCourseId ? 'bg-primary text-white shadow-primary/20 hover:scale-[1.02] hover:shadow-primary/40 active:scale-95' : 'bg-zinc-100 text-zinc-400')}>
-          {uploading ? <span className="flex items-center gap-2"><Loader2 size={18} className="animate-spin" /> Processing...</span> : <span className="flex items-center gap-2"><Zap size={18} fill="currentColor" /> Analyze Video</span>}
+        <Button disabled={!file || uploading || !!duplicateVideo} onClick={handleUpload} className={cn('h-12 w-full rounded-xl text-base font-black shadow-md transition-all duration-300', file && !uploading && selectedCourseId && !duplicateVideo ? 'bg-primary text-white shadow-primary/20 hover:scale-[1.02] hover:shadow-primary/40 active:scale-95' : 'bg-zinc-100 text-zinc-400')}>
+          {uploading
+            ? <span className="flex items-center gap-2"><Loader2 size={18} className="animate-spin" /> Processing...</span>
+            : duplicateVideo
+              ? <span className="flex items-center gap-2"><CheckCircle2 size={18} /> Already in Library</span>
+              : <span className="flex items-center gap-2"><Zap size={18} fill="currentColor" /> Analyze Video</span>}
         </Button>
       </motion.div>
 

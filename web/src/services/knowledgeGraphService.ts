@@ -1,102 +1,11 @@
-import { apiClient } from './apiClient';
+// Service logic moved to the shared package (packages/core) — rn/ had the same
+// three /api/concept-links reads under the name conceptLinksService. This file
+// wires the web HTTP adapter into the shared factory and re-exports the types,
+// so existing imports keep working. Node titles are still flattened to plain
+// text, now by the shared regex stripHtml rather than a DOM element.
+import { createConceptLinksService } from '@core/services/conceptLinksService';
+import { http } from './http';
 
-export interface KnowledgeGraphNode {
-  id: string;
-  type: 'concept' | 'document' | 'video' | 'article' | 'audio' | 'podcast' | 'note' | 'quiz' | 'flashcard' | string;
-  title: string;
-  subtitle?: string | null;
-  url?: string | null;
-  weight: number;
-  description?: string | null;
-  courseId?: string | null;
-}
+export * from '@core/services/conceptLinksService';
 
-export interface KnowledgeGraphEdge {
-  source: string;
-  target: string;
-  label?: string | null;
-  weight: number;
-}
-
-export interface KnowledgeGraphStats {
-  materials: number;
-  concepts: number;
-  notes: number;
-  quizzes: number;
-  links: number;
-}
-
-export interface KnowledgeGraph {
-  nodes: KnowledgeGraphNode[];
-  edges: KnowledgeGraphEdge[];
-  stats: KnowledgeGraphStats;
-}
-
-export type GapSeverity = 'high' | 'medium' | 'low';
-
-export interface ConceptGap {
-  id: string;
-  concept: string;
-  reason: string;
-  severity: GapSeverity;
-  referenceCount: number;
-  defined: boolean;
-  mastered: boolean;
-  courseIds: string[];
-  url: string | null;
-}
-
-export interface KnowledgeGapStats {
-  totalConcepts: number;
-  gaps: number;
-  unmastered: number;
-  undefined: number;
-  crossCourse: number;
-}
-
-export interface KnowledgeGaps {
-  gaps: ConceptGap[];
-  stats: KnowledgeGapStats;
-}
-
-const stripHtml = (html: string): string => {
-  const div = document.createElement('div');
-  div.innerHTML = html;
-  return (div.textContent || div.innerText || '').trim();
-};
-
-export const knowledgeGraphService = {
-  async getKnowledgeGraph(): Promise<KnowledgeGraph> {
-    const response = await apiClient.get('/api/concept-links/knowledge-graph');
-    const data = response.data.data as KnowledgeGraph;
-    data.nodes = data.nodes.map(n => ({ ...n, title: stripHtml(n.title) }));
-    return data;
-  },
-
-  async getKnowledgeGaps(): Promise<KnowledgeGaps> {
-    const response = await apiClient.get('/api/concept-links/gaps');
-    return response.data.data as KnowledgeGaps;
-  },
-
-  async getLearningPath(): Promise<LearningPath> {
-    const response = await apiClient.get('/api/concept-links/learning-path');
-    return response.data.data as LearningPath;
-  },
-};
-
-export interface LearningPathStep {
-  order: number;
-  termId: string;
-  concept: string;
-  status: 'next' | 'ready' | 'blocked' | 'mastered';
-  reason: string;
-  prerequisiteDepth: number;
-  prerequisites: string[];
-  url?: string;
-}
-
-export interface LearningPath {
-  steps: LearningPathStep[];
-  masteredCount: number;
-  totalCount: number;
-}
+export const knowledgeGraphService = createConceptLinksService(http);

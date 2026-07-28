@@ -1,5 +1,6 @@
 using MediatR;
 using StudyPlatform.Application.Common;
+using StudyPlatform.Application.Services;
 using StudyPlatform.Domain.Interfaces;
 
 namespace StudyPlatform.Application.Flashcards.Commands;
@@ -9,7 +10,13 @@ public record DeleteFlashcardCommand(Guid FlashcardId, Guid UserId) : IRequest<R
 public class DeleteFlashcardCommandHandler : IRequestHandler<DeleteFlashcardCommand, Result>
 {
     private readonly IUnitOfWork _unitOfWork;
-    public DeleteFlashcardCommandHandler(IUnitOfWork unitOfWork) { _unitOfWork = unitOfWork; }
+    private readonly IEmbeddingIndex _embeddingIndex;
+
+    public DeleteFlashcardCommandHandler(IUnitOfWork unitOfWork, IEmbeddingIndex embeddingIndex)
+    {
+        _unitOfWork = unitOfWork;
+        _embeddingIndex = embeddingIndex;
+    }
 
     public async Task<Result> Handle(DeleteFlashcardCommand request, CancellationToken cancellationToken)
     {
@@ -19,6 +26,10 @@ public class DeleteFlashcardCommandHandler : IRequestHandler<DeleteFlashcardComm
 
         _unitOfWork.Flashcards.Remove(flashcard);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // A deleted card must leave the dedup index too, or it goes on suppressing its own regeneration.
+        await _embeddingIndex.PruneOrphansAsync(request.UserId, cancellationToken);
+
         return Result.Success("Flashcard deleted successfully.");
     }
 }
@@ -28,12 +39,19 @@ public record BulkDeleteFlashcardsCommand(IEnumerable<Guid> FlashcardIds, Guid U
 public class BulkDeleteFlashcardsCommandHandler : IRequestHandler<BulkDeleteFlashcardsCommand, Result>
 {
     private readonly IUnitOfWork _unitOfWork;
-    public BulkDeleteFlashcardsCommandHandler(IUnitOfWork unitOfWork) { _unitOfWork = unitOfWork; }
+    private readonly IEmbeddingIndex _embeddingIndex;
+
+    public BulkDeleteFlashcardsCommandHandler(IUnitOfWork unitOfWork, IEmbeddingIndex embeddingIndex)
+    {
+        _unitOfWork = unitOfWork;
+        _embeddingIndex = embeddingIndex;
+    }
 
     public async Task<Result> Handle(BulkDeleteFlashcardsCommand request, CancellationToken cancellationToken)
     {
         await _unitOfWork.Flashcards.DeleteByIdsAsync(request.FlashcardIds, request.UserId, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await _embeddingIndex.PruneOrphansAsync(request.UserId, cancellationToken);
         return Result.Success("Flashcards deleted successfully.");
     }
 }

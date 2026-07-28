@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReactDOM from 'react-dom';
-import { Search, FileText, X } from 'lucide-react';
+import { Search, FileText, X, Sparkles } from 'lucide-react';
 import { STUDY_TYPE_ICONS } from '../../constants/contentTypeIcons';
 import { useNavigate } from 'react-router-dom';
 import { useStudy } from '../../context/StudyContext';
@@ -165,10 +165,26 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) =
     onClose();
   }, [navigate, onClose]);
 
+  // This palette only matches text it already has in memory. Handing the query to the server search
+  // page is what reaches everything else: transcripts, semantic matches, and the AI answer.
+  const canSearchEverything = query.trim().length >= 2;
+
+  const handleSearchEverything = useCallback(() => {
+    navigate(`/search?q=${encodeURIComponent(query.trim())}`);
+    onClose();
+  }, [navigate, query, onClose]);
+
+  // Sits after the results as one more selectable row, so Enter reaches it with no local matches.
+  const everythingIndex = results.length;
+  const selectableCount = results.length + (canSearchEverything ? 1 : 0);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'ArrowDown') { e.preventDefault(); setActiveIndex(i => Math.min(i + 1, results.length - 1)); }
+    if (e.key === 'ArrowDown') { e.preventDefault(); setActiveIndex(i => Math.min(i + 1, selectableCount - 1)); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setActiveIndex(i => Math.max(i - 1, 0)); }
-    else if (e.key === 'Enter' && results[activeIndex]) { handleSelect(results[activeIndex]); }
+    else if (e.key === 'Enter') {
+      if (results[activeIndex]) handleSelect(results[activeIndex]);
+      else if (canSearchEverything && activeIndex === everythingIndex) handleSearchEverything();
+    }
     else if (e.key === 'Escape') { onClose(); }
   };
 
@@ -231,9 +247,29 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) =
             ))}
           </ul>
         ) : query.length >= 2 ? (
-          <div className="px-4 py-8 text-center text-sm text-text-muted">No results for "{query}"</div>
+          <div className="px-4 pt-8 pb-4 text-center text-sm text-text-muted">Nothing loaded here matches "{query}"</div>
         ) : (
           <div className="px-4 py-6 text-center text-sm text-text-muted">Type to search...</div>
+        )}
+
+        {/* Escape hatch to the server-backed search page */}
+        {canSearchEverything && (
+          <button
+            onClick={handleSearchEverything}
+            onMouseEnter={() => setActiveIndex(everythingIndex)}
+            className={cn(
+              'w-full flex items-center gap-3 px-4 py-2.5 text-left border-t border-[var(--border-color)] transition-colors',
+              activeIndex === everythingIndex ? 'bg-primary/10' : 'hover:bg-[var(--bg-app)]',
+            )}
+          >
+            <Sparkles size={14} className="shrink-0 text-primary" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-text-main truncate">
+                Search everything for "{query.trim()}"
+              </p>
+              <p className="text-xs text-text-muted">Full library search, or let AI answer from your sources</p>
+            </div>
+          </button>
         )}
 
         {/* Footer */}

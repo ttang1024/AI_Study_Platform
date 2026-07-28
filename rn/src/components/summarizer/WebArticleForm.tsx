@@ -10,6 +10,7 @@ import { TextField } from '@/components/TextField';
 import { Colors, Spacing } from '@/constants/theme';
 import { documentService } from '@/services/documentService';
 import { useLibraryEntries } from '@/hooks/useLibraryEntries';
+import { useSubmitLock } from '@/hooks/useSubmitLock';
 import { getApiErrorMessage } from '@/utils/apiError';
 
 interface WebArticleFormProps {
@@ -23,6 +24,7 @@ export function WebArticleForm({ selectedCourseId, onCourseError }: WebArticleFo
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const articles = useLibraryEntries('articles');
+  const runExclusive = useSubmitLock();
 
   const trimmedUrl = url.trim();
   const duplicate = trimmedUrl
@@ -76,7 +78,12 @@ export function WebArticleForm({ selectedCourseId, onCourseError }: WebArticleFo
 
       {!!error && <Text style={styles.error}>{error}</Text>}
 
-      <Button title="Clip & Analyze" onPress={submit} loading={loading} disabled={!url.trim() || !!duplicate} />
+      <Button
+        title={duplicate ? 'Already in Library' : 'Clip & Analyze'}
+        onPress={() => runExclusive(submit)}
+        loading={loading}
+        disabled={!url.trim() || !!duplicate}
+      />
     </View>
   );
 }

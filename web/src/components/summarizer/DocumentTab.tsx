@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Upload, File, X, Loader2, ShieldCheck, Zap, FileText, BookOpen, ArrowRight, Image, Presentation } from 'lucide-react';
+import { Upload, File, X, Loader2, ShieldCheck, Zap, FileText, BookOpen, ArrowRight, Image, Presentation, CheckCircle2 } from 'lucide-react';
 import { Button } from '../common/Button';
 import { DocumentCard } from '../common/DocumentCard';
 import { usePrompt } from '../common/PromptBox';
@@ -10,6 +10,7 @@ import { cn } from '../../utils/cn';
 import { getApiErrorMessage } from '../../utils/apiError';
 import { calculateSha256 } from '../../utils/fileHash';
 import { DuplicateAlert } from './DuplicateAlert';
+import { getDuplicateDocRoute } from './duplicateDocRoute';
 import { DOCUMENT_ACCEPT_ATTR, isAcceptedDocumentFile } from '../../constants/documentUpload';
 
 const container = {
@@ -70,11 +71,6 @@ export const DocumentTab: React.FC<DocumentTabProps> = ({ selectedCourseId, onCo
     ? documents.find(doc => doc.fileHash === fileHash) ?? null
     : null;
   const duplicateDocCourse = duplicateDoc?.courseId ? courses.find(c => c.id === duplicateDoc.courseId) : undefined;
-  const duplicateDocTo = duplicateDoc?.type === 'audio'
-    ? `/audio/${duplicateDoc.id}`
-    : duplicateDoc?.type === 'md' || duplicateDoc?.originalUrl
-      ? `/articles/${duplicateDoc.id}`
-      : `/documents/${duplicateDoc?.id}`;
 
   const validateAndSetFile = (f: File) => {
     if (!isAcceptedDocumentFile(f)) {
@@ -90,6 +86,9 @@ export const DocumentTab: React.FC<DocumentTabProps> = ({ selectedCourseId, onCo
 
   const handleUpload = async () => {
     if (!file) return;
+    // Already uploaded — the server rejects it with DUPLICATE_DOCUMENT anyway; the
+    // DuplicateAlert offers the "View" path instead.
+    if (duplicateDoc) return;
     if (!selectedCourseId) { onCourseError(true); return; }
     onCourseError(false);
     setUploading(true);
@@ -189,11 +188,11 @@ export const DocumentTab: React.FC<DocumentTabProps> = ({ selectedCourseId, onCo
       </motion.div>
 
       <AnimatePresence>
-        {duplicateDoc && duplicateDocCourse && (
+        {duplicateDoc && (
           <DuplicateAlert
             label="file"
-            courseName={duplicateDocCourse.name}
-            to={duplicateDocTo}
+            courseName={duplicateDocCourse?.name}
+            to={getDuplicateDocRoute(duplicateDoc)}
           />
         )}
       </AnimatePresence>
@@ -217,18 +216,20 @@ export const DocumentTab: React.FC<DocumentTabProps> = ({ selectedCourseId, onCo
 
       <motion.div variants={item}>
         <Button
-          disabled={!file || uploading}
+          disabled={!file || uploading || !!duplicateDoc}
           onClick={handleUpload}
           className={cn(
             'h-12 w-full rounded-xl text-base font-black shadow-md transition-all duration-300',
-            file && !uploading && selectedCourseId
+            file && !uploading && selectedCourseId && !duplicateDoc
               ? 'bg-primary text-white shadow-primary/20 hover:shadow-primary/40 hover:scale-[1.02] active:scale-95'
               : 'bg-zinc-100 text-zinc-400',
           )}
         >
           {uploading
             ? <span className="flex items-center gap-2"><Loader2 size={18} className="animate-spin" /> Processing...</span>
-            : <span className="flex items-center gap-2"><Zap size={18} fill="currentColor" /> Start Learning</span>}
+            : duplicateDoc
+              ? <span className="flex items-center gap-2"><CheckCircle2 size={18} /> Already in Library</span>
+              : <span className="flex items-center gap-2"><Zap size={18} fill="currentColor" /> Start Learning</span>}
         </Button>
       </motion.div>
 

@@ -1,5 +1,6 @@
 using Moq;
 using StudyPlatform.Application.Glossary.Commands;
+using StudyPlatform.Application.Services;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
 using Xunit;
@@ -80,6 +81,7 @@ public class DeleteGlossaryTermCommandHandlerTests
 {
     private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IGlossaryTermRepository> _terms = new();
+    private readonly Mock<IEmbeddingIndex> _embeddingIndex = new();
     private readonly DeleteGlossaryTermCommandHandler _handler;
     private readonly Guid _userId = Guid.NewGuid();
 
@@ -87,7 +89,7 @@ public class DeleteGlossaryTermCommandHandlerTests
     {
         _uow.Setup(u => u.GlossaryTerms).Returns(_terms.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new DeleteGlossaryTermCommandHandler(_uow.Object);
+        _handler = new DeleteGlossaryTermCommandHandler(_uow.Object, _embeddingIndex.Object);
     }
 
     private GlossaryTerm MakeTerm(Guid? userId = null) => new()

@@ -11,11 +11,16 @@ public class DeleteCourseCommandHandler : IRequestHandler<DeleteCourseCommand, R
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly IBlobStorageService _blobStorageService;
+    private readonly IEmbeddingIndex _embeddingIndex;
 
-    public DeleteCourseCommandHandler(IUnitOfWork unitOfWork, IBlobStorageService blobStorageService)
+    public DeleteCourseCommandHandler(
+        IUnitOfWork unitOfWork,
+        IBlobStorageService blobStorageService,
+        IEmbeddingIndex embeddingIndex)
     {
         _unitOfWork = unitOfWork;
         _blobStorageService = blobStorageService;
+        _embeddingIndex = embeddingIndex;
     }
 
     public async Task<Result> Handle(DeleteCourseCommand request, CancellationToken cancellationToken)
@@ -41,6 +46,10 @@ public class DeleteCourseCommandHandler : IRequestHandler<DeleteCourseCommand, R
 
         _unitOfWork.Courses.Remove(course);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // The same cascade that removed the document rows without loading them also removed their
+        // flashcards and glossary terms; none of it went through a handler that could clean up chunks.
+        await _embeddingIndex.PruneOrphansAsync(request.UserId, cancellationToken);
 
         return Result.Success("Course deleted successfully.");
     }

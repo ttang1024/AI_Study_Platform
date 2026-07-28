@@ -8,6 +8,7 @@ import Rss from 'lucide-react-native/icons/rss';
 
 import { Button } from '@/components/Button';
 import { DuplicateAlert } from '@/components/summarizer/DuplicateAlert';
+import { findDuplicateDocument } from '@/components/summarizer/duplicateFile';
 import { Dropzone } from '@/components/summarizer/Dropzone';
 import { IntroCard } from '@/components/summarizer/IntroCard';
 import { SubTabChipRow } from '@/components/summarizer/SubTabChipRow';
@@ -17,6 +18,7 @@ import { documentService } from '@/services/documentService';
 import { podcastService, PodcastFeed, PodcastFeedEpisode } from '@/services/podcastService';
 import { looksLikeRssFeedUrl, validatePodcastUrl } from '@/constants/podcastSources';
 import { useLibraryEntries } from '@/hooks/useLibraryEntries';
+import { useSubmitLock } from '@/hooks/useSubmitLock';
 import { getApiErrorCode, getApiErrorMessage } from '@/utils/apiError';
 import type { PickedFile } from '@/types';
 
@@ -48,10 +50,13 @@ export function AudioForm({ selectedCourseId, onCourseError }: AudioFormProps) {
   const [lectureUploading, setLectureUploading] = useState(false);
 
   const audioEntries = useLibraryEntries('audio');
+  const runExclusive = useSubmitLock();
   const trimmedPodcastUrl = podcastUrl.trim();
   const duplicate = trimmedPodcastUrl
     ? audioEntries.find((e) => e.kind === 'document' && e.data.originalUrl === trimmedPodcastUrl)
     : undefined;
+  // An uploaded lecture lands in the same audio list, so the picked file is checked against it too.
+  const duplicateLecture = findDuplicateDocument(audioEntries, file);
 
   const loadFeed = async (url: string) => {
     setPodcastError('');
@@ -127,11 +132,13 @@ export function AudioForm({ selectedCourseId, onCourseError }: AudioFormProps) {
     const result = await DocumentPicker.getDocumentAsync({ type: 'audio/*', copyToCacheDirectory: true });
     if (result.canceled || !result.assets?.[0]) return;
     const asset = result.assets[0];
-    setFile({ uri: asset.uri, name: asset.name, mimeType: asset.mimeType ?? 'audio/mpeg' });
+    setFile({ uri: asset.uri, name: asset.name, mimeType: asset.mimeType ?? 'audio/mpeg', size: asset.size });
   };
 
   const submitLecture = async () => {
     if (!file) return;
+    // Already uploaded — the duplicate banner offers the way to it instead.
+    if (duplicateLecture) return;
     if (!selectedCourseId) { onCourseError(true); return; }
     onCourseError(false);
     setLectureError('');
@@ -196,7 +203,7 @@ export function AudioForm({ selectedCourseId, onCourseError }: AudioFormProps) {
                     <Text style={styles.episodeTitle} numberOfLines={2}>{item.title}</Text>
                     <Pressable
                       style={styles.episodeButton}
-                      onPress={() => importEpisode(item)}
+                      onPress={() => runExclusive(() => importEpisode(item))}
                       disabled={importingId !== null}
                     >
                       {importingId === item.id ? (
@@ -212,8 +219,8 @@ export function AudioForm({ selectedCourseId, onCourseError }: AudioFormProps) {
           )}
 
           <Button
-            title={looksLikeRssFeedUrl(podcastUrl) ? 'Browse Episodes' : 'Analyze Episode'}
-            onPress={submitPodcast}
+            title={duplicate ? 'Already in Library' : looksLikeRssFeedUrl(podcastUrl) ? 'Browse Episodes' : 'Analyze Episode'}
+            onPress={() => runExclusive(submitPodcast)}
             loading={podcastLoading}
             disabled={!podcastUrl.trim() || importingId !== null || !!duplicate}
           />
@@ -227,9 +234,22 @@ export function AudioForm({ selectedCourseId, onCourseError }: AudioFormProps) {
             onPress={pickLectureFile}
           />
 
+          {duplicateLecture && (
+            <DuplicateAlert
+              label="file"
+              courseName={duplicateLecture.courseName ?? ''}
+              onView={() => router.push(`/(tabs)/library/document/${duplicateLecture.id}?courseId=${duplicateLecture.courseId}`)}
+            />
+          )}
+
           {!!lectureError && <Text style={styles.error}>{lectureError}</Text>}
 
-          <Button title="Upload & Analyze" onPress={submitLecture} loading={lectureUploading} disabled={!file} />
+          <Button
+            title={duplicateLecture ? 'Already in Library' : 'Upload & Analyze'}
+            onPress={() => runExclusive(submitLecture)}
+            loading={lectureUploading}
+            disabled={!file || !!duplicateLecture}
+          />
         </>
       )}
     </View>

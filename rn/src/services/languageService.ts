@@ -1,22 +1,17 @@
+import { createLanguageService, type PronunciationResult } from '@core/services/languageService';
 import { apiClient } from '@/services/apiClient';
+import { http } from '@/services/http';
 
-export interface WordScore {
-  word: string;
-  correct: boolean;
-}
+export type { PronunciationResult, WordScore } from '@core/services/languageService';
 
-export interface PronunciationResult {
-  targetPhrase: string;
-  heard: string;
-  /** 0-100: the share of target words a recogniser made out, in order. */
-  score: number;
-  words: WordScore[];
-}
+const core = createLanguageService(http);
 
 /**
- * Not in packages/core: the pronunciation call posts a recording, and web and rn build that
- * multipart body from different primitives (a Blob from MediaRecorder vs. a file URI from
- * expo-audio). The shared HttpClient seam deliberately has no opinion about either.
+ * `mineSentence` is shared with web via packages/core. `scorePronunciation` is not:
+ * it posts a recording, and web and rn build that multipart body from different
+ * primitives (a Blob from MediaRecorder vs. a file URI from expo-audio). The shared
+ * HttpClient seam deliberately has no opinion about either, so the upload stays here
+ * and only the result types are shared.
  */
 export const languageService = {
   /** `audio` is a local file URI from the recorder. */
@@ -38,16 +33,7 @@ export const languageService = {
   },
 
   /** Creates a cloze flashcard, which then enters the ordinary FSRS review schedule. */
-  async mineSentence(input: {
-    sentence: string;
-    targetWord: string;
-    meaning?: string;
-    documentId?: string;
-    videoId?: string;
-  }): Promise<string> {
-    const res = await apiClient.post('/api/language/mine', input);
-    return res.data.data as string;
-  },
+  mineSentence: core.mineSentence,
 };
 
 export default languageService;

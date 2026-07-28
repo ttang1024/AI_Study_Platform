@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 using MediatR;
 using Moq;
 using StudyPlatform.Application.Documents.Commands;
+using StudyPlatform.Application.Services;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
 using Xunit;
@@ -173,6 +174,7 @@ public class RegenerateStaleArtifactsCommandHandlerTests
 
     private readonly Guid _userId = Guid.NewGuid();
     private readonly Guid _documentId = Guid.NewGuid();
+    private readonly Mock<IEmbeddingIndex> _embeddingIndex = new();
     private readonly RegenerateStaleArtifactsCommandHandler _handler;
 
     public RegenerateStaleArtifactsCommandHandlerTests()
@@ -193,7 +195,7 @@ public class RegenerateStaleArtifactsCommandHandlerTests
         _glossary.Setup(r => r.FindAsync(It.IsAny<Expression<Func<GlossaryTerm, bool>>>(), default))
             .ReturnsAsync(new List<GlossaryTerm> { new() });
 
-        _handler = new RegenerateStaleArtifactsCommandHandler(_uow.Object, _mediator.Object);
+        _handler = new RegenerateStaleArtifactsCommandHandler(_uow.Object, _mediator.Object, _embeddingIndex.Object);
     }
 
     [Fact]

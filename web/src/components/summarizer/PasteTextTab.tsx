@@ -1,13 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
-import { motion } from 'motion/react';
-import { Loader2, Zap, ArrowRight } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Loader2, Zap, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { Button } from '../common/Button';
 import { DocumentCard } from '../common/DocumentCard';
 import { usePrompt } from '../common/PromptBox';
 import { useStudy } from '../../context/StudyContext';
 import { cn } from '../../utils/cn';
 import { getApiErrorMessage } from '../../utils/apiError';
+import { calculateSha256 } from '../../utils/fileHash';
+import { DuplicateAlert } from './DuplicateAlert';
+import { getDuplicateDocRoute } from './duplicateDocRoute';
 
 const container = {
   hidden: { opacity: 0, y: 24 },
@@ -40,9 +43,32 @@ export const PasteTextTab: React.FC<PasteTextTabProps> = ({ selectedCourseId, on
   const [submitting, setSubmitting] = useState(false);
 
   const charCount = text.trim().length;
-  const canSubmit = charCount >= MIN_CHARS && !submitting;
+  const [textHash, setTextHash] = useState<string | null>(null);
+
+  // Hash the exact bytes the upload will send, so this catches the same duplicates the server's
+  // DUPLICATE_DOCUMENT check does. Debounced — the text can run to 500k chars, and re-hashing it
+  // on every keystroke would be wasted work.
+  useEffect(() => {
+    setTextHash(null);
+    if (charCount < MIN_CHARS) return;
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      calculateSha256(new File([text], 'paste.txt', { type: 'text/plain' }))
+        .then(hash => { if (!cancelled) setTextHash(hash); })
+        .catch(() => { if (!cancelled) setTextHash(null); });
+    }, 400);
+    return () => { cancelled = true; window.clearTimeout(timer); };
+  }, [text, charCount]);
+
+  const duplicateDoc = !submitting && textHash
+    ? documents.find(doc => doc.fileHash === textHash) ?? null
+    : null;
+  const duplicateDocCourse = duplicateDoc?.courseId ? courses.find(c => c.id === duplicateDoc.courseId) : undefined;
+
+  const canSubmit = charCount >= MIN_CHARS && !submitting && !duplicateDoc;
 
   const handleSubmit = async () => {
+    if (duplicateDoc) return;
     if (charCount < MIN_CHARS) {
       showPrompt(`Please paste at least ${MIN_CHARS} characters of text.`);
       return;
@@ -97,6 +123,16 @@ export const PasteTextTab: React.FC<PasteTextTabProps> = ({ selectedCourseId, on
         </span>
       </motion.div>
 
+      <AnimatePresence>
+        {duplicateDoc && (
+          <DuplicateAlert
+            label="text"
+            courseName={duplicateDocCourse?.name}
+            to={getDuplicateDocRoute(duplicateDoc)}
+          />
+        )}
+      </AnimatePresence>
+
       <motion.div variants={item}>
         <Button
           disabled={!canSubmit}
@@ -110,7 +146,9 @@ export const PasteTextTab: React.FC<PasteTextTabProps> = ({ selectedCourseId, on
         >
           {submitting
             ? <span className="flex items-center gap-2"><Loader2 size={18} className="animate-spin" /> Processing...</span>
-            : <span className="flex items-center gap-2"><Zap size={18} fill="currentColor" /> Start Learning</span>}
+            : duplicateDoc
+              ? <span className="flex items-center gap-2"><CheckCircle2 size={18} /> Already in Library</span>
+              : <span className="flex items-center gap-2"><Zap size={18} fill="currentColor" /> Start Learning</span>}
         </Button>
       </motion.div>
 

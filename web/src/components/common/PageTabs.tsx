@@ -108,7 +108,10 @@ export function PageTabBar<T extends string>({
       aria-label={ariaLabel}
       onKeyDown={onKeyDown}
       className={cn(
-        'flex items-center overflow-x-auto no-scrollbar',
+        // `shrink-0`: `overflow-x-auto` makes this a scroll container, so inside a flex-column page
+        // its automatic minimum size is 0 and it would be squashed flat whenever the panel below
+        // overflows. A tab bar is never the thing that gives up height.
+        'flex shrink-0 items-center overflow-x-auto no-scrollbar',
         variant === 'underline'
           ? 'gap-1 border-b border-[var(--border-color)]'
           : 'w-fit gap-1 rounded-xl bg-zinc-100 p-1',

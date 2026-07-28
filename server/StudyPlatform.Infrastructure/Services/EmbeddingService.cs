@@ -91,10 +91,14 @@ public class EmbeddingService : IEmbeddingService
         var model = _options.Model.StartsWith("models/") ? _options.Model : $"models/{_options.Model}";
         var baseUrl = (_options.BaseUrl ?? "https://generativelanguage.googleapis.com/v1beta").TrimEnd('/');
 
+        // Gemini's embedding models default to an output width wider than the vector column
+        // (gemini-embedding-001 emits 3072), and Normalize rejects anything over-long rather than
+        // truncate it. Asking for the column width up front is what makes those models usable at all.
         var requests = batch.Select(text => new
         {
             model,
             content = new { parts = new[] { new { text } } },
+            outputDimensionality = ContentEmbeddingConfiguration.Dimensions,
         });
 
         using var request = new HttpRequestMessage(

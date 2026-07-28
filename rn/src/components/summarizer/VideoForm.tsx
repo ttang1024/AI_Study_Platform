@@ -16,6 +16,7 @@ import { Colors, Spacing } from '@/constants/theme';
 import { videoService } from '@/services/videoService';
 import { detectVideoSource, parseUrlVideoId, URL_SOURCE_BRANDING } from '@/constants/videoSources';
 import { useLibraryEntries } from '@/hooks/useLibraryEntries';
+import { useSubmitLock } from '@/hooks/useSubmitLock';
 import { getApiErrorMessage } from '@/utils/apiError';
 import type { PickedFile } from '@/types';
 
@@ -39,6 +40,7 @@ export function VideoForm({ selectedCourseId, onCourseError }: VideoFormProps) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const videos = useLibraryEntries('videos');
+  const runExclusive = useSubmitLock();
 
   // Reactively flag a pasted link that resolves to a video already in the library
   // (same source + video id), mirroring web's WebVideoTab duplicate hint.
@@ -47,6 +49,13 @@ export function VideoForm({ selectedCourseId, onCourseError }: VideoFormProps) {
   const detectedVideoId = detectedSource ? parseUrlVideoId(detectedSource, trimmedUrl) : null;
   const duplicate = detectedSource && detectedVideoId
     ? videos.find((e) => e.kind === 'video' && e.data.videoId === detectedVideoId && (e.data.sourceType ?? 'youtube') === detectedSource)
+    : undefined;
+
+  // An uploaded video carries no file hash server-side — the upload stores the file name (minus its
+  // extension) as the title, so that is the only signal a re-pick of the same file leaves behind.
+  const pickedBaseName = file ? file.name.replace(/\.[^.]+$/, '').trim().toLowerCase() : null;
+  const duplicateUpload = pickedBaseName
+    ? videos.find((e) => e.kind === 'video' && e.data.sourceType === 'upload' && e.data.title.trim().toLowerCase() === pickedBaseName)
     : undefined;
 
   const submitLink = async () => {
@@ -116,11 +125,13 @@ export function VideoForm({ selectedCourseId, onCourseError }: VideoFormProps) {
     const result = await DocumentPicker.getDocumentAsync({ type: 'video/*', copyToCacheDirectory: true });
     if (result.canceled || !result.assets?.[0]) return;
     const asset = result.assets[0];
-    setFile({ uri: asset.uri, name: asset.name, mimeType: asset.mimeType ?? 'video/mp4' });
+    setFile({ uri: asset.uri, name: asset.name, mimeType: asset.mimeType ?? 'video/mp4', size: asset.size });
   };
 
   const submitUpload = async () => {
     if (!file) return;
+    // Already uploaded — the duplicate banner offers the way to it instead.
+    if (duplicateUpload) return;
     if (!selectedCourseId) { onCourseError(true); return; }
     onCourseError(false);
     setError('');
@@ -174,13 +185,21 @@ export function VideoForm({ selectedCourseId, onCourseError }: VideoFormProps) {
         />
       )}
 
+      {subTab === 'upload' && duplicateUpload?.kind === 'video' && (
+        <DuplicateAlert
+          label="video file"
+          courseName={duplicateUpload.data.courseName}
+          onView={() => router.push(`/(tabs)/library/video/${duplicateUpload.data.id}`)}
+        />
+      )}
+
       {!!error && <Text style={styles.error}>{error}</Text>}
 
       <Button
-        title="Analyze Video"
-        onPress={subTab === 'link' ? submitLink : submitUpload}
+        title={(subTab === 'link' ? duplicate : duplicateUpload) ? 'Already in Library' : 'Analyze Video'}
+        onPress={() => runExclusive(subTab === 'link' ? submitLink : submitUpload)}
         loading={loading}
-        disabled={subTab === 'link' ? !url.trim() || !!duplicate : !file}
+        disabled={subTab === 'link' ? !url.trim() || !!duplicate : !file || !!duplicateUpload}
       />
     </View>
   );

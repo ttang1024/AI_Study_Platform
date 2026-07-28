@@ -1,5 +1,6 @@
 using Moq;
 using StudyPlatform.Application.Flashcards.Commands;
+using StudyPlatform.Application.Services;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
 using Xunit;
@@ -101,6 +102,7 @@ public class DeleteFlashcardCommandHandlerTests
 {
     private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IFlashcardRepository> _flashcards = new();
+    private readonly Mock<IEmbeddingIndex> _embeddingIndex = new();
     private readonly DeleteFlashcardCommandHandler _handler;
     private readonly Guid _userId = Guid.NewGuid();
 
@@ -108,7 +110,7 @@ public class DeleteFlashcardCommandHandlerTests
     {
         _uow.Setup(u => u.Flashcards).Returns(_flashcards.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new DeleteFlashcardCommandHandler(_uow.Object);
+        _handler = new DeleteFlashcardCommandHandler(_uow.Object, _embeddingIndex.Object);
     }
 
     [Fact]
@@ -126,6 +128,20 @@ public class DeleteFlashcardCommandHandlerTests
     }
 
     [Fact]
+    public async Task Handle_OwnedFlashcard_PrunesItsEmbedding()
+    {
+        var cardId = Guid.NewGuid();
+        _flashcards.Setup(r => r.GetByIdAsync(cardId, default))
+            .ReturnsAsync(new Flashcard { FlashcardId = cardId, UserId = _userId });
+
+        await _handler.Handle(new DeleteFlashcardCommand(cardId, _userId), default);
+
+        // Left in the index, the deleted card keeps matching regenerated ones and the deduplicator
+        // silently drops them — the user deletes a card and cannot get it back.
+        _embeddingIndex.Verify(i => i.PruneOrphansAsync(_userId, default), Times.Once);
+    }
+
+    [Fact]
     public async Task Handle_FlashcardNotFound_ReturnsFailure()
     {
         _flashcards.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), default)).ReturnsAsync((Flashcard?)null);
@@ -135,6 +151,7 @@ public class DeleteFlashcardCommandHandlerTests
         Assert.False(result.IsSuccess);
         Assert.Equal("FLASHCARD_NOT_FOUND", result.ErrorCode);
         _uow.Verify(u => u.SaveChangesAsync(default), Times.Never);
+        _embeddingIndex.Verify(i => i.PruneOrphansAsync(It.IsAny<Guid?>(), default), Times.Never);
     }
 
     [Fact]
@@ -409,6 +426,7 @@ public class BulkDeleteFlashcardsCommandHandlerTests
 {
     private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IFlashcardRepository> _flashcards = new();
+    private readonly Mock<IEmbeddingIndex> _embeddingIndex = new();
     private readonly BulkDeleteFlashcardsCommandHandler _handler;
     private readonly Guid _userId = Guid.NewGuid();
 
@@ -418,7 +436,7 @@ public class BulkDeleteFlashcardsCommandHandlerTests
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
         _flashcards.Setup(r => r.DeleteByIdsAsync(It.IsAny<IEnumerable<Guid>>(), _userId, default))
             .Returns(Task.CompletedTask);
-        _handler = new BulkDeleteFlashcardsCommandHandler(_uow.Object);
+        _handler = new BulkDeleteFlashcardsCommandHandler(_uow.Object, _embeddingIndex.Object);
     }
 
     [Fact]
