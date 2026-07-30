@@ -17,7 +17,9 @@ export default function LanguageSettingsScreen() {
           <Pressable key={l.code} style={styles.row} onPress={() => setLocale(l.code)}>
             {/* Written in each language's own script — a list in the reader's *current* language is
                 useless to the person who cannot read it. */}
-            <Text style={styles.name}>{l.nativeName}</Text>
+            <Text style={styles.name}>
+              {l.flag} {l.nativeName}
+            </Text>
             {locale === l.code && <Check size={18} color={Colors.primary} />}
           </Pressable>
         ))}

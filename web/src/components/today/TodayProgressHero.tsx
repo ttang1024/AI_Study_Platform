@@ -91,30 +91,38 @@ export const TodayProgressHero: React.FC = () => {
   const coreRemaining = core.filter(i => !done.has(i.id)).length;
 
   if (loading) {
+    // A tracing of the loaded card rather than a generic block: same ring, same tile and CTA
+    // metrics, so the card keeps its height and nothing below the hero jumps when the plan lands.
+    // The watermark isn't a placeholder, so only the grey bars pulse.
     return (
-      <div className="bg-white rounded-3xl p-6 lg:p-8 animate-pulse" style={{ boxShadow: CARD_SHADOW }}>
-        <div className="flex flex-col lg:flex-row lg:items-center gap-8">
-          {/* Ring placeholder */}
-          <div className="shrink-0 self-center w-32 h-32 rounded-full border-[11px] border-zinc-100" />
+      <div className="relative bg-white rounded-3xl p-6 lg:p-8 overflow-hidden" style={{ boxShadow: CARD_SHADOW }}>
+        <Target size={220} strokeWidth={0.75} className="pointer-events-none absolute -right-10 -top-12 text-[var(--primary)] opacity-[0.05]" />
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center gap-8 animate-pulse">
+          {/* Ring placeholder — the ProgressRing's own diameter, stroke and track colour */}
+          <div className="shrink-0 self-center w-32 h-32 rounded-full border-[11px] border-[rgba(13,148,136,0.12)]" />
 
-          {/* Stats placeholders */}
+          {/* Streak line, stat tiles, summary line */}
           <div className="flex-1 min-w-0">
-            <div className="h-5 w-48 rounded-lg bg-zinc-100 mb-4" />
+            <div className="flex h-6 items-center gap-2 mb-4">
+              <div className="h-[18px] w-[18px] rounded-full bg-zinc-100" />
+              <div className="h-4 w-40 rounded bg-zinc-100" />
+            </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {/* Fixed at a real tile's height — the bars inside are texture, the tile is the shape */}
               {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="rounded-2xl bg-zinc-50 px-4 py-3">
+                <div key={i} className="h-[76px] rounded-2xl bg-zinc-50 px-4 py-3">
                   <div className="h-3 w-16 rounded bg-zinc-100" />
-                  <div className="h-7 w-12 rounded-lg bg-zinc-100 mt-2" />
+                  <div className="h-[30px] w-12 rounded-lg bg-zinc-100 mt-1" />
                 </div>
               ))}
             </div>
-            <div className="h-4 w-64 max-w-full rounded-lg bg-zinc-100 mt-4" />
+            <div className="h-5 w-64 max-w-full rounded-lg bg-zinc-100 mt-4" />
           </div>
 
-          {/* CTA placeholders */}
+          {/* Two CTAs, matching Smart session + Add content — not three */}
           <div className="shrink-0 self-stretch lg:self-center flex lg:flex-col gap-2.5">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="flex-1 lg:flex-none h-[50px] w-full lg:w-40 rounded-2xl bg-zinc-100" />
+            {Array.from({ length: 2 }).map((_, i) => (
+              <div key={i} className="flex-1 lg:flex-none h-[51px] w-full lg:w-44 rounded-2xl bg-zinc-100" />
             ))}
           </div>
         </div>
@@ -175,7 +183,7 @@ export const TodayProgressHero: React.FC = () => {
           </Link>
           {/* Nothing to study is the other reason to be here — go straight to Library → Add. */}
           <Link
-            to="/library?view=add"
+            to="/library/add"
             className="flex-1 lg:flex-none inline-flex items-center justify-center gap-2 rounded-2xl border border-[var(--border-color)] text-text-main px-6 py-3.5 text-[15px] font-bold hover:bg-zinc-100 transition-colors whitespace-nowrap"
           >
             <Plus size={16} /> Add content

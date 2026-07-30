@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import Languages from 'lucide-react-native/icons/languages';
 
 import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
-import { LOCALES, useTranslation } from '@/context/I18nContext';
+import { LOCALES, getLocale, useTranslation, type LocaleCode } from '@/context/I18nContext';
 import { translationService } from '@/services/translationService';
 
 interface Props {
@@ -21,13 +21,13 @@ interface Props {
  * source is regenerated.
  */
 export const TranslateButton: React.FC<Props> = ({ text, onTranslated }) => {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const [busy, setBusy] = useState(false);
   const [showing, setShowing] = useState(false);
   const [error, setError] = useState('');
-  const [language, setLanguage] = useState<string>(
-    LOCALES.find((l) => l.code !== 'en')?.nativeName ?? 'Spanish',
-  );
+  // The interface language is the likely target — except in English, where translating into the
+  // language the material is already in helps nobody.
+  const [language, setLanguage] = useState<LocaleCode>(locale === 'en' ? 'es' : locale);
 
   const run = async () => {
     if (showing) {
@@ -39,7 +39,9 @@ export const TranslateButton: React.FC<Props> = ({ text, onTranslated }) => {
     setBusy(true);
     setError('');
     try {
-      onTranslated(await translationService.translate(text, language));
+      // Asked in English ("Simplified Chinese", not "简体中文"): the more reliable instruction, and
+      // what separates Brazilian from European Portuguese.
+      onTranslated(await translationService.translate(text, getLocale(language).englishName));
       setShowing(true);
     } catch {
       setError(t('translate.failed'));
@@ -55,11 +57,11 @@ export const TranslateButton: React.FC<Props> = ({ text, onTranslated }) => {
           {LOCALES.map((l) => (
             <Pressable
               key={l.code}
-              onPress={() => setLanguage(l.nativeName)}
-              style={[styles.chip, language === l.nativeName && styles.chipActive]}
+              onPress={() => setLanguage(l.code)}
+              style={[styles.chip, language === l.code && styles.chipActive]}
             >
-              <Text style={[styles.chipText, language === l.nativeName && styles.chipTextActive]}>
-                {l.nativeName}
+              <Text style={[styles.chipText, language === l.code && styles.chipTextActive]}>
+                {l.flag} {l.nativeName}
               </Text>
             </Pressable>
           ))}
@@ -73,7 +75,7 @@ export const TranslateButton: React.FC<Props> = ({ text, onTranslated }) => {
           <Languages size={14} color={Colors.primary} />
         )}
         <Text style={styles.actionText}>
-          {busy ? t('translate.working') : showing ? 'Show original' : t('translate.action')}
+          {busy ? t('translate.working') : showing ? t('translate.showOriginal') : t('translate.action')}
         </Text>
       </Pressable>
 

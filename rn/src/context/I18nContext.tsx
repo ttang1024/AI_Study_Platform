@@ -2,10 +2,19 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Localization from 'expo-localization';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
-import { LOCALES, isLocale, translate, type LocaleCode, type TranslationKey } from '@core/i18n';
+import {
+  LOCALES,
+  getLocale,
+  isLocale,
+  resolveLocale,
+  translate,
+  type Locale,
+  type LocaleCode,
+  type TranslationKey,
+} from '@core/i18n';
 
-export { LOCALES };
-export type { LocaleCode, TranslationKey };
+export { LOCALES, getLocale };
+export type { Locale, LocaleCode, TranslationKey };
 
 const STORAGE_KEY = 'sp_locale';
 
@@ -27,8 +36,11 @@ const I18nContext = createContext<I18nContextValue | null>(null);
  */
 export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [locale, setLocaleState] = useState<LocaleCode>(() => {
-    const device = Localization.getLocales()[0]?.languageCode;
-    return isLocale(device) ? device : 'en';
+    // The full tag first (`pt-BR`, `zh-Hans-CN`), since region is what separates the supported
+    // Brazilian Portuguese and Simplified Chinese entries from their siblings; resolveLocale falls
+    // back to the bare language subtag on its own.
+    const device = Localization.getLocales()[0];
+    return resolveLocale(device?.languageTag) ?? resolveLocale(device?.languageCode) ?? 'en';
   });
 
   useEffect(() => {

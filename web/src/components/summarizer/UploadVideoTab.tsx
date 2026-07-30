@@ -142,7 +142,7 @@ export const UploadVideoTab: React.FC<UploadVideoTabProps> = ({ selectedCourseId
       setProgress(100);
       refreshStats();
       loadUploadedVideos();
-      const returnTo = `/summarizer?tab=video&courseId=${encodeURIComponent(selectedCourseId)}`;
+      const returnTo = `/library/add?tab=video&courseId=${encodeURIComponent(selectedCourseId)}`;
       setTimeout(() => navigate(`/videos/${saved.id}`, { state: { returnTo } }), 400);
     } catch (error) {
       setUploading(false);

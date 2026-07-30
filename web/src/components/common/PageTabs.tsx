@@ -42,7 +42,7 @@ export type PageTab<T extends string> = PageTabBase<T> & (
 );
 
 interface UseTabParamOptions<T extends string> {
-  /** Query-string key. Defaults to `tab`; `/library` uses `view` because the Add panel owns `tab`. */
+  /** Query-string key. Defaults to `tab`; override it when a panel already owns `tab` itself. */
   param?: string;
   /** Params that only make sense for certain tabs and should be dropped when leaving them. */
   clearOnLeave?: (tab: T) => readonly string[];

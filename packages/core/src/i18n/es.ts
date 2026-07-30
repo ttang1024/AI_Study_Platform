@@ -40,4 +40,5 @@ export const es: Partial<Record<keyof typeof en, string>> = {
   'translate.working': 'Traduciendo…',
   'translate.failed': 'No se pudo traducir. Inténtalo de nuevo.',
   'translate.disclaimer': 'Traducción automática: verifica lo que sea importante.',
+  'translate.showOriginal': 'Ver original',
 };

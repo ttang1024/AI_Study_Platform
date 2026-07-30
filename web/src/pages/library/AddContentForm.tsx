@@ -29,10 +29,11 @@ const tabFromParam = (t: string | null): Tab => {
 };
 
 /**
- * The Add half of /library — the old AI Summarizer page. It keeps `?tab=` for its own input
- * modes (the outer browse/add switch uses `?view=` precisely so these two don't collide).
+ * The body of /library/add — the old AI Summarizer page. `?tab=` selects the input mode
+ * (document / video / web / audio / text), so deep links from elsewhere in the app land on the
+ * right form.
  */
-export const AddTab: React.FC = () => {
+export const AddContentForm: React.FC = () => {
   const [searchParams] = useSearchParams();
   const tabParam = searchParams.get('tab');
   const [activeTab, setActiveTab] = useState<Tab>(() => tabFromParam(tabParam));
@@ -43,9 +44,9 @@ export const AddTab: React.FC = () => {
   const [videoSubTab, setVideoSubTab] = useState<VideoSubTab>(() => (tabParam === 'upload-video' ? 'upload' : 'link'));
   const [selectedCourseId, setSelectedCourseId] = useState(searchParams.get('courseId') ?? '');
 
-  // This panel stays mounted once opened, so the initial-state reads above only fire on the first
-  // visit. Later arrivals — the library's "Analyze a Video" empty state, an /summarizer?tab=…
-  // redirect — change the param on an already-mounted panel, so mirror it here too.
+  // The initial-state reads above only fire on mount, and navigating between two `?tab=` deep links
+  // (the library's "Analyze a Video" empty state, a /summarizer?tab=… redirect, the nav entry) stays
+  // on this route rather than remounting it, so mirror the param into state here too.
   const firstRender = useRef(true);
   useEffect(() => {
     if (firstRender.current) { firstRender.current = false; return; }
@@ -76,11 +77,11 @@ export const AddTab: React.FC = () => {
           />
         </div>
 
-        {/* Right — Header + Tabs + Form */}
+        {/* Right — Heading + Tabs + Form */}
         <div className="flex-1 flex flex-col gap-4 md:gap-5 min-w-0 overflow-y-auto pb-4 md:pb-0">
-          <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-text-main">
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-text-main">
             Turn anything into <span className="text-primary">study material</span>
-          </h2>
+          </h1>
 
           {/* Main Tabs */}
           <div className="flex rounded-xl bg-zinc-100 p-1 gap-1">

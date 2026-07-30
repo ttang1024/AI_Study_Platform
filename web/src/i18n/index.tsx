@@ -1,14 +1,17 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import {
   LOCALES,
+  getLocale,
   isLocale,
+  resolveLocale,
   translate,
+  type Locale,
   type LocaleCode,
   type TranslationKey,
 } from '@core/i18n';
 
-export { LOCALES };
-export type { LocaleCode, TranslationKey };
+export { LOCALES, getLocale };
+export type { Locale, LocaleCode, TranslationKey };
 
 const STORAGE_KEY = 'sp_locale';
 
@@ -20,8 +23,9 @@ const detectLocale = (): LocaleCode => {
   const stored = localStorage.getItem(STORAGE_KEY);
   if (isLocale(stored)) return stored;
 
-  const browser = navigator.language?.split('-')[0] ?? '';
-  return isLocale(browser) ? browser : 'en';
+  // Full tag, not just the primary subtag: `pt-BR` and `zh-CN` are the supported entries, and
+  // resolveLocale still falls back to the primary subtag for a bare `pt` or a `zh-TW`.
+  return resolveLocale(navigator.language) ?? 'en';
 };
 
 interface I18nContextValue {

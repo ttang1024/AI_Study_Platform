@@ -30,8 +30,9 @@ if (!localStorage.getItem('sp_access_token')) void landingLoader();
 const LandingPage = lazyPage(landingLoader, 'LandingPage');
 
 const DashboardPage = lazyPage(() => import('./pages/DashboardPage'), 'DashboardPage');
-// Library = Browse + Add (the old AI Summarizer page).
 const LibraryPage = lazyPage(() => import('./pages/LibraryPage'), 'LibraryPage');
+// Adding content (the old AI Summarizer) is its own page, not a Library tab.
+const AddContentPage = lazyPage(() => import('./pages/AddContentPage'), 'AddContentPage');
 // Practice Center = practice + planner + quiz history + mistakes + question bank.
 const QuizManagementPage = lazyPage(() => import('./pages/QuizManagementPage'), 'QuizManagementPage');
 const FlashcardsPage = lazyPage(() => import('./pages/FlashcardsPage'), 'FlashcardsPage');
@@ -77,6 +78,19 @@ const ReinforcementRedirect: React.FC = () => {
   return <Navigate to={`/insights?tab=reinforcement${suffix}`} replace />;
 };
 
+/**
+ * Browse and Add were two tabs of /library; Add is its own page now. `?view=add` links minted while
+ * they were tabs (and anything still bookmarked) follow it, keeping the params the form reads.
+ */
+const LibraryRoute: React.FC = () => {
+  const [params] = useSearchParams();
+  if (params.get('view') !== 'add') return <LibraryPage />;
+  const next = new URLSearchParams(params);
+  next.delete('view');
+  const query = next.toString();
+  return <Navigate to={`/library/add${query ? `?${query}` : ''}`} replace />;
+};
+
 /** The Code scratchpad left the Practice Center for /tools; old deep links follow it. */
 const QuizzesRoute: React.FC = () => {
   const [params] = useSearchParams();
@@ -91,11 +105,12 @@ const QuizzesRoute: React.FC = () => {
  * the retired page owned that param itself (the summarizer's `tab`), which is why `extra` is applied
  * first and the incoming params are merged on top.
  */
-const TabRedirect: React.FC<{ to: string; extra: Record<string, string> }> = ({ to, extra }) => {
+const TabRedirect: React.FC<{ to: string; extra?: Record<string, string> }> = ({ to, extra }) => {
   const [params] = useSearchParams();
   const next = new URLSearchParams(extra);
   params.forEach((value, key) => next.set(key, value));
-  return <Navigate to={`${to}?${next}`} replace />;
+  const query = next.toString();
+  return <Navigate to={query ? `${to}?${query}` : to} replace />;
 };
 
 export default function App() {
@@ -127,12 +142,13 @@ export default function App() {
                     <Route path="essays" element={<Navigate to="/tools?tab=writing" replace />} />
                     <Route path="language" element={<Navigate to="/tools?tab=language" replace />} />
 
-                    {/* Library — Browse + Add (the AI Summarizer). */}
-                    <Route path="library" element={<LibraryPage />} />
+                    {/* Library — browse what you have; adding content is the page next door. */}
+                    <Route path="library" element={<LibraryRoute />} />
+                    <Route path="library/add" element={<AddContentPage />} />
                     <Route path="documents" element={<Navigate to="/library" replace />} />
                     <Route path="videos" element={<Navigate to="/library?type=videos" replace />} />
                     <Route path="youtube" element={<Navigate to="/videos" replace />} />
-                    <Route path="summarizer" element={<TabRedirect to="/library" extra={{ view: 'add' }} />} />
+                    <Route path="summarizer" element={<TabRedirect to="/library/add" />} />
 
                     {/* Practice Center — practice, planner, quiz history, mistakes, bank. */}
                     <Route path="quizzes" element={<QuizzesRoute />} />

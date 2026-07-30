@@ -58,7 +58,7 @@ interface ContentCardProps {
 
 const ContentCard: React.FC<ContentCardProps> = ({ label, value, icon: Icon, color, link, summarizerTab }) => {
   const isEmpty = value === 0;
-  const destination = isEmpty ? `/summarizer${summarizerTab ? `?tab=${summarizerTab}` : ''}` : link;
+  const destination = isEmpty ? `/library/add${summarizerTab ? `?tab=${summarizerTab}` : ''}` : link;
 
   return (
     <motion.div variants={cardItem} whileTap={{ scale: 0.98 }}>
@@ -146,7 +146,7 @@ const CourseCard: React.FC<{ course: any; i: number; docCount: number; videoCoun
       whileTap={{ scale: 0.97 }}
     >
       <Link
-        to={isEmpty ? `/summarizer?courseId=${course.id}` : `/courses/${course.id}/study`}
+        to={isEmpty ? `/library/add?courseId=${course.id}` : `/courses/${course.id}/study`}
         className="group relative flex flex-col shrink-0 w-44 rounded-2xl bg-white p-4 overflow-hidden shadow-sm transition-all duration-200 hover:-translate-y-px hover:shadow-lg"
         style={{
           borderTop: `3px solid ${course.color}`,

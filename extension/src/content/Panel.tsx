@@ -35,7 +35,7 @@ export function Panel({ onClose }: { onClose: () => void }) {
 	const openInApp = () =>
 		send({
 			type: 'ES_OPEN_APP',
-			path: `/summarizer?tab=youtube&url=${encodeURIComponent(`https://www.youtube.com/watch?v=${videoId}`)}`,
+			path: `/library/add?tab=youtube&url=${encodeURIComponent(`https://www.youtube.com/watch?v=${videoId}`)}`,
 		})
 
 	return (

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Languages, Loader2 } from 'lucide-react';
 import { languageService } from '../../services/languageService';
-import { useTranslation, LOCALES } from '../../i18n';
+import { useTranslation, LOCALES, getLocale, type LocaleCode } from '../../i18n';
 import { getApiErrorMessage } from '../../utils/apiError';
 
 interface Props {
@@ -20,13 +20,14 @@ interface Props {
  * the source is regenerated.
  */
 export const TranslateButton: React.FC<Props> = ({ text, onTranslated, className = '' }) => {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const [busy, setBusy] = useState(false);
   const [showing, setShowing] = useState(false);
   const [error, setError] = useState('');
-  const [language, setLanguage] = useState<string>(
-    // Defaults to the interface language, which is the one they are most likely to want.
-    LOCALES.find((l) => l.code !== 'en')?.nativeName ?? 'Spanish',
+  const [language, setLanguage] = useState<LocaleCode>(
+    // Defaults to the interface language, which is the one they are most likely to want — except
+    // in English, where translating into the language the material is already in helps nobody.
+    locale === 'en' ? 'es' : locale,
   );
 
   const translate = async () => {
@@ -39,7 +40,9 @@ export const TranslateButton: React.FC<Props> = ({ text, onTranslated, className
     setBusy(true);
     setError('');
     try {
-      const translated = await languageService.translate(text, language);
+      // The model is asked in English ("Simplified Chinese", not "简体中文"): it is the more
+      // reliable instruction, and it is what separates Brazilian from European Portuguese.
+      const translated = await languageService.translate(text, getLocale(language).englishName);
       if (translated) {
         onTranslated(translated);
         setShowing(true);
@@ -58,13 +61,13 @@ export const TranslateButton: React.FC<Props> = ({ text, onTranslated, className
       {!showing && (
         <select
           value={language}
-          onChange={(e) => setLanguage(e.target.value)}
+          onChange={(e) => setLanguage(e.target.value as LocaleCode)}
           className="px-2 py-1 rounded-lg border border-[var(--border-color)] bg-[var(--bg-app)] text-xs"
           aria-label={t('translate.into')}
         >
           {LOCALES.map((l) => (
-            <option key={l.code} value={l.nativeName}>
-              {l.nativeName}
+            <option key={l.code} value={l.code}>
+              {l.flag} {l.nativeName}
             </option>
           ))}
         </select>
@@ -76,7 +79,7 @@ export const TranslateButton: React.FC<Props> = ({ text, onTranslated, className
         className="inline-flex items-center gap-1.5 text-xs text-[var(--primary)] hover:opacity-80 disabled:opacity-50"
       >
         {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Languages className="w-3.5 h-3.5" />}
-        {busy ? t('translate.working') : showing ? 'Show original' : t('translate.action')}
+        {busy ? t('translate.working') : showing ? t('translate.showOriginal') : t('translate.action')}
       </button>
 
       {showing && <span className="text-xs text-text-muted">{t('translate.disclaimer')}</span>}

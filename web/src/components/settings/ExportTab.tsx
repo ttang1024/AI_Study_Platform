@@ -100,7 +100,7 @@ export const ExportTab: React.FC = () => {
             Drag this button to your bookmarks bar. On any article, click it to clip the page into your library.
           </p>
           <a
-            href={`javascript:(function(){window.open('${window.location.origin}/summarizer?tab=web&clip='+encodeURIComponent(location.href),'_blank');})();`}
+            href={`javascript:(function(){window.open('${window.location.origin}/library/add?tab=web&clip='+encodeURIComponent(location.href),'_blank');})();`}
             onClick={(e) => e.preventDefault()}
             draggable
             className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[var(--primary)] px-3 py-2 text-xs font-semibold text-white cursor-grab"

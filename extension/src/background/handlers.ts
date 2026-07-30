@@ -136,7 +136,7 @@ export async function handleOpenApp(path: string) {
 
 export async function handleClip(url: string) {
 	const { appOrigin } = await getConfig()
-	await chrome.tabs.create({ url: `${appOrigin}/summarizer?tab=web&clip=${encodeURIComponent(url)}` })
+	await chrome.tabs.create({ url: `${appOrigin}/library/add?tab=web&clip=${encodeURIComponent(url)}` })
 	return { ok: true }
 }
 

@@ -90,7 +90,7 @@ export const WebVideoTab: React.FC<WebVideoTabProps> = ({ selectedCourseId, onCo
   const { showPrompt } = usePrompt();
   const [urlInput, setUrlInput] = useState(() => {
     // Allow deep-linking a video to analyze, e.g. from the browser extension:
-    //   /summarizer?tab=link&url=<encoded video url>
+    //   /library/add?tab=link&url=<encoded video url>
     if (typeof window === 'undefined') return '';
     return new URLSearchParams(window.location.search).get('url') ?? '';
   });
@@ -192,7 +192,7 @@ export const WebVideoTab: React.FC<WebVideoTabProps> = ({ selectedCourseId, onCo
         summary: null,
       });
       refreshStats();
-      const returnTo = `/summarizer?tab=link&courseId=${encodeURIComponent(selectedCourseIdRef.current)}`;
+      const returnTo = `/library/add?tab=link&courseId=${encodeURIComponent(selectedCourseIdRef.current)}`;
       navigate(`/videos/${saved.id}`, { state: { returnTo } });
     } catch (err: any) {
       const msg = err?.response?.data?.message ?? 'Failed to add video. Please try again.';

@@ -30,8 +30,8 @@ const TYPE_FILTERS: TypeTab<FilterType>[] = [
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 
-/** The Browse half of /library — everything already in the user's library. */
-export const BrowseTab: React.FC = () => {
+/** The body of /library — everything already in the user's library. */
+export const LibraryBrowse: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -52,7 +52,7 @@ export const BrowseTab: React.FC = () => {
   // Sync type filter from URL param
   const activeType = (searchParams.get('type') as FilterType) || 'all';
   const setActiveType = (t: FilterType) => {
-    // Merge rather than replace: /library also carries the browse/add `view` param now.
+    // Merge rather than replace: the URL may also carry a search or course filter.
     const next = new URLSearchParams(searchParams);
     if (t === 'all') next.delete('type');
     else next.set('type', t);
@@ -176,7 +176,7 @@ export const BrowseTab: React.FC = () => {
             </div>
             {isEmpty ? (
               <button
-                onClick={() => navigate(`/library?view=add&courseId=${c.id}`)}
+                onClick={() => navigate(`/library/add?courseId=${c.id}`)}
                 className="shrink-0 flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold text-white transition-opacity hover:opacity-90"
                 style={{ backgroundColor: c.color }}
               >
@@ -240,15 +240,15 @@ export const BrowseTab: React.FC = () => {
                 : activeType === 'videos'
                   ? 'Analyze your first YouTube video to get started.'
                   : activeType === 'articles'
-                    ? 'Clip a web article from the AI Summarizer to get started.'
+                    ? 'Clip a web article from the Add Content page to get started.'
                     : activeType === 'audio'
-                      ? 'Upload an audio lecture from the AI Summarizer to get started.'
-                      : 'Upload a document from the AI Summarizer to get started.'}
+                      ? 'Upload an audio lecture from the Add Content page to get started.'
+                      : 'Upload a document from the Add Content page to get started.'}
             </p>
           </div>
           {!isFiltered && (
             <button
-              onClick={() => navigate(activeType === 'videos' ? '/library?view=add&tab=link' : activeType === 'audio' ? '/library?view=add&tab=audio' : '/library?view=add')}
+              onClick={() => navigate(activeType === 'videos' ? '/library/add?tab=link' : activeType === 'audio' ? '/library/add?tab=audio' : '/library/add')}
               className={cn(
                 'flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold text-white transition-colors',
                 activeType === 'videos' ? 'bg-red-500 hover:bg-red-600' : activeType === 'audio' ? 'bg-amber-500 hover:bg-amber-600' : 'bg-primary hover:opacity-90',

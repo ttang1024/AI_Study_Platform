@@ -164,11 +164,12 @@ test.describe('Library navigation', () => {
 })
 
 test.describe('Dashboard page', () => {
-  test('the hero card links straight to Library → Add', async ({ page }) => {
+  test('the hero card links straight to the Add content page', async ({ page }) => {
     await setupAuthenticatedStudyApp(page)
     await page.goto('/dashboard')
-    await page.getByRole('link', { name: /add content/i }).click()
-    await expect(page).toHaveURL(/\/library\?view=add/)
-    await expect(page.getByRole('tab', { name: /add content/i })).toHaveAttribute('aria-selected', 'true')
+    // Scoped to the page body — the sidebar has an Add Content entry of its own now.
+    await page.getByRole('main').getByRole('link', { name: /add content/i }).click()
+    await expect(page).toHaveURL(/\/library\/add$/)
+    await expect(page.getByRole('heading', { name: /turn anything into study material/i })).toBeVisible()
   })
 })

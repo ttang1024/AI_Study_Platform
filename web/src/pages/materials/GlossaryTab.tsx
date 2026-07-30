@@ -326,7 +326,7 @@ export const GlossaryTab: React.FC = () => {
           </p>
           {allTerms.length === 0 && (
             <button
-              onClick={() => navigate(documents.length > 0 ? '/library' : '/library?view=add')}
+              onClick={() => navigate(documents.length > 0 ? '/library' : '/library/add')}
               className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[var(--primary)] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-opacity"
             >
               {documents.length > 0 ? 'Go to Library' : 'Add Content'}

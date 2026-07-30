@@ -46,7 +46,7 @@ export const LandingPage: React.FC = () => {
   const auth = useOptionalAuth();
   const isAuthenticated = auth?.isAuthenticated ?? false;
   const username = auth?.user?.name || auth?.user?.email || 'Open app';
-  const go = () => window.location.assign(isAuthenticated ? '/library?view=add' : '/login');
+  const go = () => window.location.assign(isAuthenticated ? '/library/add' : '/login');
   useGoogleOneTap();
 
   return (

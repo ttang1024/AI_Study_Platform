@@ -6,7 +6,7 @@ import {
   LayoutDashboard, Library, Settings, LogOut, BrainCircuit,
   Award, NotebookPen, X, ChevronLeft, ChevronRight,
   User, MessageSquarePlus, Search, Trophy, Users, Bot,
-  LineChart, PenLine,
+  LineChart, PenLine, Wand2,
 } from 'lucide-react';
 import { AchievementsPanel } from '../dashboard/AchievementsPanel';
 import { cn } from '../../utils/cn';
@@ -24,13 +24,14 @@ interface SidebarProps {
 
 // `labelKey` rather than a literal: the label is resolved at render time so switching language
 // re-renders the nav without rebuilding this list.
-// Nine entries, not fifteen: pages that answered the same question were merged into one page with
-// tabs, and the nav follows. Add content → Library, Practice/Planner → Practice Center, Glossary →
-// Materials, Concept map → Insights, Classrooms → Spaces. One entry per page, so Library covers
-// both browsing and adding — the Add tab is reached from inside it.
+// Ten entries, not fifteen: pages that answered the same question were merged into one page with
+// tabs, and the nav follows. Practice/Planner → Practice Center, Glossary → Materials, Concept map →
+// Insights, Classrooms → Spaces. One entry per page — browsing the library and feeding it (the
+// Summarizer, at /library/add) are two pages, so they are two entries.
 const navItems: { icon: typeof LayoutDashboard; labelKey: TranslationKey; path: string }[] = [
   { icon: LayoutDashboard, labelKey: 'nav.dashboard', path: '/dashboard' },
   { icon: Library, labelKey: 'nav.library', path: '/library' },
+  { icon: Wand2, labelKey: 'nav.summarizer', path: '/library/add' },
   { icon: BrainCircuit, labelKey: 'nav.flashcards', path: '/flashcards' },
   { icon: Award, labelKey: 'nav.practiceCenter', path: '/quizzes' },
   { icon: NotebookPen, labelKey: 'nav.materials', path: '/materials' },

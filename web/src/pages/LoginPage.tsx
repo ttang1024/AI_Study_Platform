@@ -73,7 +73,7 @@ export const LoginPage: React.FC = () => {
     setIsSubmitting(true);
     try {
       await login(email, password);
-      navigate('/library?view=add', { replace: true });
+      navigate('/library/add', { replace: true });
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Invalid email or password. Please try again.');
     } finally {

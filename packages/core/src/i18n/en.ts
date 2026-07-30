@@ -6,6 +6,8 @@ export const en = {
   'nav.dashboard': 'Dashboard',
   'nav.insights': 'Insights',
   'nav.library': 'Library',
+  // Adding content is its own page again, so the web nav shows this next to the library.
+  'nav.summarizer': 'Summarizer',
   // The web nav shows the merged pages; the per-page keys below are still used by the mobile
   // app, which keeps these as separate screens under its Study tab.
   'nav.practiceCenter': 'Practice Center',
@@ -14,7 +16,6 @@ export const en = {
   'nav.flashcards': 'Flashcards',
   'nav.quizzes': 'Quizzes',
   'nav.practice': 'Practice',
-  'nav.summarizer': 'AI Summarizer',
   // Check Working / Writing / Language are tabs of one page now, not three nav entries.
   'nav.tools': 'Study Tools',
   'nav.planner': 'Planner',
@@ -44,6 +45,7 @@ export const en = {
   'translate.working': 'Translating…',
   'translate.failed': 'Could not translate that. Please try again.',
   'translate.disclaimer': 'Machine translation — check anything you rely on.',
+  'translate.showOriginal': 'Show original',
 } as const;
 
 export type TranslationKey = keyof typeof en;
