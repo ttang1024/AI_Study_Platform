@@ -31,6 +31,16 @@ export interface BackendLibraryItem {
   videoUrl?: string | null;
   thumbnailUrl?: string | null;
   sourceType?: string | null;
+  /** Tags and collections on this item — rendered as chips on the card. */
+  tags?: LibraryItemTag[] | null;
+}
+
+/** A tag as it appears on a library row. */
+export interface LibraryItemTag {
+  libraryTagId: string;
+  name: string;
+  kind: 'tag' | 'collection';
+  color: string | null;
 }
 
 export interface PagedLibraryOf<TEntry> {
@@ -45,8 +55,8 @@ export type LibraryFilterType = 'all' | 'documents' | 'articles' | 'audio' | 'vi
 
 // Normalized shape the library pages render — a document or video row.
 export type LibraryEntry =
-  | { kind: 'document'; data: Document }
-  | { kind: 'video'; data: VideoListItem };
+  | { kind: 'document'; data: Document; tags: LibraryItemTag[] }
+  | { kind: 'video'; data: VideoListItem; tags: LibraryItemTag[] };
 
 export type PagedLibrary = PagedLibraryOf<LibraryEntry>;
 
@@ -87,8 +97,8 @@ const toVideo = (i: BackendLibraryItem): VideoListItem => ({
 
 export const mapLibraryItem = (i: BackendLibraryItem): LibraryEntry =>
   i.kind === 'video'
-    ? { kind: 'video', data: toVideo(i) }
-    : { kind: 'document', data: toDocument(i) };
+    ? { kind: 'video', data: toVideo(i), tags: i.tags ?? [] }
+    : { kind: 'document', data: toDocument(i), tags: i.tags ?? [] };
 
 export interface GetLibraryParams {
   type?: LibraryFilterType;
@@ -96,6 +106,8 @@ export interface GetLibraryParams {
   search?: string;
   page?: number;
   pageSize?: number;
+  /** Keeps items carrying at least one of these tags. Any-match, not all-match. */
+  tagIds?: string[];
 }
 
 export function createLibraryService<TEntry>(
@@ -112,6 +124,8 @@ export function createLibraryService<TEntry>(
       });
       if (params.courseId) p.set('courseId', params.courseId);
       if (params.search) p.set('search', params.search);
+      // Repeated rather than comma-joined: that is what ASP.NET binds to a Guid[] parameter.
+      for (const tagId of params.tagIds ?? []) p.append('tagIds', tagId);
 
       const response = await http.get<{
         data: PagedLibraryOf<BackendLibraryItem>;

@@ -23,3 +23,8 @@ export { BentoEssayCard } from './BentoEssayCard';
 export { BentoCodeCard } from './BentoCodeCard';
 export { BentoLanguageCard } from './BentoLanguageCard';
 export { BentoCitationCard } from './BentoCitationCard';
+export { BentoCertificateCard } from './BentoCertificateCard';
+export { BentoPeerReviewCard } from './BentoPeerReviewCard';
+export { BentoSecurityCard } from './BentoSecurityCard';
+export { BentoTagsCard } from './BentoTagsCard';
+export { BentoApiCard } from './BentoApiCard';

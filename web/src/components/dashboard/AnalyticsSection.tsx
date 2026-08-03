@@ -1,19 +1,18 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
-import { Clock, Target, GraduationCap, Loader2, Sparkles } from 'lucide-react';
+import { Clock, Target, GraduationCap, Loader2 } from 'lucide-react';
 import {
   analyticsService,
   type QuizAccuracyData,
   type TimeOnTask,
   type CourseMastery,
 } from '../../services/analyticsService';
+import { bucketByWindow } from '@core/utils/analyticsBuckets';
 import { useDashboardSummary } from '../../hooks/useDashboardSummary';
 import { DashboardTodayStrip } from './DashboardTodayStrip';
 import { TodayPlanList } from '../today/TodayPlanList';
 import { NextBestContent } from './NextBestContent';
-
-const CARD_SHADOW = '0 1px 3px rgba(0,0,0,0.06), 0 6px 20px rgba(0,0,0,0.05)';
-const PRIMARY = 'var(--primary)';
+import { CARD_SHADOW, ChartCard, EmptyState, PRIMARY, StatTile } from './dashboardChrome';
 
 const RANGES = [
   { label: '7 days', days: 7 },
@@ -30,84 +29,26 @@ const formatDuration = (seconds: number): string => {
   return [h > 0 ? `${h}h` : null, m > 0 ? `${m}m` : null].filter(Boolean).join(' ');
 };
 
-// ─── Date helpers ───────────────────────────────────────────────────────────────────
-const dayKey = (d: Date): string => {
-  const y = d.getFullYear();
-  const m = `${d.getMonth() + 1}`.padStart(2, '0');
-  const day = `${d.getDate()}`.padStart(2, '0');
-  return `${y}-${m}-${day}`;
-};
-const addDays = (d: Date, n: number): Date => {
-  const next = new Date(d);
-  next.setDate(next.getDate() + n);
-  return next;
-};
-const shortLabel = (d: Date): string => `${d.getMonth() + 1}/${d.getDate()}`;
-
 // ─── Shared building blocks ─────────────────────────────────────────────────────────
-const StatTile: React.FC<{ icon: React.ElementType; label: string; value: string }> = ({ icon: Icon, label, value }) => (
-  <div className="bg-white rounded-2xl p-5 flex items-center gap-4" style={{ boxShadow: CARD_SHADOW }}>
-    <div className="shrink-0 w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: 'rgba(13,148,136,0.08)' }}>
-      <Icon size={20} className="text-[var(--primary)]" />
-    </div>
-    <div className="min-w-0">
-      <p className="text-[11px] font-semibold text-text-muted">{label}</p>
-      <p className="text-2xl font-bold leading-none text-text-main tracking-tight mt-1">{value}</p>
-    </div>
-  </div>
-);
-
-const ChartCard: React.FC<{ title: string; meta?: React.ReactNode; children: React.ReactNode; className?: string }> = ({ title, meta, children, className }) => (
-  <div className={`bg-white rounded-2xl p-5 ${className ?? ''}`} style={{ boxShadow: CARD_SHADOW }}>
-    <div className="flex items-center justify-between gap-2 mb-4">
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">{title}</p>
-      {meta}
-    </div>
-    {children}
-  </div>
-);
-
-const EmptyState: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="flex flex-col items-center justify-center py-8 text-center">
-    <Sparkles size={22} className="text-zinc-300 mb-2" />
-    <p className="text-xs text-text-muted max-w-[28ch] leading-relaxed">{children}</p>
-  </div>
-);
-
 // ─── Daily study-time bar chart ─────────────────────────────────────────────────────
-// Builds a continuous series across the selected window (daily for ≤31 days, weekly buckets
-// beyond that) so gaps in study activity read correctly instead of collapsing together.
+// Continuous-window bucketing (daily for ≤31 days, weekly beyond) lives in
+// @core/utils/analyticsBuckets so rn's charts bucket identically.
 const StudyActivityChart: React.FC<{ daily: TimeOnTask['daily']; days: number }> = ({ daily, days }) => {
-  const buckets = useMemo(() => {
-    const minutesByDay = new Map(daily.map(d => [d.date.slice(0, 10), d.totalMinutes]));
-    const today = new Date();
-    const weekly = days > 31;
-
-    if (weekly) {
-      const weeks = Math.ceil(days / 7);
-      const out: { key: string; label: string; minutes: number }[] = [];
-      for (let w = weeks - 1; w >= 0; w--) {
-        const end = addDays(today, -w * 7);
-        let minutes = 0;
-        for (let i = 0; i < 7; i++) minutes += minutesByDay.get(dayKey(addDays(end, -i))) ?? 0;
-        out.push({ key: dayKey(end), label: shortLabel(addDays(end, -6)), minutes });
-      }
-      return out;
-    }
-
-    const out: { key: string; label: string; minutes: number }[] = [];
-    for (let i = days - 1; i >= 0; i--) {
-      const d = addDays(today, -i);
-      out.push({ key: dayKey(d), label: shortLabel(d), minutes: minutesByDay.get(dayKey(d)) ?? 0 });
-    }
-    return out;
-  }, [daily, days]);
+  const buckets = useMemo(
+    () =>
+      bucketByWindow(daily, { dateOf: d => d.date, days }).map(b => ({
+        key: b.key,
+        label: b.label,
+        minutes: b.items.reduce((sum, d) => sum + d.totalMinutes, 0),
+      })),
+    [daily, days],
+  );
 
   const max = Math.max(1, ...buckets.map(b => b.minutes));
   const labelEvery = Math.ceil(buckets.length / 7);
   const hasData = buckets.some(b => b.minutes > 0);
 
-  if (!hasData) return <EmptyState>No study time recorded in this window yet — start a study session to see your activity.</EmptyState>;
+  if (!hasData) return <EmptyState widthCh={28}>No study time recorded in this window yet — start a study session to see your activity.</EmptyState>;
 
   return (
     <div>
@@ -155,46 +96,23 @@ const AccuracyLegend: React.FC = () => (
   </div>
 );
 
-// Same continuous-window bucketing as the study-activity chart (daily for ≤31 days, weekly
-// beyond) so quiet stretches read as gaps instead of compressing the time axis. Day keys are
-// matched on the raw YYYY-MM-DD from the API rather than `new Date(iso)`, which would shift
-// midnight-UTC dates onto the previous local day west of UTC. Bucket accuracy is
-// attempt-weighted: total correct / total attempts.
+// Same continuous-window bucketing as the study-activity chart, so quiet stretches read as gaps
+// instead of compressing the time axis. Bucket accuracy is attempt-weighted (total correct over
+// total attempts), which is why the raw counts are carried through rather than a percentage.
 const AccuracyTrend: React.FC<{ data: QuizAccuracyData[]; days: number }> = ({ data, days }) => {
-  const buckets = useMemo(() => {
-    const byDay = new Map(data.map(d => [d.date.slice(0, 10), d]));
-    const today = new Date();
-    const weekly = days > 31;
-    const out: { key: string; label: string; total: number; correct: number }[] = [];
-
-    if (weekly) {
-      const weeks = Math.ceil(days / 7);
-      for (let w = weeks - 1; w >= 0; w--) {
-        const end = addDays(today, -w * 7);
-        let total = 0;
-        let correct = 0;
-        for (let i = 0; i < 7; i++) {
-          const d = byDay.get(dayKey(addDays(end, -i)));
-          if (d) {
-            total += d.totalAttempts;
-            correct += d.correctAttempts;
-          }
-        }
-        out.push({ key: dayKey(end), label: shortLabel(addDays(end, -6)), total, correct });
-      }
-      return out;
-    }
-
-    for (let i = days - 1; i >= 0; i--) {
-      const d = addDays(today, -i);
-      const entry = byDay.get(dayKey(d));
-      out.push({ key: dayKey(d), label: shortLabel(d), total: entry?.totalAttempts ?? 0, correct: entry?.correctAttempts ?? 0 });
-    }
-    return out;
-  }, [data, days]);
+  const buckets = useMemo(
+    () =>
+      bucketByWindow(data, { dateOf: d => d.date, days }).map(b => ({
+        key: b.key,
+        label: b.label,
+        total: b.items.reduce((sum, d) => sum + d.totalAttempts, 0),
+        correct: b.items.reduce((sum, d) => sum + d.correctAttempts, 0),
+      })),
+    [data, days],
+  );
 
   const hasData = buckets.some(b => b.total > 0);
-  if (!hasData) return <EmptyState>No quiz attempts in this window — take a quiz to track your accuracy over time.</EmptyState>;
+  if (!hasData) return <EmptyState widthCh={28}>No quiz attempts in this window — take a quiz to track your accuracy over time.</EmptyState>;
 
   const labelEvery = Math.ceil(buckets.length / 7);
 
@@ -258,7 +176,7 @@ const TimeByCourse: React.FC<{ byCourse: TimeOnTask['byCourse'] }> = ({ byCourse
     return { rows: top, totalSeconds: total };
   }, [byCourse]);
 
-  if (rows.length === 0) return <EmptyState>No course study time logged yet in this window.</EmptyState>;
+  if (rows.length === 0) return <EmptyState widthCh={28}>No course study time logged yet in this window.</EmptyState>;
 
   return (
     <div className="space-y-3.5">
@@ -300,7 +218,7 @@ const MasteryBreakdown: React.FC<{ mastery: CourseMastery[] }> = ({ mastery }) =
     [mastery],
   );
 
-  if (rows.length === 0) return <EmptyState>Mastery scores appear once you've studied flashcards, quizzes, or glossary terms in a course.</EmptyState>;
+  if (rows.length === 0) return <EmptyState widthCh={28}>Mastery scores appear once you've studied flashcards, quizzes, or glossary terms in a course.</EmptyState>;
 
   return (
     <div className="space-y-5">

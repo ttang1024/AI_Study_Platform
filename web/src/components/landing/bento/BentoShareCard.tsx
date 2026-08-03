@@ -35,7 +35,7 @@ export const BentoShareCard: React.FC = () => {
         iconGlow="0 6px 22px rgba(13,148,136,0.4)"
       />
 
-      <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3 items-center">
+      <div className="flex-1 mb-3">
         <div className="rounded-xl p-3 flex flex-col gap-2.5 h-full" style={{ background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(255,255,255,0.06)' }}>
           <div className="flex items-center gap-2">
             <Globe className="w-3.5 h-3.5 text-teal-400 flex-shrink-0" />
@@ -66,19 +66,14 @@ export const BentoShareCard: React.FC = () => {
               {copied ? 'Copied!' : 'Copy'}
             </motion.button>
           </div>
-          <p className="text-[10px] text-white/25 mt-auto">Anyone with the link can study from it — no account needed.</p>
-        </div>
-
-        <div className="flex flex-col gap-2.5">
-          <span className="text-[11px] font-semibold text-white/35">Share anything you've made:</span>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-1.5 mt-auto">
             {SHARE_TYPES.map((t, i) => (
               <motion.span
                 key={t}
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={inView ? { opacity: 1, scale: 1 } : {}}
                 transition={{ type: 'spring', stiffness: 300, damping: 20, delay: 0.2 + i * 0.07 }}
-                className="text-[10px] font-semibold px-2.5 py-1 rounded-full"
+                className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
                 style={{ background: 'rgba(45,212,191,0.08)', color: '#5eead4', border: '1px solid rgba(45,212,191,0.25)' }}
               >
                 {t}
@@ -89,7 +84,7 @@ export const BentoShareCard: React.FC = () => {
       </div>
 
       <p className="text-sm text-white/40 leading-relaxed">
-        Share summaries, mind maps, quizzes, flashcard sets, article clips, videos from any supported site, uploaded videos, and Apple Podcasts with a single public link. Anyone can study from them — no account needed.
+        Share summaries, mind maps, quizzes, flashcards, clips, videos, and podcasts with a single public link — anyone can study from them, no account needed.
       </p>
     </BentoCardShell>
   );

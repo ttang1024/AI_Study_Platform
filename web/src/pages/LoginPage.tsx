@@ -1,27 +1,17 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Mail, Lock, ArrowRight, ShieldAlert, Info, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
+import { Mail, Lock, ArrowRight, ShieldAlert, Info, Eye, EyeOff, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/common/Button';
 import { cn } from '../utils/cn';
-import { getPublicEnv } from '../utils/env';
+import { GITHUB_CLIENT_ID, GOOGLE_CLIENT_ID, buildOAuthUrl } from '../utils/oauth';
 import { validatePassword } from '@core/utils/validatePassword';
 
-const GOOGLE_CLIENT_ID = getPublicEnv('NEXT_PUBLIC_GOOGLE_CLIENT_ID') ?? getPublicEnv('VITE_GOOGLE_CLIENT_ID');
-const GITHUB_CLIENT_ID = getPublicEnv('NEXT_PUBLIC_GITHUB_CLIENT_ID') ?? getPublicEnv('VITE_GITHUB_CLIENT_ID');
-
-function buildOAuthUrl(provider: 'google' | 'github'): string {
-  const redirectUri = encodeURIComponent(`${window.location.origin}/auth/callback`);
-  if (provider === 'google') {
-    return `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${redirectUri}&scope=email%20profile&response_type=code&state=google`;
-  }
-  return `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${redirectUri}&scope=read:user%20user:email&state=github`;
-}
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
-  const { login, sendOtp, resetPassword } = useAuth();
+  const { login, verifyTwoFactor, sendOtp, resetPassword } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -32,6 +22,10 @@ export const LoginPage: React.FC = () => {
   const [verificationCode, setVerificationCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Set when the password leg passed but a second factor is owed. Its presence is what swaps the
+  // form over — no separate mode flag to keep in step with it.
+  const [challengeToken, setChallengeToken] = useState<string | null>(null);
+  const [twoFactorCode, setTwoFactorCode] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,10 +66,38 @@ export const LoginPage: React.FC = () => {
 
     setIsSubmitting(true);
     try {
-      await login(email, password);
+      const outcome = await login(email, password);
+      if (outcome.status === 'pending2fa') {
+        setChallengeToken(outcome.challengeToken);
+        return;
+      }
       navigate('/library/add', { replace: true });
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Invalid email or password. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleTwoFactorSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!challengeToken) return;
+    setError(null);
+    setIsSubmitting(true);
+    try {
+      await verifyTwoFactor(challengeToken, twoFactorCode);
+      navigate('/library/add', { replace: true });
+    } catch (err: any) {
+      // A challenge only lives five minutes and is burned on use, so an expired one has to send
+      // the user back to the password form rather than leaving them retyping codes at a dead handle.
+      const code = err?.response?.data?.errorCode;
+      if (code === 'CHALLENGE_EXPIRED') {
+        setChallengeToken(null);
+        setTwoFactorCode('');
+        setError('That sign-in attempt expired. Please enter your password again.');
+      } else {
+        setError(err?.response?.data?.message || 'That code was not accepted.');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -100,6 +122,59 @@ export const LoginPage: React.FC = () => {
           <Button onClick={() => { setIsResetSent(false); setIsForgotPassword(false); setIsVerifyingCode(false); }} className="w-full">
             Back to Login
           </Button>
+        </motion.div>
+      </div>
+    );
+  }
+
+  // The second leg of a 2FA login gets the whole screen rather than an extra field on the form
+  // below: the password is already accepted and re-showing it invites the user to retype it.
+  if (challengeToken) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-zinc-50 p-4">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full max-w-md space-y-5 rounded-3xl border border-zinc-100 bg-white p-10 shadow-xl"
+        >
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-500">
+            <ShieldCheck size={32} />
+          </div>
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-zinc-900">Two-factor authentication</h1>
+            <p className="mt-1 text-sm text-zinc-500">
+              Enter the six-digit code from your authenticator app, or one of your recovery codes.
+            </p>
+          </div>
+
+          <form onSubmit={handleTwoFactorSubmit} className="space-y-4">
+            <input
+              autoFocus
+              value={twoFactorCode}
+              onChange={e => setTwoFactorCode(e.target.value)}
+              inputMode="text"
+              autoComplete="one-time-code"
+              placeholder="123456"
+              className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-center font-mono text-lg tracking-widest outline-none focus:border-emerald-500"
+            />
+
+            {error && (
+              <p className="rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-600">
+                {error}
+              </p>
+            )}
+
+            <Button type="submit" disabled={isSubmitting || !twoFactorCode.trim()} className="w-full">
+              {isSubmitting ? 'Verifying…' : 'Verify'}
+            </Button>
+          </form>
+
+          <button
+            onClick={() => { setChallengeToken(null); setTwoFactorCode(''); setError(null); }}
+            className="w-full text-center text-sm text-zinc-500 hover:text-zinc-900"
+          >
+            Back to sign in
+          </button>
         </motion.div>
       </div>
     );

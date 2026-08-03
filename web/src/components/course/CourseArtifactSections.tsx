@@ -19,12 +19,7 @@ import {
   buildSummaryDetail,
 } from './artifactsWorkspaceModel';
 import { ArtifactFilters } from './useArtifactFilters';
-
-const stripHtml = (html: string): string => {
-  const div = document.createElement('div');
-  div.innerHTML = html;
-  return div.textContent || div.innerText || '';
-};
+import { stripHtml } from '@core/utils/stripHtml';
 
 const emptyLine = <p className="text-sm text-text-muted">Nothing generated yet.</p>;
 

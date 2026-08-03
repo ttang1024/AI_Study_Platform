@@ -21,7 +21,7 @@ type SharedContentMetadata = {
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? process.env.API_BACKEND_URL ?? process.env.VITE_API_URL ?? '';
 
-const stripHtml = (value: string) => value.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+import { stripHtmlInline as stripHtml } from '@core/utils/stripHtml';
 
 const truncate = (value: string, max = 180) => {
   if (value.length <= max) return value;

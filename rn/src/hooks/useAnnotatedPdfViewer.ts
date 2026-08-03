@@ -5,21 +5,13 @@ import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 
 import { annotationsService, type DocumentAnnotation } from '@/services/annotationsService';
 import { buildAnnotatedPdfHtml } from '@/utils/annotatedPdfHtml';
+import { parseRects, type NormRect } from '@core/utils/pdfRects';
 
-export interface NormRect { x: number; y: number; w: number; h: number }
+export type { NormRect } from '@core/utils/pdfRects';
 export interface PdfSelection { text: string; rects: NormRect[] }
 
 // Same palette as web's AnnotationToolbar.
 export const HIGHLIGHT_COLORS = ['#FFFF00', '#90EE90', '#87CEEB', '#FF6B6B'];
-
-const parseRects = (rectJson: string): NormRect[] => {
-  try {
-    const parsed = JSON.parse(rectJson);
-    return Array.isArray(parsed) ? (parsed as NormRect[]) : [];
-  } catch {
-    return [];
-  }
-};
 
 /**
  * Download the PDF in RN (no WebView CORS on presigned URLs) and hand it over

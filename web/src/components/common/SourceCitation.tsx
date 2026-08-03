@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Quote, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { SourceCitation as Citation } from '@core/types';
+import { formatTimecode } from '@core/utils/format';
 
 interface Props {
   citation?: Citation;
@@ -11,14 +12,7 @@ interface Props {
   className?: string;
 }
 
-const formatTimestamp = (seconds: number): string => {
-  const total = Math.floor(seconds);
-  const h = Math.floor(total / 3600);
-  const m = Math.floor((total % 3600) / 60);
-  const s = total % 60;
-  const pad = (n: number) => n.toString().padStart(2, '0');
-  return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
-};
+const formatTimestamp = formatTimecode;
 
 /**
  * Attribution for an AI-generated artifact: the passage it came from, and a link to that spot in

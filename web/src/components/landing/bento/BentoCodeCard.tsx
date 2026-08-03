@@ -23,7 +23,6 @@ export const BentoCodeCard: React.FC = () => (
       title="Runnable Code"
       gradient="from-lime-400 to-emerald-600"
       iconGlow="0 6px 22px rgba(132,204,22,0.4)"
-      isNew
     />
 
     <div className="flex-1 rounded-xl overflow-hidden mb-3" style={{ background: 'rgba(0,0,0,0.45)', border: '1px solid rgba(255,255,255,0.06)' }}>

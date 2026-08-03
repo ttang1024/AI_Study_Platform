@@ -34,12 +34,12 @@ export const BentoEverywhereCard: React.FC = () => {
         iconGlow="0 6px 22px rgba(129,140,248,0.4)"
       />
 
-      <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
+      <div className="flex-1 rounded-xl p-3 flex flex-col gap-2.5 mb-3" style={{ background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(255,255,255,0.06)' }}>
         {[
           { icon: Smartphone, heading: 'Mobile app · iOS & Android', items: MOBILE_FEATURES, color: '#a5b4fc' },
           { icon: Chrome, heading: 'Chrome web clipper', items: CLIPPER_FEATURES, color: '#c4b5fd' },
         ].map(({ icon: PanelIcon, heading, items, color }, p) => (
-          <div key={heading} className="rounded-xl p-3 flex flex-col gap-2" style={{ background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(255,255,255,0.06)' }}>
+          <div key={heading} className="flex flex-col gap-1.5">
             <div className="flex items-center gap-2">
               <PanelIcon className="w-3.5 h-3.5 flex-shrink-0" style={{ color }} />
               <span className="text-[11px] font-semibold text-white/55">{heading}</span>
@@ -51,7 +51,7 @@ export const BentoEverywhereCard: React.FC = () => {
                   initial={{ opacity: 0, x: -6 }}
                   animate={inView ? { opacity: 1, x: 0 } : {}}
                   transition={{ delay: 0.2 + p * 0.15 + i * 0.1 }}
-                  className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg"
+                  className="flex items-center gap-2 px-2.5 py-1 rounded-lg"
                   style={{ border: '1px solid rgba(255,255,255,0.08)' }}
                 >
                   <Icon className="w-3 h-3 flex-shrink-0" style={{ color }} />
@@ -64,7 +64,7 @@ export const BentoEverywhereCard: React.FC = () => {
       </div>
 
       <p className="text-sm text-white/40 leading-relaxed">
-        The full platform on your phone — every web feature plus camera scanning, biometric lock, and push review reminders — and a Chrome extension that clips articles or turns any selection into flashcards while you browse.
+        The full platform on your phone — plus a Chrome extension that clips articles or turns any selection into flashcards while you browse.
       </p>
     </BentoCardShell>
   );

@@ -10,6 +10,11 @@ namespace StudyPlatform.Domain.Interfaces;
 public interface ILibraryRepository
 {
     /// <param name="type">all | documents | articles | audio | videos.</param>
+    /// <param name="tagIds">
+    /// When non-empty, keeps only items carrying at least one of these tags. Any-match rather than
+    /// all-match: selecting two tags in a filter bar reads as "either of these", and all-match makes
+    /// a second click almost always empty the list.
+    /// </param>
     Task<(IReadOnlyList<LibraryItem> Items, int TotalCount)> GetPagedAsync(
         Guid userId,
         string type,
@@ -17,5 +22,6 @@ public interface ILibraryRepository
         string? search,
         int page,
         int pageSize,
+        IReadOnlyCollection<Guid>? tagIds = null,
         CancellationToken cancellationToken = default);
 }

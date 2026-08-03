@@ -51,9 +51,19 @@ public class UnitOfWork : IUnitOfWork
     private IClassroomRepository? _classrooms;
     private IClassroomEnrollmentRepository? _classroomEnrollments;
     private IClassroomCourseRepository? _classroomCourses;
+    private IClassroomAssignmentRepository? _classroomAssignments;
+    private IClassroomSubmissionRepository? _classroomSubmissions;
     private ISubscriptionRepository? _subscriptions;
     private IRubricRepository? _rubrics;
     private IEssaySubmissionRepository? _essaySubmissions;
+    private IUserTwoFactorRepository? _userTwoFactors;
+    private IDataExportRequestRepository? _dataExportRequests;
+    private ILibraryTagRepository? _libraryTags;
+    private ISavedLibraryViewRepository? _savedLibraryViews;
+    private ICourseCertificateRepository? _courseCertificates;
+    private IEssayPeerReviewRepository? _essayPeerReviews;
+    private IApiKeyRepository? _apiKeys;
+    private IWebhookRepository? _webhooks;
 
     public UnitOfWork(AppDbContext context)
     {
@@ -103,9 +113,19 @@ public class UnitOfWork : IUnitOfWork
     public IClassroomRepository Classrooms => _classrooms ??= new ClassroomRepository(_context);
     public IClassroomEnrollmentRepository ClassroomEnrollments => _classroomEnrollments ??= new ClassroomEnrollmentRepository(_context);
     public IClassroomCourseRepository ClassroomCourses => _classroomCourses ??= new ClassroomCourseRepository(_context);
+    public IClassroomAssignmentRepository ClassroomAssignments => _classroomAssignments ??= new ClassroomAssignmentRepository(_context);
+    public IClassroomSubmissionRepository ClassroomSubmissions => _classroomSubmissions ??= new ClassroomSubmissionRepository(_context);
     public ISubscriptionRepository Subscriptions => _subscriptions ??= new SubscriptionRepository(_context);
     public IRubricRepository Rubrics => _rubrics ??= new RubricRepository(_context);
     public IEssaySubmissionRepository EssaySubmissions => _essaySubmissions ??= new EssaySubmissionRepository(_context);
+    public IUserTwoFactorRepository UserTwoFactors => _userTwoFactors ??= new UserTwoFactorRepository(_context);
+    public IDataExportRequestRepository DataExportRequests => _dataExportRequests ??= new DataExportRequestRepository(_context);
+    public ILibraryTagRepository LibraryTags => _libraryTags ??= new LibraryTagRepository(_context);
+    public ISavedLibraryViewRepository SavedLibraryViews => _savedLibraryViews ??= new SavedLibraryViewRepository(_context);
+    public ICourseCertificateRepository CourseCertificates => _courseCertificates ??= new CourseCertificateRepository(_context);
+    public IEssayPeerReviewRepository EssayPeerReviews => _essayPeerReviews ??= new EssayPeerReviewRepository(_context);
+    public IApiKeyRepository ApiKeys => _apiKeys ??= new ApiKeyRepository(_context);
+    public IWebhookRepository Webhooks => _webhooks ??= new WebhookRepository(_context);
 
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         => await _context.SaveChangesAsync(cancellationToken);

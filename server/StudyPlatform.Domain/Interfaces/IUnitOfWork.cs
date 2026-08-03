@@ -45,8 +45,18 @@ public interface IUnitOfWork : IDisposable
     IClassroomRepository Classrooms { get; }
     IClassroomEnrollmentRepository ClassroomEnrollments { get; }
     IClassroomCourseRepository ClassroomCourses { get; }
+    IClassroomAssignmentRepository ClassroomAssignments { get; }
+    IClassroomSubmissionRepository ClassroomSubmissions { get; }
     ISubscriptionRepository Subscriptions { get; }
     IRubricRepository Rubrics { get; }
     IEssaySubmissionRepository EssaySubmissions { get; }
+    IUserTwoFactorRepository UserTwoFactors { get; }
+    IDataExportRequestRepository DataExportRequests { get; }
+    ILibraryTagRepository LibraryTags { get; }
+    ISavedLibraryViewRepository SavedLibraryViews { get; }
+    ICourseCertificateRepository CourseCertificates { get; }
+    IEssayPeerReviewRepository EssayPeerReviews { get; }
+    IApiKeyRepository ApiKeys { get; }
+    IWebhookRepository Webhooks { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

@@ -12,6 +12,8 @@ import X from 'lucide-react-native/icons/x';
 
 import { Alpha, Colors, Layout, Overlay, Radius, Spacing, Typography } from '@/constants/theme';
 import { libraryService, type LibraryEntry } from '@/services/libraryService';
+import { documentSourceKind } from '@core/utils/documentDisplay';
+import { toLocalDateKey as toLocalDateStr } from '@core/utils/format';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = [
@@ -45,11 +47,6 @@ const TYPE_COLOR: Record<EntryDisplayType, string> = {
   video: Colors.red,
 };
 
-const toLocalDateStr = (iso: string) => {
-  const d = new Date(iso);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
-
 const toEntry = (item: LibraryEntry): { date: string; entry: CalendarEntry } | null => {
   if (item.kind === 'video') {
     const v = item.data;
@@ -61,7 +58,7 @@ const toEntry = (item: LibraryEntry): { date: string; entry: CalendarEntry } | n
   }
   const d = item.data;
   if (!d.uploadDate) return null;
-  const displayType: EntryDisplayType = d.type === 'audio' || d.type === 'podcast' ? 'audio' : d.originalUrl ? 'article' : 'doc';
+  const displayType: EntryDisplayType = documentSourceKind(d);
   return {
     date: toLocalDateStr(d.uploadDate),
     entry: { id: d.id, name: d.name, kind: 'document', displayType, courseName: d.courseName, courseColor: d.courseColor },

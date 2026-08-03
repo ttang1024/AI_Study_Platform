@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Note, Document, Course } from '../types';
 import { VideoListItem } from '../services/videoService';
 import { SourceType } from '../components/common/SourceFilterBar';
-import { getDocDisplayName } from '../utils/docName';
+import { getDocDisplayName, documentSourceKind, type DocumentSourceKind } from '../utils/docName';
 
 export interface VideoNoteEntry {
   noteId: string;
@@ -69,7 +69,7 @@ export function useNotesData({
       const course = courses.find(c => c.id === doc?.courseId);
       // Use documentName from API response first, fall back to context lookup
       const docName = doc ? getDocDisplayName(doc) : (note.documentName ?? 'Unknown Document');
-      const type: 'doc' | 'article' | 'audio' = (doc?.type === 'audio' || doc?.type === 'podcast') ? 'audio' : doc?.originalUrl ? 'article' : 'doc';
+      const type: DocumentSourceKind = documentSourceKind(doc);
       return {
         type,
         note,

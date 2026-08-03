@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { Flashcard, Document, Course } from '../types';
 import { VideoListItem, videoService } from '../services/videoService';
 import { SourceType } from '../components/common/SourceFilterBar';
-import { getDocDisplayName } from '../utils/docName';
+import { getDocDisplayName, documentSourceKind } from '../utils/docName';
 import { UnifiedSet } from '../components/study/FlashcardSetCard';
 
 export function getVideoSetThumbnail(video?: VideoListItem) {
@@ -84,7 +84,7 @@ export function useFlashcardSets({
       const doc = documents.find(d => d.id === docId);
       const course = courses.find(c => c.id === doc?.courseId);
       const name = doc ? getDocDisplayName(doc) : (cards[0]?.documentName ?? 'Unknown Document');
-      const type: UnifiedSet['type'] = (doc?.type === 'audio' || doc?.type === 'podcast') ? 'audio' : doc?.originalUrl ? 'article' : 'doc';
+      const type: UnifiedSet['type'] = documentSourceKind(doc);
       return {
         type,
         id: docId,

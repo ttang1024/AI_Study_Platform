@@ -6,6 +6,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useStudy } from '../../context/StudyContext';
 import { videoService } from '../../services/videoService';
 import { cn } from '../../utils/cn';
+import { documentSourceKind } from '../../utils/docName';
+import { toLocalDateKey as toLocalDateStr } from '@core/utils/format';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -29,11 +31,6 @@ const entryPath = (entry: { type: string; id: string }) => {
   if (entry.type === 'article') return `/articles/${entry.id}`;
   if (entry.type === 'audio') return `/audio/${entry.id}`;
   return `/documents/${entry.id}`;
-};
-
-const toLocalDateStr = (iso: string) => {
-  const d = new Date(iso);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -70,7 +67,7 @@ export const StudyCalendar: React.FC = () => {
       // Documents (split by subtype)
       documents.forEach(doc => {
         if (!doc.uploadDate) return;
-        const type = doc.type === 'audio' || doc.type === 'podcast' ? 'audio' : doc.originalUrl ? 'article' : 'doc';
+        const type = documentSourceKind(doc);
         addEntry(toLocalDateStr(doc.uploadDate), { id: doc.id, name: doc.name, type, courseId: doc.courseId });
       });
 

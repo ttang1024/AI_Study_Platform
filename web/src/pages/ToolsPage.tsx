@@ -1,13 +1,14 @@
 import React from 'react';
-import { Code2, FileSignature, Languages, PenLine } from 'lucide-react';
+import { Code2, FileSignature, Languages, PenLine, Users } from 'lucide-react';
 import { HandwritingTab } from './tools/HandwritingTab';
 import { EssaysTab } from './tools/EssaysTab';
 import { LanguageTab } from './tools/LanguageTab';
 import { CodeTab } from './tools/CodeTab';
+import { PeerReviewPanel } from '../components/essays/PeerReviewPanel';
 import { PageTab, PageTabBar, PageTabBlurb, PageTabPanels, useTabParam } from '../components/common/PageTabs';
 
 // `code` moved here from the Practice Center — it is a scratchpad, not a graded activity.
-type Tab = 'working' | 'writing' | 'language' | 'code';
+type Tab = 'working' | 'writing' | 'peer-review' | 'language' | 'code';
 
 const TABS: PageTab<Tab>[] = [
   {
@@ -23,6 +24,14 @@ const TABS: PageTab<Tab>[] = [
     icon: FileSignature,
     panel: EssaysTab,
     blurb: 'Mark a draft against a rubric, then revise and re-mark it.',
+  },
+  {
+    // Directly after Writing: it is the same drafts, seen from the other side of the classroom.
+    id: 'peer-review',
+    label: 'Peer review',
+    icon: Users,
+    panel: PeerReviewPanel,
+    blurb: 'Read and score classmates\' drafts against their rubric. Reviews are anonymous.',
   },
   {
     id: 'language',

@@ -1,13 +1,18 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GraduationCap, Plus, LogIn, Building2, X } from 'lucide-react';
-import classroomService, { type Classroom, type Organization } from '../../services/classroomService';
+import { GraduationCap, Plus, LogIn, Building2, X, CalendarClock } from 'lucide-react';
+import classroomService, {
+  type Classroom,
+  type ClassroomDeadline,
+  type Organization,
+} from '../../services/classroomService';
 
 /** The Classrooms half of /spaces. Classroom detail still has its own route, /classrooms/:id. */
 export const ClassroomsTab: React.FC = () => {
   const navigate = useNavigate();
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [deadlines, setDeadlines] = useState<ClassroomDeadline[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<'create' | 'join' | 'org' | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -17,12 +22,14 @@ export const ClassroomsTab: React.FC = () => {
   const update = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
 
   const load = useCallback(async () => {
-    const [c, o] = await Promise.allSettled([
+    const [c, o, d] = await Promise.allSettled([
       classroomService.getMyClassrooms(),
       classroomService.getMyOrganizations(),
+      classroomService.getDeadlines(),
     ]);
     if (c.status === 'fulfilled') setClassrooms(c.value.data?.data ?? []);
     if (o.status === 'fulfilled') setOrganizations(o.value.data?.data ?? []);
+    if (d.status === 'fulfilled') setDeadlines(d.value.data?.data ?? []);
     setLoading(false);
   }, []);
 
@@ -122,6 +129,9 @@ export const ClassroomsTab: React.FC = () => {
         <EmptyState onJoin={() => setModal('join')} onCreate={() => setModal(organizations.length ? 'create' : 'org')} />
       ) : (
         <div className="space-y-8">
+          {deadlines.length > 0 && (
+            <DueSoon deadlines={deadlines} onOpen={(id) => navigate(`/classrooms/${id}`)} />
+          )}
           {teaching.length > 0 && (
             <Section title="Teaching" classrooms={teaching} onOpen={(id) => navigate(`/classrooms/${id}`)} />
           )}
@@ -227,6 +237,51 @@ export const ClassroomsTab: React.FC = () => {
     </div>
   );
 };
+
+/**
+ * Outstanding classwork across every enrolled classroom. Sits above the classroom cards because a
+ * deadline is the one thing on this page that expires — the classrooms themselves will still be
+ * there tomorrow.
+ */
+const DueSoon: React.FC<{ deadlines: ClassroomDeadline[]; onOpen: (id: string) => void }> = ({
+  deadlines,
+  onOpen,
+}) => (
+  <div>
+    <h2 className="text-sm font-semibold uppercase tracking-wide text-text-muted mb-3">Due soon</h2>
+    <ul className="rounded-xl border border-border divide-y divide-border overflow-hidden">
+      {deadlines.map((d) => (
+        <li key={`${d.classroomAssignmentId ?? d.courseId}-${d.dueAt}`}>
+          <button
+            onClick={() => onOpen(d.classroomId)}
+            className="w-full text-left px-4 py-3 flex items-center justify-between gap-3 bg-surface hover:bg-surface-hover transition-colors"
+          >
+            <span className="flex items-center gap-3 min-w-0">
+              <CalendarClock
+                className={`w-4 h-4 shrink-0 ${d.isOverdue ? 'text-red-600' : 'text-teal-600'}`}
+              />
+              <span className="min-w-0">
+                <span className="block text-sm font-medium text-text-main truncate">{d.title}</span>
+                <span className="block text-xs text-text-muted truncate">{d.classroomName}</span>
+              </span>
+            </span>
+            <span
+              className={`text-xs whitespace-nowrap ${d.isOverdue ? 'text-red-600 font-medium' : 'text-text-muted'}`}
+            >
+              {d.isOverdue ? 'Overdue · ' : ''}
+              {new Date(d.dueAt).toLocaleDateString(undefined, {
+                month: 'short',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+              })}
+            </span>
+          </button>
+        </li>
+      ))}
+    </ul>
+  </div>
+);
 
 const Section: React.FC<{ title: string; classrooms: Classroom[]; onOpen: (id: string) => void }> = ({
   title,

@@ -35,3 +35,23 @@ public interface IClassroomEnrollmentRepository : IRepository<ClassroomEnrollmen
 public interface IClassroomCourseRepository : IRepository<ClassroomCourse>
 {
 }
+
+public interface IClassroomAssignmentRepository : IRepository<ClassroomAssignment>
+{
+    /// <summary>
+    /// Assignments for a classroom, newest due first. Drafts are included — filtering them out is the
+    /// handler's job, because it is the only layer that knows the caller's role.
+    /// </summary>
+    Task<IEnumerable<ClassroomAssignment>> GetByClassroomAsync(Guid classroomId, CancellationToken cancellationToken = default);
+
+    /// <summary>An assignment with every submission and its author. Grader-only reads.</summary>
+    Task<ClassroomAssignment?> GetWithSubmissionsAsync(Guid classroomAssignmentId, CancellationToken cancellationToken = default);
+}
+
+public interface IClassroomSubmissionRepository : IRepository<ClassroomSubmission>
+{
+    Task<ClassroomSubmission?> GetForStudentAsync(Guid classroomAssignmentId, Guid studentUserId, CancellationToken cancellationToken = default);
+
+    /// <summary>Every submission the given student has across a set of assignments — the student's own list view.</summary>
+    Task<IEnumerable<ClassroomSubmission>> GetForStudentAcrossAsync(IEnumerable<Guid> classroomAssignmentIds, Guid studentUserId, CancellationToken cancellationToken = default);
+}

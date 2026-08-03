@@ -1,3 +1,4 @@
+using StudyPlatform.Application.Billing;
 using StudyPlatform.Application.Common;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
@@ -67,6 +68,35 @@ public static class ClassroomAccess
             : Result<string>.Failure("Instructor access required.", "FORBIDDEN");
     }
 
+    /// <summary>
+    /// Resolves the caller's role and refuses every write against an archived classroom in one place.
+    ///
+    /// Archiving means read-only for everyone, including the instructor who archived it — that is what
+    /// makes an archived gradebook trustworthy as a record of how the class actually went. Note that it
+    /// closes roster changes too: a soft-removed enrollment drops out of the gradebook's rows, so
+    /// letting anyone leave an archived class would quietly rewrite its results.
+    ///
+    /// Un-archiving is the one write that must stay open, so <see cref="ArchiveClassroomCommand"/>
+    /// deliberately uses <see cref="RequireManagerAsync"/> instead.
+    /// </summary>
+    public static async Task<Result<string>> RequireWritableAsync(
+        IUnitOfWork unitOfWork, Guid classroomId, Guid userId, bool manager, CancellationToken cancellationToken)
+    {
+        var access = manager
+            ? await RequireManagerAsync(unitOfWork, classroomId, userId, cancellationToken)
+            : await RequireMemberAsync(unitOfWork, classroomId, userId, cancellationToken);
+
+        if (!access.IsSuccess) return access;
+
+        var classroom = await unitOfWork.Classrooms.GetByIdAsync(classroomId, cancellationToken);
+        if (classroom == null)
+            return Result<string>.Failure("Classroom not found.", "NOT_FOUND");
+
+        return classroom.ArchivedAt != null
+            ? Result<string>.Failure("This classroom is archived and read-only.", "CLASSROOM_ARCHIVED")
+            : access;
+    }
+
     /// <summary>Caller must hold an organization role that permits the given predicate.</summary>
     public static async Task<Result<string>> RequireOrganizationRoleAsync(
         IUnitOfWork unitOfWork, Guid organizationId, Guid userId,
@@ -81,6 +111,61 @@ public static class ClassroomAccess
         return permitted(membership.Role)
             ? Result<string>.Success(membership.Role)
             : Result<string>.Failure("Access denied.", "FORBIDDEN");
+    }
+
+    /// <summary>
+    /// Refuses a new classroom once the creator's plan is out of them.
+    ///
+    /// Counted per organization and over live classrooms only: the org is what actually holds the
+    /// classrooms, an org subscription covers every member equally, and archiving a finished class
+    /// should give the seat back rather than making last term's records cost this term's quota.
+    /// </summary>
+    public static async Task<Result<bool>> RequireClassroomQuotaAsync(
+        IUnitOfWork unitOfWork, IEntitlementService entitlements,
+        Guid organizationId, Guid userId, CancellationToken cancellationToken)
+    {
+        var entitlement = await entitlements.GetForUserAsync(userId, cancellationToken);
+        var max = entitlement.Plan.MaxClassrooms;
+        if (max <= 0) return Result<bool>.Success(true);
+
+        var live = await unitOfWork.Classrooms.CountAsync(
+            c => c.OrganizationId == organizationId && c.ArchivedAt == null, cancellationToken);
+
+        return live >= max
+            ? Result<bool>.Failure(
+                $"The {entitlement.Plan.DisplayName} plan allows {max} active classroom{(max == 1 ? "" : "s")}. " +
+                "Archive one or upgrade to add another.",
+                "CLASSROOM_LIMIT_REACHED")
+            : Result<bool>.Success(true);
+    }
+
+    /// <summary>
+    /// Refuses an enrollment once the classroom is at its seat limit.
+    ///
+    /// The limit comes from the plan of whoever created the classroom, not the joining student — a
+    /// student on Free joining an institution's class is spending the institution's seats, and their
+    /// own plan has nothing to do with how big someone else's class may be. Only active students are
+    /// counted, so removing someone frees their seat while their grades stay on record.
+    /// </summary>
+    public static async Task<Result<bool>> RequireClassroomSeatAsync(
+        IUnitOfWork unitOfWork, IEntitlementService entitlements,
+        Classroom classroom, CancellationToken cancellationToken)
+    {
+        var entitlement = await entitlements.GetForUserAsync(classroom.CreatedByUserId, cancellationToken);
+        var max = entitlement.Plan.MaxStudentsPerClassroom;
+        if (max <= 0) return Result<bool>.Success(true);
+
+        var students = await unitOfWork.ClassroomEnrollments.CountAsync(
+            e => e.ClassroomId == classroom.ClassroomId
+                 && e.RemovedAt == null
+                 && e.Role == ClassroomRoles.Student,
+            cancellationToken);
+
+        return students >= max
+            ? Result<bool>.Failure(
+                $"This classroom is full ({max} students). Ask your instructor to upgrade the plan.",
+                "CLASSROOM_FULL")
+            : Result<bool>.Success(true);
     }
 
     /// <summary>

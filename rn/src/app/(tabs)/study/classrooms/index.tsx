@@ -4,6 +4,7 @@ import {
   ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import Building2 from 'lucide-react-native/icons/building-2';
+import CalendarClock from 'lucide-react-native/icons/calendar-clock';
 import GraduationCap from 'lucide-react-native/icons/graduation-cap';
 import LogIn from 'lucide-react-native/icons/log-in';
 import Plus from 'lucide-react-native/icons/plus';
@@ -11,7 +12,12 @@ import Plus from 'lucide-react-native/icons/plus';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
-import { classroomService, type Classroom, type Organization } from '@/services/classroomService';
+import {
+  classroomService,
+  type Classroom,
+  type ClassroomDeadline,
+  type Organization,
+} from '@/services/classroomService';
 
 type Sheet = 'join' | 'create' | 'org' | null;
 
@@ -19,6 +25,7 @@ export default function ClassroomsScreen() {
   const router = useRouter();
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [deadlines, setDeadlines] = useState<ClassroomDeadline[]>([]);
   const [loading, setLoading] = useState(true);
   const [sheet, setSheet] = useState<Sheet>(null);
   const [busy, setBusy] = useState(false);
@@ -28,12 +35,14 @@ export default function ClassroomsScreen() {
   const update = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
 
   const load = useCallback(async () => {
-    const [c, o] = await Promise.allSettled([
+    const [c, o, d] = await Promise.allSettled([
       classroomService.getMyClassrooms(),
       classroomService.getMyOrganizations(),
+      classroomService.getDeadlines(),
     ]);
     if (c.status === 'fulfilled') setClassrooms(c.value.data?.data ?? []);
     if (o.status === 'fulfilled') setOrganizations(o.value.data?.data ?? []);
+    if (d.status === 'fulfilled') setDeadlines(d.value.data?.data ?? []);
     setLoading(false);
   }, []);
 
@@ -127,6 +136,32 @@ export default function ClassroomsScreen() {
           </View>
         ) : (
           <>
+            {deadlines.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionLabel}>Due soon</Text>
+                {deadlines.map((d) => (
+                  <Pressable
+                    key={`${d.classroomAssignmentId ?? d.courseId}-${d.dueAt}`}
+                    onPress={() => router.push(`/study/classrooms/${d.classroomId}` as never)}
+                  >
+                    <Card style={styles.deadline}>
+                      <CalendarClock size={16} color={d.isOverdue ? Colors.red : Colors.primary} />
+                      <View style={styles.deadlineBody}>
+                        <Text style={styles.cardTitle} numberOfLines={1}>
+                          {d.title}
+                        </Text>
+                        <Text style={styles.caption} numberOfLines={1}>
+                          {d.classroomName}
+                        </Text>
+                      </View>
+                      <Text style={[styles.caption, d.isOverdue && { color: Colors.red }]}>
+                        {d.isOverdue ? 'Overdue' : new Date(d.dueAt).toLocaleDateString()}
+                      </Text>
+                    </Card>
+                  </Pressable>
+                ))}
+              </View>
+            )}
             {teaching.length > 0 && (
               <Section title="Teaching" items={teaching} onOpen={(id) => router.push(`/study/classrooms/${id}` as never)} />
             )}
@@ -243,6 +278,8 @@ const styles = StyleSheet.create({
   section: { gap: Spacing.two },
   sectionLabel: { ...Typography.captionBold, color: Colors.textSecondary, textTransform: 'uppercase' },
   card: { padding: Spacing.three, gap: 4 },
+  deadline: { padding: Spacing.three, flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  deadlineBody: { flex: 1 },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   cardTitle: { ...Typography.subheading, color: Colors.textPrimary },
   orgRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },

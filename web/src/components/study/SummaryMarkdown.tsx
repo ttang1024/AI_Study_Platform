@@ -6,6 +6,7 @@ import rehypeKatex from 'rehype-katex';
 import { toString as mdastToString } from 'mdast-util-to-string';
 import type { Paragraph, Parent, Root } from 'mdast';
 import type { Plugin } from 'unified';
+import { formatTimecode } from '@core/utils/format';
 
 interface SummaryMarkdownProps {
 	value: string;
@@ -69,15 +70,7 @@ const parseTimestamp = (value: string): number => {
 	return parts[0] * 60 + parts[1];
 };
 
-const formatTimestamp = (seconds: number): string => {
-	const safe = Math.max(0, Math.floor(seconds));
-	const h = Math.floor(safe / 3600);
-	const m = Math.floor((safe % 3600) / 60);
-	const s = safe % 60;
-	return h > 0
-		? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-		: `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-};
+const formatTimestamp = (seconds: number): string => formatTimecode(seconds, { padMinutes: true });
 
 const cleanTimelineBody = (body: string): string => body.replace(/^\s*[:\-–]\s*/, '').trim();
 

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Timer, Users, LogIn, LogOut, Coffee, BookOpen } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { formatCountdown as formatRemaining } from '@core/utils/format';
 
 export interface StudyRoomState {
   members: { userId: string; name: string; status: 'studying' | 'break' }[];
@@ -17,11 +18,6 @@ interface StudyRoomPanelProps {
   onSetStatus: (status: 'studying' | 'break') => void;
   onStartTimer: (minutes: number) => void;
 }
-
-const formatRemaining = (ms: number) => {
-  const total = Math.max(0, Math.floor(ms / 1000));
-  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
-};
 
 /**
  * Live co-study room: who from the group is studying right now, their

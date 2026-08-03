@@ -5,6 +5,7 @@ import { useStudy } from '../../context/StudyContext';
 import { gamificationService } from '../../services/gamificationService';
 import { useSettingsExport } from '../../hooks/useSettingsExport';
 import { ConnectedCalendarsCard } from './ConnectedCalendarsCard';
+import { CourseVaultExportCard } from './CourseVaultExportCard';
 
 export const ExportTab: React.FC = () => {
   const { allNotes } = useStudy();
@@ -77,6 +78,8 @@ export const ExportTab: React.FC = () => {
             </div>
           </div>
         ))}
+
+        <CourseVaultExportCard />
       </div>
 
       <div className="flex items-start gap-2 p-3 rounded-xl bg-zinc-50 border border-zinc-100">

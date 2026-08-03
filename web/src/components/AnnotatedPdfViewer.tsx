@@ -6,6 +6,7 @@ import { AnnotationToolbar } from './AnnotationToolbar';
 import { AnnotationsSidebar } from './AnnotationsSidebar';
 import annotationsService, { type DocumentAnnotation } from '../services/annotationsService';
 import { ChevronLeft, ChevronRight, PanelRightOpen, PanelRightClose } from 'lucide-react';
+import { parseRects, type NormRect } from '@core/utils/pdfRects';
 
 // Configure PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
@@ -16,13 +17,6 @@ interface Props {
   httpHeaders?: Record<string, string>;
 }
 
-// A highlight rectangle, normalized to the page (0..1) so it scales with zoom/width.
-interface NormRect {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
 
 interface ToolbarState {
   visible: boolean;
@@ -30,15 +24,6 @@ interface ToolbarState {
   rects: NormRect[];
   position: { x: number; y: number };
 }
-
-const parseRects = (rectJson: string): NormRect[] => {
-  try {
-    const parsed = JSON.parse(rectJson);
-    return Array.isArray(parsed) ? (parsed as NormRect[]) : [];
-  } catch {
-    return [];
-  }
-};
 
 export const AnnotatedPdfViewer: React.FC<Props> = ({ documentId, pdfUrl, httpHeaders }) => {
   const [numPages, setNumPages] = useState<number>(0);

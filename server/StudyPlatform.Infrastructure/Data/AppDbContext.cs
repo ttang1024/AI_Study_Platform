@@ -57,9 +57,21 @@ public class AppDbContext : DbContext
     public DbSet<Classroom> Classrooms => Set<Classroom>();
     public DbSet<ClassroomEnrollment> ClassroomEnrollments => Set<ClassroomEnrollment>();
     public DbSet<ClassroomCourse> ClassroomCourses => Set<ClassroomCourse>();
+    public DbSet<ClassroomAssignment> ClassroomAssignments => Set<ClassroomAssignment>();
+    public DbSet<ClassroomSubmission> ClassroomSubmissions => Set<ClassroomSubmission>();
     public DbSet<Subscription> Subscriptions => Set<Subscription>();
     public DbSet<Rubric> Rubrics => Set<Rubric>();
     public DbSet<EssaySubmission> EssaySubmissions => Set<EssaySubmission>();
+    public DbSet<UserTwoFactor> UserTwoFactors => Set<UserTwoFactor>();
+    public DbSet<AuditLogEntry> AuditLogEntries => Set<AuditLogEntry>();
+    public DbSet<DataExportRequest> DataExportRequests => Set<DataExportRequest>();
+    public DbSet<LibraryTag> LibraryTags => Set<LibraryTag>();
+    public DbSet<LibraryTagAssignment> LibraryTagAssignments => Set<LibraryTagAssignment>();
+    public DbSet<SavedLibraryView> SavedLibraryViews => Set<SavedLibraryView>();
+    public DbSet<CourseCertificate> CourseCertificates => Set<CourseCertificate>();
+    public DbSet<EssayPeerReview> EssayPeerReviews => Set<EssayPeerReview>();
+    public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
+    public DbSet<Webhook> Webhooks => Set<Webhook>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

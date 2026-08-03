@@ -12,7 +12,8 @@ public record GetLibraryQuery(
     Guid? CourseId,
     string? Search,
     int Page,
-    int PageSize) : IRequest<Result<PaginatedList<LibraryItemDto>>>;
+    int PageSize,
+    IReadOnlyList<Guid>? TagIds = null) : IRequest<Result<PaginatedList<LibraryItemDto>>>;
 
 public class GetLibraryQueryHandler : IRequestHandler<GetLibraryQuery, Result<PaginatedList<LibraryItemDto>>>
 {
@@ -22,8 +23,13 @@ public class GetLibraryQueryHandler : IRequestHandler<GetLibraryQuery, Result<Pa
     };
 
     private readonly ILibraryRepository _library;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public GetLibraryQueryHandler(ILibraryRepository library) => _library = library;
+    public GetLibraryQueryHandler(ILibraryRepository library, IUnitOfWork unitOfWork)
+    {
+        _library = library;
+        _unitOfWork = unitOfWork;
+    }
 
     public async Task<Result<PaginatedList<LibraryItemDto>>> Handle(GetLibraryQuery request, CancellationToken cancellationToken)
     {
@@ -32,7 +38,16 @@ public class GetLibraryQueryHandler : IRequestHandler<GetLibraryQuery, Result<Pa
         var pageSize = request.PageSize is < 1 or > 100 ? 8 : request.PageSize;
 
         var (items, totalCount) = await _library.GetPagedAsync(
-            request.UserId, type, request.CourseId, request.Search, page, pageSize, cancellationToken);
+            request.UserId, type, request.CourseId, request.Search, page, pageSize,
+            request.TagIds, cancellationToken);
+
+        // One lookup for the whole page rather than a join in the union: the union's two operands
+        // must project identical shapes, and an item with three tags would otherwise appear three
+        // times and throw the page count off.
+        var tagsByItem = await _unitOfWork.LibraryTags.GetAssignmentsAsync(
+            request.UserId,
+            items.Select(i => (i.Kind, i.Id)).ToList(),
+            cancellationToken);
 
         var dtos = items.Select(i => new LibraryItemDto(
             i.Kind,
@@ -52,7 +67,10 @@ public class GetLibraryQueryHandler : IRequestHandler<GetLibraryQuery, Result<Pa
             i.VideoId,
             i.VideoUrl,
             i.ThumbnailUrl,
-            i.SourceType));
+            i.SourceType,
+            tagsByItem.TryGetValue((i.Kind, i.Id), out var tags)
+                ? tags.Select(t => new LibraryItemTagDto(t.LibraryTagId, t.Name, t.Kind, t.Color)).ToList()
+                : Array.Empty<LibraryItemTagDto>()));
 
         return Result<PaginatedList<LibraryItemDto>>.Success(
             new PaginatedList<LibraryItemDto>(dtos, totalCount, page, pageSize));

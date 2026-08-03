@@ -1,40 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
-import { Loader2, Brain, CheckCircle2, Hourglass, CalendarDays, Sparkles } from 'lucide-react';
+import { Loader2, Brain, CheckCircle2, Hourglass, CalendarDays } from 'lucide-react';
 import { analyticsService, type RetentionAnalytics } from '../../services/analyticsService';
-
-const CARD_SHADOW = '0 1px 3px rgba(0,0,0,0.06), 0 6px 20px rgba(0,0,0,0.05)';
-const PRIMARY = 'var(--primary)';
-
-const StatTile: React.FC<{ icon: React.ElementType; label: string; value: string; hint?: string }> = ({ icon: Icon, label, value, hint }) => (
-  <div className="bg-white rounded-2xl p-5 flex items-center gap-4" style={{ boxShadow: CARD_SHADOW }}>
-    <div className="shrink-0 w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: 'rgba(13,148,136,0.08)' }}>
-      <Icon size={20} className="text-[var(--primary)]" />
-    </div>
-    <div className="min-w-0">
-      <p className="text-[11px] font-semibold text-text-muted">{label}</p>
-      <p className="text-2xl font-bold leading-none text-text-main tracking-tight mt-1 tabular-nums">{value}</p>
-      {hint && <p className="text-[11px] text-text-muted mt-1">{hint}</p>}
-    </div>
-  </div>
-);
-
-const ChartCard: React.FC<{ title: string; meta?: React.ReactNode; children: React.ReactNode; className?: string }> = ({ title, meta, children, className }) => (
-  <div className={`bg-white rounded-2xl p-5 ${className ?? ''}`} style={{ boxShadow: CARD_SHADOW }}>
-    <div className="flex items-center justify-between gap-2 mb-4">
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">{title}</p>
-      {meta}
-    </div>
-    {children}
-  </div>
-);
-
-const EmptyState: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="flex flex-col items-center justify-center py-8 text-center">
-    <Sparkles size={22} className="text-zinc-300 mb-2" />
-    <p className="text-xs text-text-muted max-w-[32ch] leading-relaxed">{children}</p>
-  </div>
-);
+import { CARD_SHADOW, ChartCard, EmptyState, PRIMARY, StatTile } from './dashboardChrome';
 
 // ─── Forgetting curve (model prediction at the user's average stability) ────────────
 const ForgettingCurveChart: React.FC<{ points: RetentionAnalytics['forgettingCurve']; avgStability: number }> = ({ points, avgStability }) => {

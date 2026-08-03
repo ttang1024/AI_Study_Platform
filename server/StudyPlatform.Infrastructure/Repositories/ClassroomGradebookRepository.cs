@@ -31,18 +31,24 @@ public class ClassroomGradebookRepository : IClassroomGradebookRepository
             .OrderBy(e => e.FullName)
             .ToListAsync(ct);
 
+        // Assignment columns are independent of course columns: an assignment need not be linked to a
+        // course at all, so a classroom that assigned no courses still has a gradebook worth reading.
+        var assignments = await LoadAssignmentsAsync(classroomId, ct);
+        var studentIds = students.Select(s => s.UserId).ToList();
+        var submissions = await LoadSubmissionsAsync(assignments, studentIds, ct);
+
         if (courses.Count == 0 || students.Count == 0)
         {
             return new ClassroomGradebook(
                 classroomId,
                 courses.Select(c => new GradebookCourse(c.CourseId, c.CourseName, c.DueAt)).ToList(),
-                students.Select(s => new GradebookRow(
+                students.Select(s => BuildRow(
                     s.UserId, s.FullName, s.Email,
-                    Array.Empty<GradebookCell>(), null, 0, null)).ToList());
+                    Array.Empty<GradebookCell>(), assignments, submissions)).ToList(),
+                assignments);
         }
 
         var courseIds = courses.Select(c => c.CourseId).ToList();
-        var studentIds = students.Select(s => s.UserId).ToList();
 
         var content = await LoadCourseContentMapAsync(courseIds, ct);
         var stats = await LoadStatsAsync(courseIds, studentIds, content, ct);
@@ -53,25 +59,14 @@ public class ClassroomGradebookRepository : IClassroomGradebookRepository
                 .Select(c => stats.GetValueOrDefault((s.UserId, c.CourseId)) ?? EmptyCell(c.CourseId))
                 .ToList();
 
-            // Overall is weighted by submission count, not a mean of per-course means: a student who
-            // answered 40 questions in one course and 2 in another should not have the second count
-            // for half their grade.
-            var scored = cells.Where(c => c.AverageScorePercent.HasValue && c.QuizSubmissions > 0).ToList();
-            double? overall = scored.Count == 0
-                ? null
-                : scored.Sum(c => c.AverageScorePercent!.Value * c.QuizSubmissions) / scored.Sum(c => c.QuizSubmissions);
-
-            return new GradebookRow(
-                s.UserId, s.FullName, s.Email, cells,
-                overall is null ? null : Math.Round(overall.Value, 1),
-                cells.Sum(c => c.StudyMinutes),
-                cells.Select(c => c.LastActivityAt).Where(d => d.HasValue).DefaultIfEmpty(null).Max());
+            return BuildRow(s.UserId, s.FullName, s.Email, cells, assignments, submissions);
         }).ToList();
 
         return new ClassroomGradebook(
             classroomId,
             courses.Select(c => new GradebookCourse(c.CourseId, c.CourseName, c.DueAt)).ToList(),
-            rows);
+            rows,
+            assignments);
     }
 
     public async Task<StudentClassroomDetail?> GetStudentDetailAsync(
@@ -139,8 +134,16 @@ public class ClassroomGradebookRepository : IClassroomGradebookRepository
             .Select(d => new DailyCount(d, byDay.GetValueOrDefault(d, 0)))
             .ToList();
 
+        var assignments = await LoadAssignmentsAsync(classroomId, ct);
+        var submissions = await LoadSubmissionsAsync(assignments, new List<Guid> { studentUserId }, ct);
+
+        // Reuse the row builder so the drill-down can never compute a different assignment score from
+        // the one the grid just showed for the same student.
+        var row = BuildRow(student.UserId, student.FullName, student.Email, cells, assignments, submissions);
+
         return new StudentClassroomDetail(
-            student.UserId, student.FullName, student.Email, cells, weakest, trend);
+            student.UserId, student.FullName, student.Email, cells, weakest, trend,
+            assignments, row.Assignments, row.AssignmentScorePercent);
     }
 
     // ── Internals ────────────────────────────────────────────────────────────
@@ -150,6 +153,105 @@ public class ClassroomGradebookRepository : IClassroomGradebookRepository
     private sealed record CourseContent(List<Guid> DocumentIds, List<Guid> VideoIds);
 
     private static GradebookCell EmptyCell(Guid courseId) => new(courseId, 0, null, 0, 0, 0, null);
+
+    /// <summary>
+    /// Published assignments only, oldest first, so the column order matches the order the class met
+    /// the work in.
+    /// </summary>
+    private async Task<List<GradebookAssignment>> LoadAssignmentsAsync(Guid classroomId, CancellationToken ct)
+        => await _db.ClassroomAssignments
+            .AsNoTracking()
+            .Where(a => a.ClassroomId == classroomId && a.PublishedAt != null)
+            .OrderBy(a => a.DueAt ?? a.CreatedAt)
+            .ThenBy(a => a.CreatedAt)
+            .Select(a => new GradebookAssignment(
+                a.ClassroomAssignmentId, a.Title, a.PointsPossible, a.DueAt))
+            .ToListAsync(ct);
+
+    /// <summary>
+    /// Every roster student's submission across every published assignment, in one round trip and
+    /// keyed for O(1) lookup — the alternative fans out to students × assignments queries.
+    /// </summary>
+    private async Task<Dictionary<(Guid StudentUserId, Guid AssignmentId), ClassroomSubmission>>
+        LoadSubmissionsAsync(List<GradebookAssignment> assignments, List<Guid> studentIds, CancellationToken ct)
+    {
+        if (assignments.Count == 0 || studentIds.Count == 0)
+            return new Dictionary<(Guid, Guid), ClassroomSubmission>();
+
+        var assignmentIds = assignments.Select(a => a.ClassroomAssignmentId).ToList();
+
+        var rows = await _db.ClassroomSubmissions
+            .AsNoTracking()
+            .Where(s => assignmentIds.Contains(s.ClassroomAssignmentId)
+                        && studentIds.Contains(s.StudentUserId))
+            .ToListAsync(ct);
+
+        return rows.ToDictionary(s => (s.StudentUserId, s.ClassroomAssignmentId));
+    }
+
+    /// <summary>
+    /// Assembles one student's row, folding their assignment standing in beside the derived course
+    /// metrics. The two scores stay separate columns rather than being blended into one number: study
+    /// activity is inferred from what a student happened to do, an assignment grade is a judgement an
+    /// instructor made, and averaging them would quietly launder the second into the first.
+    /// </summary>
+    private static GradebookRow BuildRow(
+        Guid userId,
+        string fullName,
+        string email,
+        IReadOnlyList<GradebookCell> cells,
+        IReadOnlyList<GradebookAssignment> assignments,
+        Dictionary<(Guid StudentUserId, Guid AssignmentId), ClassroomSubmission> submissions)
+    {
+        // Overall is weighted by submission count, not a mean of per-course means: a student who
+        // answered 40 questions in one course and 2 in another should not have the second count
+        // for half their grade.
+        var scored = cells.Where(c => c.AverageScorePercent.HasValue && c.QuizSubmissions > 0).ToList();
+        double? overall = scored.Count == 0
+            ? null
+            : scored.Sum(c => c.AverageScorePercent!.Value * c.QuizSubmissions) / scored.Sum(c => c.QuizSubmissions);
+
+        var assignmentCells = assignments.Select(a =>
+        {
+            var submission = submissions.GetValueOrDefault((userId, a.ClassroomAssignmentId));
+
+            // A draft is the student's alone — staff learn only that one exists, never its contents,
+            // and here not even that it has any length. Status is the whole payload.
+            return new GradebookSubmissionCell(
+                a.ClassroomAssignmentId,
+                SubmissionStatus.Resolve(submission, a.DueAt),
+                submission?.GradedAt != null ? submission.PointsAwarded : null,
+                submission?.SubmittedAt);
+        }).ToList();
+
+        // Points earned over points available, counting only assignments that have actually been
+        // graded. Including ungraded work would score the instructor's backlog as the student's zeroes.
+        var gradedPairs = assignments
+            .Select(a => (Assignment: a, Cell: assignmentCells.First(c => c.ClassroomAssignmentId == a.ClassroomAssignmentId)))
+            .Where(x => x.Cell.PointsAwarded.HasValue)
+            .ToList();
+
+        var pointsPossible = gradedPairs.Sum(x => x.Assignment.PointsPossible);
+        double? assignmentPercent = gradedPairs.Count == 0 || pointsPossible <= 0
+            ? null
+            : Math.Round(100.0 * gradedPairs.Sum(x => x.Cell.PointsAwarded!.Value) / pointsPossible, 1);
+
+        var lastActivity = cells.Select(c => c.LastActivityAt)
+            .Concat(assignmentCells.Select(c => c.SubmittedAt))
+            .Where(d => d.HasValue)
+            .DefaultIfEmpty(null)
+            .Max();
+
+        return new GradebookRow(
+            userId, fullName, email, cells,
+            overall is null ? null : Math.Round(overall.Value, 1),
+            cells.Sum(c => c.StudyMinutes),
+            lastActivity,
+            assignmentCells,
+            assignmentPercent,
+            assignmentCells.Count(c => c.SubmittedAt != null),
+            gradedPairs.Count);
+    }
 
     private async Task<List<CourseRow>> LoadCoursesAsync(Guid classroomId, CancellationToken ct)
         => await _db.ClassroomCourses

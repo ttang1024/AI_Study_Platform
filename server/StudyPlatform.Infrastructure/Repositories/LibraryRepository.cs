@@ -23,8 +23,29 @@ public class LibraryRepository : ILibraryRepository
         string? search,
         int page,
         int pageSize,
+        IReadOnlyCollection<Guid>? tagIds = null,
         CancellationToken cancellationToken = default)
     {
+        // Resolved once, up front, rather than joined into both operands. The UNION requires the two
+        // sides to project identical property sets, and a join would either have to be duplicated
+        // exactly on both or would multiply rows when an item carries several of the selected tags.
+        // Assignments are per-user and few, so narrowing to a set of ids first is both simpler and
+        // cheaper than making the union carry the join.
+        HashSet<Guid>? taggedDocumentIds = null;
+        HashSet<Guid>? taggedVideoIds = null;
+        if (tagIds is { Count: > 0 })
+        {
+            var assignments = await _db.LibraryTagAssignments
+                .AsNoTracking()
+                .Where(a => tagIds.Contains(a.LibraryTagId) && a.Tag.UserId == userId)
+                .Select(a => new { a.ItemKind, a.ItemId })
+                .Distinct()
+                .ToListAsync(cancellationToken);
+
+            taggedDocumentIds = assignments.Where(a => a.ItemKind == "document").Select(a => a.ItemId).ToHashSet();
+            taggedVideoIds = assignments.Where(a => a.ItemKind == "video").Select(a => a.ItemId).ToHashSet();
+        }
+
         // Type semantics mirror GetUserStatsQuery so the badge counts and the list agree:
         //   article = OriginalUrl set AND text/* content type
         //   audio   = audio/podcast OR audio/* content type
@@ -40,6 +61,8 @@ public class LibraryRepository : ILibraryRepository
                 docs = docs.Where(d => d.CourseId == courseId.Value);
             if (!string.IsNullOrWhiteSpace(search))
                 docs = docs.Where(d => EF.Functions.ILike(d.FileName, $"%{search}%"));
+            if (taggedDocumentIds != null)
+                docs = docs.Where(d => taggedDocumentIds.Contains(d.DocumentId));
 
             docs = type switch
             {
@@ -84,6 +107,8 @@ public class LibraryRepository : ILibraryRepository
                 videos = videos.Where(v => v.CourseId == courseId.Value);
             if (!string.IsNullOrWhiteSpace(search))
                 videos = videos.Where(v => EF.Functions.ILike(v.Title, $"%{search}%"));
+            if (taggedVideoIds != null)
+                videos = videos.Where(v => taggedVideoIds.Contains(v.VideoId));
 
             // Property set must match the document operand exactly (EF Core UNION
             // requirement), so document-only fields are set to null/default here.

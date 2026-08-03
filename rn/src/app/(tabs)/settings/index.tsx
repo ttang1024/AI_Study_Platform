@@ -10,6 +10,12 @@ import UserCircle from 'lucide-react-native/icons/circle-user';
 import Volume2 from 'lucide-react-native/icons/volume-2';
 import CreditCard from 'lucide-react-native/icons/credit-card';
 import Languages from 'lucide-react-native/icons/languages';
+import Award from 'lucide-react-native/icons/award';
+import FileArchive from 'lucide-react-native/icons/file-archive';
+import History from 'lucide-react-native/icons/history';
+import MonitorSmartphone from 'lucide-react-native/icons/monitor-smartphone';
+import Plug from 'lucide-react-native/icons/plug';
+import ShieldCheck from 'lucide-react-native/icons/shield-check';
 
 import { Button } from '@/components/Button';
 import { IconBadge } from '@/components/IconBadge';
@@ -44,6 +50,60 @@ export default function SettingsScreen() {
       <PasswordSection onSave={changePassword} />
 
       <SecuritySection />
+
+      <View style={styles.section}>
+        <Pressable style={styles.navRow} onPress={() => router.push('/settings/two-factor')}>
+          <IconBadge icon={ShieldCheck} size={36} />
+          <View style={styles.navBody}>
+            <Text style={styles.navTitle}>Two-factor authentication</Text>
+            <Text style={styles.navSubtitle}>Ask for a code from your authenticator app at sign-in</Text>
+          </View>
+          <ChevronRight size={18} color={Colors.textSecondary} />
+        </Pressable>
+        <Pressable style={styles.navRow} onPress={() => router.push('/settings/sessions')}>
+          <IconBadge icon={MonitorSmartphone} size={36} />
+          <View style={styles.navBody}>
+            <Text style={styles.navTitle}>Active sessions</Text>
+            <Text style={styles.navSubtitle}>Everywhere you are signed in, and how to sign them out</Text>
+          </View>
+          <ChevronRight size={18} color={Colors.textSecondary} />
+        </Pressable>
+        <Pressable style={styles.navRow} onPress={() => router.push('/settings/security-log')}>
+          <IconBadge icon={History} size={36} />
+          <View style={styles.navBody}>
+            <Text style={styles.navTitle}>Security log</Text>
+            <Text style={styles.navSubtitle}>Sign-ins and changes to your account</Text>
+          </View>
+          <ChevronRight size={18} color={Colors.textSecondary} />
+        </Pressable>
+        <Pressable style={styles.navRow} onPress={() => router.push('/settings/data')}>
+          <IconBadge icon={FileArchive} size={36} />
+          <View style={styles.navBody}>
+            <Text style={styles.navTitle}>Your data</Text>
+            <Text style={styles.navSubtitle}>Download everything we hold, or delete your account</Text>
+          </View>
+          <ChevronRight size={18} color={Colors.textSecondary} />
+        </Pressable>
+      </View>
+
+      <View style={styles.section}>
+        <Pressable style={styles.navRow} onPress={() => router.push('/settings/certificates')}>
+          <IconBadge icon={Award} size={36} />
+          <View style={styles.navBody}>
+            <Text style={styles.navTitle}>Certificates</Text>
+            <Text style={styles.navSubtitle}>Claim and share proof of the courses you have mastered</Text>
+          </View>
+          <ChevronRight size={18} color={Colors.textSecondary} />
+        </Pressable>
+        <Pressable style={styles.navRow} onPress={() => router.push('/settings/integrations')}>
+          <IconBadge icon={Plug} size={36} />
+          <View style={styles.navBody}>
+            <Text style={styles.navTitle}>Integrations</Text>
+            <Text style={styles.navSubtitle}>API keys and webhooks for scripts and other tools</Text>
+          </View>
+          <ChevronRight size={18} color={Colors.textSecondary} />
+        </Pressable>
+      </View>
 
       <View style={styles.section}>
         <Pressable style={styles.navRow} onPress={() => router.push('/settings/ai-services')}>

@@ -10,6 +10,7 @@ import Users from 'lucide-react-native/icons/users';
 import { Card } from '@/components/Card';
 import { Alpha, Colors, Layout, Radius, Spacing, Typography } from '@/constants/theme';
 import type { StudyRoomState, StudyRoomStatus } from '@/services/groupChatSocket';
+import { formatCountdown as formatRemaining } from '@core/utils/format';
 
 interface StudyRoomTabProps {
   state: StudyRoomState | null;
@@ -20,11 +21,6 @@ interface StudyRoomTabProps {
   onSetStatus: (status: StudyRoomStatus) => void;
   onStartTimer: (minutes: number) => void;
 }
-
-const formatRemaining = (ms: number) => {
-  const total = Math.max(0, Math.floor(ms / 1000));
-  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
-};
 
 /**
  * Live co-study room (ported from web's StudyRoomPanel): who from the group is

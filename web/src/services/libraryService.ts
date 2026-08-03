@@ -8,6 +8,7 @@ export type {
 	BackendLibraryItem,
 	GetLibraryParams,
 	LibraryEntry,
+	LibraryItemTag,
 	LibraryFilterType,
 	PagedLibrary,
 } from '@core/services/libraryService'

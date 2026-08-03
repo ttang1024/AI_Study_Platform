@@ -15,6 +15,7 @@ public class RegisterCommandHandlerTests
     private readonly Mock<IOtpRepository> _otps = new();
     private readonly Mock<IRefreshTokenRepository> _tokens = new();
     private readonly Mock<ITokenService> _tokenService = new();
+    private readonly Mock<IRequestContext> _requestContext = new();
     private readonly Mock<IEmailService> _emailService = new();
     private readonly Mock<IPasswordHasher> _hasher = new();
     private readonly RegisterCommandHandler _handler;
@@ -25,7 +26,7 @@ public class RegisterCommandHandlerTests
         _uow.Setup(u => u.Otps).Returns(_otps.Object);
         _uow.Setup(u => u.RefreshTokens).Returns(_tokens.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new RegisterCommandHandler(_uow.Object, _tokenService.Object, _emailService.Object, _hasher.Object);
+        _handler = new RegisterCommandHandler(_uow.Object, _tokenService.Object, _emailService.Object, _hasher.Object, _requestContext.Object);
     }
 
     private static RegisterCommand Valid() => new("user@example.com", "Password1", "Test User", "123456");

@@ -14,6 +14,7 @@ import { questionBankService, QuestionBankQuestion } from '../../services/questi
 import { documentService, quizSubmissionService, QuizSubmission } from '../../services/documentService';
 import { videoService } from '../../services/videoService';
 import { isQuizOptionCorrect } from '../../utils/quizAnswers';
+import { toQuizQuestion } from '../../pages/quizManagement/types';
 import { TimedExamModal } from '../quiz/TimedExamModal';
 import { HardFlashcardReview } from '../study/HardFlashcardCard';
 import { SessionRating } from '../study/FlashcardSessionCard';
@@ -28,16 +29,6 @@ interface FailedQuestion {
   selectedAnswer: string;
   sourceName: string;
 }
-
-const toQuizQuestion = (q: QuestionBankQuestion): QuizQuestion => ({
-  id: q.quizId,
-  question: q.question,
-  options: q.options,
-  correctAnswer: q.correctAnswer,
-  explanation: q.explanation,
-  type: 'multiple-choice',
-  difficulty: q.difficulty,
-});
 
 const shuffle = <T,>(items: T[]): T[] => {
   const copy = [...items];

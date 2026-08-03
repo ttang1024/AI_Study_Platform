@@ -5,6 +5,7 @@ import Markdown from 'react-native-markdown-display';
 import { MathMarkdown } from '@/components/MathMarkdown';
 import { Colors, Layout, Radius, Spacing } from '@/constants/theme';
 import { containsTexMath } from '@/utils/mathMarkdownHtml';
+import { formatTimecode } from '@core/utils/format';
 
 const markdownStyles = {
   body: { color: Colors.textPrimary, fontSize: 14, lineHeight: 21 },
@@ -46,15 +47,7 @@ const parseTimestamp = (value: string): number => {
   return parts.length === 3 ? parts[0] * 3600 + parts[1] * 60 + parts[2] : parts[0] * 60 + parts[1];
 };
 
-const formatTimestamp = (seconds: number): string => {
-  const safe = Math.max(0, Math.floor(seconds));
-  const h = Math.floor(safe / 3600);
-  const m = Math.floor((safe % 3600) / 60);
-  const s = safe % 60;
-  return h > 0
-    ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-    : `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-};
+const formatTimestamp = (seconds: number): string => formatTimecode(seconds, { padMinutes: true });
 
 const parseSegments = (value: string): Segment[] => {
   const lines = value.split('\n');

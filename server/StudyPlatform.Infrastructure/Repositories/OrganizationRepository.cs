@@ -87,3 +87,45 @@ public class ClassroomCourseRepository : Repository<ClassroomCourse>, IClassroom
 {
     public ClassroomCourseRepository(AppDbContext context) : base(context) { }
 }
+
+public class ClassroomAssignmentRepository : Repository<ClassroomAssignment>, IClassroomAssignmentRepository
+{
+    public ClassroomAssignmentRepository(AppDbContext context) : base(context) { }
+
+    public async Task<IEnumerable<ClassroomAssignment>> GetByClassroomAsync(Guid classroomId, CancellationToken cancellationToken = default)
+        => await _dbSet
+            .AsNoTracking()
+            .Where(a => a.ClassroomId == classroomId)
+            // Undated assignments sort last; among the rest the soonest deadline leads.
+            .OrderBy(a => a.DueAt == null)
+            .ThenBy(a => a.DueAt)
+            .ThenByDescending(a => a.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+    public async Task<ClassroomAssignment?> GetWithSubmissionsAsync(Guid classroomAssignmentId, CancellationToken cancellationToken = default)
+        => await _dbSet
+            .Include(a => a.Submissions).ThenInclude(s => s.Student)
+            .FirstOrDefaultAsync(a => a.ClassroomAssignmentId == classroomAssignmentId, cancellationToken);
+}
+
+public class ClassroomSubmissionRepository : Repository<ClassroomSubmission>, IClassroomSubmissionRepository
+{
+    public ClassroomSubmissionRepository(AppDbContext context) : base(context) { }
+
+    public async Task<ClassroomSubmission?> GetForStudentAsync(Guid classroomAssignmentId, Guid studentUserId, CancellationToken cancellationToken = default)
+        => await _dbSet.FirstOrDefaultAsync(
+            s => s.ClassroomAssignmentId == classroomAssignmentId && s.StudentUserId == studentUserId,
+            cancellationToken);
+
+    public async Task<IEnumerable<ClassroomSubmission>> GetForStudentAcrossAsync(
+        IEnumerable<Guid> classroomAssignmentIds, Guid studentUserId, CancellationToken cancellationToken = default)
+    {
+        var ids = classroomAssignmentIds.ToList();
+        if (ids.Count == 0) return Array.Empty<ClassroomSubmission>();
+
+        return await _dbSet
+            .AsNoTracking()
+            .Where(s => ids.Contains(s.ClassroomAssignmentId) && s.StudentUserId == studentUserId)
+            .ToListAsync(cancellationToken);
+    }
+}

@@ -7,6 +7,14 @@ interface Props {
   onClose: () => void;
 }
 
+const STATUS_LABEL: Record<string, string> = {
+  not_started: 'Not started',
+  draft: 'Draft',
+  submitted: 'Awaiting mark',
+  late: 'Late',
+  graded: 'Graded',
+};
+
 export const StudentProgressPanel: React.FC<Props> = ({ progress, onClose }) => {
   const peak = Math.max(1, ...progress.studyMinutesTrend.map((d) => d.value));
 
@@ -25,6 +33,36 @@ export const StudentProgressPanel: React.FC<Props> = ({ progress, onClose }) => 
             <X className="w-4 h-4" />
           </button>
         </div>
+
+        {progress.assignments.length > 0 && (
+          <section className="mb-6">
+            <div className="flex items-baseline justify-between mb-2">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-text-muted">Assignments</h3>
+              {progress.assignmentScorePercent !== null && (
+                <span className="text-sm font-medium text-text-main">{progress.assignmentScorePercent}%</span>
+              )}
+            </div>
+            <ul className="space-y-2">
+              {progress.assignments.map((a) => {
+                const cell = progress.submissions.find(
+                  (s) => s.classroomAssignmentId === a.classroomAssignmentId,
+                );
+                const graded = cell?.pointsAwarded !== null && cell?.pointsAwarded !== undefined;
+
+                return (
+                  <li key={a.classroomAssignmentId} className="flex justify-between gap-3 text-sm">
+                    <span className="text-text-main truncate">{a.title}</span>
+                    <span className={graded ? 'text-text-main whitespace-nowrap' : 'text-text-muted whitespace-nowrap'}>
+                      {graded
+                        ? `${cell!.pointsAwarded}/${a.pointsPossible}`
+                        : STATUS_LABEL[cell?.status ?? 'not_started']}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        )}
 
         <section className="mb-6">
           <h3 className="text-sm font-semibold uppercase tracking-wide text-text-muted mb-2">Weakest topics</h3>

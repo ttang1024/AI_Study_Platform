@@ -7,15 +7,15 @@ import { TerminalCard } from './TerminalCard';
 import { PROVIDER_ICON_SRC } from '../settings/ProviderIcon';
 
 const PROVIDERS = [
-  { name: 'Google Gemini', id: 'gemini', color: '#22d3ee', keyHint: 'AIza...', free: 'Free tier', url: 'aistudio.google.com', model: 'gemini-2.0-flash' },
-  { name: 'OpenAI', id: 'openai', color: '#4ade80', keyHint: 'sk-...', free: 'Pay-as-you-go', url: 'platform.openai.com', model: 'gpt-4o-mini' },
-  { name: 'Claude', id: 'claude', color: '#fb923c', keyHint: 'sk-ant-...', free: 'Free tier', url: 'console.anthropic.com', model: 'claude-haiku' },
-  { name: 'Grok', id: 'grok', color: '#facc15', keyHint: 'xai-...', free: 'Free tier', url: 'console.x.ai', model: 'grok-3-mini' },
-  { name: 'DeepSeek', id: 'deepseek', color: '#60a5fa', keyHint: 'sk-...', free: 'Very cheap', url: 'platform.deepseek.com', model: 'deepseek-chat' },
-  { name: 'Kimi', id: 'kimi', color: '#a78bfa', keyHint: 'sk-...', free: 'Free credits', url: 'platform.moonshot.cn', model: 'moonshot-v1-8k' },
-  { name: 'Doubao', id: 'doubao', color: '#f87171', keyHint: 'custom', free: 'Low cost', url: 'ark.volcengine.com', model: 'doubao-pro' },
-  { name: 'Qwen', id: 'qwen', color: '#34d399', keyHint: 'sk-...', free: 'Free credits', url: 'dashscope.aliyuncs.com', model: 'qwen-plus' },
-  { name: 'Wenxin Yiyan', id: 'wenxin', color: '#38bdf8', keyHint: 'bce-v3/...', free: 'Free tier', url: 'console.bce.baidu.com/qianfan', model: 'ernie-4.0-8k' },
+  { name: 'Google Gemini', id: 'gemini', color: '#22d3ee', keyHint: 'AIza...', url: 'aistudio.google.com', model: 'gemini-2.0-flash' },
+  { name: 'OpenAI', id: 'openai', color: '#4ade80', keyHint: 'sk-...', url: 'platform.openai.com', model: 'gpt-4o-mini' },
+  { name: 'Claude', id: 'claude', color: '#fb923c', keyHint: 'sk-ant-...', url: 'console.anthropic.com', model: 'claude-haiku' },
+  { name: 'Grok', id: 'grok', color: '#facc15', keyHint: 'xai-...', url: 'console.x.ai', model: 'grok-3-mini' },
+  { name: 'DeepSeek', id: 'deepseek', color: '#60a5fa', keyHint: 'sk-...', url: 'platform.deepseek.com', model: 'deepseek-chat' },
+  { name: 'Kimi', id: 'kimi', color: '#a78bfa', keyHint: 'sk-...', url: 'platform.moonshot.cn', model: 'moonshot-v1-8k' },
+  { name: 'Doubao', id: 'doubao', color: '#f87171', keyHint: 'custom', url: 'ark.volcengine.com', model: 'doubao-pro' },
+  { name: 'Qwen', id: 'qwen', color: '#34d399', keyHint: 'sk-...', url: 'dashscope.aliyuncs.com', model: 'qwen-plus' },
+  { name: 'Wenxin Yiyan', id: 'wenxin', color: '#38bdf8', keyHint: 'bce-v3/...', url: 'console.bce.baidu.com/qianfan', model: 'ernie-4.0-8k' },
 ];
 
 export const ProvidersSection: React.FC = () => (
@@ -78,10 +78,6 @@ export const ProvidersSection: React.FC = () => (
                       )}
                       <span className="truncate text-sm font-bold" style={{ color: p.color }}>{p.name}</span>
                     </div>
-                    {/* <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
-                      style={{ background: `${p.color}18`, color: p.color }}>
-                      {p.free}
-                    </span> */}
                   </div>
                   <div className="font-mono text-xs rounded px-2 py-1" style={{ background: 'rgba(0,0,0,0.4)', color: 'rgba(255,255,255,0.35)' }}>
                     {p.keyHint}

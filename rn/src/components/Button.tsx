@@ -8,24 +8,37 @@ import { Colors, Gradients, Layout, Radius, Shadows } from '@/constants/theme';
 interface ButtonProps {
   title: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary';
+  /**
+   * `danger` is an outlined red button, not a filled one: destructive actions here sit next to
+   * ordinary ones in a settings list, and a filled red block would pull the eye harder than the
+   * primary action on the same screen.
+   */
+  variant?: 'primary' | 'secondary' | 'danger';
   disabled?: boolean;
   loading?: boolean;
 }
 
 export const Button: React.FC<ButtonProps> = ({ title, onPress, variant = 'primary', disabled, loading }) => {
   const isPrimary = variant === 'primary';
+  const isDanger = variant === 'danger';
   const inner = loading ? (
-    <ActivityIndicator color={isPrimary ? Colors.primaryForeground : Colors.primary} />
+    <ActivityIndicator color={isPrimary ? Colors.primaryForeground : isDanger ? Colors.errorText : Colors.primary} />
   ) : (
-    <Text style={[styles.text, isPrimary ? styles.textPrimary : styles.textSecondary]}>{title}</Text>
+    <Text
+      style={[
+        styles.text,
+        isPrimary ? styles.textPrimary : isDanger ? styles.textDanger : styles.textSecondary,
+      ]}
+    >
+      {title}
+    </Text>
   );
 
   return (
     <PressableScale
       onPress={onPress}
       disabled={disabled || loading}
-      style={isPrimary ? styles.primaryShadow : styles.secondary}
+      style={isPrimary ? styles.primaryShadow : isDanger ? styles.danger : styles.secondary}
     >
       {isPrimary ? (
         <LinearGradient
@@ -73,5 +86,18 @@ const styles = StyleSheet.create({
   },
   textSecondary: {
     color: Colors.textPrimary,
+  },
+  danger: {
+    height: 48,
+    borderRadius: Radius.pill,
+    ...Layout.center,
+    paddingHorizontal: 20,
+    backgroundColor: Colors.bgCard,
+    borderWidth: 1,
+    borderColor: Colors.errorText,
+    ...Shadows.card,
+  },
+  textDanger: {
+    color: Colors.errorText,
   },
 });

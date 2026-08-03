@@ -7,7 +7,7 @@ import { Badge } from './Badge';
 const STEPS = [
   { step: '01', title: 'Add Your Content', desc: 'Documents in 80+ formats, any video or podcast link, web articles, audio — drop it in and we detect the rest.', icon: BookOpen, color: 'from-cyan-500 to-blue-600', glow: 'rgba(6,182,212,0.4)' },
   { step: '02', title: 'AI Does the Work', desc: 'Summaries, mind maps, flashcards, quizzes, and worked problems in seconds.', icon: Bot, color: 'from-teal-400 to-cyan-600', glow: 'rgba(13,148,136,0.4)' },
-  { step: '03', title: 'Master the Topic', desc: 'One-button smart sessions, timed mock exams, graded essays, and a Knowledge Graph.', icon: GraduationCap, color: 'from-emerald-400 to-teal-600', glow: 'rgba(52,211,153,0.4)' },
+  { step: '03', title: 'Master the Topic', desc: 'One-button smart sessions, timed mock exams, graded essays, a Knowledge Graph — and a verifiable certificate at the end.', icon: GraduationCap, color: 'from-emerald-400 to-teal-600', glow: 'rgba(52,211,153,0.4)' },
 ];
 
 export const HowItWorksSection: React.FC = () => (

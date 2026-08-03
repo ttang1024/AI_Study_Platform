@@ -1,21 +1,21 @@
 import * as SecureStore from 'expo-secure-store';
 
-// The provider list, default models, and settings shape are shared across
-// web/, rn/, and extension/ (see packages/core/src/ai.ts). Re-exported here so
+// The provider list, default models, settings shape, storage key, and the
+// active-provider/key/model derivations are shared across web/, rn/, and extension/
+// (see packages/core/src/ai.ts and packages/core/src/settings.ts). Only the storage
+// itself is per-platform — expo-secure-store here, localStorage on web. Re-exported so
 // existing `@/services/aiSettingsService` imports keep working unchanged.
-import { DEFAULT_MODELS } from '@core/ai';
+import {
+  AI_SETTINGS_STORAGE_KEY,
+  activeKeyOf,
+  activeModelOf,
+  activeProviderOf,
+  parseAiSettings,
+} from '@core/settings';
 import type { AIProvider, AISettings } from '@core/ai';
 
 export { DEFAULT_MODELS } from '@core/ai';
 export type { AIProvider, AISettings } from '@core/ai';
-
-const STORAGE_KEY = 'sp_ai_settings';
-
-const DEFAULT_SETTINGS: AISettings = {
-  provider: 'gemini',
-  keys: {},
-  models: {},
-};
 
 // Notified whenever settings are saved, so UI that reacts to key presence (e.g. the
 // missing-key banner) can re-check. RN has no window/storage events, so this stands
@@ -28,14 +28,15 @@ const changeListeners = new Set<() => void>();
 export const aiSettingsService = {
   async load(): Promise<AISettings> {
     try {
-      const raw = await SecureStore.getItemAsync(STORAGE_KEY);
-      if (raw) return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
-    } catch {}
-    return { ...DEFAULT_SETTINGS };
+      return parseAiSettings(await SecureStore.getItemAsync(AI_SETTINGS_STORAGE_KEY));
+    } catch {
+      // The keychain read itself can fail (locked device, simulator quirks).
+      return parseAiSettings(null);
+    }
   },
 
   async save(settings: AISettings): Promise<void> {
-    await SecureStore.setItemAsync(STORAGE_KEY, JSON.stringify(settings));
+    await SecureStore.setItemAsync(AI_SETTINGS_STORAGE_KEY, JSON.stringify(settings));
     changeListeners.forEach((listener) => listener());
   },
 
@@ -46,18 +47,14 @@ export const aiSettingsService = {
   },
 
   async getActiveKey(): Promise<string | undefined> {
-    const settings = await aiSettingsService.load();
-    const key = settings.keys[settings.provider]?.trim();
-    return key || undefined;
+    return activeKeyOf(await aiSettingsService.load());
   },
 
   async getActiveProvider(): Promise<AIProvider> {
-    return (await aiSettingsService.load()).provider;
+    return activeProviderOf(await aiSettingsService.load());
   },
 
   async getActiveModel(): Promise<string> {
-    const settings = await aiSettingsService.load();
-    const model = settings.models[settings.provider]?.trim();
-    return model || DEFAULT_MODELS[settings.provider];
+    return activeModelOf(await aiSettingsService.load());
   },
 };

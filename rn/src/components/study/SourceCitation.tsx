@@ -6,6 +6,7 @@ import Quote from 'lucide-react-native/icons/quote';
 
 import { Colors, Spacing, Typography } from '@/constants/theme';
 import type { SourceCitation as Citation } from '@/types';
+import { formatTimecode } from '@core/utils/format';
 
 interface Props {
   citation?: Citation;
@@ -13,14 +14,7 @@ interface Props {
   videoId?: string;
 }
 
-const formatTimestamp = (seconds: number): string => {
-  const total = Math.floor(seconds);
-  const h = Math.floor(total / 3600);
-  const m = Math.floor((total % 3600) / 60);
-  const s = total % 60;
-  const pad = (n: number) => n.toString().padStart(2, '0');
-  return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
-};
+const formatTimestamp = formatTimecode;
 
 /**
  * Attribution for an AI-generated artifact: the passage it came from, plus a way to open that spot

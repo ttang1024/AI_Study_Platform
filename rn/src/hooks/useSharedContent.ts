@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useLocalSearchParams } from 'expo-router';
 
 import { getShare, type SharedContent } from '@/services/shareService';
+import { parseYouTubeId } from '@core/videoSources';
 import { buildMindMapHtml } from '@/utils/mindMapHtml';
 import { xmindMarkToMarkdown } from '@/utils/xmindMarkdown';
 import Brain from 'lucide-react-native/icons/brain';
@@ -27,14 +28,6 @@ const parseChatTranscript = (value: string): ChatMessage[] | null => {
   } catch {
     return null;
   }
-};
-
-const parseYouTubeId = (url: string): string | null => {
-  for (const p of [/[?&]v=([^&]+)/, /youtu\.be\/([^?&/]+)/, /youtube\.com\/shorts\/([^?&/]+)/, /youtube\.com\/embed\/([^?&/]+)/]) {
-    const m = url.match(p);
-    if (m) return m[1];
-  }
-  return null;
 };
 
 export const SOURCE_BADGES: Record<string, string> = {

@@ -1,18 +1,13 @@
 import React from 'react';
 import { FileText, FileType, FileCode, Mic } from 'lucide-react';
+import { parseYouTubeId } from '@core/videoSources';
 import { videoService, VideoListItem } from '../../services/videoService';
-
-export function parseVideoId(url: string): string | null {
-  const patterns = [/[?&]v=([^&]+)/, /youtu\.be\/([^?&/]+)/, /youtube\.com\/shorts\/([^?&/]+)/, /youtube\.com\/embed\/([^?&/]+)/];
-  for (const p of patterns) { const m = url.match(p); if (m) return m[1]; }
-  return null;
-}
 
 export function getVideoThumbSrc(video: VideoListItem) {
   const sourceType = video.sourceType ?? 'youtube';
   if (sourceType === 'bilibili') return video.thumbnailUrl || '/images/bilibili.png';
   if (sourceType === 'upload') return videoService.getUploadedVideoThumbnailUrl(video.id);
-  const videoId = parseVideoId(video.videoUrl) ?? video.videoId;
+  const videoId = parseYouTubeId(video.videoUrl) ?? video.videoId;
   return video.thumbnailUrl || (videoId ? `https://img.youtube.com/vi/${videoId}/default.jpg` : '');
 }
 
@@ -20,7 +15,7 @@ export function getVideoThumbFallback(video: VideoListItem) {
   const sourceType = video.sourceType ?? 'youtube';
   if (sourceType === 'bilibili') return '/images/bilibili.png';
   if (sourceType === 'youtube') {
-    const videoId = parseVideoId(video.videoUrl) ?? video.videoId;
+    const videoId = parseYouTubeId(video.videoUrl) ?? video.videoId;
     return videoId ? `https://img.youtube.com/vi/${videoId}/default.jpg` : '';
   }
   return '';

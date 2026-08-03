@@ -2,12 +2,7 @@ import { useState, useMemo, useCallback } from 'react';
 import { usePersistentTts } from '../context/TtsContext';
 import { synthesizeToBlob, downloadAudioBlob } from '../services/edgeTtsService';
 import { UnifiedNoteItem } from './useNotesData';
-
-const stripHtml = (html: string): string => {
-  const div = document.createElement('div');
-  div.innerHTML = html;
-  return div.textContent || div.innerText || '';
-};
+import { stripHtml } from '@core/utils/stripHtml';
 
 /** TTS playback + MP3 download for a list of notes (the selection, or all filtered notes). */
 export function useNotesAudio({

@@ -5,9 +5,11 @@ import { EmptyState } from '@/components/EmptyState';
 import { CHIP_HEIGHT, FilterChip } from '@/components/FilterChip';
 import { SearchBar } from '@/components/SearchBar';
 import { LibraryCourseFilterRow } from '@/components/library/LibraryCourseFilterRow';
+import { LibraryAssignSheet } from '@/components/library/LibraryAssignSheet';
 import { LibraryEntryRow } from '@/components/library/LibraryEntryRow';
+import { LibrarySelectionBar } from '@/components/library/LibrarySelectionBar';
 import { Colors, Layout, Spacing } from '@/constants/theme';
-import { TYPE_FILTERS, useLibraryList } from '@/hooks/useLibraryList';
+import { entryKey, TYPE_FILTERS, useLibraryList } from '@/hooks/useLibraryList';
 
 export default function LibraryScreen() {
   const lib = useLibraryList();
@@ -35,6 +37,27 @@ export default function LibraryScreen() {
         onToggleCourse={lib.setActiveCourseId}
       />
 
+      {/* Collections first, then tags — collections are the coarse grouping people organise by,
+          and tags are the cross-cutting labels applied on top. `getTags` already returns them
+          name-sorted within each kind, so only the kind split is needed here. */}
+      {lib.tags.length > 0 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.filterScroll}
+          contentContainerStyle={styles.filterRow}
+        >
+          {[...lib.tags].sort((a, b) => Number(a.kind === 'tag') - Number(b.kind === 'tag')).map((tag) => (
+            <FilterChip
+              key={tag.libraryTagId}
+              label={`${tag.name} ${tag.itemCount}`}
+              active={lib.selectedTagIds.includes(tag.libraryTagId)}
+              onPress={() => lib.toggleTag(tag.libraryTagId)}
+            />
+          ))}
+        </ScrollView>
+      )}
+
       {lib.loading ? (
         <ActivityIndicator style={styles.loading} color={Colors.primary} />
       ) : lib.items.length === 0 ? (
@@ -43,7 +66,7 @@ export default function LibraryScreen() {
         <FlatList
           data={lib.items}
           keyExtractor={(entry) => `${entry.kind}-${entry.data.id}`}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, lib.selection.size > 0 && styles.listWithBar]}
           onEndReachedThreshold={0.4}
           onEndReached={lib.onEndReached}
           refreshControl={<RefreshControl refreshing={lib.refreshing} onRefresh={lib.refresh} tintColor={Colors.primary} />}
@@ -51,9 +74,33 @@ export default function LibraryScreen() {
             <Text style={styles.resultCount}>{lib.totalCount} {lib.totalCount === 1 ? 'item' : 'items'}</Text>
           }
           ListFooterComponent={lib.loadingMore ? <ActivityIndicator style={styles.footerLoading} color={Colors.primary} /> : null}
-          renderItem={({ item, index }) => <LibraryEntryRow entry={item} onPress={lib.openEntry} onDelete={lib.deleteEntry} index={index} />}
+          renderItem={({ item, index }) => (
+            <LibraryEntryRow
+              entry={item}
+              onPress={lib.openEntry}
+              onDelete={lib.deleteEntry}
+              index={index}
+              onToggleSelect={lib.toggleSelected}
+              selectionMode={lib.selection.size > 0}
+              selected={lib.selection.has(entryKey(item))}
+            />
+          )}
         />
       )}
+
+      {/* Long-press a row to start picking items, then file them into a collection. */}
+      <LibrarySelectionBar
+        count={lib.selection.size}
+        onAssign={() => lib.setAssignVisible(true)}
+        onClear={lib.clearSelection}
+      />
+
+      <LibraryAssignSheet
+        visible={lib.assignVisible}
+        onClose={() => lib.setAssignVisible(false)}
+        selection={[...lib.selection.values()]}
+        onChanged={lib.handleAssigned}
+      />
     </View>
   );
 }
@@ -75,4 +122,6 @@ const styles = StyleSheet.create({
   loading: { marginTop: Spacing.five },
   footerLoading: { marginVertical: Spacing.three },
   list: { paddingHorizontal: Spacing.three, paddingBottom: Spacing.five, gap: 12 },
+  // Clears the floating selection bar so the last row stays reachable.
+  listWithBar: { paddingBottom: Spacing.five * 2 },
 });

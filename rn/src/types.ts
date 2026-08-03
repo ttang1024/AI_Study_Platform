@@ -18,14 +18,8 @@ export type { Document } from '@core/types';
 // Shared with web/ via packages/core.
 export type { VideoListItem } from '@core/services/videoService';
 
-export interface StudyStreak {
-  currentStreak: number;
-  longestStreak: number;
-  todaySeconds: number;
-  todayMinutes: number;
-  freezesAvailable?: number;
-  vacationUntil?: string | null;
-}
+// Shared with web/ via packages/core.
+export type { StudyStreak } from '@core/services/analyticsService';
 
 // Shared with web/ via packages/core.
 export type { FlashcardSrsState, FsrsRating } from '@core/types';
@@ -74,28 +68,9 @@ export type { Mistake, VariantQuestion } from '@core/services/mistakesService';
 // Shared with web/ via packages/core.
 export type { PendingMaterial } from '@core/types';
 
-export interface TodayPlanItem {
-  id: string;
-  type: 'flashcards' | 'quiz' | 'glossary' | 'problems' | 'gap' | 'course' | 'material';
-  title: string;
-  subtitle?: string;
-  priority: number;
-  estimatedMinutes: number;
-  url: string;
-  count?: number;
-  stretch: boolean;
-}
-
-export interface TodayPlan {
-  streak: StudyStreak;
-  dailyGoalMinutes: number;
-  todayMinutes: number;
-  completionPercent: number;
-  goalMet: boolean;
-  plannedMinutes: number;
-  dueFlashcards: number;
-  items: TodayPlanItem[];
-}
+// Shared with web/ via packages/core. Note `url` and `count` are nullable there, matching the
+// server — this app maps plan items to its own routes by `type` and never reads `url`.
+export type { TodayPlan, TodayPlanItem, TodayPlanItemType } from '@core/services/todayService';
 
 // Shared with web/ via packages/core.
 export type { DashboardSummary, ReinforcementCounts } from '@core/services/analyticsService';

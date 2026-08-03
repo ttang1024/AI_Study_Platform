@@ -39,6 +39,12 @@ public class DeleteDocumentCommandHandler : IRequestHandler<DeleteDocumentComman
         }
 
         _unitOfWork.Documents.Remove(document);
+
+        // The tag join is polymorphic, so no foreign key reaches it and no cascade fires. Pruned
+        // here or the assignment outlives the document and inflates every collection's item count.
+        await _unitOfWork.LibraryTags.RemoveAssignmentsForItemAsync(
+            "document", document.DocumentId, cancellationToken);
+
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // After the save, so the cascade has taken the document's flashcards and glossary terms with it

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ArrowLeft, Loader2, PenLine, Plus, Sparkles, Trash2 } from 'lucide-react';
 import { useEssays } from '../../hooks/useEssays';
 import EssayFeedbackPanel from '../../components/essays/EssayFeedbackPanel';
+import { RequestPeerReviewCard } from '../../components/essays/RequestPeerReviewCard';
 import type { RubricCriterion } from '../../services/essayService';
 
 type View = 'list' | 'editor' | 'rubrics';
@@ -211,6 +212,12 @@ export const EssaysTab: React.FC = () => {
               <p className="text-sm text-text-muted">
                 Save the draft with a rubric selected, then mark it to see scored feedback here.
               </p>
+            )}
+
+            {/* Only once a draft exists to be reviewed — there is nothing to send classmates
+                before the first save. */}
+            {latestDraft && (
+              <RequestPeerReviewCard essaySubmissionId={latestDraft.essaySubmissionId} />
             )}
           </div>
         </div>

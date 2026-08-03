@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLocation } from 'react-router-dom';
-import { User, Shield, LogOut, KeyRound, Volume2, Archive, Activity, CreditCard, MessageSquarePlus } from 'lucide-react';
+import { User, Shield, LogOut, KeyRound, Volume2, Archive, Activity, CreditCard, MessageSquarePlus, Plug, FileArchive } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { cn } from '../utils/cn';
 import { useTabParam } from '../components/common/PageTabs';
@@ -12,8 +12,10 @@ import { PlanTab } from '../components/settings/PlanTab';
 import { VoiceTab } from '../components/settings/VoiceTab';
 import { ExportTab } from '../components/settings/ExportTab';
 import { FeedbackTab } from '../components/settings/FeedbackTab';
+import { IntegrationsTab } from '../components/settings/IntegrationsTab';
+import { DataRightsSection } from '../components/settings/DataRightsSection';
 
-type SettingsTab = 'profile' | 'security' | 'ai' | 'ai-usage' | 'plan' | 'voice' | 'export' | 'feedback';
+type SettingsTab = 'profile' | 'security' | 'ai' | 'ai-usage' | 'plan' | 'voice' | 'export' | 'data' | 'integrations' | 'feedback';
 
 const tabs = [
   { id: 'profile', label: 'Profile', icon: User },
@@ -25,6 +27,10 @@ const tabs = [
   { id: 'plan', label: 'Plan', icon: CreditCard },
   { id: 'voice', label: 'Voice', icon: Volume2 },
   { id: 'export', label: 'Export', icon: Archive },
+  // Next to Export because both are "get my content out"; this one is the whole account rather
+  // than one artifact, and it is also where deletion lives.
+  { id: 'data', label: 'Your data', icon: FileArchive },
+  { id: 'integrations', label: 'Integrations', icon: Plug },
   // Was its own page reached from the profile menu; both menu entries land in Settings now.
   { id: 'feedback', label: 'Feedback', icon: MessageSquarePlus },
 ] as const;
@@ -83,6 +89,8 @@ export const SettingsPage: React.FC = () => {
           {activeTab === 'plan' && <PlanTab />}
           {activeTab === 'voice' && <VoiceTab />}
           {activeTab === 'export' && <ExportTab />}
+          {activeTab === 'data' && <DataRightsSection />}
+          {activeTab === 'integrations' && <IntegrationsTab />}
           {activeTab === 'feedback' && <FeedbackTab />}
         </div>
       </div>

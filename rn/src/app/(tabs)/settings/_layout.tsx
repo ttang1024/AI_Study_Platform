@@ -18,6 +18,12 @@ export default function SettingsLayout() {
       <Stack.Screen name="language" options={{ title: 'Language' }} />
       <Stack.Screen name="voice" options={{ title: 'Voice' }} />
       <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />
+      <Stack.Screen name="two-factor" options={{ title: 'Two-factor' }} />
+      <Stack.Screen name="sessions" options={{ title: 'Active sessions' }} />
+      <Stack.Screen name="security-log" options={{ title: 'Security log' }} />
+      <Stack.Screen name="data" options={{ title: 'Your data' }} />
+      <Stack.Screen name="certificates" options={{ title: 'Certificates' }} />
+      <Stack.Screen name="integrations" options={{ title: 'Integrations' }} />
       <Stack.Screen name="feedback" options={{ title: 'Feedback' }} />
     </Stack>
   );

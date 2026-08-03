@@ -9,6 +9,7 @@ import {
 	ChevronDown, Check, Palette, StickyNote,
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { ToolbarBtn } from '../common/RichTextEditor';
 
 // ── Custom FontSize extension ────────────────────────────────────────────────
 const FontSize = Extension.create({
@@ -50,22 +51,6 @@ const FONT_SIZES = ['12px', '14px', '16px', '18px', '20px', '24px', '28px', '32p
 
 
 // ── Sub-components ───────────────────────────────────────────────────────────
-function ToolbarBtn({ active, onClick, title, children }: {
-	active?: boolean; onClick: () => void; title: string; children: React.ReactNode;
-}) {
-	return (
-		<button
-			onMouseDown={e => { e.preventDefault(); onClick(); }}
-			title={title}
-			className={cn(
-				'flex h-7 w-7 items-center justify-center rounded-md transition-colors text-sm',
-				active ? 'bg-zinc-200 text-zinc-900' : 'text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800',
-			)}
-		>
-			{children}
-		</button>
-	);
-}
 
 function FontSizePicker({ editor }: { editor: any }) {
 	const [open, setOpen] = useState(false);

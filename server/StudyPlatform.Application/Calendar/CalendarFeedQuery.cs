@@ -1,5 +1,6 @@
 using System.Text;
 using MediatR;
+using StudyPlatform.Application.Classrooms;
 using StudyPlatform.Application.Common;
 using StudyPlatform.Domain.Interfaces;
 
@@ -16,10 +17,12 @@ public class GetCalendarFeedQueryHandler : IRequestHandler<GetCalendarFeedQuery,
     private const int HorizonDays = 14;
 
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IMediator _mediator;
 
-    public GetCalendarFeedQueryHandler(IUnitOfWork unitOfWork)
+    public GetCalendarFeedQueryHandler(IUnitOfWork unitOfWork, IMediator mediator)
     {
         _unitOfWork = unitOfWork;
+        _mediator = mediator;
     }
 
     public async Task<Result<string>> Handle(GetCalendarFeedQuery request, CancellationToken cancellationToken)
@@ -75,6 +78,23 @@ public class GetCalendarFeedQueryHandler : IRequestHandler<GetCalendarFeedQuery,
             }
         }
 
+        // Classroom deadlines. These are the only events here with a consequence outside the app, so
+        // they carry the real due time rather than being flattened to an all-day block.
+        var deadlines = (await _mediator.Send(
+            new GetClassroomDeadlinesQuery(userId, HorizonDays), cancellationToken)).Data!;
+
+        foreach (var d in deadlines)
+        {
+            var isAssignment = d.ClassroomAssignmentId != null;
+            AddTimedEvent(sb,
+                uid: $"classroom-{d.ClassroomAssignmentId ?? d.CourseId ?? d.ClassroomId:N}-{d.DueAt:yyyyMMddHHmm}",
+                at: d.DueAt,
+                summary: isAssignment
+                    ? $"📝 Due: {d.Title}"
+                    : $"📘 Course due: {d.Title}",
+                description: $"{d.ClassroomName} — from your Easy Study classroom.");
+        }
+
         sb.AppendLine("END:VCALENDAR");
         return Result<string>.Success(sb.ToString());
     }
@@ -86,6 +106,21 @@ public class GetCalendarFeedQueryHandler : IRequestHandler<GetCalendarFeedQuery,
         sb.AppendLine($"DTSTAMP:{DateTime.UtcNow:yyyyMMdd'T'HHmmss'Z'}");
         sb.AppendLine($"DTSTART;VALUE=DATE:{date:yyyyMMdd}");
         sb.AppendLine($"DTEND;VALUE=DATE:{date.AddDays(1):yyyyMMdd}");
+        sb.AppendLine($"SUMMARY:{Escape(summary)}");
+        sb.AppendLine($"DESCRIPTION:{Escape(description)}");
+        sb.AppendLine("END:VEVENT");
+    }
+
+    /// <summary>A point-in-time event, for deadlines where the hour actually matters.</summary>
+    private static void AddTimedEvent(StringBuilder sb, string uid, DateTime at, string summary, string description)
+    {
+        var utc = at.Kind == DateTimeKind.Utc ? at : at.ToUniversalTime();
+
+        sb.AppendLine("BEGIN:VEVENT");
+        sb.AppendLine($"UID:{uid}@easystudy");
+        sb.AppendLine($"DTSTAMP:{DateTime.UtcNow:yyyyMMdd'T'HHmmss'Z'}");
+        sb.AppendLine($"DTSTART:{utc:yyyyMMdd'T'HHmmss'Z'}");
+        sb.AppendLine($"DTEND:{utc:yyyyMMdd'T'HHmmss'Z'}");
         sb.AppendLine($"SUMMARY:{Escape(summary)}");
         sb.AppendLine($"DESCRIPTION:{Escape(description)}");
         sb.AppendLine("END:VEVENT");

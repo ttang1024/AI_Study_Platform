@@ -15,7 +15,7 @@ namespace StudyPlatform.API.Controllers;
 [Route("api/essays")]
 [Authorize]
 [Produces("application/json")]
-public class EssaysController : ControllerBase
+public partial class EssaysController : ControllerBase
 {
     private readonly IMediator _mediator;
 

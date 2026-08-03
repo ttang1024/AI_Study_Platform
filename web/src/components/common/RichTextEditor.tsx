@@ -44,7 +44,7 @@ const COLOR_PALETTE = [
 
 const FONT_SIZES = ['12px', '14px', '16px', '18px', '20px', '24px', '28px', '32px'];
 
-function ToolbarBtn({ active, onClick, title, children }: {
+export function ToolbarBtn({ active, onClick, title, children }: {
   active?: boolean; onClick: () => void; title: string; children: React.ReactNode;
 }) {
   return (

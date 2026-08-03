@@ -7,16 +7,12 @@ import {
 import { SharedContent } from '../../services/shareContentService';
 import {
   isExternalVideoSource, parseExternalVideoId, buildExternalEmbedUrl, buildBilibiliEmbedUrl,
-  parseBilibiliVideo, EXTERNAL_SOURCE_BRANDING, type VideoSourceType,
+  parseBilibiliVideo, parseYouTubeId, EXTERNAL_SOURCE_BRANDING, type VideoSourceType,
 } from '../../constants/videoSources';
 import { getApiUrl } from '../../utils/env';
 import { SharedDocumentViewer } from './SharedDocumentViewer';
 
 const API_URL = getApiUrl();
-
-export function parseVideoId(url: string): string | null {
-  return url.match(/(?:[?&]v=|youtu\.be\/|shorts\/|embed\/)([^&?/\s]{11})/)?.[1] ?? null;
-}
 
 export { parseBilibiliVideo };
 
@@ -36,7 +32,7 @@ export const SharedMedia: React.FC<SharedMediaProps> = ({
   content, normalizedSourceType, articleHtml, articleCollapsed, onToggleArticle,
 }) => {
   if (normalizedSourceType === 'youtube' && content.sourceUrl) {
-    const videoId = parseVideoId(content.sourceUrl);
+    const videoId = parseYouTubeId(content.sourceUrl);
     return videoId ? (
       <div className="rounded-2xl overflow-hidden border border-[var(--border-color)] bg-black">
         <a

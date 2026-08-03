@@ -32,6 +32,18 @@ public class User
     /// <summary>Set when the sample course was seeded, so it is never seeded twice.</summary>
     public DateTime? DemoContentSeededAt { get; set; }
 
+    /// <summary>
+    /// When the user asked for their account to be deleted, starting the grace period.
+    ///
+    /// <para>Requesting deletion deactivates the account and revokes every session immediately, so
+    /// the effect is instant from the user's side; only the erase itself waits. The delay exists
+    /// because deletion is the one action with no undo, and the overwhelmingly common regret case is
+    /// a request made in the first few minutes.</para>
+    ///
+    /// <para>Cleared when the user cancels, which reactivates the account.</para>
+    /// </summary>
+    public DateTime? DeletionRequestedAt { get; set; }
+
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public ICollection<Course> Courses { get; set; } = new List<Course>();

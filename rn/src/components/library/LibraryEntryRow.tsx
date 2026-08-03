@@ -11,6 +11,9 @@ import Headphones from 'lucide-react-native/icons/headphones';
 import Newspaper from 'lucide-react-native/icons/newspaper';
 import Play from 'lucide-react-native/icons/play';
 import Presentation from 'lucide-react-native/icons/presentation';
+import Check from 'lucide-react-native/icons/check';
+import FolderOpen from 'lucide-react-native/icons/folder-open';
+import TagIcon from 'lucide-react-native/icons/tag';
 import Trash2 from 'lucide-react-native/icons/trash-2';
 import Video from 'lucide-react-native/icons/video';
 import type { LucideIcon } from 'lucide-react-native';
@@ -20,6 +23,8 @@ import { PressableScale } from '@/components/PressableScale';
 import { Alpha, Colors, Layout, Motion, Overlay, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
 import type { LibraryEntry } from '@/services/libraryService';
 import type { Document } from '@/types';
+import { documentSourceKind } from '@core/utils/documentDisplay';
+import { haptics } from '@/utils/haptics';
 
 interface EntryLook {
   icon: LucideIcon;
@@ -42,8 +47,9 @@ const DOC_LOOKS: Record<Document['type'], EntryLook> = {
 const lookFor = (entry: LibraryEntry): EntryLook => {
   if (entry.kind === 'video') return { icon: Video, color: Colors.red, label: 'Video' };
   const doc = entry.data;
-  // Podcasts arrive with an originalUrl too — audio type wins over "article".
-  if (doc.type !== 'audio' && doc.type !== 'podcast' && doc.originalUrl) {
+  // documentSourceKind already puts podcasts (which carry an originalUrl too) under 'audio',
+  // so only a genuine clipped article reaches the Newspaper look.
+  if (documentSourceKind(doc) === 'article') {
     return { icon: Newspaper, color: Colors.blue, label: 'Article' };
   }
   return DOC_LOOKS[doc.type];
@@ -65,9 +71,17 @@ interface LibraryEntryRowProps {
   onDelete?: (entry: LibraryEntry) => void;
   /** Position in the list — drives the entrance stagger. */
   index?: number;
+  /** Toggles the row's membership in the bulk-tagging selection. Long-press starts it; while
+   *  a selection is active a plain tap toggles too. */
+  onToggleSelect?: (entry: LibraryEntry) => void;
+  /** True while any row is selected: tapping toggles instead of opening. */
+  selectionMode?: boolean;
+  selected?: boolean;
 }
 
-export const LibraryEntryRow: React.FC<LibraryEntryRowProps> = React.memo(function LibraryEntryRow({ entry, onPress, onDelete, index = 0 }) {
+export const LibraryEntryRow: React.FC<LibraryEntryRowProps> = React.memo(function LibraryEntryRow({
+  entry, onPress, onDelete, index = 0, onToggleSelect, selectionMode = false, selected = false,
+}) {
   const look = lookFor(entry);
   const title = entry.kind === 'document' ? entry.data.name : entry.data.title;
   const courseName = entry.data.courseName;
@@ -91,8 +105,9 @@ export const LibraryEntryRow: React.FC<LibraryEntryRowProps> = React.memo(functi
 
   const card = (
     <PressableScale
-      style={styles.card}
-      onPress={() => onPress(entry)}
+      style={[styles.card, selected && styles.cardSelected]}
+      onPress={() => (selectionMode ? onToggleSelect?.(entry) : onPress(entry))}
+      onLongPress={onToggleSelect ? () => { haptics.tap(); onToggleSelect(entry); } : undefined}
       // Rows slide in as the page lands. `Motion.stagger` caps the delay, so an
       // appended page (index 20+) fades in promptly rather than after a
       // second-long queue of per-item offsets.
@@ -123,13 +138,38 @@ export const LibraryEntryRow: React.FC<LibraryEntryRowProps> = React.memo(functi
           )}
           {!!date && <Text style={styles.metaText}>{date}</Text>}
         </View>
+        {entry.tags.length > 0 && (
+          <View style={styles.tagRow}>
+            {entry.tags.map((tag) => (
+              <View
+                key={tag.libraryTagId}
+                style={[styles.tagChip, !!tag.color && { borderColor: `${tag.color}66` }]}
+              >
+                {tag.kind === 'collection'
+                  ? <FolderOpen size={9} color={tag.color || Colors.textSecondary} />
+                  : <TagIcon size={9} color={tag.color || Colors.textSecondary} />}
+                <Text style={[styles.tagText, !!tag.color && { color: tag.color }]} numberOfLines={1}>
+                  {tag.name}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
       </View>
 
-      <ChevronRight size={16} color={Colors.zinc300} />
+      {selectionMode ? (
+        <View style={[styles.checkCircle, selected && styles.checkCircleOn]}>
+          {selected && <Check size={13} color={Colors.primaryForeground} />}
+        </View>
+      ) : (
+        <ChevronRight size={16} color={Colors.zinc300} />
+      )}
     </PressableScale>
   );
 
-  if (!onDelete) return card;
+  // Swipe-to-delete is suppressed in selection mode: a horizontal drag there reads as an attempt
+  // to pick rows, and a delete confirm on top of a multi-selection is a trap.
+  if (!onDelete || selectionMode) return card;
 
   return (
     <Swipeable
@@ -164,6 +204,12 @@ const styles = StyleSheet.create({
     padding: Spacing.three,
     ...Shadows.card,
   },
+  cardSelected: { borderWidth: 1, borderColor: Colors.primary, backgroundColor: `${Colors.primary}${Alpha.tint}` },
+  checkCircle: {
+    width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: Colors.border,
+    ...Layout.center,
+  },
+  checkCircleOn: { borderColor: Colors.primary, backgroundColor: Colors.primary },
   thumbWrap: {
     width: 88,
     height: 52,
@@ -194,4 +240,11 @@ const styles = StyleSheet.create({
   courseWrap: { ...Layout.row, gap: 5, flexShrink: 1 },
   courseDot: { width: 6, height: 6, borderRadius: 3 },
   metaText: { fontSize: 12, color: Colors.textSecondary },
+  tagRow: { ...Layout.row, gap: Spacing.one, flexWrap: 'wrap' },
+  tagChip: {
+    ...Layout.row, gap: 3,
+    borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.pill,
+    paddingHorizontal: 6, paddingVertical: 1,
+  },
+  tagText: { fontSize: 10, fontWeight: '600', color: Colors.textSecondary, maxWidth: 110 },
 });

@@ -13,12 +13,23 @@ export interface LoginResult {
   accessToken: string;
   refreshToken: string;
   user: User;
+  /** True when the password leg passed but a code is still owed; the tokens are empty. */
+  twoFactorRequired: boolean;
+  challengeToken: string | null;
 }
 
-const toRnResult = ({ accessToken, refreshToken, user }: Awaited<ReturnType<typeof core.login>>): LoginResult => ({
+const toRnResult = ({
   accessToken,
   refreshToken,
   user,
+  twoFactorRequired,
+  challengeToken,
+}: Awaited<ReturnType<typeof core.login>>): LoginResult => ({
+  accessToken,
+  refreshToken,
+  user,
+  twoFactorRequired,
+  challengeToken,
 });
 
 export const authService = {
@@ -28,6 +39,10 @@ export const authService = {
 
   async login(email: string, password: string): Promise<LoginResult> {
     return toRnResult(await core.login(email, password));
+  },
+
+  async verifyTwoFactor(challengeToken: string, code: string): Promise<LoginResult> {
+    return toRnResult(await core.verifyTwoFactor(challengeToken, code));
   },
 
   async oauthLogin(provider: 'google' | 'github', code: string, redirectUri: string): Promise<LoginResult> {

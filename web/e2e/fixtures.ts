@@ -371,6 +371,57 @@ export async function mockStudyApi(page: Page) {
       })
     }
 
+    // Security tab. These need their real object shapes for the same reason as the block above:
+    // the [] fallback is truthy, so `data.items` comes back undefined and the pager crashes on it.
+    if (path === '/api/security/2fa') {
+      return json(route, { enabled: false, enabledAt: null, recoveryCodesRemaining: 0 })
+    }
+    if (path === '/api/security/sessions') {
+      return json(route, [
+        {
+          sessionId: 'session-current',
+          deviceName: 'Chrome on macOS',
+          ipAddress: '203.0.113.7',
+          startedAt: now,
+          lastUsedAt: now,
+          expiresAt: now,
+          isCurrent: true,
+        },
+      ])
+    }
+    if (path === '/api/security/audit-log') {
+      return json(route, {
+        items: [
+          {
+            auditLogEntryId: 'audit-1',
+            action: 'auth.login.succeeded',
+            actorUserId: 'user-1',
+            subjectUserId: 'user-1',
+            targetType: null,
+            targetId: null,
+            metadataJson: null,
+            ipAddress: '203.0.113.7',
+            userAgent: null,
+            createdAt: now,
+          },
+        ],
+        page: 1,
+        pageSize: 25,
+        totalCount: 1,
+        totalPages: 1,
+        hasNextPage: false,
+        hasPreviousPage: false,
+      })
+    }
+    if (path === '/api/security/exports') return json(route, [])
+    if (path === '/api/library/tags') return json(route, [])
+    if (path === '/api/library/views') return json(route, [])
+    if (path === '/api/certificates') return json(route, [])
+    if (path === '/api/certificates/eligibility') return json(route, [])
+    if (path === '/api/peer-reviews') return json(route, [])
+    if (path === '/api/integrations/api-keys') return json(route, [])
+    if (path === '/api/integrations/webhooks') return json(route, [])
+
     // Filtering/searching/paging are server-side for the real endpoint, so the mock
     // has to honour ?type= and ?search= or the Library filter tests cannot pass.
     if (path === '/api/library') {

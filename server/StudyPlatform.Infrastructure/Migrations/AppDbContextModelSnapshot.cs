@@ -132,6 +132,107 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.ToTable("AiUsageLogs");
                 });
 
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.ApiKey", b =>
+                {
+                    b.Property<Guid>("ApiKeyId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("KeyHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime?>("LastUsedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Prefix")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Scopes")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("ApiKeyId");
+
+                    b.HasIndex("KeyHash")
+                        .IsUnique();
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("ApiKeys");
+                });
+
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.AuditLogEntry", b =>
+                {
+                    b.Property<Guid>("AuditLogEntryId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<Guid?>("ActorUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("MetadataJson")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("SubjectUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("TargetId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("TargetType")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.HasKey("AuditLogEntryId");
+
+                    b.HasIndex("Action", "CreatedAt");
+
+                    b.HasIndex("ActorUserId", "CreatedAt");
+
+                    b.HasIndex("SubjectUserId", "CreatedAt");
+
+                    b.ToTable("AuditLogEntries");
+                });
+
             modelBuilder.Entity("StudyPlatform.Domain.Entities.CacheEntry", b =>
                 {
                     b.Property<string>("Key")
@@ -268,6 +369,11 @@ namespace StudyPlatform.Infrastructure.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
 
+                    b.Property<bool>("EnrollmentOpen")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
                     b.Property<string>("JoinCode")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -294,6 +400,59 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.HasIndex("OrganizationId");
 
                     b.ToTable("Classrooms");
+                });
+
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.ClassroomAssignment", b =>
+                {
+                    b.Property<Guid>("ClassroomAssignmentId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("AllowLateSubmissions")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("ClassroomId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("CourseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("DueAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Instructions")
+                        .HasMaxLength(20000)
+                        .HasColumnType("character varying(20000)");
+
+                    b.Property<double>("PointsPossible")
+                        .HasColumnType("double precision");
+
+                    b.Property<DateTime?>("PublishedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("ClassroomAssignmentId");
+
+                    b.HasIndex("CourseId");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("ClassroomId", "DueAt");
+
+                    b.ToTable("ClassroomAssignments");
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.ClassroomCourse", b =>
@@ -359,6 +518,57 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.HasIndex("ClassroomId", "UserId");
 
                     b.ToTable("ClassroomEnrollments");
+                });
+
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.ClassroomSubmission", b =>
+                {
+                    b.Property<Guid>("ClassroomSubmissionId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ClassroomAssignmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Feedback")
+                        .HasMaxLength(20000)
+                        .HasColumnType("character varying(20000)");
+
+                    b.Property<DateTime?>("GradedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("GradedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<double?>("PointsAwarded")
+                        .HasColumnType("double precision");
+
+                    b.Property<Guid>("StudentUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("SubmittedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(100000)
+                        .HasColumnType("character varying(100000)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("ClassroomSubmissionId");
+
+                    b.HasIndex("GradedByUserId");
+
+                    b.HasIndex("StudentUserId");
+
+                    b.HasIndex("ClassroomAssignmentId", "StudentUserId")
+                        .IsUnique();
+
+                    b.ToTable("ClassroomSubmissions");
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.ConceptLink", b =>
@@ -534,6 +744,98 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.ToTable("CourseAudioOverviews");
                 });
 
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.CourseCertificate", b =>
+                {
+                    b.Property<Guid>("CourseCertificateId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("CourseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CourseName")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateTime>("IssuedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<double>("MasteryScore")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("PublicToken")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("RecipientName")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("CourseCertificateId");
+
+                    b.HasIndex("PublicToken")
+                        .IsUnique();
+
+                    b.HasIndex("UserId", "CourseId");
+
+                    b.ToTable("CourseCertificates");
+                });
+
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.DataExportRequest", b =>
+                {
+                    b.Property<Guid>("DataExportRequestId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("BlobUrl")
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
+
+                    b.Property<DateTime?>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long?>("SizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("StartedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("DataExportRequestId");
+
+                    b.HasIndex("Status", "CreatedAt");
+
+                    b.HasIndex("UserId", "CreatedAt");
+
+                    b.ToTable("DataExportRequests");
+                });
+
             modelBuilder.Entity("StudyPlatform.Domain.Entities.Document", b =>
                 {
                     b.Property<Guid>("DocumentId")
@@ -669,6 +971,52 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("DocumentAnnotations");
+                });
+
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.EssayPeerReview", b =>
+                {
+                    b.Property<Guid>("EssayPeerReviewId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("AssignedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("ClassroomId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("EssaySubmissionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("OverallComment")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<Guid>("ReviewerUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<double?>("ScorePercent")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("ScoresJson")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<DateTime?>("SubmittedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("EssayPeerReviewId");
+
+                    b.HasIndex("EssaySubmissionId", "ReviewerUserId")
+                        .IsUnique();
+
+                    b.HasIndex("ReviewerUserId", "Status");
+
+                    b.ToTable("EssayPeerReviews");
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.EssaySubmission", b =>
@@ -1231,6 +1579,70 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.ToTable("GroupNotes");
                 });
 
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.LibraryTag", b =>
+                {
+                    b.Property<Guid>("LibraryTagId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Color")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("LibraryTagId");
+
+                    b.HasIndex("UserId", "Kind", "Name")
+                        .IsUnique()
+                        .HasDatabaseName("IX_LibraryTags_User_Kind_Name");
+
+                    b.ToTable("LibraryTags");
+                });
+
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.LibraryTagAssignment", b =>
+                {
+                    b.Property<Guid>("LibraryTagId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ItemKind")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("AssignedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("LibraryTagId", "ItemKind", "ItemId");
+
+                    b.HasIndex("ItemKind", "ItemId");
+
+                    b.ToTable("LibraryTagAssignments");
+                });
+
             modelBuilder.Entity("StudyPlatform.Domain.Entities.MistakeEntry", b =>
                 {
                     b.Property<Guid>("MistakeEntryId")
@@ -1706,18 +2118,39 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("DeviceName")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
                     b.Property<DateTime>("ExpiresAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
 
                     b.Property<bool>("IsRevoked")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
                         .HasDefaultValue(false);
 
+                    b.Property<DateTime?>("LastUsedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("SessionId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Token")
                         .IsRequired()
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
 
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
@@ -1726,6 +2159,8 @@ namespace StudyPlatform.Infrastructure.Migrations
 
                     b.HasIndex("Token")
                         .IsUnique();
+
+                    b.HasIndex("UserId", "SessionId");
 
                     b.HasIndex("UserId", "IsRevoked", "ExpiresAt");
 
@@ -1768,6 +2203,44 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("Rubrics");
+                });
+
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.SavedLibraryView", b =>
+                {
+                    b.Property<Guid>("SavedLibraryViewId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("FiltersJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Icon")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("SavedLibraryViewId");
+
+                    b.HasIndex("UserId", "Position");
+
+                    b.ToTable("SavedLibraryViews");
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.ShareToken", b =>
@@ -2060,6 +2533,9 @@ namespace StudyPlatform.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasDefaultValue(30);
 
+                    b.Property<DateTime?>("DeletionRequestedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTime?>("DemoContentSeededAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -2184,6 +2660,40 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.ToTable("UserPushSubscriptions");
                 });
 
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.UserTwoFactor", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("EnabledAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<long>("LastUsedStep")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("RecoveryCodeHashesJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("SecretBase32")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("UserId");
+
+                    b.ToTable("UserTwoFactors");
+                });
+
             modelBuilder.Entity("StudyPlatform.Domain.Entities.Video", b =>
                 {
                     b.Property<Guid>("VideoId")
@@ -2280,6 +2790,52 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.HasIndex("ExpiresAt");
 
                     b.ToTable("VideoTranscriptEntries");
+                });
+
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.Webhook", b =>
+                {
+                    b.Property<Guid>("WebhookId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ConsecutiveFailures")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Events")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LastDeliveryAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("LastStatusCode")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Secret")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("Url")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("WebhookId");
+
+                    b.HasIndex("UserId", "IsActive");
+
+                    b.ToTable("Webhooks");
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.WorkedProblem", b =>
@@ -2417,6 +2973,17 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.ApiKey", b =>
+                {
+                    b.HasOne("StudyPlatform.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("StudyPlatform.Domain.Entities.ChatConversation", b =>
                 {
                     b.HasOne("StudyPlatform.Domain.Entities.Document", "Document")
@@ -2477,6 +3044,32 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Navigation("Organization");
                 });
 
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.ClassroomAssignment", b =>
+                {
+                    b.HasOne("StudyPlatform.Domain.Entities.Classroom", "Classroom")
+                        .WithMany()
+                        .HasForeignKey("ClassroomId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("StudyPlatform.Domain.Entities.Course", "Course")
+                        .WithMany()
+                        .HasForeignKey("CourseId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("StudyPlatform.Domain.Entities.User", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Classroom");
+
+                    b.Navigation("Course");
+
+                    b.Navigation("CreatedBy");
+                });
+
             modelBuilder.Entity("StudyPlatform.Domain.Entities.ClassroomCourse", b =>
                 {
                     b.HasOne("StudyPlatform.Domain.Entities.User", "AssignedBy")
@@ -2523,6 +3116,32 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.ClassroomSubmission", b =>
+                {
+                    b.HasOne("StudyPlatform.Domain.Entities.ClassroomAssignment", "Assignment")
+                        .WithMany("Submissions")
+                        .HasForeignKey("ClassroomAssignmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("StudyPlatform.Domain.Entities.User", "GradedBy")
+                        .WithMany()
+                        .HasForeignKey("GradedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("StudyPlatform.Domain.Entities.User", "Student")
+                        .WithMany()
+                        .HasForeignKey("StudentUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Assignment");
+
+                    b.Navigation("GradedBy");
+
+                    b.Navigation("Student");
+                });
+
             modelBuilder.Entity("StudyPlatform.Domain.Entities.ConceptLink", b =>
                 {
                     b.HasOne("StudyPlatform.Domain.Entities.User", "User")
@@ -2567,6 +3186,28 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Navigation("Course");
                 });
 
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.CourseCertificate", b =>
+                {
+                    b.HasOne("StudyPlatform.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.DataExportRequest", b =>
+                {
+                    b.HasOne("StudyPlatform.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("StudyPlatform.Domain.Entities.Document", b =>
                 {
                     b.HasOne("StudyPlatform.Domain.Entities.Course", "Course")
@@ -2603,6 +3244,25 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Navigation("Document");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.EssayPeerReview", b =>
+                {
+                    b.HasOne("StudyPlatform.Domain.Entities.EssaySubmission", "Submission")
+                        .WithMany()
+                        .HasForeignKey("EssaySubmissionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("StudyPlatform.Domain.Entities.User", "Reviewer")
+                        .WithMany()
+                        .HasForeignKey("ReviewerUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Reviewer");
+
+                    b.Navigation("Submission");
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.EssaySubmission", b =>
@@ -2755,6 +3415,28 @@ namespace StudyPlatform.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Group");
+                });
+
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.LibraryTag", b =>
+                {
+                    b.HasOne("StudyPlatform.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.LibraryTagAssignment", b =>
+                {
+                    b.HasOne("StudyPlatform.Domain.Entities.LibraryTag", "Tag")
+                        .WithMany("Assignments")
+                        .HasForeignKey("LibraryTagId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Tag");
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.MistakeEntry", b =>
@@ -2916,6 +3598,17 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.SavedLibraryView", b =>
+                {
+                    b.HasOne("StudyPlatform.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("StudyPlatform.Domain.Entities.ShareToken", b =>
                 {
                     b.HasOne("StudyPlatform.Domain.Entities.User", "Owner")
@@ -3023,6 +3716,17 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.UserTwoFactor", b =>
+                {
+                    b.HasOne("StudyPlatform.Domain.Entities.User", "User")
+                        .WithOne()
+                        .HasForeignKey("StudyPlatform.Domain.Entities.UserTwoFactor", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("StudyPlatform.Domain.Entities.Video", b =>
                 {
                     b.HasOne("StudyPlatform.Domain.Entities.Course", "Course")
@@ -3038,6 +3742,17 @@ namespace StudyPlatform.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Course");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.Webhook", b =>
+                {
+                    b.HasOne("StudyPlatform.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("User");
                 });
@@ -3095,6 +3810,11 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Navigation("Enrollments");
                 });
 
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.ClassroomAssignment", b =>
+                {
+                    b.Navigation("Submissions");
+                });
+
             modelBuilder.Entity("StudyPlatform.Domain.Entities.Course", b =>
                 {
                     b.Navigation("Documents");
@@ -3114,6 +3834,11 @@ namespace StudyPlatform.Infrastructure.Migrations
             modelBuilder.Entity("StudyPlatform.Domain.Entities.GroupAssignment", b =>
                 {
                     b.Navigation("Completions");
+                });
+
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.LibraryTag", b =>
+                {
+                    b.Navigation("Assignments");
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.Organization", b =>

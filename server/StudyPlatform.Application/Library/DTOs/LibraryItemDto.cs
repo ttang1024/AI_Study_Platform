@@ -23,4 +23,8 @@ public record LibraryItemDto(
     string? VideoId,
     string? VideoUrl,
     string? ThumbnailUrl,
-    string? SourceType);
+    string? SourceType,
+    IReadOnlyList<LibraryItemTagDto> Tags);
+
+/// <summary>A tag or collection as it appears on a library card: enough to render a chip.</summary>
+public record LibraryItemTagDto(Guid LibraryTagId, string Name, string Kind, string? Color);

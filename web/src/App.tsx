@@ -30,6 +30,8 @@ if (!localStorage.getItem('sp_access_token')) void landingLoader();
 const LandingPage = lazyPage(landingLoader, 'LandingPage');
 
 const DashboardPage = lazyPage(() => import('./pages/DashboardPage'), 'DashboardPage');
+// Public: a certificate link has to open for someone with no account.
+const VerifyCertificatePage = lazyPage(() => import('./pages/VerifyCertificatePage'), 'VerifyCertificatePage');
 const LibraryPage = lazyPage(() => import('./pages/LibraryPage'), 'LibraryPage');
 // Adding content (the old AI Summarizer) is its own page, not a Library tab.
 const AddContentPage = lazyPage(() => import('./pages/AddContentPage'), 'AddContentPage');
@@ -127,6 +129,7 @@ export default function App() {
                   <Route path="/login" element={<LoginPage />} />
                   <Route path="/register" element={<RegisterPage />} />
                   <Route path="/verify-email" element={<EmailVerificationPage />} />
+                  <Route path="/verify/:token" element={<VerifyCertificatePage />} />
 
                   <Route path="/" element={
                     <ProtectedRoute>

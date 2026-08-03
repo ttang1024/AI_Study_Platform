@@ -40,6 +40,11 @@ import {
   BentoCodeCard,
   BentoLanguageCard,
   BentoCitationCard,
+  BentoCertificateCard,
+  BentoPeerReviewCard,
+  BentoSecurityCard,
+  BentoTagsCard,
+  BentoApiCard,
 } from '../components/landing/bento';
 
 export const LandingPage: React.FC = () => {
@@ -177,13 +182,12 @@ export const LandingPage: React.FC = () => {
             {isAuthenticated ? 'Open App' : 'Sign In'} <ChevronRight className="w-4 h-4" />
           </button>
         </motion.div>
-        {/* {googleError && <p className="mt-4 text-sm text-red-300">{googleError}</p>} */}
 
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
           transition={{ duration: 0.8, delay: 0.9 }}
           className="flex flex-wrap justify-center gap-5 mt-14">
           {[
-            { to: 25, suffix: '+', label: 'AI-powered tools' },
+            { to: 30, suffix: '+', label: 'AI-powered tools' },
             { to: 100, suffix: '%', label: 'Free to start' },
             { to: 12, suffix: ' content types', label: '' },
           ].map((s, i) => (
@@ -227,7 +231,7 @@ export const LandingPage: React.FC = () => {
             <span style={{ background: 'linear-gradient(135deg, #e0f7ff, #a5f3fc)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Your Complete</span>{' '}
             <span style={{ background: 'linear-gradient(135deg, #14b8a6, #0891b2)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Study Suite</span>
           </h2>
-          <p className="mt-4 text-white/40 max-w-lg mx-auto">25+ AI-powered tools working together — for a solo cram session or a whole classroom.</p>
+          <p className="mt-4 text-white/40 max-w-lg mx-auto">30+ AI-powered tools working together — for a solo cram session or a whole classroom.</p>
         </FadeIn>
 
         <div className="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-auto">
@@ -286,24 +290,39 @@ export const LandingPage: React.FC = () => {
             <BentoEssayCard />
           </FadeIn>
           <FadeIn delay={0.38}>
+            <BentoPeerReviewCard />
+          </FadeIn>
+          <FadeIn delay={0.42}>
             <BentoCodeCard />
           </FadeIn>
           <FadeIn delay={0.42}>
             <BentoClassroomCard />
           </FadeIn>
           <FadeIn delay={0.42}>
-            <BentoLanguageCard />
-          </FadeIn>
-          <FadeIn delay={0.46} className="lg:col-span-2 lg:row-span-1">
-            <BentoEverywhereCard />
+            <BentoCertificateCard />
           </FadeIn>
           <FadeIn delay={0.46}>
-            <BentoOfflineCard />
+            <BentoLanguageCard />
           </FadeIn>
-          <FadeIn delay={0.50}>
+          <FadeIn delay={0.46}>
+            <BentoTagsCard />
+          </FadeIn>
+          <FadeIn delay={0.46}>
             <BentoSearchCard />
           </FadeIn>
-          <FadeIn delay={0.50} className="lg:col-span-2 lg:row-span-1">
+          <FadeIn delay={0.50}>
+            <BentoEverywhereCard />
+          </FadeIn>
+          <FadeIn delay={0.50}>
+            <BentoSecurityCard />
+          </FadeIn>
+          <FadeIn delay={0.50}>
+            <BentoOfflineCard />
+          </FadeIn>
+          <FadeIn delay={0.54}>
+            <BentoApiCard />
+          </FadeIn>
+          <FadeIn delay={0.54}>
             <BentoShareCard />
           </FadeIn>
         </div>

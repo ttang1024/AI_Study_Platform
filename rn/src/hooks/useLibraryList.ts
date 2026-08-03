@@ -5,6 +5,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { courseService } from '@/services/courseService';
 import { documentService } from '@/services/documentService';
 import { libraryService, type LibraryEntry, type LibraryFilterType } from '@/services/libraryService';
+import { libraryTagsService, type LibraryTag } from '@/services/libraryTagsService';
+import type { AssignSelectionItem } from '@/components/library/LibraryAssignSheet';
 import { videoService } from '@/services/videoService';
 import type { Course } from '@/types';
 
@@ -17,6 +19,14 @@ export const TYPE_FILTERS: { id: LibraryFilterType; label: string }[] = [
   { id: 'articles', label: 'Articles' },
   { id: 'audio', label: 'Audio' },
 ];
+
+/** Stable identity for a row — documents and videos have separate id spaces. */
+export const entryKey = (entry: LibraryEntry) => `${entry.kind}-${entry.data.id}`;
+
+const toSelectionItem = (entry: LibraryEntry): AssignSelectionItem => ({
+  ref: { itemKind: entry.kind, itemId: entry.data.id },
+  tagIds: entry.tags.map((t) => t.libraryTagId),
+});
 
 const isFilterType = (value: string | undefined): value is LibraryFilterType =>
   !!value && TYPE_FILTERS.some((filter) => filter.id === value);
@@ -34,6 +44,7 @@ interface LibraryQuery {
   type: LibraryFilterType;
   courseId: string | undefined;
   search: string;
+  tagIds: string[];
 }
 
 /**
@@ -50,6 +61,12 @@ export function useLibraryList() {
   const [refreshing, setRefreshing] = useState(false);
   const [courses, setCourses] = useState<Course[]>([]);
   const [activeCourseId, setActiveCourseId] = useState<string | null>(null);
+  const [tags, setTags] = useState<LibraryTag[]>([]);
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  // Long-pressing a row puts the list in selection mode for bulk tagging. Held as a map keyed by
+  // row so the tags each selected item already carries travel with it into the assign sheet.
+  const [selection, setSelection] = useState<Map<string, AssignSelectionItem>>(new Map());
+  const [assignVisible, setAssignVisible] = useState(false);
 
   // The route param seeds the filter and the chips override it. The override
   // records which param it was made under, so arriving with a *new* param (e.g.
@@ -63,6 +80,8 @@ export function useLibraryList() {
 
   useEffect(() => {
     courseService.getCourses().then(setCourses).catch(() => {});
+    // A failed tag fetch leaves the chips empty rather than blanking the library.
+    libraryTagsService.getTags().then((res) => setTags(res.data.data)).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -70,10 +89,23 @@ export function useLibraryList() {
     return () => clearTimeout(id);
   }, [search]);
 
+  // Keyed on the joined ids rather than the array: `query`'s identity is the staleness check for
+  // the fetch below, so a fresh array of the same ids on every render would refetch forever.
+  const tagKey = selectedTagIds.join(',');
   const query = useMemo<LibraryQuery>(
-    () => ({ type: activeType, courseId: activeCourseId ?? undefined, search: debouncedSearch }),
-    [activeType, activeCourseId, debouncedSearch],
+    () => ({
+      type: activeType,
+      courseId: activeCourseId ?? undefined,
+      search: debouncedSearch,
+      tagIds: tagKey ? tagKey.split(',') : [],
+    }),
+    [activeType, activeCourseId, debouncedSearch, tagKey],
   );
+
+  const toggleTag = useCallback((tagId: string) => {
+    setSelectedTagIds((prev) =>
+      prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]);
+  }, []);
 
   // Derived: we're loading exactly while the result we hold answers some other
   // query. `query` is memoized, so the identity check is the staleness check —
@@ -128,6 +160,46 @@ export function useLibraryList() {
     }
   }, [query]);
 
+  // ── Bulk tagging ──────────────────────────────────────────────────────────
+
+  const toggleSelected = useCallback((entry: LibraryEntry) => {
+    setSelection((prev) => {
+      const next = new Map(prev);
+      const key = entryKey(entry);
+      if (next.has(key)) next.delete(key);
+      else next.set(key, toSelectionItem(entry));
+      return next;
+    });
+  }, []);
+
+  const clearSelection = useCallback(() => setSelection(new Map()), []);
+
+  /**
+   * A bulk assign changed server state: reload the first page (so the rows carry their new tags)
+   * and the chip counts. Pages loaded past the first are dropped — the same reset `refresh` does.
+   */
+  const handleAssigned = useCallback(async (message: string) => {
+    libraryTagsService.getTags().then((res) => setTags(res.data.data)).catch(() => {});
+    try {
+      const data = await libraryService.getLibrary({ ...query, page: 1, pageSize: PAGE_SIZE });
+      setResult({ query, items: data.items, totalCount: data.totalCount, page: 1 });
+      // Re-sync the selection's tag state from what the server just returned, so the sheet's
+      // checkmarks describe reality rather than pre-assign state.
+      setSelection((prev) => {
+        if (prev.size === 0) return prev;
+        const next = new Map(prev);
+        for (const entry of data.items) {
+          const key = entryKey(entry);
+          if (next.has(key)) next.set(key, toSelectionItem(entry));
+        }
+        return next;
+      });
+    } catch {
+      // Leave the list as-is; the assign itself succeeded and a pull-to-refresh will resync.
+    }
+    Alert.alert('Library updated', message);
+  }, [query]);
+
   const openEntry = useCallback((entry: LibraryEntry) => {
     if (entry.kind === 'document') router.push(`/(tabs)/library/document/${entry.data.id}?courseId=${entry.data.courseId}`);
     else router.push(`/(tabs)/library/video/${entry.data.id}`);
@@ -176,8 +248,11 @@ export function useLibraryList() {
     search, setSearch,
     activeType, setActiveType,
     courses, activeCourseId, setActiveCourseId,
+    tags, selectedTagIds, toggleTag,
     loading, items, totalCount, loadingMore, refreshing,
     onEndReached, refresh, openEntry, deleteEntry,
+    selection, toggleSelected, clearSelection,
+    assignVisible, setAssignVisible, handleAssigned,
   };
 }
 

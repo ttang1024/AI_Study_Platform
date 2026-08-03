@@ -39,6 +39,27 @@ public record GradebookCell(
     long StudyMinutes,
     DateTime? LastActivityAt);
 
+/// <summary>
+/// A published assignment, as a gradebook column. Drafts are excluded — they are the instructor's
+/// private workspace and nobody has been able to submit to one.
+/// </summary>
+public record GradebookAssignment(
+    Guid ClassroomAssignmentId,
+    string Title,
+    double PointsPossible,
+    DateTime? DueAt);
+
+/// <summary>
+/// One student's standing on one assignment. <paramref name="Status"/> is a SubmissionStatus value,
+/// and PointsAwarded stays null until the grade is actually released — an ungraded hand-in and a zero
+/// are different facts.
+/// </summary>
+public record GradebookSubmissionCell(
+    Guid ClassroomAssignmentId,
+    string Status,
+    double? PointsAwarded,
+    DateTime? SubmittedAt);
+
 public record GradebookRow(
     Guid UserId,
     string FullName,
@@ -46,12 +67,18 @@ public record GradebookRow(
     IReadOnlyList<GradebookCell> Cells,
     double? OverallScorePercent,
     long TotalStudyMinutes,
-    DateTime? LastActivityAt);
+    DateTime? LastActivityAt,
+    IReadOnlyList<GradebookSubmissionCell> Assignments,
+    /// <summary>Points earned over points available, across graded assignments only.</summary>
+    double? AssignmentScorePercent,
+    int AssignmentsSubmitted,
+    int AssignmentsGraded);
 
 public record ClassroomGradebook(
     Guid ClassroomId,
     IReadOnlyList<GradebookCourse> Courses,
-    IReadOnlyList<GradebookRow> Rows);
+    IReadOnlyList<GradebookRow> Rows,
+    IReadOnlyList<GradebookAssignment> Assignments);
 
 public record TopicMastery(string Topic, int Attempted, int Correct);
 
@@ -61,4 +88,7 @@ public record StudentClassroomDetail(
     string Email,
     IReadOnlyList<GradebookCell> Cells,
     IReadOnlyList<TopicMastery> WeakestTopics,
-    IReadOnlyList<DailyCount> StudyMinutesTrend);
+    IReadOnlyList<DailyCount> StudyMinutesTrend,
+    IReadOnlyList<GradebookAssignment> Assignments,
+    IReadOnlyList<GradebookSubmissionCell> Submissions,
+    double? AssignmentScorePercent);

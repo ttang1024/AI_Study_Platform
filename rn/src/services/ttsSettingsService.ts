@@ -1,32 +1,27 @@
 import * as SecureStore from 'expo-secure-store';
 
-export interface TtsSettings {
-  voice: string;
-}
+// Shape, storage key, default voice, and voice resolution are shared with web/ via
+// packages/core; only the storage is per-platform — expo-secure-store (async) here,
+// per the aiSettingsService.ts convention.
+import { TTS_SETTINGS_STORAGE_KEY, parseTtsSettings, resolveVoice } from '@core/settings';
+import type { TtsSettings } from '@core/settings';
 
-const STORAGE_KEY = 'sp_tts_settings';
+export type { TtsSettings } from '@core/settings';
 
-const DEFAULTS: TtsSettings = {
-  voice: 'en-US-AriaNeural',
-};
-
-// Mirrors web/src/services/ttsSettingsService.ts, swapping localStorage for
-// expo-secure-store (async) per the aiSettingsService.ts convention.
 export const ttsSettingsService = {
   async load(): Promise<TtsSettings> {
     try {
-      const raw = await SecureStore.getItemAsync(STORAGE_KEY);
-      if (raw) return { ...DEFAULTS, ...JSON.parse(raw) };
-    } catch {}
-    return { ...DEFAULTS };
+      return parseTtsSettings(await SecureStore.getItemAsync(TTS_SETTINGS_STORAGE_KEY));
+    } catch {
+      return parseTtsSettings(null);
+    }
   },
 
   async save(settings: TtsSettings): Promise<void> {
-    await SecureStore.setItemAsync(STORAGE_KEY, JSON.stringify(settings));
+    await SecureStore.setItemAsync(TTS_SETTINGS_STORAGE_KEY, JSON.stringify(settings));
   },
 
   async getVoice(): Promise<string> {
-    const settings = await ttsSettingsService.load();
-    return settings.voice.trim() || DEFAULTS.voice;
+    return resolveVoice(await ttsSettingsService.load());
   },
 };

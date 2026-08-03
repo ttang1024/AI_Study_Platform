@@ -5,19 +5,9 @@ import { motion } from 'motion/react';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/common/Button';
 import { cn } from '../utils/cn';
-import { getPublicEnv } from '../utils/env';
+import { GITHUB_CLIENT_ID, GOOGLE_CLIENT_ID, buildOAuthUrl } from '../utils/oauth';
 import { validatePassword } from '@core/utils/validatePassword';
 
-const GOOGLE_CLIENT_ID = getPublicEnv('NEXT_PUBLIC_GOOGLE_CLIENT_ID') ?? getPublicEnv('VITE_GOOGLE_CLIENT_ID');
-const GITHUB_CLIENT_ID = getPublicEnv('NEXT_PUBLIC_GITHUB_CLIENT_ID') ?? getPublicEnv('VITE_GITHUB_CLIENT_ID');
-
-function buildOAuthUrl(provider: 'google' | 'github'): string {
-  const redirectUri = encodeURIComponent(`${window.location.origin}/auth/callback`);
-  if (provider === 'google') {
-    return `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${redirectUri}&scope=email%20profile&response_type=code&state=google`;
-  }
-  return `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${redirectUri}&scope=read:user%20user:email&state=github`;
-}
 
 export const RegisterPage: React.FC = () => {
   const navigate = useNavigate();

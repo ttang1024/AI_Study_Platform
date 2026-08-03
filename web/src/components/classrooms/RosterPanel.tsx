@@ -1,5 +1,5 @@
-import React from 'react';
-import { Trash2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { Trash2, UserPlus } from 'lucide-react';
 import type { ClassroomDetail, ClassroomRole } from '../../services/classroomService';
 
 interface Props {
@@ -8,6 +8,7 @@ interface Props {
   currentUserId?: string;
   onSetRole: (userId: string, role: ClassroomRole) => void;
   onRemove: (userId: string) => void;
+  onAddMember?: (email: string, role: ClassroomRole) => Promise<string | null>;
 }
 
 const ROLE_LABELS: Record<ClassroomRole, string> = {
@@ -16,11 +17,21 @@ const ROLE_LABELS: Record<ClassroomRole, string> = {
   student: 'Student',
 };
 
-export const RosterPanel: React.FC<Props> = ({ detail, canManage, currentUserId, onSetRole, onRemove }) => {
+export const RosterPanel: React.FC<Props> = ({
+  detail,
+  canManage,
+  currentUserId,
+  onSetRole,
+  onRemove,
+  onAddMember,
+}) => {
   const instructorCount = detail.roster.filter((r) => r.role === 'instructor').length;
 
   return (
-    <div className="rounded-xl border border-border overflow-hidden">
+    <div className="space-y-4">
+      {canManage && onAddMember && <AddMemberRow onAdd={onAddMember} />}
+
+      <div className="rounded-xl border border-border overflow-hidden">
       <table className="w-full text-sm">
         <tbody>
           {detail.roster.map((entry) => {
@@ -72,6 +83,80 @@ export const RosterPanel: React.FC<Props> = ({ detail, canManage, currentUserId,
           })}
         </tbody>
       </table>
+      </div>
+    </div>
+  );
+};
+
+/**
+ * Enroll by email. The account has to exist already — the server will not create one — so the error
+ * it returns is shown verbatim rather than reworded, since "no account exists for that email" is
+ * something the instructor has to act on outside this screen.
+ */
+const AddMemberRow: React.FC<{ onAdd: (email: string, role: ClassroomRole) => Promise<string | null> }> = ({
+  onAdd,
+}) => {
+  const [email, setEmail] = useState('');
+  const [role, setRole] = useState<ClassroomRole>('student');
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
+
+  const submit = async () => {
+    if (!email.trim()) return;
+    setBusy(true);
+    setMessage(null);
+    const error = await onAdd(email.trim(), role);
+    if (error) {
+      setMessage({ text: error, ok: false });
+    } else {
+      setMessage({ text: 'Added to the classroom.', ok: true });
+      setEmail('');
+    }
+    setBusy(false);
+  };
+
+  return (
+    <div className="rounded-xl border border-border p-4">
+      <div className="flex flex-wrap items-end gap-2">
+        <div className="flex-1 min-w-[200px]">
+          <label className="block text-sm text-text-muted mb-1" htmlFor="add-member-email">
+            Add by email
+          </label>
+          <input
+            id="add-member-email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && void submit()}
+            placeholder="student@school.edu"
+            className="w-full px-3 py-2 rounded-lg border border-border bg-surface text-sm"
+          />
+        </div>
+        <select
+          value={role}
+          onChange={(e) => setRole(e.target.value as ClassroomRole)}
+          aria-label="Role"
+          className="px-3 py-2 rounded-lg border border-border bg-surface text-sm"
+        >
+          {(Object.keys(ROLE_LABELS) as ClassroomRole[]).map((r) => (
+            <option key={r} value={r}>
+              {ROLE_LABELS[r]}
+            </option>
+          ))}
+        </select>
+        <button
+          onClick={() => void submit()}
+          disabled={busy || !email.trim()}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-teal-600 text-white text-sm font-medium hover:bg-teal-700 disabled:opacity-50"
+        >
+          <UserPlus className="w-4 h-4" />
+          {busy ? 'Adding…' : 'Add'}
+        </button>
+      </div>
+
+      {message && (
+        <p className={`text-sm mt-2 ${message.ok ? 'text-emerald-600' : 'text-red-600'}`}>{message.text}</p>
+      )}
     </div>
   );
 };

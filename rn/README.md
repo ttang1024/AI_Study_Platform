@@ -6,10 +6,10 @@ phone. It talks to the same .NET backend in `../server`.
 
 ## Features
 
-**Study core** — Library (courses, documents, videos, podcasts) with server-paginated search,
-document/video detail with summaries, mind maps, PDF viewing with cross-platform highlights/annotations,
-FSRS flashcard review, quizzes (client-graded, timed exams, server-graded planner mock exams),
-notes with a rich-text editor, glossary, worked problems, and a practice center.
+**Study core** — Library (courses, documents, videos, podcasts) with server-paginated search and
+tag filtering, document/video detail with summaries, mind maps, PDF viewing with cross-platform
+highlights/annotations, FSRS flashcard review, quizzes (client-graded, timed exams, server-graded
+planner mock exams), notes with a rich-text editor, glossary, worked problems, and a practice center.
 
 **AI tools** — general and document/video-scoped chat (with image/PDF attachments and voice input),
 "Ask the library" RAG search, summarizer for ~50 document formats plus video/web/audio/pasted-text
@@ -17,8 +17,13 @@ sources, AI cram sheets, study planner schedules, and an AI usage view (Settings
 spend and estimated cost broken down by provider and model).
 
 **Social & progress** — study groups with realtime chat (SignalR), quiz battles, live study rooms with
-shared pomodoro, assignments, leaderboards, achievements, insights/analytics charts, knowledge-graph
-concepts and gaps, recommendations, and public share links (create and view).
+shared pomodoro, assignments, peer review of classmates' essay drafts, leaderboards, achievements,
+insights/analytics charts, knowledge-graph concepts and gaps, recommendations, and public share links
+(create and view).
+
+**Account** — Settings covers two-factor enrolment (authenticator QR + recovery codes), the list of
+signed-in devices with per-device and sign-out-everywhere revocation, your security log, data export
+and account deletion, course-completion certificates with their share links, and API keys / webhooks.
 
 **Mobile-native** — biometric app lock (Face ID / Touch ID / fingerprint), camera scan of textbook
 pages or handwritten notes into the summarizer (backend OCR), haptic feedback on flashcard grading and

@@ -4,8 +4,11 @@ namespace StudyPlatform.Domain.Entities;
 /// A roster of students taught by one or more instructors inside an <see cref="Organization"/>.
 ///
 /// Distinct from StudyGroup on purpose: a study group is peer-to-peer and every member is equal,
-/// whereas a classroom has an asymmetric role model — instructors read student submissions, students
-/// cannot read each other's. Keeping them separate avoids retrofitting privilege onto the peer model.
+/// whereas a classroom has an asymmetric role model. Instructors read every student's submitted work
+/// (see <see cref="ClassroomAssignment"/>) and their whole progress row in the gradebook; a student
+/// reads only their own of either. Keeping them separate avoids retrofitting privilege onto the peer
+/// model — <see cref="ClassroomRoles"/> is the gate, and Application/Classrooms/ClassroomAccess is
+/// the single place it is checked.
 /// </summary>
 public class Classroom
 {
@@ -14,8 +17,21 @@ public class Classroom
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
 
-    /// <summary>Short code students enter to enroll themselves. Unique across the platform.</summary>
+    /// <summary>
+    /// Short code students enter to enroll themselves. Unique across the platform.
+    ///
+    /// A bearer credential for the roster, so it is rotatable: a code read aloud in a room or posted
+    /// in a group chat cannot be un-shared, and before rotation existed the only remedy was archiving
+    /// the whole class.
+    /// </summary>
     public string JoinCode { get; set; } = string.Empty;
+
+    /// <summary>
+    /// When false the join code is refused outright, whatever it is. Rotating invalidates the old
+    /// code; closing stops self-enrollment altogether — an instructor who has finished admitting a
+    /// cohort should not have to keep a live credential in circulation to keep the class working.
+    /// </summary>
+    public bool EnrollmentOpen { get; set; } = true;
 
     /// <summary>The user who created the classroom. Always enrolled as an instructor.</summary>
     public Guid CreatedByUserId { get; set; }

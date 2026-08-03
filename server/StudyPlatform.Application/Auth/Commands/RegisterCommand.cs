@@ -20,17 +20,20 @@ public class RegisterCommandHandler : IRequestHandler<RegisterCommand, Result<Au
     private readonly ITokenService _tokenService;
     private readonly IEmailService _emailService;
     private readonly IPasswordHasher _passwordHasher;
+    private readonly IRequestContext _requestContext;
 
     public RegisterCommandHandler(
         IUnitOfWork unitOfWork,
         ITokenService tokenService,
         IEmailService emailService,
-        IPasswordHasher passwordHasher)
+        IPasswordHasher passwordHasher,
+        IRequestContext requestContext)
     {
         _unitOfWork = unitOfWork;
         _tokenService = tokenService;
         _emailService = emailService;
         _passwordHasher = passwordHasher;
+        _requestContext = requestContext;
     }
 
     public async Task<Result<AuthResponse>> Handle(RegisterCommand request, CancellationToken cancellationToken)
@@ -61,15 +64,7 @@ public class RegisterCommandHandler : IRequestHandler<RegisterCommand, Result<Au
 
         var accessToken = _tokenService.GenerateAccessToken(user);
         var refreshTokenValue = _tokenService.GenerateRefreshToken();
-        var refreshToken = new RefreshToken
-        {
-            TokenId = Guid.NewGuid(),
-            UserId = user.UserId,
-            Token = refreshTokenValue,
-            ExpiresAt = DateTime.UtcNow.AddDays(7),
-            IsRevoked = false,
-            CreatedAt = DateTime.UtcNow
-        };
+        var refreshToken = RefreshTokenFactory.Create(user.UserId, refreshTokenValue, _requestContext);
 
         await _unitOfWork.RefreshTokens.AddAsync(refreshToken, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);

@@ -11,8 +11,10 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using StackExchange.Redis;
+using StudyPlatform.API.Auth;
 using StudyPlatform.API.HealthChecks;
 using StudyPlatform.API.Hubs;
+using StudyPlatform.API.Json;
 using StudyPlatform.API.Middleware;
 using StudyPlatform.API.Services;
 using StudyPlatform.Application;
@@ -37,7 +39,11 @@ builder.Services.Configure<BrotliCompressionProviderOptions>(o => o.Level = Comp
 builder.Services.Configure<GzipCompressionProviderOptions>(o => o.Level = CompressionLevel.Fastest);
 
 // Add services to the container
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    // Timestamp columns are timestamptz, which Npgsql will only write from a UTC DateTime.
+    // Coerce on the way in so an unzoned client value (a date picker's "2026-08-10") can't
+    // reach SaveChangesAsync and 500 there.
+    .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new UtcDateTimeConverter()));
 builder.Services.AddEndpointsApiExplorer();
 
 // Swagger / OpenAPI
@@ -87,9 +93,21 @@ var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException(
 
 builder.Services.AddAuthentication(options =>
 {
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    // A selector rather than a fixed default, so one [Authorize] works for both a browser session
+    // and a script holding an API key. The key's "sp_" prefix is what makes the choice unambiguous
+    // when both arrive in the same Authorization header shape.
+    options.DefaultScheme = "JwtOrApiKey";
     options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
 })
+.AddPolicyScheme("JwtOrApiKey", "JWT or API key", options =>
+{
+    options.ForwardDefaultSelector = context =>
+        ApiKeyAuthenticationHandler.ReadKey(context.Request) != null
+            ? ApiKeyAuthenticationOptions.SchemeName
+            : JwtBearerDefaults.AuthenticationScheme;
+})
+.AddScheme<ApiKeyAuthenticationOptions, ApiKeyAuthenticationHandler>(
+    ApiKeyAuthenticationOptions.SchemeName, _ => { })
 .AddJwtBearer(options =>
 {
     options.TokenValidationParameters = new TokenValidationParameters
@@ -277,6 +295,13 @@ builder.Services.AddHostedService<EmbeddingBackfillWorker>();
 
 // Daily "cards due" web-push reminders (no-op until VAPID keys are configured).
 builder.Services.AddHostedService<DueReviewPushWorker>();
+
+// Builds queued "download my data" archives. Safe on every replica: exports carry no per-caller
+// credentials, and the Pending → Running claim is conditional, so two instances cannot build one twice.
+builder.Services.AddHostedService<DataExportWorker>();
+
+// Erases accounts once their deletion grace period expires.
+builder.Services.AddHostedService<AccountDeletionWorker>();
 
 // Health checks.
 //

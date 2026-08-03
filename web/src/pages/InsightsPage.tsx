@@ -1,13 +1,14 @@
 import React, { lazy } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
-import { BarChart3, Target, Brain, Network } from 'lucide-react';
+import { BarChart3, Target, Brain, Network, Award } from 'lucide-react';
 import { AnalyticsSection } from '../components/dashboard/AnalyticsSection';
 import { ReinforcementPanel } from '../components/reinforcement/ReinforcementPanel';
 import { RetentionSection } from '../components/dashboard/RetentionSection';
 import { CalibrationSection } from '../components/dashboard/CalibrationSection';
+import { CertificatesPanel } from '../components/insights/CertificatesPanel';
 import { PageTab, PageTabBar, PageTabBlurb, PageTabPanels, useTabParam } from '../components/common/PageTabs';
 
-type Tab = 'analytics' | 'retention' | 'reinforcement' | 'graph';
+type Tab = 'analytics' | 'retention' | 'reinforcement' | 'graph' | 'certificates';
 
 /** Two kinds of calibration, side by side: RetentionSection grades the FSRS scheduler's predicted
  *  recall, CalibrationSection grades the learner's own sense of what they know. */
@@ -43,6 +44,15 @@ const TABS: PageTab<Tab>[] = [
     icon: Target,
     panel: ReinforcementPanel,
     blurb: 'Strengthen weak areas from quiz mistakes, hard flashcards and unmastered terms.',
+  },
+  {
+    // Sits after the mastery views it is earned from — the score on the Analytics tab is the same
+    // number that unlocks a certificate here.
+    id: 'certificates',
+    label: 'Certificates',
+    icon: Award,
+    panel: CertificatesPanel,
+    blurb: 'Claim and share proof of the courses you have mastered.',
   },
   {
     id: 'graph',

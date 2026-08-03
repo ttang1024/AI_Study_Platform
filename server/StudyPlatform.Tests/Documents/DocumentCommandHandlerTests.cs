@@ -15,12 +15,14 @@ public class DeleteDocumentCommandHandlerTests
     private readonly Mock<IDocumentRepository> _documents = new();
     private readonly Mock<IBlobStorageService> _storage = new();
     private readonly Mock<IEmbeddingIndex> _embeddingIndex = new();
+    private readonly Mock<ILibraryTagRepository> _libraryTags = new();
     private readonly DeleteDocumentCommandHandler _handler;
     private readonly Guid _userId = Guid.NewGuid();
 
     public DeleteDocumentCommandHandlerTests()
     {
         _uow.Setup(u => u.Documents).Returns(_documents.Object);
+        _uow.Setup(u => u.LibraryTags).Returns(_libraryTags.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
         _handler = new DeleteDocumentCommandHandler(_uow.Object, _storage.Object, _embeddingIndex.Object);
     }

@@ -44,6 +44,29 @@ public static class InfrastructureServiceExtensions
         // Unified library list (documents + videos merged, server-paginated)
         services.AddScoped<ILibraryRepository, LibraryRepository>();
 
+        // Security trail. Read through its own repository rather than the unit of work: nothing
+        // writes audit rows transactionally, so it has no business enlisting in anyone's save.
+        services.AddScoped<IAuditLogRepository, AuditLogRepository>();
+        // Singleton for the same reason AiUsageRecorder is one — it opens a scope per write so an
+        // audit entry survives the operation it describes failing.
+        services.AddSingleton<IAuditLogger, AuditLogger>();
+
+        services.AddSingleton<ITotpService, TotpService>();
+        services.AddScoped<IRequestContext, HttpRequestContext>();
+        services.AddScoped<IDataExportBuilder, DataExportBuilder>();
+        services.AddScoped<IAccountEraser, AccountEraser>();
+        services.AddScoped<IMarkdownExportBuilder, MarkdownExportBuilder>();
+
+        // Outbound webhooks. The URL is user-supplied and fetched by the server, so this goes
+        // through the same per-hop private-IP guard as calendar, podcast, and clipper ingestion —
+        // an unguarded client here would make the platform a probe of its own network.
+        services.AddHttpClient<IWebhookDispatcher, WebhookDispatcher>(client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(10);
+            client.DefaultRequestHeaders.Add("User-Agent", "StudyPlatform-Webhooks");
+        })
+        .ConfigurePrimaryHttpMessageHandler(() => SsrfGuard.CreateHandler());
+
         // Services
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<IEmailService, EmailService>();

@@ -65,6 +65,11 @@ public class ClassroomConfiguration : IEntityTypeConfiguration<Classroom>
         builder.Property(c => c.CreatedAt).IsRequired();
         builder.Property(c => c.UpdatedAt).IsRequired();
 
+        // Defaults true, and the default is declared here rather than left to the C# initializer so
+        // the generated migration backfills existing rows as open. A bool column added without one
+        // lands as false, which would silently close enrollment on every classroom already running.
+        builder.Property(c => c.EnrollmentOpen).IsRequired().HasDefaultValue(true);
+
         builder.HasIndex(c => c.JoinCode).IsUnique();
         builder.HasIndex(c => c.OrganizationId);
 
@@ -125,5 +130,74 @@ public class ClassroomCourseConfiguration : IEntityTypeConfiguration<ClassroomCo
             .WithMany()
             .HasForeignKey(cc => cc.AssignedByUserId)
             .OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+public class ClassroomAssignmentConfiguration : IEntityTypeConfiguration<ClassroomAssignment>
+{
+    public void Configure(EntityTypeBuilder<ClassroomAssignment> builder)
+    {
+        builder.HasKey(a => a.ClassroomAssignmentId);
+
+        builder.Property(a => a.Title).IsRequired().HasMaxLength(200);
+        builder.Property(a => a.Instructions).HasMaxLength(20000);
+        builder.Property(a => a.PointsPossible).IsRequired();
+        builder.Property(a => a.AllowLateSubmissions).IsRequired();
+        builder.Property(a => a.CreatedAt).IsRequired();
+        builder.Property(a => a.UpdatedAt).IsRequired();
+
+        // The list query filters by classroom and orders by due date.
+        builder.HasIndex(a => new { a.ClassroomId, a.DueAt });
+
+        builder.HasOne(a => a.Classroom)
+            .WithMany()
+            .HasForeignKey(a => a.ClassroomId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // Unassigning a course must not delete work already handed in against it, so the link goes
+        // null rather than cascading.
+        builder.HasOne(a => a.Course)
+            .WithMany()
+            .HasForeignKey(a => a.CourseId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasOne(a => a.CreatedBy)
+            .WithMany()
+            .HasForeignKey(a => a.CreatedByUserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasMany(a => a.Submissions)
+            .WithOne(s => s.Assignment)
+            .HasForeignKey(s => s.ClassroomAssignmentId)
+            .OnDelete(DeleteBehavior.Cascade);
+    }
+}
+
+public class ClassroomSubmissionConfiguration : IEntityTypeConfiguration<ClassroomSubmission>
+{
+    public void Configure(EntityTypeBuilder<ClassroomSubmission> builder)
+    {
+        builder.HasKey(s => s.ClassroomSubmissionId);
+
+        builder.Property(s => s.Text).IsRequired().HasMaxLength(100000);
+        builder.Property(s => s.Feedback).HasMaxLength(20000);
+        builder.Property(s => s.CreatedAt).IsRequired();
+        builder.Property(s => s.UpdatedAt).IsRequired();
+
+        // One submission per student per assignment: a resubmission overwrites the draft in place.
+        // Unlike EssaySubmission there is no revision chain here — the instructor grades what was
+        // handed in, and keeping superseded drafts would make "the submission" ambiguous.
+        builder.HasIndex(s => new { s.ClassroomAssignmentId, s.StudentUserId }).IsUnique();
+        builder.HasIndex(s => s.StudentUserId);
+
+        builder.HasOne(s => s.Student)
+            .WithMany()
+            .HasForeignKey(s => s.StudentUserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne(s => s.GradedBy)
+            .WithMany()
+            .HasForeignKey(s => s.GradedByUserId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

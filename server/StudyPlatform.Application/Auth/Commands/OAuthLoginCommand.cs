@@ -15,12 +15,16 @@ public class OAuthLoginCommandHandler : IRequestHandler<OAuthLoginCommand, Resul
     private readonly IUnitOfWork _unitOfWork;
     private readonly ITokenService _tokenService;
     private readonly IOAuthService _oAuthService;
+    private readonly IRequestContext _requestContext;
 
-    public OAuthLoginCommandHandler(IUnitOfWork unitOfWork, ITokenService tokenService, IOAuthService oAuthService)
+    public OAuthLoginCommandHandler(
+        IUnitOfWork unitOfWork, ITokenService tokenService, IOAuthService oAuthService,
+        IRequestContext requestContext)
     {
         _unitOfWork = unitOfWork;
         _tokenService = tokenService;
         _oAuthService = oAuthService;
+        _requestContext = requestContext;
     }
 
     public async Task<Result<AuthResponse>> Handle(OAuthLoginCommand request, CancellationToken cancellationToken)
@@ -52,15 +56,7 @@ public class OAuthLoginCommandHandler : IRequestHandler<OAuthLoginCommand, Resul
 
         var accessToken = _tokenService.GenerateAccessToken(user);
         var refreshTokenValue = _tokenService.GenerateRefreshToken();
-        var refreshToken = new RefreshToken
-        {
-            TokenId = Guid.NewGuid(),
-            UserId = user.UserId,
-            Token = refreshTokenValue,
-            ExpiresAt = DateTime.UtcNow.AddDays(7),
-            IsRevoked = false,
-            CreatedAt = DateTime.UtcNow
-        };
+        var refreshToken = RefreshTokenFactory.Create(user.UserId, refreshTokenValue, _requestContext);
 
         await _unitOfWork.RefreshTokens.AddAsync(refreshToken, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -83,11 +79,16 @@ public class GoogleCredentialLoginCommandHandler : IRequestHandler<GoogleCredent
     private readonly ITokenService _tokenService;
     private readonly IOAuthService _oAuthService;
 
-    public GoogleCredentialLoginCommandHandler(IUnitOfWork unitOfWork, ITokenService tokenService, IOAuthService oAuthService)
+    private readonly IRequestContext _requestContext;
+
+    public GoogleCredentialLoginCommandHandler(
+        IUnitOfWork unitOfWork, ITokenService tokenService, IOAuthService oAuthService,
+        IRequestContext requestContext)
     {
         _unitOfWork = unitOfWork;
         _tokenService = tokenService;
         _oAuthService = oAuthService;
+        _requestContext = requestContext;
     }
 
     public async Task<Result<AuthResponse>> Handle(GoogleCredentialLoginCommand request, CancellationToken cancellationToken)
@@ -119,15 +120,7 @@ public class GoogleCredentialLoginCommandHandler : IRequestHandler<GoogleCredent
 
         var accessToken = _tokenService.GenerateAccessToken(user);
         var refreshTokenValue = _tokenService.GenerateRefreshToken();
-        var refreshToken = new RefreshToken
-        {
-            TokenId = Guid.NewGuid(),
-            UserId = user.UserId,
-            Token = refreshTokenValue,
-            ExpiresAt = DateTime.UtcNow.AddDays(7),
-            IsRevoked = false,
-            CreatedAt = DateTime.UtcNow
-        };
+        var refreshToken = RefreshTokenFactory.Create(user.UserId, refreshTokenValue, _requestContext);
 
         await _unitOfWork.RefreshTokens.AddAsync(refreshToken, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);

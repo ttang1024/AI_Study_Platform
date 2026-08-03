@@ -1,4 +1,5 @@
 using Moq;
+using StudyPlatform.Application.Billing;
 using StudyPlatform.Application.Classrooms;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
@@ -183,6 +184,142 @@ public class ClassroomAccessTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal("FORBIDDEN", result.ErrorCode);
+    }
+
+    // ── Archived classrooms are read-only ────────────────────────────────────
+
+    private void Archived() =>
+        _classrooms.Setup(r => r.GetByIdAsync(_classroomId, default))
+            .ReturnsAsync(new Classroom
+            {
+                ClassroomId = _classroomId,
+                OrganizationId = _orgId,
+                ArchivedAt = DateTime.UtcNow.AddDays(-1)
+            });
+
+    [Fact]
+    public async Task RequireWritable_ArchivedClassroom_RefusesEvenTheInstructor()
+    {
+        // Read-only means read-only for everyone — that is what makes an archived gradebook a record.
+        EnrolledAs(ClassroomRoles.Instructor);
+        Archived();
+
+        var result = await ClassroomAccess.RequireWritableAsync(
+            _uow.Object, _classroomId, _userId, manager: true, default);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("CLASSROOM_ARCHIVED", result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task RequireWritable_ArchivedClassroom_RefusesAStudentLeaving()
+    {
+        // A soft-removed enrollment drops out of the gradebook's rows, so letting anyone leave an
+        // archived class would quietly rewrite its results.
+        EnrolledAs(ClassroomRoles.Student);
+        Archived();
+
+        var result = await ClassroomAccess.RequireWritableAsync(
+            _uow.Object, _classroomId, _userId, manager: false, default);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("CLASSROOM_ARCHIVED", result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task RequireWritable_LiveClassroom_PassesTheRoleThrough()
+    {
+        EnrolledAs(ClassroomRoles.Instructor);
+
+        var result = await ClassroomAccess.RequireWritableAsync(
+            _uow.Object, _classroomId, _userId, manager: true, default);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(ClassroomRoles.Instructor, result.Data);
+    }
+
+    [Fact]
+    public async Task RequireWritable_ChecksTheRoleBeforeTheArchiveState()
+    {
+        // A student must not learn whether a classroom they cannot manage happens to be archived.
+        EnrolledAs(ClassroomRoles.Student);
+        Archived();
+
+        var result = await ClassroomAccess.RequireWritableAsync(
+            _uow.Object, _classroomId, _userId, manager: true, default);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("FORBIDDEN", result.ErrorCode);
+    }
+
+    // ── Plan limits ──────────────────────────────────────────────────────────
+
+    private Mock<IEntitlementService> Entitled(Plan plan)
+    {
+        var entitlements = new Mock<IEntitlementService>();
+        entitlements.Setup(e => e.GetForUserAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Entitlement(plan, "user"));
+        return entitlements;
+    }
+
+    [Fact]
+    public async Task RequireClassroomQuota_AtTheFreeLimit_IsRefused()
+    {
+        var entitlements = Entitled(PlanCatalog.Free); // MaxClassrooms: 1
+        _classrooms.Setup(r => r.CountAsync(
+                It.IsAny<System.Linq.Expressions.Expression<Func<Classroom, bool>>>(), default))
+            .ReturnsAsync(1);
+
+        var result = await ClassroomAccess.RequireClassroomQuotaAsync(
+            _uow.Object, entitlements.Object, _orgId, _userId, default);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("CLASSROOM_LIMIT_REACHED", result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task RequireClassroomQuota_UnlimitedPlan_NeverCounts()
+    {
+        // Team advertises 0 = unlimited, and must not pay for a count query to prove it.
+        var entitlements = Entitled(PlanCatalog.Team);
+
+        var result = await ClassroomAccess.RequireClassroomQuotaAsync(
+            _uow.Object, entitlements.Object, _orgId, _userId, default);
+
+        Assert.True(result.IsSuccess);
+        _classrooms.Verify(r => r.CountAsync(
+            It.IsAny<System.Linq.Expressions.Expression<Func<Classroom, bool>>>(), default), Times.Never);
+    }
+
+    [Fact]
+    public async Task RequireClassroomSeat_FullClassroom_IsRefused()
+    {
+        var entitlements = Entitled(PlanCatalog.Free); // MaxStudentsPerClassroom: 30
+        _enrollments.Setup(r => r.CountAsync(
+                It.IsAny<System.Linq.Expressions.Expression<Func<ClassroomEnrollment, bool>>>(), default))
+            .ReturnsAsync(30);
+
+        var result = await ClassroomAccess.RequireClassroomSeatAsync(
+            _uow.Object, entitlements.Object,
+            new Classroom { ClassroomId = _classroomId, CreatedByUserId = _userId }, default);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("CLASSROOM_FULL", result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task RequireClassroomSeat_ReadsTheCreatorsPlanNotTheJoinersOwn()
+    {
+        // A student on Free joining an institution's class spends the institution's seats.
+        var creatorId = Guid.NewGuid();
+        var entitlements = Entitled(PlanCatalog.Team);
+        var classroom = new Classroom { ClassroomId = _classroomId, CreatedByUserId = creatorId };
+
+        var result = await ClassroomAccess.RequireClassroomSeatAsync(
+            _uow.Object, entitlements.Object, classroom, default);
+
+        Assert.True(result.IsSuccess);
+        entitlements.Verify(e => e.GetForUserAsync(creatorId, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
