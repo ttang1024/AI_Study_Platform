@@ -17,7 +17,7 @@ import { TextSelectionToolbar } from '../components/document/TextSelectionToolba
 import { VideoNoteEditor, VideoNoteEditorRef } from '../components/youtube/VideoNoteEditor';
 import { SummaryPanel } from '../components/study/SummaryPanel';
 import { WorkedProblemsPanel } from '../components/WorkedProblemsPanel';
-import { documentService, usesServerExtractedText } from '../services/documentService';
+import { documentService, usesServerExtractedText, getDocumentViewerKind } from '../services/documentService';
 import { apiClient } from '../services/apiClient';
 import { ShareModal } from '../components/common/ShareModal';
 import { DetailPageSkeleton } from '../components/common/DetailPageSkeleton';
@@ -329,7 +329,8 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
             <DocumentViewer
               key={currentDocument.id}
               fileUrl={viewUrl}
-              fileType={currentDocument.type as 'pdf' | 'docx' | 'txt' | 'md' | 'image' | 'ppt' | 'epub'}
+              fileType={getDocumentViewerKind(currentDocument)}
+              fileName={currentDocument.name}
               httpHeaders={authHeaders}
               onAskAI={(text) => {
                 chatPanelRef.current?.setInput(text);

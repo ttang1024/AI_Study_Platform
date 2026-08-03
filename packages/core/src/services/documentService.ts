@@ -73,25 +73,85 @@ interface BackendFlashcard {
 }
 
 const AUDIO_EXTENSIONS = ['.mp3', '.m4a', '.m4b', '.wav', '.ogg', '.aac', '.flac', '.webm', '.opus', '.aiff', '.aif', '.wma', '.amr', '.mka'];
-const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.heic', '.heif', '.bmp', '.svg'];
-const PPT_EXTENSIONS = ['.ppt', '.pptx', '.pptm', '.potx'];
+const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.jfif', '.gif', '.webp', '.heic', '.heif', '.bmp', '.dib', '.svg'];
+const PPT_EXTENSIONS = ['.ppt', '.pptx', '.pptm', '.potx', '.potm', '.pps', '.ppsx', '.ppsm', '.pot'];
 
-// Formats the browser cannot render raw; the viewer shows the
-// server-extracted plain text (GET .../documents/{id}/text) instead.
+// Formats with no client-side renderer — binary containers, and markup whose
+// raw form is noise. The viewer shows the server-extracted plain text instead
+// (GET .../documents/{id}/text). Anything with a viewer kind below is absent
+// here on purpose: those are parsed from the original bytes.
 const SERVER_EXTRACTED_EXTENSIONS = [
-  '.ppt', '.pptx', '.epub', '.mobi', '.fb2',
-  '.doc', '.docm', '.dotx', '.rtf',
-  '.xls', '.xlsx', '.xlsm', '.odt', '.odp', '.ods',
+  '.ppt', '.pptx', '.pptm', '.potx', '.potm', '.pps', '.ppsx', '.ppsm', '.pot',
+  '.epub', '.mobi', '.azw', '.azw3', '.prc', '.pdb', '.fb2',
+  '.doc', '.docm', '.dotx', '.dotm', '.dot', '.rtf', '.abw',
+  '.xls', '.xlsx', '.xlsm', '.xlt', '.xltx', '.xltm',
+  '.odt', '.odp', '.ods', '.odg', '.ott', '.otp', '.ots', '.otg',
+  '.fodt', '.fodp', '.fods', '.sxw', '.sxi', '.sxc',
   '.pages', '.key', '.numbers',
   '.xps', '.oxps', '.vsdx',
-  '.eml', '.mhtml', '.mht', '.msg',
-  '.ipynb', '.html', '.htm', '.xhtml', '.smi',
+  '.eml', '.mhtml', '.mht', '.msg', '.smi',
 ];
 
 export const usesServerExtractedText = (doc: { type: string; name: string }): boolean => {
   if (doc.type === 'ppt' || doc.type === 'epub') return true;
   const name = doc.name.toLowerCase();
   return SERVER_EXTRACTED_EXTENSIONS.some(ext => name.endsWith(ext));
+};
+
+/**
+ * How the details page should render a document. This is deliberately separate
+ * from `Document.type`, which stays a coarse category for icons, filtering and
+ * routing — a `.py` upload is still a 'txt' document everywhere else in the app.
+ */
+export type DocumentViewerKind =
+  | 'pdf' | 'docx' | 'image' | 'md' | 'code' | 'data' | 'table'
+  | 'notebook' | 'subtitle' | 'html' | 'text';
+
+const VIEWER_KIND_EXTENSIONS: [DocumentViewerKind, string[]][] = [
+  ['md', ['.md', '.markdown', '.mdx', '.mdown', '.mkd', '.qmd', '.rmd']],
+  ['table', ['.csv', '.tsv']],
+  ['notebook', ['.ipynb']],
+  ['html', ['.html', '.htm', '.xhtml']],
+  ['subtitle', ['.srt', '.vtt', '.sbv', '.ass', '.ssa', '.sub', '.lrc', '.ttml', '.dfxp']],
+  ['data', [
+    '.json', '.jsonl', '.ndjson', '.json5', '.jsonc', '.yaml', '.yml', '.toml',
+    '.xml', '.plist', '.opml', '.rss', '.atom', '.ini', '.cfg', '.conf',
+    '.properties', '.avsc', '.edn',
+  ]],
+  ['code', [
+    '.py', '.pyi', '.js', '.jsx', '.mjs', '.cjs', '.ts', '.tsx', '.mts', '.cts',
+    '.vue', '.svelte', '.astro', '.coffee',
+    '.java', '.kt', '.kts', '.scala', '.sbt', '.groovy', '.gradle',
+    '.c', '.h', '.cpp', '.cc', '.cxx', '.hpp', '.hh', '.hxx', '.m', '.mm',
+    '.cs', '.vb', '.fs', '.fsx', '.go', '.rs', '.swift', '.dart',
+    '.rb', '.rake', '.gemspec', '.php', '.phtml', '.pl', '.pm', '.lua', '.r', '.jl',
+    '.sql', '.sh', '.bash', '.zsh', '.fish', '.ps1', '.psm1', '.bat', '.cmd', '.awk',
+    '.ex', '.exs', '.erl', '.hrl', '.hs', '.clj', '.cljs', '.cljc',
+    '.ml', '.mli', '.elm', '.rkt', '.scm', '.lisp', '.el', '.tcl', '.vim',
+    '.nim', '.zig', '.d', '.pas', '.f90', '.f95', '.for', '.asm', '.s', '.ino',
+    '.sol', '.tf', '.tfvars', '.hcl', '.proto', '.graphql', '.gql',
+    '.cmake', '.mk', '.nix',
+    '.css', '.scss', '.sass', '.less', '.styl',
+    '.erb', '.ejs', '.hbs', '.mustache', '.jinja', '.j2', '.twig', '.liquid',
+    '.pug', '.haml', '.slim',
+    '.tex', '.ltx', '.sty', '.cls', '.bib', '.bbl',
+  ]],
+];
+
+export const getDocumentViewerKind = (doc: { type: string; name: string }): DocumentViewerKind => {
+  if (doc.type === 'pdf') return 'pdf';
+  if (doc.type === 'docx') return 'docx';
+  if (doc.type === 'image') return 'image';
+
+  // Binary formats reach the viewer as extracted plain text, whatever their
+  // extension would otherwise suggest.
+  if (usesServerExtractedText(doc)) return 'text';
+
+  const name = doc.name.toLowerCase();
+  for (const [kind, extensions] of VIEWER_KIND_EXTENSIONS)
+    if (extensions.some(ext => name.endsWith(ext))) return kind;
+
+  return doc.type === 'md' ? 'md' : 'text';
 };
 
 const getTypeFromContentTypeOrFileName = (

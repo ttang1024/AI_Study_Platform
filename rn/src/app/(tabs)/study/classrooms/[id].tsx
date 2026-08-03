@@ -8,7 +8,9 @@ import ClipboardList from 'lucide-react-native/icons/clipboard-list';
 import Copy from 'lucide-react-native/icons/copy';
 import Lock from 'lucide-react-native/icons/lock';
 import RefreshCw from 'lucide-react-native/icons/refresh-cw';
-import Unlock from 'lucide-react-native/icons/unlock';
+// lucide-react-native 1.x renamed this icon; the old name resolves in tsc (the
+// package types the whole `icons/*` path) but fails at bundle time.
+import Unlock from 'lucide-react-native/icons/lock-open';
 import FileText from 'lucide-react-native/icons/file-text';
 import Users from 'lucide-react-native/icons/users';
 

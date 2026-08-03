@@ -324,6 +324,119 @@ public class DocumentTextExtractorServiceTests
         Assert.Contains("HelloWorld", text);
     }
 
+    // ─── Third-batch formats ──────────────────────────────────────────────────
+
+    [Fact]
+    public async Task FlatOdf_ExtractsParagraphsWithoutZipWrapper()
+    {
+        const string fodt = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+                         xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0">
+          <office:body><office:text>
+            <text:h>Flat heading</text:h>
+            <text:p>Flat paragraph.</text:p>
+          </office:text></office:body>
+        </office:document>
+        """;
+        var text = await ExtractAsync("notes.fodt", Encoding.UTF8.GetBytes(fodt));
+
+        Assert.Contains("Flat heading", text);
+        Assert.Contains("Flat paragraph.", text);
+    }
+
+    [Fact]
+    public async Task StarOfficeAndOdfTemplates_UseTheOpenDocumentExtractor()
+    {
+        const string contentXml = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <office:document-content xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+                                 xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0">
+          <office:body><office:text><text:p>Template body</text:p></office:text></office:body>
+        </office:document-content>
+        """;
+        var data = BuildZip(("content.xml", Encoding.UTF8.GetBytes(contentXml)));
+
+        Assert.Contains("Template body", await ExtractAsync("template.ott", data));
+        Assert.Contains("Template body", await ExtractAsync("legacy.sxw", data));
+        Assert.Contains("Template body", await ExtractAsync("diagram.odg", data));
+    }
+
+    [Fact]
+    public async Task AbiWord_ExtractsParagraphs()
+    {
+        const string abw = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <abiword xmlns="http://www.abisource.com/awml.dtd">
+          <section><p>First line.</p><p>Second line.</p></section>
+        </abiword>
+        """;
+        var text = await ExtractAsync("essay.abw", Encoding.UTF8.GetBytes(abw));
+
+        Assert.Contains("First line.", text);
+        Assert.Contains("Second line.", text);
+    }
+
+    [Fact]
+    public async Task Ttml_ExtractsCueTextAndLineBreaks()
+    {
+        const string ttml = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <tt xmlns="http://www.w3.org/ns/ttml">
+          <body><div>
+            <p begin="00:00:01" end="00:00:04">Hello <span>there</span></p>
+            <p begin="00:00:04" end="00:00:08">Second<br/>line</p>
+          </div></body>
+        </tt>
+        """;
+        var text = await ExtractAsync("captions.ttml", Encoding.UTF8.GetBytes(ttml));
+
+        Assert.Contains("Hello there", text);
+        Assert.Contains("Second\nline", text);
+        Assert.DoesNotContain("00:00:01", text);
+    }
+
+    [Fact]
+    public async Task Sbv_StripsCommaSeparatedTimings()
+    {
+        const string sbv = "0:00:01.000,0:00:04.000\nFirst caption\n\n0:00:04.000,0:00:08.000\nSecond caption\n";
+        var text = await ExtractAsync("talk.sbv", Encoding.UTF8.GetBytes(sbv));
+
+        Assert.Contains("First caption", text);
+        Assert.Contains("Second caption", text);
+        Assert.DoesNotContain("0:00:01", text);
+    }
+
+    [Fact]
+    public async Task Lrc_StripsTimestampsAndMetadataLines()
+    {
+        const string lrc = "[ar:Artist]\n[ti:Title]\n[00:12.34]First lyric\n[00:15.00][00:30.00]Repeated lyric\n";
+        var text = await ExtractAsync("song.lrc", Encoding.UTF8.GetBytes(lrc));
+
+        Assert.Equal("First lyric\nRepeated lyric", text.Trim().ReplaceLineEndings("\n"));
+    }
+
+    [Fact]
+    public async Task Azw3_UsesTheMobiExtractor()
+    {
+        var text = await ExtractAsync("book.azw3", BuildMobi("Kindle <i>text</i>"));
+        Assert.Equal("Kindle text", text.Trim());
+    }
+
+    [Fact]
+    public async Task PalmDocPdb_IsExtracted()
+    {
+        var text = await ExtractAsync("reader.pdb", BuildMobi("Palm reader text", palmType: "TEXtREAd"));
+        Assert.Equal("Palm reader text", text.Trim());
+    }
+
+    [Fact]
+    public async Task Dotm_UsesDocxExtractor()
+    {
+        var text = await ExtractAsync("macro.dotm", BuildDocx("Template paragraph"));
+        Assert.Contains("Template paragraph", text);
+    }
+
     // ─── AI OCR routing ───────────────────────────────────────────────────────
 
     [Fact]
@@ -349,7 +462,169 @@ public class DocumentTextExtractorServiceTests
         Assert.Equal(string.Empty, text);
     }
 
+    [Fact]
+    public async Task Jfif_IsSentToOcrAsJpeg()
+    {
+        var bytes = new byte[] { 1, 2, 3 };
+        _ai.Setup(a => a.ExtractTextFromFileAsync(bytes, "image/jpeg", It.IsAny<CancellationToken>()))
+           .ReturnsAsync("ocr result");
+
+        var text = await ExtractAsync("scan.jfif", bytes);
+
+        Assert.Equal("ocr result", text);
+    }
+
+    // ─── BMP transcoding (no provider accepts inline BMP) ─────────────────────
+
+    [Fact]
+    public async Task Bmp_IsTranscodedToPngBeforeOcr()
+    {
+        byte[]? sent = null;
+        _ai.Setup(a => a.ExtractTextFromFileAsync(It.IsAny<byte[]>(), "image/png", It.IsAny<CancellationToken>()))
+           .Callback<byte[], string, CancellationToken>((d, _, _) => sent = d)
+           .ReturnsAsync("ocr result");
+
+        // 2x2, bottom-up: stored bottom row first (red, green), then (blue, white).
+        var bmp = BuildBmp24(2, 2, [
+            [0x00, 0x00, 0xFF], [0x00, 0xFF, 0x00],
+            [0xFF, 0x00, 0x00], [0xFF, 0xFF, 0xFF],
+        ]);
+
+        var text = await ExtractAsync("scan.bmp", bmp, "image/bmp");
+
+        Assert.Equal("ocr result", text);
+        Assert.NotNull(sent);
+
+        var chunks = ReadPngChunks(sent!);
+        var ihdr = chunks["IHDR"];
+        Assert.Equal(2, ReadInt32BE(ihdr, 0));
+        Assert.Equal(2, ReadInt32BE(ihdr, 4));
+        Assert.Equal(8, ihdr[8]);   // bit depth
+        Assert.Equal(2, ihdr[9]);   // colour type: RGB, alpha dropped for 24-bit
+        Assert.True(chunks.ContainsKey("IEND"));
+
+        // PNG rows are top-down, so the BMP's last stored row comes out first.
+        Assert.Equal(
+            new byte[]
+            {
+                0, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF,
+                0, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00,
+            },
+            Inflate(chunks["IDAT"]));
+    }
+
+    [Fact]
+    public async Task Bmp_PaletteIndexed_IsTranscoded()
+    {
+        byte[]? sent = null;
+        _ai.Setup(a => a.ExtractTextFromFileAsync(It.IsAny<byte[]>(), "image/png", It.IsAny<CancellationToken>()))
+           .Callback<byte[], string, CancellationToken>((d, _, _) => sent = d)
+           .ReturnsAsync("ocr");
+
+        await ExtractAsync("scan.dib", BuildBmp8Palette());
+
+        Assert.NotNull(sent);
+        // Single top-down row: palette index 1 (red) then index 0 (black).
+        Assert.Equal(
+            new byte[] { 0, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00 },
+            Inflate(ReadPngChunks(sent!)["IDAT"]));
+    }
+
+    [Fact]
+    public async Task Bmp_UnsupportedCompression_ReturnsEmptyWithoutCallingAi()
+    {
+        var bmp = BuildBmp24(1, 1, [[1, 2, 3]]);
+        bmp[FileHeaderSize + 16] = 1; // BI_RLE8
+
+        var text = await ExtractAsync("scan.bmp", bmp, "image/bmp");
+
+        Assert.Equal(string.Empty, text);
+        _ai.Verify(a => a.ExtractTextFromFileAsync(It.IsAny<byte[]>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
     // ─── Test file builders ───────────────────────────────────────────────────
+
+    private const int FileHeaderSize = 14;
+
+    // Uncompressed 24-bit BMP; pixels are BGR triples in stored (bottom-up) order.
+    private static byte[] BuildBmp24(int width, int height, byte[][] pixels)
+    {
+        var stride = ((width * 24 + 31) / 32) * 4;
+        var pixelOffset = FileHeaderSize + 40;
+        var data = new byte[pixelOffset + stride * height];
+
+        data[0] = (byte)'B'; data[1] = (byte)'M';
+        BitConverter.GetBytes(data.Length).CopyTo(data, 2);
+        BitConverter.GetBytes(pixelOffset).CopyTo(data, 10);
+
+        BitConverter.GetBytes(40).CopyTo(data, FileHeaderSize);
+        BitConverter.GetBytes(width).CopyTo(data, FileHeaderSize + 4);
+        BitConverter.GetBytes(height).CopyTo(data, FileHeaderSize + 8);
+        BitConverter.GetBytes((ushort)1).CopyTo(data, FileHeaderSize + 12);
+        BitConverter.GetBytes((ushort)24).CopyTo(data, FileHeaderSize + 14);
+
+        for (var y = 0; y < height; y++)
+            for (var x = 0; x < width; x++)
+                pixels[y * width + x].CopyTo(data, pixelOffset + y * stride + x * 3);
+
+        return data;
+    }
+
+    // 2x1, 8-bit indexed, palette [black, red].
+    private static byte[] BuildBmp8Palette()
+    {
+        const int paletteEntries = 2;
+        var pixelOffset = FileHeaderSize + 40 + paletteEntries * 4;
+        var data = new byte[pixelOffset + 4];
+
+        data[0] = (byte)'B'; data[1] = (byte)'M';
+        BitConverter.GetBytes(data.Length).CopyTo(data, 2);
+        BitConverter.GetBytes(pixelOffset).CopyTo(data, 10);
+
+        BitConverter.GetBytes(40).CopyTo(data, FileHeaderSize);
+        BitConverter.GetBytes(2).CopyTo(data, FileHeaderSize + 4);
+        BitConverter.GetBytes(1).CopyTo(data, FileHeaderSize + 8);
+        BitConverter.GetBytes((ushort)1).CopyTo(data, FileHeaderSize + 12);
+        BitConverter.GetBytes((ushort)8).CopyTo(data, FileHeaderSize + 14);
+        BitConverter.GetBytes(paletteEntries).CopyTo(data, FileHeaderSize + 32);
+
+        var palette = FileHeaderSize + 40;
+        data[palette + 4] = 0x00;  // entry 1: B
+        data[palette + 5] = 0x00;  // G
+        data[palette + 6] = 0xFF;  // R
+
+        data[pixelOffset] = 1;
+        data[pixelOffset + 1] = 0;
+        return data;
+    }
+
+    private static Dictionary<string, byte[]> ReadPngChunks(byte[] png)
+    {
+        Assert.Equal(new byte[] { 0x89, (byte)'P', (byte)'N', (byte)'G', 0x0D, 0x0A, 0x1A, 0x0A }, png[..8]);
+
+        var chunks = new Dictionary<string, byte[]>();
+        var pos = 8;
+        while (pos + 12 <= png.Length)
+        {
+            var length = ReadInt32BE(png, pos);
+            var type = Encoding.ASCII.GetString(png, pos + 4, 4);
+            chunks[type] = png[(pos + 8)..(pos + 8 + length)];
+            pos += 12 + length;
+        }
+        return chunks;
+    }
+
+    private static byte[] Inflate(byte[] zlib)
+    {
+        using var input = new MemoryStream(zlib);
+        using var inflater = new ZLibStream(input, CompressionMode.Decompress);
+        using var output = new MemoryStream();
+        inflater.CopyTo(output);
+        return output.ToArray();
+    }
+
+    private static int ReadInt32BE(byte[] data, int offset) =>
+        (data[offset] << 24) | (data[offset + 1] << 16) | (data[offset + 2] << 8) | data[offset + 3];
 
     private static byte[] BuildZip(params (string Name, byte[] Content)[] entries)
     {
@@ -367,12 +642,12 @@ public class DocumentTextExtractorServiceTests
 
     // Minimal PDB/MOBI container: header, two records (PalmDOC header + one
     // uncompressed text record).
-    private static byte[] BuildMobi(string bookHtml)
+    private static byte[] BuildMobi(string bookHtml, string palmType = "BOOKMOBI")
     {
         var textBytes = Encoding.UTF8.GetBytes(bookHtml);
         var data = new byte[94 + 16 + textBytes.Length];
 
-        Encoding.ASCII.GetBytes("BOOKMOBI").CopyTo(data, 60);
+        Encoding.ASCII.GetBytes(palmType).CopyTo(data, 60);
         WriteUInt16BE(data, 76, 2);            // record count
         WriteUInt32BE(data, 78, 94);           // record 0 offset
         WriteUInt32BE(data, 86, 94 + 16);      // record 1 offset

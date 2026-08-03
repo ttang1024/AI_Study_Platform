@@ -74,7 +74,7 @@ export const DocumentTab: React.FC<DocumentTabProps> = ({ selectedCourseId, onCo
 
   const validateAndSetFile = (f: File) => {
     if (!isAcceptedDocumentFile(f)) {
-      showPrompt('Unsupported file format. Please upload a PDF, Image, Office, OpenDocument, text/Markdown/HTML/RTF/LaTeX, CSV/JSON/XML/YAML, notebook, subtitle, source code, eBook, or iWork file.');
+      showPrompt('Unsupported file format. Please upload a PDF, Image, Office, OpenDocument/StarOffice, iWork, text/Markdown/HTML/RTF/LaTeX, CSV/JSON/XML/YAML/TOML, notebook, subtitle or caption, source code, or eBook file.');
       return;
     }
     if (f.size > 50 * 1024 * 1024) {

@@ -45,6 +45,7 @@ import {
   BentoSecurityCard,
   BentoTagsCard,
   BentoApiCard,
+  BentoFormatsCard,
 } from '../components/landing/bento';
 
 export const LandingPage: React.FC = () => {
@@ -159,8 +160,9 @@ export const LandingPage: React.FC = () => {
         <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.52 }}
           className="max-w-2xl text-lg sm:text-xl text-white/45 leading-relaxed mb-10">
-          Turn any document, video, podcast, or article into AI summaries, mind maps, flashcards, and quizzes —
-          then master it with spaced repetition, mock exams, and a voice tutor. Web, iOS &amp; Android, even offline.
+          Turn any document, spreadsheet, notebook, video, podcast, or article into AI summaries, mind maps,
+          flashcards, and quizzes — then master it with spaced repetition, mock exams, and a voice tutor.
+          Web, iOS &amp; Android, even offline.
         </motion.p>
 
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
@@ -189,7 +191,7 @@ export const LandingPage: React.FC = () => {
           {[
             { to: 30, suffix: '+', label: 'AI-powered tools' },
             { to: 100, suffix: '%', label: 'Free to start' },
-            { to: 12, suffix: ' content types', label: '' },
+            { to: 230, suffix: '+', label: 'file formats' },
           ].map((s, i) => (
             <motion.div key={i}
               initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
@@ -235,7 +237,9 @@ export const LandingPage: React.FC = () => {
         </FadeIn>
 
         <div className="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-auto">
-          <FadeIn delay={0}>
+          {/* Ingestion leads the grid: everything below only happens once your
+              file is in, so the breadth of what we accept comes first. */}
+          <FadeIn delay={0.05}>
             <BentoChatCard />
           </FadeIn>
           <FadeIn delay={0.05}>

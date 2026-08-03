@@ -1,7 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import Calendar from 'lucide-react-native/icons/calendar';
 import CalendarClock from 'lucide-react-native/icons/calendar-clock';
 import ChevronRight from 'lucide-react-native/icons/chevron-right';
 import HelpCircle from 'lucide-react-native/icons/circle-question-mark';
@@ -9,7 +8,6 @@ import Layers from 'lucide-react-native/icons/layers';
 import Network from 'lucide-react-native/icons/network';
 import NotebookPen from 'lucide-react-native/icons/notebook-pen';
 import PenLine from 'lucide-react-native/icons/pen-line';
-import Share2 from 'lucide-react-native/icons/share-2';
 import SquareLibrary from 'lucide-react-native/icons/square-library';
 import TrendingUp from 'lucide-react-native/icons/trending-up';
 import Trophy from 'lucide-react-native/icons/trophy';
@@ -35,13 +33,11 @@ const HUB_ITEMS = [
   { href: '/study/language', icon: Languages, color: Colors.teal, title: 'Language', subtitle: 'Pronunciation and sentence mining' },
   { href: '/study/glossary', icon: SquareLibrary, color: Colors.teal, title: 'Glossary', subtitle: 'Terms and definitions' },
   { href: '/study/planner', icon: CalendarClock, color: Colors.blue, title: 'Planner', subtitle: 'Exams, cram sheets, mocks' },
-  { href: '/study/calendar', icon: Calendar, color: Colors.red, title: 'Calendar', subtitle: 'Everything, by day' },
   { href: '/study/groups', icon: Users, color: Colors.purple, title: 'Study Groups', subtitle: 'Chat, boards, battles' },
   { href: '/study/classrooms', icon: School, color: Colors.purple, title: 'Classrooms', subtitle: 'Assigned courses and grades' },
   { href: '/study/insights', icon: TrendingUp, color: Colors.primary, title: 'Insights', subtitle: 'Time, accuracy, mastery' },
   { href: '/study/concepts', icon: Network, color: Colors.blue, title: 'Concepts', subtitle: 'Links, gaps, learning path' },
   { href: '/study/achievements', icon: Trophy, color: Colors.amber, title: 'Achievements', subtitle: 'Milestones unlocked' },
-  { href: '/study/shared-link', icon: Share2, color: Colors.teal, title: 'Shared link', subtitle: 'Open content shared with you' },
 ] as const;
 
 export default function StudyHubScreen() {

@@ -240,6 +240,40 @@ const libraryRows: LibraryRow[] = [
   },
 ]
 
+// Documents that exist to exercise the detail page's file viewers. The detail
+// page resolves its document from the library list, so they have to be served
+// by /api/documents like any other row.
+const viewerDocuments = [
+  { documentId: 'doc-script', fileName: 'analysis.py', contentType: 'text/plain' },
+  { documentId: 'doc-grades', fileName: 'grades.csv', contentType: 'text/csv' },
+  { documentId: 'doc-lab', fileName: 'lab.ipynb', contentType: 'application/json' },
+  { documentId: 'doc-captions', fileName: 'lecture.srt', contentType: 'text/plain' },
+].map(doc => ({
+  courseId: 'course-bio',
+  userId: 'user-e2e',
+  blobUrl: `/fixtures/${doc.fileName}`,
+  fileSize: 2_000,
+  summary: 'Fixture summary.',
+  createdAt: now,
+  updatedAt: now,
+  ...doc,
+}))
+
+// Raw bytes served by GET .../documents/{id}/file for the fixtures above.
+const viewerDocumentFiles: Record<string, string> = {
+  'doc-script': 'def total(values):\n    # sum them up\n    return sum(values)\n',
+  'doc-grades': 'student,score\nAda,99\nAlan,97\n',
+  'doc-lab': JSON.stringify({
+    cells: [
+      { cell_type: 'markdown', source: '# Lab notes' },
+      { cell_type: 'code', source: 'print("hi")', execution_count: 1, outputs: [{ output_type: 'stream', text: 'hi\n' }] },
+    ],
+    metadata: { language_info: { name: 'python' } },
+    nbformat: 4,
+  }),
+  'doc-captions': '1\n00:00:01,000 --> 00:00:04,000\nMitochondria make ATP\n',
+}
+
 // Mirrors how the server buckets a row for the ?type= filter.
 const rowType = (i: LibraryRow): string => {
   if (i.kind === 'video') return 'videos'
@@ -298,11 +332,23 @@ export async function mockStudyApi(page: Page) {
         achievements: { perfectQuizzes: 0, averageQuizScore: 80, flashcardsMastered: 0 },
       })
     }
-    if (path === '/api/documents') return json(route, paged(documents, Number(url.searchParams.get('pageSize') ?? 500)))
+    if (path === '/api/documents') {
+      const all = [...documents, ...viewerDocuments]
+      return json(route, paged(all, Number(url.searchParams.get('pageSize') ?? 500)))
+    }
     const singleDocMatch = path.match(/^\/api\/courses\/[^/]+\/documents\/([^/]+)$/)
     if (singleDocMatch) {
-      const doc = documents.find(d => d.documentId === singleDocMatch[1])
+      const doc = [...documents, ...viewerDocuments].find(d => d.documentId === singleDocMatch[1])
       if (doc) return json(route, doc)
+    }
+    const docFileMatch = path.match(/^\/api\/courses\/[^/]+\/documents\/([^/]+)\/file$/)
+    if (docFileMatch && viewerDocumentFiles[docFileMatch[1]]) {
+      // The viewers read this endpoint as text, not as a BaseResponse envelope.
+      return route.fulfill({
+        status: 200,
+        contentType: 'text/plain',
+        body: viewerDocumentFiles[docFileMatch[1]],
+      })
     }
     if (path === '/api/videos') return json(route, paged(videos, Number(url.searchParams.get('pageSize') ?? 8)))
     // The add-content video tabs read the lite list (whole library, heavy fields dropped) so they

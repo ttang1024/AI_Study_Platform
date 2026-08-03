@@ -73,6 +73,13 @@
     "preset": "jest-expo",
     "transformIgnorePatterns": [
       "node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@sentry/react-native|native-base|react-native-svg)"
+    ],
+    "moduleNameMapper": {
+      "^lucide-react-native/icons/(.*)$": "<rootDir>/node_modules/lucide-react-native/dist/cjs/icons/$1.js",
+      "^@babel/runtime/(.*)$": "<rootDir>/node_modules/@babel/runtime/$1"
+    },
+    "setupFilesAfterEnv": [
+      "<rootDir>/jest.setup.js"
     ]
   }
 }

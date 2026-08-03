@@ -28,3 +28,4 @@ export { BentoPeerReviewCard } from './BentoPeerReviewCard';
 export { BentoSecurityCard } from './BentoSecurityCard';
 export { BentoTagsCard } from './BentoTagsCard';
 export { BentoApiCard } from './BentoApiCard';
+export { BentoFormatsCard } from './BentoFormatsCard';

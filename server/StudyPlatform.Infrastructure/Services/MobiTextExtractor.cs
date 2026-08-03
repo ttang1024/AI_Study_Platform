@@ -3,9 +3,11 @@ using System.Text;
 namespace StudyPlatform.Infrastructure.Services;
 
 /// <summary>
-/// Extracts the raw (HTML) book text from a MOBI/PalmDOC file. Supports
-/// uncompressed and PalmDOC-compressed text records; HUFF/CDIC compression
-/// and DRM-encrypted books are not supported and yield an empty string.
+/// Extracts the raw (HTML) book text from a MOBI/PalmDOC file — the container
+/// behind .mobi, .azw, .azw3 and .prc, plus the plain PalmDOC .pdb reader
+/// format. Supports uncompressed and PalmDOC-compressed text records; HUFF/CDIC
+/// compression and DRM-encrypted books are not supported and yield an empty
+/// string.
 /// </summary>
 internal static class MobiTextExtractor
 {
@@ -14,7 +16,15 @@ internal static class MobiTextExtractor
 
     public static string ExtractRawText(byte[] data)
     {
-        if (data.Length < 86 || Encoding.ASCII.GetString(data, 60, 8) != "BOOKMOBI")
+        if (data.Length < 86)
+            return string.Empty;
+
+        // Palm database type+creator at offset 60: "BOOKMOBI" for MOBI/AZW,
+        // "TEXtREAd" for plain PalmDOC readers. Both carry the same record-0
+        // PalmDOC header, so only the default text encoding differs.
+        var palmType = Encoding.ASCII.GetString(data, 60, 8);
+        var isPalmDocReader = palmType == "TEXtREAd";
+        if (palmType != "BOOKMOBI" && !isPalmDocReader)
             return string.Empty;
 
         int numRecords = ReadUInt16BE(data, 76);
@@ -36,7 +46,9 @@ internal static class MobiTextExtractor
         if (encryption != 0 || compression == HuffCdicCompression)
             return string.Empty; // DRM / HUFF-CDIC not supported
 
-        var textEncoding = 65001;
+        // PalmDOC readers predate the MOBI header and its encoding field; their
+        // text is cp1252 by convention.
+        var textEncoding = isPalmDocReader ? 1252 : 65001;
         var extraFlags = 0;
         if (rec0 + 24 <= data.Length && Encoding.ASCII.GetString(data, rec0 + 16, 4) == "MOBI")
         {

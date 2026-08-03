@@ -57,7 +57,7 @@ export function DocumentDetailHeader({ doc, downloadUrl, showPreview, onTogglePr
         </Pressable>
       )}
 
-      {!isAudio && showPreview && downloadUrl && <FilePreview url={downloadUrl} type={doc.type} />}
+      {!isAudio && showPreview && downloadUrl && <FilePreview url={downloadUrl} doc={doc} />}
     </View>
   );
 }

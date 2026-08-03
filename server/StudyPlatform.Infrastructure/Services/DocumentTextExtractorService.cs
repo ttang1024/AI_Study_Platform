@@ -51,22 +51,26 @@ public class DocumentTextExtractorService : IDocumentTextExtractor
                 return ExtractFromSvg(data);
 
             if (normalizedType.StartsWith("image/") || ImageExtensions.Contains(extension))
-                return await OcrWithAiAsync(data, NormalizeImageMime(normalizedType, extension), cancellationToken);
+                return await OcrImageWithAiAsync(data, NormalizeImageMime(normalizedType, extension), cancellationToken);
 
             if (extension is ".pdf" || normalizedType is "application/pdf")
                 return await ExtractFromPdfWithOcrFallbackAsync(data, cancellationToken);
 
             return extension switch
             {
-                ".docx" or ".docm" or ".dotx" => ExtractFromDocx(data),
-                ".doc" => LegacyOfficeTextExtractor.ExtractDocText(data),
-                ".pptx" or ".pptm" or ".potx" => ExtractFromPptx(data),
-                ".ppt" => LegacyOfficeTextExtractor.ExtractPptText(data),
-                ".xlsx" or ".xlsm" => ExtractFromXlsx(data),
-                ".xls" => LegacyOfficeTextExtractor.ExtractXlsText(data),
-                ".odt" or ".odp" or ".ods" => ExtractFromOpenDocument(data),
+                ".docx" or ".docm" or ".dotx" or ".dotm" => ExtractFromDocx(data),
+                ".doc" or ".dot" => LegacyOfficeTextExtractor.ExtractDocText(data),
+                ".pptx" or ".pptm" or ".potx" or ".potm" or ".ppsx" or ".ppsm" => ExtractFromPptx(data),
+                ".ppt" or ".pps" or ".pot" => LegacyOfficeTextExtractor.ExtractPptText(data),
+                ".xlsx" or ".xlsm" or ".xltx" or ".xltm" => ExtractFromXlsx(data),
+                ".xls" or ".xlt" => LegacyOfficeTextExtractor.ExtractXlsText(data),
+                ".odt" or ".odp" or ".ods" or ".odg"
+                    or ".ott" or ".otp" or ".ots" or ".otg"
+                    or ".fodt" or ".fodp" or ".fods"
+                    or ".sxw" or ".sxi" or ".sxc" => ExtractFromOpenDocument(data),
+                ".abw" => ExtractFromAbiWord(data),
                 ".epub" => ExtractFromEpub(data),
-                ".mobi" => ExtractFromMobi(data),
+                ".mobi" or ".azw" or ".azw3" or ".prc" or ".pdb" => ExtractFromMobi(data),
                 ".fb2" => ExtractFromFictionBook(data),
                 ".pages" or ".key" or ".numbers" => ExtractFromIWork(data),
                 ".xps" or ".oxps" => ExtractFromXps(data),
@@ -77,9 +81,11 @@ public class DocumentTextExtractorService : IDocumentTextExtractor
                 ".rtf" => RtfTextStripper.ToPlainText(Encoding.UTF8.GetString(data)),
                 ".html" or ".htm" or ".xhtml" or ".smi" => ExtractFromHtml(Encoding.UTF8.GetString(data)),
                 ".ipynb" => ExtractFromNotebook(data),
-                ".srt" or ".vtt" => ExtractFromSubtitles(Encoding.UTF8.GetString(data)),
+                ".srt" or ".vtt" or ".sbv" => ExtractFromSubtitles(Encoding.UTF8.GetString(data)),
                 ".ass" or ".ssa" => ExtractFromAssSubtitles(Encoding.UTF8.GetString(data)),
                 ".sub" => ExtractFromMicroDvdSubtitles(Encoding.UTF8.GetString(data)),
+                ".lrc" => ExtractFromLrc(Encoding.UTF8.GetString(data)),
+                ".ttml" or ".dfxp" => ExtractFromTtml(data),
                 _ => ExtractByMime(normalizedType, data),
             };
         }
@@ -95,14 +101,21 @@ public class DocumentTextExtractorService : IDocumentTextExtractor
     {
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             or "application/vnd.ms-word.document.macroEnabled.12"
+            or "application/vnd.ms-word.template.macroEnabled.12"
             or "application/vnd.openxmlformats-officedocument.wordprocessingml.template" => ExtractFromDocx(data),
         "application/msword" => LegacyOfficeTextExtractor.ExtractDocText(data),
+        "application/x-abiword" => ExtractFromAbiWord(data),
         "application/vnd.openxmlformats-officedocument.presentationml.presentation"
             or "application/vnd.ms-powerpoint.presentation.macroEnabled.12"
+            or "application/vnd.ms-powerpoint.template.macroEnabled.12"
+            or "application/vnd.ms-powerpoint.slideshow.macroEnabled.12"
+            or "application/vnd.openxmlformats-officedocument.presentationml.slideshow"
             or "application/vnd.openxmlformats-officedocument.presentationml.template" => ExtractFromPptx(data),
         "application/vnd.ms-powerpoint" => LegacyOfficeTextExtractor.ExtractPptText(data),
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            or "application/vnd.ms-excel.sheet.macroEnabled.12" => ExtractFromXlsx(data),
+            or "application/vnd.ms-excel.sheet.macroEnabled.12"
+            or "application/vnd.ms-excel.template.macroEnabled.12"
+            or "application/vnd.openxmlformats-officedocument.spreadsheetml.template" => ExtractFromXlsx(data),
         "application/vnd.ms-excel" => LegacyOfficeTextExtractor.ExtractXlsText(data),
         "application/vnd.ms-xpsdocument" or "application/oxps" => ExtractFromXps(data),
         "application/vnd.ms-visio.drawing" => ExtractFromVisio(data),
@@ -111,37 +124,76 @@ public class DocumentTextExtractorService : IDocumentTextExtractor
         "application/vnd.ms-outlook" => EmailTextExtractor.ExtractMsg(data),
         "application/vnd.oasis.opendocument.text"
             or "application/vnd.oasis.opendocument.presentation"
-            or "application/vnd.oasis.opendocument.spreadsheet" => ExtractFromOpenDocument(data),
+            or "application/vnd.oasis.opendocument.spreadsheet"
+            or "application/vnd.oasis.opendocument.graphics"
+            or "application/vnd.oasis.opendocument.text-template"
+            or "application/vnd.oasis.opendocument.presentation-template"
+            or "application/vnd.oasis.opendocument.spreadsheet-template"
+            or "application/vnd.oasis.opendocument.graphics-template"
+            or "application/vnd.oasis.opendocument.text-flat-xml"
+            or "application/vnd.oasis.opendocument.presentation-flat-xml"
+            or "application/vnd.oasis.opendocument.spreadsheet-flat-xml"
+            or "application/vnd.sun.xml.writer"
+            or "application/vnd.sun.xml.impress"
+            or "application/vnd.sun.xml.calc" => ExtractFromOpenDocument(data),
         "application/epub+zip" => ExtractFromEpub(data),
-        "application/x-mobipocket-ebook" => ExtractFromMobi(data),
+        "application/x-mobipocket-ebook"
+            or "application/vnd.amazon.ebook"
+            or "application/vnd.amazon.mobi8-ebook"
+            or "application/vnd.palm" => ExtractFromMobi(data),
         "application/vnd.apple.pages" or "application/vnd.apple.keynote" or "application/vnd.apple.numbers" => ExtractFromIWork(data),
         "application/rtf" or "text/rtf" => RtfTextStripper.ToPlainText(Encoding.UTF8.GetString(data)),
         "text/html" or "application/xhtml+xml" => ExtractFromHtml(Encoding.UTF8.GetString(data)),
         "application/x-ipynb+json" => ExtractFromNotebook(data),
         "application/x-subrip" or "text/vtt" => ExtractFromSubtitles(Encoding.UTF8.GetString(data)),
+        "application/ttml+xml" => ExtractFromTtml(data),
         _ => Encoding.UTF8.GetString(data),
     };
 
     // ── AI OCR (scanned PDFs and images) ──────────────────────────────────
 
     private static readonly string[] ImageExtensions =
-        [".png", ".jpg", ".jpeg", ".gif", ".webp", ".heic", ".heif", ".bmp"];
+        [".png", ".jpg", ".jpeg", ".jfif", ".gif", ".webp", ".heic", ".heif", ".bmp", ".dib"];
 
     private static string NormalizeImageMime(string contentType, string extension)
     {
         if (contentType.StartsWith("image/"))
-            return contentType == "image/jpg" ? "image/jpeg" : contentType;
+            return contentType switch
+            {
+                "image/jpg" => "image/jpeg",
+                "image/x-ms-bmp" => "image/bmp",
+                _ => contentType,
+            };
         return extension switch
         {
             ".png" => "image/png",
-            ".jpg" or ".jpeg" => "image/jpeg",
+            ".jpg" or ".jpeg" or ".jfif" => "image/jpeg",
             ".gif" => "image/gif",
             ".webp" => "image/webp",
             ".heic" => "image/heic",
             ".heif" => "image/heif",
-            ".bmp" => "image/bmp",
+            ".bmp" or ".dib" => "image/bmp",
             _ => "image/png",
         };
+    }
+
+    // No AI provider accepts inline BMP, so transcode to PNG (lossless, same
+    // pixels) before OCR rather than rejecting a format we advertise.
+    private async Task<string> OcrImageWithAiAsync(byte[] data, string mimeType, CancellationToken cancellationToken)
+    {
+        if (mimeType == "image/bmp")
+        {
+            var png = BmpToPngConverter.Convert(data);
+            if (png == null)
+            {
+                _logger.LogWarning("BMP could not be transcoded for OCR (unsupported bit depth or compression)");
+                return string.Empty;
+            }
+
+            return await OcrWithAiAsync(png, "image/png", cancellationToken);
+        }
+
+        return await OcrWithAiAsync(data, mimeType, cancellationToken);
     }
 
     private async Task<string> ExtractFromPdfWithOcrFallbackAsync(byte[] data, CancellationToken cancellationToken)
@@ -274,15 +326,25 @@ public class DocumentTextExtractorService : IDocumentTextExtractor
         return value;
     }
 
+    // Handles the zipped ODF/StarOffice packages (.odt/.ods/.otp/.sxw/…) and the
+    // flat single-file XML variants (.fodt/.fodp/.fods), which carry the same
+    // text:p / text:h elements without the zip wrapper.
     private static string ExtractFromOpenDocument(byte[] data)
     {
         using var ms = new MemoryStream(data);
+        if (!IsZip(data))
+            return OpenDocumentBodyText(XDocument.Load(ms));
+
         using var archive = new ZipArchive(ms, ZipArchiveMode.Read);
         var entry = archive.GetEntry("content.xml");
         if (entry == null) return string.Empty;
 
         using var entryStream = entry.Open();
-        var xdoc = XDocument.Load(entryStream);
+        return OpenDocumentBodyText(XDocument.Load(entryStream));
+    }
+
+    private static string OpenDocumentBodyText(XDocument xdoc)
+    {
         XNamespace textNs = "urn:oasis:names:tc:opendocument:xmlns:text:1.0";
 
         var sb = new StringBuilder();
@@ -294,6 +356,21 @@ public class DocumentTextExtractorService : IDocumentTextExtractor
         }
 
         return sb.ToString();
+    }
+
+    private static bool IsZip(byte[] data) =>
+        data.Length >= 2 && data[0] == 'P' && data[1] == 'K';
+
+    // AbiWord documents are a single XML file whose body is <p> elements.
+    private static string ExtractFromAbiWord(byte[] data)
+    {
+        using var ms = new MemoryStream(data);
+        var xdoc = XDocument.Load(ms);
+        var lines = xdoc.Descendants()
+            .Where(e => e.Name.LocalName is "p" or "heading")
+            .Select(e => e.Value.Trim())
+            .Where(v => v.Length > 0);
+        return string.Join("\n", lines);
     }
 
     private static string ExtractFromEpub(byte[] data)
@@ -577,6 +654,11 @@ public class DocumentTextExtractorService : IDocumentTextExtractor
         return sb.ToString();
     }
 
+    // SubViewer/YouTube (.sbv) cue timings — "0:00:01.000,0:00:04.000" — carry no
+    // "-->" separator, so they need their own shape to be recognised as timing.
+    private static readonly Regex SbvTimingLine =
+        new(@"^\d+:\d{2}:\d{2}[.,]\d+\s*,\s*\d+:\d{2}:\d{2}[.,]\d+$", RegexOptions.Compiled);
+
     private static string ExtractFromSubtitles(string raw)
     {
         var sb = new StringBuilder();
@@ -586,6 +668,7 @@ public class DocumentTextExtractorService : IDocumentTextExtractor
             var line = rawLine.Trim();
             if (line.Length == 0 ||
                 line.Contains("-->") ||
+                SbvTimingLine.IsMatch(line) ||
                 line.Equals("WEBVTT", StringComparison.OrdinalIgnoreCase) ||
                 line.StartsWith("NOTE", StringComparison.Ordinal) ||
                 line.StartsWith("STYLE", StringComparison.Ordinal) ||
@@ -604,4 +687,54 @@ public class DocumentTextExtractorService : IDocumentTextExtractor
 
         return sb.ToString();
     }
+
+    // Lyrics (.lrc): every line is prefixed with one or more [mm:ss.xx] stamps;
+    // the [ar:…]/[ti:…] metadata lines reduce to nothing and drop out.
+    private static string ExtractFromLrc(string raw)
+    {
+        var sb = new StringBuilder();
+        string? previous = null;
+        foreach (var rawLine in raw.Split('\n'))
+        {
+            var line = Regex.Replace(rawLine.Trim(), @"^(\[[^\]]*\])+", string.Empty).Trim();
+            if (line.Length == 0 || line == previous)
+                continue;
+
+            sb.AppendLine(line);
+            previous = line;
+        }
+
+        return sb.ToString();
+    }
+
+    // TTML / DFXP captions: cue text lives in <p> elements, with <br/> as the
+    // in-cue line break.
+    private static string ExtractFromTtml(byte[] data)
+    {
+        using var ms = new MemoryStream(data);
+        var xdoc = XDocument.Load(ms);
+
+        var sb = new StringBuilder();
+        string? previous = null;
+        foreach (var p in xdoc.Descendants().Where(e => e.Name.LocalName == "p"))
+        {
+            var text = string.Concat(p.Nodes().Select(NodeText)).Trim();
+            text = Regex.Replace(text, @"[ \t]+", " ");
+            if (text.Length == 0 || text == previous)
+                continue;
+
+            sb.AppendLine(text);
+            previous = text;
+        }
+
+        return sb.ToString();
+    }
+
+    private static string NodeText(XNode node) => node switch
+    {
+        XText text => text.Value,
+        XElement { Name.LocalName: "br" } => "\n",
+        XElement element => string.Concat(element.Nodes().Select(NodeText)),
+        _ => string.Empty,
+    };
 }

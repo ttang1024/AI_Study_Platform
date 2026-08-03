@@ -9,6 +9,17 @@ test.describe('Landing page', () => {
     await expect(page.getByText(/your complete study suite/i)).toBeVisible()
     await expect(page.getByRole('button', { name: /sign in/i }).first()).toBeVisible()
   })
+
+  // The format count is a public claim about what the uploader accepts; if the
+  // allowlist ever shrinks below it, this is the reminder to restate it.
+  test('leads the feature grid with the supported-format card', async ({ page }) => {
+    await page.goto('/')
+
+    const card = page.getByRole('heading', { name: /reads 230\+ formats/i })
+    await card.scrollIntoViewIfNeeded()
+    await expect(card).toBeVisible()
+    await expect(page.getByText('+220 more')).toBeVisible()
+  })
 })
 
 // ─── Authenticated pages ───────────────────────────────────────────────────────
@@ -172,6 +183,35 @@ test.describe('Document detail page', () => {
   test('shows the summary tab content', async ({ page }) => {
     await page.goto('/documents/doc-cells')
     await expect(page.getByText(/cells are the basic unit of life/i)).toBeVisible()
+  })
+
+  test('renders a source file with line numbers instead of raw text', async ({ page }) => {
+    await page.goto('/documents/doc-script')
+
+    const firstLine = page.getByRole('row').first()
+    await expect(firstLine.getByRole('cell').first()).toHaveText('1')
+    await expect(page.getByText('# sum them up')).toBeVisible()
+  })
+
+  test('renders a csv as a table', async ({ page }) => {
+    await page.goto('/documents/doc-grades')
+
+    await expect(page.getByRole('columnheader', { name: 'student' })).toBeVisible()
+    await expect(page.getByRole('cell', { name: 'Ada' })).toBeVisible()
+  })
+
+  test('renders a notebook as cells with their outputs', async ({ page }) => {
+    await page.goto('/documents/doc-lab')
+
+    await expect(page.getByRole('heading', { name: 'Lab notes' })).toBeVisible()
+    await expect(page.getByText('In [1]')).toBeVisible()
+  })
+
+  test('renders captions as a timestamped transcript', async ({ page }) => {
+    await page.goto('/documents/doc-captions')
+
+    await expect(page.getByText('0:01')).toBeVisible()
+    await expect(page.getByText('Mitochondria make ATP')).toBeVisible()
   })
 })
 
