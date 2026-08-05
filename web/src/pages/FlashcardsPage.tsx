@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrainCircuit, Loader2, CalendarDays } from 'lucide-react';
+import { BrainCircuit, Loader2, CalendarDays, Bug } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../utils/cn';
@@ -14,6 +14,7 @@ import { PendingItemsGrid } from '../components/common/PendingItemsGrid';
 import { Pagination } from '../components/common/Pagination';
 import { FlashcardClassifyModal } from '../components/study/FlashcardClassifyModal';
 import { ReviewQueueTab } from '../components/study/ReviewQueueTab';
+import { LeechesTab } from '../components/study/LeechesTab';
 import { ClassifyFilterBar } from '../components/study/ClassifyFilterBar';
 import { FlashcardSetCard } from '../components/study/FlashcardSetCard';
 import { useFlashcardsPage } from './flashcards/useFlashcardsPage';
@@ -71,6 +72,7 @@ export const FlashcardsPage: React.FC = () => {
         {([
           { id: 'sets', label: 'My Sets', icon: BrainCircuit },
           { id: 'review', label: 'Review Queue', icon: CalendarDays },
+          { id: 'leeches', label: 'Leeches', icon: Bug },
         ] as const).map(tab => (
           <button
             key={tab.id}
@@ -90,6 +92,10 @@ export const FlashcardsPage: React.FC = () => {
 
       {s.activeTab === 'review' && (
         <ReviewQueueTab flashcards={s.flashcards} />
+      )}
+
+      {s.activeTab === 'leeches' && (
+        <LeechesTab onEdit={s.setClassifyCard} />
       )}
 
       {s.activeTab === 'sets' && <>
@@ -114,6 +120,7 @@ export const FlashcardsPage: React.FC = () => {
           onChapterChange={s.setFilterChapter}
           filterTags={s.filterTags}
           onTagsChange={s.setFilterTags}
+          onStartSession={s.startFilteredSession}
           filteredCardCount={s.filteredCards.length}
         />
 

@@ -41,6 +41,8 @@ export interface FlashcardSrsState {
   due: string; // ISO datetime
   lastReview?: string; // ISO datetime
   retrievability: number; // recall probability 0–1
+  /** Suspended cards keep their state but are excluded from every review queue. */
+  isSuspended?: boolean;
 }
 
 /** Rating sent to the FSRS review endpoint: 1=Again, 2=Hard, 3=Good, 4=Easy. */

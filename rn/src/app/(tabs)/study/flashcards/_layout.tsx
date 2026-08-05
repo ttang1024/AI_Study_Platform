@@ -15,6 +15,7 @@ export default function FlashcardsLayout() {
       <Stack.Screen name="index" options={{ title: 'Flashcards', headerLeft: () => <HeaderBackButton /> }} />
       <Stack.Screen name="deck/[id]" options={{ title: '' }} />
       <Stack.Screen name="review" options={{ title: 'Review', presentation: 'fullScreenModal' }} />
+      <Stack.Screen name="leeches" options={{ title: 'Leeches' }} />
     </Stack>
   );
 }

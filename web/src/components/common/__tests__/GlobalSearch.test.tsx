@@ -29,13 +29,14 @@ vi.mock('../../../services/aiService', () => ({
 }))
 
 import { GlobalSearch } from '../GlobalSearch'
+import { I18nProvider } from '../../../i18n'
 
 const EVERYTHING_ROW = /search everything for/i
 
 describe('GlobalSearch — search-everything escape hatch', () => {
-  beforeEach(() => navigate.mockClear())
+  beforeEach(() => { navigate.mockClear(); localStorage.clear() })
 
-  const open = () => render(<GlobalSearch isOpen onClose={vi.fn()} />)
+  const open = () => render(<I18nProvider><GlobalSearch isOpen onClose={vi.fn()} /></I18nProvider>)
   const type = (text: string) => userEvent.type(screen.getByRole('textbox'), text)
 
   it('is hidden until the query is long enough to search', async () => {
@@ -89,5 +90,70 @@ describe('GlobalSearch — search-everything escape hatch', () => {
     await type('photosynthesis')
     await userEvent.keyboard('{ArrowDown}{ArrowDown}{ArrowDown}{Enter}')
     expect(navigate).toHaveBeenCalledWith('/search?q=photosynthesis')
+  })
+})
+
+describe('GlobalSearch — go-to-page commands', () => {
+  beforeEach(() => { navigate.mockClear(); localStorage.clear() })
+
+  const open = () => render(<I18nProvider><GlobalSearch isOpen onClose={vi.fn()} /></I18nProvider>)
+
+  it('lists navigation commands when the query is empty', () => {
+    open()
+    expect(screen.getByText('Dashboard')).toBeInTheDocument()
+    expect(screen.getByText('Library')).toBeInTheDocument()
+    expect(screen.getByText('Settings')).toBeInTheDocument()
+  })
+
+  it('opens the first command with Enter alone', async () => {
+    open()
+    await userEvent.type(screen.getByRole('textbox'), '{Enter}')
+    expect(navigate).toHaveBeenCalledWith('/dashboard')
+  })
+
+  it('filters commands as the user types and navigates on select', async () => {
+    open()
+    await userEvent.type(screen.getByRole('textbox'), 'leech')
+    await userEvent.click(screen.getByText(/Leeches/))
+    expect(navigate).toHaveBeenCalledWith('/flashcards?tab=leeches')
+  })
+})
+
+describe('GlobalSearch — recent items', () => {
+  beforeEach(() => { navigate.mockClear(); localStorage.clear() })
+
+  const open = () => render(<I18nProvider><GlobalSearch isOpen onClose={vi.fn()} /></I18nProvider>)
+
+  it('does not show a Recent section on a clean history', () => {
+    open()
+    expect(screen.queryByText('Recent')).not.toBeInTheDocument()
+    expect(screen.getByText('Go to page')).toBeInTheDocument()
+  })
+
+  it('selecting a content result records it, and it resurfaces first next time the palette opens', async () => {
+    const { unmount } = open()
+    await userEvent.type(screen.getByRole('textbox'), 'photosynthesis')
+    await userEvent.click(screen.getByText('Photosynthesis notes'))
+    expect(navigate).toHaveBeenCalledWith('/documents/doc-1')
+    unmount()
+
+    open()
+    expect(screen.getByText('Recent')).toBeInTheDocument()
+    const recentRow = screen.getByText('Photosynthesis notes').closest('button')!
+    expect(recentRow).toBeInTheDocument()
+
+    // It is also the default Enter target, ahead of every nav command.
+    navigate.mockClear()
+    await userEvent.type(screen.getByRole('textbox'), '{Enter}')
+    expect(navigate).toHaveBeenCalledWith('/documents/doc-1')
+  })
+
+  it('selecting a nav command does not pollute recent-item history', async () => {
+    const { unmount } = open()
+    await userEvent.type(screen.getByRole('textbox'), '{Enter}') // Dashboard, the first nav command
+    unmount()
+
+    open()
+    expect(screen.queryByText('Recent')).not.toBeInTheDocument()
   })
 })

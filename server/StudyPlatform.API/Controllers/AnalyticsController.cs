@@ -70,6 +70,18 @@ public class AnalyticsController : ControllerBase
     }
 
     /// <summary>
+    /// Get per-day activity (flashcard reviews + study minutes) for the contributions-style heatmap
+    /// </summary>
+    [HttpGet("activity-heatmap")]
+    [ProducesResponseType(typeof(BaseResponse<ActivityHeatmapDto>), 200)]
+    public async Task<IActionResult> GetActivityHeatmap([FromQuery] int days = 365)
+    {
+        var userId = User.GetUserId();
+        var result = await _mediator.Send(new GetActivityHeatmapQuery(userId, days));
+        return Ok(BaseResponse<ActivityHeatmapDto>.Ok(result.Data!));
+    }
+
+    /// <summary>
     /// Get the dashboard at-a-glance summary: study streak, today's time, due flashcards, and reinforcement counts
     /// </summary>
     [HttpGet("dashboard-summary")]

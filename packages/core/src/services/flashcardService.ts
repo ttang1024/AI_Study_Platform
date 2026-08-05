@@ -11,6 +11,7 @@ interface BackendSrs {
   due: string;
   lastReview?: string;
   retrievability: number;
+  isSuspended?: boolean;
 }
 
 export interface BackendFlashcard {
@@ -52,6 +53,7 @@ const mapSrs = (s: BackendSrs): FlashcardSrsState => ({
   due: s.due,
   lastReview: s.lastReview,
   retrievability: s.retrievability,
+  isSuspended: s.isSuspended ?? false,
 });
 
 export const mapBackendFlashcard = (bf: BackendFlashcard): Flashcard => ({
@@ -214,6 +216,23 @@ export function createFlashcardService(http: HttpClient) {
       const response = await http.patch<{ data: BackendFlashcard }>(`/api/flashcards/${flashcardId}/classify`, data);
       invalidateFlashcardListCache();
       return mapBackendFlashcard(response.data.data);
+    },
+
+    /** Leech cards: repeatedly forgotten (FSRS lapses ≥ threshold), worst first. */
+    async getLeeches(threshold = 4): Promise<Flashcard[]> {
+      const response = await http.get<{ data: BackendFlashcard[] | null }>(`/api/flashcards/leeches?threshold=${threshold}`);
+      return (response.data.data ?? []).map(mapBackendFlashcard);
+    },
+
+    /** Suspend (or resume) a card — suspended cards never come up for review. */
+    async setSuspended(flashcardId: string, suspended: boolean): Promise<FlashcardSrsState> {
+      const response = await http.patch<{ data: BackendSrs }>(`/api/flashcards/${flashcardId}/suspend`, { suspended });
+      return mapSrs(response.data.data);
+    },
+
+    /** Reset a card's FSRS scheduling so it starts over as a new card. */
+    async resetSrs(flashcardId: string): Promise<void> {
+      await http.post(`/api/flashcards/${flashcardId}/srs/reset`, {});
     },
 
     /** Get FSRS SRS state map (flashcardId → SrsState) for all user flashcards */

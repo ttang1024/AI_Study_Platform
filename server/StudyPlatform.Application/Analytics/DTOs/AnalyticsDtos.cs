@@ -36,3 +36,14 @@ public record ReinforcementCountsDto(int QuizMistakes, int UnmasteredTerms, int 
 public record DashboardSummaryDto(StudyStreakDto Streak, int DueFlashcards, ReinforcementCountsDto Reinforcement, int DailyGoalMinutes);
 
 public record UpdateDailyGoalRequest(int Minutes);
+
+/// <summary>One day's activity for the year heatmap. Days with no activity are omitted — the client fills the grid.</summary>
+public record ActivityHeatmapDayDto(DateTime Date, int Reviews, int StudyMinutes);
+
+public record ActivityHeatmapDto(
+    DateTime From,
+    DateTime To,
+    IReadOnlyList<ActivityHeatmapDayDto> Days,
+    int TotalReviews,
+    int TotalStudyMinutes,
+    int ActiveDays);

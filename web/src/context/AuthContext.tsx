@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '../types';
 import { authService } from '../services/authService';
+import { clearRecentItems } from '../services/recentItemsService';
 
 /**
  * What `login` resolves to. `pending2fa` means the password was right but a code is still owed —
@@ -79,6 +80,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       localStorage.removeItem('sp_access_token');
       localStorage.removeItem('sp_user');
+      clearRecentItems();
       setUser(null);
     }
   };

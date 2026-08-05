@@ -2,12 +2,19 @@ import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { ActivityHeatmap } from '@/components/charts/ActivityHeatmap';
 import { BarChart } from '@/components/charts/BarChart';
 import { Card } from '@/components/Card';
 import { ProgressBar } from '@/components/ProgressBar';
 import { SegmentedTabs } from '@/components/SegmentedTabs';
 import { Colors, Gradients, Overlay, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
-import { analyticsService, type CourseMastery, type TimeOnTask, type DailyQuizAccuracy } from '@/services/analyticsService';
+import {
+  analyticsService,
+  type ActivityHeatmap as ActivityHeatmapData,
+  type CourseMastery,
+  type TimeOnTask,
+  type DailyQuizAccuracy,
+} from '@/services/analyticsService';
 import { bucketAccuracy, bucketMinutes } from '@/utils/analyticsBuckets';
 
 type RangeOption = '7' | '30' | '90';
@@ -29,6 +36,7 @@ export default function InsightsScreen() {
   const [timeOnTask, setTimeOnTask] = useState<TimeOnTask | null>(null);
   const [accuracy, setAccuracy] = useState<DailyQuizAccuracy[] | null>(null);
   const [mastery, setMastery] = useState<CourseMastery[] | null>(null);
+  const [heatmap, setHeatmap] = useState<ActivityHeatmapData | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const refresh = async () => {
@@ -36,14 +44,16 @@ export default function InsightsScreen() {
     const from = new Date();
     from.setDate(from.getDate() - (days - 1));
     try {
-      const [t, a, m] = await Promise.all([
+      const [t, a, m, h] = await Promise.all([
         analyticsService.getTimeOnTask(from.toISOString()),
         analyticsService.getQuizAccuracy(from.toISOString()),
         analyticsService.getCourseMastery(),
+        analyticsService.getActivityHeatmap(),
       ]);
       setTimeOnTask(t);
       setAccuracy(a);
       setMastery(m);
+      setHeatmap(h);
     } finally {
       setRefreshing(false);
     }
@@ -75,6 +85,8 @@ export default function InsightsScreen() {
 
   useEffect(() => {
     analyticsService.getCourseMastery().then(setMastery);
+    // Independent of the range selector above — the heatmap always shows the trailing year.
+    analyticsService.getActivityHeatmap().then(setHeatmap);
   }, []);
 
   const totalMinutes = timeOnTask ? Math.round(timeOnTask.totalSeconds / 60) : 0;
@@ -106,6 +118,15 @@ export default function InsightsScreen() {
         <StatTile label="Avg accuracy" value={`${overallAccuracy}%`} />
         <StatTile label="Avg mastery" value={`${avgMastery}%`} />
       </LinearGradient>
+
+      <Card style={styles.chartCard}>
+        <Text style={styles.sectionLabel}>Activity</Text>
+        {heatmap ? (
+          <ActivityHeatmap data={heatmap} />
+        ) : (
+          <ActivityIndicator color={Colors.primary} style={{ height: 90 }} />
+        )}
+      </Card>
 
       <Card style={styles.chartCard}>
         <Text style={styles.sectionLabel}>Study activity</Text>

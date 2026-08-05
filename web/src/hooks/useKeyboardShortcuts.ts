@@ -12,11 +12,12 @@ export interface Shortcut {
 export function useKeyboardShortcuts(shortcuts: Shortcut[]) {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      // Don't fire if typing in an input/textarea
       const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+      const isTyping = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
 
       for (const shortcut of shortcuts) {
+        // Bare-key shortcuts stay quiet while typing; modifier chords (⌘K) fire everywhere.
+        if (isTyping && !shortcut.meta && !shortcut.ctrl) continue;
         const keyMatch = e.key.toLowerCase() === shortcut.key.toLowerCase();
         const metaMatch = shortcut.meta ? (e.metaKey || e.ctrlKey) : true;
         const ctrlMatch = shortcut.ctrl ? e.ctrlKey : true;

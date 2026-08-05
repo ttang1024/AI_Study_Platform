@@ -19,6 +19,7 @@ export const MainLayout: React.FC = () => {
   const navigate = useNavigate();
 
   useKeyboardShortcuts([
+    { key: 'k', meta: true, description: 'Command palette', action: () => setIsSearchOpen(v => !v) },
     { key: '/', description: 'Open search', action: () => setIsSearchOpen(true) },
     { key: '?', description: 'Show shortcuts', action: () => setIsShortcutsOpen(true) },
     { key: 'd', description: 'Dashboard', action: () => navigate('/dashboard') },

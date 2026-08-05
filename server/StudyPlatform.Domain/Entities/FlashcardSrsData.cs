@@ -22,5 +22,8 @@ public class FlashcardSrsData
     public DateTime? LastReview { get; set; }
     public DateTime Due { get; set; }
 
+    /// <summary>Suspended cards keep their FSRS state but are excluded from every due queue.</summary>
+    public bool IsSuspended { get; set; }
+
     public Flashcard? Flashcard { get; set; }
 }

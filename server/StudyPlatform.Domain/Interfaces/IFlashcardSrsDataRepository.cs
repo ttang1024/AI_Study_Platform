@@ -10,4 +10,11 @@ public interface IFlashcardSrsDataRepository : IRepository<FlashcardSrsData>
 
     /// <summary>How many cards are due, counted in the database — for callers that only render the number.</summary>
     Task<int> CountDueByUserIdAsync(Guid userId, DateTime asOf, CancellationToken ct = default);
+
+    /// <summary>
+    /// Cards the user keeps failing (Lapses ≥ <paramref name="minLapses"/>), worst first,
+    /// paired with the card itself so callers can render front/back without a second query.
+    /// </summary>
+    Task<IReadOnlyList<(FlashcardSrsData Srs, Flashcard Card)>> GetLeechesByUserIdAsync(
+        Guid userId, int minLapses, CancellationToken ct = default);
 }

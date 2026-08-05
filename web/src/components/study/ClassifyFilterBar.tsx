@@ -1,4 +1,5 @@
 import React from 'react';
+import { Play } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { DIFFICULTY_COLORS } from './FlashcardClassifyModal';
 
@@ -11,6 +12,7 @@ interface ClassifyFilterBarProps {
   filterTags: string[];
   onTagsChange: (tags: string[]) => void;
   filteredCardCount: number;
+  onStartSession?: () => void;
 }
 
 export const ClassifyFilterBar: React.FC<ClassifyFilterBarProps> = ({
@@ -22,6 +24,7 @@ export const ClassifyFilterBar: React.FC<ClassifyFilterBarProps> = ({
   filterTags,
   onTagsChange,
   filteredCardCount,
+  onStartSession,
 }) => {
   const isActive = filterDifficulty !== null || filterChapter.trim() !== '' || filterTags.length > 0;
 
@@ -86,10 +89,19 @@ export const ClassifyFilterBar: React.FC<ClassifyFilterBarProps> = ({
         </div>
       )}
 
-      {/* Active filter summary + clear */}
+      {/* Active filter summary + clear + cram-these-now */}
       {isActive && (
         <div className="ml-auto flex items-center gap-2">
           <span className="text-xs font-semibold text-[var(--primary)]">{filteredCardCount} cards</span>
+          {onStartSession && filteredCardCount > 0 && (
+            <button
+              onClick={onStartSession}
+              title="Study exactly these cards now, regardless of when they're next due"
+              className="flex items-center gap-1.5 rounded-lg bg-[var(--primary)] px-3 py-1 text-xs font-bold text-white hover:opacity-90 transition-opacity"
+            >
+              <Play size={12} /> Study these
+            </button>
+          )}
           <button
             onClick={() => { onDifficultyChange(null); onChapterChange(''); onTagsChange([]); }}
             className="text-xs font-semibold text-red-500 hover:text-red-600 transition-colors"

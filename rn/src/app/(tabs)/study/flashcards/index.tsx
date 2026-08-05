@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import Bug from 'lucide-react-native/icons/bug';
 import ChevronRight from 'lucide-react-native/icons/chevron-right';
 import Layers from 'lucide-react-native/icons/layers';
 import Upload from 'lucide-react-native/icons/upload';
@@ -130,6 +131,9 @@ export default function FlashcardsScreen() {
     return query ? allSets.filter((set) => set.name.toLowerCase().includes(query)) : allSets;
   }, [allSets, search]);
   const totalDue = useMemo(() => sets.reduce((sum, set) => sum + set.dueCount, 0), [sets]);
+  // Computed client-side from the already-loaded deck (same rule as the server's
+  // GET /api/flashcards/leeches — lapses ≥ 4) so the badge costs no extra request.
+  const leechCount = useMemo(() => cards.filter((c) => (c.srs?.lapses ?? 0) >= 4).length, [cards]);
 
   const openDeck = useCallback(
     (key: string) => router.push(`/study/flashcards/deck/${key}`),
@@ -173,6 +177,19 @@ export default function FlashcardsScreen() {
             <Zap size={16} color={Colors.primaryForeground} />
             <Text style={styles.reviewBannerText}>{totalDue} card{totalDue === 1 ? '' : 's'} due — start review</Text>
           </LinearGradient>
+        </PressableScale>
+      )}
+
+      {leechCount > 0 && (
+        <PressableScale
+          onPress={() => router.push('/study/flashcards/leeches')}
+          style={styles.leechBanner}
+        >
+          <Bug size={15} color={Colors.red} />
+          <Text style={styles.leechBannerText}>
+            {leechCount} card{leechCount === 1 ? '' : 's'} you keep forgetting — review leeches
+          </Text>
+          <ChevronRight size={16} color={Colors.red} />
         </PressableScale>
       )}
 
@@ -229,6 +246,13 @@ const styles = StyleSheet.create({
     borderRadius: Radius.pill, paddingVertical: 12,
   },
   reviewBannerText: { ...Typography.bodyBold, color: Colors.primaryForeground },
+  leechBanner: {
+    ...Layout.row, gap: Spacing.two,
+    marginHorizontal: Spacing.three, marginBottom: Spacing.two,
+    backgroundColor: `${Colors.red}${Alpha.tint}`, borderRadius: Radius.pill,
+    paddingVertical: 10, paddingHorizontal: Spacing.three,
+  },
+  leechBannerText: { ...Typography.captionBold, color: Colors.red, flex: 1 },
   list: { paddingHorizontal: Spacing.three, paddingBottom: Spacing.five, gap: Spacing.two },
   card: {
     ...Layout.row, gap: Spacing.three,

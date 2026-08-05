@@ -87,6 +87,22 @@ export interface StabilityBucket {
   cards: number;
 }
 
+/** One day's activity for the year heatmap. Days with no activity are omitted by the server. */
+export interface ActivityHeatmapDay {
+  date: string;
+  reviews: number;
+  studyMinutes: number;
+}
+
+export interface ActivityHeatmap {
+  from: string;
+  to: string;
+  days: ActivityHeatmapDay[];
+  totalReviews: number;
+  totalStudyMinutes: number;
+  activeDays: number;
+}
+
 export interface RetentionAnalytics {
   totalCardsTracked: number;
   totalReviews: number;
@@ -237,6 +253,12 @@ export function createAnalyticsService(http: HttpClient) {
 
     async getRetentionAnalytics(): Promise<RetentionAnalytics> {
       const response = await http.get<{ data: RetentionAnalytics }>('/api/analytics/retention');
+      return response.data.data;
+    },
+
+    /** Per-day reviews + study minutes for the contributions-style heatmap (default: trailing year). */
+    async getActivityHeatmap(days = 365): Promise<ActivityHeatmap> {
+      const response = await http.get<{ data: ActivityHeatmap }>(`/api/analytics/activity-heatmap?days=${days}`);
       return response.data.data;
     },
 

@@ -70,9 +70,10 @@ export function useFlashcardsPage() {
   const [showOcclusionEditor, setShowOcclusionEditor] = useState(false);
   const [exporting, setExporting] = useState(false);
 
-  const [activeTab, setActiveTab] = useState<'sets' | 'review'>(
-    () => (new URLSearchParams(window.location.search).get('tab') === 'review' ? 'review' : 'sets'),
-  );
+  const [activeTab, setActiveTab] = useState<'sets' | 'review' | 'leeches'>(() => {
+    const tab = new URLSearchParams(window.location.search).get('tab');
+    return tab === 'review' || tab === 'leeches' ? tab : 'sets';
+  });
 
   // Classification filters
   const [filterDifficulty, setFilterDifficulty] = useState<'easy' | 'medium' | 'hard' | null>(null);
@@ -154,6 +155,24 @@ export function useFlashcardsPage() {
     setMobileReview({ cards, title: set.name });
   };
 
+  /**
+   * Cram the current classification filters (difficulty/chapter/tags) right now, ignoring
+   * FSRS due dates entirely — the review queue only ever offers due + new cards, so this is
+   * the one path to "study everything tagged X" before an exam. Cards are still rated
+   * through the normal FlashcardSessionDeck, so FSRS state updates exactly as it would
+   * from any other session.
+   */
+  const startFilteredSession = () => {
+    setMobileReview({
+      cards: sets.filteredCards.map(toSimpleCard),
+      title: [
+        filterChapter.trim() || null,
+        filterDifficulty ? `${filterDifficulty} difficulty` : null,
+        filterTags.length > 0 ? filterTags.map(t => `#${t}`).join(' ') : null,
+      ].filter(Boolean).join(' · ') || 'Custom session',
+    });
+  };
+
   useEffect(() => { setPage(1); }, [sourceType, selectedCourseId, searchQuery]);
   useEffect(() => { setCardPage(1); }, [filterDifficulty, filterChapter, filterTags, sourceType, selectedCourseId, searchQuery]);
 
@@ -199,7 +218,7 @@ export function useFlashcardsPage() {
     // pending
     pendingItems, pendingItemsCount, refreshCoverage, refreshPendingItems,
     // modals / actions
-    mobileReview, setMobileReview,
+    mobileReview, setMobileReview, startFilteredSession,
     classifyCard, setClassifyCard,
     showImport, setShowImport,
     showOcclusionEditor, setShowOcclusionEditor,

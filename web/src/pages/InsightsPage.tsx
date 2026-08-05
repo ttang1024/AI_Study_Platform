@@ -2,6 +2,7 @@ import React, { lazy } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { BarChart3, Target, Brain, Network, Award } from 'lucide-react';
 import { AnalyticsSection } from '../components/dashboard/AnalyticsSection';
+import { ActivityHeatmapSection } from '../components/dashboard/ActivityHeatmapSection';
 import { ReinforcementPanel } from '../components/reinforcement/ReinforcementPanel';
 import { RetentionSection } from '../components/dashboard/RetentionSection';
 import { CalibrationSection } from '../components/dashboard/CalibrationSection';
@@ -19,6 +20,14 @@ const RetentionPanel: React.FC = () => (
   </div>
 );
 
+/** The year heatmap leads: it answers "did I actually study?" before the charts break it down. */
+const AnalyticsPanel: React.FC = () => (
+  <div className="space-y-6">
+    <ActivityHeatmapSection />
+    <AnalyticsSection />
+  </div>
+);
+
 // d3 and the graph simulation are worth ~a page of their own, so this tab stays behind a lazy
 // import even though the rest of Insights is eager.
 const GraphTab = lazy(() => import('./knowledgeGraph/GraphTab').then(m => ({ default: m.GraphTab })));
@@ -28,7 +37,7 @@ const TABS: PageTab<Tab>[] = [
     id: 'analytics',
     label: 'Analytics',
     icon: BarChart3,
-    panel: AnalyticsSection,
+    panel: AnalyticsPanel,
     blurb: 'Time on task, course mastery and how your week actually went.',
   },
   {

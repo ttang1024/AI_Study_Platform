@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReactDOM from 'react-dom';
-import { Search, FileText, X, Sparkles } from 'lucide-react';
+import { Search, FileText, X, Sparkles, Compass } from 'lucide-react';
 import { STUDY_TYPE_ICONS } from '../../constants/contentTypeIcons';
 import { useNavigate } from 'react-router-dom';
 import { useStudy } from '../../context/StudyContext';
@@ -9,12 +9,14 @@ import { questionBankService, type QuestionBankQuestion } from '../../services/q
 import { aiService, type ChatSessionSummary } from '../../services/aiService';
 import type { GlossaryTerm } from '../../types';
 import { cn } from '../../utils/cn';
+import { useTranslation } from '../../i18n';
+import { getRecentItems, recordRecentItem, type RecentItem } from '../../services/recentItemsService';
 
 interface SearchResult {
   id: string;
   title: string;
   subtitle?: string;
-  type: 'document' | 'flashcard' | 'note' | 'glossary' | 'quiz' | 'chat';
+  type: 'nav' | 'document' | 'flashcard' | 'note' | 'glossary' | 'quiz' | 'chat';
   href: string;
 }
 
@@ -24,6 +26,7 @@ interface GlobalSearchProps {
 }
 
 const TYPE_ICONS: Record<SearchResult['type'], React.ReactNode> = {
+  nav:      <Compass size={14} />,
   document: <FileText size={14} />,
   flashcard: <STUDY_TYPE_ICONS.flashcard.icon size={14} />,
   note:      <STUDY_TYPE_ICONS.notes.icon     size={14} />,
@@ -33,6 +36,7 @@ const TYPE_ICONS: Record<SearchResult['type'], React.ReactNode> = {
 };
 
 const TYPE_LABELS: Record<SearchResult['type'], string> = {
+  nav: 'Go to',
   document: 'Document',
   flashcard: 'Flashcard',
   note: 'Note',
@@ -42,6 +46,7 @@ const TYPE_LABELS: Record<SearchResult['type'], string> = {
 };
 
 const TYPE_COLORS: Record<SearchResult['type'], string> = {
+  nav: 'text-indigo-500',
   document: 'text-teal-600',
   flashcard: 'text-teal-500',
   note: 'text-amber-500',
@@ -53,11 +58,13 @@ const TYPE_COLORS: Record<SearchResult['type'], string> = {
 export const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) => {
   const { documents, flashcards, allNotes, ensureDocuments, ensureFlashcards, ensureNotes } = useStudy();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
   const [glossary, setGlossary] = useState<GlossaryTerm[]>([]);
   const [quizzes, setQuizzes] = useState<QuestionBankQuestion[]>([]);
   const [chats, setChats] = useState<ChatSessionSummary[]>([]);
+  const [recentItems, setRecentItems] = useState<RecentItem[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const extrasLoadedRef = useRef(false);
 
@@ -65,6 +72,9 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) =
     if (isOpen) {
       setQuery('');
       setActiveIndex(0);
+      // Re-read on every open (not just on mount) so the last selection shows up
+      // immediately the next time the palette is summoned.
+      setRecentItems(getRecentItems());
       setTimeout(() => inputRef.current?.focus(), 50);
       // The document list, flashcard deck and recent notes are loaded lazily by
       // StudyContext — make them searchable the first time search opens.
@@ -84,10 +94,42 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) =
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
+  // "Go to page" commands — labels resolve through i18n so they match the sidebar.
+  const navCommands: SearchResult[] = React.useMemo(() => {
+    const cmd = (id: string, title: string, href: string): SearchResult => ({ id, title, type: 'nav', href });
+    return [
+      cmd('nav-dashboard', t('nav.dashboard'), '/dashboard'),
+      cmd('nav-library', t('nav.library'), '/library'),
+      cmd('nav-summarizer', t('nav.summarizer'), '/library/add'),
+      cmd('nav-flashcards', t('nav.flashcards'), '/flashcards'),
+      cmd('nav-review', `${t('nav.flashcards')} · Review Queue`, '/flashcards?tab=review'),
+      cmd('nav-leeches', `${t('nav.flashcards')} · Leeches`, '/flashcards?tab=leeches'),
+      cmd('nav-practice', t('nav.practiceCenter'), '/quizzes'),
+      cmd('nav-planner', `${t('nav.practiceCenter')} · ${t('nav.planner')}`, '/quizzes?tab=planner'),
+      cmd('nav-materials', t('nav.materials'), '/materials'),
+      cmd('nav-notes', `${t('nav.materials')} · ${t('nav.notes')}`, '/materials?tab=notes'),
+      cmd('nav-glossary', `${t('nav.materials')} · ${t('nav.glossary')}`, '/materials?tab=glossary'),
+      cmd('nav-tools', t('nav.tools'), '/tools'),
+      cmd('nav-insights', t('nav.insights'), '/insights'),
+      cmd('nav-graph', `${t('nav.insights')} · ${t('nav.knowledgeGraph')}`, '/insights?tab=graph'),
+      cmd('nav-chat', t('nav.chat'), '/chat'),
+      cmd('nav-spaces', t('nav.spaces'), '/spaces'),
+      cmd('nav-settings', t('nav.settings'), '/settings'),
+    ];
+  }, [t]);
+
+  const recentResults: SearchResult[] = React.useMemo(() =>
+    recentItems.map(r => ({ id: r.id, title: r.title, subtitle: r.subtitle, type: r.type, href: r.href })),
+    [recentItems]);
+
   const results: SearchResult[] = React.useMemo(() => {
-    if (!query.trim() || query.length < 2) return [];
-    const q = query.toLowerCase();
-    const results: SearchResult[] = [];
+    // No query: recents (what you were just doing) come first, then the full nav map —
+    // the palette works as pure navigation with every page one Enter away.
+    if (!query.trim()) return [...recentResults, ...navCommands];
+
+    const q = query.toLowerCase().trim();
+    const results: SearchResult[] = navCommands.filter(c => c.title.toLowerCase().includes(q));
+    if (query.length < 2) return results;
 
     for (const doc of documents) {
       if (doc.name.toLowerCase().includes(q) || doc.summary?.toLowerCase().includes(q)) {
@@ -158,9 +200,22 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) =
     }
 
     return results.slice(0, 12);
-  }, [query, documents, flashcards, allNotes, glossary, quizzes, chats]);
+  }, [query, navCommands, recentResults, documents, flashcards, allNotes, glossary, quizzes, chats]);
+
+  // Section headers for the empty-query view only — a query narrows everything into one
+  // ranked list, so grouping stops being meaningful once the user is actually searching.
+  const sectionAt = React.useMemo(() => {
+    if (query.trim()) return new Map<number, string>();
+    const map = new Map<number, string>();
+    if (recentResults.length > 0) map.set(0, 'Recent');
+    map.set(recentResults.length, 'Go to page');
+    return map;
+  }, [query, recentResults.length]);
 
   const handleSelect = useCallback((result: SearchResult) => {
+    if (result.type !== 'nav') {
+      recordRecentItem({ id: result.id, title: result.title, subtitle: result.subtitle, type: result.type, href: result.href });
+    }
     navigate(result.href);
     onClose();
   }, [navigate, onClose]);
@@ -226,6 +281,14 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) =
           <ul className="max-h-80 overflow-y-auto py-2">
             {results.map((r, i) => (
               <li key={r.id + r.type}>
+                {sectionAt.has(i) && (
+                  <p className={cn(
+                    'px-4 pb-1 text-[10px] font-bold uppercase tracking-wider text-text-muted',
+                    i > 0 && 'pt-3',
+                  )}>
+                    {sectionAt.get(i)}
+                  </p>
+                )}
                 <button
                   onClick={() => handleSelect(r)}
                   onMouseEnter={() => setActiveIndex(i)}

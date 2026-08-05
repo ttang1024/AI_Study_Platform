@@ -34,7 +34,8 @@ public static class ArtifactMappings
     public static FlashcardSrsDto ToSrsDto(this FlashcardSrsData srs) => new(
         srs.FlashcardId, srs.State, srs.Stability, srs.Difficulty, srs.Reps, srs.Lapses,
         srs.Due, srs.LastReview,
-        FsrsService.ComputeRetrievability(srs.Stability, srs.LastReview));
+        FsrsService.ComputeRetrievability(srs.Stability, srs.LastReview),
+        srs.IsSuspended);
 
     /// <summary>
     /// Basic glossary-term projection (without enriched source metadata such as

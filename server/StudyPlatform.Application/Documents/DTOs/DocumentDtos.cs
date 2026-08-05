@@ -38,7 +38,8 @@ public record FlashcardSrsDto(
     int Lapses,
     DateTime Due,
     DateTime? LastReview,
-    double Retrievability);
+    double Retrievability,
+    bool IsSuspended = false);
 
 public record FlashcardDto(
     Guid FlashcardId,

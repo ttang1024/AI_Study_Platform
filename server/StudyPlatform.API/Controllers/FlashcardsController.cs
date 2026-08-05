@@ -205,6 +205,48 @@ public class FlashcardsController : ControllerBase
     }
 
     /// <summary>
+    /// Get leech cards: repeatedly forgotten flashcards (FSRS lapses at or above the threshold)
+    /// </summary>
+    [HttpGet("leeches")]
+    [ProducesResponseType(typeof(BaseResponse<IEnumerable<FlashcardDto>>), 200)]
+    public async Task<IActionResult> GetLeeches([FromQuery] int threshold = 4)
+    {
+        var userId = User.GetUserId();
+        var result = await _mediator.Send(new GetLeechFlashcardsQuery(userId, threshold));
+        return Ok(BaseResponse<IEnumerable<FlashcardDto>>.Ok(result.Data!));
+    }
+
+    /// <summary>
+    /// Suspend or resume a flashcard — suspended cards keep their FSRS state but never come up for review
+    /// </summary>
+    [HttpPatch("{flashcardId:guid}/suspend")]
+    [ProducesResponseType(typeof(BaseResponse<FlashcardSrsDto>), 200)]
+    [ProducesResponseType(typeof(BaseResponse), 404)]
+    public async Task<IActionResult> SetSuspended(Guid flashcardId, [FromBody] SetFlashcardSuspendedRequest request)
+    {
+        var userId = User.GetUserId();
+        var result = await _mediator.Send(new SetFlashcardSuspendedCommand(flashcardId, userId, request.Suspended));
+        if (!result.IsSuccess)
+            return NotFound(BaseResponse<FlashcardSrsDto>.Fail(result.Message, result.ErrorCode));
+        return Ok(BaseResponse<FlashcardSrsDto>.Ok(result.Data!));
+    }
+
+    /// <summary>
+    /// Reset a flashcard's FSRS scheduling so it starts over as a new card
+    /// </summary>
+    [HttpPost("{flashcardId:guid}/srs/reset")]
+    [ProducesResponseType(typeof(BaseResponse), 200)]
+    [ProducesResponseType(typeof(BaseResponse), 404)]
+    public async Task<IActionResult> ResetSrs(Guid flashcardId)
+    {
+        var userId = User.GetUserId();
+        var result = await _mediator.Send(new ResetFlashcardSrsCommand(flashcardId, userId));
+        if (!result.IsSuccess)
+            return NotFound(new BaseResponse { Success = false, Message = result.Message, ErrorCode = result.ErrorCode });
+        return Ok(new BaseResponse { Success = true, Message = result.Message });
+    }
+
+    /// <summary>
     /// Update classification (difficulty, chapter, tags) for a flashcard
     /// </summary>
     [HttpPatch("{flashcardId:guid}/classify")]

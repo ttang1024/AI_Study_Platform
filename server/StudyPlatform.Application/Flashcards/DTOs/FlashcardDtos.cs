@@ -11,6 +11,8 @@ public record FlashcardCoverageDto(
 /// <summary>Rating: 1=Again, 2=Hard, 3=Good, 4=Easy</summary>
 public record ReviewFlashcardRequest(int Rating);
 
+public record SetFlashcardSuspendedRequest(bool Suspended);
+
 /// <summary>Partial update — only non-null fields are applied.</summary>
 public record ClassifyFlashcardRequest(
     string? Front = null,

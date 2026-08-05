@@ -22,9 +22,24 @@ public class FlashcardSrsDataRepository : Repository<FlashcardSrsData>, IFlashca
     public async Task<IEnumerable<FlashcardSrsData>> GetDueByUserIdAsync(Guid userId, DateTime asOf, CancellationToken ct = default)
         => await _dbSet
             .AsNoTracking()
-            .Where(s => s.UserId == userId && s.Due <= asOf)
+            .Where(s => s.UserId == userId && s.Due <= asOf && !s.IsSuspended)
             .ToListAsync(ct);
 
     public async Task<int> CountDueByUserIdAsync(Guid userId, DateTime asOf, CancellationToken ct = default)
-        => await _dbSet.CountAsync(s => s.UserId == userId && s.Due <= asOf, ct);
+        => await _dbSet.CountAsync(s => s.UserId == userId && s.Due <= asOf && !s.IsSuspended, ct);
+
+    public async Task<IReadOnlyList<(FlashcardSrsData Srs, Flashcard Card)>> GetLeechesByUserIdAsync(
+        Guid userId, int minLapses, CancellationToken ct = default)
+    {
+        // Anonymous projection instead of Include for the same reason as above — the srs row
+        // and the card's own columns, nothing hanging off the card.
+        var rows = await _dbSet
+            .AsNoTracking()
+            .Where(s => s.UserId == userId && s.Lapses >= minLapses)
+            .OrderByDescending(s => s.Lapses)
+            .ThenBy(s => s.Due)
+            .Select(s => new { s, Card = s.Flashcard! })
+            .ToListAsync(ct);
+        return rows.Select(r => (r.s, r.Card)).ToList();
+    }
 }
