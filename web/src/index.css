@@ -118,6 +118,11 @@
 	@apply px-4 py-4 space-y-4;
 }
 
+.summary-content ::selection {
+	background-color: color-mix(in srgb, var(--primary) 30%, transparent);
+	color: var(--text-primary);
+}
+
 .summary-h1 {
 	@apply text-[11px] font-bold uppercase tracking-widest text-[var(--primary)] mb-2;
 }

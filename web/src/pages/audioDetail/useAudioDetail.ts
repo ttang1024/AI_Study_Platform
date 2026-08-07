@@ -8,6 +8,7 @@ import { VideoNoteEditorRef } from '../../components/youtube/VideoNoteEditor';
 import { ChatPanelRef } from '../../components/ai/ChatPanel';
 import { QuizQuestion } from '../../types';
 import { getApiErrorCode } from '../../utils/apiError';
+import { useSelectionToolbar } from '../../hooks/useSelectionToolbar';
 import { parseTranscript, formatTime, fmtSrtTime } from './transcript';
 
 export interface SimpleCard { id: string; front: string; back: string; cardType?: 'basic' | 'cloze' | 'chart' | 'occlusion'; }
@@ -72,6 +73,8 @@ export function useAudioDetail(propId?: string, propCourseId?: string) {
   const [isLoadingSummary, setIsLoadingSummary] = useState(false);
   const [summaryStreamText, setSummaryStreamText] = useState('');
   const [summaryError, setSummaryError] = useState<string | null>(null);
+  const summaryRef = useRef<HTMLDivElement>(null);
+  const { toolbar: summaryToolbar, setToolbar: setSummaryToolbar, onMouseUp: handleSummaryMouseUp } = useSelectionToolbar();
 
   // MindMap
   const [mindMapText, setMindMapText] = useState<string | null>(null);
@@ -472,6 +475,7 @@ export function useAudioDetail(propId?: string, propCourseId?: string) {
     openMenu, setOpenMenu, copyMenuRef, downloadMenuRef, copyTranscript, downloadTranscript,
     activeTab, setActiveTab, activeView, setActiveView, targetQuizQuestionId,
     summary, isLoadingSummary, summaryStreamText, summaryError, generateSummary, handleSaveSummary,
+    summaryRef, summaryToolbar, setSummaryToolbar, handleSummaryMouseUp,
     mindMapText, isLoadingMindMap, mindMapStreamingText, mindMapError, generateMindMap, handleSaveMindMap,
     showShareModal, setShowShareModal,
     noteContent, noteEditorRef, handleNoteSave,

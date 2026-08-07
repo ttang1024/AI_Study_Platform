@@ -15,6 +15,7 @@ import { ChatPanel } from '../components/ai/ChatPanel';
 import { ChatConversationBar } from '../components/ai/ChatConversationBar';
 import { SummaryPanel } from '../components/study/SummaryPanel';
 import { WorkedProblemsPanel } from '../components/WorkedProblemsPanel';
+import { TextSelectionToolbar } from '../components/document/TextSelectionToolbar';
 import { cn } from '../utils/cn';
 import { TABS } from '../constants/tab';
 import { SegmentedTranscript } from './audioDetail/SegmentedTranscript';
@@ -29,6 +30,7 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string; course
     openMenu, setOpenMenu, copyMenuRef, downloadMenuRef, copyTranscript, downloadTranscript,
     activeTab, setActiveTab, activeView, setActiveView, targetQuizQuestionId,
     summary, isLoadingSummary, summaryStreamText, summaryError, generateSummary, handleSaveSummary,
+    summaryRef, summaryToolbar, setSummaryToolbar, handleSummaryMouseUp,
     mindMapText, isLoadingMindMap, mindMapStreamingText, mindMapError, generateMindMap, handleSaveMindMap,
     showShareModal, setShowShareModal, noteContent, noteEditorRef, handleNoteSave,
     flashcards, isLoadingFlashcards, flashcardsError, generateFlashcards,
@@ -76,6 +78,8 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string; course
               error={summaryError}
               onRetry={generateSummary}
               streamingText={summaryStreamText}
+              summaryRef={summaryRef}
+              onMouseUp={handleSummaryMouseUp}
               onTimelineSeek={seekAudioTo}
               generateDisabled={generationDisabled}
               generateDisabledReason={generationDisabledReason}
@@ -396,6 +400,28 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string; course
           </button>
         </div>
       </motion.div>
+
+      {/* Summary text selection toolbar */}
+      {summaryToolbar && (
+        <TextSelectionToolbar
+          x={summaryToolbar.x}
+          y={summaryToolbar.y}
+          selectedText={summaryToolbar.text}
+          onClose={() => setSummaryToolbar(null)}
+          onAddNoteText={(text) => {
+            noteEditorRef.current?.appendContent(`<p>${text}</p>`);
+            setActiveTab('notes');
+            setActiveView('study');
+            setSummaryToolbar(null);
+          }}
+          onAskAI={(text) => {
+            chatPanelRef.current?.setInput(text);
+            setActiveTab('chat');
+            setActiveView('study');
+            setSummaryToolbar(null);
+          }}
+        />
+      )}
 
       <ShareModal
         open={showShareModal}

@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
-import type { SelectionToolbar } from './useVideoDetail';
+
+export interface SelectionToolbar { x: number; y: number; text: string; }
 
 /**
  * Tracks a floating toolbar anchored to the current text selection.

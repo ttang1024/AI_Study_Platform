@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { videoService, TranscriptSegment } from '../../services/videoService';
-import { useSelectionToolbar } from './useSelectionToolbar';
+import { useSelectionToolbar } from '../../hooks/useSelectionToolbar';
 import { fmtTime, fmtSrtTime } from './helpers';
 import type { VideoSourceType } from '../../constants/videoSources';
 

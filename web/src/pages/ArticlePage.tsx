@@ -190,6 +190,15 @@ export const ArticlePage: React.FC<{ embedded?: boolean; id?: string; courseId?:
     }
   };
 
+  const handleSaveSummary = useCallback(async (markdown: string) => {
+    if (!currentDocument) return;
+    await documentService.updateSummary(currentDocument.courseId || '', currentDocument.id, markdown);
+    setSummary(markdown);
+    const updated = { ...currentDocument, summary: markdown };
+    setCurrentDocument(updated);
+    updateDocumentInList(updated);
+  }, [currentDocument, setCurrentDocument, updateDocumentInList]);
+
   const handleArticleTextSelect = useCallback((x: number, y: number, text: string) => {
     setToolbar({ x, y, text });
   }, []);
@@ -312,6 +321,7 @@ export const ArticlePage: React.FC<{ embedded?: boolean; id?: string; courseId?:
                     streamingText={summaryStreamText}
                     summaryRef={summaryRef}
                     onMouseUp={handleSummaryMouseUp}
+                    onSaveSummary={handleSaveSummary}
                   />
                 </div>
                 <div className={cn('h-full', activeTab !== 'mindmap' && 'hidden')}>

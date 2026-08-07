@@ -48,12 +48,23 @@ describe('bucketByWindow', () => {
   })
 })
 
+// bucketMinutes/bucketAccuracy don't take an injectable `today` (only bucketByWindow does), so
+// fixture dates are computed relative to the real clock instead of hardcoded, or they silently
+// fall outside the window once the wall-clock date moves past a hardcoded fixture.
+const today = new Date()
+const isoDaysAgo = (n: number) => {
+  const d = new Date(today)
+  d.setDate(d.getDate() - n)
+  return dayKey(d)
+}
+const dayKey = (d: Date) => `${d.getFullYear()}-${`${d.getMonth() + 1}`.padStart(2, '0')}-${`${d.getDate()}`.padStart(2, '0')}`
+
 describe('bucketMinutes', () => {
   it('sums minutes falling in the same bucket', () => {
     const buckets = bucketMinutes(
       [
-        { date: '2026-08-02', totalMinutes: 30 },
-        { date: '2026-08-01', totalMinutes: 12 },
+        { date: isoDaysAgo(0), totalMinutes: 30 },
+        { date: isoDaysAgo(1), totalMinutes: 12 },
       ],
       7,
     )
@@ -68,8 +79,8 @@ describe('bucketAccuracy', () => {
     // the correct attempt-weighted answer is 21/41 ≈ 51%.
     const buckets = bucketAccuracy(
       [
-        { date: '2026-08-02', totalAttempts: 1, correctAttempts: 1 },
-        { date: '2026-08-01', totalAttempts: 40, correctAttempts: 20 },
+        { date: isoDaysAgo(0), totalAttempts: 1, correctAttempts: 1 },
+        { date: isoDaysAgo(1), totalAttempts: 40, correctAttempts: 20 },
       ],
       90, // weekly bucketing puts both days in one bucket
     )

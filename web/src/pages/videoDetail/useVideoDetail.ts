@@ -5,7 +5,7 @@ import { videoService, type VideoChatConversation } from '../../services/videoSe
 import { VideoNoteEditorRef } from '../../components/youtube/VideoNoteEditor';
 import { getApiErrorCode } from '../../utils/apiError';
 import { useStudyTimer } from '../../hooks/useStudyTimer';
-import { useSelectionToolbar } from './useSelectionToolbar';
+import { useSelectionToolbar } from '../../hooks/useSelectionToolbar';
 import { useVideoTranscript } from './useVideoTranscript';
 import { useVideoQuiz } from './useVideoQuiz';
 import { useVideoChat } from './useVideoChat';
@@ -165,7 +165,7 @@ export function useVideoDetail(propId?: string) {
     navigate(-1);
   }, [locationState?.returnTo, navigate]);
 
-  const seekTo = (seconds: number) => {
+  const seekTo = useCallback((seconds: number) => {
     const safeSeconds = Math.max(0, seconds);
     if (sourceType === 'youtube') {
       iframeRef.current?.contentWindow?.postMessage(
@@ -193,7 +193,12 @@ export function useVideoDetail(propId?: string) {
         embedSeekTimerRef.current = null;
       }, 200);
     }
-  };
+    // Refs and setState functions are stable; sourceType is the only value that should
+    // invalidate this callback's identity. A recreated seekTo would otherwise remount the
+    // markdown-rendered summary paragraphs on every unrelated re-render (e.g. text selection),
+    // wiping the browser's native selection highlight out from under the user.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sourceType]);
 
   // A `?t=` in the URL means we arrived from a citation's "jump to source" link. Seek once the
   // player exists, and only once — re-seeking on every render would fight the user's own scrubbing.
