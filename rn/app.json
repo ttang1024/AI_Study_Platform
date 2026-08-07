@@ -84,7 +84,8 @@
       ],
       "@bacons/apple-targets",
       "expo-image",
-      "expo-localization"
+      "expo-localization",
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true,
