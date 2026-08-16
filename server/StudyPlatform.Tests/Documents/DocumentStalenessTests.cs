@@ -1,6 +1,7 @@
 using System.Linq.Expressions;
 using MediatR;
 using Moq;
+using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Documents.Commands;
 using StudyPlatform.Application.Services;
 using StudyPlatform.Domain.Entities;
@@ -222,5 +223,42 @@ public class RegenerateStaleArtifactsCommandHandlerTests
         Assert.False(result.IsSuccess);
         _flashcards.Verify(r => r.RemoveRange(It.IsAny<IEnumerable<Flashcard>>()), Times.Never);
         _uow.Verify(u => u.SaveChangesAsync(default), Times.Never);
+    }
+
+    [Fact]
+    public async Task QuizzesOnly_ClearsOnlyQuizzes()
+    {
+        await _handler.Handle(
+            new RegenerateStaleArtifactsCommand(_userId, _documentId, Flashcards: false, Quizzes: true, Glossary: false),
+            default);
+
+        _quizzes.Verify(r => r.RemoveRange(It.IsAny<IEnumerable<Quiz>>()), Times.Once);
+        _flashcards.Verify(r => r.RemoveRange(It.IsAny<IEnumerable<Flashcard>>()), Times.Never);
+        _glossary.Verify(r => r.RemoveRange(It.IsAny<IEnumerable<GlossaryTerm>>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task GlossaryOnly_ClearsOnlyGlossaryTerms()
+    {
+        await _handler.Handle(
+            new RegenerateStaleArtifactsCommand(_userId, _documentId, Flashcards: false, Quizzes: false, Glossary: true),
+            default);
+
+        _glossary.Verify(r => r.RemoveRange(It.IsAny<IEnumerable<GlossaryTerm>>()), Times.Once);
+        _flashcards.Verify(r => r.RemoveRange(It.IsAny<IEnumerable<Flashcard>>()), Times.Never);
+        _quizzes.Verify(r => r.RemoveRange(It.IsAny<IEnumerable<Quiz>>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task AllKinds_PrunesOrphanedEmbeddingsAndReturnsFreshStaleness()
+    {
+        _mediator.Setup(m => m.Send(It.IsAny<GetDocumentStalenessQuery>(), default))
+            .ReturnsAsync(Result<StalenessDto>.Success(new StalenessDto(_documentId, 2, null, 0, 0, 0, false, false)));
+
+        var result = await _handler.Handle(
+            new RegenerateStaleArtifactsCommand(_userId, _documentId, true, true, true), default);
+
+        Assert.True(result.IsSuccess);
+        _embeddingIndex.Verify(e => e.PruneOrphansAsync(_userId, default), Times.Once);
     }
 }

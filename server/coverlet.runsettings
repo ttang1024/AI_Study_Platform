@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat code coverage">
+        <Configuration>
+          <Format>cobertura</Format>
+          <!-- EF Core migrations are auto-generated and dwarf the rest of the codebase; excluding them keeps the % meaningful. -->
+          <ExcludeByFile>**/Migrations/*.cs</ExcludeByFile>
+          <Exclude>[StudyPlatform.Tests]*</Exclude>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>
