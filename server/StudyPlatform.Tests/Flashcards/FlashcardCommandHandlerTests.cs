@@ -217,6 +217,7 @@ public class ReviewFlashcardCommandHandlerTests
     private readonly Mock<IFlashcardRepository> _flashcards = new();
     private readonly Mock<IFlashcardSrsDataRepository> _srsRepo = new();
     private readonly Mock<IFlashcardReviewLogRepository> _reviewLogs = new();
+    private readonly Mock<IUserFsrsSettingsRepository> _fsrsSettings = new();
     private readonly ReviewFlashcardCommandHandler _handler;
     private readonly Guid _userId = Guid.NewGuid();
     private readonly Guid _cardId = Guid.NewGuid();
@@ -226,10 +227,15 @@ public class ReviewFlashcardCommandHandlerTests
         _uow.Setup(u => u.Flashcards).Returns(_flashcards.Object);
         _uow.Setup(u => u.FlashcardSrs).Returns(_srsRepo.Object);
         _uow.Setup(u => u.FlashcardReviewLogs).Returns(_reviewLogs.Object);
+        _uow.Setup(u => u.UserFsrsSettings).Returns(_fsrsSettings.Object);
+        _srsRepo.Setup(r => r.GetDueCountsByDayAsync(_userId, It.IsAny<DateTime>(), It.IsAny<DateTime>(), default))
+            .ReturnsAsync(new Dictionary<DateTime, int>());
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
         _srsRepo.Setup(r => r.AddAsync(It.IsAny<FlashcardSrsData>(), default)).Returns(Task.CompletedTask);
         _reviewLogs.Setup(r => r.AddAsync(It.IsAny<FlashcardReviewLog>(), default)).Returns(Task.CompletedTask);
-        _handler = new ReviewFlashcardCommandHandler(_uow.Object);
+        // The real scheduler over the same mocked unit of work: these tests are about the
+        // handler's persistence, and a stubbed scheduler would stop them noticing if it broke.
+        _handler = new ReviewFlashcardCommandHandler(_uow.Object, new ReviewScheduler(_uow.Object));
     }
 
     [Theory]
@@ -458,5 +464,132 @@ public class BulkDeleteFlashcardsCommandHandlerTests
 
         Assert.True(result.IsSuccess);
         _uow.Verify(u => u.SaveChangesAsync(default), Times.Once);
+    }
+}
+
+public class CreateFlashcardFromTextCommandHandlerTests
+{
+    private readonly Mock<IUnitOfWork> _uow = new();
+    private readonly Mock<IFlashcardRepository> _flashcards = new();
+    private readonly Mock<IAiService> _aiService = new();
+    private readonly CreateFlashcardFromTextCommandHandler _handler;
+    private readonly Guid _userId = Guid.NewGuid();
+
+    private Flashcard? _added;
+
+    public CreateFlashcardFromTextCommandHandlerTests()
+    {
+        _uow.Setup(u => u.Flashcards).Returns(_flashcards.Object);
+        _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
+        _flashcards.Setup(r => r.AddAsync(It.IsAny<Flashcard>(), default))
+            .Callback<Flashcard, CancellationToken>((f, _) => _added = f)
+            .Returns(Task.CompletedTask);
+        _aiService.Setup(s => s.GenerateFlashcardBackAsync(It.IsAny<string>(), default)).ReturnsAsync("Generated back.");
+        _handler = new CreateFlashcardFromTextCommandHandler(_uow.Object, _aiService.Object);
+    }
+
+    [Fact]
+    public async Task Handle_EmptyText_ReturnsFailure()
+    {
+        var result = await _handler.Handle(new CreateFlashcardFromTextCommand(_userId, "   "), default);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("TEXT_REQUIRED", result.ErrorCode);
+        _flashcards.Verify(r => r.AddAsync(It.IsAny<Flashcard>(), default), Times.Never);
+    }
+
+    [Fact]
+    public async Task Handle_UsesAiServiceForBack_AndTagsAsWeb()
+    {
+        var result = await _handler.Handle(new CreateFlashcardFromTextCommand(_userId, "Selected text"), default);
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(_added);
+        Assert.Equal("Selected text", _added!.Front);
+        Assert.Equal("Generated back.", _added.Back);
+        Assert.Contains("web", _added.Tags);
+        _uow.Verify(u => u.SaveChangesAsync(default), Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_OverlongText_IsTruncatedWithEllipsis()
+    {
+        var longText = new string('a', 600);
+
+        await _handler.Handle(new CreateFlashcardFromTextCommand(_userId, longText), default);
+
+        Assert.NotNull(_added);
+        Assert.True(_added!.Front.Length <= 501);
+        Assert.EndsWith("…", _added.Front);
+    }
+
+    [Fact]
+    public async Task Handle_SourceTitle_IsAppendedToBack()
+    {
+        await _handler.Handle(new CreateFlashcardFromTextCommand(_userId, "Text", SourceTitle: "My Article"), default);
+
+        Assert.Contains("My Article", _added!.Back);
+    }
+
+    [Fact]
+    public async Task Handle_SourceUrl_AddsHostAsTag()
+    {
+        await _handler.Handle(new CreateFlashcardFromTextCommand(_userId, "Text", SourceUrl: "https://example.com/page"), default);
+
+        Assert.Contains("example.com", _added!.Tags);
+    }
+
+    [Fact]
+    public async Task Handle_InvalidSourceUrl_DoesNotAddHostTag()
+    {
+        await _handler.Handle(new CreateFlashcardFromTextCommand(_userId, "Text", SourceUrl: "not a url"), default);
+
+        Assert.Single(_added!.Tags);
+        Assert.Equal("web", _added.Tags[0]);
+    }
+}
+
+public class GetFlashcardSrsQueryHandlerTests
+{
+    private readonly Mock<IUnitOfWork> _uow = new();
+    private readonly Mock<IFlashcardSrsDataRepository> _srsRepo = new();
+    private readonly GetFlashcardSrsQueryHandler _handler;
+    private readonly Guid _userId = Guid.NewGuid();
+
+    public GetFlashcardSrsQueryHandlerTests()
+    {
+        _uow.Setup(u => u.FlashcardSrs).Returns(_srsRepo.Object);
+        _handler = new GetFlashcardSrsQueryHandler(_uow.Object);
+    }
+
+    [Fact]
+    public async Task Handle_NoRows_ReturnsEmpty()
+    {
+        _srsRepo.Setup(r => r.GetByUserIdAsync(_userId, default)).ReturnsAsync(Array.Empty<FlashcardSrsData>());
+
+        var result = await _handler.Handle(new GetFlashcardSrsQuery(_userId), default);
+
+        Assert.True(result.IsSuccess);
+        Assert.Empty(result.Data!);
+    }
+
+    [Fact]
+    public async Task Handle_ReturnsAllRowsMappedToDtos()
+    {
+        var cardId = Guid.NewGuid();
+        var srs = new FlashcardSrsData
+        {
+            FlashcardId = cardId, UserId = _userId, State = 2, Stability = 8.5, Difficulty = 4.2,
+            Reps = 3, Lapses = 1, Due = DateTime.UtcNow.AddDays(2),
+        };
+        _srsRepo.Setup(r => r.GetByUserIdAsync(_userId, default)).ReturnsAsync(new[] { srs });
+
+        var result = await _handler.Handle(new GetFlashcardSrsQuery(_userId), default);
+
+        Assert.True(result.IsSuccess);
+        var dto = Assert.Single(result.Data!);
+        Assert.Equal(cardId, dto.FlashcardId);
+        Assert.Equal(3, dto.Reps);
+        Assert.Equal(1, dto.Lapses);
     }
 }

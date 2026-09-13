@@ -9,7 +9,8 @@ import { ChatPanelRef } from '../../components/ai/ChatPanel';
 import { QuizQuestion } from '../../types';
 import { getApiErrorCode } from '../../utils/apiError';
 import { useSelectionToolbar } from '../../hooks/useSelectionToolbar';
-import { parseTranscript, formatTime, fmtSrtTime } from './transcript';
+import { buildSrt } from '@core/utils/format';
+import { parseTranscript, formatTime } from './transcript';
 
 export interface SimpleCard { id: string; front: string; back: string; cardType?: 'basic' | 'cloze' | 'chart' | 'occlusion'; }
 export type AudioStudyTab = 'summary' | 'mindmap' | 'notes' | 'flashcards' | 'quiz' | 'problems' | 'chat';
@@ -295,12 +296,7 @@ export function useAudioDetail(propId?: string, propCourseId?: string) {
     if (!transcript) return '';
     const segs = parseTranscript(transcript);
     if (!segs) return transcript;
-    return segs.map((seg, i) => {
-      const end = segs[i + 1]?.start ?? seg.end ?? seg.start + 5;
-      return withTimestamp
-        ? `${i + 1}\n${fmtSrtTime(seg.start)} --> ${fmtSrtTime(end)}\n${seg.text}`
-        : `${i + 1}\n${seg.text}`;
-    }).join('\n\n');
+    return buildSrt(segs, withTimestamp);
   };
 
   const copyTranscript = (withTimestamp: boolean) => {

@@ -4,6 +4,8 @@ using System.Text.RegularExpressions;
 using System.Security.Cryptography;
 using Microsoft.EntityFrameworkCore;
 using StudyPlatform.API.Extensions;
+using StudyPlatform.Application.Common;
+using StudyPlatform.Application.Services;
 using StudyPlatform.Domain.Entities;
 
 namespace StudyPlatform.API.Controllers;
@@ -21,11 +23,7 @@ public partial class VideoController
         video = await _unitOfWork.Videos.GetByIdWithCourseAsync(id, cancellationToken);
         if (video is null) return null;
 
-        var shared = await _unitOfWork.StudyGroupSharedCourses.FindAsync(sc => sc.CourseId == video.CourseId, cancellationToken);
-        var groupIds = shared.Select(sc => sc.GroupId).ToList();
-        var hasGroupAccess = groupIds.Count > 0 && await _unitOfWork.StudyGroupMembers.ExistsAsync(
-            m => groupIds.Contains(m.GroupId) && m.UserId == userId, cancellationToken);
-        return hasGroupAccess ? video : null;
+        return await _unitOfWork.HasSharedCourseAccessAsync(userId, video.CourseId, cancellationToken) ? video : null;
     }
 
     // ── Transcript helper ─────────────────────────────────────────────────
@@ -107,6 +105,19 @@ public partial class VideoController
     private static string FlashcardsCacheKey(string videoId) => $"flashcards:{videoId}";
     private static string VideoGlossaryCacheKey(Guid videoRecordId, Guid userId) => $"glossary:video:{videoRecordId}:{userId}";
     private static string VideoQuizCacheKey(Guid videoRecordId, Guid userId, string difficulty) => $"quiz:video:{videoRecordId}:{userId}:{difficulty}";
+
+    /// <summary>Stored segments of the first <paramref name="kinds"/> that has an unexpired entry.</summary>
+    private async Task<List<TranscriptSegmentDto>?> GetStoredTranscriptSegmentsAsync(
+        string videoId, CancellationToken cancellationToken, params string[] kinds)
+    {
+        foreach (var kind in kinds)
+        {
+            var segments = await GetStoredTranscriptSegmentsAsync(videoId, kind, cancellationToken);
+            if (segments is { Count: > 0 })
+                return segments;
+        }
+        return null;
+    }
 
     private async Task<List<TranscriptSegmentDto>?> GetStoredTranscriptSegmentsAsync(
         string videoId,
@@ -193,8 +204,7 @@ public partial class VideoController
     {
         var transcriptKey = $"{NormalizeSourceType(video.SourceType)}:{video.ExternalVideoId}";
 
-        var segments = await GetStoredTranscriptSegmentsAsync(transcriptKey, SubtitlesKind, cancellationToken)
-                       ?? await GetStoredTranscriptSegmentsAsync(transcriptKey, TranscriptKind, cancellationToken);
+        var segments = await GetStoredTranscriptSegmentsAsync(transcriptKey, cancellationToken, SubtitlesKind, TranscriptKind);
 
         if (segments is not { Count: > 0 })
             return null;
@@ -227,8 +237,7 @@ public partial class VideoController
             return video.Transcript;
         }
 
-        var storedSegments = await GetStoredTranscriptSegmentsAsync(transcriptKey, SubtitlesKind, cancellationToken)
-                             ?? await GetStoredTranscriptSegmentsAsync(transcriptKey, TranscriptKind, cancellationToken);
+        var storedSegments = await GetStoredTranscriptSegmentsAsync(transcriptKey, cancellationToken, SubtitlesKind, TranscriptKind);
         if (storedSegments is { Count: > 0 })
         {
             var storedTranscript = string.Join(" ", storedSegments.Select(s => s.Text));
@@ -240,21 +249,10 @@ public partial class VideoController
             return storedTranscript;
         }
 
-        var segments = IsExternalVideoSource(video)
-            ? await _transcriptService.GetSubtitlesFromUrlAsync(video.VideoUrl, cancellationToken)
-            : await _transcriptService.GetSubtitlesAsync(video.ExternalVideoId, cancellationToken);
-        var transcriptKind = SubtitlesKind;
-        if (segments == null || segments.Count == 0)
-        {
-            segments = IsExternalVideoSource(video)
-                ? await _transcriptService.GetTranscriptFromUrlAsync(video.VideoUrl, cancellationToken)
-                : await _transcriptService.GetTranscriptAsync(video.ExternalVideoId, cancellationToken);
-            transcriptKind = TranscriptKind;
-        }
-        if (segments == null || segments.Count == 0) return null;
+        var (dtos, transcriptKind) = await FetchTranscriptSegmentsAsync(video, cancellationToken);
+        if (dtos is null) return null;
 
-        var dtos = segments.Select(s => new TranscriptSegmentDto(s.Start.TotalSeconds, s.Text)).ToList();
-        var transcript = string.Join(" ", segments.Select(s => s.Text));
+        var transcript = string.Join(" ", dtos.Select(s => s.Text));
         video.Transcript = transcript;
         video.UpdatedAt = DateTime.UtcNow;
         _unitOfWork.Videos.Update(video);
@@ -275,29 +273,17 @@ public partial class VideoController
         if (cached is { Count: > 0 })
             return FormatTranscriptSegments(cached);
 
-        var storedSegments = await GetStoredTranscriptSegmentsAsync(transcriptKey, SubtitlesKind, cancellationToken)
-                             ?? await GetStoredTranscriptSegmentsAsync(transcriptKey, TranscriptKind, cancellationToken);
+        var storedSegments = await GetStoredTranscriptSegmentsAsync(transcriptKey, cancellationToken, SubtitlesKind, TranscriptKind);
         if (storedSegments is { Count: > 0 })
         {
             await _cache.SetAsync(segmentsCacheKey, storedSegments, ttl, cancellationToken);
             return FormatTranscriptSegments(storedSegments);
         }
 
-        var segments = IsExternalVideoSource(video)
-            ? await _transcriptService.GetSubtitlesFromUrlAsync(video.VideoUrl, cancellationToken)
-            : await _transcriptService.GetSubtitlesAsync(video.ExternalVideoId, cancellationToken);
-        var transcriptKind = SubtitlesKind;
-        if (segments == null || segments.Count == 0)
-        {
-            segments = IsExternalVideoSource(video)
-                ? await _transcriptService.GetTranscriptFromUrlAsync(video.VideoUrl, cancellationToken)
-                : await _transcriptService.GetTranscriptAsync(video.ExternalVideoId, cancellationToken);
-            transcriptKind = TranscriptKind;
-        }
-        if (segments == null || segments.Count == 0)
+        var (dtos, transcriptKind) = await FetchTranscriptSegmentsAsync(video, cancellationToken);
+        if (dtos is null)
             return await GetOrFetchTranscriptAsync(video, cancellationToken);
 
-        var dtos = segments.Select(s => new TranscriptSegmentDto(s.Start.TotalSeconds, s.Text)).ToList();
         await StoreTranscriptSegmentsAsync(transcriptKey, transcriptKind, dtos, ttl, cancellationToken);
         await _cache.SetAsync(segmentsCacheKey, dtos, ttl, cancellationToken);
         return FormatTranscriptSegments(dtos);
@@ -317,8 +303,7 @@ public partial class VideoController
         if (savedVideo != null)
             return await GetOrFetchTranscriptAsync(savedVideo, cancellationToken);
 
-        var storedSegments = await GetStoredTranscriptSegmentsAsync(videoId, SubtitlesKind, cancellationToken)
-                             ?? await GetStoredTranscriptSegmentsAsync(videoId, TranscriptKind, cancellationToken);
+        var storedSegments = await GetStoredTranscriptSegmentsAsync(videoId, cancellationToken, SubtitlesKind, TranscriptKind);
         if (storedSegments is { Count: > 0 })
         {
             var storedTranscript = string.Join(" ", storedSegments.Select(s => s.Text));
@@ -326,16 +311,9 @@ public partial class VideoController
             return storedTranscript;
         }
 
-        var segments = await _transcriptService.GetSubtitlesAsync(videoId, cancellationToken);
-        var transcriptKind = SubtitlesKind;
-        if (segments == null || segments.Count == 0)
-        {
-            segments = await _transcriptService.GetTranscriptAsync(videoId, cancellationToken);
-            transcriptKind = TranscriptKind;
-        }
-        if (segments == null || segments.Count == 0) return null;
+        var (dtos, transcriptKind) = await FetchTranscriptSegmentsAsync(videoId, cancellationToken);
+        if (dtos is null) return null;
 
-        var dtos = segments.Select(s => new TranscriptSegmentDto(s.Start.TotalSeconds, s.Text)).ToList();
         var transcript = string.Join(" ", dtos.Select(s => s.Text));
         await StoreTranscriptSegmentsAsync(videoId, transcriptKind, dtos, ttl, cancellationToken);
         await _cache.SetAsync(cacheKey, transcript, ttl, cancellationToken);
@@ -351,24 +329,16 @@ public partial class VideoController
         if (cached is { Count: > 0 })
             return FormatTranscriptSegments(cached);
 
-        var storedSegments = await GetStoredTranscriptSegmentsAsync(videoId, TranscriptKind, cancellationToken)
-                             ?? await GetStoredTranscriptSegmentsAsync(videoId, SubtitlesKind, cancellationToken);
+        var storedSegments = await GetStoredTranscriptSegmentsAsync(videoId, cancellationToken, TranscriptKind, SubtitlesKind);
         if (storedSegments is { Count: > 0 })
         {
             await _cache.SetAsync(cacheKey, storedSegments, ttl, cancellationToken);
             return FormatTranscriptSegments(storedSegments);
         }
 
-        var segments = await _transcriptService.GetSubtitlesAsync(videoId, cancellationToken);
-        var transcriptKind = SubtitlesKind;
-        if (segments == null || segments.Count == 0)
+        var (dtos, transcriptKind) = await FetchTranscriptSegmentsAsync(videoId, cancellationToken);
+        if (dtos is not null)
         {
-            segments = await _transcriptService.GetTranscriptAsync(videoId, cancellationToken);
-            transcriptKind = TranscriptKind;
-        }
-        if (segments is { Count: > 0 })
-        {
-            var dtos = segments.Select(s => new TranscriptSegmentDto(s.Start.TotalSeconds, s.Text)).ToList();
             await StoreTranscriptSegmentsAsync(videoId, transcriptKind, dtos, ttl, cancellationToken);
             await _cache.SetAsync(cacheKey, dtos, ttl, cancellationToken);
             return FormatTranscriptSegments(dtos);
@@ -377,9 +347,45 @@ public partial class VideoController
         return await GetTranscriptTextAsync(videoId, cancellationToken);
     }
 
+    // Subtitles (author captions) are preferred; auto-generated transcript is the fallback.
+    // Returns null segments when neither source has anything.
+    private async Task<(List<TranscriptSegmentDto>? Segments, string Kind)> FetchTranscriptSegmentsAsync(
+        Video video, CancellationToken cancellationToken)
+    {
+        // External sources have no YouTube id; yt-dlp needs the full URL.
+        return IsExternalVideoSource(video)
+            ? await FetchTranscriptSegmentsAsync(
+                () => _transcriptService.GetSubtitlesFromUrlAsync(video.VideoUrl, cancellationToken),
+                () => _transcriptService.GetTranscriptFromUrlAsync(video.VideoUrl, cancellationToken))
+            : await FetchTranscriptSegmentsAsync(video.ExternalVideoId, cancellationToken);
+    }
+
+    private Task<(List<TranscriptSegmentDto>? Segments, string Kind)> FetchTranscriptSegmentsAsync(
+        string videoId, CancellationToken cancellationToken)
+        => FetchTranscriptSegmentsAsync(
+            () => _transcriptService.GetSubtitlesAsync(videoId, cancellationToken),
+            () => _transcriptService.GetTranscriptAsync(videoId, cancellationToken));
+
+    private static async Task<(List<TranscriptSegmentDto>? Segments, string Kind)> FetchTranscriptSegmentsAsync(
+        Func<Task<IReadOnlyList<TranscriptSegment>?>> fetchSubtitles,
+        Func<Task<IReadOnlyList<TranscriptSegment>?>> fetchTranscript)
+    {
+        var segments = await fetchSubtitles();
+        var kind = SubtitlesKind;
+        if (segments is not { Count: > 0 })
+        {
+            segments = await fetchTranscript();
+            kind = TranscriptKind;
+        }
+        if (segments is not { Count: > 0 })
+            return (null, kind);
+
+        return (segments.Select(s => new TranscriptSegmentDto(s.Start.TotalSeconds, s.Text)).ToList(), kind);
+    }
+
     private static List<TranscriptSegmentDto> PrepareTranscriptSegments(IEnumerable<TranscriptSegmentDto> segments)
         => SegmentTranscriptForReading(segments)
-            .Select(s => new TranscriptSegmentDto(s.StartSeconds, NormalizeTranscriptSentence(s.Text)))
+            .Select(s => new TranscriptSegmentDto(s.StartSeconds, TranscriptSentences.Normalize(s.Text)))
             .ToList();
 
     private static List<TranscriptSegmentDto> SegmentTranscriptForReading(IEnumerable<TranscriptSegmentDto> segments)
@@ -445,36 +451,6 @@ public partial class VideoController
 
         segments[^2] = previous with { Text = $"{previous.Text.Trim()} {last.Text.Trim()}" };
         segments.RemoveAt(segments.Count - 1);
-    }
-
-    private static string NormalizeTranscriptSentence(string text)
-    {
-        text = Regex.Replace(text.Trim(), @"\s+([,.;:!?])", "$1");
-        text = AddCommonCommas(text);
-        if (text.Length == 0)
-            return text;
-
-        text = char.ToUpperInvariant(text[0]) + text[1..];
-        return EndsWithSentencePunctuation(text) ? text : text + ".";
-    }
-
-    private static bool EndsWithSentencePunctuation(string text)
-        => text.EndsWith('.') || text.EndsWith('!') || text.EndsWith('?')
-           || text.EndsWith('。') || text.EndsWith('！') || text.EndsWith('？');
-
-    private static string AddCommonCommas(string text)
-    {
-        text = Regex.Replace(
-            text,
-            @"^(however|therefore|meanwhile|first|second|third|finally|for example|in addition|on the other hand)\s+",
-            match => match.Groups[1].Value + ", ",
-            RegexOptions.IgnoreCase);
-
-        return Regex.Replace(
-            text,
-            @"\s+(however|although|though|whereas|while|but|which)\s+",
-            match => ", " + match.Groups[1].Value + " ",
-            RegexOptions.IgnoreCase);
     }
 
     private static string FormatTranscriptSegments(IEnumerable<TranscriptSegmentDto> segments)

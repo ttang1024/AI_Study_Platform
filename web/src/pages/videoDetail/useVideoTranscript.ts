@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { videoService, TranscriptSegment } from '../../services/videoService';
 import { useSelectionToolbar } from '../../hooks/useSelectionToolbar';
-import { fmtTime, fmtSrtTime } from './helpers';
+import { buildSrt } from '@core/utils/format';
+import { fmtTime } from './helpers';
 import type { VideoSourceType } from '../../constants/videoSources';
 
 interface UseVideoTranscriptArgs {
@@ -128,13 +129,7 @@ export function useVideoTranscript({ id, videoId, videoUrl, sourceType, videoTit
 
   const getTranscriptSrt = (withTimestamp: boolean) => {
     if (!transcript) return '';
-    return transcript.map((seg, i) => {
-      const start = seg.startSeconds;
-      const end = transcript[i + 1]?.startSeconds ?? start + 5;
-      return withTimestamp
-        ? `${i + 1}\n${fmtSrtTime(start)} --> ${fmtSrtTime(end)}\n${seg.text}`
-        : `${i + 1}\n${seg.text}`;
-    }).join('\n\n');
+    return buildSrt(transcript.map(seg => ({ start: seg.startSeconds, text: seg.text })), withTimestamp);
   };
 
   const copyTranscript = (withTimestamp: boolean) => {

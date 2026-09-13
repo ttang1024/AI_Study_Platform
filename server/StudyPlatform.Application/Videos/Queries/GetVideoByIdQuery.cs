@@ -28,11 +28,7 @@ public class GetVideoByIdQueryHandler : IRequestHandler<GetVideoByIdQuery, Resul
             if (video is null)
                 return Result<VideoDto>.Failure("Video not found.", "NOT_FOUND");
 
-            var shared = await _unitOfWork.StudyGroupSharedCourses.FindAsync(sc => sc.CourseId == video.CourseId, cancellationToken);
-            var groupIds = shared.Select(sc => sc.GroupId).ToList();
-            var hasGroupAccess = groupIds.Count > 0 && await _unitOfWork.StudyGroupMembers.ExistsAsync(
-                m => groupIds.Contains(m.GroupId) && m.UserId == request.UserId, cancellationToken);
-            if (!hasGroupAccess)
+            if (!await _unitOfWork.HasSharedCourseAccessAsync(request.UserId, video.CourseId, cancellationToken))
                 return Result<VideoDto>.Failure("Video not found.", "NOT_FOUND");
         }
 

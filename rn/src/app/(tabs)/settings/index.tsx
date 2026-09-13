@@ -7,6 +7,7 @@ import ChevronRight from 'lucide-react-native/icons/chevron-right';
 import KeyRound from 'lucide-react-native/icons/key-round';
 import MessageSquarePlus from 'lucide-react-native/icons/message-square-plus';
 import UserCircle from 'lucide-react-native/icons/circle-user';
+import Gauge from 'lucide-react-native/icons/gauge';
 import Volume2 from 'lucide-react-native/icons/volume-2';
 import CreditCard from 'lucide-react-native/icons/credit-card';
 import Languages from 'lucide-react-native/icons/languages';
@@ -137,6 +138,14 @@ export default function SettingsScreen() {
           <View style={styles.navBody}>
             <Text style={styles.navTitle}>Language</Text>
             <Text style={styles.navSubtitle}>Interface language; your study material is not translated</Text>
+          </View>
+          <ChevronRight size={18} color={Colors.textSecondary} />
+        </Pressable>
+        <Pressable style={styles.navRow} onPress={() => router.push('/settings/scheduler')}>
+          <IconBadge icon={Gauge} size={36} />
+          <View style={styles.navBody}>
+            <Text style={styles.navTitle}>Scheduler</Text>
+            <Text style={styles.navSubtitle}>Target retention, interval limits, and tuning FSRS to your own reviews</Text>
           </View>
           <ChevronRight size={18} color={Colors.textSecondary} />
         </Pressable>

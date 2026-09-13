@@ -56,6 +56,73 @@ const mapSrs = (s: BackendSrs): FlashcardSrsState => ({
   isSuspended: s.isSuspended ?? false,
 });
 
+/** Per-user FSRS scheduler tuning. */
+export interface FsrsSettings {
+  /** Recall probability the scheduler aims for (0.7–0.98). 0.9 is the FSRS default. */
+  desiredRetention: number;
+  maximumIntervalDays: number;
+  enableFuzz: boolean;
+  /** How many never-seen cards a session may introduce per day. */
+  newCardsPerDay: number;
+  /** Ceiling on cards offered per day, new and due together. 0 means no ceiling. */
+  maxReviewsPerDay: number;
+  /** True when scheduling uses weights fitted to this user's own history. */
+  usingOptimizedWeights: boolean;
+  weightsOptimizedAt?: string;
+  reviewsAtOptimization: number;
+  logLossBefore?: number;
+  logLossAfter?: number;
+  weights: number[];
+  reviewCount: number;
+  minimumReviewsToOptimize: number;
+}
+
+export interface FsrsOptimizationResult {
+  /** False when the fit was no better than the current scheduler, so nothing was saved. */
+  applied: boolean;
+  reviewCount: number;
+  logLossBefore: number;
+  logLossAfter: number;
+  rmseBefore: number;
+  rmseAfter: number;
+  /** Relative log-loss reduction, e.g. 0.06 for 6% better calibrated. */
+  improvement: number;
+  weights: number[];
+}
+
+/** The scheduler preferences a client may patch; the fitted weights are not among them. */
+export type FsrsSettingsPatch = Partial<
+  Pick<FsrsSettings, 'desiredRetention' | 'maximumIntervalDays' | 'enableFuzz' | 'newCardsPerDay' | 'maxReviewsPerDay'>
+>;
+
+export interface ReviewForecastDay {
+  day: string;
+  count: number;
+}
+
+export interface ReviewForecast {
+  /** Cards already past their due date — late work, not part of the forward view. */
+  overdue: number;
+  days: ReviewForecastDay[];
+  maxReviewsPerDay: number;
+  newCardsPerDay: number;
+}
+
+export interface RescheduleBacklogResult {
+  moved: number;
+  days: number;
+  /** The per-day ceiling the spread aimed for, after the user's own review limit. */
+  perDay: number;
+}
+
+export interface UndoReviewResult {
+  flashcardId: string;
+  rating: FsrsRating;
+  /** True when the undone review was the card's first, so it went back to being new. */
+  cardReset: boolean;
+  srs?: FlashcardSrsState;
+}
+
 export const mapBackendFlashcard = (bf: BackendFlashcard): Flashcard => ({
   id: bf.flashcardId,
   front: bf.front,
@@ -233,6 +300,49 @@ export function createFlashcardService(http: HttpClient) {
     /** Reset a card's FSRS scheduling so it starts over as a new card. */
     async resetSrs(flashcardId: string): Promise<void> {
       await http.post(`/api/flashcards/${flashcardId}/srs/reset`, {});
+    },
+
+    /** Read the user's FSRS scheduler settings (retention, max interval, fuzz, fitted weights). */
+    async getFsrsSettings(): Promise<FsrsSettings> {
+      const response = await http.get<{ data: FsrsSettings }>('/api/flashcards/srs/settings');
+      return response.data.data;
+    },
+
+    /** Patch scheduler settings — omitted fields are left as they are. */
+    async updateFsrsSettings(patch: FsrsSettingsPatch): Promise<FsrsSettings> {
+      const response = await http.put<{ data: FsrsSettings }>('/api/flashcards/srs/settings', patch);
+      return response.data.data;
+    },
+
+    /** Upcoming review load per day, plus the overdue backlog. */
+    async getReviewForecast(days = 14): Promise<ReviewForecast> {
+      const response = await http.get<{ data: ReviewForecast }>(`/api/flashcards/srs/forecast?days=${days}`);
+      return response.data.data;
+    },
+
+    /** Spread overdue cards across the coming days. Moves due dates only — memory state is untouched. */
+    async rescheduleBacklog(days = 7): Promise<RescheduleBacklogResult> {
+      const response = await http.post<{ data: RescheduleBacklogResult }>('/api/flashcards/srs/reschedule-backlog', { days });
+      return response.data.data;
+    },
+
+    /** Fit the FSRS weights to this user's review history, adopting them if better calibrated. */
+    async optimizeFsrsWeights(): Promise<FsrsOptimizationResult> {
+      const response = await http.post<{ data: FsrsOptimizationResult }>('/api/flashcards/srs/optimize', {});
+      return response.data.data;
+    },
+
+    /** Discard fitted weights and go back to the stock FSRS-4.5 scheduler. */
+    async resetFsrsWeights(): Promise<FsrsSettings> {
+      const response = await http.post<{ data: FsrsSettings }>('/api/flashcards/srs/weights/reset', {});
+      return response.data.data;
+    },
+
+    /** Roll back the most recent review, restoring the card's scheduling exactly. */
+    async undoLastReview(flashcardId?: string): Promise<UndoReviewResult> {
+      const response = await http.post<{ data: UndoReviewResult & { srs?: BackendSrs } }>('/api/flashcards/review/undo', { flashcardId });
+      const d = response.data.data;
+      return { ...d, srs: d.srs ? mapSrs(d.srs) : undefined };
     },
 
     /** Get FSRS SRS state map (flashcardId → SrsState) for all user flashcards */

@@ -47,7 +47,40 @@ const documents = [
     createdAt: now,
     updatedAt: now,
   },
+  // AudioDetailPage resolves this doc's courseId from the StudyContext documents list (GET
+  // /api/documents), then fetches the rest from GET /api/courses/:courseId/audio/:id separately.
+  // Transcript is pre-filled so the page doesn't kick off useAudioDetail's auto-transcribe path,
+  // which this fixture doesn't mock.
+  {
+    documentId: 'doc-audio-lecture',
+    courseId: 'course-bio',
+    userId: 'user-e2e',
+    fileName: 'Neuroscience Lecture.mp3',
+    blobUrl: '/fixtures/neuroscience-lecture.mp3',
+    contentType: 'audio/mpeg',
+    fileSize: 4_500_000,
+    summary: 'Neurons communicate through electrochemical signals.',
+    mindMapText: null,
+    transcript: 'Neurons communicate through electrochemical signals.',
+    originalUrl: null,
+    createdAt: now,
+    updatedAt: now,
+  },
 ]
+
+// Quiz bank keyed by documentId, for the per-document Quiz tab (DocumentQuiz component).
+const documentQuizzes: Record<string, { quizId: string; question: string; options: string[]; correctAnswer: string; explanation: string; difficulty: string }[]> = {
+  'doc-cells': [
+    {
+      quizId: 'quiz-cells-1',
+      question: 'What organelle generates ATP?',
+      options: ['Nucleus', 'Mitochondria', 'Ribosome', 'Golgi body'],
+      correctAnswer: 'Mitochondria',
+      explanation: 'Mitochondria perform cellular respiration, producing ATP.',
+      difficulty: 'medium',
+    },
+  ],
+}
 
 const videos = [
   {
@@ -226,6 +259,19 @@ const libraryRows: LibraryRow[] = [
     summary: 'Photosynthesis converts light into chemical energy.',
   },
   {
+    kind: 'document',
+    id: 'doc-audio-lecture',
+    courseId: 'course-bio',
+    courseName: 'Biology 101',
+    courseColor: '#0d9488',
+    createdAt: now,
+    fileName: 'Neuroscience Lecture.mp3',
+    blobUrl: '/fixtures/neuroscience-lecture.mp3',
+    contentType: 'audio/mpeg',
+    fileSize: 4_500_000,
+    summary: 'Neurons communicate through electrochemical signals.',
+  },
+  {
     kind: 'video',
     id: 'video-mitosis',
     courseId: 'course-bio',
@@ -272,6 +318,8 @@ const viewerDocumentFiles: Record<string, string> = {
     nbformat: 4,
   }),
   'doc-captions': '1\n00:00:01,000 --> 00:00:04,000\nMitochondria make ATP\n',
+  // Not a real mp3 — the audio element never actually plays in these tests, only renders.
+  'doc-audio-lecture': 'fixture-audio-bytes',
 }
 
 // Mirrors how the server buckets a row for the ?type= filter.
@@ -308,11 +356,107 @@ export async function signInForE2E(page: Page) {
 }
 
 export async function mockStudyApi(page: Page) {
+  // Mutated by the DELETE and review/classify handlers below so later GETs in the same test
+  // reflect the write — a mock that always serves the static fixture would let a broken mutation
+  // pass by never noticing the list didn't actually change.
+  const deletedDocumentIds = new Set<string>()
+  const reviewedFlashcards = new Map<string, { rating: number; difficulty: string }>()
+  const createdCourses: { courseId: string; userId: string; courseName: string; courseColor: string; createdAt: string; updatedAt: string }[] = []
+  let fsrsSettings = {
+    desiredRetention: 0.9,
+    maximumIntervalDays: 36500,
+    enableFuzz: true,
+    newCardsPerDay: 20,
+    maxReviewsPerDay: 0,
+    usingOptimizedWeights: false,
+    reviewsAtOptimization: 0,
+    weights: [] as number[],
+    reviewCount: 12,
+    minimumReviewsToOptimize: 200,
+  }
+
   await page.route('**/api/**', async (route) => {
     const url = new URL(route.request().url())
     const path = url.pathname
+    const method = route.request().method()
 
-    if (path === '/api/courses') return json(route, courses)
+    const deleteDocMatch = path.match(/^\/api\/courses\/[^/]+\/documents\/([^/]+)$/)
+    if (method === 'DELETE' && deleteDocMatch) {
+      deletedDocumentIds.add(deleteDocMatch[1])
+      return json(route, true)
+    }
+
+    // Scheduler settings: the flashcards page reads these to size the review queue, so the
+    // fallback `[]` would leave the queue with a NaN new-card budget.
+    if (path === '/api/flashcards/srs/settings') {
+      if (method === 'PUT') {
+        const patch = route.request().postDataJSON() as Record<string, unknown>
+        fsrsSettings = { ...fsrsSettings, ...patch }
+      }
+      return json(route, fsrsSettings)
+    }
+
+    if (path === '/api/flashcards/srs/forecast' && method === 'GET') {
+      const days = Number(url.searchParams.get('days') ?? 14)
+      return json(route, {
+        overdue: 3,
+        days: Array.from({ length: days }, (_, i) => ({
+          day: new Date(Date.now() + i * 86_400_000).toISOString(),
+          count: i % 4,
+        })),
+        maxReviewsPerDay: fsrsSettings.maxReviewsPerDay,
+        newCardsPerDay: fsrsSettings.newCardsPerDay,
+      })
+    }
+
+    if (path === '/api/flashcards/srs/reschedule-backlog' && method === 'POST') {
+      const body = route.request().postDataJSON() as { days: number }
+      return json(route, { moved: 3, days: body.days, perDay: 1 })
+    }
+
+    if (path === '/api/flashcards/review/undo' && method === 'POST') {
+      const body = route.request().postDataJSON() as { flashcardId?: string }
+      if (body.flashcardId) reviewedFlashcards.delete(body.flashcardId)
+      return json(route, { flashcardId: body.flashcardId ?? '', rating: 3, cardReset: true })
+    }
+
+    const reviewMatch = path.match(/^\/api\/flashcards\/([^/]+)\/review$/)
+    if (method === 'POST' && reviewMatch) {
+      const body = route.request().postDataJSON() as { rating: number }
+      reviewedFlashcards.set(reviewMatch[1], { rating: body.rating, difficulty: 'medium' })
+      return json(route, {
+        scheduledDays: body.rating >= 3 ? 4 : 1,
+        retrievability: 0.9,
+        srs: {
+          state: body.rating === 1 ? 1 : 2,
+          stability: 4.2,
+          difficulty: 5.5,
+          reps: 1,
+          lapses: body.rating === 1 ? 1 : 0,
+          due: now,
+          lastReview: now,
+          retrievability: 0.9,
+          isSuspended: false,
+        },
+      })
+    }
+
+    const classifyMatch = path.match(/^\/api\/flashcards\/([^/]+)\/classify$/)
+    if (method === 'PATCH' && classifyMatch) {
+      const card = flashcards.find(f => f.flashcardId === classifyMatch[1])
+      return json(route, { ...card, flashcardId: classifyMatch[1], front: card?.front ?? '', back: card?.back ?? '' })
+    }
+
+    if (path === '/api/courses' && method === 'POST') {
+      const body = route.request().postDataJSON() as { courseName: string; courseColor: string }
+      const created = {
+        courseId: `course-new-${createdCourses.length + 1}`, userId: 'user-e2e',
+        courseName: body.courseName, courseColor: body.courseColor, createdAt: now, updatedAt: now,
+      }
+      createdCourses.push(created)
+      return json(route, created)
+    }
+    if (path === '/api/courses') return json(route, [...courses, ...createdCourses])
     if (path === '/api/stats') {
       return json(route, {
         totalDocuments: 1,
@@ -333,7 +477,7 @@ export async function mockStudyApi(page: Page) {
       })
     }
     if (path === '/api/documents') {
-      const all = [...documents, ...viewerDocuments]
+      const all = [...documents, ...viewerDocuments].filter(d => !deletedDocumentIds.has(d.documentId))
       return json(route, paged(all, Number(url.searchParams.get('pageSize') ?? 500)))
     }
     const singleDocMatch = path.match(/^\/api\/courses\/[^/]+\/documents\/([^/]+)$/)
@@ -350,10 +494,34 @@ export async function mockStudyApi(page: Page) {
         body: viewerDocumentFiles[docFileMatch[1]],
       })
     }
+
+    const audioMatch = path.match(/^\/api\/courses\/[^/]+\/audio\/([^/]+)$/)
+    if (audioMatch) {
+      const doc = documents.find(d => d.documentId === audioMatch[1])
+      if (doc) return json(route, doc)
+    }
+
+    const quizSubmissionMatch = path.match(/^\/api\/courses\/[^/]+\/documents\/([^/]+)\/quiz\/submission$/)
+    if (quizSubmissionMatch && method === 'GET') return json(route, null)
+    if (quizSubmissionMatch && method === 'POST') {
+      const body = route.request().postDataJSON() as { answers: Record<string, string>; score: number; total: number }
+      return json(route, {
+        submissionId: 'submission-new', documentId: quizSubmissionMatch[1], sourceType: 'document',
+        answers: body.answers, score: body.score, total: body.total, submittedAt: now,
+      })
+    }
+    const quizMatch = path.match(/^\/api\/courses\/[^/]+\/documents\/([^/]+)\/quiz$/)
+    if (quizMatch && method === 'GET') return json(route, documentQuizzes[quizMatch[1]] ?? [])
+
     if (path === '/api/videos') return json(route, paged(videos, Number(url.searchParams.get('pageSize') ?? 8)))
     // The add-content video tabs read the lite list (whole library, heavy fields dropped) so they
     // can flag an already-saved link or file.
     if (path === '/api/videos/lite') return json(route, paged(videos, Number(url.searchParams.get('pageSize') ?? 500)))
+    const singleVideoMatch = path.match(/^\/api\/videos\/([^/]+)$/)
+    if (singleVideoMatch) {
+      const video = videos.find(v => v.id === singleVideoMatch[1])
+      if (video) return json(route, video)
+    }
     if (path === '/api/notes') return json(route, paged(notes, Number(url.searchParams.get('pageSize') ?? 20)))
     if (path === '/api/flashcards') return json(route, paged(flashcards, Number(url.searchParams.get('pageSize') ?? 20)))
     if (path === '/api/flashcards/coverage') return json(route, { documentIds: ['doc-cells'], videoIds: ['video-mitosis'] })
@@ -417,6 +585,34 @@ export async function mockStudyApi(page: Page) {
       })
     }
 
+    // Insights tabs. Same reason as the block above: an unmocked endpoint falls through to the []
+    // at the bottom of this handler, which several of these components dereference as an object
+    // (data.days, data.bins, data.forgettingCurve, …) and crash on — see ActivityHeatmapSection,
+    // CalibrationSection, RetentionSection, AnalyticsSection.
+    if (path === '/api/analytics/activity-heatmap') {
+      return json(route, {
+        from: now, to: now, days: [], totalReviews: 0, totalStudyMinutes: 0, activeDays: 0,
+      })
+    }
+    if (path === '/api/analytics/retention') {
+      return json(route, {
+        totalCardsTracked: 0, totalReviews: 0, reviewsLast30Days: 0,
+        predictedRetentionNow: 0, actualRetentionRate: 0, averageStability: 0, averageDifficulty: 0,
+        forgettingCurve: [], calibration: [], dailyReviews: [], stabilityDistribution: [],
+      })
+    }
+    if (path === '/api/analytics/calibration') {
+      return json(route, {
+        bins: [], ratedAnswers: 0, confidentWrong: 0, guessedRight: 0,
+        overconfidenceGap: null, confidentMistakes: [],
+      })
+    }
+    if (path === '/api/analytics/quiz-accuracy') return json(route, [])
+    if (path === '/api/analytics/time-on-task') {
+      return json(route, { totalSeconds: 0, daily: [], byCourse: [] })
+    }
+    if (path === '/api/analytics/course-mastery') return json(route, [])
+
     // Security tab. These need their real object shapes for the same reason as the block above:
     // the [] fallback is truthy, so `data.items` comes back undefined and the pager crashes on it.
     if (path === '/api/security/2fa') {
@@ -476,7 +672,7 @@ export async function mockStudyApi(page: Page) {
       const page = Number(url.searchParams.get('page') ?? 1)
       const pageSize = Number(url.searchParams.get('pageSize') ?? 8)
 
-      let rows = libraryRows
+      let rows = libraryRows.filter(i => !deletedDocumentIds.has(i.id))
       if (type !== 'all') rows = rows.filter(i => rowType(i) === type)
       if (search) rows = rows.filter(i => (i.fileName ?? i.title ?? '').toLowerCase().includes(search))
 

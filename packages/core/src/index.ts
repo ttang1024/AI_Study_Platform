@@ -30,6 +30,7 @@ export * from './utils/format';
 export * from './utils/pdfRects';
 export * from './utils/quizAnswers';
 export * from './utils/ankiImport';
+export * from './utils/chartAnswer';
 export * from './utils/cloze';
 export * from './utils/markdownToPlainText';
 export * from './utils/stripHtml';

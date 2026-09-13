@@ -48,3 +48,33 @@ export const toLocalDateKey = (iso: string): string => {
   const d = new Date(iso);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
+
+/** Seconds as the SubRip `HH:MM:SS,mmm` timecode. */
+export const formatSrtTimecode = (seconds: number): string => {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  const ms = Math.round((seconds % 1) * 1000);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${pad(h)}:${pad(m)}:${pad(s)},${String(ms).padStart(3, '0')}`;
+};
+
+export interface SrtSegment {
+  start: number;
+  /** Optional explicit end; otherwise the next segment's start, or five seconds. */
+  end?: number;
+  text: string;
+}
+
+/**
+ * Timed segments as a SubRip document. With `withTimestamp` off the cue lines are dropped and
+ * only the numbered text blocks remain — the "text only" export both transcript pages offer.
+ */
+export const buildSrt = (segments: SrtSegment[], withTimestamp: boolean): string =>
+  segments
+    .map((seg, i) => {
+      if (!withTimestamp) return `${i + 1}\n${seg.text}`;
+      const end = segments[i + 1]?.start ?? seg.end ?? seg.start + 5;
+      return `${i + 1}\n${formatSrtTimecode(seg.start)} --> ${formatSrtTimecode(end)}\n${seg.text}`;
+    })
+    .join('\n\n');

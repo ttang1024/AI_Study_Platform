@@ -15,7 +15,13 @@ public record ReviewFlashcardCommand(Guid FlashcardId, Guid UserId, int Rating) 
 public class ReviewFlashcardCommandHandler : IRequestHandler<ReviewFlashcardCommand, Result<ReviewFlashcardResponse>>
 {
     private readonly IUnitOfWork _unitOfWork;
-    public ReviewFlashcardCommandHandler(IUnitOfWork unitOfWork) { _unitOfWork = unitOfWork; }
+    private readonly IReviewScheduler _scheduler;
+
+    public ReviewFlashcardCommandHandler(IUnitOfWork unitOfWork, IReviewScheduler scheduler)
+    {
+        _unitOfWork = unitOfWork;
+        _scheduler = scheduler;
+    }
 
     public async Task<Result<ReviewFlashcardResponse>> Handle(ReviewFlashcardCommand request, CancellationToken cancellationToken)
     {
@@ -37,10 +43,10 @@ public class ReviewFlashcardCommandHandler : IRequestHandler<ReviewFlashcardComm
             };
 
         var reviewedAt = DateTime.UtcNow;
-        var result = FsrsService.Review(srs, request.Rating, reviewedAt);
+        var result = await _scheduler.ScheduleAsync(srs, request.Rating, reviewedAt, request.UserId, cancellationToken);
 
-        // Append to the review log before mutating srs — powers retention analytics
-        // (predicted vs. actual recall) and future FSRS weight optimization.
+        // Append to the review log before mutating srs — the "before" values are what undo
+        // restores, and the whole log is what the FSRS weight optimizer fits against.
         await _unitOfWork.FlashcardReviewLogs.AddAsync(new FlashcardReviewLog
         {
             Id = Guid.NewGuid(),

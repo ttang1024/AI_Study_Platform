@@ -44,7 +44,6 @@ import {
   BentoPeerReviewCard,
   BentoSecurityCard,
   BentoTagsCard,
-  BentoApiCard,
   BentoFormatsCard,
 } from '../components/landing/bento';
 
@@ -240,6 +239,9 @@ export const LandingPage: React.FC = () => {
           {/* Ingestion leads the grid: everything below only happens once your
               file is in, so the breadth of what we accept comes first. */}
           <FadeIn delay={0.05}>
+            <BentoFormatsCard />
+          </FadeIn>
+          <FadeIn delay={0.05}>
             <BentoChatCard />
           </FadeIn>
           <FadeIn delay={0.05}>
@@ -322,9 +324,6 @@ export const LandingPage: React.FC = () => {
           </FadeIn>
           <FadeIn delay={0.50}>
             <BentoOfflineCard />
-          </FadeIn>
-          <FadeIn delay={0.54}>
-            <BentoApiCard />
           </FadeIn>
           <FadeIn delay={0.54}>
             <BentoShareCard />

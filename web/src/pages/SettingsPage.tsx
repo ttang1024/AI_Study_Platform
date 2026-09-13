@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLocation } from 'react-router-dom';
-import { User, Shield, LogOut, KeyRound, Volume2, Archive, Activity, CreditCard, MessageSquarePlus, Plug, FileArchive } from 'lucide-react';
+import { User, Shield, LogOut, KeyRound, Volume2, Archive, Activity, CreditCard, MessageSquarePlus, Plug, FileArchive, Gauge } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { cn } from '../utils/cn';
 import { useTabParam } from '../components/common/PageTabs';
@@ -10,12 +10,13 @@ import { AiServicesTab } from '../components/settings/AiServicesTab';
 import { AiUsageTab } from '../components/settings/AiUsageTab';
 import { PlanTab } from '../components/settings/PlanTab';
 import { VoiceTab } from '../components/settings/VoiceTab';
+import { SchedulerTab } from '../components/settings/SchedulerTab';
 import { ExportTab } from '../components/settings/ExportTab';
 import { FeedbackTab } from '../components/settings/FeedbackTab';
 import { IntegrationsTab } from '../components/settings/IntegrationsTab';
 import { DataRightsSection } from '../components/settings/DataRightsSection';
 
-type SettingsTab = 'profile' | 'security' | 'ai' | 'ai-usage' | 'plan' | 'voice' | 'export' | 'data' | 'integrations' | 'feedback';
+type SettingsTab = 'profile' | 'security' | 'ai' | 'ai-usage' | 'plan' | 'scheduler' | 'voice' | 'export' | 'data' | 'integrations' | 'feedback';
 
 const tabs = [
   { id: 'profile', label: 'Profile', icon: User },
@@ -25,6 +26,9 @@ const tabs = [
   { id: 'ai-usage', label: 'AI Usage', icon: Activity },
   // Directly after usage: the limit shown there is set by the plan shown here.
   { id: 'plan', label: 'Plan', icon: CreditCard },
+  // Sits with the study-behaviour settings rather than the account ones: it changes what
+  // reviewing feels like, not who you are.
+  { id: 'scheduler', label: 'Scheduler', icon: Gauge },
   { id: 'voice', label: 'Voice', icon: Volume2 },
   { id: 'export', label: 'Export', icon: Archive },
   // Next to Export because both are "get my content out"; this one is the whole account rather
@@ -87,6 +91,7 @@ export const SettingsPage: React.FC = () => {
           {activeTab === 'ai' && <AiServicesTab />}
           {activeTab === 'ai-usage' && <AiUsageTab />}
           {activeTab === 'plan' && <PlanTab />}
+          {activeTab === 'scheduler' && <SchedulerTab />}
           {activeTab === 'voice' && <VoiceTab />}
           {activeTab === 'export' && <ExportTab />}
           {activeTab === 'data' && <DataRightsSection />}

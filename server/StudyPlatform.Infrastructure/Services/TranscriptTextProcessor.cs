@@ -2,6 +2,7 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Services;
 
 namespace StudyPlatform.Infrastructure.Services;
@@ -61,7 +62,7 @@ internal static class TranscriptTextProcessor
             sb.Append(text);
 
             var current = sb.ToString().TrimEnd();
-            bool sentenceEnd = EndsWithSentencePunctuation(current);
+            bool sentenceEnd = TranscriptSentences.EndsWithSentencePunctuation(current);
 
             bool silenceGap = i < captions.Count - 1
                 && (captions[i + 1].Offset - (offset + duration)).TotalSeconds > 2.0;
@@ -73,7 +74,7 @@ internal static class TranscriptTextProcessor
             if (sentenceEnd || silenceGap || lastCaption || timeBreak)
             {
                 if (current.Length > 0)
-                    sentences.Add((sentStart, NormalizeSentencePunctuation(current)));
+                    sentences.Add((sentStart, TranscriptSentences.Normalize(current)));
                 sb.Clear();
             }
         }
@@ -110,38 +111,5 @@ internal static class TranscriptTextProcessor
         }
 
         return result;
-    }
-
-    private static string NormalizeSentencePunctuation(string text)
-    {
-        text = Regex.Replace(text.Trim(), @"\s+([,.;:!?])", "$1");
-        text = AddCommonCommas(text);
-        if (text.Length == 0)
-            return text;
-
-        text = char.ToUpperInvariant(text[0]) + text[1..];
-        if (EndsWithSentencePunctuation(text))
-            return text;
-
-        return text + ".";
-    }
-
-    private static bool EndsWithSentencePunctuation(string text)
-        => text.EndsWith('.') || text.EndsWith('!') || text.EndsWith('?')
-           || text.EndsWith('。') || text.EndsWith('！') || text.EndsWith('？');
-
-    private static string AddCommonCommas(string text)
-    {
-        text = Regex.Replace(
-            text,
-            @"^(however|therefore|meanwhile|first|second|third|finally|for example|in addition|on the other hand)\s+",
-            match => match.Groups[1].Value + ", ",
-            RegexOptions.IgnoreCase);
-
-        return Regex.Replace(
-            text,
-            @"\s+(however|although|though|whereas|while|but|which)\s+",
-            match => ", " + match.Groups[1].Value + " ",
-            RegexOptions.IgnoreCase);
     }
 }

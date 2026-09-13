@@ -103,6 +103,47 @@ public class GetOnboardingStateQueryHandlerTests
     }
 }
 
+public class DismissOnboardingCommandHandlerTests
+{
+    private readonly Mock<IUnitOfWork> _uow = new();
+    private readonly Mock<IUserRepository> _users = new();
+    private readonly DismissOnboardingCommandHandler _handler;
+    private readonly Guid _userId = Guid.NewGuid();
+
+    public DismissOnboardingCommandHandlerTests()
+    {
+        _uow.Setup(u => u.Users).Returns(_users.Object);
+        _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
+        _handler = new DismissOnboardingCommandHandler(_uow.Object);
+    }
+
+    [Fact]
+    public async Task Handle_UnknownUser_ReturnsFailure()
+    {
+        _users.Setup(r => r.GetByIdAsync(_userId, default)).ReturnsAsync((User?)null);
+
+        var result = await _handler.Handle(new DismissOnboardingCommand(_userId), default);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("NOT_FOUND", result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task Handle_ExistingUser_SetsDismissedAtAndSaves()
+    {
+        var user = new User { UserId = _userId };
+        _users.Setup(r => r.GetByIdAsync(_userId, default)).ReturnsAsync(user);
+
+        var result = await _handler.Handle(new DismissOnboardingCommand(_userId), default);
+
+        Assert.True(result.IsSuccess);
+        Assert.True(result.Data);
+        Assert.NotNull(user.OnboardingDismissedAt);
+        _users.Verify(r => r.Update(user), Times.Once);
+        _uow.Verify(u => u.SaveChangesAsync(default), Times.Once);
+    }
+}
+
 public class SeedDemoContentCommandHandlerTests
 {
     private readonly Mock<IUnitOfWork> _uow = new();

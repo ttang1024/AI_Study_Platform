@@ -202,3 +202,60 @@ public class DashboardSummaryQueryTests
         _submissions.Verify(r => r.GetAllByUserAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 }
+
+public class UpdateDailyGoalCommandHandlerTests
+{
+    private readonly Mock<IUnitOfWork> _uow = new();
+    private readonly Mock<IUserRepository> _users = new();
+    private readonly Mock<IAppCache> _cache = new();
+    private readonly UpdateDailyGoalCommandHandler _handler;
+    private readonly Guid _userId = Guid.NewGuid();
+
+    public UpdateDailyGoalCommandHandlerTests()
+    {
+        _uow.Setup(u => u.Users).Returns(_users.Object);
+        _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
+        _handler = new UpdateDailyGoalCommandHandler(_uow.Object, _cache.Object);
+    }
+
+    [Fact]
+    public async Task Handle_UnknownUser_ReturnsFailure()
+    {
+        _users.Setup(r => r.GetByIdAsync(_userId, default)).ReturnsAsync((User?)null);
+
+        var result = await _handler.Handle(new UpdateDailyGoalCommand(_userId, 60), default);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("USER_NOT_FOUND", result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task Handle_ValidMinutes_UpdatesUserAndInvalidatesCache()
+    {
+        var user = new User { UserId = _userId, DailyStudyGoalMinutes = 30 };
+        _users.Setup(r => r.GetByIdAsync(_userId, default)).ReturnsAsync(user);
+
+        var result = await _handler.Handle(new UpdateDailyGoalCommand(_userId, 90), default);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(90, user.DailyStudyGoalMinutes);
+        _users.Verify(r => r.Update(user), Times.Once);
+        _uow.Verify(u => u.SaveChangesAsync(default), Times.Once);
+        _cache.Verify(c => c.RemoveAsync(DashboardSummaryCache.Key(_userId), default), Times.Once);
+    }
+
+    [Theory]
+    [InlineData(0, 5)]
+    [InlineData(3, 5)]
+    [InlineData(1000, 600)]
+    public async Task Handle_OutOfRangeMinutes_ClampsToBounds(int requested, int expected)
+    {
+        var user = new User { UserId = _userId };
+        _users.Setup(r => r.GetByIdAsync(_userId, default)).ReturnsAsync(user);
+
+        var result = await _handler.Handle(new UpdateDailyGoalCommand(_userId, requested), default);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(expected, user.DailyStudyGoalMinutes);
+    }
+}

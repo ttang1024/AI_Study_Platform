@@ -70,7 +70,7 @@ export const ActivityHeatmapSection: React.FC = () => {
   useEffect(() => {
     let cancelled = false;
     analyticsService.getActivityHeatmap()
-      .then(d => { if (!cancelled) setData(d); })
+      .then(d => { if (!cancelled) setData(Array.isArray(d?.days) ? d : null); })
       .catch(() => { /* leave empty state */ })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };

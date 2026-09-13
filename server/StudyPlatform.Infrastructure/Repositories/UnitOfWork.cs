@@ -64,6 +64,7 @@ public class UnitOfWork : IUnitOfWork
     private IEssayPeerReviewRepository? _essayPeerReviews;
     private IApiKeyRepository? _apiKeys;
     private IWebhookRepository? _webhooks;
+    private IUserFsrsSettingsRepository? _userFsrsSettings;
 
     public UnitOfWork(AppDbContext context)
     {
@@ -126,6 +127,7 @@ public class UnitOfWork : IUnitOfWork
     public IEssayPeerReviewRepository EssayPeerReviews => _essayPeerReviews ??= new EssayPeerReviewRepository(_context);
     public IApiKeyRepository ApiKeys => _apiKeys ??= new ApiKeyRepository(_context);
     public IWebhookRepository Webhooks => _webhooks ??= new WebhookRepository(_context);
+    public IUserFsrsSettingsRepository UserFsrsSettings => _userFsrsSettings ??= new UserFsrsSettingsRepository(_context);
 
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         => await _context.SaveChangesAsync(cancellationToken);

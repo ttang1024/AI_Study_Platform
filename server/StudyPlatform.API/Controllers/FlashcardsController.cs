@@ -16,7 +16,7 @@ public record CreateFlashcardFromTextRequest(string Text, string? SourceTitle, s
 [Route("api/flashcards")]
 [Authorize]
 [Produces("application/json")]
-public class FlashcardsController : ControllerBase
+public partial class FlashcardsController : ControllerBase
 {
     private readonly IMediator _mediator;
 

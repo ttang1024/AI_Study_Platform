@@ -294,9 +294,9 @@ export const AnalyticsSection: React.FC = () => {
     ])
       .then(([acc, tot, mas]) => {
         if (cancelled) return;
-        setAccuracy(acc);
-        setTimeOnTask(tot);
-        setMastery(mas);
+        setAccuracy(Array.isArray(acc) ? acc : []);
+        setTimeOnTask(Array.isArray(tot?.daily) ? tot : null);
+        setMastery(Array.isArray(mas) ? mas : []);
       })
       .catch(() => { /* surfaced as em-dash placeholders / empty states */ })
       .finally(() => { if (!cancelled) setLoading(false); });

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Loader2, RotateCcw, Trophy, X, Pencil, Check } from 'lucide-react';
+import { Loader2, RotateCcw, Trophy, X, Pencil, Check, Undo2 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { Flashcard } from '../../types';
 import { useStudy } from '../../context/StudyContext';
@@ -149,6 +149,7 @@ export const FlashcardSessionDeck: React.FC<FlashcardSessionDeckProps> = ({
   const [editing, setEditing] = useState(false);
   const [editDraft, setEditDraft] = useState({ front: '', back: '' });
   const [savingEdit, setSavingEdit] = useState(false);
+  const [undoing, setUndoing] = useState(false);
 
   const rawCurrent = cards[index];
   const current = rawCurrent ? { ...rawCurrent, ...edits[rawCurrent.id] } : rawCurrent;
@@ -223,6 +224,31 @@ export const FlashcardSessionDeck: React.FC<FlashcardSessionDeckProps> = ({
     advance();
   };
 
+  // The card just rated: on the summary screen the cursor never moved off it, everywhere else
+  // rating advanced past it.
+  const undoTarget = done ? cards[index] : index > 0 ? cards[index - 1] : undefined;
+
+  const undo = async () => {
+    if (undoing || submitting || !undoTarget) return;
+    setUndoing(true);
+    try {
+      await flashcardService.undoLastReview(undoTarget.id);
+      setResults(prev => {
+        const next = { ...prev };
+        delete next[undoTarget.id];
+        return next;
+      });
+      if (!done) setIndex(i => Math.max(0, i - 1));
+      setFlipped(false);
+      setEditing(false);
+      setDone(false);
+    } catch {
+      // The rating stands on the server, so leaving the session where it is keeps the two in step.
+    } finally {
+      setUndoing(false);
+    }
+  };
+
   if (!current && !done) return null;
 
   if (done) {
@@ -241,6 +267,15 @@ export const FlashcardSessionDeck: React.FC<FlashcardSessionDeckProps> = ({
           <p className={cn('text-text-muted', isModal ? 'mb-1' : 'mb-8')}>{goodCount} good · {hardCount} need review</p>
           {isModal && <p className="text-sm text-text-muted mb-8">{title}</p>}
           <div className="flex gap-3">
+            {undoTarget && (
+              <button
+                onClick={undo}
+                disabled={undoing}
+                className="flex items-center gap-2 rounded-xl border border-[var(--border-color)] px-5 py-3 text-sm font-bold text-text-muted disabled:opacity-40"
+              >
+                <Undo2 size={16} /> Undo last
+              </button>
+            )}
             <button
               onClick={reset}
               className="flex items-center gap-2 rounded-xl border border-[var(--border-color)] px-5 py-3 text-sm font-bold text-text-muted"
@@ -279,6 +314,17 @@ export const FlashcardSessionDeck: React.FC<FlashcardSessionDeckProps> = ({
             <p className="text-sm font-black text-text-main">{index + 1} / {cards.length}</p>
           </div>
           <div className="flex items-center gap-3 text-xs font-bold shrink-0">
+            {undoTarget && !editing && (
+              <button
+                onClick={undo}
+                disabled={undoing || submitting}
+                title="Undo last answer"
+                aria-label="Undo last answer"
+                className="rounded-lg p-1.5 text-zinc-400 hover:text-primary hover:bg-zinc-100 transition-colors disabled:opacity-40"
+              >
+                <Undo2 size={16} />
+              </button>
+            )}
             {!editing && (
               <button
                 onClick={startEditing}

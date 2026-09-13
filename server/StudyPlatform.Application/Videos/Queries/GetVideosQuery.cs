@@ -31,12 +31,7 @@ public class GetVideosQueryHandler : IRequestHandler<GetVideosQuery, Result<Vide
             var course = await _unitOfWork.Courses.GetByIdAsync(request.CourseId.Value, cancellationToken);
             if (course != null && course.UserId != request.UserId)
             {
-                var shared = await _unitOfWork.StudyGroupSharedCourses.FindAsync(
-                    sc => sc.CourseId == request.CourseId.Value, cancellationToken);
-                var groupIds = shared.Select(sc => sc.GroupId).ToList();
-                var hasGroupAccess = groupIds.Count > 0 && await _unitOfWork.StudyGroupMembers.ExistsAsync(
-                    m => groupIds.Contains(m.GroupId) && m.UserId == request.UserId, cancellationToken);
-                if (!hasGroupAccess)
+                if (!await _unitOfWork.HasSharedCourseAccessAsync(request.UserId, request.CourseId.Value, cancellationToken))
                     return Result<VideoPagedResult>.Success(
                         new VideoPagedResult([], 0, request.Page, request.PageSize, 0));
                 queryUserId = course.UserId;

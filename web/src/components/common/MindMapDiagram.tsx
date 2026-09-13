@@ -1,5 +1,5 @@
 import React from 'react';
-import { xmindMarkToMarkdown } from '../../pages/sharedContent/MarkmapView';
+import { xmindMarkToMarkdown } from '@core/utils/xmindMarkdown';
 
 /**
  * A self-contained branching mind-map rendered as *pure* SVG (`<text>` + `<path>`).

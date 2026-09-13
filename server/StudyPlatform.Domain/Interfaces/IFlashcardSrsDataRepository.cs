@@ -12,6 +12,21 @@ public interface IFlashcardSrsDataRepository : IRepository<FlashcardSrsData>
     Task<int> CountDueByUserIdAsync(Guid userId, DateTime asOf, CancellationToken ct = default);
 
     /// <summary>
+    /// Due-card counts per calendar day over <paramref name="from"/>..<paramref name="to"/> (inclusive),
+    /// grouped in the database. Powers the review forecast and lets the scheduler steer a new
+    /// interval toward a quiet day. Days with nothing due are absent, not zero.
+    /// </summary>
+    Task<IReadOnlyDictionary<DateTime, int>> GetDueCountsByDayAsync(
+        Guid userId, DateTime from, DateTime to, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Overdue cards (Due &lt; <paramref name="asOf"/>), oldest first — the backlog a returning
+    /// user faces, in the order it should be worked through.
+    /// </summary>
+    Task<IReadOnlyList<FlashcardSrsData>> GetOverdueByUserIdAsync(
+        Guid userId, DateTime asOf, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Cards the user keeps failing (Lapses ≥ <paramref name="minLapses"/>), worst first,
     /// paired with the card itself so callers can render front/back without a second query.
     /// </summary>

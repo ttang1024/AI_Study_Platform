@@ -14,11 +14,7 @@ public sealed record Plan(
     long DailyTokenLimit,
     bool IncludesHostedKeys,
     int MaxClassrooms,
-    int MaxStudentsPerClassroom)
-{
-    /// <summary>Zero means no limit.</summary>
-    public bool IsUnlimited(long limit) => limit <= 0;
-}
+    int MaxStudentsPerClassroom);
 
 public static class PlanCatalog
 {

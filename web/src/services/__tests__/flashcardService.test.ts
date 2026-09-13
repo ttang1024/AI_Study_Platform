@@ -279,4 +279,162 @@ describe('flashcardService', () => {
       expect(result.size).toBe(0)
     })
   })
+  // ─── FSRS scheduler settings ──────────────────────────────────────────────
+
+  describe('FSRS scheduler settings', () => {
+    const backendSettings = {
+      desiredRetention: 0.9,
+      maximumIntervalDays: 36500,
+      enableFuzz: true,
+      usingOptimizedWeights: false,
+      reviewsAtOptimization: 0,
+      weights: [0.4072, 1.1829],
+      reviewCount: 412,
+      minimumReviewsToOptimize: 200,
+    }
+
+    it('reads settings', async () => {
+      mockApiClient.get.mockResolvedValueOnce({ data: { data: backendSettings } })
+
+      const result = await flashcardService.getFsrsSettings()
+
+      expect(mockApiClient.get).toHaveBeenCalledWith('/api/flashcards/srs/settings')
+      expect(result.desiredRetention).toBe(0.9)
+      expect(result.reviewCount).toBe(412)
+    })
+
+    it('sends only the fields being changed', async () => {
+      mockApiClient.put = vi.fn().mockResolvedValueOnce({
+        data: { data: { ...backendSettings, desiredRetention: 0.85 } },
+      })
+
+      const result = await flashcardService.updateFsrsSettings({ desiredRetention: 0.85 })
+
+      expect(mockApiClient.put).toHaveBeenCalledWith('/api/flashcards/srs/settings', { desiredRetention: 0.85 })
+      expect(result.desiredRetention).toBe(0.85)
+    })
+
+    it('reports an optimization run that was adopted', async () => {
+      mockApiClient.post.mockResolvedValueOnce({
+        data: {
+          data: {
+            applied: true,
+            reviewCount: 540,
+            logLossBefore: 0.62,
+            logLossAfter: 0.51,
+            rmseBefore: 0.31,
+            rmseAfter: 0.27,
+            improvement: 0.1774,
+            weights: [0.5, 1.2],
+          },
+        },
+      })
+
+      const result = await flashcardService.optimizeFsrsWeights()
+
+      expect(mockApiClient.post).toHaveBeenCalledWith('/api/flashcards/srs/optimize', {})
+      expect(result.applied).toBe(true)
+      expect(result.logLossAfter).toBeLessThan(result.logLossBefore)
+    })
+
+    it('resets to the stock scheduler', async () => {
+      mockApiClient.post.mockResolvedValueOnce({ data: { data: backendSettings } })
+
+      const result = await flashcardService.resetFsrsWeights()
+
+      expect(mockApiClient.post).toHaveBeenCalledWith('/api/flashcards/srs/weights/reset', {})
+      expect(result.usingOptimizedWeights).toBe(false)
+    })
+  })
+
+  // ─── undoLastReview ───────────────────────────────────────────────────────
+
+  describe('undoLastReview', () => {
+    it('maps the restored srs state back', async () => {
+      mockApiClient.post.mockResolvedValueOnce({
+        data: {
+          data: {
+            flashcardId: 'fc-1',
+            rating: 4,
+            cardReset: false,
+            srs: {
+              state: 2,
+              stability: 12.5,
+              difficulty: 5.25,
+              reps: 3,
+              lapses: 1,
+              due: '2026-05-20T00:00:00Z',
+              retrievability: 0.9,
+            },
+          },
+        },
+      })
+
+      const result = await flashcardService.undoLastReview('fc-1')
+
+      expect(mockApiClient.post).toHaveBeenCalledWith('/api/flashcards/review/undo', { flashcardId: 'fc-1' })
+      expect(result.cardReset).toBe(false)
+      expect(result.srs!.stability).toBe(12.5)
+      expect(result.srs!.isSuspended).toBe(false)
+    })
+
+    it('has no srs to return when the card went back to new', async () => {
+      mockApiClient.post.mockResolvedValueOnce({
+        data: { data: { flashcardId: 'fc-1', rating: 3, cardReset: true } },
+      })
+
+      const result = await flashcardService.undoLastReview('fc-1')
+
+      expect(result.cardReset).toBe(true)
+      expect(result.srs).toBeUndefined()
+    })
+  })
+  // ─── Review forecast + backlog ────────────────────────────────────────────
+
+  describe('review forecast', () => {
+    it('reads the forecast for a given window', async () => {
+      mockApiClient.get.mockResolvedValueOnce({
+        data: {
+          data: {
+            overdue: 312,
+            days: [{ day: '2026-09-02T00:00:00Z', count: 40 }],
+            maxReviewsPerDay: 100,
+            newCardsPerDay: 20,
+          },
+        },
+      })
+
+      const result = await flashcardService.getReviewForecast(14)
+
+      expect(mockApiClient.get).toHaveBeenCalledWith('/api/flashcards/srs/forecast?days=14')
+      expect(result.overdue).toBe(312)
+      expect(result.days).toHaveLength(1)
+    })
+
+    it('spreads a backlog over the requested number of days', async () => {
+      mockApiClient.post.mockResolvedValueOnce({
+        data: { data: { moved: 312, days: 7, perDay: 45 } },
+      })
+
+      const result = await flashcardService.rescheduleBacklog(7)
+
+      expect(mockApiClient.post).toHaveBeenCalledWith('/api/flashcards/srs/reschedule-backlog', { days: 7 })
+      expect(result.moved).toBe(312)
+      expect(result.perDay).toBe(45)
+    })
+
+    it('patches the daily limits like any other setting', async () => {
+      mockApiClient.put = vi.fn().mockResolvedValueOnce({
+        data: { data: { newCardsPerDay: 5, maxReviewsPerDay: 80 } },
+      })
+
+      const result = await flashcardService.updateFsrsSettings({ newCardsPerDay: 5, maxReviewsPerDay: 80 })
+
+      expect(mockApiClient.put).toHaveBeenCalledWith('/api/flashcards/srs/settings', {
+        newCardsPerDay: 5,
+        maxReviewsPerDay: 80,
+      })
+      expect(result.newCardsPerDay).toBe(5)
+    })
+  })
 })

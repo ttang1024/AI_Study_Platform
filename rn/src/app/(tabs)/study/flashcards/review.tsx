@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown, FadeInUp, ZoomIn } from 'react-native-reanimated';
+import Undo2 from 'lucide-react-native/icons/undo-2';
 
 import { AnimatedNumber } from '@/components/AnimatedNumber';
 import { Button } from '@/components/Button';
@@ -21,7 +22,18 @@ import { cardBackText, cardFrontText } from '@/utils/flashcardDisplay';
 import { isCardDue } from '@/utils/flashcardSets';
 import { SourceCitation } from '@/components/study/SourceCitation';
 
-const MAX_NEW_PER_SESSION = 20;
+// Used until the server's own limits arrive (and if that request fails). Matches the value both
+// clients hard-coded before the limits were configurable.
+const FALLBACK_NEW_PER_DAY = 20;
+
+interface DailyLimits {
+  newCardsPerDay: number;
+  maxReviewsPerDay: number;
+}
+
+/** A missing or malformed limit must fall back, not turn the queue length into NaN. */
+const limitOr = (value: unknown, fallback: number): number =>
+  typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : fallback;
 
 const RATINGS: { rating: FsrsRating; label: string; color: string }[] = [
   { rating: 1, label: 'Again', color: Colors.red },
@@ -30,11 +42,15 @@ const RATINGS: { rating: FsrsRating; label: string; color: string }[] = [
   { rating: 4, label: 'Easy', color: Colors.blue },
 ];
 
-const buildQueue = (cards: Flashcard[], deckId: string | undefined): Flashcard[] => {
+// New cards get their own budget rather than only filling space left over by due ones: topping up
+// to a fixed session size meant that once you had more due cards than the cap, you could never be
+// introduced to a new card again.
+const buildQueue = (cards: Flashcard[], deckId: string | undefined, limits: DailyLimits): Flashcard[] => {
   const scoped = deckId ? cards.filter((c) => c.documentId === deckId || c.videoId === deckId) : cards;
   const due = scoped.filter(isCardDue).sort((a, b) => new Date(a.srs!.due).getTime() - new Date(b.srs!.due).getTime());
-  const fresh = scoped.filter((c) => !c.srs).slice(0, MAX_NEW_PER_SESSION);
-  return [...due, ...fresh];
+  const fresh = scoped.filter((c) => !c.srs).slice(0, limits.newCardsPerDay);
+  const queue = [...due, ...fresh];
+  return limits.maxReviewsPerDay > 0 ? queue.slice(0, limits.maxReviewsPerDay) : queue;
 };
 
 export default function ReviewScreen() {
@@ -47,6 +63,9 @@ export default function ReviewScreen() {
   const [goodCount, setGoodCount] = useState(0);
   const [reviewedCount, setReviewedCount] = useState(0);
   const [offline, setOffline] = useState(false);
+  const [undoing, setUndoing] = useState(false);
+  // Ratings in the order they were submitted, so an undo knows which counter to give back.
+  const [ratingHistory, setRatingHistory] = useState<FsrsRating[]>([]);
 
   // Count review time toward analytics (no courseId — decks are per-source, not per-course).
   useStudyTimer({ contextType: 'flashcards', contextId: deckId, enabled: queue !== null && !offline });
@@ -55,8 +74,19 @@ export default function ReviewScreen() {
   useKeepAwake();
 
   useEffect(() => {
-    flashcardService.list()
-      .then(({ items }) => setQueue(buildQueue(items, deckId)))
+    // Limits and cards in parallel; a failed settings read falls back to the old constant rather
+    // than blocking the session.
+    Promise.all([
+      flashcardService.list(),
+      flashcardService
+        .getFsrsSettings()
+        .then((s) => ({
+          newCardsPerDay: limitOr(s.newCardsPerDay, FALLBACK_NEW_PER_DAY),
+          maxReviewsPerDay: limitOr(s.maxReviewsPerDay, 0),
+        }))
+        .catch(() => ({ newCardsPerDay: FALLBACK_NEW_PER_DAY, maxReviewsPerDay: 0 })),
+    ])
+      .then(([{ items }, limits]) => setQueue(buildQueue(items, deckId, limits)))
       .catch(async () => {
         // Network unreachable — browse the cached snapshot read-only instead
         // (ratings need the server, so FSRS scheduling is untouched offline).
@@ -82,9 +112,33 @@ export default function ReviewScreen() {
     ]);
     setReviewedCount((n) => n + 1);
     if (rating >= 3) setGoodCount((n) => n + 1);
+    setRatingHistory((h) => [...h, rating]);
     setSubmitting(false);
     setFlipped(false);
     setIndex((i) => i + 1);
+  };
+
+  // The card behind the cursor is the one just rated. Offline sessions never sent a rating,
+  // so there is nothing to take back there.
+  const undoTarget = !offline && index > 0 ? queue?.[index - 1] : undefined;
+
+  const undo = async () => {
+    if (!undoTarget || undoing || submitting) return;
+    setUndoing(true);
+    try {
+      await flashcardService.undoLastReview(undoTarget.id);
+      haptics.tap();
+      const undone = ratingHistory[ratingHistory.length - 1];
+      setRatingHistory((h) => h.slice(0, -1));
+      setReviewedCount((n) => Math.max(0, n - 1));
+      if (undone !== undefined && undone >= 3) setGoodCount((n) => Math.max(0, n - 1));
+      setFlipped(false);
+      setIndex((i) => Math.max(0, i - 1));
+    } catch {
+      // The rating stands on the server, so leave the session where it is.
+    } finally {
+      setUndoing(false);
+    }
   };
 
   if (!queue) {
@@ -145,6 +199,14 @@ export default function ReviewScreen() {
         <Text style={styles.progressText}>
           {offline ? 'Offline · read-only · ' : ''}{index + 1} / {queue.length}
         </Text>
+        {/* Pinned to the edge rather than placed in a row, so the counter stays centred
+            whether or not there is anything to undo. */}
+        {!!undoTarget && (
+          <PressableScale style={styles.undoButton} onPress={undo} disabled={undoing || submitting}>
+            <Undo2 size={14} color={Colors.textSecondary} />
+            <Text style={styles.undoText}>Undo</Text>
+          </PressableScale>
+        )}
         <ProgressBar progress={(index + 1) / queue.length} height={4} />
       </View>
 
@@ -214,6 +276,13 @@ const styles = StyleSheet.create({
   center: { ...Layout.fillCenter, backgroundColor: Colors.bgApp, gap: Spacing.two, padding: Spacing.five },
   progressRow: { alignItems: 'center', gap: Spacing.two },
   progressText: { ...Typography.captionBold, color: Colors.textSecondary },
+  undoButton: {
+    position: 'absolute', right: 0, top: -4,
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 10, paddingVertical: 4,
+    borderRadius: Radius.pill, borderWidth: 1, borderColor: Colors.border,
+  },
+  undoText: { ...Typography.captionBold, color: Colors.textSecondary },
   cardWrap: { flex: 1 },
   // Surface styling only — FlipCard absolutely stacks the two faces, so the
   // face itself must not claim flex.

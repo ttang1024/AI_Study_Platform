@@ -12,7 +12,7 @@ export const CalibrationSection: React.FC = () => {
 
   useEffect(() => {
     analyticsService.getQuizCalibration()
-      .then(setData)
+      .then(d => setData(Array.isArray(d?.bins) ? d : null))
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);

@@ -2623,6 +2623,60 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.ToTable("UserCalendarFeeds");
                 });
 
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.UserFsrsSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<double>("DesiredRetention")
+                        .HasColumnType("double precision");
+
+                    b.Property<bool>("EnableFuzz")
+                        .HasColumnType("boolean");
+
+                    b.Property<double?>("LogLossAfter")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("LogLossBefore")
+                        .HasColumnType("double precision");
+
+                    b.Property<int>("MaxReviewsPerDay")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("MaximumIntervalDays")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("NewCardsPerDay")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ReviewsAtOptimization")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("WeightsJson")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<DateTime?>("WeightsOptimizedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.ToTable("UserFsrsSettings");
+                });
+
             modelBuilder.Entity("StudyPlatform.Domain.Entities.UserPushSubscription", b =>
                 {
                     b.Property<Guid>("UserPushSubscriptionId")

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatTimecode, formatCountdown, formatBytes, toLocalDateKey } from '../format'
+import { formatTimecode, formatCountdown, formatBytes, toLocalDateKey, formatSrtTimecode, buildSrt } from '../format'
 
 describe('formatTimecode', () => {
   it('formats seconds under an hour as m:ss without padding by default', () => {
@@ -64,3 +64,34 @@ function toLocalDateKeyExpected(d: Date): string {
   const day = String(d.getDate()).padStart(2, '0')
   return `${y}-${m}-${day}`
 }
+
+describe('formatSrtTimecode', () => {
+  it('pads every field and uses a comma before milliseconds', () => {
+    expect(formatSrtTimecode(3725.25)).toBe('01:02:05,250')
+  })
+
+  it('formats zero', () => {
+    expect(formatSrtTimecode(0)).toBe('00:00:00,000')
+  })
+})
+
+describe('buildSrt', () => {
+  const segs = [
+    { start: 0, text: 'one' },
+    { start: 2.5, text: 'two' },
+  ]
+
+  it('ends each cue at the next start, and the last one five seconds later', () => {
+    expect(buildSrt(segs, true)).toBe(
+      '1\n00:00:00,000 --> 00:00:02,500\none\n\n2\n00:00:02,500 --> 00:00:07,500\ntwo',
+    )
+  })
+
+  it('prefers an explicit end on the last segment', () => {
+    expect(buildSrt([{ start: 1, end: 3, text: 'x' }], true)).toBe('1\n00:00:01,000 --> 00:00:03,000\nx')
+  })
+
+  it('drops cue lines when timestamps are off', () => {
+    expect(buildSrt(segs, false)).toBe('1\none\n\n2\ntwo')
+  })
+})

@@ -29,6 +29,14 @@ public static class DependencyInjection
         // abstractions rather than talking to pgvector itself, so it belongs here too.
         services.AddScoped<IFlashcardDeduplicator, FlashcardDeduplicator>();
 
+        // Fits FSRS weights to a user's own review log. Stateless number-crunching over rows the
+        // handler hands it, so it has no infrastructure dependency of its own.
+        services.AddSingleton<IFsrsOptimizer, FsrsOptimizer>();
+
+        // Owns "which settings does this user schedule with, and which day is quietest" so the
+        // review handler stays a handler.
+        services.AddScoped<IReviewScheduler, ReviewScheduler>();
+
         return services;
     }
 }

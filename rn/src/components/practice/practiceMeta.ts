@@ -23,17 +23,8 @@ export const COUNT_OPTIONS = [10, 15, 25, 40];
 
 export type Phase = 'setup' | 'running' | 'report';
 
-// Chart flashcards store a chart-spec JSON as their answer — RN has no chart renderer,
-// so degrade to a placeholder (same policy as utils/flashcardDisplay.ts).
-export const isChartAnswer = (answer: string) => {
-  if (!answer.trimStart().startsWith('{')) return false;
-  try {
-    const parsed = JSON.parse(answer);
-    return !!(parsed?.labels && parsed?.datasets);
-  } catch {
-    return false;
-  }
-};
+// RN has no chart renderer, so chart answers degrade to a placeholder (same policy as utils/flashcardDisplay.ts).
+export { isChartAnswer } from '@core/utils/chartAnswer';
 
 export const formatTime = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
