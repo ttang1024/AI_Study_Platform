@@ -37,7 +37,6 @@ public interface IUnitOfWork : IDisposable
     IAiUsageRepository AiUsage { get; }
     IDataExportRequestRepository DataExportRequests { get; }
     ILibraryTagRepository LibraryTags { get; }
-    ISavedLibraryViewRepository SavedLibraryViews { get; }
     IUserFsrsSettingsRepository UserFsrsSettings { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

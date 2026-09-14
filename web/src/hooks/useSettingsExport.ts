@@ -1,37 +1,31 @@
 import { useState, useEffect } from 'react';
 import { useStudy } from '../context/StudyContext';
-import { glossaryService } from '../services/glossaryService';
 import { documentService } from '../services/documentService';
 import { videoService } from '../services/videoService';
 import {
   downloadNotesMarkdown,
-  downloadObsidianVault,
   downloadQtiZip,
   downloadQuizCsv,
-  downloadStudyPackPdf,
-  ExportGlossaryRecord,
   ExportNoteRecord,
   ExportQuizRecord,
-  StudyPackExport,
 } from '../services/exportInteropService';
 import { getCorrectQuizOptionText } from '../utils/quizAnswers';
 
-export type ExportKind = 'notes' | 'pdf' | 'obsidian' | 'quizCsv' | 'qti';
+export type ExportKind = 'notes' | 'quizCsv' | 'qti';
 
 /** Owns the Settings → Export tab logic: builds export payloads from study data and triggers downloads. */
 export function useSettingsExport() {
-  const { allNotes, documents, courses, flashcards, quizSubmissions, ensureDocuments, ensureFlashcards, ensureNotes, ensureQuizSubmissions } = useStudy();
+  const { allNotes, documents, courses, quizSubmissions, ensureDocuments, ensureNotes, ensureQuizSubmissions } = useStudy();
   const [exporting, setExporting] = useState<null | ExportKind>(null);
 
-  // The document list, flashcard deck, notes and quiz submissions load lazily; make
+  // The document list, notes and quiz submissions load lazily; make
   // sure they're present before the user exports (exports read them straight from
   // context state).
   useEffect(() => {
     void ensureDocuments();
-    void ensureFlashcards();
     void ensureNotes();
     void ensureQuizSubmissions();
-  }, [ensureDocuments, ensureFlashcards, ensureNotes, ensureQuizSubmissions]);
+  }, [ensureDocuments, ensureNotes, ensureQuizSubmissions]);
 
   const buildNotesExport = (): ExportNoteRecord[] => allNotes.map(note => {
     const doc = documents.find(d => d.id === note.documentId);
@@ -89,27 +83,7 @@ export function useSettingsExport() {
     return records.filter(r => r.questions.length > 0);
   };
 
-  const buildStudyPack = async (): Promise<StudyPackExport> => {
-    const glossary = await glossaryService.getAllGlossary().catch(() => []);
-    const quizRecords = await buildQuizExport();
-    const glossaryRecords: ExportGlossaryRecord[] = glossary.map(term => ({
-      term: term.term,
-      definition: term.definition,
-      sourceName: term.sourceName,
-    }));
-    return {
-      notes: buildNotesExport(),
-      quizzes: quizRecords,
-      flashcards: flashcards.map(card => ({
-        front: card.front,
-        back: card.back,
-        sourceTitle: card.documentName ?? card.videoName,
-      })),
-      glossary: glossaryRecords,
-    };
-  };
-
-  const handleExport = async (kind: 'notes' | 'pdf' | 'obsidian' | 'quizCsv' | 'qti') => {
+  const handleExport = async (kind: ExportKind) => {
     setExporting(kind);
     try {
       if (kind === 'notes') {
@@ -122,14 +96,7 @@ export function useSettingsExport() {
         return;
       }
 
-      if (kind === 'qti') {
-        await downloadQtiZip(await buildQuizExport(), 'study_platform_quizzes');
-        return;
-      }
-
-      const pack = await buildStudyPack();
-      if (kind === 'pdf') await downloadStudyPackPdf(pack, 'study_platform_study_pack');
-      else await downloadObsidianVault(pack, 'study_platform_vault');
+      await downloadQtiZip(await buildQuizExport(), 'study_platform_quizzes');
     } finally {
       setExporting(null);
     }

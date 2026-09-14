@@ -1,5 +1,5 @@
-// jszip and jspdf are loaded on demand inside the export functions so these
-// heavyweight libraries stay out of the page chunks until an export is run.
+// jszip is loaded on demand inside the export functions so the
+// heavyweight library stays out of the page chunks until an export is run.
 
 export interface ExportNoteRecord {
   title: string
@@ -20,25 +20,6 @@ export interface ExportQuizRecord {
   title: string
   courseName?: string
   questions: ExportQuizQuestion[]
-}
-
-export interface ExportFlashcardRecord {
-  front: string
-  back: string
-  sourceTitle?: string
-}
-
-export interface ExportGlossaryRecord {
-  term: string
-  definition: string
-  sourceName?: string
-}
-
-export interface StudyPackExport {
-  notes?: ExportNoteRecord[]
-  quizzes?: ExportQuizRecord[]
-  flashcards?: ExportFlashcardRecord[]
-  glossary?: ExportGlossaryRecord[]
 }
 
 const sanitizeFileName = (value: string): string =>
@@ -181,122 +162,4 @@ export async function downloadQtiZip(quizzes: ExportQuizRecord[], name = 'quizze
 
   const blob = await zip.generateAsync({ type: 'blob' })
   downloadBlob(blob, `${identifier}_qti.zip`)
-}
-
-export async function downloadStudyPackPdf(pack: StudyPackExport, name = 'study_pack'): Promise<void> {
-  const { jsPDF } = await import('jspdf')
-  const pdf = new jsPDF()
-  const pageWidth = pdf.internal.pageSize.getWidth()
-  const margin = 14
-  let y = 18
-
-  const addLine = (text: string, size = 10, bold = false) => {
-    pdf.setFont('helvetica', bold ? 'bold' : 'normal')
-    pdf.setFontSize(size)
-    const lines = pdf.splitTextToSize(text, pageWidth - margin * 2)
-    for (const line of lines) {
-      if (y > 280) {
-        pdf.addPage()
-        y = 18
-      }
-      pdf.text(line, margin, y)
-      y += size * 0.45 + 3
-    }
-  }
-
-  addLine(name, 18, true)
-  addLine(`Generated ${new Date().toLocaleString()}`, 9)
-  y += 4
-
-  if (pack.notes?.length) {
-    addLine('Notes', 14, true)
-    pack.notes.forEach(note => {
-      addLine(note.title, 11, true)
-      addLine(stripHtml(note.html))
-      y += 2
-    })
-  }
-
-  if (pack.quizzes?.length) {
-    addLine('Quizzes', 14, true)
-    pack.quizzes.forEach(quiz => {
-      addLine(quiz.title, 11, true)
-      quiz.questions.forEach((q, i) => {
-        addLine(`${i + 1}. ${q.question}`)
-        addLine(`Answer: ${q.correctAnswer}`, 9)
-      })
-      y += 2
-    })
-  }
-
-  if (pack.flashcards?.length) {
-    addLine('Flashcards', 14, true)
-    pack.flashcards.forEach(card => {
-      addLine(`Front: ${card.front}`)
-      addLine(`Back: ${card.back}`, 9)
-    })
-  }
-
-  if (pack.glossary?.length) {
-    addLine('Glossary', 14, true)
-    pack.glossary.forEach(term => addLine(`${term.term}: ${term.definition}`))
-  }
-
-  pdf.save(`${sanitizeFileName(name)}.pdf`)
-}
-
-export async function downloadObsidianVault(pack: StudyPackExport, name = 'study_vault'): Promise<void> {
-  const { default: JSZip } = await import('jszip')
-  const zip = new JSZip()
-  const root = zip.folder(sanitizeFileName(name))!
-
-  root.file('README.md', `# ${name}\n\nExported from Study Platform on ${new Date().toLocaleString()}.\n`)
-
-  const notesFolder = root.folder('Notes')!
-  pack.notes?.forEach((note, index) => {
-    notesFolder.file(`${sanitizeFileName(note.title || `note_${index + 1}`)}.md`, [
-      '---',
-      `title: ${note.title}`,
-      note.courseName ? `course: ${note.courseName}` : '',
-      note.sourceType ? `source_type: ${note.sourceType}` : '',
-      note.createdAt ? `created: ${note.createdAt}` : '',
-      '---',
-      '',
-      htmlToMarkdown(note.html),
-    ].filter(Boolean).join('\n'))
-  })
-
-  const quizFolder = root.folder('Quizzes')!
-  pack.quizzes?.forEach((quiz, index) => {
-    quizFolder.file(`${sanitizeFileName(quiz.title || `quiz_${index + 1}`)}.md`, [
-      `# ${quiz.title}`,
-      '',
-      ...quiz.questions.flatMap((q, i) => [
-        `## Question ${i + 1}`,
-        q.question,
-        '',
-        ...(q.options ?? []).map(option => `- ${option}`),
-        '',
-        `**Answer:** ${q.correctAnswer}`,
-        q.explanation ? `**Explanation:** ${q.explanation}` : '',
-        '',
-      ]),
-    ].join('\n'))
-  })
-
-  if (pack.flashcards?.length) {
-    root.file('Flashcards.md', pack.flashcards.map(card => [
-      `## ${card.front}`,
-      card.sourceTitle ? `Source: [[${card.sourceTitle}]]` : '',
-      '',
-      card.back,
-    ].filter(Boolean).join('\n')).join('\n\n'))
-  }
-
-  if (pack.glossary?.length) {
-    root.file('Glossary.md', pack.glossary.map(term => `## ${term.term}\n\n${term.definition}`).join('\n\n'))
-  }
-
-  const blob = await zip.generateAsync({ type: 'blob' })
-  downloadBlob(blob, `${sanitizeFileName(name)}_obsidian.zip`)
 }

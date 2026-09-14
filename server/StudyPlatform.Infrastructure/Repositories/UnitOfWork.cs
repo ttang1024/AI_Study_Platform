@@ -43,7 +43,6 @@ public class UnitOfWork : IUnitOfWork
     private IAiUsageRepository? _aiUsage;
     private IDataExportRequestRepository? _dataExportRequests;
     private ILibraryTagRepository? _libraryTags;
-    private ISavedLibraryViewRepository? _savedLibraryViews;
     private IUserFsrsSettingsRepository? _userFsrsSettings;
 
     public UnitOfWork(AppDbContext context)
@@ -86,7 +85,6 @@ public class UnitOfWork : IUnitOfWork
     public IAiUsageRepository AiUsage => _aiUsage ??= new AiUsageRepository(_context);
     public IDataExportRequestRepository DataExportRequests => _dataExportRequests ??= new DataExportRequestRepository(_context);
     public ILibraryTagRepository LibraryTags => _libraryTags ??= new LibraryTagRepository(_context);
-    public ISavedLibraryViewRepository SavedLibraryViews => _savedLibraryViews ??= new SavedLibraryViewRepository(_context);
     public IUserFsrsSettingsRepository UserFsrsSettings => _userFsrsSettings ??= new UserFsrsSettingsRepository(_context);
 
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

@@ -102,7 +102,6 @@ public class AccountEraser : IAccountEraser
                 .Select(t => t.LibraryTagId).Contains(a.LibraryTagId))
             .ExecuteDeleteAsync(cancellationToken);
         await _db.LibraryTags.Where(x => x.UserId == userId).ExecuteDeleteAsync(cancellationToken);
-        await _db.SavedLibraryViews.Where(x => x.UserId == userId).ExecuteDeleteAsync(cancellationToken);
 
         await _db.AiJobs.Where(x => x.UserId == userId).ExecuteDeleteAsync(cancellationToken);
         await _db.AiUsageLogs.Where(x => x.UserId == userId).ExecuteDeleteAsync(cancellationToken);

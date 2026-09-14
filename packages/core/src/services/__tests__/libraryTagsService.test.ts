@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { createLibraryTagsService, parseSavedViewFilters } from '../libraryTagsService'
+import { createLibraryTagsService } from '../libraryTagsService'
 import type { HttpClient } from '../../http'
 
 const fakeHttp: HttpClient = {
@@ -9,21 +9,6 @@ const fakeHttp: HttpClient = {
   patch: vi.fn(),
   delete: vi.fn(),
 }
-
-describe('parseSavedViewFilters', () => {
-  it('parses a valid JSON object', () => {
-    expect(parseSavedViewFilters('{"type":"documents","courseId":"c-1"}')).toEqual({ type: 'documents', courseId: 'c-1' })
-  })
-
-  it('returns {} for malformed JSON', () => {
-    expect(parseSavedViewFilters('{not json')).toEqual({})
-  })
-
-  it('returns {} when JSON parses to a non-object', () => {
-    expect(parseSavedViewFilters('42')).toEqual({})
-    expect(parseSavedViewFilters('null')).toEqual({})
-  })
-})
 
 describe('createLibraryTagsService', () => {
   beforeEach(() => vi.clearAllMocks())
@@ -65,21 +50,5 @@ describe('createLibraryTagsService', () => {
     const items = [{ itemKind: 'video' as const, itemId: 'v-1' }]
     service.unassignItems('t-1', items)
     expect(fakeHttp.delete).toHaveBeenCalledWith('/api/library/tags/t-1/items', { data: { items } })
-  })
-
-  it('getViews GETs /api/library/views', () => {
-    service.getViews()
-    expect(fakeHttp.get).toHaveBeenCalledWith('/api/library/views')
-  })
-
-  it('createView posts the view payload', () => {
-    const input = { name: 'My View', filtersJson: '{}' }
-    service.createView(input)
-    expect(fakeHttp.post).toHaveBeenCalledWith('/api/library/views', input)
-  })
-
-  it('deleteView deletes by id', () => {
-    service.deleteView('view-1')
-    expect(fakeHttp.delete).toHaveBeenCalledWith('/api/library/views/view-1')
   })
 })

@@ -48,7 +48,6 @@ public class AppDbContext : DbContext
     public DbSet<DataExportRequest> DataExportRequests => Set<DataExportRequest>();
     public DbSet<LibraryTag> LibraryTags => Set<LibraryTag>();
     public DbSet<LibraryTagAssignment> LibraryTagAssignments => Set<LibraryTagAssignment>();
-    public DbSet<SavedLibraryView> SavedLibraryViews => Set<SavedLibraryView>();
     public DbSet<UserFsrsSettings> UserFsrsSettings => Set<UserFsrsSettings>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
