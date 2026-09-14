@@ -70,8 +70,6 @@ public class AppDbContext : DbContext
     public DbSet<SavedLibraryView> SavedLibraryViews => Set<SavedLibraryView>();
     public DbSet<CourseCertificate> CourseCertificates => Set<CourseCertificate>();
     public DbSet<EssayPeerReview> EssayPeerReviews => Set<EssayPeerReview>();
-    public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
-    public DbSet<Webhook> Webhooks => Set<Webhook>();
     public DbSet<UserFsrsSettings> UserFsrsSettings => Set<UserFsrsSettings>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

@@ -56,8 +56,6 @@ public interface IUnitOfWork : IDisposable
     ISavedLibraryViewRepository SavedLibraryViews { get; }
     ICourseCertificateRepository CourseCertificates { get; }
     IEssayPeerReviewRepository EssayPeerReviews { get; }
-    IApiKeyRepository ApiKeys { get; }
-    IWebhookRepository Webhooks { get; }
     IUserFsrsSettingsRepository UserFsrsSettings { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

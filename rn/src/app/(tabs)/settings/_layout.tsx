@@ -24,7 +24,6 @@ export default function SettingsLayout() {
       <Stack.Screen name="security-log" options={{ title: 'Security log' }} />
       <Stack.Screen name="data" options={{ title: 'Your data' }} />
       <Stack.Screen name="certificates" options={{ title: 'Certificates' }} />
-      <Stack.Screen name="integrations" options={{ title: 'Integrations' }} />
       <Stack.Screen name="feedback" options={{ title: 'Feedback' }} />
     </Stack>
   );

@@ -15,7 +15,6 @@ import Award from 'lucide-react-native/icons/award';
 import FileArchive from 'lucide-react-native/icons/file-archive';
 import History from 'lucide-react-native/icons/history';
 import MonitorSmartphone from 'lucide-react-native/icons/monitor-smartphone';
-import Plug from 'lucide-react-native/icons/plug';
 import ShieldCheck from 'lucide-react-native/icons/shield-check';
 
 import { Button } from '@/components/Button';
@@ -93,14 +92,6 @@ export default function SettingsScreen() {
           <View style={styles.navBody}>
             <Text style={styles.navTitle}>Certificates</Text>
             <Text style={styles.navSubtitle}>Claim and share proof of the courses you have mastered</Text>
-          </View>
-          <ChevronRight size={18} color={Colors.textSecondary} />
-        </Pressable>
-        <Pressable style={styles.navRow} onPress={() => router.push('/settings/integrations')}>
-          <IconBadge icon={Plug} size={36} />
-          <View style={styles.navBody}>
-            <Text style={styles.navTitle}>Integrations</Text>
-            <Text style={styles.navSubtitle}>API keys and webhooks for scripts and other tools</Text>
           </View>
           <ChevronRight size={18} color={Colors.textSecondary} />
         </Pressable>

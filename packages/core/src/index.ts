@@ -67,4 +67,3 @@ export * from './services/securityService';
 export * from './services/libraryTagsService';
 export * from './services/certificateService';
 export * from './services/peerReviewService';
-export * from './services/integrationsService';

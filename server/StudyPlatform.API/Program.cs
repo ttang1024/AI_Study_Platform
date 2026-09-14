@@ -11,7 +11,6 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using StackExchange.Redis;
-using StudyPlatform.API.Auth;
 using StudyPlatform.API.HealthChecks;
 using StudyPlatform.API.Hubs;
 using StudyPlatform.API.Json;
@@ -91,23 +90,7 @@ builder.Services.AddSwaggerGen(options =>
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey not configured.");
 
-builder.Services.AddAuthentication(options =>
-{
-    // A selector rather than a fixed default, so one [Authorize] works for both a browser session
-    // and a script holding an API key. The key's "sp_" prefix is what makes the choice unambiguous
-    // when both arrive in the same Authorization header shape.
-    options.DefaultScheme = "JwtOrApiKey";
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-})
-.AddPolicyScheme("JwtOrApiKey", "JWT or API key", options =>
-{
-    options.ForwardDefaultSelector = context =>
-        ApiKeyAuthenticationHandler.ReadKey(context.Request) != null
-            ? ApiKeyAuthenticationOptions.SchemeName
-            : JwtBearerDefaults.AuthenticationScheme;
-})
-.AddScheme<ApiKeyAuthenticationOptions, ApiKeyAuthenticationHandler>(
-    ApiKeyAuthenticationOptions.SchemeName, _ => { })
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 .AddJwtBearer(options =>
 {
     options.TokenValidationParameters = new TokenValidationParameters

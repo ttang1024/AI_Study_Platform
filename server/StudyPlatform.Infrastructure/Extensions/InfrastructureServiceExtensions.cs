@@ -55,17 +55,6 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IRequestContext, HttpRequestContext>();
         services.AddScoped<IDataExportBuilder, DataExportBuilder>();
         services.AddScoped<IAccountEraser, AccountEraser>();
-        services.AddScoped<IMarkdownExportBuilder, MarkdownExportBuilder>();
-
-        // Outbound webhooks. The URL is user-supplied and fetched by the server, so this goes
-        // through the same per-hop private-IP guard as calendar, podcast, and clipper ingestion —
-        // an unguarded client here would make the platform a probe of its own network.
-        services.AddHttpClient<IWebhookDispatcher, WebhookDispatcher>(client =>
-        {
-            client.Timeout = TimeSpan.FromSeconds(10);
-            client.DefaultRequestHeaders.Add("User-Agent", "StudyPlatform-Webhooks");
-        })
-        .ConfigurePrimaryHttpMessageHandler(() => SsrfGuard.CreateHandler());
 
         // Services
         services.AddScoped<ITokenService, TokenService>();

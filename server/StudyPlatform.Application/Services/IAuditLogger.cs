@@ -43,10 +43,6 @@ public static class AuditActions
     public const string AccountDeletionRequested = "account.deletion.requested";
     public const string AccountDeleted = "account.deleted";
 
-    public const string ApiKeyCreated = "apikey.created";
-    public const string ApiKeyRevoked = "apikey.revoked";
-    public const string WebhookCreated = "webhook.created";
-    public const string WebhookDeleted = "webhook.deleted";
 
     public const string AdminUserViewed = "admin.user.viewed";
     public const string AdminUserDeactivated = "admin.user.deactivated";
