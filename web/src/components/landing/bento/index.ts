@@ -22,7 +22,6 @@ export { BentoEssayCard } from './BentoEssayCard';
 export { BentoCodeCard } from './BentoCodeCard';
 export { BentoLanguageCard } from './BentoLanguageCard';
 export { BentoCitationCard } from './BentoCitationCard';
-export { BentoCertificateCard } from './BentoCertificateCard';
 export { BentoSecurityCard } from './BentoSecurityCard';
 export { BentoTagsCard } from './BentoTagsCard';
 export { BentoFormatsCard } from './BentoFormatsCard';

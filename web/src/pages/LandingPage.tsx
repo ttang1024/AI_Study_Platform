@@ -39,7 +39,6 @@ import {
   BentoCodeCard,
   BentoLanguageCard,
   BentoCitationCard,
-  BentoCertificateCard,
   BentoSecurityCard,
   BentoTagsCard,
   BentoFormatsCard,
@@ -295,9 +294,6 @@ export const LandingPage: React.FC = () => {
           </FadeIn>
           <FadeIn delay={0.42}>
             <BentoCodeCard />
-          </FadeIn>
-          <FadeIn delay={0.42}>
-            <BentoCertificateCard />
           </FadeIn>
           <FadeIn delay={0.46}>
             <BentoLanguageCard />

@@ -43,7 +43,6 @@ public interface IUnitOfWork : IDisposable
     IDataExportRequestRepository DataExportRequests { get; }
     ILibraryTagRepository LibraryTags { get; }
     ISavedLibraryViewRepository SavedLibraryViews { get; }
-    ICourseCertificateRepository CourseCertificates { get; }
     IUserFsrsSettingsRepository UserFsrsSettings { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

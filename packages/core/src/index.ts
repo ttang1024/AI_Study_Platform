@@ -63,4 +63,3 @@ export * from './services/documentService';
 export * from './services/videoService';
 export * from './services/securityService';
 export * from './services/libraryTagsService';
-export * from './services/certificateService';

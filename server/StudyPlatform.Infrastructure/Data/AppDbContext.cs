@@ -55,7 +55,6 @@ public class AppDbContext : DbContext
     public DbSet<LibraryTag> LibraryTags => Set<LibraryTag>();
     public DbSet<LibraryTagAssignment> LibraryTagAssignments => Set<LibraryTagAssignment>();
     public DbSet<SavedLibraryView> SavedLibraryViews => Set<SavedLibraryView>();
-    public DbSet<CourseCertificate> CourseCertificates => Set<CourseCertificate>();
     public DbSet<UserFsrsSettings> UserFsrsSettings => Set<UserFsrsSettings>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

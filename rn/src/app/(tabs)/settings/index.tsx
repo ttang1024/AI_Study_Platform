@@ -10,7 +10,6 @@ import UserCircle from 'lucide-react-native/icons/circle-user';
 import Gauge from 'lucide-react-native/icons/gauge';
 import Volume2 from 'lucide-react-native/icons/volume-2';
 import Languages from 'lucide-react-native/icons/languages';
-import Award from 'lucide-react-native/icons/award';
 import FileArchive from 'lucide-react-native/icons/file-archive';
 import History from 'lucide-react-native/icons/history';
 import MonitorSmartphone from 'lucide-react-native/icons/monitor-smartphone';
@@ -80,17 +79,6 @@ export default function SettingsScreen() {
           <View style={styles.navBody}>
             <Text style={styles.navTitle}>Your data</Text>
             <Text style={styles.navSubtitle}>Download everything we hold, or delete your account</Text>
-          </View>
-          <ChevronRight size={18} color={Colors.textSecondary} />
-        </Pressable>
-      </View>
-
-      <View style={styles.section}>
-        <Pressable style={styles.navRow} onPress={() => router.push('/settings/certificates')}>
-          <IconBadge icon={Award} size={36} />
-          <View style={styles.navBody}>
-            <Text style={styles.navTitle}>Certificates</Text>
-            <Text style={styles.navSubtitle}>Claim and share proof of the courses you have mastered</Text>
           </View>
           <ChevronRight size={18} color={Colors.textSecondary} />
         </Pressable>

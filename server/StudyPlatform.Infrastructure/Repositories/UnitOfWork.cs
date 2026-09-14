@@ -49,7 +49,6 @@ public class UnitOfWork : IUnitOfWork
     private IDataExportRequestRepository? _dataExportRequests;
     private ILibraryTagRepository? _libraryTags;
     private ISavedLibraryViewRepository? _savedLibraryViews;
-    private ICourseCertificateRepository? _courseCertificates;
     private IUserFsrsSettingsRepository? _userFsrsSettings;
 
     public UnitOfWork(AppDbContext context)
@@ -98,7 +97,6 @@ public class UnitOfWork : IUnitOfWork
     public IDataExportRequestRepository DataExportRequests => _dataExportRequests ??= new DataExportRequestRepository(_context);
     public ILibraryTagRepository LibraryTags => _libraryTags ??= new LibraryTagRepository(_context);
     public ISavedLibraryViewRepository SavedLibraryViews => _savedLibraryViews ??= new SavedLibraryViewRepository(_context);
-    public ICourseCertificateRepository CourseCertificates => _courseCertificates ??= new CourseCertificateRepository(_context);
     public IUserFsrsSettingsRepository UserFsrsSettings => _userFsrsSettings ??= new UserFsrsSettingsRepository(_context);
 
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
