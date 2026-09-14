@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Tags, FolderOpen, Bookmark } from 'lucide-react';
+import { Tags, FolderOpen } from 'lucide-react';
 import { BentoCardShell, BentoCardHeader } from './BentoCardShell';
 
 const TAGS = [
@@ -46,7 +46,7 @@ export const BentoTagsCard: React.FC = () => (
       <div className="mt-3 pt-2.5 space-y-1.5" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
         {[
           { icon: FolderOpen, label: 'Midterm 2 collection', meta: '14 items' },
-          { icon: Bookmark, label: 'Saved view · untouched 30d', meta: '9 items' },
+          { icon: FolderOpen, label: 'Week 4 lab reports', meta: '9 items' },
         ].map(({ icon: Icon, label, meta }, i) => (
           <motion.div
             key={label}
@@ -66,8 +66,8 @@ export const BentoTagsCard: React.FC = () => (
     </div>
 
     <p className="text-sm text-white/40 leading-relaxed">
-      Tag anything in your library, group it into collections, and save the filters you keep retyping as one-click
-      views.
+      Tag anything in your library and group it into collections — then filter the whole library down to exactly
+      what you need to work on.
     </p>
   </BentoCardShell>
 );

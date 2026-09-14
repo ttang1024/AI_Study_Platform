@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { motion, useInView } from 'motion/react';
-import { Smartphone, Chrome, ScanLine, Fingerprint, BellRing, Scissors, Sparkles } from 'lucide-react';
+import { Smartphone, Bookmark, ScanLine, Fingerprint, BellRing, Scissors, FileText } from 'lucide-react';
 import { BentoCardShell, BentoCardHeader } from './BentoCardShell';
 
 const MOBILE_FEATURES = [
@@ -11,7 +11,7 @@ const MOBILE_FEATURES = [
 
 const CLIPPER_FEATURES = [
   { icon: Scissors, label: 'Clip any page into your library' },
-  { icon: Sparkles, label: 'Flashcards from selected text' },
+  { icon: FileText, label: 'Saved as clean Markdown' },
 ];
 
 export const BentoEverywhereCard: React.FC = () => {
@@ -37,7 +37,7 @@ export const BentoEverywhereCard: React.FC = () => {
       <div className="flex-1 rounded-xl p-3 flex flex-col gap-2.5 mb-3" style={{ background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(255,255,255,0.06)' }}>
         {[
           { icon: Smartphone, heading: 'Mobile app · iOS & Android', items: MOBILE_FEATURES, color: '#a5b4fc' },
-          { icon: Chrome, heading: 'Chrome web clipper', items: CLIPPER_FEATURES, color: '#c4b5fd' },
+          { icon: Bookmark, heading: 'Web clipper bookmarklet', items: CLIPPER_FEATURES, color: '#c4b5fd' },
         ].map(({ icon: PanelIcon, heading, items, color }, p) => (
           <div key={heading} className="flex flex-col gap-1.5">
             <div className="flex items-center gap-2">
@@ -64,7 +64,7 @@ export const BentoEverywhereCard: React.FC = () => {
       </div>
 
       <p className="text-sm text-white/40 leading-relaxed">
-        The full platform on your phone — plus a Chrome extension that clips articles or turns any selection into flashcards while you browse.
+        The full platform on your phone — plus a bookmarklet that clips the article you are reading into your library, in any browser, with nothing to install.
       </p>
     </BentoCardShell>
   );

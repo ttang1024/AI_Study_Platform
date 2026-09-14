@@ -17,7 +17,7 @@ export const BentoTutorCard: React.FC = () => {
     >
       <BentoCardHeader
         icon={Mic}
-        title={<>Voice Tutor &amp; Teach-Back</>}
+        title={<>Voice Chat &amp; Teach-Back</>}
         gradient="from-rose-400 to-pink-600"
         iconGlow="0 6px 22px rgba(244,63,94,0.4)"
       />

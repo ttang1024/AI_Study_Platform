@@ -1,17 +1,16 @@
 import React, { useRef } from 'react';
 import { motion, useInView } from 'motion/react';
-import { ShieldCheck, Fingerprint, KeyRound, Laptop, Download, ScrollText, Trash2 } from 'lucide-react';
+import { ShieldCheck, KeyRound, Mail, LogIn, Download, Trash2 } from 'lucide-react';
 import { BentoCardShell, BentoCardHeader } from './BentoCardShell';
 
 const ACCOUNT_ITEMS = [
-  { icon: Fingerprint, label: 'Two-factor via authenticator app' },
-  { icon: KeyRound, label: 'One-time recovery codes' },
-  { icon: Laptop, label: 'Sign out every other device' },
+  { icon: KeyRound, label: 'Your AI key is never stored' },
+  { icon: Mail, label: 'Sign in with a one-time code' },
+  { icon: LogIn, label: 'Or Google / GitHub' },
 ];
 
 const DATA_ITEMS = [
   { icon: Download, label: 'Export everything we hold on you' },
-  { icon: ScrollText, label: 'Your own security log' },
   { icon: Trash2, label: 'Delete the account for good' },
 ];
 
@@ -30,16 +29,15 @@ export const BentoSecurityCard: React.FC = () => {
     >
       <BentoCardHeader
         icon={ShieldCheck}
-        title="Your Account, Locked Down"
+        title="Your Keys, Your Data"
         gradient="from-green-400 to-emerald-600"
         iconGlow="0 6px 22px rgba(74,222,128,0.4)"
-        isNew
       />
 
       <div className="flex-1 rounded-xl p-3 flex flex-col gap-2.5 mb-3"
         style={{ background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(255,255,255,0.06)' }}>
         {[
-          { heading: 'Account protection', items: ACCOUNT_ITEMS, color: '#86efac' },
+          { heading: 'Bring your own key', items: ACCOUNT_ITEMS, color: '#86efac' },
           { heading: 'Your data, your call', items: DATA_ITEMS, color: '#6ee7b7' },
         ].map(({ heading, items, color }, p) => (
           <div key={heading} className="flex flex-col gap-1.5">
@@ -64,8 +62,8 @@ export const BentoSecurityCard: React.FC = () => {
       </div>
 
       <p className="text-sm text-white/40 leading-relaxed">
-        Turn on two-factor auth, cut off any device that shouldn't be signed in, and read the log of what happened
-        on your account — then export the whole archive or delete it all, no support ticket required.
+        Your provider key travels with each request and is never written to our database — so the AI bills you,
+        not us. Export your whole archive whenever you like, or delete it all, no support ticket required.
       </p>
     </BentoCardShell>
   );

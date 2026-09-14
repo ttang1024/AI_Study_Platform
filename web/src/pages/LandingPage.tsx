@@ -39,6 +39,32 @@ import {
   BentoFormatsCard,
 } from '../components/landing/bento';
 
+/** The feature grid, in reading order. */
+const BENTO_CARDS = [
+  BentoFormatsCard,
+  BentoChatCard,
+  BentoSummaryCard,
+  BentoMindMapCard,
+  BentoQuizCard,
+  BentoFlashcardCard,
+  BentoNoteCard,
+  BentoGlossaryCard,
+  BentoPlannerCard,
+  BentoTutorCard,
+  BentoInsightsCard,
+  BentoProblemCard,
+  BentoPlayCard,
+  BentoStudyGroupCard,
+  BentoPracticeCard,
+  BentoCitationCard,
+  BentoTagsCard,
+  BentoSearchCard,
+  BentoEverywhereCard,
+  BentoSecurityCard,
+  BentoOfflineCard,
+  BentoShareCard,
+];
+
 export const LandingPage: React.FC = () => {
   const auth = useOptionalAuth();
   const isAuthenticated = auth?.isAuthenticated ?? false;
@@ -152,7 +178,7 @@ export const LandingPage: React.FC = () => {
           transition={{ duration: 0.7, delay: 0.52 }}
           className="max-w-2xl text-lg sm:text-xl text-white/45 leading-relaxed mb-10">
           Turn any document, spreadsheet, notebook, video, podcast, or article into AI summaries, mind maps,
-          flashcards, and quizzes — then master it with spaced repetition, mock exams, and a voice tutor.
+          flashcards, and quizzes — then master it with spaced repetition, mock exams, and an AI tutor.
           Web, iOS &amp; Android, even offline.
         </motion.p>
 
@@ -180,7 +206,7 @@ export const LandingPage: React.FC = () => {
           transition={{ duration: 0.8, delay: 0.9 }}
           className="flex flex-wrap justify-center gap-5 mt-14">
           {[
-            { to: 30, suffix: '+', label: 'AI-powered tools' },
+            { to: 20, suffix: '+', label: 'AI-powered tools' },
             { to: 100, suffix: '%', label: 'Free to start' },
             { to: 230, suffix: '+', label: 'file formats' },
           ].map((s, i) => (
@@ -228,74 +254,14 @@ export const LandingPage: React.FC = () => {
         </FadeIn>
 
         <div className="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-auto">
-          {/* Ingestion leads the grid: everything below only happens once your
-              file is in, so the breadth of what we accept comes first. */}
-          <FadeIn delay={0.05}>
-            <BentoFormatsCard />
-          </FadeIn>
-          <FadeIn delay={0.05}>
-            <BentoChatCard />
-          </FadeIn>
-          <FadeIn delay={0.05}>
-            <BentoSummaryCard />
-          </FadeIn>
-          <FadeIn delay={0.05}>
-            <BentoMindMapCard />
-          </FadeIn>
-          <FadeIn delay={0.1}>
-            <BentoQuizCard />
-          </FadeIn>
-          <FadeIn delay={0.18}>
-            <BentoFlashcardCard />
-          </FadeIn>
-          <FadeIn delay={0.18}>
-            <BentoNoteCard />
-          </FadeIn>
-          <FadeIn delay={0.18}>
-            <BentoGlossaryCard />
-          </FadeIn>
-          <FadeIn delay={0.24}>
-            <BentoPlannerCard />
-          </FadeIn>
-          <FadeIn delay={0.24}>
-            <BentoTutorCard />
-          </FadeIn>
-          <FadeIn delay={0.24}>
-            <BentoInsightsCard />
-          </FadeIn>
-          <FadeIn delay={0.30}>
-            <BentoProblemCard />
-          </FadeIn>
-          <FadeIn delay={0.30}>
-            <BentoPlayCard />
-          </FadeIn>
-          <FadeIn delay={0.30}>
-            <BentoStudyGroupCard />
-          </FadeIn>
-          <FadeIn delay={0.34}>
-            <BentoPracticeCard />
-          </FadeIn>
-          <FadeIn delay={0.38}>
-            <BentoCitationCard />
-          </FadeIn>
-          <FadeIn delay={0.46}>
-            <BentoTagsCard />
-          </FadeIn>
-          <FadeIn delay={0.46}>
-            <BentoSearchCard />
-          </FadeIn>
-          <FadeIn delay={0.50}>
-            <BentoEverywhereCard />
-          </FadeIn>
-          <FadeIn delay={0.50}>
-            <BentoSecurityCard />
-          </FadeIn>
-          <FadeIn delay={0.50}>
-            <BentoOfflineCard />
-          </FadeIn>
-          <FadeIn delay={0.54}>
-            <BentoShareCard />
-          </FadeIn>
+          {/* One entry per card, in reading order. Ingestion leads the grid: everything below only
+              happens once your file is in, so the breadth of what we accept comes first. The stagger
+              is derived per row, so adding or removing a card never leaves a gap in the sequence. */}
+          {BENTO_CARDS.map((Card, i) => (
+            <FadeIn key={i} delay={0.05 + Math.floor(i / 3) * 0.06}>
+              <Card />
+            </FadeIn>
+          ))}
         </div>
       </section>
 
