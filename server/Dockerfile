@@ -9,7 +9,11 @@ COPY StudyPlatform.Application/StudyPlatform.Application.csproj StudyPlatform.Ap
 COPY StudyPlatform.Domain/StudyPlatform.Domain.csproj StudyPlatform.Domain/
 COPY StudyPlatform.Infrastructure/StudyPlatform.Infrastructure.csproj StudyPlatform.Infrastructure/
 
-RUN dotnet restore
+# Restore the API project, not the solution: the solution also references StudyPlatform.Tests, whose
+# csproj is deliberately not copied here (the image ships no tests), and `dotnet restore` on the .sln
+# fails with MSB3202 on that missing project. The API transitively pulls in Application, Domain and
+# Infrastructure, so this restores everything the publish below needs and nothing it does not.
+RUN dotnet restore StudyPlatform.API/StudyPlatform.API.csproj
 
 # Copy source and publish
 COPY . .

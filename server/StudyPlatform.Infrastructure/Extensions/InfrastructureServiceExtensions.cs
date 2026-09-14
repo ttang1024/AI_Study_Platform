@@ -13,15 +13,26 @@ namespace StudyPlatform.Infrastructure.Extensions;
 
 public static class InfrastructureServiceExtensions
 {
-    public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
+    /// <param name="isProduction">
+    /// Whether the host is running as Production. Only used to refuse a loopback database there —
+    /// see <see cref="NpgsqlConnectionStringFactory"/>.
+    /// </param>
+    public static IServiceCollection AddInfrastructure(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        bool isProduction = false)
     {
-        // Database
+        // Database. The connection string is normalised for a remotely hosted managed Postgres
+        // (pool size, timeouts, TLS) without overriding anything the operator set explicitly.
+        var connectionString = NpgsqlConnectionStringFactory.Create(configuration, isProduction);
+
         services.AddDbContext<AppDbContext>(options =>
         {
-            var connectionString = configuration.GetConnectionString("DefaultConnection")
-                ?? throw new InvalidOperationException("Database connection string 'DefaultConnection' is not configured.");
             options.UseNpgsql(connectionString, npgsqlOptions =>
             {
+                // Matters more against a managed database over the internet than against a local one:
+                // transient network faults and the provider's own connection recycling both surface as
+                // retryable Npgsql errors.
                 npgsqlOptions.EnableRetryOnFailure(
                     maxRetryCount: 5,
                     maxRetryDelay: TimeSpan.FromSeconds(30),

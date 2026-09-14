@@ -100,7 +100,7 @@ cd rn && npm install && npx expo start
   "ConnectionStrings": {
     "DefaultConnection": "Host=localhost;Port=5432;Database=studyplatform;Username=studyplatform;Password=yourpassword",
   },
-  "Redis": { "Enabled": false, "ConnectionString": "localhost:6379" },
+  "Redis": { "Enabled": false, "ConnectionString": "localhost:6379" }, // optional; off by default
   "JwtSettings": {
     "SecretKey": "your-32-char-secret",
     "AccessTokenExpiryMinutes": 15,
@@ -154,7 +154,9 @@ Clip any web page into your library as a cleaned-up Markdown article: drag the b
 
 ### Docker (self-hosted)
 
-Bundles PostgreSQL, Redis, and MinIO — no external database, cache, or storage account needed.
+Bundles PostgreSQL and MinIO — no external database or storage account needed. Redis is optional and
+not started by default (`docker compose up -d redis` plus `REDIS_ENABLED=true` to use it); the cache
+falls through to the Postgres `CacheEntries` tier without it.
 
 ```bash
 cp .env.example .env          # fill in all values
@@ -167,13 +169,27 @@ Web `:3000` · Admin `:4200` · API + Swagger `:5001` · MinIO console `:9001`
 
 > `VITE_*` variables are baked in at build time — rebuild frontend images after changing them. MinIO credentials and bucket come from `.env` (`MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` / `S3_BUCKET_NAME`); `S3_PUBLIC_SERVICE_URL` must be reachable from the host browser.
 
-### AWS
+### AWS (ECS Fargate + Supabase)
 
-`./deploy.sh` provisions ECS on a low-cost EC2 instance (`t3.micro`, `ECS_MEMORY=768` by default — override for more headroom), an ALB for the API, RDS PostgreSQL, ElastiCache Redis, S3 buckets, and static `web` / `admin` frontends. Export `DB_PASS`, `JWT_SECRET`, `GOOGLE_CLIENT_ID/SECRET`, `GITHUB_CLIENT_ID/SECRET`, `SMTP_USER`, and `SMTP_PASSWORD` before running it.
+`./deploy.sh` provisions ECS **Fargate** behind an ALB, S3 buckets, and static `web` / `admin`
+frontends, and points the API at an external managed PostgreSQL — **Supabase**. No RDS instance and no
+ElastiCache cluster are created. Export `DATABASE_CONNECTION_STRING`, `JWT_SECRET`,
+`GOOGLE_CLIENT_ID/SECRET`, `GITHUB_CLIENT_ID/SECRET`, `SMTP_USER`, and `SMTP_PASSWORD` before running
+it.
+
+The older topology is still available: `DB_PROVIDER=rds` provisions RDS, `ECS_LAUNCH_TYPE=EC2` runs
+ECS on a `t3.micro`, and `REDIS_ENABLED=true` provisions ElastiCache.
+
+**[DEPLOYMENT.md](DEPLOYMENT.md)** has the full runbook — Supabase extension setup (`vector`,
+`pg_trgm`), which of Supabase's three connection strings to use, closing Supabase's auto-generated
+Data API, connection pooling, migrations, and the ECS environment variables.
 
 ### Scaling out
 
-The API runs multiple replicas: SignalR picks up a Redis backplane whenever Redis is configured and answers a startup ping, and degrades to instance-local delivery if Redis dies later. Set `Api:RequireScaleOutBackplane=true` so a missing backplane fails startup instead of silently half-delivering hub messages. AI generation jobs stay pinned to the replica that accepted them (their provider credentials never touch the database).
+Redis is off by default and nothing requires it, so a single replica is the default shape. To run
+several, set `Redis__Enabled=true` with a Redis to point at: SignalR picks up a Redis backplane
+whenever Redis is configured and answers a startup ping, and degrades to instance-local delivery if
+Redis dies later. Set `Api:RequireScaleOutBackplane=true` so a missing backplane fails startup instead of silently half-delivering hub messages. AI generation jobs stay pinned to the replica that accepted them (their provider credentials never touch the database).
 
 ### Video transcripts (production)
 

@@ -1,12 +1,16 @@
 #!/bin/bash
 set -euo pipefail
 
-# Low-cost AWS deployment:
-# - API: ECS on EC2 backed by ECR and an Application Load Balancer.
+# AWS deployment:
+# - API: ECS Fargate backed by ECR and an Application Load Balancer.
+#        Set ECS_LAUNCH_TYPE=EC2 for the older ECS-on-EC2 topology.
 # - Web/Admin: S3 static websites.
 # - Documents: private S3 bucket.
-# - Database: public RDS PostgreSQL in the default VPC.
-# - Cache: ElastiCache Redis in the default VPC.
+# - Database: an external managed PostgreSQL — Supabase — reached over TLS from the Fargate tasks.
+#        Nothing database-shaped is provisioned in AWS. Set DB_PROVIDER=rds for the older
+#        in-VPC RDS instance instead.
+# - Cache: none. Redis is optional and off by default; no ElastiCache cluster is created unless
+#        REDIS_ENABLED=true, and the API needs no Redis to run.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 if [[ -f "$SCRIPT_DIR/.env_variables" ]]; then
@@ -17,6 +21,11 @@ fi
 APP_NAME="${APP_NAME:-study-platform}"
 AWS_REGION="${AWS_REGION:-ap-southeast-2}"
 export AWS_DEFAULT_REGION="$AWS_REGION"
+# supabase (default) → connect to the external managed Postgres named by
+# DATABASE_CONNECTION_STRING. rds → provision and use an in-VPC RDS instance, as before.
+DB_PROVIDER="$(printf '%s' "${DB_PROVIDER:-supabase}" | tr '[:upper:]' '[:lower:]')"
+DATABASE_CONNECTION_STRING="${DATABASE_CONNECTION_STRING:-}"
+DATABASE_MIGRATE_ON_STARTUP="${DATABASE_MIGRATE_ON_STARTUP:-true}"
 DB_USER="${DB_USER:-studyplatform}"
 DB_NAME="${DB_NAME:-studyplatform}"
 DB_INSTANCE_ID="${DB_INSTANCE_ID:-${APP_NAME}-db}"
@@ -28,8 +37,18 @@ REDIS_PORT="${REDIS_PORT:-6379}"
 
 GOOGLE_CLIENT_ID="${GOOGLE_CLIENT_ID:?Set GOOGLE_CLIENT_ID env var}"
 GITHUB_CLIENT_ID="${GITHUB_CLIENT_ID:?Set GITHUB_CLIENT_ID env var}"
+if [[ "$DB_PROVIDER" != "supabase" && "$DB_PROVIDER" != "rds" ]]; then
+  echo "DB_PROVIDER must be 'supabase' (default) or 'rds'; got '$DB_PROVIDER'" >&2
+  exit 1
+fi
+
 if [[ "${DEPLOY_WEB_ONLY:-0}" != "1" ]]; then
-  DB_PASS="${DB_PASS:?Set DB_PASS env var}"
+  if [[ "$DB_PROVIDER" == "supabase" ]]; then
+    # The one database credential this script handles, and it never leaves the ECS task definition.
+    DATABASE_CONNECTION_STRING="${DATABASE_CONNECTION_STRING:?Set DATABASE_CONNECTION_STRING to the Supabase connection string (see DEPLOYMENT.md), or set DB_PROVIDER=rds}"
+  else
+    DB_PASS="${DB_PASS:?Set DB_PASS env var}"
+  fi
   JWT_SECRET="${JWT_SECRET:?Set JWT_SECRET env var}"
   GOOGLE_CLIENT_SECRET="${GOOGLE_CLIENT_SECRET:?Set GOOGLE_CLIENT_SECRET env var}"
   GITHUB_CLIENT_SECRET="${GITHUB_CLIENT_SECRET:?Set GITHUB_CLIENT_SECRET env var}"
@@ -170,8 +189,8 @@ ensure_static_cloudfront_distribution() {
             HTTPPort: 80,
             HTTPSPort: 443,
             OriginProtocolPolicy: "http-only",
-            OriginReadTimeout: 300,
-            OriginKeepaliveTimeout: 300,
+            OriginReadTimeout: 30,
+            OriginKeepaliveTimeout: 5,
             OriginSslProtocols: {Quantity: 1, Items: ["TLSv1.2"]}
           }
         }]
@@ -204,8 +223,12 @@ ensure_static_cloudfront_distribution() {
       Restrictions: {GeoRestriction: {RestrictionType: "none", Quantity: 0}},
       ViewerCertificate: {CloudFrontDefaultCertificate: true}
     }' > "$config"
-  domain="$(aws cloudfront create-distribution --distribution-config "file://$config" --query 'Distribution.DomainName' --output text)"
+  domain="$(aws cloudfront create-distribution --distribution-config "file://$config" --query 'Distribution.DomainName' --output text)" || domain=""
   rm -f "$config"
+  if [[ -z "$domain" || "$domain" == "None" ]]; then
+    echo "create-distribution failed for '$comment' (see the AWS error above); refusing to continue with an empty origin." >&2
+    exit 1
+  fi
   printf 'https://%s\n' "$domain"
 }
 
@@ -240,8 +263,8 @@ ensure_api_cloudfront_distribution() {
             HTTPPort: 80,
             HTTPSPort: 443,
             OriginProtocolPolicy: "http-only",
-            OriginReadTimeout: 300,
-            OriginKeepaliveTimeout: 300,
+            OriginReadTimeout: 60,
+            OriginKeepaliveTimeout: 60,
             OriginSslProtocols: {Quantity: 1, Items: ["TLSv1.2"]}
           }
         }]
@@ -268,8 +291,12 @@ ensure_api_cloudfront_distribution() {
       Restrictions: {GeoRestriction: {RestrictionType: "none", Quantity: 0}},
       ViewerCertificate: {CloudFrontDefaultCertificate: true}
     }' > "$config"
-  domain="$(aws cloudfront create-distribution --distribution-config "file://$config" --query 'Distribution.DomainName' --output text)"
+  domain="$(aws cloudfront create-distribution --distribution-config "file://$config" --query 'Distribution.DomainName' --output text)" || domain=""
   rm -f "$config"
+  if [[ -z "$domain" || "$domain" == "None" ]]; then
+    echo "create-distribution failed for '$comment' (see the AWS error above); refusing to continue with an empty origin." >&2
+    exit 1
+  fi
   printf 'https://%s\n' "$domain"
 }
 
@@ -294,6 +321,11 @@ EMAIL_PROVIDER="$(strip_cr "${EMAIL_PROVIDER:-Smtp}")"
 EMAIL_FROM="${EMAIL_FROM:-$SMTP_USER}"
 EMAIL_FROM="$(strip_cr "$EMAIL_FROM")"
 SES_REGION="$(strip_cr "${SES_REGION:-$AWS_REGION}")"
+DATABASE_CONNECTION_STRING="$(strip_cr "$DATABASE_CONNECTION_STRING")"
+# Semantic-search indexing key. Optional: without it EmbeddingBackfillWorker no-ops and search falls
+# back to keyword results. It is a credential, so it travels as an environment variable, never in the
+# image — server/.dockerignore keeps the developer's appsettings.json out of the build.
+EMBEDDINGS_API_KEY="$(strip_cr "${EMBEDDINGS_API_KEY:-}")"
 YOUTUBE_PROXY_URL="$(strip_cr "${YOUTUBE_PROXY_URL:-${YouTube__ProxyUrl:-}}")"
 YOUTUBE_COOKIES_B64="$(strip_cr "${YOUTUBE_COOKIES_B64:-${YouTube__CookiesBase64:-}}")"
 REDIS_ENABLED="$(strip_cr "${REDIS_ENABLED:-false}")"
@@ -323,8 +355,40 @@ ECS_SECURITY_GROUP_NAME="${ECS_SECURITY_GROUP_NAME:-${APP_NAME}-ecs-api}"
 ECS_DESIRED_COUNT="${ECS_DESIRED_COUNT:-1}"
 ECS_MIN_HEALTHY_PERCENT="${ECS_MIN_HEALTHY_PERCENT:-0}"
 ECS_MAX_PERCENT="${ECS_MAX_PERCENT:-200}"
+# The image architecture and the task's runtime architecture must agree, and on a developer's
+# Apple-silicon Mac they do not by default: `docker build` produces linux/arm64 while ECS defaults
+# Fargate tasks to X86_64, so the task fails to start with "image manifest does not contain a
+# descriptor matching platform". One variable sets both.
+#
+# X86_64 is the default because it matches ECS's own default and is the best-supported target for the
+# native Whisper.net runtime in the image. ARM64 (Graviton) is cheaper and builds natively on an M-series
+# Mac — switch only after confirming the image actually runs there.
+ECS_CPU_ARCHITECTURE="$(printf '%s' "${ECS_CPU_ARCHITECTURE:-X86_64}" | tr '[:lower:]' '[:upper:]')"
+case "$ECS_CPU_ARCHITECTURE" in
+  X86_64) DOCKER_BUILD_PLATFORM="linux/amd64" ;;
+  ARM64)  DOCKER_BUILD_PLATFORM="linux/arm64" ;;
+  *) echo "ECS_CPU_ARCHITECTURE must be X86_64 (default) or ARM64; got '$ECS_CPU_ARCHITECTURE'" >&2; exit 1 ;;
+esac
+
+ECS_LAUNCH_TYPE="$(printf '%s' "${ECS_LAUNCH_TYPE:-FARGATE}" | tr '[:lower:]' '[:upper:]')"
+if [[ "$ECS_LAUNCH_TYPE" != "FARGATE" && "$ECS_LAUNCH_TYPE" != "EC2" ]]; then
+  echo "ECS_LAUNCH_TYPE must be FARGATE (default) or EC2; got '$ECS_LAUNCH_TYPE'" >&2
+  exit 1
+fi
+# Fargate requires awsvpc (a task ENI of its own); EC2 keeps bridge networking as before.
+if [[ "$ECS_LAUNCH_TYPE" == "FARGATE" ]]; then
+  ECS_NETWORK_MODE="awsvpc"
+else
+  ECS_NETWORK_MODE="bridge"
+fi
 ECS_CPU="${ECS_CPU:-1024}"
-ECS_MEMORY="${ECS_MEMORY:-768}"
+# Fargate only accepts specific cpu/memory pairs — 1024 CPU units means 2–8 GB. The EC2 path has no
+# such rule, so it keeps the old frugal default.
+if [[ "$ECS_LAUNCH_TYPE" == "FARGATE" ]]; then
+  ECS_MEMORY="${ECS_MEMORY:-2048}"
+else
+  ECS_MEMORY="${ECS_MEMORY:-768}"
+fi
 ECS_EC2_INSTANCE_NAME="${ECS_EC2_INSTANCE_NAME:-${APP_NAME}-ecs-api}"
 ECS_EC2_INSTANCE_TYPE="${ECS_EC2_INSTANCE_TYPE:-t3.micro}"
 ECS_EC2_AMI_ID="${ECS_EC2_AMI_ID:-}"
@@ -332,7 +396,15 @@ API_CONTAINER_NAME="${API_CONTAINER_NAME:-api}"
 API_CONTAINER_PORT="${API_CONTAINER_PORT:-5000}"
 ALB_NAME="${ALB_NAME:-${APP_NAME}-api}"
 ALB_SECURITY_GROUP_NAME="${ALB_SECURITY_GROUP_NAME:-${APP_NAME}-alb}"
-ALB_TARGET_GROUP_NAME="${ALB_TARGET_GROUP_NAME:-${APP_NAME}-api-ec2-tg}"
+# Target type is baked into a target group and cannot be changed, so the two launch types need
+# separate groups: Fargate tasks register by IP, EC2 container instances by instance id.
+if [[ "$ECS_LAUNCH_TYPE" == "FARGATE" ]]; then
+  ALB_TARGET_GROUP_NAME="${ALB_TARGET_GROUP_NAME:-${APP_NAME}-api-fg-tg}"
+  ECS_TARGET_TYPE="ip"
+else
+  ALB_TARGET_GROUP_NAME="${ALB_TARGET_GROUP_NAME:-${APP_NAME}-api-ec2-tg}"
+  ECS_TARGET_TYPE="instance"
+fi
 LOG_GROUP_NAME="${LOG_GROUP_NAME:-/ecs/${APP_NAME}-api}"
 REDIS_SECURITY_GROUP_NAME="${REDIS_SECURITY_GROUP_NAME:-${APP_NAME}-redis}"
 REDIS_SUBNET_GROUP_NAME="${REDIS_SUBNET_GROUP_NAME:-${APP_NAME}-redis-subnets}"
@@ -342,29 +414,31 @@ WEB_CLOUDFRONT_COMMENT="${WEB_CLOUDFRONT_COMMENT:-${APP_NAME}-web-cloudfront}"
 ADMIN_CLOUDFRONT_COMMENT="${ADMIN_CLOUDFRONT_COMMENT:-${APP_NAME}-admin-cloudfront}"
 API_CLOUDFRONT_COMMENT="${API_CLOUDFRONT_COMMENT:-${APP_NAME}-api-cloudfront}"
 
+# Custom domains are opt-in via PUBLIC_DOMAIN (e.g. PUBLIC_DOMAIN=toto-study.com), giving
+# https://<domain>, https://www.<domain>, https://api.<domain> and https://admin.<domain>.
+#
+# Empty by default, and that default matters. With an API origin set, the script skips creating the
+# API's CloudFront distribution and bakes that hostname into the frontend build — so pointed at a
+# domain whose DNS and ACM certificate are not yet in this AWS account, the deploy reports success
+# and the site is completely broken. Leave it unset for a first deploy, verify on the hostnames AWS
+# hands out, then set it once DNS and the certificate are in place.
+PUBLIC_DOMAIN="$(strip_cr "${PUBLIC_DOMAIN:-}")"
+
 derive_www_origin() {
   local origin="$1"
-  if [[ "$origin" == "https://toto-study.com" ]]; then
-    echo "https://www.toto-study.com"
+  if [[ -n "$PUBLIC_DOMAIN" && "$origin" == "https://$PUBLIC_DOMAIN" ]]; then
+    echo "https://www.$PUBLIC_DOMAIN"
   else
     echo "$origin"
   fi
 }
 
 derive_api_origin() {
-  if [[ "${APP_NAME:-}" == "study-platform" ]]; then
-    echo "https://api.toto-study.com"
-  else
-    echo ""
-  fi
+  [[ -n "$PUBLIC_DOMAIN" ]] && echo "https://api.$PUBLIC_DOMAIN" || echo ""
 }
 
 derive_admin_origin() {
-  if [[ "${APP_NAME:-}" == "study-platform" ]]; then
-    echo "https://admin.toto-study.com"
-  else
-    echo ""
-  fi
+  [[ -n "$PUBLIC_DOMAIN" ]] && echo "https://admin.$PUBLIC_DOMAIN" || echo ""
 }
 
 COMMIT_SHA="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
@@ -435,7 +509,8 @@ aws ecr describe-repositories --repository-names "$ECR_REPOSITORY" >/dev/null 2>
 echo "==> Building and pushing API image"
 if docker info >/dev/null 2>&1; then
   aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
-  docker build -t "$ECR_URI:$IMAGE_TAG" -t "$ECR_URI:latest" ./server
+  echo "    building for $DOCKER_BUILD_PLATFORM (host is $(uname -m))"
+  docker build --platform "$DOCKER_BUILD_PLATFORM" -t "$ECR_URI:$IMAGE_TAG" -t "$ECR_URI:latest" ./server
   docker push "$ECR_URI:$IMAGE_TAG"
   docker push "$ECR_URI:latest"
 else
@@ -471,7 +546,7 @@ phases:
       - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
   build:
     commands:
-      - docker build -t $ECR_URI:$IMAGE_TAG -t $ECR_URI:latest ./server
+      - docker build --platform $DOCKER_BUILD_PLATFORM -t $ECR_URI:$IMAGE_TAG -t $ECR_URI:latest ./server
   post_build:
     commands:
       - docker push $ECR_URI:$IMAGE_TAG
@@ -579,22 +654,25 @@ aws iam put-role-policy --role-name "$ECS_TASK_ROLE_NAME" --policy-name "${APP_N
 EXECUTION_ROLE_ARN="$(aws iam get-role --role-name "$ECS_EXECUTION_ROLE_NAME" --query Role.Arn --output text)"
 TASK_ROLE_ARN="$(aws iam get-role --role-name "$ECS_TASK_ROLE_NAME" --query Role.Arn --output text)"
 
-aws iam get-role --role-name "$ECS_INSTANCE_ROLE_NAME" >/dev/null 2>&1 || \
-  aws iam create-role --role-name "$ECS_INSTANCE_ROLE_NAME" --assume-role-policy-document "file://$ECS_INSTANCE_TRUST" >/dev/null
-aws iam attach-role-policy \
-  --role-name "$ECS_INSTANCE_ROLE_NAME" \
-  --policy-arn arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role >/dev/null
-if ! aws iam get-instance-profile --instance-profile-name "$ECS_INSTANCE_PROFILE_NAME" >/dev/null 2>&1; then
-  aws iam create-instance-profile --instance-profile-name "$ECS_INSTANCE_PROFILE_NAME" >/dev/null
-fi
-PROFILE_ROLE_COUNT="$(aws iam get-instance-profile --instance-profile-name "$ECS_INSTANCE_PROFILE_NAME" --query "length(InstanceProfile.Roles[?RoleName=='$ECS_INSTANCE_ROLE_NAME'])" --output text)"
-if [[ "$PROFILE_ROLE_COUNT" == "0" ]]; then
-  aws iam add-role-to-instance-profile --instance-profile-name "$ECS_INSTANCE_PROFILE_NAME" --role-name "$ECS_INSTANCE_ROLE_NAME" >/dev/null
-  sleep 10
+# Only ECS-on-EC2 needs a container-instance role: Fargate has no instances to give one to.
+if [[ "$ECS_LAUNCH_TYPE" == "EC2" ]]; then
+  aws iam get-role --role-name "$ECS_INSTANCE_ROLE_NAME" >/dev/null 2>&1 || \
+    aws iam create-role --role-name "$ECS_INSTANCE_ROLE_NAME" --assume-role-policy-document "file://$ECS_INSTANCE_TRUST" >/dev/null
+  aws iam attach-role-policy \
+    --role-name "$ECS_INSTANCE_ROLE_NAME" \
+    --policy-arn arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role >/dev/null
+  if ! aws iam get-instance-profile --instance-profile-name "$ECS_INSTANCE_PROFILE_NAME" >/dev/null 2>&1; then
+    aws iam create-instance-profile --instance-profile-name "$ECS_INSTANCE_PROFILE_NAME" >/dev/null
+  fi
+  PROFILE_ROLE_COUNT="$(aws iam get-instance-profile --instance-profile-name "$ECS_INSTANCE_PROFILE_NAME" --query "length(InstanceProfile.Roles[?RoleName=='$ECS_INSTANCE_ROLE_NAME'])" --output text)"
+  if [[ "$PROFILE_ROLE_COUNT" == "0" ]]; then
+    aws iam add-role-to-instance-profile --instance-profile-name "$ECS_INSTANCE_PROFILE_NAME" --role-name "$ECS_INSTANCE_ROLE_NAME" >/dev/null
+    sleep 10
+  fi
 fi
 rm -f "$ECS_TASK_TRUST" "$ECS_INSTANCE_TRUST" "$S3_POLICY" "$SES_POLICY"
 
-echo "==> Creating PostgreSQL database"
+echo "==> Resolving network"
 DEFAULT_VPC_ID="$(aws ec2 describe-vpcs --filters Name=is-default,Values=true --query 'Vpcs[0].VpcId' --output text)"
 if [[ -z "$DEFAULT_VPC_ID" || "$DEFAULT_VPC_ID" == "None" ]]; then
   echo "No default VPC found in $AWS_REGION; creating one for the low-cost RDS deployment"
@@ -605,10 +683,14 @@ if [[ "${#DEFAULT_SUBNET_IDS[@]}" -eq 0 ]]; then
   echo "No subnets found in default VPC $DEFAULT_VPC_ID" >&2
   exit 1
 fi
-DB_SECURITY_GROUP_ID="${DB_SECURITY_GROUP_ID:-$(aws ec2 describe-security-groups --filters Name=group-name,Values=${APP_NAME}-db Name=vpc-id,Values=$DEFAULT_VPC_ID --query 'SecurityGroups[0].GroupId' --output text 2>/dev/null || true)}"
-if [[ -z "$DB_SECURITY_GROUP_ID" || "$DB_SECURITY_GROUP_ID" == "None" ]]; then
-  DB_SECURITY_GROUP_ID="$(aws ec2 create-security-group --group-name "${APP_NAME}-db" --description "${APP_NAME} PostgreSQL access" --vpc-id "$DEFAULT_VPC_ID" --query GroupId --output text)"
-  aws ec2 authorize-security-group-ingress --group-id "$DB_SECURITY_GROUP_ID" --protocol tcp --port 5432 --cidr 0.0.0.0/0 >/dev/null || true
+# Only the in-VPC RDS topology needs a database security group. Supabase is reached outbound over
+# TLS, so there is no inbound database port to open here at all.
+if [[ "$DB_PROVIDER" == "rds" ]]; then
+  DB_SECURITY_GROUP_ID="${DB_SECURITY_GROUP_ID:-$(aws ec2 describe-security-groups --filters Name=group-name,Values=${APP_NAME}-db Name=vpc-id,Values=$DEFAULT_VPC_ID --query 'SecurityGroups[0].GroupId' --output text 2>/dev/null || true)}"
+  if [[ -z "$DB_SECURITY_GROUP_ID" || "$DB_SECURITY_GROUP_ID" == "None" ]]; then
+    DB_SECURITY_GROUP_ID="$(aws ec2 create-security-group --group-name "${APP_NAME}-db" --description "${APP_NAME} PostgreSQL access" --vpc-id "$DEFAULT_VPC_ID" --query GroupId --output text)"
+    aws ec2 authorize-security-group-ingress --group-id "$DB_SECURITY_GROUP_ID" --protocol tcp --port 5432 --cidr 0.0.0.0/0 >/dev/null || true
+  fi
 fi
 
 ALB_SECURITY_GROUP_ID="$(aws ec2 describe-security-groups --filters Name=group-name,Values="$ALB_SECURITY_GROUP_NAME" Name=vpc-id,Values="$DEFAULT_VPC_ID" --query 'SecurityGroups[0].GroupId' --output text 2>/dev/null || true)"
@@ -622,7 +704,9 @@ if [[ -z "$ECS_SECURITY_GROUP_ID" || "$ECS_SECURITY_GROUP_ID" == "None" ]]; then
   ECS_SECURITY_GROUP_ID="$(aws ec2 create-security-group --group-name "$ECS_SECURITY_GROUP_NAME" --description "${APP_NAME} ECS API tasks" --vpc-id "$DEFAULT_VPC_ID" --query GroupId --output text)"
 fi
 aws ec2 authorize-security-group-ingress --group-id "$ECS_SECURITY_GROUP_ID" --protocol tcp --port "$API_CONTAINER_PORT" --source-group "$ALB_SECURITY_GROUP_ID" >/dev/null 2>&1 || true
-aws ec2 authorize-security-group-ingress --group-id "$DB_SECURITY_GROUP_ID" --protocol tcp --port 5432 --source-group "$ECS_SECURITY_GROUP_ID" >/dev/null 2>&1 || true
+if [[ "$DB_PROVIDER" == "rds" ]]; then
+  aws ec2 authorize-security-group-ingress --group-id "$DB_SECURITY_GROUP_ID" --protocol tcp --port 5432 --source-group "$ECS_SECURITY_GROUP_ID" >/dev/null 2>&1 || true
+fi
 
 if [[ "$REDIS_ENABLED" == "true" ]]; then
   REDIS_SECURITY_GROUP_ID="$(aws ec2 describe-security-groups --filters Name=group-name,Values="$REDIS_SECURITY_GROUP_NAME" Name=vpc-id,Values="$DEFAULT_VPC_ID" --query 'SecurityGroups[0].GroupId' --output text 2>/dev/null || true)"
@@ -657,30 +741,45 @@ else
   REDIS_CONNECTION_STRING=""
 fi
 
-if ! aws rds describe-db-instances --db-instance-identifier "$DB_INSTANCE_ID" >/dev/null 2>&1; then
-  aws rds create-db-instance \
-    --db-instance-identifier "$DB_INSTANCE_ID" \
-    --db-instance-class "$DB_INSTANCE_CLASS" \
-    --engine postgres \
-    --allocated-storage "$DB_ALLOCATED_STORAGE" \
-    --master-username "$DB_USER" \
-    --master-user-password "$DB_PASS" \
-    --db-name "$DB_NAME" \
-    --vpc-security-group-ids "$DB_SECURITY_GROUP_ID" \
-    --publicly-accessible \
-    --backup-retention-period 1 \
-    --no-multi-az \
-    --storage-type gp3 >/dev/null
+if [[ "$DB_PROVIDER" == "supabase" ]]; then
+  # Nothing to provision: the database lives in Supabase and is reached over TLS. The connection
+  # string is passed straight through to the task definition — it is never written to the image, to
+  # a file in the repo, or to any frontend build.
+  echo "==> Using external managed PostgreSQL (Supabase)"
+  DB_CONN="$DATABASE_CONNECTION_STRING"
+  DB_CONN_HOST="$(printf '%s' "$DB_CONN" | tr ';' '\n' | awk -F= 'tolower($1) ~ /^ *host *$/ {print $2}' | head -1)"
+  echo "    Database host: ${DB_CONN_HOST:-<unparsed>}"
+  if printf '%s' "$DB_CONN" | grep -qiE '(^|;) *ssl *mode *= *disable'; then
+    echo "DATABASE_CONNECTION_STRING disables TLS (SSL Mode=Disable). Supabase requires an encrypted connection." >&2
+    exit 1
+  fi
+else
+  echo "==> Creating PostgreSQL database (RDS)"
+  if ! aws rds describe-db-instances --db-instance-identifier "$DB_INSTANCE_ID" >/dev/null 2>&1; then
+    aws rds create-db-instance \
+      --db-instance-identifier "$DB_INSTANCE_ID" \
+      --db-instance-class "$DB_INSTANCE_CLASS" \
+      --engine postgres \
+      --allocated-storage "$DB_ALLOCATED_STORAGE" \
+      --master-username "$DB_USER" \
+      --master-user-password "$DB_PASS" \
+      --db-name "$DB_NAME" \
+      --vpc-security-group-ids "$DB_SECURITY_GROUP_ID" \
+      --publicly-accessible \
+      --backup-retention-period 1 \
+      --no-multi-az \
+      --storage-type gp3 >/dev/null
+  fi
+  aws rds wait db-instance-available --db-instance-identifier "$DB_INSTANCE_ID"
+  DB_HOST="$(aws rds describe-db-instances --db-instance-identifier "$DB_INSTANCE_ID" --query 'DBInstances[0].Endpoint.Address' --output text)"
+  DB_CONN="Host=${DB_HOST};Port=5432;Database=${DB_NAME};Username=${DB_USER};Password=${DB_PASS};SSL Mode=Require"
 fi
-aws rds wait db-instance-available --db-instance-identifier "$DB_INSTANCE_ID"
-DB_HOST="$(aws rds describe-db-instances --db-instance-identifier "$DB_INSTANCE_ID" --query 'DBInstances[0].Endpoint.Address' --output text)"
-DB_CONN="Host=${DB_HOST};Port=5432;Database=${DB_NAME};Username=${DB_USER};Password=${DB_PASS};Ssl Mode=Require;Trust Server Certificate=true"
 
 WEB_ORIGIN="${WEB_PUBLIC_ORIGIN:-http://${WEB_BUCKET}.s3-website-${AWS_REGION}.amazonaws.com}"
 ADMIN_PUBLIC_ORIGIN="${ADMIN_PUBLIC_ORIGIN:-$(derive_admin_origin)}"
 ADMIN_ORIGIN="${ADMIN_PUBLIC_ORIGIN:-http://${ADMIN_BUCKET}.s3-website-${AWS_REGION}.amazonaws.com}"
 
-echo "==> Deploying API to ECS on EC2"
+echo "==> Deploying API to ECS ($ECS_LAUNCH_TYPE)"
 aws logs create-log-group --log-group-name "$LOG_GROUP_NAME" >/dev/null 2>&1 || true
 
 ECS_CLUSTER_STATUS="$(aws ecs describe-clusters --clusters "$ECS_CLUSTER_NAME" --query 'clusters[0].status' --output text 2>/dev/null || true)"
@@ -689,81 +788,85 @@ if [[ "$ECS_CLUSTER_STATUS" != "ACTIVE" ]]; then
 fi
 echo "    ECS cluster ready: $ECS_CLUSTER_NAME"
 
-if [[ -z "$ECS_EC2_AMI_ID" ]]; then
-  ECS_EC2_AMI_ID="$(aws ssm get-parameter \
-    --name /aws/service/ecs/optimized-ami/amazon-linux-2/recommended/image_id \
-    --query Parameter.Value \
-    --output text)"
-fi
+# Fargate has no hosts to manage — AWS schedules the tasks. The EC2 path still needs a container
+# instance registered with the cluster before a task can be placed.
+if [[ "$ECS_LAUNCH_TYPE" == "EC2" ]]; then
+  if [[ -z "$ECS_EC2_AMI_ID" ]]; then
+    ECS_EC2_AMI_ID="$(aws ssm get-parameter \
+      --name /aws/service/ecs/optimized-ami/amazon-linux-2/recommended/image_id \
+      --query Parameter.Value \
+      --output text)"
+  fi
 
-ECS_EC2_USER_DATA="$(mktemp)"
-cat > "$ECS_EC2_USER_DATA" <<EOF
+  ECS_EC2_USER_DATA="$(mktemp)"
+  cat > "$ECS_EC2_USER_DATA" <<EOF
 #!/bin/bash
 echo ECS_CLUSTER=${ECS_CLUSTER_NAME} >> /etc/ecs/ecs.config
 EOF
 
-ECS_EC2_INSTANCE_ID="$(aws ec2 describe-instances \
-  --filters \
-    Name=tag:Name,Values="$ECS_EC2_INSTANCE_NAME" \
-    Name=tag:ECSCluster,Values="$ECS_CLUSTER_NAME" \
-    Name=instance-state-name,Values=pending,running,stopping,stopped \
-  --query 'Reservations[].Instances[].InstanceId | [0]' \
-  --output text 2>/dev/null || true)"
+  ECS_EC2_INSTANCE_ID="$(aws ec2 describe-instances \
+    --filters \
+      Name=tag:Name,Values="$ECS_EC2_INSTANCE_NAME" \
+      Name=tag:ECSCluster,Values="$ECS_CLUSTER_NAME" \
+      Name=instance-state-name,Values=pending,running,stopping,stopped \
+    --query 'Reservations[].Instances[].InstanceId | [0]' \
+    --output text 2>/dev/null || true)"
 
-ECS_EC2_INSTANCE_REUSED=0
-if [[ -z "$ECS_EC2_INSTANCE_ID" || "$ECS_EC2_INSTANCE_ID" == "None" ]]; then
-  ECS_EC2_INSTANCE_ID="$(aws ec2 run-instances \
-    --image-id "$ECS_EC2_AMI_ID" \
-    --instance-type "$ECS_EC2_INSTANCE_TYPE" \
-    --iam-instance-profile Name="$ECS_INSTANCE_PROFILE_NAME" \
-    --subnet-id "${DEFAULT_SUBNET_IDS[0]}" \
-    --security-group-ids "$ECS_SECURITY_GROUP_ID" \
-    --user-data "file://$ECS_EC2_USER_DATA" \
-    --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=$ECS_EC2_INSTANCE_NAME},{Key=App,Value=$APP_NAME},{Key=ECSCluster,Value=$ECS_CLUSTER_NAME}]" \
-    --query 'Instances[0].InstanceId' \
-    --output text)"
-else
-  ECS_EC2_INSTANCE_REUSED=1
-  ECS_EC2_INSTANCE_STATE="$(aws ec2 describe-instances --instance-ids "$ECS_EC2_INSTANCE_ID" --query 'Reservations[0].Instances[0].State.Name' --output text)"
-  if [[ "$ECS_EC2_INSTANCE_STATE" == "stopped" ]]; then
-    aws ec2 start-instances --instance-ids "$ECS_EC2_INSTANCE_ID" >/dev/null
-  fi
-fi
-rm -f "$ECS_EC2_USER_DATA"
-
-aws ec2 wait instance-running --instance-ids "$ECS_EC2_INSTANCE_ID"
-echo "    ECS EC2 instance ready: $ECS_EC2_INSTANCE_ID ($ECS_EC2_INSTANCE_TYPE)"
-
-wait_for_ecs_container_instance() {
-  local attempt
-  for attempt in {1..40}; do
-    ECS_CONTAINER_INSTANCE_COUNT="$(aws ecs list-container-instances \
-      --cluster "$ECS_CLUSTER_NAME" \
-      --filter "ec2InstanceId == $ECS_EC2_INSTANCE_ID" \
-      --query 'length(containerInstanceArns)' \
-      --output text 2>/dev/null || echo 0)"
-    if [[ "$ECS_CONTAINER_INSTANCE_COUNT" != "0" ]]; then
-      return 0
+  ECS_EC2_INSTANCE_REUSED=0
+  if [[ -z "$ECS_EC2_INSTANCE_ID" || "$ECS_EC2_INSTANCE_ID" == "None" ]]; then
+    ECS_EC2_INSTANCE_ID="$(aws ec2 run-instances \
+      --image-id "$ECS_EC2_AMI_ID" \
+      --instance-type "$ECS_EC2_INSTANCE_TYPE" \
+      --iam-instance-profile Name="$ECS_INSTANCE_PROFILE_NAME" \
+      --subnet-id "${DEFAULT_SUBNET_IDS[0]}" \
+      --security-group-ids "$ECS_SECURITY_GROUP_ID" \
+      --user-data "file://$ECS_EC2_USER_DATA" \
+      --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=$ECS_EC2_INSTANCE_NAME},{Key=App,Value=$APP_NAME},{Key=ECSCluster,Value=$ECS_CLUSTER_NAME}]" \
+      --query 'Instances[0].InstanceId' \
+      --output text)"
+  else
+    ECS_EC2_INSTANCE_REUSED=1
+    ECS_EC2_INSTANCE_STATE="$(aws ec2 describe-instances --instance-ids "$ECS_EC2_INSTANCE_ID" --query 'Reservations[0].Instances[0].State.Name' --output text)"
+    if [[ "$ECS_EC2_INSTANCE_STATE" == "stopped" ]]; then
+      aws ec2 start-instances --instance-ids "$ECS_EC2_INSTANCE_ID" >/dev/null
     fi
-    sleep 10
-  done
-  return 1
-}
+  fi
+  rm -f "$ECS_EC2_USER_DATA"
 
-if ! wait_for_ecs_container_instance; then
-  if [[ "$ECS_EC2_INSTANCE_REUSED" == "1" ]]; then
-    echo "    ECS instance has not registered yet; rebooting existing EC2 host to restart the ECS agent"
-    aws ec2 reboot-instances --instance-ids "$ECS_EC2_INSTANCE_ID"
-    aws ec2 wait instance-running --instance-ids "$ECS_EC2_INSTANCE_ID"
-  fi
+  aws ec2 wait instance-running --instance-ids "$ECS_EC2_INSTANCE_ID"
+  echo "    ECS EC2 instance ready: $ECS_EC2_INSTANCE_ID ($ECS_EC2_INSTANCE_TYPE)"
+
+  wait_for_ecs_container_instance() {
+    local attempt
+    for attempt in {1..40}; do
+      ECS_CONTAINER_INSTANCE_COUNT="$(aws ecs list-container-instances \
+        --cluster "$ECS_CLUSTER_NAME" \
+        --filter "ec2InstanceId == $ECS_EC2_INSTANCE_ID" \
+        --query 'length(containerInstanceArns)' \
+        --output text 2>/dev/null || echo 0)"
+      if [[ "$ECS_CONTAINER_INSTANCE_COUNT" != "0" ]]; then
+        return 0
+      fi
+      sleep 10
+    done
+    return 1
+  }
+
   if ! wait_for_ecs_container_instance; then
-    ECS_CLUSTER_STATUS="$(aws ecs describe-clusters --clusters "$ECS_CLUSTER_NAME" --query 'clusters[0].status' --output text 2>/dev/null || true)"
-    echo "EC2 instance $ECS_EC2_INSTANCE_ID did not register with ECS cluster $ECS_CLUSTER_NAME (cluster status: $ECS_CLUSTER_STATUS)" >&2
-    echo "Check the EC2 system log for ECS agent errors and verify the $ECS_INSTANCE_PROFILE_NAME instance profile has AmazonEC2ContainerServiceforEC2Role." >&2
-    exit 1
+    if [[ "$ECS_EC2_INSTANCE_REUSED" == "1" ]]; then
+      echo "    ECS instance has not registered yet; rebooting existing EC2 host to restart the ECS agent"
+      aws ec2 reboot-instances --instance-ids "$ECS_EC2_INSTANCE_ID"
+      aws ec2 wait instance-running --instance-ids "$ECS_EC2_INSTANCE_ID"
+    fi
+    if ! wait_for_ecs_container_instance; then
+      ECS_CLUSTER_STATUS="$(aws ecs describe-clusters --clusters "$ECS_CLUSTER_NAME" --query 'clusters[0].status' --output text 2>/dev/null || true)"
+      echo "EC2 instance $ECS_EC2_INSTANCE_ID did not register with ECS cluster $ECS_CLUSTER_NAME (cluster status: $ECS_CLUSTER_STATUS)" >&2
+      echo "Check the EC2 system log for ECS agent errors and verify the $ECS_INSTANCE_PROFILE_NAME instance profile has AmazonEC2ContainerServiceforEC2Role." >&2
+      exit 1
+    fi
   fi
+  echo "    ECS container instance registered"
 fi
-echo "    ECS container instance registered"
 
 ALB_ARN="$(aws elbv2 describe-load-balancers --names "$ALB_NAME" --query 'LoadBalancers[0].LoadBalancerArn' --output text 2>/dev/null || true)"
 if [[ -z "$ALB_ARN" || "$ALB_ARN" == "None" ]]; then
@@ -798,7 +901,7 @@ if [[ -z "$TARGET_GROUP_ARN" || "$TARGET_GROUP_ARN" == "None" ]]; then
     --protocol HTTP \
     --port "$API_CONTAINER_PORT" \
     --vpc-id "$DEFAULT_VPC_ID" \
-    --target-type instance \
+    --target-type "$ECS_TARGET_TYPE" \
     --health-check-protocol HTTP \
     --health-check-path /health \
     --matcher HttpCode=200-399 \
@@ -806,8 +909,8 @@ if [[ -z "$TARGET_GROUP_ARN" || "$TARGET_GROUP_ARN" == "None" ]]; then
     --output text)"
 else
   TARGET_GROUP_TYPE="$(aws elbv2 describe-target-groups --target-group-arns "$TARGET_GROUP_ARN" --query 'TargetGroups[0].TargetType' --output text)"
-  if [[ "$TARGET_GROUP_TYPE" != "instance" ]]; then
-    echo "Target group $ALB_TARGET_GROUP_NAME has target type $TARGET_GROUP_TYPE. Set ALB_TARGET_GROUP_NAME to a new name for ECS EC2." >&2
+  if [[ "$TARGET_GROUP_TYPE" != "$ECS_TARGET_TYPE" ]]; then
+    echo "Target group $ALB_TARGET_GROUP_NAME has target type $TARGET_GROUP_TYPE but $ECS_LAUNCH_TYPE needs $ECS_TARGET_TYPE. Set ALB_TARGET_GROUP_NAME to a new name." >&2
     exit 1
   fi
 fi
@@ -842,6 +945,13 @@ jq -n \
   --arg docsBucket "$DOCS_BUCKET" \
   --arg dbConn "$DB_CONN" \
   --arg jwtSecret "$JWT_SECRET" \
+  --arg migrateOnStartup "$DATABASE_MIGRATE_ON_STARTUP" \
+  --arg embeddingsProvider "${EMBEDDINGS_PROVIDER:-gemini}" \
+  --arg embeddingsModel "${EMBEDDINGS_MODEL:-text-embedding-004}" \
+  --arg embeddingsApiKey "$EMBEDDINGS_API_KEY" \
+  --arg networkMode "$ECS_NETWORK_MODE" \
+  --arg cpuArchitecture "$ECS_CPU_ARCHITECTURE" \
+  --arg launchType "$ECS_LAUNCH_TYPE" \
   --arg redisEnabled "$REDIS_ENABLED" \
   --arg redisConnectionString "$REDIS_CONNECTION_STRING" \
   --arg redisInstanceName "$REDIS_INSTANCE_NAME" \
@@ -869,8 +979,9 @@ jq -n \
   --arg adminOrigin "$ADMIN_ORIGIN" \
   '{
     family: $family,
-    networkMode: "bridge",
-    requiresCompatibilities: ["EC2"],
+    networkMode: $networkMode,
+    requiresCompatibilities: [$launchType],
+    runtimePlatform: { cpuArchitecture: $cpuArchitecture, operatingSystemFamily: "LINUX" },
     cpu: $cpu,
     memory: $memory,
     executionRoleArn: $executionRoleArn,
@@ -881,17 +992,17 @@ jq -n \
         image: $image,
         essential: true,
         portMappings: [
-          {
+          ({
             containerPort: $containerPort,
-            hostPort: $containerPort,
             protocol: "tcp"
-          }
+          } + (if $networkMode == "awsvpc" then {} else {hostPort: $containerPort} end))
         ],
         environment: ({
           ASPNETCORE_ENVIRONMENT: "Production",
           AWS__Region: $awsRegion,
           S3__BucketName: $docsBucket,
           ConnectionStrings__DefaultConnection: $dbConn,
+          Database__MigrateOnStartup: $migrateOnStartup,
           JwtSettings__SecretKey: $jwtSecret,
           JwtSettings__Issuer: "Study Platform",
           JwtSettings__Audience: "Study Platform Users",
@@ -919,6 +1030,9 @@ jq -n \
           EmailSettings__SmtpPort: "587",
           EmailSettings__SmtpUser: $smtpUser,
           EmailSettings__SmtpPassword: $smtpPassword,
+          Embeddings__Provider: $embeddingsProvider,
+          Embeddings__Model: $embeddingsModel,
+          Embeddings__ApiKey: $embeddingsApiKey,
           Cors__AllowedOrigins__0: $webOrigin,
           Cors__AllowedOrigins__1: $adminOrigin,
           Cors__AllowedOrigins__2: $webWwwOrigin
@@ -946,22 +1060,32 @@ if [[ -n "$SERVICE_ARN" && "$SERVICE_ARN" != "None" ]]; then
   fi
 fi
 if [[ -n "$SERVICE_ARN" && "$SERVICE_ARN" != "None" ]]; then
+  # A service's launch type is immutable, so switching between Fargate and EC2 means recreating it.
   SERVICE_LAUNCH_TYPE="$(aws ecs describe-services --cluster "$ECS_CLUSTER_NAME" --services "$ECS_SERVICE_NAME" --query 'services[0].launchType' --output text 2>/dev/null || true)"
-  if [[ "$SERVICE_LAUNCH_TYPE" == "FARGATE" ]]; then
-    echo "    Existing Fargate service found; replacing it with ECS EC2"
+  if [[ -n "$SERVICE_LAUNCH_TYPE" && "$SERVICE_LAUNCH_TYPE" != "None" && "$SERVICE_LAUNCH_TYPE" != "$ECS_LAUNCH_TYPE" ]]; then
+    echo "    Existing $SERVICE_LAUNCH_TYPE service found; replacing it with $ECS_LAUNCH_TYPE"
     aws ecs update-service --cluster "$ECS_CLUSTER_NAME" --service "$ECS_SERVICE_NAME" --desired-count 0 >/dev/null
     aws ecs delete-service --cluster "$ECS_CLUSTER_NAME" --service "$ECS_SERVICE_NAME" --force >/dev/null
     aws ecs wait services-inactive --cluster "$ECS_CLUSTER_NAME" --services "$ECS_SERVICE_NAME"
     SERVICE_ARN=""
   fi
 fi
+# awsvpc gives each Fargate task its own ENI. A public IP is what lets it pull from ECR and reach
+# Supabase without a NAT gateway; the security group still allows inbound only from the ALB.
+ECS_NETWORK_CONFIGURATION=()
+if [[ "$ECS_LAUNCH_TYPE" == "FARGATE" ]]; then
+  ECS_SUBNET_LIST="$(IFS=,; echo "${DEFAULT_SUBNET_IDS[*]}")"
+  ECS_NETWORK_CONFIGURATION=(--network-configuration "awsvpcConfiguration={subnets=[$ECS_SUBNET_LIST],securityGroups=[$ECS_SECURITY_GROUP_ID],assignPublicIp=ENABLED}")
+fi
+
 if [[ -z "$SERVICE_ARN" || "$SERVICE_ARN" == "None" ]]; then
   SERVICE_ARN="$(aws ecs create-service \
     --cluster "$ECS_CLUSTER_NAME" \
     --service-name "$ECS_SERVICE_NAME" \
     --task-definition "$TASK_DEFINITION_ARN" \
     --desired-count "$ECS_DESIRED_COUNT" \
-    --launch-type EC2 \
+    --launch-type "$ECS_LAUNCH_TYPE" \
+    ${ECS_NETWORK_CONFIGURATION[@]+"${ECS_NETWORK_CONFIGURATION[@]}"} \
     --deployment-configuration "minimumHealthyPercent=$ECS_MIN_HEALTHY_PERCENT,maximumPercent=$ECS_MAX_PERCENT" \
     --load-balancers "targetGroupArn=$TARGET_GROUP_ARN,containerName=$API_CONTAINER_NAME,containerPort=$API_CONTAINER_PORT" \
     --health-check-grace-period-seconds 120 \
@@ -973,6 +1097,7 @@ else
     --service "$ECS_SERVICE_NAME" \
     --task-definition "$TASK_DEFINITION_ARN" \
     --desired-count "$ECS_DESIRED_COUNT" \
+    ${ECS_NETWORK_CONFIGURATION[@]+"${ECS_NETWORK_CONFIGURATION[@]}"} \
     --deployment-configuration "minimumHealthyPercent=$ECS_MIN_HEALTHY_PERCENT,maximumPercent=$ECS_MAX_PERCENT" \
     --force-new-deployment >/dev/null
 fi

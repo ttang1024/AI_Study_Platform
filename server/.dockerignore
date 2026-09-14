@@ -1,0 +1,15 @@
+# appsettings.json and appsettings.Development.json are gitignored developer files holding real
+# credentials — an SMTP app password, OAuth client secrets, an embeddings API key, a JWT signing key.
+# `COPY . .` would bake them into the published image, where anyone who can pull from ECR can read
+# them. The image ships appsettings.Production.json (non-secret operational defaults) and takes every
+# credential from the environment instead.
+appsettings.json
+appsettings.Development.json
+appsettings.*.Local.json
+
+bin/
+obj/
+test-results/
+TestResults/
+*.user
+.vs/
