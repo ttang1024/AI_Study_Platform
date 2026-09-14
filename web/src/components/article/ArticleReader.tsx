@@ -8,6 +8,19 @@ import 'katex/dist/katex.min.css';
 import { Document } from '../../types';
 import { getApiUrl } from '../../utils/env';
 import { ArticleReaderSkeleton } from '../common/DetailPageSkeleton';
+import { remarkProseDollars } from './remarkProseDollars';
+
+// Stable module-scope references. react-markdown remounts the whole markdown subtree when a
+// plugin array's identity changes, which wipes the reader's text selection mid-highlight.
+//
+// remarkProseDollars runs after remark-math to put back the spans where the dollar signs were
+// prices rather than delimiters — see that file. strict:false stops KaTeX from logging a console
+// warning per quirk in whatever survives (a character the source site itself mis-encoded, say);
+// it renders the same either way.
+const REMARK_PLUGINS: React.ComponentProps<typeof ReactMarkdown>['remarkPlugins'] =
+  [remarkGfm, remarkMath, remarkProseDollars];
+const REHYPE_PLUGINS: React.ComponentProps<typeof ReactMarkdown>['rehypePlugins'] =
+  [[rehypeKatex, { strict: false }]];
 
 const MARKDOWN_COMPONENTS = {
   h1: ({ children }: { children: React.ReactNode }) => <h1 className="text-2xl font-black mt-8 mb-3 text-text-main">{children}</h1>,
@@ -45,7 +58,17 @@ const MARKDOWN_COMPONENTS = {
     className
       ? <code className={`${className} text-sm font-mono`}>{children}</code>
       : <code className="rounded bg-zinc-100 px-1 py-0.5 text-sm font-mono">{children}</code>,
-  pre: ({ children }: { children: React.ReactNode }) => <pre className="mb-4 overflow-x-auto rounded-lg bg-zinc-900 text-zinc-100 p-4 text-sm font-mono">{children}</pre>,
+  // The [&_code] rules undo the inline-chip styling above for a <code> that sits in a block.
+  // Nothing inside the `code` renderer can tell the two apart: its className is the fence's
+  // language, so a fence written without one ("```" alone — what the clipper emits for a <pre>
+  // that carried no language) arrives looking exactly like inline code, and paints its
+  // near-white chip background under text this <pre> has already coloured white. Deciding it
+  // here, where being inside a block is a fact rather than a guess, is what prevents that.
+  pre: ({ children }: { children: React.ReactNode }) => (
+    <pre className="mb-4 overflow-x-auto rounded-lg bg-zinc-900 text-zinc-100 p-4 text-sm font-mono [&_code]:bg-transparent [&_code]:p-0 [&_code]:text-inherit">
+      {children}
+    </pre>
+  ),
 };
 
 interface ArticleReaderProps {
@@ -134,7 +157,7 @@ export const ArticleReader: React.FC<ArticleReaderProps> = React.memo(({ documen
 
         {/* Article body */}
         <div className="article-body text-[15px] leading-relaxed text-text-main break-words font-[system-ui,sans-serif]">
-          <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]} components={MARKDOWN_COMPONENTS}>
+          <ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_PLUGINS} components={MARKDOWN_COMPONENTS}>
             {content ?? ''}
           </ReactMarkdown>
         </div>

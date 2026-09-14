@@ -32,8 +32,11 @@ export const MARKDOWN_COMPONENTS: React.ComponentProps<typeof ReactMarkdown>['co
       ? <code className="block">{children}</code>
       : <code className="rounded bg-zinc-100 px-1.5 py-0.5 text-[0.875em] font-mono text-zinc-800 border border-zinc-200">{children}</code>;
   },
+  // Same reasoning as the article reader's <pre>: a fence with no language reaches the `code`
+  // renderer indistinguishable from inline code and takes the chip styling with it, so the
+  // block strips it back off here.
   pre: ({ children }) => (
-    <pre className="my-4 overflow-x-auto rounded-xl bg-zinc-900 p-4 text-sm text-zinc-100 leading-relaxed">
+    <pre className="my-4 overflow-x-auto rounded-xl bg-zinc-900 p-4 text-sm text-zinc-100 leading-relaxed [&_code]:border-0 [&_code]:bg-transparent [&_code]:p-0 [&_code]:text-inherit">
       {children}
     </pre>
   ),
