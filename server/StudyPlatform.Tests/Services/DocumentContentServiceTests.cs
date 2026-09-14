@@ -25,6 +25,62 @@ public class DocumentContentServiceTests
         Transcript = transcript
     };
 
+    // ─── Oversized files ──────────────────────────────────────────────────────
+
+    // A 40 MB PDF used to be downloaded, base64'd (UTF-16, so ~107 MB of string) and serialised
+    // into the request body, which threw OutOfMemoryException on a 2 GB task. Anything over the
+    // inline ceiling goes to the text extractor instead.
+    [Fact]
+    public async Task GetContentAsync_PdfOverInlineLimit_FallsBackToTextExtraction()
+    {
+        var doc = MakeDoc("application/pdf");
+        doc.FileSize = 40L * 1024 * 1024;
+        _extractor.Setup(e => e.ExtractTextAsync("blob://test", "application/pdf", default))
+                  .ReturnsAsync("extracted");
+
+        var result = await _service.GetContentAsync(doc);
+
+        Assert.Null(result.Bytes);
+        Assert.Equal("extracted", result.Text);
+        _blob.Verify(b => b.DownloadAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task GetContentAsync_PdfUnderInlineLimit_StillSendsBytes()
+    {
+        var doc = MakeDoc("application/pdf");
+        doc.FileSize = 3;
+        var bytes = new byte[] { 1, 2, 3 };
+        _blob.Setup(b => b.DownloadAsync("blob://test", default)).ReturnsAsync(new MemoryStream(bytes));
+
+        var result = await _service.GetContentAsync(doc);
+
+        Assert.Equal(bytes, result.Bytes);
+    }
+
+    // Audio has no text fallback, so an oversized file must raise rather than hand the model an
+    // empty string and pass off whatever it invents as a summary.
+    [Fact]
+    public async Task GetContentAsync_AudioOverInlineLimit_WithoutTranscript_Throws()
+    {
+        var doc = MakeDoc("audio/mpeg");
+        doc.FileSize = 40L * 1024 * 1024;
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => _service.GetContentAsync(doc));
+        Assert.Contains("40 MB", ex.Message);
+    }
+
+    [Fact]
+    public async Task GetContentAsync_AudioOverInlineLimit_WithTranscript_UsesTranscript()
+    {
+        var doc = MakeDoc("audio/mpeg", transcript: "spoken words");
+        doc.FileSize = 40L * 1024 * 1024;
+
+        var result = await _service.GetContentAsync(doc);
+
+        Assert.Equal("spoken words", result.Text);
+    }
+
     // ─── PDF / inline-binary ──────────────────────────────────────────────────
 
     [Fact]

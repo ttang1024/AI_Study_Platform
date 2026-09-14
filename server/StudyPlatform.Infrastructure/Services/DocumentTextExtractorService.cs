@@ -32,6 +32,45 @@ public class DocumentTextExtractorService : IDocumentTextExtractor
     }
 
     public async Task<string> ExtractTextAsync(string blobUrl, string contentType, CancellationToken cancellationToken = default)
+        => SanitizeForStorage(await ExtractCoreAsync(blobUrl, contentType, cancellationToken));
+
+    // Postgres rejects NUL inside a text value outright — "invalid byte sequence for encoding
+    // UTF8: 0x00" — and it aborts the whole SaveChanges, so one bad byte from a PDF loses the
+    // summary that was just generated. PDF text layers carry NUL and stray control characters
+    // routinely, and every extractor below feeds this one boundary, so strip them here rather
+    // than in each format. Tab, newline and carriage return are kept; lone surrogates would also
+    // fail to encode, so they go too.
+    private static string SanitizeForStorage(string text)
+    {
+        if (string.IsNullOrEmpty(text)) return text;
+
+        var needsWork = false;
+        foreach (var c in text)
+        {
+            if (c is '\t' or '\n' or '\r') continue;
+            if (char.IsControl(c) || char.IsSurrogate(c)) { needsWork = true; break; }
+        }
+        if (!needsWork) return text;
+
+        var sb = new StringBuilder(text.Length);
+        for (var i = 0; i < text.Length; i++)
+        {
+            var c = text[i];
+            if (c is '\t' or '\n' or '\r') { sb.Append(c); continue; }
+            if (char.IsControl(c)) continue;
+            if (char.IsHighSurrogate(c) && i + 1 < text.Length && char.IsLowSurrogate(text[i + 1]))
+            {
+                sb.Append(c).Append(text[i + 1]);
+                i++;
+                continue;
+            }
+            if (char.IsSurrogate(c)) continue;   // unpaired — not encodable as UTF-8
+            sb.Append(c);
+        }
+        return sb.ToString();
+    }
+
+    private async Task<string> ExtractCoreAsync(string blobUrl, string contentType, CancellationToken cancellationToken)
     {
         try
         {
