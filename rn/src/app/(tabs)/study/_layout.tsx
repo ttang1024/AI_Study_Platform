@@ -26,7 +26,6 @@ export default function StudyLayout() {
       <Stack.Screen name="calendar" options={{ title: 'Calendar' }} />
       <Stack.Screen name="insights" options={{ title: 'Insights' }} />
       <Stack.Screen name="concepts" options={{ headerShown: false }} />
-      <Stack.Screen name="achievements" options={{ title: 'Achievements' }} />
       <Stack.Screen name="shared-link" options={{ title: 'Shared link' }} />
     </Stack>
   );

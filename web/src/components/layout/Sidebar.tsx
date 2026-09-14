@@ -5,10 +5,9 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Library, Settings, LogOut, BrainCircuit,
   Award, NotebookPen, X, ChevronLeft, ChevronRight,
-  User, MessageSquarePlus, Search, Trophy, Users, Bot,
+  User, MessageSquarePlus, Search, Users, Bot,
   LineChart, PenLine, Wand2,
 } from 'lucide-react';
-import { AchievementsPanel } from '../dashboard/AchievementsPanel';
 import { cn } from '../../utils/cn';
 import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from '../../i18n';
@@ -49,7 +48,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isCollapsed, 
   const { t } = useTranslation();
 
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [isAchievementsOpen, setIsAchievementsOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
   const [tooltip, setTooltip] = useState<{ label: string; y: number } | null>(null);
 
@@ -258,13 +256,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isCollapsed, 
                   <p className="text-xs text-text-muted truncate">{user?.email}</p>
                 </div>
                 <button
-                  onClick={() => { setIsAchievementsOpen(true); setIsProfileOpen(false); }}
-                  className="flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-sm text-text-main hover:bg-amber-50 hover:text-amber-600 transition-all"
-                >
-                  <Trophy size={16} />
-                  Achievements
-                </button>
-                <button
                   onClick={() => { navigate('/settings'); setIsProfileOpen(false); }}
                   className="flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-sm text-text-main hover:bg-[var(--primary)]/10 hover:text-[var(--primary)] transition-all"
                 >
@@ -291,34 +282,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isCollapsed, 
           </div>
         </div>
       </aside>
-
-      {/* Achievements modal */}
-      {isAchievementsOpen && ReactDOM.createPortal(
-        <>
-          <div
-            className="fixed inset-0 z-[9998] bg-black/40 backdrop-blur-sm"
-            onClick={() => setIsAchievementsOpen(false)}
-          />
-          <div className="fixed inset-y-0 right-0 z-[9999] w-full max-w-lg flex flex-col bg-[var(--bg-sidebar)] shadow-2xl">
-            <div className="flex items-center justify-between border-b border-[var(--border-color)] px-6 py-4 shrink-0">
-              <div className="flex items-center gap-2">
-                <Trophy size={18} className="text-amber-500" />
-                <h2 className="text-base font-bold text-text-main">Achievements</h2>
-              </div>
-              <button
-                onClick={() => setIsAchievementsOpen(false)}
-                className="flex h-8 w-8 items-center justify-center rounded-xl text-text-muted hover:bg-zinc-100 hover:text-text-main transition-colors"
-              >
-                <X size={16} />
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-6">
-              <AchievementsPanel />
-            </div>
-          </div>
-        </>,
-        document.body,
-      )}
 
       {/* Portal tooltip — rendered outside aside to avoid overflow/transform clipping */}
       {isCollapsed && tooltip && ReactDOM.createPortal(

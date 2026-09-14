@@ -62,13 +62,6 @@ export const ReinforceCard: React.FC<{ label: string; value: number; color?: str
   </PressableScale>
 );
 
-export const DigestStat: React.FC<{ label: string; value: string }> = ({ label, value }) => (
-  <View style={styles.digestStat}>
-    <Text style={styles.digestStatValue}>{value}</Text>
-    <Text style={styles.digestStatLabel}>{label}</Text>
-  </View>
-);
-
 const styles = StyleSheet.create({
   sectionRow: { ...Layout.row, gap: 8, marginTop: Spacing.two, marginBottom: 2 },
   sectionAccent: { width: 4, height: 14, borderRadius: 2, backgroundColor: Colors.primary },
@@ -98,7 +91,4 @@ const styles = StyleSheet.create({
   reinforceValue: { ...Typography.heading },
   reinforceLabel: { ...Typography.caption, color: Colors.textSecondary, textAlign: 'center' },
 
-  digestStat: { flexGrow: 1, flexBasis: '45%', backgroundColor: Colors.bgApp, borderRadius: Radius.md, padding: Spacing.two },
-  digestStatValue: { ...Typography.bodyBold, color: Colors.textPrimary },
-  digestStatLabel: { ...Typography.caption, color: Colors.textSecondary },
 });

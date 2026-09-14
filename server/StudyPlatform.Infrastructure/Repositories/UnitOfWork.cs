@@ -37,13 +37,10 @@ public class UnitOfWork : IUnitOfWork
     private IStudySessionRepository? _studySessions;
     private IMistakeEntryRepository? _mistakeEntries;
     private IExamPlanRepository? _examPlans;
-    private IQuizBattleRepository? _quizBattles;
-    private IGroupAssignmentRepository? _groupAssignments;
     private IFlashcardReviewLogRepository? _flashcardReviewLogs;
     private IStreakCoverDayRepository? _streakCoverDays;
     private IUserCalendarFeedRepository? _userCalendarFeeds;
     private ICourseAudioOverviewRepository? _courseAudioOverviews;
-    private IGroupNoteRepository? _groupNotes;
     private IAiJobRepository? _aiJobs;
     private IAiUsageRepository? _aiUsage;
     private IRubricRepository? _rubrics;
@@ -89,13 +86,10 @@ public class UnitOfWork : IUnitOfWork
     public IStudySessionRepository StudySessions => _studySessions ??= new StudySessionRepository(_context);
     public IMistakeEntryRepository MistakeEntries => _mistakeEntries ??= new MistakeEntryRepository(_context);
     public IExamPlanRepository ExamPlans => _examPlans ??= new ExamPlanRepository(_context);
-    public IQuizBattleRepository QuizBattles => _quizBattles ??= new QuizBattleRepository(_context);
-    public IGroupAssignmentRepository GroupAssignments => _groupAssignments ??= new GroupAssignmentRepository(_context);
     public IFlashcardReviewLogRepository FlashcardReviewLogs => _flashcardReviewLogs ??= new FlashcardReviewLogRepository(_context);
     public IStreakCoverDayRepository StreakCoverDays => _streakCoverDays ??= new StreakCoverDayRepository(_context);
     public IUserCalendarFeedRepository UserCalendarFeeds => _userCalendarFeeds ??= new UserCalendarFeedRepository(_context);
     public ICourseAudioOverviewRepository CourseAudioOverviews => _courseAudioOverviews ??= new CourseAudioOverviewRepository(_context);
-    public IGroupNoteRepository GroupNotes => _groupNotes ??= new GroupNoteRepository(_context);
     public IAiJobRepository AiJobs => _aiJobs ??= new AiJobRepository(_context);
     public IAiUsageRepository AiUsage => _aiUsage ??= new AiUsageRepository(_context);
     public IRubricRepository Rubrics => _rubrics ??= new RubricRepository(_context);

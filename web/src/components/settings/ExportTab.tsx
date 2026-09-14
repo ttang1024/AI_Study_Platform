@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Info, Download, Archive, FileText, CloudDownload } from 'lucide-react';
 import { useStudy } from '../../context/StudyContext';
-import { gamificationService } from '../../services/gamificationService';
+import { calendarService } from '../../services/calendarService';
 import { useSettingsExport } from '../../hooks/useSettingsExport';
 import { ConnectedCalendarsCard } from './ConnectedCalendarsCard';
 
@@ -136,7 +136,7 @@ export const ExportTab: React.FC = () => {
             type="button"
             onClick={async () => {
               try {
-                const blob = await gamificationService.downloadCalendarIcs();
+                const blob = await calendarService.downloadIcs();
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;

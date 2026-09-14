@@ -80,15 +80,11 @@ public class AccountEraser : IAccountEraser
         await _db.ExamPlans.Where(x => x.UserId == userId).ExecuteDeleteAsync(cancellationToken);
         await _db.StudySessions.Where(x => x.UserId == userId).ExecuteDeleteAsync(cancellationToken);
         await _db.StreakCoverDays.Where(x => x.UserId == userId).ExecuteDeleteAsync(cancellationToken);
-
-        await _db.GroupAssignmentCompletions.Where(x => x.UserId == userId).ExecuteDeleteAsync(cancellationToken);
         await _db.GroupChatMessages.Where(x => x.UserId == userId).ExecuteDeleteAsync(cancellationToken);
-        await _db.GroupNotes.Where(x => x.CreatedBy == userId).ExecuteDeleteAsync(cancellationToken);
-        await _db.QuizBattleEntries.Where(x => x.UserId == userId).ExecuteDeleteAsync(cancellationToken);
         await _db.StudyGroupMembers.Where(x => x.UserId == userId).ExecuteDeleteAsync(cancellationToken);
         await _db.StudyGroupSharedCourses.Where(x => x.SharedByUserId == userId).ExecuteDeleteAsync(cancellationToken);
 
-        // Groups, classrooms, and organizations the user owned go with them. Leaving an ownerless
+        // Groups the user owned go with them. Leaving an ownerless
         // group behind would strand its members under an account that no longer exists.
         var groupIds = await _db.StudyGroups
             .Where(g => g.OwnerId == userId)
@@ -97,21 +93,6 @@ public class AccountEraser : IAccountEraser
 
         if (groupIds.Count > 0)
         {
-            await _db.GroupAssignmentCompletions
-                .Where(c => _db.GroupAssignments
-                    .Where(a => groupIds.Contains(a.GroupId))
-                    .Select(a => a.GroupAssignmentId)
-                    .Contains(c.AssignmentId))
-                .ExecuteDeleteAsync(cancellationToken);
-            await _db.GroupAssignments.Where(a => groupIds.Contains(a.GroupId)).ExecuteDeleteAsync(cancellationToken);
-            await _db.QuizBattleEntries
-                .Where(e => _db.QuizBattles
-                    .Where(b => groupIds.Contains(b.GroupId))
-                    .Select(b => b.QuizBattleId)
-                    .Contains(e.BattleId))
-                .ExecuteDeleteAsync(cancellationToken);
-            await _db.QuizBattles.Where(b => groupIds.Contains(b.GroupId)).ExecuteDeleteAsync(cancellationToken);
-            await _db.GroupNotes.Where(n => groupIds.Contains(n.GroupId)).ExecuteDeleteAsync(cancellationToken);
             await _db.GroupChatMessages.Where(m => groupIds.Contains(m.GroupId)).ExecuteDeleteAsync(cancellationToken);
             await _db.StudyGroupSharedCourses.Where(s => groupIds.Contains(s.GroupId)).ExecuteDeleteAsync(cancellationToken);
             await _db.StudyGroupMembers.Where(m => groupIds.Contains(m.GroupId)).ExecuteDeleteAsync(cancellationToken);

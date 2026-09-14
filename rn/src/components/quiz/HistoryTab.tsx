@@ -58,12 +58,19 @@ export const HistoryTab: React.FC = () => {
     );
   }
 
+  // Derived from the loaded submissions; empty quizzes (total 0) have no score to average.
+  const scored = submissions.filter((s) => s.total > 0);
+  const avgScore = scored.length
+    ? Math.round(scored.reduce((sum, s) => sum + (s.score / s.total) * 100, 0) / scored.length)
+    : 0;
+  const perfectScores = scored.filter((s) => s.score === s.total).length;
+
   return (
     <ScrollView contentContainerStyle={styles.root}>
       {!!stats && (
         <View style={styles.statRow}>
-          <StatTile label="Avg score" value={`${Math.round(stats.achievements.averageQuizScore)}%`} />
-          <StatTile label="Perfect quizzes" value={String(stats.achievements.perfectQuizzes)} />
+          <StatTile label="Avg score" value={`${avgScore}%`} />
+          <StatTile label="Perfect quizzes" value={String(perfectScores)} />
           <StatTile label="Total taken" value={String(stats.totalQuizSubmissions)} />
         </View>
       )}

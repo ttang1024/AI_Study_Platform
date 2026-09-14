@@ -47,7 +47,6 @@ public class GetUserStatsQueryHandlerTests
         _documents.Setup(r => r.GetMaterialCountsByCourseAsync(_userId, default))
             .ReturnsAsync(new Dictionary<Guid, MaterialCounts>());
         _videos.Setup(r => r.GetCountsByCourseAsync(_userId, default)).ReturnsAsync(new Dictionary<Guid, int>());
-        _submissions.Setup(r => r.GetAchievementsAsync(_userId, default)).ReturnsAsync(new QuizAchievements(2, 4, 87.6));
 
         var cache = new Mock<IAppCache>();
         cache.Setup(c => c.GetOrCreateAsync(
@@ -83,14 +82,6 @@ public class GetUserStatsQueryHandlerTests
         Assert.Equal(9, result.Data!.TotalMaterials);
     }
 
-    [Fact]
-    public async Task Handle_AchievementsMapFromRepository_RoundingAverageScore()
-    {
-        var result = await _handler.Handle(new GetUserStatsQuery(_userId), default);
-
-        Assert.Equal(2, result.Data!.Achievements.PerfectQuizzes);
-        Assert.Equal(88, result.Data.Achievements.AverageQuizScore); // 87.6 rounds to 88
-    }
 
     [Fact]
     public async Task Handle_EveryOwnedCourseGetsARow_EvenWithNoMaterials()

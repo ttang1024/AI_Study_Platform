@@ -39,16 +39,11 @@ public class AppDbContext : DbContext
     public DbSet<StudySession> StudySessions => Set<StudySession>();
     public DbSet<MistakeEntry> MistakeEntries => Set<MistakeEntry>();
     public DbSet<ExamPlan> ExamPlans => Set<ExamPlan>();
-    public DbSet<QuizBattle> QuizBattles => Set<QuizBattle>();
-    public DbSet<QuizBattleEntry> QuizBattleEntries => Set<QuizBattleEntry>();
-    public DbSet<GroupAssignment> GroupAssignments => Set<GroupAssignment>();
-    public DbSet<GroupAssignmentCompletion> GroupAssignmentCompletions => Set<GroupAssignmentCompletion>();
     public DbSet<UserPushSubscription> UserPushSubscriptions => Set<UserPushSubscription>();
     public DbSet<FlashcardReviewLog> FlashcardReviewLogs => Set<FlashcardReviewLog>();
     public DbSet<StreakCoverDay> StreakCoverDays => Set<StreakCoverDay>();
     public DbSet<UserCalendarFeed> UserCalendarFeeds => Set<UserCalendarFeed>();
     public DbSet<CourseAudioOverview> CourseAudioOverviews => Set<CourseAudioOverview>();
-    public DbSet<GroupNote> GroupNotes => Set<GroupNote>();
     public DbSet<AiUsageLog> AiUsageLogs => Set<AiUsageLog>();
     public DbSet<ContentEmbedding> ContentEmbeddings => Set<ContentEmbedding>();
     public DbSet<AiJob> AiJobs => Set<AiJob>();

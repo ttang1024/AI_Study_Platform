@@ -14,7 +14,6 @@ export default function GroupsLayout() {
     >
       <Stack.Screen name="index" options={{ title: 'Study Groups', headerLeft: () => <HeaderBackButton /> }} />
       <Stack.Screen name="[id]" options={{ headerShown: false }} />
-      <Stack.Screen name="battle/[battleId]" options={{ title: 'Quiz Battle' }} />
     </Stack>
   );
 }

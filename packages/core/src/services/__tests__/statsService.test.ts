@@ -22,7 +22,6 @@ const fullStats = {
   totalQuizSubmissions: 4,
   totalVideos: 6,
   courseMaterialCounts: [{ courseId: 'c-1', documents: 1, articles: 0, audio: 0, videos: 0, total: 1 }],
-  achievements: { perfectQuizzes: 2, averageQuizScore: 88, flashcardsMastered: 10 },
 }
 
 describe('statsService', () => {
@@ -58,7 +57,6 @@ describe('statsService', () => {
       expect(result.totalGlossaryTerms).toBe(0)
       expect(result.totalQuizQuestions).toBe(0)
       expect(result.courseMaterialCounts).toEqual([])
-      expect(result.achievements).toEqual({ perfectQuizzes: 0, averageQuizScore: 0, flashcardsMastered: 0 })
     })
 
     it('collapses concurrent calls into a single in-flight request', async () => {
@@ -90,16 +88,4 @@ describe('statsService', () => {
     })
   })
 
-  describe('getXp', () => {
-    it('fetches and unwraps the XP summary', async () => {
-      const service = createStatsService(fakeHttp)
-      const xp = { totalXp: 500, level: 3, xpIntoLevel: 100, xpForNextLevel: 200, levelProgress: 0.5, breakdown: [] }
-      vi.mocked(fakeHttp.get).mockResolvedValueOnce({ data: { data: xp } })
-
-      const result = await service.getXp()
-
-      expect(fakeHttp.get).toHaveBeenCalledWith('/api/stats/xp')
-      expect(result).toEqual(xp)
-    })
-  })
 })

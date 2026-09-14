@@ -13,16 +13,14 @@ import Layers from 'lucide-react-native/icons/layers';
 import Mic from 'lucide-react-native/icons/mic';
 import Sparkles from 'lucide-react-native/icons/sparkles';
 import Target from 'lucide-react-native/icons/target';
-import TrendingUp from 'lucide-react-native/icons/trending-up';
 import Video from 'lucide-react-native/icons/video';
-import Zap from 'lucide-react-native/icons/zap';
 
 import { AnimatedNumber } from '@/components/AnimatedNumber';
 import { Card } from '@/components/Card';
 import { IconBadge } from '@/components/IconBadge';
 import { PressableScale } from '@/components/PressableScale';
 import { ProgressBar } from '@/components/ProgressBar';
-import { CountTile, DigestStat, ReinforceCard, SectionLabel, StatTile } from '@/components/home/DashboardTiles';
+import { CountTile, ReinforceCard, SectionLabel, StatTile } from '@/components/home/DashboardTiles';
 import { HomeSkeleton } from '@/components/home/HomeSkeleton';
 import { OnboardingChecklist } from '@/components/home/OnboardingChecklist';
 import { StudyCalendar } from '@/components/study/StudyCalendar';
@@ -80,7 +78,7 @@ export default function HomeScreen() {
     return <HomeSkeleton />;
   }
 
-  const { today, summary, stats, xp, digest } = data;
+  const { today, summary, stats } = data;
   const focusLeft = Math.max(0, today.dailyGoalMinutes - today.todayMinutes);
   const primaryItem = today.items[0];
 
@@ -186,35 +184,7 @@ export default function HomeScreen() {
         </View>
       </Section>
 
-      <Section index={7}>
-        <Card style={styles.xpCard}>
-          <View style={styles.xpHeader}>
-            <IconBadge icon={Zap} color={Colors.amber} size={32} />
-            <Text style={styles.xpTitle}>Level {xp.level}</Text>
-            <AnimatedNumber value={xp.totalXp} format={(n) => `${n} XP`} style={styles.xpSubtitle} />
-          </View>
-          <ProgressBar progress={xp.levelProgress / 100} gradient={Gradients.amber} />
-          <Text style={styles.xpFooter}>{xp.xpIntoLevel} / {xp.xpForNextLevel} XP to next level</Text>
-        </Card>
-      </Section>
-
-      <Section index={8}>
-        <Card style={styles.digestCard}>
-          <View style={styles.xpHeader}>
-            <IconBadge icon={TrendingUp} size={32} />
-            <Text style={styles.xpTitle}>Your week</Text>
-          </View>
-          <Text style={styles.digestHeadline}>{digest.headline}</Text>
-          <View style={styles.digestStats}>
-            <DigestStat label="Study time" value={`${digest.studyMinutes}m`} />
-            <DigestStat label="Flashcard reviews" value={String(digest.flashcardReviews)} />
-            <DigestStat label="Quizzes taken" value={`${digest.quizzesTaken} (${Math.round(digest.quizAccuracy)}%)`} />
-            <DigestStat label="Open mistakes" value={String(digest.openMistakes)} />
-          </View>
-        </Card>
-      </Section>
-
-      <Section index={9} style={styles.section}>
+      <Section index={7} style={styles.section}>
         <SectionLabel label="Study Calendar" />
         <StudyCalendar />
       </Section>
@@ -276,13 +246,5 @@ const styles = StyleSheet.create({
 
   // Opaque amber-tinted surface (not an alpha wash) — Card carries elevation,
   // and Android elevation shadows render wrong behind translucent backgrounds.
-  xpCard: { gap: Spacing.two, backgroundColor: '#fef6e7' },
-  xpHeader: { ...Layout.row, gap: Spacing.two },
-  xpTitle: { ...Typography.bodyBold, color: Colors.textPrimary },
-  xpSubtitle: { ...Typography.caption, color: Colors.textSecondary, marginLeft: 'auto' },
-  xpFooter: { ...Typography.caption, color: Colors.textSecondary },
 
-  digestCard: { gap: Spacing.two },
-  digestHeadline: { ...Typography.body, color: Colors.textPrimary },
-  digestStats: { ...Layout.rowWrap, gap: Spacing.two },
 });

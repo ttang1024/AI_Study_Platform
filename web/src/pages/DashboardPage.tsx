@@ -8,7 +8,6 @@ import { useStudy } from '../context/StudyContext';
 import { StudyCalendar } from '../components/common/StudyCalendar';
 import OnboardingChecklist from '../components/dashboard/OnboardingChecklist';
 import { ReinforcementSummaryCards } from '../components/dashboard/ReinforcementSummaryCards';
-import { XpDigestCards } from '../components/dashboard/XpDigestCards';
 import { TodayProgressHero } from '../components/today/TodayProgressHero';
 import { useDashboardSummary } from '../hooks/useDashboardSummary';
 
@@ -263,12 +262,6 @@ export const DashboardPage: React.FC = () => {
           </Link>
         </div>
         <ReinforcementSummaryCards counts={summary?.reinforcement ?? null} loading={summaryLoading} />
-      </motion.div>
-
-      {/* ── XP & Weekly digest ───────────────────────────────────────────── */}
-      <motion.div variants={item} className="space-y-3">
-        <SectionLabel>Progress</SectionLabel>
-        <XpDigestCards />
       </motion.div>
 
       {/* ── Study Calendar ────────────────────────────────────────────────── */}

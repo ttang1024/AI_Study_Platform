@@ -10,7 +10,6 @@ import NotebookPen from 'lucide-react-native/icons/notebook-pen';
 import PenLine from 'lucide-react-native/icons/pen-line';
 import SquareLibrary from 'lucide-react-native/icons/square-library';
 import TrendingUp from 'lucide-react-native/icons/trending-up';
-import Trophy from 'lucide-react-native/icons/trophy';
 import Users from 'lucide-react-native/icons/users';
 import Zap from 'lucide-react-native/icons/zap';
 import FilePen from 'lucide-react-native/icons/file-pen';
@@ -35,7 +34,6 @@ const HUB_ITEMS = [
   { href: '/study/groups', icon: Users, color: Colors.purple, title: 'Study Groups', subtitle: 'Chat, boards, battles' },
   { href: '/study/insights', icon: TrendingUp, color: Colors.primary, title: 'Insights', subtitle: 'Time, accuracy, mastery' },
   { href: '/study/concepts', icon: Network, color: Colors.blue, title: 'Concepts', subtitle: 'Links, gaps, learning path' },
-  { href: '/study/achievements', icon: Trophy, color: Colors.amber, title: 'Achievements', subtitle: 'Milestones unlocked' },
 ] as const;
 
 export default function StudyHubScreen() {

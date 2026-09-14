@@ -31,13 +31,10 @@ public interface IUnitOfWork : IDisposable
     IStudySessionRepository StudySessions { get; }
     IMistakeEntryRepository MistakeEntries { get; }
     IExamPlanRepository ExamPlans { get; }
-    IQuizBattleRepository QuizBattles { get; }
-    IGroupAssignmentRepository GroupAssignments { get; }
     IFlashcardReviewLogRepository FlashcardReviewLogs { get; }
     IStreakCoverDayRepository StreakCoverDays { get; }
     IUserCalendarFeedRepository UserCalendarFeeds { get; }
     ICourseAudioOverviewRepository CourseAudioOverviews { get; }
-    IGroupNoteRepository GroupNotes { get; }
     IAiJobRepository AiJobs { get; }
     IAiUsageRepository AiUsage { get; }
     IRubricRepository Rubrics { get; }

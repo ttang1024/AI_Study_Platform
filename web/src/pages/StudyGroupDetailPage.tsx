@@ -11,14 +11,6 @@ import { useAuth } from '../context/AuthContext';
 import { useStudy } from '../context/StudyContext';
 import { getApiUrl } from '../utils/env';
 import { Select } from '../components/common/Select';
-import { GroupLeaderboard } from '../components/groups/GroupLeaderboard';
-import { GroupBattles } from '../components/groups/GroupBattles';
-import { GroupAssignments } from '../components/groups/GroupAssignments';
-import { StudyRoomPanel, type StudyRoomState } from '../components/groups/StudyRoomPanel';
-import { GroupNotesList } from '../components/groups/GroupNotesList';
-import { cn } from '../utils/cn';
-
-type GroupTab = 'chat' | 'notes' | 'leaderboard' | 'battles' | 'assignments';
 
 export const StudyGroupDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -39,10 +31,8 @@ export const StudyGroupDetailPage: React.FC = () => {
   const [memberToRemove, setMemberToRemove] = useState<{ userId: string; userName: string } | null>(null);
   const [removingMember, setRemovingMember] = useState(false);
   const [selectedCourseId, setSelectedCourseId] = useState('');
-  const [activeTab, setActiveTab] = useState<GroupTab>('chat');
   const chatEndRef = useRef<HTMLDivElement>(null);
   const hubRef = useRef<signalR.HubConnection | null>(null);
-  const [roomState, setRoomState] = useState<StudyRoomState | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -98,8 +88,6 @@ export const StudyGroupDetailPage: React.FC = () => {
     connection.on('CourseUnshared', (courseId: string) => {
       setGroup((g) => g ? { ...g, sharedCourses: g.sharedCourses.filter((sc) => sc.courseId !== courseId) } : g);
     });
-
-    connection.on('RoomState', (state: StudyRoomState) => setRoomState(state));
 
     // A reconnect gets a brand-new connection id, and hub group membership is per connection — so
     // without re-joining, the chat looks connected while receiving nothing.
@@ -258,18 +246,6 @@ export const StudyGroupDetailPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left column: members + courses */}
         <div className="space-y-4">
-          {/* Live co-study room */}
-          {id && (
-            <StudyRoomPanel
-              state={roomState}
-              currentUserId={user?.id ?? ''}
-              onJoin={() => hubRef.current?.invoke('JoinStudyRoom', id).catch(() => {})}
-              onLeave={() => hubRef.current?.invoke('LeaveStudyRoom', id).catch(() => {})}
-              onSetStatus={(status) => hubRef.current?.invoke('SetStudyStatus', id, status).catch(() => {})}
-              onStartTimer={(minutes) => hubRef.current?.invoke('StartRoomTimer', id, minutes).catch(() => {})}
-            />
-          )}
-
           {/* Members */}
           <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
             <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100">
@@ -355,36 +331,9 @@ export const StudyGroupDetailPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Right column: chat / leaderboard / battles / assignments */}
+        {/* Right column: chat */}
         <div className="lg:col-span-2 flex flex-col gap-3">
-          <div className="flex items-center gap-2">
-            {([['chat', 'Chat'], ['notes', 'Notes'], ['leaderboard', 'Leaderboard'], ['battles', 'Battles'], ['assignments', 'Assignments']] as [GroupTab, string][]).map(([tab, label]) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={cn(
-                  'text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors',
-                  activeTab === tab
-                    ? 'bg-teal-600 text-white border-teal-600'
-                    : 'border-gray-200 text-gray-600 hover:bg-gray-50',
-                )}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-
           <div className="bg-white border border-gray-200 rounded-xl flex flex-col flex-1 overflow-hidden" style={{ minHeight: '500px' }}>
-          {activeTab === 'notes' && id && user && (
-            <div className="p-4 flex-1 flex flex-col overflow-hidden">
-              <GroupNotesList groupId={id} myUserId={user.id} myName={user.name || user.email} />
-            </div>
-          )}
-          {activeTab === 'leaderboard' && id && <GroupLeaderboard groupId={id} />}
-          {activeTab === 'battles' && id && <GroupBattles groupId={id} />}
-          {activeTab === 'assignments' && id && <GroupAssignments groupId={id} isOwner={isOwner} />}
-          {activeTab === 'chat' && (
-          <>
           <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2 shrink-0">
             <Send size={15} className="text-gray-400" />
             <h2 className="text-sm font-semibold text-gray-700">Group Chat</h2>
@@ -444,8 +393,6 @@ export const StudyGroupDetailPage: React.FC = () => {
               <Send size={16} />
             </button>
           </div>
-          </>
-          )}
           </div>
         </div>
       </div>

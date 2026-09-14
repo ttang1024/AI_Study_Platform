@@ -12,7 +12,6 @@ export interface UserStats {
   totalQuizSubmissions: number;
   totalVideos: number;
   courseMaterialCounts: CourseMaterialStats[];
-  achievements: AchievementStats;
 }
 
 export interface CourseMaterialStats {
@@ -22,21 +21,6 @@ export interface CourseMaterialStats {
   audio: number;
   videos: number;
   total: number;
-}
-
-export interface AchievementStats {
-  perfectQuizzes: number;
-  averageQuizScore: number;
-  flashcardsMastered: number;
-}
-
-export interface UserXp {
-  totalXp: number;
-  level: number;
-  xpIntoLevel: number;
-  xpForNextLevel: number;
-  levelProgress: number;
-  breakdown: { source: string; label: string; xp: number }[];
 }
 
 export function createStatsService(http: HttpClient) {
@@ -63,11 +47,6 @@ export function createStatsService(http: HttpClient) {
             totalQuizSubmissions: d.totalQuizSubmissions,
             totalVideos: d.totalVideos,
             courseMaterialCounts: d.courseMaterialCounts ?? [],
-            achievements: d.achievements ?? {
-              perfectQuizzes: 0,
-              averageQuizScore: 0,
-              flashcardsMastered: 0,
-            },
           };
         })
         .finally(() => {
@@ -75,12 +54,6 @@ export function createStatsService(http: HttpClient) {
         });
 
       return inflightUserStatsRequest;
-    },
-
-    /** XP/level summary. web surfaces this via gamificationService, rn via statsService. */
-    async getXp(): Promise<UserXp> {
-      const response = await http.get<{ data: UserXp }>('/api/stats/xp');
-      return response.data.data;
     },
   };
 }
