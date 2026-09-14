@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { Document, Page, pdfjs } from 'react-pdf';
+import { Document, Page } from 'react-pdf';
+import '../utils/pdfWorker';
 import 'react-pdf/dist/Page/TextLayer.css';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import { AnnotationToolbar } from './AnnotationToolbar';
@@ -7,9 +8,6 @@ import { AnnotationsSidebar } from './AnnotationsSidebar';
 import annotationsService, { type DocumentAnnotation } from '../services/annotationsService';
 import { ChevronLeft, ChevronRight, PanelRightOpen, PanelRightClose } from 'lucide-react';
 import { parseRects, type NormRect } from '@core/utils/pdfRects';
-
-// Configure PDF.js worker
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 interface Props {
   documentId: string;
