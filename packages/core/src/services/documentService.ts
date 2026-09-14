@@ -450,28 +450,6 @@ export function createDocumentService(http: HttpClient, streamSse: SseStreamFn) 
       return mapDocument(response.data.data);
     },
 
-    async generateSummary(
-      courseId: string,
-      documentId: string,
-    ): Promise<{ summary: string; keyPoints: string[] }> {
-      const response = await http.post<{ data: BackendDocument }>(
-        `/api/courses/${courseId}/documents/${documentId}/summary`,
-      );
-      const doc = response.data.data;
-      try {
-        return JSON.parse(doc.summary || '{}');
-      } catch {
-        return { summary: doc.summary || '', keyPoints: [] };
-      }
-    },
-
-    async generateMindMap(courseId: string, documentId: string): Promise<{ mindMapText: string }> {
-      const response = await http.post<{ data: BackendDocument }>(
-        `/api/courses/${courseId}/documents/${documentId}/mindmap`,
-      );
-      return { mindMapText: response.data.data.mindMapText || '' };
-    },
-
     async generateQuiz(
       courseId: string,
       documentId: string,

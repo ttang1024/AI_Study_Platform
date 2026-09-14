@@ -58,7 +58,10 @@ export function DocumentTabContent({ doc, setDoc, courseId, id, downloadUrl, tab
             </>
           ) : (
             <GenerateSummarySection
-              onGenerate={() => documentService.generateSummary(courseId, id).then((d) => d.summary ?? '')}
+              onGenerate={() => {
+                let text = '';
+                return documentService.streamSummary(courseId, id, (chunk) => { text += chunk; }).then(() => text);
+              }}
               onGenerated={(text) => setDoc((d) => (d ? { ...d, summary: text } : d))}
             />
           )}
