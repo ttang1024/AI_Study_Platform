@@ -16,13 +16,6 @@ public record QuestionBankQuestionDto(
     string Difficulty,
     DateTime CreatedAt);
 
-public record UpdateQuestionBankQuestionRequest(
-    string Question,
-    string[] Options,
-    string CorrectAnswer,
-    string Explanation,
-    string Difficulty);
-
 public record RecordQuestionBankAttemptRequest(string SelectedAnswer);
 
 public record QuestionBankAttemptResultDto(bool IsCorrect);

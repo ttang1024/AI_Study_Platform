@@ -52,39 +52,4 @@ public class QuestionBankController : ControllerBase
         return Ok(BaseResponse<QuestionBankAttemptResultDto>.Ok(result.Data!));
     }
 
-    [HttpPatch("{quizId:guid}")]
-    [ProducesResponseType(typeof(BaseResponse<QuestionBankQuestionDto>), 200)]
-    [ProducesResponseType(typeof(BaseResponse), 404)]
-    public async Task<IActionResult> UpdateQuestion(Guid quizId, [FromBody] UpdateQuestionBankQuestionRequest request)
-    {
-        var userId = User.GetUserId();
-        var result = await _mediator.Send(new UpdateQuestionBankQuestionCommand(
-            userId,
-            quizId,
-            request.Question,
-            request.Options,
-            request.CorrectAnswer,
-            request.Explanation,
-            request.Difficulty));
-
-        if (!result.IsSuccess)
-            return result.ErrorCode == "QUESTION_NOT_FOUND"
-                ? NotFound(BaseResponse<QuestionBankQuestionDto>.Fail(result.Message, result.ErrorCode))
-                : BadRequest(BaseResponse<QuestionBankQuestionDto>.Fail(result.Message, result.ErrorCode));
-
-        return Ok(BaseResponse<QuestionBankQuestionDto>.Ok(result.Data!, result.Message));
-    }
-
-    [HttpDelete("{quizId:guid}")]
-    [ProducesResponseType(typeof(BaseResponse), 200)]
-    [ProducesResponseType(typeof(BaseResponse), 404)]
-    public async Task<IActionResult> DeleteQuestion(Guid quizId)
-    {
-        var userId = User.GetUserId();
-        var result = await _mediator.Send(new DeleteQuestionBankQuestionCommand(userId, quizId));
-        if (!result.IsSuccess)
-            return NotFound(new BaseResponse { Success = false, Message = result.Message, ErrorCode = result.ErrorCode });
-
-        return Ok(new BaseResponse { Success = true, Message = result.Message });
-    }
 }

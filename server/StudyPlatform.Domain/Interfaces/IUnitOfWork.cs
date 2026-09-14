@@ -26,7 +26,6 @@ public interface IUnitOfWork : IDisposable
     IStudyGroupMemberRepository StudyGroupMembers { get; }
     IStudyGroupSharedCourseRepository StudyGroupSharedCourses { get; }
     IGroupChatMessageRepository GroupChatMessages { get; }
-    IConceptLinkRepository ConceptLinks { get; }
     IFlashcardSrsDataRepository FlashcardSrs { get; }
     IStudySessionRepository StudySessions { get; }
     IMistakeEntryRepository MistakeEntries { get; }

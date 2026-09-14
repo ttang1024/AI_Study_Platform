@@ -37,7 +37,6 @@ export * from './utils/summary';
 export * from './utils/validatePassword';
 export * from './utils/xmindMarkdown';
 export * from './services/authService';
-export * from './services/conceptLinksService';
 export * from './services/languageService';
 export * from './services/shareService';
 export * from './services/practiceService';

@@ -5,7 +5,6 @@ import CalendarClock from 'lucide-react-native/icons/calendar-clock';
 import ChevronRight from 'lucide-react-native/icons/chevron-right';
 import HelpCircle from 'lucide-react-native/icons/circle-question-mark';
 import Layers from 'lucide-react-native/icons/layers';
-import Network from 'lucide-react-native/icons/network';
 import NotebookPen from 'lucide-react-native/icons/notebook-pen';
 import SquareLibrary from 'lucide-react-native/icons/square-library';
 import TrendingUp from 'lucide-react-native/icons/trending-up';
@@ -25,7 +24,6 @@ const HUB_ITEMS = [
   { href: '/study/planner', icon: CalendarClock, color: Colors.blue, title: 'Planner', subtitle: 'Exams, cram sheets, mocks' },
   { href: '/study/groups', icon: Users, color: Colors.purple, title: 'Study Groups', subtitle: 'Chat, boards, battles' },
   { href: '/study/insights', icon: TrendingUp, color: Colors.primary, title: 'Insights', subtitle: 'Time, accuracy, mastery' },
-  { href: '/study/concepts', icon: Network, color: Colors.blue, title: 'Concepts', subtitle: 'Links, gaps, learning path' },
 ] as const;
 
 export default function StudyHubScreen() {

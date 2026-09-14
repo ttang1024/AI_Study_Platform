@@ -32,7 +32,6 @@ public class UnitOfWork : IUnitOfWork
     private IStudyGroupMemberRepository? _studyGroupMembers;
     private IStudyGroupSharedCourseRepository? _studyGroupSharedCourses;
     private IGroupChatMessageRepository? _groupChatMessages;
-    private IConceptLinkRepository? _conceptLinks;
     private IFlashcardSrsDataRepository? _flashcardSrs;
     private IStudySessionRepository? _studySessions;
     private IMistakeEntryRepository? _mistakeEntries;
@@ -78,7 +77,6 @@ public class UnitOfWork : IUnitOfWork
     public IStudyGroupMemberRepository StudyGroupMembers => _studyGroupMembers ??= new StudyGroupMemberRepository(_context);
     public IStudyGroupSharedCourseRepository StudyGroupSharedCourses => _studyGroupSharedCourses ??= new StudyGroupSharedCourseRepository(_context);
     public IGroupChatMessageRepository GroupChatMessages => _groupChatMessages ??= new GroupChatMessageRepository(_context);
-    public IConceptLinkRepository ConceptLinks => _conceptLinks ??= new ConceptLinkRepository(_context);
     public IFlashcardSrsDataRepository FlashcardSrs => _flashcardSrs ??= new FlashcardSrsDataRepository(_context);
     public IStudySessionRepository StudySessions => _studySessions ??= new StudySessionRepository(_context);
     public IMistakeEntryRepository MistakeEntries => _mistakeEntries ??= new MistakeEntryRepository(_context);

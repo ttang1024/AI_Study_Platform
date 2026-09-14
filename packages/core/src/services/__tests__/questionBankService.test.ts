@@ -35,19 +35,6 @@ describe('questionBankService', () => {
     expect(result).toEqual([])
   })
 
-  it('updateQuestion patches the payload', async () => {
-    const payload = { question: 'Q', options: ['A', 'B'], correctAnswer: 'A', explanation: 'E', difficulty: 'easy' as const }
-    vi.mocked(fakeHttp.patch).mockResolvedValueOnce({ data: { data: { ...payload, quizId: 'q-1' } } })
-
-    await service.updateQuestion('q-1', payload)
-
-    expect(fakeHttp.patch).toHaveBeenCalledWith('/api/question-bank/q-1', payload)
-  })
-
-  it('deleteQuestion deletes by id', async () => {
-    await service.deleteQuestion('q-1')
-    expect(fakeHttp.delete).toHaveBeenCalledWith('/api/question-bank/q-1')
-  })
 
   it('recordAttempt posts the selected answer', async () => {
     vi.mocked(fakeHttp.post).mockResolvedValueOnce({ data: { data: { isCorrect: true } } })

@@ -32,7 +32,6 @@ public class AppDbContext : DbContext
     public DbSet<StudyGroupMember> StudyGroupMembers => Set<StudyGroupMember>();
     public DbSet<StudyGroupSharedCourse> StudyGroupSharedCourses => Set<StudyGroupSharedCourse>();
     public DbSet<GroupChatMessage> GroupChatMessages => Set<GroupChatMessage>();
-    public DbSet<ConceptLink> ConceptLinks => Set<ConceptLink>();
     public DbSet<FlashcardSrsData> FlashcardSrs => Set<FlashcardSrsData>();
     public DbSet<CacheEntry> CacheEntries => Set<CacheEntry>();
     public DbSet<VideoTranscriptEntry> VideoTranscriptEntries => Set<VideoTranscriptEntry>();

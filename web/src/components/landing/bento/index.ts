@@ -14,7 +14,6 @@ export { BentoInsightsCard } from './BentoInsightsCard';
 export { BentoSearchCard } from './BentoSearchCard';
 export { BentoShareCard } from './BentoShareCard';
 export { BentoPracticeCard } from './BentoPracticeCard';
-export { BentoKnowledgeGraphCard } from './BentoKnowledgeGraphCard';
 export { BentoOfflineCard } from './BentoOfflineCard';
 export { BentoEverywhereCard } from './BentoEverywhereCard';
 export { BentoCitationCard } from './BentoCitationCard';

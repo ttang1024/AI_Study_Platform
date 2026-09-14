@@ -1,6 +1,6 @@
-import React, { lazy } from 'react';
+import React from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
-import { BarChart3, Target, Brain, Network } from 'lucide-react';
+import { BarChart3, Target, Brain } from 'lucide-react';
 import { AnalyticsSection } from '../components/dashboard/AnalyticsSection';
 import { ActivityHeatmapSection } from '../components/dashboard/ActivityHeatmapSection';
 import { ReinforcementPanel } from '../components/reinforcement/ReinforcementPanel';
@@ -8,7 +8,7 @@ import { RetentionSection } from '../components/dashboard/RetentionSection';
 import { CalibrationSection } from '../components/dashboard/CalibrationSection';
 import { PageTab, PageTabBar, PageTabBlurb, PageTabPanels, useTabParam } from '../components/common/PageTabs';
 
-type Tab = 'analytics' | 'retention' | 'reinforcement' | 'graph';
+type Tab = 'analytics' | 'retention' | 'reinforcement';
 
 /** Two kinds of calibration, side by side: RetentionSection grades the FSRS scheduler's predicted
  *  recall, CalibrationSection grades the learner's own sense of what they know. */
@@ -26,10 +26,6 @@ const AnalyticsPanel: React.FC = () => (
     <AnalyticsSection />
   </div>
 );
-
-// d3 and the graph simulation are worth ~a page of their own, so this tab stays behind a lazy
-// import even though the rest of Insights is eager.
-const GraphTab = lazy(() => import('./knowledgeGraph/GraphTab').then(m => ({ default: m.GraphTab })));
 
 const TABS: PageTab<Tab>[] = [
   {
@@ -52,13 +48,6 @@ const TABS: PageTab<Tab>[] = [
     icon: Target,
     panel: ReinforcementPanel,
     blurb: 'Strengthen weak areas from quiz mistakes, hard flashcards and unmastered terms.',
-  },
-  {
-    id: 'graph',
-    label: 'Concept map',
-    icon: Network,
-    panel: GraphTab,
-    blurb: 'Connect concepts, notes, quizzes, flashcards and materials across courses.',
   },
 ];
 

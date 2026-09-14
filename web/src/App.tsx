@@ -48,7 +48,6 @@ const SearchResultsPage = lazyPage(() => import('./pages/SearchResultsPage'), 'S
 const SpacesPage = lazyPage(() => import('./pages/SpacesPage'), 'SpacesPage');
 const StudyGroupDetailPage = lazyPage(() => import('./pages/StudyGroupDetailPage'), 'StudyGroupDetailPage');
 const ChatListPage = lazyPage(() => import('./pages/ChatListPage'), 'ChatListPage');
-// Insights gained the Concept map tab (the old /knowledge-graph page).
 const InsightsPage = lazyPage(() => import('./pages/InsightsPage'), 'InsightsPage');
 const OfflinePage = lazyPage(() => import('./pages/OfflinePage'), 'OfflinePage');
 const DocumentDetailsPage = lazyPage(() => import('./pages/DocumentDetailsPage'), 'DocumentDetailsPage');
@@ -152,7 +151,6 @@ export default function App() {
                     {/* Insights — analytics, retention, reinforcement, concept map. */}
                     <Route path="insights" element={<InsightsPage />} />
                     <Route path="analytics" element={<Navigate to="/insights" replace />} />
-                    <Route path="knowledge-graph" element={<TabRedirect to="/insights" extra={{ tab: 'graph' }} />} />
                     <Route path="reinforcement-center" element={<ReinforcementRedirect />} />
 
                     {/* Shared spaces — study groups. */}

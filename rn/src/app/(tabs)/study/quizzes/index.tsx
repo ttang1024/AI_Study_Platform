@@ -4,13 +4,12 @@ import { StyleSheet, View } from 'react-native';
 import { SegmentedTabs } from '@/components/SegmentedTabs';
 import { HistoryTab } from '@/components/quiz/HistoryTab';
 import { MistakesTab } from '@/components/quiz/MistakesTab';
-import { QuestionBankTab } from '@/components/quiz/QuestionBankTab';
 import { Colors, Spacing } from '@/constants/theme';
 
-type Tab = 'bank' | 'mistakes' | 'history';
+type Tab = 'mistakes' | 'history';
 
 export default function QuizzesScreen() {
-  const [tab, setTab] = useState<Tab>('bank');
+  const [tab, setTab] = useState<Tab>('mistakes');
 
   return (
     <View style={styles.root}>
@@ -19,13 +18,11 @@ export default function QuizzesScreen() {
           value={tab}
           onChange={setTab}
           options={[
-            { value: 'bank', label: 'Question Bank' },
             { value: 'mistakes', label: 'Mistakes' },
             { value: 'history', label: 'History' },
           ]}
         />
       </View>
-      {tab === 'bank' && <QuestionBankTab />}
       {tab === 'mistakes' && <MistakesTab />}
       {tab === 'history' && <HistoryTab />}
     </View>

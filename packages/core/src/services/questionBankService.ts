@@ -25,14 +25,6 @@ export interface QuestionBankFilters {
   difficulty?: QuestionDifficulty;
 }
 
-export interface UpdateQuestionBankQuestion {
-  question: string;
-  options: string[];
-  correctAnswer: string;
-  explanation: string;
-  difficulty: QuestionDifficulty;
-}
-
 export const DIFFICULTY_LABELS: Record<QuestionDifficulty, string> = {
   easy: 'Beginner',
   medium: 'Intermediate',
@@ -51,20 +43,7 @@ export function createQuestionBankService(http: HttpClient) {
       return response.data.data ?? [];
     },
 
-    async updateQuestion(
-      quizId: string,
-      payload: UpdateQuestionBankQuestion,
-    ): Promise<QuestionBankQuestion> {
-      const response = await http.patch<{ data: QuestionBankQuestion }>(
-        `/api/question-bank/${quizId}`,
-        payload,
-      );
-      return response.data.data;
-    },
 
-    async deleteQuestion(quizId: string): Promise<void> {
-      await http.delete(`/api/question-bank/${quizId}`);
-    },
 
     /** Wrong answers land in the mistake notebook; correct ones resolve an open entry. */
     async recordAttempt(quizId: string, selectedAnswer: string): Promise<{ isCorrect: boolean }> {
