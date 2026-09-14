@@ -13,7 +13,7 @@ const feedbackTypes: { id: FeedbackType; label: string; icon: React.ElementType;
   { id: 'general', label: 'General Feedback', icon: MessageCircle, description: 'Share your thoughts or experience' },
 ];
 
-/** The Feedback tab of /settings. The old standalone /feedback route redirects to ?tab=feedback. */
+/** The feedback form, shown in a drawer from the sidebar's profile menu. */
 export const FeedbackTab: React.FC = () => {
   const [type, setType] = useState<FeedbackType>('general');
   const [subject, setSubject] = useState('');

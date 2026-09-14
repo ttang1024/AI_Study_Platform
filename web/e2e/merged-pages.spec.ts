@@ -34,16 +34,6 @@ for (const [path, url, tab] of routes) {
   })
 }
 
-test('probe /feedback lands on the settings feedback tab', async ({ page }) => {
-  const errors: string[] = []
-  page.on('pageerror', e => errors.push(e.message))
-  await setupAuthenticatedStudyApp(page)
-  await page.goto('/feedback')
-  await expect(page).toHaveURL(/\/settings\?tab=feedback/)
-  await expect(page.getByRole('heading', { name: /^feedback$/i })).toBeVisible()
-  expect(errors).toEqual([])
-})
-
 /**
  * Browse and Add were the two tabs of /library and are two pages now, so the library routes are
  * checked by heading rather than by selected tab.

@@ -8,6 +8,7 @@ import {
   User, MessageSquarePlus, Search, Users, Bot,
   LineChart, Wand2,
 } from 'lucide-react';
+import { FeedbackTab } from '../settings/FeedbackTab';
 import { cn } from '../../utils/cn';
 import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from '../../i18n';
@@ -47,6 +48,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isCollapsed, 
   const { t } = useTranslation();
 
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
   const [tooltip, setTooltip] = useState<{ label: string; y: number } | null>(null);
 
@@ -262,7 +264,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isCollapsed, 
                   Settings
                 </button>
                 <button
-                  onClick={() => { navigate('/settings?tab=feedback'); setIsProfileOpen(false); }}
+                  onClick={() => { setIsFeedbackOpen(true); setIsProfileOpen(false); }}
                   className="flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-sm text-text-main hover:bg-[var(--primary)]/10 hover:text-[var(--primary)] transition-all"
                 >
                   <MessageSquarePlus size={16} />
@@ -281,6 +283,34 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isCollapsed, 
           </div>
         </div>
       </aside>
+
+      {/* Feedback drawer — reached from the profile menu, so it needs no Settings tab. */}
+      {isFeedbackOpen && ReactDOM.createPortal(
+        <>
+          <div
+            className="fixed inset-0 z-[9998] bg-black/40 backdrop-blur-sm"
+            onClick={() => setIsFeedbackOpen(false)}
+          />
+          <div className="fixed inset-y-0 right-0 z-[9999] w-full max-w-lg flex flex-col bg-[var(--bg-sidebar)] shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[var(--border-color)] px-6 py-4 shrink-0">
+              <div className="flex items-center gap-2">
+                <MessageSquarePlus size={18} className="text-[var(--primary)]" />
+                <h2 className="text-base font-bold text-text-main">Feedback</h2>
+              </div>
+              <button
+                onClick={() => setIsFeedbackOpen(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-xl text-text-muted hover:bg-zinc-100 hover:text-text-main transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6">
+              <FeedbackTab />
+            </div>
+          </div>
+        </>,
+        document.body,
+      )}
 
       {/* Portal tooltip — rendered outside aside to avoid overflow/transform clipping */}
       {isCollapsed && tooltip && ReactDOM.createPortal(

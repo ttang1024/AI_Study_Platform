@@ -43,7 +43,7 @@ test.describe('Settings page', () => {
   })
 
   test('offers a data export and account deletion behind a typed confirmation', async ({ page }) => {
-    await page.getByRole('button', { name: /your data/i }).click()
+    await page.getByRole('button', { name: /security/i }).click()
 
     await expect(page.getByRole('button', { name: /request an export/i })).toBeVisible()
 
@@ -90,8 +90,8 @@ test.describe('Reinforcement Center page', () => {
   // The standalone page was merged into Insights as a tab; /reinforcement-center is now
   // a back-compat redirect (see ReinforcementRedirect in App.tsx). Assert that redirect
   // still holds, rather than the retired page title.
-  test('redirects into the Insights reinforcement tab and shows its description', async ({ page }) => {
-    await expect(page).toHaveURL(/\/insights\?tab=reinforcement/)
+  test('redirects into the Insights analytics tab and shows its description', async ({ page }) => {
+    await expect(page).toHaveURL(/\/insights\?tab=analytics/)
     await expect(page.getByText(/strengthen weak areas/i)).toBeVisible()
   })
 

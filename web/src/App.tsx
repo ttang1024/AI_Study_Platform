@@ -72,7 +72,7 @@ const ReinforcementRedirect: React.FC = () => {
   const [params] = useSearchParams();
   const module = params.get('tab');
   const suffix = (module === 'quiz' || module === 'glossary' || module === 'flashcards') ? `&module=${module}` : '';
-  return <Navigate to={`/insights?tab=reinforcement${suffix}`} replace />;
+  return <Navigate to={`/insights?tab=analytics${suffix}`} replace />;
 };
 
 /**
@@ -148,7 +148,7 @@ export default function App() {
 
                     <Route path="flashcards" element={<FlashcardsPage />} />
 
-                    {/* Insights — analytics, retention, reinforcement, concept map. */}
+                    {/* Insights — analytics (with reinforcement) and retention. */}
                     <Route path="insights" element={<InsightsPage />} />
                     <Route path="analytics" element={<Navigate to="/insights" replace />} />
                     <Route path="reinforcement-center" element={<ReinforcementRedirect />} />
@@ -159,7 +159,6 @@ export default function App() {
 
                     <Route path="settings" element={<SettingsPage />} />
                     {/* Feedback was its own page; it is a Settings tab now. */}
-                    <Route path="feedback" element={<TabRedirect to="/settings" extra={{ tab: 'feedback' }} />} />
                     <Route path="offline" element={<OfflinePage />} />
                     <Route path="search" element={<SearchResultsPage />} />
                     <Route path="chat" element={<ChatListPage />} />
