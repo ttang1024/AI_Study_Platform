@@ -92,7 +92,7 @@ test.describe('Reinforcement Center page', () => {
   // still holds, rather than the retired page title.
   test('redirects into the Insights analytics tab and shows its description', async ({ page }) => {
     await expect(page).toHaveURL(/\/insights\?tab=analytics/)
-    await expect(page.getByText(/strengthen weak areas/i)).toBeVisible()
+    await expect(page.getByText(/weak spots worth reinforcing/i)).toBeVisible()
   })
 
   test('shows the three study modules', async ({ page }) => {

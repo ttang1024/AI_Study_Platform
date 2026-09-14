@@ -91,17 +91,13 @@ test.describe('Authenticated application', () => {
     await expect(page.getByText(/review/i).first()).toBeVisible()
   })
 
-  test('covers quiz history and question bank tabs', async ({ page }) => {
+  test('covers the quiz history and mistakes tabs', async ({ page }) => {
     // The Practice Center opens on Practice; history is a tab of the same page.
     await page.goto('/quizzes?tab=history')
 
     await expect(page.getByRole('heading', { name: /practice center/i })).toBeVisible()
     await expect(page.getByText('Cell Biology.pdf')).toBeVisible()
     await expect(page.getByText('4/5')).toBeVisible()
-
-    await page.getByRole('tab', { name: /question bank/i }).click()
-    await expect(page.getByPlaceholder(/search questions/i)).toBeVisible()
-    await expect(page.getByText('Which organelle makes ATP?')).toBeVisible()
 
     await page.getByRole('tab', { name: /review mistakes/i }).click()
     // With no mistakes in the fixture the notebook shows its empty state.

@@ -8,9 +8,6 @@ import { setupAuthenticatedStudyApp } from './fixtures'
  */
 const routes: [string, RegExp, RegExp][] = [
   // path, expected final URL, expected selected tab
-  ['/spaces', /\/spaces/, /study groups/i],
-  ['/groups', /\/spaces\?tab=groups/, /study groups/i],
-  ['/classrooms', /\/spaces\?tab=classrooms/, /classrooms/i],
   ['/quizzes', /\/quizzes/, /^practice$/i],
   ['/practice', /\/quizzes\?tab=practice/, /^practice$/i],
   ['/planner', /\/quizzes\?tab=planner/, /planner/i],
@@ -19,7 +16,6 @@ const routes: [string, RegExp, RegExp][] = [
   ['/notes', /\/materials\?tab=notes/, /^notes$/i],
   ['/glossary', /\/materials\?tab=glossary/, /glossary/i],
   ['/insights', /\/insights/, /analytics/i],
-  ['/knowledge-graph', /\/insights\?tab=graph/, /concept map/i],
 ]
 
 for (const [path, url, tab] of routes) {
@@ -33,6 +29,24 @@ for (const [path, url, tab] of routes) {
     expect(errors).toEqual([])
   })
 }
+
+/**
+ * Spaces lost its Classrooms half, so it is a single page again rather than a tab hub — checked by
+ * heading, and /groups still has to land on it.
+ */
+test('probe /spaces and /groups land on the study-groups page', async ({ page }) => {
+  const errors: string[] = []
+  page.on('pageerror', e => errors.push(e.message))
+  await setupAuthenticatedStudyApp(page)
+
+  await page.goto('/spaces')
+  await expect(page.getByRole('heading', { name: /study groups/i })).toBeVisible()
+
+  await page.goto('/groups')
+  await expect(page).toHaveURL(/\/spaces/)
+  await expect(page.getByRole('heading', { name: /study groups/i })).toBeVisible()
+  expect(errors).toEqual([])
+})
 
 /**
  * Browse and Add were the two tabs of /library and are two pages now, so the library routes are
