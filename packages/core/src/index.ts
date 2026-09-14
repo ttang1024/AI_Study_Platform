@@ -42,7 +42,6 @@ export * from './services/languageService';
 export * from './services/shareService';
 export * from './services/practiceService';
 export * from './services/courseService';
-export * from './services/handwritingService';
 export * from './services/searchService';
 export * from './services/podcastService';
 export * from './services/recommendationService';

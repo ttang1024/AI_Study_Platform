@@ -313,32 +313,6 @@ Return ONLY a JSON array of dialogue turns, no markdown, no code blocks:
             cancellationToken);
     }
 
-    public Task<string> GradeHandwrittenWorkAsync(
-        IReadOnlyList<(byte[] data, string mimeType)> pages,
-        string? problemStatement,
-        CancellationToken cancellationToken = default)
-    {
-        if (pages.Count == 0)
-            throw new InvalidOperationException("At least one image of the work is required.");
-
-        var prompt = AiPrompts.GradeHandwrittenWork(problemStatement);
-
-        // Temperature is low: grading should be reproducible. A learner who re-submits the same photo
-        // and gets a different verdict has no reason to trust either one.
-        return CacheGeneratedResultAsync(
-            "grade-handwriting",
-            HashPages(pages, prompt),
-            ct => SendMultimodalTextAsync(
-                systemPrompt: null,
-                history: [],
-                userMessage: prompt,
-                attachments: pages,
-                temperature: 0.2,
-                maxTokens: 4096,
-                cleanJson: true,
-                cancellationToken: ct),
-            cancellationToken);
-    }
 
     private static string HashPages(IReadOnlyList<(byte[] data, string mimeType)> pages, string prompt)
     {

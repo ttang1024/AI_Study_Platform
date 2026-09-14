@@ -47,7 +47,6 @@ const SearchResultsPage = lazyPage(() => import('./pages/SearchResultsPage'), 'S
 // Spaces = study groups.
 const SpacesPage = lazyPage(() => import('./pages/SpacesPage'), 'SpacesPage');
 const StudyGroupDetailPage = lazyPage(() => import('./pages/StudyGroupDetailPage'), 'StudyGroupDetailPage');
-const ToolsPage = lazyPage(() => import('./pages/ToolsPage'), 'ToolsPage');
 const ChatListPage = lazyPage(() => import('./pages/ChatListPage'), 'ChatListPage');
 // Insights gained the Concept map tab (the old /knowledge-graph page).
 const InsightsPage = lazyPage(() => import('./pages/InsightsPage'), 'InsightsPage');
@@ -90,13 +89,6 @@ const LibraryRoute: React.FC = () => {
   return <Navigate to={`/library/add${query ? `?${query}` : ''}`} replace />;
 };
 
-/** The Code scratchpad left the Practice Center for /tools; old deep links follow it. */
-const QuizzesRoute: React.FC = () => {
-  const [params] = useSearchParams();
-  if (params.get('tab') === 'code') return <Navigate to="/tools?tab=code" replace />;
-  return <QuizManagementPage />;
-};
-
 /**
  * A retired page's route, kept alive as a redirect into the tab that replaced it. Existing query
  * params ride along, so /practice?smart=1 and /summarizer?tab=web&courseId=… still do what they did.
@@ -135,11 +127,6 @@ export default function App() {
                     <Route path="dashboard" element={<DashboardPage />} />
                     {/* The Today plan now lives as the dashboard hero + the Insights → Analytics tab. */}
                     <Route path="today" element={<Navigate to="/dashboard" replace />} />
-                    <Route path="tools" element={<ToolsPage />} />
-                    {/* Check Working / Writing / Language were three pages; they are tabs of /tools now. */}
-                    <Route path="handwriting" element={<Navigate to="/tools?tab=working" replace />} />
-                    <Route path="essays" element={<Navigate to="/tools?tab=writing" replace />} />
-                    <Route path="language" element={<Navigate to="/tools?tab=language" replace />} />
 
                     {/* Library — browse what you have; adding content is the page next door. */}
                     <Route path="library" element={<LibraryRoute />} />
@@ -150,7 +137,7 @@ export default function App() {
                     <Route path="summarizer" element={<TabRedirect to="/library/add" />} />
 
                     {/* Practice Center — practice, planner, quiz history, mistakes, bank. */}
-                    <Route path="quizzes" element={<QuizzesRoute />} />
+                    <Route path="quizzes" element={<QuizManagementPage />} />
                     <Route path="practice" element={<TabRedirect to="/quizzes" extra={{ tab: 'practice' }} />} />
                     <Route path="planner" element={<TabRedirect to="/quizzes" extra={{ tab: 'planner' }} />} />
                     <Route path="mistakes" element={<TabRedirect to="/quizzes" extra={{ tab: 'mistakes' }} />} />

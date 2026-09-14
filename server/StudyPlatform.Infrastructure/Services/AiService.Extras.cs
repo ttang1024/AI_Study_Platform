@@ -73,21 +73,6 @@ Output ONLY the translation, with no preamble.
         return SendTextAsync(null, [("user", prompt)], 0.2, 4096, cleanJson: false, cancellationToken);
     }
 
-    public Task<string> GradeEssayAsync(
-        string criteriaJson, string? promptText, string essayText, CancellationToken cancellationToken = default)
-    {
-        var prompt = AiPrompts.GradeEssay(
-            criteriaJson,
-            promptText,
-            // Generous: essays are the one artifact where truncating the middle would silently change
-            // the thing being marked. Long pieces are cut at the end, where the model can at least
-            // see it has been cut off.
-            AiResponseParsing.TruncateContent(essayText, 12000));
-
-        // Low temperature: a rubric score that moves between runs on identical text is not a mark.
-        return SendTextAsync(null, [("user", prompt)], 0.2, 2048, cleanJson: true, cancellationToken);
-    }
-
     public Task<string> AnswerQuestionAsync(string documentContent, string question, CancellationToken cancellationToken = default)
     {
         var prompt = $@"Answer the following question using the supplied source context when relevant. Give a clear, accurate, and helpful answer. Do not mention the source format or use meta phrases such as ""this document"", ""the document"", ""this video"", ""the video"", ""the transcript"", ""the source material"", ""the content"", or similar wording unless quoting the user.

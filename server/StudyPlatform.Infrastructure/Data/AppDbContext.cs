@@ -47,8 +47,6 @@ public class AppDbContext : DbContext
     public DbSet<AiUsageLog> AiUsageLogs => Set<AiUsageLog>();
     public DbSet<ContentEmbedding> ContentEmbeddings => Set<ContentEmbedding>();
     public DbSet<AiJob> AiJobs => Set<AiJob>();
-    public DbSet<Rubric> Rubrics => Set<Rubric>();
-    public DbSet<EssaySubmission> EssaySubmissions => Set<EssaySubmission>();
     public DbSet<UserTwoFactor> UserTwoFactors => Set<UserTwoFactor>();
     public DbSet<AuditLogEntry> AuditLogEntries => Set<AuditLogEntry>();
     public DbSet<DataExportRequest> DataExportRequests => Set<DataExportRequest>();

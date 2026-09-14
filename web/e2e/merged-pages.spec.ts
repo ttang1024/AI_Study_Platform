@@ -91,13 +91,6 @@ test('probe practice smart deep link survives the redirect', async ({ page }) =>
   await expect(page).toHaveURL(/\/quizzes\?tab=practice&smart=1/)
 })
 
-test('probe the code scratchpad moved from the Practice Center to Study tools', async ({ page }) => {
-  await setupAuthenticatedStudyApp(page)
-  await page.goto('/quizzes?tab=code')
-  await expect(page).toHaveURL(/\/tools\?tab=code/)
-  await expect(page.getByRole('tab', { name: /^code$/i })).toHaveAttribute('aria-selected', 'true')
-})
-
 test('probe switching tabs keeps a mounted panel alive', async ({ page }) => {
   await setupAuthenticatedStudyApp(page)
   await page.goto('/materials')

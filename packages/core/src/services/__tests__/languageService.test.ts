@@ -21,11 +21,4 @@ describe('languageService', () => {
     expect(result).toBe('Bonjour')
   })
 
-  it('mineSentence posts the input and returns the new card id', async () => {
-    const input = { sentence: 'Le chat dort.', targetWord: 'chat', meaning: 'cat', documentId: 'd-1' }
-    vi.mocked(fakeHttp.post).mockResolvedValueOnce({ data: { data: 'card-1' } })
-    const result = await service.mineSentence(input)
-    expect(fakeHttp.post).toHaveBeenCalledWith('/api/language/mine', input)
-    expect(result).toBe('card-1')
-  })
 })

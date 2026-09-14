@@ -61,8 +61,6 @@ public class AccountEraser : IAccountEraser
         await _db.DocumentAnnotations.Where(x => x.UserId == userId).ExecuteDeleteAsync(cancellationToken);
         await _db.ContentEmbeddings.Where(x => x.UserId == userId).ExecuteDeleteAsync(cancellationToken);
         await _db.Notes.Where(x => x.UserId == userId).ExecuteDeleteAsync(cancellationToken);
-        await _db.EssaySubmissions.Where(x => x.UserId == userId).ExecuteDeleteAsync(cancellationToken);
-        await _db.Rubrics.Where(x => x.UserId == userId).ExecuteDeleteAsync(cancellationToken);
 
         await _db.ChatMessages.Where(x => x.UserId == userId).ExecuteDeleteAsync(cancellationToken);
         await _db.ChatConversations.Where(x => x.UserId == userId).ExecuteDeleteAsync(cancellationToken);

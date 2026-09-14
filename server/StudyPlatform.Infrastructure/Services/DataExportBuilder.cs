@@ -118,10 +118,6 @@ public class DataExportBuilder : IDataExportBuilder
                 .AsNoTracking().Where(m => m.UserId == userId)
                 .OrderBy(m => m.FirstMissedAt).ToListAsync(cancellationToken), cancellationToken);
 
-            await WriteJsonAsync(archive, "essays.json", await _db.EssaySubmissions
-                .AsNoTracking().Where(e => e.UserId == userId)
-                .OrderBy(e => e.CreatedAt).ToListAsync(cancellationToken), cancellationToken);
-
             await WriteJsonAsync(archive, "annotations.json", await _db.DocumentAnnotations
                 .AsNoTracking().Where(a => a.UserId == userId).ToListAsync(cancellationToken), cancellationToken);
 
@@ -173,7 +169,6 @@ public class DataExportBuilder : IDataExportBuilder
             .AppendLine("| glossary.json | Glossary terms |")
             .AppendLine("| worked-problems.json | Worked problems |")
             .AppendLine("| mistakes.json | Your mistakes notebook |")
-            .AppendLine("| essays.json | Essay drafts and their feedback |")
             .AppendLine("| annotations.json | Highlights and comments on documents |")
             .AppendLine("| study-sessions.json | Study session history |")
             .AppendLine("| chat-history.json | Conversations with the AI tutor |")

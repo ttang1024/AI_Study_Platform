@@ -6,7 +6,7 @@ import {
   LayoutDashboard, Library, Settings, LogOut, BrainCircuit,
   Award, NotebookPen, X, ChevronLeft, ChevronRight,
   User, MessageSquarePlus, Search, Users, Bot,
-  LineChart, PenLine, Wand2,
+  LineChart, Wand2,
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useAuth } from '../../context/AuthContext';
@@ -34,7 +34,6 @@ const navItems: { icon: typeof LayoutDashboard; labelKey: TranslationKey; path: 
   { icon: BrainCircuit, labelKey: 'nav.flashcards', path: '/flashcards' },
   { icon: Award, labelKey: 'nav.practiceCenter', path: '/quizzes' },
   { icon: NotebookPen, labelKey: 'nav.materials', path: '/materials' },
-  { icon: PenLine, labelKey: 'nav.tools', path: '/tools' },
   { icon: LineChart, labelKey: 'nav.insights', path: '/insights' },
   { icon: Bot, labelKey: 'nav.chat', path: '/chat' },
   { icon: Users, labelKey: 'nav.spaces', path: '/spaces' },
