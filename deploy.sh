@@ -947,7 +947,7 @@ jq -n \
   --arg jwtSecret "$JWT_SECRET" \
   --arg migrateOnStartup "$DATABASE_MIGRATE_ON_STARTUP" \
   --arg embeddingsProvider "${EMBEDDINGS_PROVIDER:-gemini}" \
-  --arg embeddingsModel "${EMBEDDINGS_MODEL:-text-embedding-004}" \
+  --arg embeddingsModel "${EMBEDDINGS_MODEL:-gemini-embedding-001}" \
   --arg embeddingsApiKey "$EMBEDDINGS_API_KEY" \
   --arg networkMode "$ECS_NETWORK_MODE" \
   --arg cpuArchitecture "$ECS_CPU_ARCHITECTURE" \

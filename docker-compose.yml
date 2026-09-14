@@ -122,7 +122,7 @@ services:
       Cors__AllowedOrigins__1: ${ADMIN_ORIGIN:-http://localhost:4200}
       AppLimits__DocumentUploadLimit: ${DOCUMENT_UPLOAD_LIMIT:-20}
       Embeddings__Provider: ${EMBEDDINGS_PROVIDER:-gemini}
-      Embeddings__Model: ${EMBEDDINGS_MODEL:-text-embedding-004}
+      Embeddings__Model: ${EMBEDDINGS_MODEL:-gemini-embedding-001}
       Embeddings__ApiKey: ${EMBEDDINGS_API_KEY:-}
       YouTube__SubtitleLanguages: ${YOUTUBE_SUBTITLE_LANGUAGES:-en.*,en}
       YouTube__ProxyUrl: ${YOUTUBE_PROXY_URL:-}
