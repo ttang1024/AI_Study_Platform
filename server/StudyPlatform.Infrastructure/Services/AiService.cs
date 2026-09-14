@@ -294,24 +294,6 @@ public partial class AiService : IAiService
             cancellationToken);
     }
 
-    public Task<string> GenerateAudioOverviewScriptAsync(string courseName, string materialsDigest, CancellationToken cancellationToken = default)
-    {
-        var prompt = $@"Write a lively two-host podcast dialogue that gives an engaging audio overview of the course ""{courseName}"".
-Host A (curious, asks sharp questions) and Host B (expert, explains clearly with concrete examples).
-Cover the most important concepts across the materials, connect them, and close with 2-3 key takeaways.
-Keep it conversational — short turns, natural interjections, no lists read aloud. Target 8-14 minutes of speech (roughly 1200-2000 words).
-
-Course materials digest:
-{AiResponseParsing.TruncateContent(materialsDigest, 12000)}
-
-Return ONLY a JSON array of dialogue turns, no markdown, no code blocks:
-[{{""speaker"":""A""|""B"",""text"":""...""}}]";
-        return CacheGeneratedResultAsync(
-            "audio-overview:text",
-            HashText(prompt),
-            ct => SendTextAsync(null, [("user", prompt)], 0.8, 8192, cleanJson: true, ct),
-            cancellationToken);
-    }
 
 
     private static string HashPages(IReadOnlyList<(byte[] data, string mimeType)> pages, string prompt)

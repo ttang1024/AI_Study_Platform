@@ -39,7 +39,6 @@ public class UnitOfWork : IUnitOfWork
     private IFlashcardReviewLogRepository? _flashcardReviewLogs;
     private IStreakCoverDayRepository? _streakCoverDays;
     private IUserCalendarFeedRepository? _userCalendarFeeds;
-    private ICourseAudioOverviewRepository? _courseAudioOverviews;
     private IAiJobRepository? _aiJobs;
     private IAiUsageRepository? _aiUsage;
     private IDataExportRequestRepository? _dataExportRequests;
@@ -83,7 +82,6 @@ public class UnitOfWork : IUnitOfWork
     public IFlashcardReviewLogRepository FlashcardReviewLogs => _flashcardReviewLogs ??= new FlashcardReviewLogRepository(_context);
     public IStreakCoverDayRepository StreakCoverDays => _streakCoverDays ??= new StreakCoverDayRepository(_context);
     public IUserCalendarFeedRepository UserCalendarFeeds => _userCalendarFeeds ??= new UserCalendarFeedRepository(_context);
-    public ICourseAudioOverviewRepository CourseAudioOverviews => _courseAudioOverviews ??= new CourseAudioOverviewRepository(_context);
     public IAiJobRepository AiJobs => _aiJobs ??= new AiJobRepository(_context);
     public IAiUsageRepository AiUsage => _aiUsage ??= new AiUsageRepository(_context);
     public IDataExportRequestRepository DataExportRequests => _dataExportRequests ??= new DataExportRequestRepository(_context);

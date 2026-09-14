@@ -44,9 +44,6 @@ public interface IAiService
     // Phase 3 additions
     Task<string> GenerateFlashcardBackAsync(string frontText, CancellationToken cancellationToken = default);
 
-    // Audio overview (NotebookLM-style two-host dialogue)
-    Task<string> GenerateAudioOverviewScriptAsync(string courseName, string materialsDigest, CancellationToken cancellationToken = default);
-
     // Streaming variants
     IAsyncEnumerable<string> StreamSummaryAsync(byte[] fileData, string mimeType, CancellationToken cancellationToken = default);
     IAsyncEnumerable<string> StreamSummaryAsync(string textContent, CancellationToken cancellationToken = default);

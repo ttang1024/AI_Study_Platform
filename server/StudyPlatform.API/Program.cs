@@ -257,8 +257,6 @@ builder.Services.AddHostedService<StaleAiJobReaper>();
 
 builder.Services.AddSingleton<AudioTranscriptionQueue>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<AudioTranscriptionQueue>());
-builder.Services.AddSingleton<AudioOverviewQueue>();
-builder.Services.AddHostedService(sp => sp.GetRequiredService<AudioOverviewQueue>());
 builder.Services.AddSingleton<AiJobQueue>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<AiJobQueue>());
 

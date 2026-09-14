@@ -33,7 +33,6 @@ public interface IUnitOfWork : IDisposable
     IFlashcardReviewLogRepository FlashcardReviewLogs { get; }
     IStreakCoverDayRepository StreakCoverDays { get; }
     IUserCalendarFeedRepository UserCalendarFeeds { get; }
-    ICourseAudioOverviewRepository CourseAudioOverviews { get; }
     IAiJobRepository AiJobs { get; }
     IAiUsageRepository AiUsage { get; }
     IDataExportRequestRepository DataExportRequests { get; }

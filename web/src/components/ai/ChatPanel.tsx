@@ -95,19 +95,6 @@ export const ChatPanel = forwardRef<ChatPanelRef, ChatPanelProps>(({
     }
   }, [messages, streamingContent]);
 
-  // Hands-free voice loop, part 2: when auto-read is on and the mic closes
-  // (silence timeout or tap), send the dictated text without touching the
-  // keyboard. Part 1 — reopening the mic after the reply is read — lives in
-  // handleSend below.
-  const prevListeningRef = useRef(false);
-  useEffect(() => {
-    if (prevListeningRef.current && !listening && speakReplies && input.trim() && !isLoading) {
-      void handleSend();
-    }
-    prevListeningRef.current = listening;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [listening]);
-
   // Stable identities so React.memo on ChatMessageRow actually skips re-renders while composing.
   const handleCopy = useCallback((id: string, text: string) => {
     navigator.clipboard.writeText(text);
@@ -163,13 +150,7 @@ export const ChatPanel = forwardRef<ChatPanelRef, ChatPanelProps>(({
           ]);
         }
         setStreamingContent('');
-        if (speakReplies && accumulated) {
-          // Hands-free loop: when both voice toggles are on, reopen the mic
-          // after the spoken reply finishes so the user can answer back.
-          void speak(replyId, accumulated, () => {
-            if (dictationSupported && !listening) toggleListening();
-          });
-        }
+        if (speakReplies && accumulated) void speak(replyId, accumulated);
       } else if (isExternal && onExternalSend) {
         await onExternalSend(msg);
       } else {

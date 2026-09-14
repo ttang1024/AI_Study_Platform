@@ -70,7 +70,6 @@ public class AccountEraser : IAccountEraser
         // anything belonging to this user — and it expires on its own. Deleting by it would evict
         // other users' cache entries for the same video.
         await _db.Videos.Where(x => x.UserId == userId).ExecuteDeleteAsync(cancellationToken);
-        await _db.CourseAudioOverviews.Where(x => x.UserId == userId).ExecuteDeleteAsync(cancellationToken);
         await _db.Documents.Where(x => x.UserId == userId).ExecuteDeleteAsync(cancellationToken);
         await _db.Courses.Where(x => x.UserId == userId).ExecuteDeleteAsync(cancellationToken);
 

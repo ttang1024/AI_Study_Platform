@@ -70,7 +70,7 @@ export const BentoTutorCard: React.FC = () => {
       </div>
 
       <p className="text-sm text-white/40 leading-relaxed">
-        Talk hands-free with a voice AI tutor — it listens, answers aloud, then reopens the mic. Snap a photo of a problem, or explain a topic and get graded teach-back feedback.
+        Dictate a question and hear the answer read aloud. Snap a photo of a problem, or explain a topic and get graded teach-back feedback.
       </p>
     </BentoCardShell>
   );
