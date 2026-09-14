@@ -46,14 +46,6 @@ public class UnitOfWork : IUnitOfWork
     private IGroupNoteRepository? _groupNotes;
     private IAiJobRepository? _aiJobs;
     private IAiUsageRepository? _aiUsage;
-    private IOrganizationRepository? _organizations;
-    private IOrganizationMemberRepository? _organizationMembers;
-    private IClassroomRepository? _classrooms;
-    private IClassroomEnrollmentRepository? _classroomEnrollments;
-    private IClassroomCourseRepository? _classroomCourses;
-    private IClassroomAssignmentRepository? _classroomAssignments;
-    private IClassroomSubmissionRepository? _classroomSubmissions;
-    private ISubscriptionRepository? _subscriptions;
     private IRubricRepository? _rubrics;
     private IEssaySubmissionRepository? _essaySubmissions;
     private IUserTwoFactorRepository? _userTwoFactors;
@@ -61,7 +53,6 @@ public class UnitOfWork : IUnitOfWork
     private ILibraryTagRepository? _libraryTags;
     private ISavedLibraryViewRepository? _savedLibraryViews;
     private ICourseCertificateRepository? _courseCertificates;
-    private IEssayPeerReviewRepository? _essayPeerReviews;
     private IUserFsrsSettingsRepository? _userFsrsSettings;
 
     public UnitOfWork(AppDbContext context)
@@ -107,14 +98,6 @@ public class UnitOfWork : IUnitOfWork
     public IGroupNoteRepository GroupNotes => _groupNotes ??= new GroupNoteRepository(_context);
     public IAiJobRepository AiJobs => _aiJobs ??= new AiJobRepository(_context);
     public IAiUsageRepository AiUsage => _aiUsage ??= new AiUsageRepository(_context);
-    public IOrganizationRepository Organizations => _organizations ??= new OrganizationRepository(_context);
-    public IOrganizationMemberRepository OrganizationMembers => _organizationMembers ??= new OrganizationMemberRepository(_context);
-    public IClassroomRepository Classrooms => _classrooms ??= new ClassroomRepository(_context);
-    public IClassroomEnrollmentRepository ClassroomEnrollments => _classroomEnrollments ??= new ClassroomEnrollmentRepository(_context);
-    public IClassroomCourseRepository ClassroomCourses => _classroomCourses ??= new ClassroomCourseRepository(_context);
-    public IClassroomAssignmentRepository ClassroomAssignments => _classroomAssignments ??= new ClassroomAssignmentRepository(_context);
-    public IClassroomSubmissionRepository ClassroomSubmissions => _classroomSubmissions ??= new ClassroomSubmissionRepository(_context);
-    public ISubscriptionRepository Subscriptions => _subscriptions ??= new SubscriptionRepository(_context);
     public IRubricRepository Rubrics => _rubrics ??= new RubricRepository(_context);
     public IEssaySubmissionRepository EssaySubmissions => _essaySubmissions ??= new EssaySubmissionRepository(_context);
     public IUserTwoFactorRepository UserTwoFactors => _userTwoFactors ??= new UserTwoFactorRepository(_context);
@@ -122,7 +105,6 @@ public class UnitOfWork : IUnitOfWork
     public ILibraryTagRepository LibraryTags => _libraryTags ??= new LibraryTagRepository(_context);
     public ISavedLibraryViewRepository SavedLibraryViews => _savedLibraryViews ??= new SavedLibraryViewRepository(_context);
     public ICourseCertificateRepository CourseCertificates => _courseCertificates ??= new CourseCertificateRepository(_context);
-    public IEssayPeerReviewRepository EssayPeerReviews => _essayPeerReviews ??= new EssayPeerReviewRepository(_context);
     public IUserFsrsSettingsRepository UserFsrsSettings => _userFsrsSettings ??= new UserFsrsSettingsRepository(_context);
 
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

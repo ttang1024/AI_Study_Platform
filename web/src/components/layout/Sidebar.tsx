@@ -26,7 +26,7 @@ interface SidebarProps {
 // re-renders the nav without rebuilding this list.
 // Ten entries, not fifteen: pages that answered the same question were merged into one page with
 // tabs, and the nav follows. Practice/Planner → Practice Center, Glossary → Materials, Concept map →
-// Insights, Classrooms → Spaces. One entry per page — browsing the library and feeding it (the
+// Insights, Groups → Spaces. One entry per page — browsing the library and feeding it (the
 // Summarizer, at /library/add) are two pages, so they are two entries.
 const navItems: { icon: typeof LayoutDashboard; labelKey: TranslationKey; path: string }[] = [
   { icon: LayoutDashboard, labelKey: 'nav.dashboard', path: '/dashboard' },

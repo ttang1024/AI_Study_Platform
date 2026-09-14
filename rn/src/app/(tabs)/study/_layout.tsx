@@ -22,7 +22,6 @@ export default function StudyLayout() {
       <Stack.Screen name="language" options={{ title: 'Language' }} />
       <Stack.Screen name="code" options={{ title: 'Code' }} />
       <Stack.Screen name="groups" options={{ headerShown: false }} />
-      <Stack.Screen name="classrooms" options={{ headerShown: false }} />
       <Stack.Screen name="planner" options={{ headerShown: false }} />
       <Stack.Screen name="calendar" options={{ title: 'Calendar' }} />
       <Stack.Screen name="insights" options={{ title: 'Insights' }} />

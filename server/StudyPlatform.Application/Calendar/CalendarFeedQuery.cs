@@ -1,6 +1,5 @@
 using System.Text;
 using MediatR;
-using StudyPlatform.Application.Classrooms;
 using StudyPlatform.Application.Common;
 using StudyPlatform.Domain.Interfaces;
 
@@ -17,12 +16,10 @@ public class GetCalendarFeedQueryHandler : IRequestHandler<GetCalendarFeedQuery,
     private const int HorizonDays = 14;
 
     private readonly IUnitOfWork _unitOfWork;
-    private readonly IMediator _mediator;
 
-    public GetCalendarFeedQueryHandler(IUnitOfWork unitOfWork, IMediator mediator)
+    public GetCalendarFeedQueryHandler(IUnitOfWork unitOfWork)
     {
         _unitOfWork = unitOfWork;
-        _mediator = mediator;
     }
 
     public async Task<Result<string>> Handle(GetCalendarFeedQuery request, CancellationToken cancellationToken)
@@ -76,23 +73,6 @@ public class GetCalendarFeedQueryHandler : IRequestHandler<GetCalendarFeedQuery,
                     summary: $"✏️ Study {plan.DailyMinutes} min — {plan.Title}",
                     description: "Planned session from your Easy Study exam plan.");
             }
-        }
-
-        // Classroom deadlines. These are the only events here with a consequence outside the app, so
-        // they carry the real due time rather than being flattened to an all-day block.
-        var deadlines = (await _mediator.Send(
-            new GetClassroomDeadlinesQuery(userId, HorizonDays), cancellationToken)).Data!;
-
-        foreach (var d in deadlines)
-        {
-            var isAssignment = d.ClassroomAssignmentId != null;
-            AddTimedEvent(sb,
-                uid: $"classroom-{d.ClassroomAssignmentId ?? d.CourseId ?? d.ClassroomId:N}-{d.DueAt:yyyyMMddHHmm}",
-                at: d.DueAt,
-                summary: isAssignment
-                    ? $"📝 Due: {d.Title}"
-                    : $"📘 Course due: {d.Title}",
-                description: $"{d.ClassroomName} — from your Easy Study classroom.");
         }
 
         sb.AppendLine("END:VCALENDAR");

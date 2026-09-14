@@ -16,7 +16,6 @@ public partial class AiService : IAiService
     private readonly IAppCache _cache;
     private readonly CacheOptions _cacheOptions;
     private readonly IAiUsageRecorder _usageRecorder;
-    private readonly IHostedAiKeyProvider _hostedKeys;
 
     public AiService(
         HttpClient httpClient,
@@ -24,8 +23,7 @@ public partial class AiService : IAiService
         IHttpContextAccessor httpContextAccessor,
         IAppCache cache,
         IOptions<CacheOptions> cacheOptions,
-        IAiUsageRecorder usageRecorder,
-        IHostedAiKeyProvider hostedKeys)
+        IAiUsageRecorder usageRecorder)
     {
         _httpClient = httpClient;
         _logger = logger;
@@ -33,7 +31,6 @@ public partial class AiService : IAiService
         _cache = cache;
         _cacheOptions = cacheOptions.Value;
         _usageRecorder = usageRecorder;
-        _hostedKeys = hostedKeys;
     }
 
     // ── Credentials ───────────────────────────────────────────────────────
@@ -51,8 +48,6 @@ public partial class AiService : IAiService
         var model = headers?["X-AI-Model"].FirstOrDefault();
         var key = headers?["X-AI-Key"].FirstOrDefault()?.Trim();
 
-        // A user who brought their own key always uses it, even on a hosted-key plan: it is the one
-        // they chose, and silently spending ours instead would be billing them for nothing.
         var hasOwnCredentials =
             !string.IsNullOrWhiteSpace(provider)
             && !string.IsNullOrWhiteSpace(model)
@@ -60,10 +55,6 @@ public partial class AiService : IAiService
 
         if (hasOwnCredentials)
             return new AiCredentials(provider!.ToLowerInvariant(), model!, key!, CurrentUserId());
-
-        var hosted = _hostedKeys.TryGetForCurrentRequest();
-        if (hosted != null)
-            return hosted;
 
         if (string.IsNullOrWhiteSpace(provider))
             throw new InvalidOperationException("No AI provider specified. Please configure a provider in Settings → AI Services.");

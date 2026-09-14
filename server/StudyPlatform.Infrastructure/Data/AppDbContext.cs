@@ -52,14 +52,6 @@ public class AppDbContext : DbContext
     public DbSet<AiUsageLog> AiUsageLogs => Set<AiUsageLog>();
     public DbSet<ContentEmbedding> ContentEmbeddings => Set<ContentEmbedding>();
     public DbSet<AiJob> AiJobs => Set<AiJob>();
-    public DbSet<Organization> Organizations => Set<Organization>();
-    public DbSet<OrganizationMember> OrganizationMembers => Set<OrganizationMember>();
-    public DbSet<Classroom> Classrooms => Set<Classroom>();
-    public DbSet<ClassroomEnrollment> ClassroomEnrollments => Set<ClassroomEnrollment>();
-    public DbSet<ClassroomCourse> ClassroomCourses => Set<ClassroomCourse>();
-    public DbSet<ClassroomAssignment> ClassroomAssignments => Set<ClassroomAssignment>();
-    public DbSet<ClassroomSubmission> ClassroomSubmissions => Set<ClassroomSubmission>();
-    public DbSet<Subscription> Subscriptions => Set<Subscription>();
     public DbSet<Rubric> Rubrics => Set<Rubric>();
     public DbSet<EssaySubmission> EssaySubmissions => Set<EssaySubmission>();
     public DbSet<UserTwoFactor> UserTwoFactors => Set<UserTwoFactor>();
@@ -69,7 +61,6 @@ public class AppDbContext : DbContext
     public DbSet<LibraryTagAssignment> LibraryTagAssignments => Set<LibraryTagAssignment>();
     public DbSet<SavedLibraryView> SavedLibraryViews => Set<SavedLibraryView>();
     public DbSet<CourseCertificate> CourseCertificates => Set<CourseCertificate>();
-    public DbSet<EssayPeerReview> EssayPeerReviews => Set<EssayPeerReview>();
     public DbSet<UserFsrsSettings> UserFsrsSettings => Set<UserFsrsSettings>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

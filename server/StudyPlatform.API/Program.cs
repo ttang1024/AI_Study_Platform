@@ -270,8 +270,6 @@ builder.Services.Configure<CacheOptions>(builder.Configuration.GetSection(CacheO
 builder.Services.Configure<VapidOptions>(builder.Configuration.GetSection(VapidOptions.SectionName));
 builder.Services.Configure<AiUsageOptions>(builder.Configuration.GetSection(AiUsageOptions.SectionName));
 builder.Services.Configure<EmbeddingOptions>(builder.Configuration.GetSection(EmbeddingOptions.SectionName));
-builder.Services.Configure<BillingOptions>(builder.Configuration.GetSection(BillingOptions.SectionName));
-builder.Services.Configure<HostedAiOptions>(builder.Configuration.GetSection(HostedAiOptions.SectionName));
 
 // Keeps the semantic index in step with the library (no-op until Embeddings:ApiKey is configured).
 builder.Services.AddHostedService<EmbeddingBackfillWorker>();
@@ -335,7 +333,6 @@ app.UseAuthorization();
 
 // After authentication so the caller's identity is known: resolves their plan once per request and
 // leaves it on the HttpContext for the hosted-key and quota paths, which cannot await.
-app.UseEntitlements();
 
 app.MapControllers();
 app.MapHub<GroupChatHub>("/hubs/group-chat");

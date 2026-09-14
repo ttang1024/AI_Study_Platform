@@ -27,34 +27,3 @@ public class CourseCertificateConfiguration : IEntityTypeConfiguration<CourseCer
         // destroy the record that it was once completed.
     }
 }
-
-public class EssayPeerReviewConfiguration : IEntityTypeConfiguration<EssayPeerReview>
-{
-    public void Configure(EntityTypeBuilder<EssayPeerReview> builder)
-    {
-        builder.HasKey(r => r.EssayPeerReviewId);
-
-        builder.Property(r => r.Status).IsRequired().HasMaxLength(16);
-        builder.Property(r => r.OverallComment).HasMaxLength(4000);
-        builder.Property(r => r.AssignedAt).IsRequired();
-
-        // One assignment per reviewer per draft, enforced in the schema so a retried request cannot
-        // ask the same classmate twice.
-        builder.HasIndex(r => new { r.EssaySubmissionId, r.ReviewerUserId }).IsUnique();
-
-        // The reviewer's queue: their rows, filtered by status.
-        builder.HasIndex(r => new { r.ReviewerUserId, r.Status });
-
-        builder.HasOne(r => r.Submission)
-            .WithMany()
-            .HasForeignKey(r => r.EssaySubmissionId)
-            .OnDelete(DeleteBehavior.Cascade);
-
-        builder.HasOne(r => r.Reviewer)
-            .WithMany()
-            .HasForeignKey(r => r.ReviewerUserId)
-            // Restrict, not cascade: a reviewer's account going away must not silently delete the
-            // feedback an author already received and may be working from.
-            .OnDelete(DeleteBehavior.Restrict);
-    }
-}

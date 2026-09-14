@@ -40,14 +40,6 @@ public interface IUnitOfWork : IDisposable
     IGroupNoteRepository GroupNotes { get; }
     IAiJobRepository AiJobs { get; }
     IAiUsageRepository AiUsage { get; }
-    IOrganizationRepository Organizations { get; }
-    IOrganizationMemberRepository OrganizationMembers { get; }
-    IClassroomRepository Classrooms { get; }
-    IClassroomEnrollmentRepository ClassroomEnrollments { get; }
-    IClassroomCourseRepository ClassroomCourses { get; }
-    IClassroomAssignmentRepository ClassroomAssignments { get; }
-    IClassroomSubmissionRepository ClassroomSubmissions { get; }
-    ISubscriptionRepository Subscriptions { get; }
     IRubricRepository Rubrics { get; }
     IEssaySubmissionRepository EssaySubmissions { get; }
     IUserTwoFactorRepository UserTwoFactors { get; }
@@ -55,7 +47,6 @@ public interface IUnitOfWork : IDisposable
     ILibraryTagRepository LibraryTags { get; }
     ISavedLibraryViewRepository SavedLibraryViews { get; }
     ICourseCertificateRepository CourseCertificates { get; }
-    IEssayPeerReviewRepository EssayPeerReviews { get; }
     IUserFsrsSettingsRepository UserFsrsSettings { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

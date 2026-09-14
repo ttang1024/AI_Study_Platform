@@ -9,7 +9,6 @@ import MessageSquarePlus from 'lucide-react-native/icons/message-square-plus';
 import UserCircle from 'lucide-react-native/icons/circle-user';
 import Gauge from 'lucide-react-native/icons/gauge';
 import Volume2 from 'lucide-react-native/icons/volume-2';
-import CreditCard from 'lucide-react-native/icons/credit-card';
 import Languages from 'lucide-react-native/icons/languages';
 import Award from 'lucide-react-native/icons/award';
 import FileArchive from 'lucide-react-native/icons/file-archive';
@@ -116,14 +115,6 @@ export default function SettingsScreen() {
           <ChevronRight size={18} color={Colors.textSecondary} />
         </Pressable>
         {/* After usage: the limit shown there is set by the plan shown here. */}
-        <Pressable style={styles.navRow} onPress={() => router.push('/settings/plan')}>
-          <IconBadge icon={CreditCard} size={36} />
-          <View style={styles.navBody}>
-            <Text style={styles.navTitle}>Plan</Text>
-            <Text style={styles.navSubtitle}>Your plan, today&apos;s AI usage, and what each tier includes</Text>
-          </View>
-          <ChevronRight size={18} color={Colors.textSecondary} />
-        </Pressable>
         <Pressable style={styles.navRow} onPress={() => router.push('/settings/language')}>
           <IconBadge icon={Languages} size={36} />
           <View style={styles.navBody}>

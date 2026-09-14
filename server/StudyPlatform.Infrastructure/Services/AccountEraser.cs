@@ -61,13 +61,6 @@ public class AccountEraser : IAccountEraser
         await _db.DocumentAnnotations.Where(x => x.UserId == userId).ExecuteDeleteAsync(cancellationToken);
         await _db.ContentEmbeddings.Where(x => x.UserId == userId).ExecuteDeleteAsync(cancellationToken);
         await _db.Notes.Where(x => x.UserId == userId).ExecuteDeleteAsync(cancellationToken);
-        // Reviews the user wrote, and reviews of the user's own drafts. Both, because the FK from
-        // reviewer is Restrict — leaving those rows behind would block the user delete outright.
-        await _db.EssayPeerReviews.Where(r => r.ReviewerUserId == userId).ExecuteDeleteAsync(cancellationToken);
-        await _db.EssayPeerReviews
-            .Where(r => _db.EssaySubmissions.Where(e => e.UserId == userId)
-                .Select(e => e.EssaySubmissionId).Contains(r.EssaySubmissionId))
-            .ExecuteDeleteAsync(cancellationToken);
         await _db.EssaySubmissions.Where(x => x.UserId == userId).ExecuteDeleteAsync(cancellationToken);
         await _db.Rubrics.Where(x => x.UserId == userId).ExecuteDeleteAsync(cancellationToken);
 
@@ -125,63 +118,6 @@ public class AccountEraser : IAccountEraser
             await _db.StudyGroups.Where(g => groupIds.Contains(g.StudyGroupId)).ExecuteDeleteAsync(cancellationToken);
         }
 
-        await _db.ClassroomEnrollments.Where(x => x.UserId == userId).ExecuteDeleteAsync(cancellationToken);
-        await _db.ClassroomSubmissions.Where(s => s.StudentUserId == userId).ExecuteDeleteAsync(cancellationToken);
-
-        // Assignments this user authored in someone else's classroom. ClassroomAssignments.CreatedByUserId
-        // is Restrict, so leaving these behind makes the final Users delete fail outright — an instructor
-        // who taught a colleague's class could not erase their account at all. Submissions to them are
-        // other students' work, but the assignment they answer is about to stop existing, so they go too.
-        var authoredAssignmentIds = await _db.ClassroomAssignments
-            .Where(a => a.CreatedByUserId == userId)
-            .Select(a => a.ClassroomAssignmentId)
-            .ToListAsync(cancellationToken);
-
-        if (authoredAssignmentIds.Count > 0)
-        {
-            await _db.ClassroomSubmissions
-                .Where(s => authoredAssignmentIds.Contains(s.ClassroomAssignmentId))
-                .ExecuteDeleteAsync(cancellationToken);
-            await _db.ClassroomAssignments
-                .Where(a => authoredAssignmentIds.Contains(a.ClassroomAssignmentId))
-                .ExecuteDeleteAsync(cancellationToken);
-        }
-
-        var ownedClassroomIds = await _db.Classrooms
-            .Where(c => c.CreatedByUserId == userId)
-            .Select(c => c.ClassroomId)
-            .ToListAsync(cancellationToken);
-
-        if (ownedClassroomIds.Count > 0)
-        {
-            // Assignments in an owned classroom cascade from Classrooms, but their submissions are
-            // deleted explicitly first so the cascade never has to run through two levels at once.
-            await _db.ClassroomSubmissions
-                .Where(s => _db.ClassroomAssignments
-                    .Where(a => ownedClassroomIds.Contains(a.ClassroomId))
-                    .Select(a => a.ClassroomAssignmentId)
-                    .Contains(s.ClassroomAssignmentId))
-                .ExecuteDeleteAsync(cancellationToken);
-            await _db.ClassroomAssignments.Where(a => ownedClassroomIds.Contains(a.ClassroomId)).ExecuteDeleteAsync(cancellationToken);
-            await _db.ClassroomCourses.Where(c => ownedClassroomIds.Contains(c.ClassroomId)).ExecuteDeleteAsync(cancellationToken);
-            await _db.ClassroomEnrollments.Where(e => ownedClassroomIds.Contains(e.ClassroomId)).ExecuteDeleteAsync(cancellationToken);
-            await _db.Classrooms.Where(c => ownedClassroomIds.Contains(c.ClassroomId)).ExecuteDeleteAsync(cancellationToken);
-        }
-
-        await _db.OrganizationMembers.Where(x => x.UserId == userId).ExecuteDeleteAsync(cancellationToken);
-
-        var ownedOrgIds = await _db.Organizations
-            .Where(o => o.OwnerId == userId)
-            .Select(o => o.OrganizationId)
-            .ToListAsync(cancellationToken);
-
-        if (ownedOrgIds.Count > 0)
-        {
-            await _db.OrganizationMembers.Where(m => ownedOrgIds.Contains(m.OrganizationId)).ExecuteDeleteAsync(cancellationToken);
-            await _db.Subscriptions.Where(s => s.OrganizationId != null && ownedOrgIds.Contains(s.OrganizationId.Value)).ExecuteDeleteAsync(cancellationToken);
-            await _db.Organizations.Where(o => ownedOrgIds.Contains(o.OrganizationId)).ExecuteDeleteAsync(cancellationToken);
-        }
-
         // Assignments first: the join has no cascade from the item side, and deleting the tags would
         // otherwise leave rows keyed on a tag id that no longer exists.
         await _db.LibraryTagAssignments
@@ -192,7 +128,6 @@ public class AccountEraser : IAccountEraser
         await _db.SavedLibraryViews.Where(x => x.UserId == userId).ExecuteDeleteAsync(cancellationToken);
 
         await _db.CourseCertificates.Where(x => x.UserId == userId).ExecuteDeleteAsync(cancellationToken);
-        await _db.Subscriptions.Where(x => x.UserId == userId).ExecuteDeleteAsync(cancellationToken);
         await _db.AiJobs.Where(x => x.UserId == userId).ExecuteDeleteAsync(cancellationToken);
         await _db.AiUsageLogs.Where(x => x.UserId == userId).ExecuteDeleteAsync(cancellationToken);
         await _db.Feedbacks.Where(x => x.UserId == userId).ExecuteDeleteAsync(cancellationToken);

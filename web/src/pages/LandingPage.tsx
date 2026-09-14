@@ -35,13 +35,11 @@ import {
   BentoKnowledgeGraphCard,
   BentoOfflineCard,
   BentoEverywhereCard,
-  BentoClassroomCard,
   BentoEssayCard,
   BentoCodeCard,
   BentoLanguageCard,
   BentoCitationCard,
   BentoCertificateCard,
-  BentoPeerReviewCard,
   BentoSecurityCard,
   BentoTagsCard,
   BentoFormatsCard,
@@ -232,7 +230,7 @@ export const LandingPage: React.FC = () => {
             <span style={{ background: 'linear-gradient(135deg, #e0f7ff, #a5f3fc)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Your Complete</span>{' '}
             <span style={{ background: 'linear-gradient(135deg, #14b8a6, #0891b2)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Study Suite</span>
           </h2>
-          <p className="mt-4 text-white/40 max-w-lg mx-auto">30+ AI-powered tools working together — for a solo cram session or a whole classroom.</p>
+          <p className="mt-4 text-white/40 max-w-lg mx-auto">AI-powered tools working together — from first read to exam day.</p>
         </FadeIn>
 
         <div className="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-auto">
@@ -295,14 +293,8 @@ export const LandingPage: React.FC = () => {
           <FadeIn delay={0.38}>
             <BentoEssayCard />
           </FadeIn>
-          <FadeIn delay={0.38}>
-            <BentoPeerReviewCard />
-          </FadeIn>
           <FadeIn delay={0.42}>
             <BentoCodeCard />
-          </FadeIn>
-          <FadeIn delay={0.42}>
-            <BentoClassroomCard />
           </FadeIn>
           <FadeIn delay={0.42}>
             <BentoCertificateCard />

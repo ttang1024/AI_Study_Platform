@@ -22,7 +22,6 @@ public partial class AiService
         CancellationToken cancellationToken,
         [CallerMemberName] string operation = "")
     {
-        await EnsureWithinQuotaAsync(cancellationToken);
 
         using var request = BuildRequest(systemPrompt, messages, temperature, maxTokens, stream: false, GetNonStreamUrl());
 
@@ -51,7 +50,6 @@ public partial class AiService
         [EnumeratorCancellation] CancellationToken cancellationToken,
         [CallerMemberName] string operation = "")
     {
-        await EnsureWithinQuotaAsync(cancellationToken);
 
         using var request = BuildRequest(systemPrompt, messages, temperature, maxTokens, stream: true, GetStreamUrl());
 
@@ -114,8 +112,6 @@ public partial class AiService
 
     // ── Token accounting ──────────────────────────────────────────────────
 
-    private async Task EnsureWithinQuotaAsync(CancellationToken cancellationToken)
-        => await _usageRecorder.EnsureWithinQuotaAsync(Credentials.UserId, cancellationToken);
 
     /// <summary>
     /// Accounting must not fail the call it is accounting for, and must still run when the caller
@@ -538,7 +534,6 @@ public partial class AiService
         CancellationToken cancellationToken,
         [CallerMemberName] string operation = "")
     {
-        await EnsureWithinQuotaAsync(cancellationToken);
 
         using var request = BuildMultimodalRequest(
             systemPrompt, history, userMessage, attachments, temperature, maxTokens, stream: false, GetNonStreamUrl());
@@ -570,7 +565,6 @@ public partial class AiService
         [EnumeratorCancellation] CancellationToken cancellationToken,
         [CallerMemberName] string operation = "")
     {
-        await EnsureWithinQuotaAsync(cancellationToken);
 
         using var request = BuildMultimodalRequest(systemPrompt, history, userMessage, attachments, temperature, maxTokens, stream: true, GetStreamUrl());
 
@@ -608,7 +602,6 @@ public partial class AiService
         CancellationToken cancellationToken,
         [CallerMemberName] string operation = "")
     {
-        await EnsureWithinQuotaAsync(cancellationToken);
 
         using var request = BuildFileRequest(fileData, mimeType, prompt, temperature, maxTokens, stream: false, GetNonStreamUrl());
 
@@ -638,7 +631,6 @@ public partial class AiService
         [EnumeratorCancellation] CancellationToken cancellationToken,
         [CallerMemberName] string operation = "")
     {
-        await EnsureWithinQuotaAsync(cancellationToken);
 
         using var request = BuildFileRequest(fileData, mimeType, prompt, temperature, maxTokens, stream: true, GetStreamUrl());
 

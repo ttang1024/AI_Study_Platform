@@ -46,11 +46,10 @@ const VideoDetailPage = lazyPage(() => import('./pages/VideoDetailPage'), 'Video
 const ArticlePage = lazyPage(() => import('./pages/ArticlePage'), 'ArticlePage');
 const AudioDetailPage = lazyPage(() => import('./pages/AudioDetailPage'), 'AudioDetailPage');
 const SearchResultsPage = lazyPage(() => import('./pages/SearchResultsPage'), 'SearchResultsPage');
-// Spaces = study groups + classrooms.
+// Spaces = study groups.
 const SpacesPage = lazyPage(() => import('./pages/SpacesPage'), 'SpacesPage');
 const StudyGroupDetailPage = lazyPage(() => import('./pages/StudyGroupDetailPage'), 'StudyGroupDetailPage');
 const ToolsPage = lazyPage(() => import('./pages/ToolsPage'), 'ToolsPage');
-const ClassroomDetailPage = lazyPage(() => import('./pages/ClassroomDetailPage'), 'ClassroomDetailPage');
 const ChatListPage = lazyPage(() => import('./pages/ChatListPage'), 'ChatListPage');
 // Insights gained the Concept map tab (the old /knowledge-graph page).
 const InsightsPage = lazyPage(() => import('./pages/InsightsPage'), 'InsightsPage');
@@ -172,11 +171,9 @@ export default function App() {
                     <Route path="knowledge-graph" element={<TabRedirect to="/insights" extra={{ tab: 'graph' }} />} />
                     <Route path="reinforcement-center" element={<ReinforcementRedirect />} />
 
-                    {/* Shared spaces — study groups + classrooms. */}
+                    {/* Shared spaces — study groups. */}
                     <Route path="spaces" element={<SpacesPage />} />
                     <Route path="groups" element={<TabRedirect to="/spaces" extra={{ tab: 'groups' }} />} />
-                    <Route path="classrooms" element={<TabRedirect to="/spaces" extra={{ tab: 'classrooms' }} />} />
-                    <Route path="classrooms/:id" element={<ClassroomDetailPage />} />
 
                     <Route path="settings" element={<SettingsPage />} />
                     {/* Feedback was its own page; it is a Settings tab now. */}
