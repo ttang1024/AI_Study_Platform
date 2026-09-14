@@ -16,14 +16,11 @@ planner mock exams), notes with a rich-text editor, glossary, worked problems, a
 sources, AI cram sheets, study planner schedules, and an AI usage view (Settings → AI usage: token
 spend and estimated cost broken down by provider and model).
 
-**Social & progress** — study groups with realtime chat (SignalR), quiz battles, live study rooms with
-shared pomodoro, assignments, peer review of classmates' essay drafts, leaderboards, achievements,
-insights/analytics charts, knowledge-graph concepts and gaps, recommendations, and public share links
-(create and view).
+**Social & progress** — study groups with realtime chat (SignalR) and shared courses,
+insights/analytics charts, recommendations, and public share links (create and view).
 
-**Account** — Settings covers two-factor enrolment (authenticator QR + recovery codes), the list of
-signed-in devices with per-device and sign-out-everywhere revocation, your security log, data export
-and account deletion, course-completion certificates with their share links, and API keys / webhooks.
+**Account** — Settings covers profile and password, AI provider keys and usage, the FSRS scheduler,
+voice, notifications, interface language, and data export / account deletion.
 
 **Mobile-native** — biometric app lock (Face ID / Touch ID / fingerprint), camera scan of textbook
 pages or handwritten notes into the summarizer (backend OCR), haptic feedback on flashcard grading and
