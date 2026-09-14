@@ -5,9 +5,6 @@ import { cn } from '../../utils/cn';
 import { SettingsAlert } from './SettingsAlert';
 import { SaveFooter } from './SaveFooter';
 import { validatePassword } from '@core/utils/validatePassword';
-import { TwoFactorSection } from './TwoFactorSection';
-import { SessionsSection } from './SessionsSection';
-import { AuditLogSection } from './AuditLogSection';
 
 export const SecurityTab: React.FC = () => {
   const { changePassword } = useAuth();
@@ -108,15 +105,7 @@ export const SecurityTab: React.FC = () => {
         </div>
       </div>
 
-      {/* The save footer belongs to the password form above, so it sits between that form and the
-          sections below — each of which saves itself. */}
       <SaveFooter saving={isSaving} onSave={handleSave} />
-
-      <div className="mt-10 space-y-10 border-t border-[var(--border-color)] pt-10">
-        <TwoFactorSection />
-        <SessionsSection />
-        <AuditLogSection />
-      </div>
     </>
   );
 };

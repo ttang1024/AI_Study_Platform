@@ -8,8 +8,7 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<LoginOutcome>;
-  verifyTwoFactor: (challengeToken: string, code: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
   loginWithOAuth: (provider: 'google' | 'github', code: string, redirectUri: string) => Promise<void>;
   register: (data: { email: string; fullName: string; password: string; otpCode: string }) => Promise<void>;
   sendOtp: (email: string, purpose: 'registration' | 'passwordReset') => Promise<void>;
@@ -18,14 +17,6 @@ interface AuthContextType {
   changePassword: (data: { currentPassword: string; newPassword: string }) => Promise<void>;
   logout: () => Promise<void>;
 }
-
-/**
- * What `login` resolves to. `pending2fa` means the password was right but a code is still owed —
- * the caller shows the code form and finishes with `verifyTwoFactor`.
- */
-export type LoginOutcome =
-  | { status: 'signedIn' }
-  | { status: 'pending2fa'; challengeToken: string };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -57,20 +48,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [],
   );
 
-  const login = useCallback(async (email: string, password: string): Promise<LoginOutcome> => {
-    const result = await authService.login(email, password);
-
-    // Nothing is stored on this branch: the server issued no tokens, only a challenge.
-    if (result.twoFactorRequired && result.challengeToken) {
-      return { status: 'pending2fa', challengeToken: result.challengeToken };
-    }
-
-    await establishSession(result);
-    return { status: 'signedIn' };
-  }, [establishSession]);
-
-  const verifyTwoFactor = useCallback(async (challengeToken: string, code: string) => {
-    await establishSession(await authService.verifyTwoFactor(challengeToken, code));
+  const login = useCallback(async (email: string, password: string): Promise<void> => {
+    await establishSession(await authService.login(email, password));
   }, [establishSession]);
 
   const loginWithOAuth = useCallback(async (provider: 'google' | 'github', code: string, redirectUri: string) => {
@@ -128,7 +107,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       isLoading,
       isAuthenticated: !!user,
       login,
-      verifyTwoFactor,
       loginWithOAuth,
       register,
       sendOtp,
@@ -137,7 +115,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       changePassword,
       logout,
     }),
-    [user, isLoading, login, verifyTwoFactor, loginWithOAuth, register, sendOtp, resetPassword, updateProfile, changePassword, logout],
+    [user, isLoading, login, loginWithOAuth, register, sendOtp, resetPassword, updateProfile, changePassword, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

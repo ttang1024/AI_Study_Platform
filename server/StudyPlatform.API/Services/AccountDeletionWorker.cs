@@ -70,15 +70,11 @@ public sealed class AccountDeletionWorker : BackgroundService
             return;
 
         var eraser = scope.ServiceProvider.GetRequiredService<IAccountEraser>();
-        var audit = scope.ServiceProvider.GetRequiredService<IAuditLogger>();
 
         foreach (var userId in dueUserIds)
         {
             try
             {
-                // Written before the erase, because afterwards there is no user id left to write it
-                // under — the entry is anonymised by the erase itself, which is the intended end state.
-                await audit.LogAsync(AuditActions.AccountDeleted, userId, cancellationToken: cancellationToken);
                 await eraser.EraseAsync(userId, cancellationToken);
             }
             catch (Exception ex)

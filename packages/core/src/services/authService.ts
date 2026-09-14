@@ -22,8 +22,6 @@ interface AuthResponseData {
   refreshToken?: string;
   expiresAt?: string;
   accessTokenExpiry?: string;
-  twoFactorRequired?: boolean;
-  challengeToken?: string | null;
 }
 
 export interface LoginResult {
@@ -33,14 +31,6 @@ export interface LoginResult {
   /** ISO expiry of the access token, when the server sends one. */
   expiresAt: string;
   user: AuthUser;
-  /**
-   * True when the password leg passed but a second factor is still owed. The token fields are
-   * empty in that case and {@link challengeToken} is what the code leg is redeemed with — so a
-   * caller that stores `accessToken` without checking this ends up with a blank token and a
-   * failing next request, rather than a session it should not have.
-   */
-  twoFactorRequired: boolean;
-  challengeToken: string | null;
 }
 
 export interface RegisterPayload {
@@ -68,8 +58,6 @@ const mapAuthResponse = (d: AuthResponseData): LoginResult => ({
   refreshToken: d.refreshToken ?? '',
   expiresAt: d.expiresAt ?? d.accessTokenExpiry ?? '',
   user: { id: d.userId, email: d.email, name: d.fullName },
-  twoFactorRequired: d.twoFactorRequired ?? false,
-  challengeToken: d.challengeToken ?? null,
 });
 
 export function createAuthService(http: HttpClient) {
@@ -89,14 +77,6 @@ export function createAuthService(http: HttpClient) {
 
     login(email: string, password: string): Promise<LoginResult> {
       return postAuth('/api/auth/login', { email, password });
-    },
-
-    /**
-     * Second leg of a two-factor login. `code` is either a TOTP code or a recovery code — the
-     * server works out which, so the UI needs one field rather than a mode switch.
-     */
-    verifyTwoFactor(challengeToken: string, code: string): Promise<LoginResult> {
-      return postAuth('/api/auth/2fa/verify', { challengeToken, code });
     },
 
     loginWithOAuth(provider: string, code: string, redirectUri: string): Promise<LoginResult> {

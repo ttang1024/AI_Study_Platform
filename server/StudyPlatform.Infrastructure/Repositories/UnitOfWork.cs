@@ -42,7 +42,6 @@ public class UnitOfWork : IUnitOfWork
     private ICourseAudioOverviewRepository? _courseAudioOverviews;
     private IAiJobRepository? _aiJobs;
     private IAiUsageRepository? _aiUsage;
-    private IUserTwoFactorRepository? _userTwoFactors;
     private IDataExportRequestRepository? _dataExportRequests;
     private ILibraryTagRepository? _libraryTags;
     private ISavedLibraryViewRepository? _savedLibraryViews;
@@ -87,7 +86,6 @@ public class UnitOfWork : IUnitOfWork
     public ICourseAudioOverviewRepository CourseAudioOverviews => _courseAudioOverviews ??= new CourseAudioOverviewRepository(_context);
     public IAiJobRepository AiJobs => _aiJobs ??= new AiJobRepository(_context);
     public IAiUsageRepository AiUsage => _aiUsage ??= new AiUsageRepository(_context);
-    public IUserTwoFactorRepository UserTwoFactors => _userTwoFactors ??= new UserTwoFactorRepository(_context);
     public IDataExportRequestRepository DataExportRequests => _dataExportRequests ??= new DataExportRequestRepository(_context);
     public ILibraryTagRepository LibraryTags => _libraryTags ??= new LibraryTagRepository(_context);
     public ISavedLibraryViewRepository SavedLibraryViews => _savedLibraryViews ??= new SavedLibraryViewRepository(_context);

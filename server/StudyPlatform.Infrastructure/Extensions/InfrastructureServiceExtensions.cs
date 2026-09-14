@@ -44,12 +44,8 @@ public static class InfrastructureServiceExtensions
 
         // Security trail. Read through its own repository rather than the unit of work: nothing
         // writes audit rows transactionally, so it has no business enlisting in anyone's save.
-        services.AddScoped<IAuditLogRepository, AuditLogRepository>();
         // Singleton for the same reason AiUsageRecorder is one — it opens a scope per write so an
         // audit entry survives the operation it describes failing.
-        services.AddSingleton<IAuditLogger, AuditLogger>();
-
-        services.AddSingleton<ITotpService, TotpService>();
         services.AddScoped<IRequestContext, HttpRequestContext>();
         services.AddScoped<IDataExportBuilder, DataExportBuilder>();
         services.AddScoped<IAccountEraser, AccountEraser>();

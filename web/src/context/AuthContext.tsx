@@ -3,18 +3,9 @@ import { User } from '../types';
 import { authService } from '../services/authService';
 import { clearRecentItems } from '../services/recentItemsService';
 
-/**
- * What `login` resolves to. `pending2fa` means the password was right but a code is still owed —
- * the caller shows the code form and finishes with `verifyTwoFactor`.
- */
-export type LoginOutcome =
-  | { status: 'signedIn' }
-  | { status: 'pending2fa'; challengeToken: string };
-
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<LoginOutcome>;
-  verifyTwoFactor: (challengeToken: string, code: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
   loginWithOAuth: (provider: string, code: string, redirectUri: string) => Promise<void>;
   loginWithGoogleCredential: (credential: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -55,20 +46,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(result.user);
   };
 
-  const login = async (email: string, password: string): Promise<LoginOutcome> => {
-    const result = await authService.login(email, password);
-
-    // Nothing is stored on this branch: the server issued no tokens, only a challenge.
-    if (result.twoFactorRequired && result.challengeToken) {
-      return { status: 'pending2fa', challengeToken: result.challengeToken };
-    }
-
-    establishSession(result);
-    return { status: 'signedIn' };
-  };
-
-  const verifyTwoFactor = async (challengeToken: string, code: string): Promise<void> => {
-    establishSession(await authService.verifyTwoFactor(challengeToken, code));
+  const login = async (email: string, password: string): Promise<void> => {
+    establishSession(await authService.login(email, password));
   };
 
   const logout = async (): Promise<void> => {
@@ -125,7 +104,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, verifyTwoFactor, loginWithOAuth, loginWithGoogleCredential, logout, register, sendOtp, resetPassword, updateProfile, changePassword, isAuthenticated: !!user, isLoading }}>
+    <AuthContext.Provider value={{ user, login, loginWithOAuth, loginWithGoogleCredential, logout, register, sendOtp, resetPassword, updateProfile, changePassword, isAuthenticated: !!user, isLoading }}>
       {children}
     </AuthContext.Provider>
   );

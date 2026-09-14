@@ -36,8 +36,6 @@ describe('authService', () => {
         refreshToken: 'refresh-token',
         expiresAt: '2026-01-01T00:00:00Z',
         user: { id: 'u-1', email: 'a@b.com', name: 'Ada Lovelace' },
-        twoFactorRequired: false,
-        challengeToken: null,
       })
     })
 
@@ -57,29 +55,6 @@ describe('authService', () => {
       expect(result.refreshToken).toBe('')
     })
 
-    it('surfaces a pending two-factor challenge without leaking blank tokens as usable', async () => {
-      vi.mocked(fakeHttp.post).mockResolvedValueOnce({
-        data: {
-          data: rawAuthResponse({
-            accessToken: '',
-            refreshToken: '',
-            twoFactorRequired: true,
-            challengeToken: 'chal-1',
-          }),
-        },
-      })
-      const result = await service.login('a@b.com', 'secret')
-      expect(result.twoFactorRequired).toBe(true)
-      expect(result.challengeToken).toBe('chal-1')
-    })
-  })
-
-  describe('verifyTwoFactor', () => {
-    it('posts the challenge token and code', async () => {
-      vi.mocked(fakeHttp.post).mockResolvedValueOnce({ data: { data: rawAuthResponse() } })
-      await service.verifyTwoFactor('chal-1', '123456')
-      expect(fakeHttp.post).toHaveBeenCalledWith('/api/auth/2fa/verify', { challengeToken: 'chal-1', code: '123456' })
-    })
   })
 
   describe('loginWithOAuth', () => {

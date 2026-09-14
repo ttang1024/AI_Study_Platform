@@ -17,12 +17,10 @@ public class RequestDataExportCommandHandler
     : IRequestHandler<RequestDataExportCommand, Result<DataExportDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
-    private readonly IAuditLogger _audit;
 
-    public RequestDataExportCommandHandler(IUnitOfWork unitOfWork, IAuditLogger audit)
+    public RequestDataExportCommandHandler(IUnitOfWork unitOfWork)
     {
         _unitOfWork = unitOfWork;
-        _audit = audit;
     }
 
     public async Task<Result<DataExportDto>> Handle(
@@ -47,9 +45,6 @@ public class RequestDataExportCommandHandler
         await _unitOfWork.DataExportRequests.AddAsync(entity, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        await _audit.LogAsync(AuditActions.DataExportRequested, request.UserId,
-            targetType: "DataExportRequest", targetId: entity.DataExportRequestId.ToString(),
-            cancellationToken: cancellationToken);
 
         return Result<DataExportDto>.Success(
             DataExportMapper.ToDto(entity),

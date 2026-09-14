@@ -25,13 +25,6 @@ public record UpdateProfileRequest(string FullName);
 
 /// <summary>
 /// The result of any sign-in attempt.
-///
-/// <para>Also carries the "not finished yet" case. When <see cref="TwoFactorRequired"/> is true the
-/// password leg passed but no session exists: the token fields are empty and
-/// <see cref="ChallengeToken"/> is what the second leg is redeemed with. Modelled as one response
-/// rather than two so every existing caller keeps compiling and clients that predate 2FA simply see
-/// a flag they ignore — but a client that ignores it will find the tokens blank, which fails loudly
-/// rather than silently letting someone past the factor.</para>
 /// </summary>
 public record AuthResponse(
     Guid UserId,
@@ -39,9 +32,7 @@ public record AuthResponse(
     string FullName,
     string AccessToken,
     string RefreshToken,
-    DateTime AccessTokenExpiry,
-    bool TwoFactorRequired = false,
-    string? ChallengeToken = null);
+    DateTime AccessTokenExpiry);
 
 public record OAuthLoginRequest(string Provider, string Code, string RedirectUri);
 

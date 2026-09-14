@@ -112,21 +112,8 @@ public class AccountEraser : IAccountEraser
         await _db.UserCalendarFeeds.Where(x => x.UserId == userId).ExecuteDeleteAsync(cancellationToken);
         await _db.UserPushSubscriptions.Where(x => x.UserId == userId).ExecuteDeleteAsync(cancellationToken);
         await _db.DataExportRequests.Where(x => x.UserId == userId).ExecuteDeleteAsync(cancellationToken);
-        await _db.UserTwoFactors.Where(x => x.UserId == userId).ExecuteDeleteAsync(cancellationToken);
         await _db.OtpCodes.Where(x => x.UserId == userId).ExecuteDeleteAsync(cancellationToken);
         await _db.RefreshTokens.Where(x => x.UserId == userId).ExecuteDeleteAsync(cancellationToken);
-
-        // Audit entries are anonymised rather than deleted. The security record of what happened —
-        // failed sign-ins, admin access — has value beyond the account, and it stops being personal
-        // data once the ids are gone. The user row is deleted next, so the ids would dangle anyway.
-        await _db.AuditLogEntries
-            .Where(e => e.ActorUserId == userId || e.SubjectUserId == userId)
-            .ExecuteUpdateAsync(s => s
-                .SetProperty(e => e.ActorUserId, (Guid?)null)
-                .SetProperty(e => e.SubjectUserId, (Guid?)null)
-                .SetProperty(e => e.IpAddress, (string?)null)
-                .SetProperty(e => e.UserAgent, (string?)null),
-                cancellationToken);
 
         await _db.Users.Where(u => u.UserId == userId).ExecuteDeleteAsync(cancellationToken);
 

@@ -12,8 +12,6 @@ import Volume2 from 'lucide-react-native/icons/volume-2';
 import Languages from 'lucide-react-native/icons/languages';
 import FileArchive from 'lucide-react-native/icons/file-archive';
 import History from 'lucide-react-native/icons/history';
-import MonitorSmartphone from 'lucide-react-native/icons/monitor-smartphone';
-import ShieldCheck from 'lucide-react-native/icons/shield-check';
 
 import { Button } from '@/components/Button';
 import { IconBadge } from '@/components/IconBadge';
@@ -50,30 +48,6 @@ export default function SettingsScreen() {
       <SecuritySection />
 
       <View style={styles.section}>
-        <Pressable style={styles.navRow} onPress={() => router.push('/settings/two-factor')}>
-          <IconBadge icon={ShieldCheck} size={36} />
-          <View style={styles.navBody}>
-            <Text style={styles.navTitle}>Two-factor authentication</Text>
-            <Text style={styles.navSubtitle}>Ask for a code from your authenticator app at sign-in</Text>
-          </View>
-          <ChevronRight size={18} color={Colors.textSecondary} />
-        </Pressable>
-        <Pressable style={styles.navRow} onPress={() => router.push('/settings/sessions')}>
-          <IconBadge icon={MonitorSmartphone} size={36} />
-          <View style={styles.navBody}>
-            <Text style={styles.navTitle}>Active sessions</Text>
-            <Text style={styles.navSubtitle}>Everywhere you are signed in, and how to sign them out</Text>
-          </View>
-          <ChevronRight size={18} color={Colors.textSecondary} />
-        </Pressable>
-        <Pressable style={styles.navRow} onPress={() => router.push('/settings/security-log')}>
-          <IconBadge icon={History} size={36} />
-          <View style={styles.navBody}>
-            <Text style={styles.navTitle}>Security log</Text>
-            <Text style={styles.navSubtitle}>Sign-ins and changes to your account</Text>
-          </View>
-          <ChevronRight size={18} color={Colors.textSecondary} />
-        </Pressable>
         <Pressable style={styles.navRow} onPress={() => router.push('/settings/data')}>
           <IconBadge icon={FileArchive} size={36} />
           <View style={styles.navBody}>

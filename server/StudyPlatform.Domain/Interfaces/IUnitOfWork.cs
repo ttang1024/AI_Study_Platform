@@ -36,7 +36,6 @@ public interface IUnitOfWork : IDisposable
     ICourseAudioOverviewRepository CourseAudioOverviews { get; }
     IAiJobRepository AiJobs { get; }
     IAiUsageRepository AiUsage { get; }
-    IUserTwoFactorRepository UserTwoFactors { get; }
     IDataExportRequestRepository DataExportRequests { get; }
     ILibraryTagRepository LibraryTags { get; }
     ISavedLibraryViewRepository SavedLibraryViews { get; }
