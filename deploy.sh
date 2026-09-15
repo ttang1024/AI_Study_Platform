@@ -194,23 +194,10 @@ deploy_frontends() {
     VITE_SHARE_BASE_URL="$WEB_ORIGIN" \
     VITE_GOOGLE_CLIENT_ID="$GOOGLE_CLIENT_ID" \
     VITE_GITHUB_CLIENT_ID="$GITHUB_CLIENT_ID" \
+    VITE_GOOGLE_SITE_VERIFICATION="$GOOGLE_SITE_VERIFICATION" \
     npm run build
-    cat > dist/robots.txt <<EOF
-User-agent: *
-Allow: /
-
-Sitemap: ${WEB_ORIGIN%/}/sitemap.xml
-EOF
-    cat > dist/sitemap.xml <<EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>${WEB_ORIGIN%/}/</loc>
-    <changefreq>weekly</changefreq>
-    <priority>1.0</priority>
-  </url>
-</urlset>
-EOF
+    # robots.txt and sitemap.xml are emitted by the build itself (web/vite-plugin-seo.ts), which
+    # reads VITE_SHARE_BASE_URL — they are not written here.
   )
   aws s3 sync web/dist "s3://$WEB_BUCKET" --delete
   invalidate_cloudfront_by_comment "$WEB_CLOUDFRONT_COMMENT"
@@ -220,6 +207,12 @@ EOF
     cd admin
     npm ci
     VITE_API_URL="$API_URL" npm run build
+    # The admin dashboard is an internal tool on its own origin. Nothing links to it, but the bucket
+    # is public, so keep it out of search indexes explicitly rather than relying on obscurity.
+    cat > dist/robots.txt <<EOF
+User-agent: *
+Disallow: /
+EOF
   )
   aws s3 sync admin/dist "s3://$ADMIN_BUCKET" --delete
   invalidate_cloudfront_by_comment "$ADMIN_CLOUDFRONT_COMMENT"
@@ -243,6 +236,9 @@ DEPLOY_BACKEND_ONLY="${DEPLOY_BACKEND_ONLY:-0}"
 
 GOOGLE_CLIENT_ID="${GOOGLE_CLIENT_ID:?Set GOOGLE_CLIENT_ID env var}"
 GITHUB_CLIENT_ID="${GITHUB_CLIENT_ID:?Set GITHUB_CLIENT_ID env var}"
+# Optional: the token from Search Console's "HTML tag" verification method (the content="..." value
+# only). Unset simply omits the meta tag. Not needed if the property was verified via DNS instead.
+GOOGLE_SITE_VERIFICATION="${GOOGLE_SITE_VERIFICATION:-}"
 if [[ "$DEPLOY_WEB_ONLY" != "1" ]]; then
   # The one database credential this script handles, and it never leaves the ECS task definition.
   DATABASE_CONNECTION_STRING="${DATABASE_CONNECTION_STRING:?Set DATABASE_CONNECTION_STRING to the Supabase connection string (see DEPLOYMENT.md)}"
@@ -284,7 +280,8 @@ for __v in GOOGLE_CLIENT_ID GITHUB_CLIENT_ID JWT_SECRET GOOGLE_CLIENT_SECRET GIT
            SMTP_USER SMTP_PASSWORD EMAIL_PROVIDER EMAIL_FROM SES_REGION DATABASE_CONNECTION_STRING \
            EMBEDDINGS_API_KEY YOUTUBE_PROXY_URL YOUTUBE_COOKIES_B64 REDIS_ENABLED \
            REDIS_CONNECTION_STRING REDIS_INSTANCE_NAME PUBLIC_DOMAIN WEB_PUBLIC_ORIGIN \
-           ADMIN_PUBLIC_ORIGIN WEB_WWW_PUBLIC_ORIGIN API_PUBLIC_ORIGIN; do
+           ADMIN_PUBLIC_ORIGIN WEB_WWW_PUBLIC_ORIGIN API_PUBLIC_ORIGIN \
+           GOOGLE_SITE_VERIFICATION; do
   printf -v "$__v" '%s' "$(strip_cr "${!__v:-}")"
 done
 unset __v
