@@ -6,8 +6,7 @@ import { formatTimecode } from '@core/utils/format';
 
 interface Props {
   citation?: Citation;
-  /** Document or video this artifact belongs to, used to build the jump link. */
-  documentId?: string;
+  /** Video this artifact belongs to, used to build the jump link. */
   videoId?: string;
   className?: string;
 }
@@ -22,25 +21,18 @@ const formatTimestamp = formatTimecode;
  * to resolve simply have none — that absence is meaningful and must not be papered over with a
  * guessed link.
  */
-export const SourceCitation: React.FC<Props> = ({ citation, documentId, videoId, className = '' }) => {
+export const SourceCitation: React.FC<Props> = ({ citation, videoId, className = '' }) => {
   const [expanded, setExpanded] = useState(false);
 
   if (!citation) return null;
 
-  // Only offer a jump when there is somewhere to land. Video pages honour `?t=` by seeking the
-  // player; document pages honour `?highlight=` by opening the Source tab on that character range.
-  // A citation whose quote could not be located has no offsets and stays quote-only.
-  // `!= null` throughout, never `!== undefined`: the API serializes an unresolved offset as an
-  // explicit null, which passes an undefined check and yields a link to position zero.
-  const isLocated = citation.startOffset != null && citation.endOffset != null;
+  // Only offer a jump when there is somewhere to land: video pages honour `?t=` by seeking the
+  // player. Documents have no such landing spot, so a document citation stays quote-only.
+  // `!= null`, never `!== undefined`: the API serializes an unresolved timestamp as an explicit
+  // null, which passes an undefined check and yields a link to position zero.
   const hasTimestamp = citation.startSeconds != null;
 
-  const href =
-    videoId && hasTimestamp
-      ? `/videos/${videoId}?t=${Math.floor(citation.startSeconds!)}`
-      : documentId && isLocated
-        ? `/documents/${documentId}?highlight=${citation.startOffset}-${citation.endOffset}`
-        : null;
+  const href = videoId && hasTimestamp ? `/videos/${videoId}?t=${Math.floor(citation.startSeconds!)}` : null;
 
   const locationLabel =
     hasTimestamp
@@ -49,7 +41,7 @@ export const SourceCitation: React.FC<Props> = ({ citation, documentId, videoId,
         ? `page ${citation.page}`
         : 'the source';
 
-  const positionNote = href ? null : 'Quoted from this document; the exact position could not be resolved.';
+  const positionNote = href ? null : 'Quoted from the source.';
 
   return (
     <div className={`text-xs border-l-2 border-border pl-3 py-1 ${className}`}>

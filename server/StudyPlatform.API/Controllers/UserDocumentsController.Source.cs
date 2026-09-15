@@ -6,30 +6,14 @@ using StudyPlatform.Application.Documents.Queries;
 
 namespace StudyPlatform.API.Controllers;
 
-// The document's own text and source file, independent of the course it sits in.
+// The document's source file, independent of the course it sits in.
 //
 // These live here rather than on DocumentsController because that controller is routed under
-// api/courses/{courseId}/documents — a caller holding only a document id (a citation link, the
-// source view) has no course id to supply.
+// api/courses/{courseId}/documents — a caller holding only a document id has no course id to
+// supply.
 public partial class UserDocumentsController
 {
     public record RegenerateRequest(bool Flashcards = true, bool Quizzes = true, bool Glossary = true);
-
-    /// <summary>
-    /// The document's plain text — the exact string citation offsets index into, so a highlighted
-    /// range lands on the passage the citation actually came from.
-    /// </summary>
-    [HttpGet("{id:guid}/text")]
-    [ProducesResponseType(typeof(BaseResponse<DocumentTextDto>), 200)]
-    [ProducesResponseType(typeof(BaseResponse), 404)]
-    public async Task<IActionResult> GetText(Guid id, CancellationToken cancellationToken)
-    {
-        var result = await _mediator.Send(new GetDocumentTextQuery(User.GetUserId(), id), cancellationToken);
-
-        return result.IsSuccess
-            ? Ok(BaseResponse<DocumentTextDto>.Ok(result.Data!))
-            : NotFound(BaseResponse<DocumentTextDto>.Fail(result.Message, result.ErrorCode));
-    }
 
     /// <summary>
     /// How much of this document's generated material predates the current source version.

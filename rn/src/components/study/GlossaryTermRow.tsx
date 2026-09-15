@@ -69,7 +69,6 @@ export const GlossaryTermRow: React.FC<GlossaryTermRowProps> = ({ term, mastered
               {!!term.sourceName && <Text style={styles.sourceName}>{term.sourceName}</Text>}
               <SourceCitation
                 citation={term.citation}
-                documentId={term.documentId}
                 videoId={term.videoId}
               />
             </>

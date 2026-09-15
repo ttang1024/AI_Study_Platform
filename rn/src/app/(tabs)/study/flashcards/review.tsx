@@ -240,7 +240,6 @@ export default function ReviewScreen() {
         <View style={styles.citationRow}>
           <SourceCitation
             citation={current.citation}
-            documentId={current.documentId}
             videoId={current.videoId}
           />
         </View>

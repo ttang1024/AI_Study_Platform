@@ -300,15 +300,6 @@ export function createDocumentService(http: HttpClient, streamSse: SseStreamFn) 
   return {
     invalidateDocumentListCache,
 
-    /**
-     * The document's plain text — the exact string citation offsets index into. Extracted and
-     * persisted server-side on first request, so repeated calls and every stored anchor agree.
-     */
-    getText: (documentId: string) =>
-      http.get<{ data: { documentId: string; text: string | null; contentVersion: number } }>(
-        `/api/documents/${documentId}/text`,
-      ),
-
     /** How much of this document's generated material predates its current source version. */
     getStaleness: (documentId: string) =>
       http.get<{ data: DocumentStaleness }>(`/api/documents/${documentId}/staleness`),
