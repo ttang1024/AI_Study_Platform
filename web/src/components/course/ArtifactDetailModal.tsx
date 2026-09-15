@@ -2,6 +2,7 @@ import React from 'react';
 import { CheckCircle2, ChevronLeft, ChevronRight, Eye, Loader2, X, XCircle } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { isQuizOptionCorrect } from '../../utils/quizAnswers';
+import { toDisplayMath } from '../../utils/latex';
 import { ArtifactContent } from './ArtifactContent';
 import { MindMapViewer } from '../mindmap/MindMapViewer';
 import { ChatPanel } from '../ai/ChatPanel';
@@ -165,7 +166,7 @@ export const ArtifactDetailModal: React.FC<ArtifactDetailModalProps> = ({
                       <div key={step.stepNumber} className="rounded-xl bg-[var(--bg-app)] p-3">
                         <p className="font-semibold">Step {step.stepNumber}</p>
                         <ArtifactContent value={step.description} className="mt-1 text-text-muted" />
-                        {step.formula && <ArtifactContent value={`$$${step.formula}$$`} className="mt-2 text-primary" />}
+                        {step.formula && <ArtifactContent value={toDisplayMath(step.formula)} className="mt-2 text-primary" />}
                       </div>
                     ))}
                   </div>

@@ -9,28 +9,14 @@ import { MathText } from './study/MathText';
 import { workedProblemsService, WorkedProblem, ProblemAttempt } from '../services/workedProblemsService';
 import { cn } from '../utils/cn';
 import { getApiErrorCode } from '../utils/apiError';
+import { looksLikeLatex, toDisplayMath } from '../utils/latex';
 
 const DIFFICULTIES = ['easy', 'medium', 'hard'] as const;
 const COUNTS = [3, 5, 10] as const;
 
-// Step formulas come back as bare LaTeX ("\theta = 5"), sometimes already wrapped in
-// delimiters. Normalise to a standalone $$ block so remark-math sees display math.
-const LATEX_HINT = /[\\^_{}$]/;
-
-const toDisplayMath = (formula: string): string => {
-  const trimmed = formula.trim();
-  const inner =
-    /^\$\$[\s\S]*\$\$$/.test(trimmed) ? trimmed.slice(2, -2)
-    : /^\\\[[\s\S]*\\\]$/.test(trimmed) ? trimmed.slice(2, -2)
-    : /^\\\([\s\S]*\\\)$/.test(trimmed) ? trimmed.slice(2, -2)
-    : /^\$[\s\S]*\$$/.test(trimmed) ? trimmed.slice(1, -1)
-    : trimmed;
-  return `$$\n${inner.trim()}\n$$`;
-};
-
 // Anything that doesn't look like LaTeX keeps the plain monospace block it always had.
 const StepFormula: React.FC<{ formula: string }> = ({ formula }) =>
-  LATEX_HINT.test(formula) ? (
+  looksLikeLatex(formula) ? (
     <div className="mt-1 overflow-x-auto rounded bg-zinc-100 px-2 py-1 text-sm">
       <MathText text={toDisplayMath(formula)} inline={false} />
     </div>
