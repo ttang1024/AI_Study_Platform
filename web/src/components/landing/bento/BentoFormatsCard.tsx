@@ -1,16 +1,40 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { FileStack } from 'lucide-react';
+import { FileStack, ClipboardPaste } from 'lucide-react';
 import { BentoCardShell, BentoCardHeader } from './BentoCardShell';
+import { CONTENT_TYPE_ICONS } from '../../../constants/contentTypeIcons';
 
-const FORMATS = ['PDF', 'DOCX', 'PPTX', 'XLSX', 'EPUB', 'IPYNB', 'CSV', 'SRT', 'PY', 'JSON'];
-
-// Mirrors the real viewer's palette (teal keywords, dim comments) so the
-// preview looks like the thing you actually get.
-const LINE_TOKENS: { text: string; color?: string }[][] = [
-  [{ text: 'def ', color: '#2dd4bf' }, { text: 'total(rows):' }],
-  [{ text: '  # one pass', color: 'rgba(255,255,255,0.25)' }],
-  [{ text: '  return ', color: '#2dd4bf' }, { text: 'sum(rows)' }],
+// The five inputs the add-content page offers, in its order and with its icons and colours — the
+// card is a preview of that screen, so it reads from the same map rather than restating it.
+// Paste Text is the exception: it has no content type of its own, and that screen draws its tab in
+// the app's primary green, so the colour is spelled out here.
+const SOURCES = [
+  {
+    ...CONTENT_TYPE_ICONS.document,
+    label: 'Document',
+    detail: '234 types — PDF, Office, eBooks, notebooks, code',
+  },
+  {
+    ...CONTENT_TYPE_ICONS.video,
+    label: 'Video',
+    detail: 'YouTube, Bilibili and 9 more sites, or your own upload',
+  },
+  {
+    ...CONTENT_TYPE_ICONS.article,
+    label: 'Web Article',
+    detail: 'Any page, clipped to clean readable Markdown',
+  },
+  {
+    ...CONTENT_TYPE_ICONS.audio,
+    label: 'Audio',
+    detail: 'Lectures, podcast episodes, an RSS feed or an MP3',
+  },
+  {
+    icon: ClipboardPaste,
+    color: '#059669',
+    label: 'Paste Text',
+    detail: 'Straight from the clipboard — notes, an email, anything',
+  },
 ];
 
 export const BentoFormatsCard: React.FC = () => (
@@ -28,62 +52,41 @@ export const BentoFormatsCard: React.FC = () => (
       isNew
     />
 
-    <div className="flex flex-wrap gap-1.5 mb-3">
-      {FORMATS.map((format, i) => (
-        <motion.span
-          key={format}
-          initial={{ opacity: 0, scale: 0.85 }}
-          whileInView={{ opacity: 1, scale: 1 }}
+    {/* The card spans two grid columns from `sm` up, so the five sources straighten out into a
+        single row once there is room for it, and pack two-up below that. */}
+    <div className="grid grid-cols-2 lg:grid-cols-5 gap-2.5 mb-3">
+      {SOURCES.map(({ icon: Icon, color, label, detail }, i) => (
+        <motion.div
+          key={label}
+          initial={{ opacity: 0, y: 8 }}
+          whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          transition={{ delay: 0.06 * i }}
-          className="font-mono text-[10px] px-2 py-0.5 rounded-md text-white/45"
-          style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.07)' }}
+          transition={{ delay: 0.08 * i }}
+          className="flex flex-col gap-1.5 p-3 rounded-xl"
+          // Each tile is tinted with its own source colour, the same one the app uses for that
+          // content type everywhere else, so the five stay distinguishable at a glance.
+          style={{ background: `${color}14`, border: `1px solid ${color}33` }}
         >
-          {format}
-        </motion.span>
-      ))}
-      <motion.span
-        initial={{ opacity: 0 }}
-        whileInView={{ opacity: 1 }}
-        viewport={{ once: true }}
-        transition={{ delay: 0.7 }}
-        className="font-mono text-[10px] px-2 py-0.5 rounded-md"
-        style={{ background: 'rgba(45,212,191,0.1)', border: '1px solid rgba(45,212,191,0.25)', color: '#5eead4' }}
-      >
-        +220 more
-      </motion.span>
-    </div>
-
-    <div className="flex-1 rounded-xl overflow-hidden mb-3" style={{ background: 'rgba(0,0,0,0.45)', border: '1px solid rgba(255,255,255,0.06)' }}>
-      <div className="flex items-center gap-1.5 px-3 py-1.5 border-b border-white/5">
-        <span className="text-[10px] text-white/25 font-mono">analysis.py</span>
-        <span className="ml-auto text-[9px] text-white/20">3 lines</span>
-      </div>
-
-      <div className="py-1.5">
-        {LINE_TOKENS.map((tokens, i) => (
-          <motion.div
-            key={i}
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.75 + i * 0.1 }}
-            className="flex font-mono text-[11px] leading-5"
+          {/* Icon above the label rather than beside it: five-across leaves a tile barely wider
+              than "Web Article", and sharing that row with the icon wrapped the label onto a
+              second line, pushing its detail text out of line with the other four. */}
+          <div
+            className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+            style={{ background: `${color}26` }}
           >
-            <span className="w-7 pr-2 text-right text-white/15 select-none">{i + 1}</span>
-            <span className="whitespace-pre text-white/55">
-              {tokens.map((token, j) => (
-                <span key={j} style={token.color ? { color: token.color } : undefined}>{token.text}</span>
-              ))}
-            </span>
-          </motion.div>
-        ))}
-      </div>
+            <Icon className="w-3.5 h-3.5" style={{ color }} />
+          </div>
+          <span className="text-[13px] font-bold text-white/85 leading-tight">{label}</span>
+          <p className="text-[11px] text-white/40 leading-snug">{detail}</p>
+        </motion.div>
+      ))}
     </div>
 
-    <p className="text-sm text-white/40 leading-relaxed">
-      Office, OpenDocument, eBooks, email, scans, subtitles, code. Source files, spreadsheets, notebooks and
-      captions render natively — highlighted, tabulated, and timestamped, not dumped as flat text.
+    {/* mt-auto, not flex-1 on the tiles: the card stretches to its row's height, and stretching the
+        tiles with it leaves a block of dead space under the shorter ones. */}
+    <p className="mt-auto text-sm text-white/40 leading-relaxed">
+      Drop in whatever you already have. Source files, spreadsheets, notebooks and captions render
+      natively — highlighted, tabulated and timestamped, not dumped as flat text.
     </p>
   </BentoCardShell>
 );

@@ -262,25 +262,10 @@ export const LibraryBrowse: React.FC = () => {
         ) : null;
       })()}
 
-      {/* ── Collections, tags, saved views ── */}
+      {/* ── Collections and tags ── */}
       <LibraryTagBar
         selectedTagIds={selectedTagIds}
         onChange={ids => { setSelectedTagIds(ids); setCurrentPage(1); }}
-        onApplyView={filters => {
-          // A saved view restores the whole filter set, not just its tags — that is what makes it
-          // a view rather than a tag shortcut.
-          setSelectedTagIds(filters.tagIds ?? []);
-          setSelectedCourseId(filters.courseId ?? null);
-          setSearchQuery(filters.search ?? '');
-          if (filters.type) setActiveType(filters.type as FilterType);
-          setCurrentPage(1);
-        }}
-        currentFilters={{
-          type: activeType,
-          courseId: selectedCourseId,
-          search: debouncedSearch || null,
-          tagIds: selectedTagIds,
-        }}
         reloadSignal={tagsReloadKey}
       />
 

@@ -5,10 +5,10 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Library, Settings, LogOut, BrainCircuit,
   Award, NotebookPen, X, ChevronLeft, ChevronRight,
-  User, MessageSquarePlus, Search, Trophy, Users, Bot,
-  LineChart, PenLine, Wand2,
+  User, MessageSquarePlus, Search, Users, Bot,
+  LineChart, Wand2,
 } from 'lucide-react';
-import { AchievementsPanel } from '../dashboard/AchievementsPanel';
+import { FeedbackTab } from '../settings/FeedbackTab';
 import { cn } from '../../utils/cn';
 import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from '../../i18n';
@@ -26,7 +26,7 @@ interface SidebarProps {
 // re-renders the nav without rebuilding this list.
 // Ten entries, not fifteen: pages that answered the same question were merged into one page with
 // tabs, and the nav follows. Practice/Planner → Practice Center, Glossary → Materials, Concept map →
-// Insights, Classrooms → Spaces. One entry per page — browsing the library and feeding it (the
+// Insights, Groups → Spaces. One entry per page — browsing the library and feeding it (the
 // Summarizer, at /library/add) are two pages, so they are two entries.
 const navItems: { icon: typeof LayoutDashboard; labelKey: TranslationKey; path: string }[] = [
   { icon: LayoutDashboard, labelKey: 'nav.dashboard', path: '/dashboard' },
@@ -35,7 +35,6 @@ const navItems: { icon: typeof LayoutDashboard; labelKey: TranslationKey; path: 
   { icon: BrainCircuit, labelKey: 'nav.flashcards', path: '/flashcards' },
   { icon: Award, labelKey: 'nav.practiceCenter', path: '/quizzes' },
   { icon: NotebookPen, labelKey: 'nav.materials', path: '/materials' },
-  { icon: PenLine, labelKey: 'nav.tools', path: '/tools' },
   { icon: LineChart, labelKey: 'nav.insights', path: '/insights' },
   { icon: Bot, labelKey: 'nav.chat', path: '/chat' },
   { icon: Users, labelKey: 'nav.spaces', path: '/spaces' },
@@ -49,7 +48,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isCollapsed, 
   const { t } = useTranslation();
 
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [isAchievementsOpen, setIsAchievementsOpen] = useState(false);
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
   const [tooltip, setTooltip] = useState<{ label: string; y: number } | null>(null);
 
@@ -258,13 +257,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isCollapsed, 
                   <p className="text-xs text-text-muted truncate">{user?.email}</p>
                 </div>
                 <button
-                  onClick={() => { setIsAchievementsOpen(true); setIsProfileOpen(false); }}
-                  className="flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-sm text-text-main hover:bg-amber-50 hover:text-amber-600 transition-all"
-                >
-                  <Trophy size={16} />
-                  Achievements
-                </button>
-                <button
                   onClick={() => { navigate('/settings'); setIsProfileOpen(false); }}
                   className="flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-sm text-text-main hover:bg-[var(--primary)]/10 hover:text-[var(--primary)] transition-all"
                 >
@@ -272,7 +264,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isCollapsed, 
                   Settings
                 </button>
                 <button
-                  onClick={() => { navigate('/settings?tab=feedback'); setIsProfileOpen(false); }}
+                  onClick={() => { setIsFeedbackOpen(true); setIsProfileOpen(false); }}
                   className="flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-sm text-text-main hover:bg-[var(--primary)]/10 hover:text-[var(--primary)] transition-all"
                 >
                   <MessageSquarePlus size={16} />
@@ -292,28 +284,28 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isCollapsed, 
         </div>
       </aside>
 
-      {/* Achievements modal */}
-      {isAchievementsOpen && ReactDOM.createPortal(
+      {/* Feedback drawer — reached from the profile menu, so it needs no Settings tab. */}
+      {isFeedbackOpen && ReactDOM.createPortal(
         <>
           <div
             className="fixed inset-0 z-[9998] bg-black/40 backdrop-blur-sm"
-            onClick={() => setIsAchievementsOpen(false)}
+            onClick={() => setIsFeedbackOpen(false)}
           />
           <div className="fixed inset-y-0 right-0 z-[9999] w-full max-w-lg flex flex-col bg-[var(--bg-sidebar)] shadow-2xl">
             <div className="flex items-center justify-between border-b border-[var(--border-color)] px-6 py-4 shrink-0">
               <div className="flex items-center gap-2">
-                <Trophy size={18} className="text-amber-500" />
-                <h2 className="text-base font-bold text-text-main">Achievements</h2>
+                <MessageSquarePlus size={18} className="text-[var(--primary)]" />
+                <h2 className="text-base font-bold text-text-main">Feedback</h2>
               </div>
               <button
-                onClick={() => setIsAchievementsOpen(false)}
+                onClick={() => setIsFeedbackOpen(false)}
                 className="flex h-8 w-8 items-center justify-center rounded-xl text-text-muted hover:bg-zinc-100 hover:text-text-main transition-colors"
               >
                 <X size={16} />
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-6">
-              <AchievementsPanel />
+              <FeedbackTab />
             </div>
           </div>
         </>,

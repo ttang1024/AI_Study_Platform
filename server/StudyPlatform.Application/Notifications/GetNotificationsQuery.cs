@@ -1,6 +1,5 @@
 using MediatR;
 using StudyPlatform.Application.Analytics.Queries;
-using StudyPlatform.Application.Classrooms;
 using StudyPlatform.Application.Common;
 using StudyPlatform.Application.ConceptLinks;
 using StudyPlatform.Application.StudyQueue.Queries;
@@ -34,8 +33,6 @@ public record GetNotificationsQuery(Guid UserId) : IRequest<Result<Notifications
 public class GetNotificationsQueryHandler : IRequestHandler<GetNotificationsQuery, Result<NotificationsDto>>
 {
     private const int MaxReviewItems = 2;
-    private const int MaxClassroomItems = 3;
-    private const int ClassroomHorizonDays = 7;
 
     private readonly IMediator _mediator;
 
@@ -76,25 +73,6 @@ public class GetNotificationsQueryHandler : IRequestHandler<GetNotificationsQuer
                 "goal-remaining", "goal",
                 $"{remaining} min to today’s goal",
                 $"You’re at {summary.Streak.TodayMinutes} of {summary.DailyGoalMinutes} minutes.", "/today"));
-        }
-
-        // 4. Classwork with a deadline. Ranked above the platform's own suggestions on purpose: a
-        // missed assignment has a consequence outside the app that a skipped review does not.
-        var deadlines = (await _mediator.Send(new GetClassroomDeadlinesQuery(userId, ClassroomHorizonDays), ct)).Data!;
-        foreach (var d in deadlines.Take(MaxClassroomItems))
-        {
-            var due = d.IsOverdue
-                ? $"Was due {d.DueAt:MMM d}"
-                : d.DueAt.Date == DateTime.UtcNow.Date
-                    ? "Due today"
-                    : $"Due {d.DueAt:MMM d}";
-
-            items.Add(new NotificationDto(
-                $"classroom-{d.ClassroomAssignmentId?.ToString() ?? d.CourseId?.ToString() ?? d.ClassroomId.ToString()}",
-                "due",
-                d.IsOverdue ? $"Overdue: {d.Title}" : d.Title,
-                $"{due} — {d.ClassroomName}.",
-                $"/classrooms/{d.ClassroomId}"));
         }
 
         // 5. Top high-severity knowledge gap.

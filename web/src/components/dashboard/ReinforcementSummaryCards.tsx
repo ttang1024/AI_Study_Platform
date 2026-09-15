@@ -54,7 +54,7 @@ export const ReinforcementSummaryCards: React.FC<{ counts?: ReinforcementCounts 
         <ReinforcementModuleCard
           key={card.id}
           {...card}
-          to={`/insights?tab=reinforcement&module=${card.id}`}
+          to={`/insights?tab=analytics&module=${card.id}`}
           hoverActive
         />
       ))}

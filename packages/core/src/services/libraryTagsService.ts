@@ -27,34 +27,6 @@ export interface BulkTagResult {
   requested: number;
 }
 
-export interface SavedLibraryView {
-  savedLibraryViewId: string;
-  name: string;
-  icon: string | null;
-  filtersJson: string;
-  position: number;
-  createdAt: string;
-}
-
-/** The filter shape stored in a saved view — the same parameters the library list accepts. */
-export interface SavedViewFilters {
-  type?: string;
-  courseId?: string | null;
-  search?: string | null;
-  tagIds?: string[];
-}
-
-export function parseSavedViewFilters(json: string): SavedViewFilters {
-  try {
-    const parsed = JSON.parse(json);
-    return parsed && typeof parsed === 'object' ? parsed : {};
-  } catch {
-    // A view whose filters cannot be read still renders — it just applies nothing, which is far
-    // better than a corrupt row taking down the library sidebar.
-    return {};
-  }
-}
-
 export function createLibraryTagsService(http: HttpClient) {
   return {
     getTags: (kind?: LibraryTagKind) =>
@@ -88,23 +60,5 @@ export function createLibraryTagsService(http: HttpClient) {
       http.delete<{ data: BulkTagResult; message: string }>(`/api/library/tags/${id}/items`, {
         data: { items },
       }),
-
-    // ── Saved views ──────────────────────────────────────────────────────
-    getViews: () => http.get<{ data: SavedLibraryView[] }>('/api/library/views'),
-
-    createView: (input: {
-      name: string;
-      icon?: string | null;
-      filtersJson: string;
-      position?: number;
-    }) => http.post<{ data: SavedLibraryView; message: string }>('/api/library/views', input),
-
-    updateView: (
-      id: string,
-      input: { name: string; icon?: string | null; filtersJson: string; position?: number },
-    ) => http.put<{ data: SavedLibraryView; message: string }>(`/api/library/views/${id}`, input),
-
-    deleteView: (id: string) =>
-      http.delete<{ success: boolean; message: string }>(`/api/library/views/${id}`),
   };
 }

@@ -156,7 +156,6 @@ export const GlossaryTermCard: React.FC<GlossaryTermCardProps> = ({
         <p className="text-sm text-text-muted leading-relaxed">{term.definition}</p>
         <SourceCitation
           citation={term.citation}
-          documentId={term.documentId}
           videoId={term.videoId}
           className="mt-2"
         />

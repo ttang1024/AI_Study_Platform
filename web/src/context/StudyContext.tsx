@@ -5,7 +5,7 @@ import { courseService } from '../services/courseService';
 import { QuizSubmission, invalidateDocumentListCache } from '../services/documentService';
 import { VideoListItem, invalidateVideoListCache } from '../services/videoService';
 import { invalidateFlashcardListCache } from '../services/flashcardService';
-import { AchievementStats as ServerAchievementStats, CourseMaterialStats, statsService } from '../services/statsService';
+import { CourseMaterialStats, statsService } from '../services/statsService';
 import { invalidateDashboardSummaryCache } from '../services/analyticsService';
 import { useAuth } from './AuthContext';
 import { useStatsSlice, EMPTY_STATS } from './studyContext/useStatsSlice';
@@ -32,7 +32,6 @@ interface StudyContextType {
   totalVideos: number;
   totalMaterials: number;
   courseMaterialCounts: CourseMaterialStats[];
-  achievementStats: ServerAchievementStats;
   currentDocument: Document | null;
   setCurrentDocument: (doc: Document | null | ((prev: Document | null) => Document | null)) => void;
   addDocument: (file: File, courseId: string) => Promise<string>;
@@ -193,7 +192,6 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         totalVideos: stats.totalVideos,
         totalMaterials: stats.totalMaterials,
         courseMaterialCounts: stats.courseMaterialCounts,
-        achievementStats: stats.achievementStats,
         currentDocument,
         setCurrentDocument,
         addDocument: documentsSlice.addDocument,

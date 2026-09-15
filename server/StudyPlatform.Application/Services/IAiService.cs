@@ -41,27 +41,8 @@ public interface IAiService
     Task<string> TranslateAsync(
         string text, string targetLanguage, CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Marks a piece of writing against a rubric. Returns the JSON described by AiPrompts.GradeEssay:
-    /// an overall comment, quoted strengths and improvements, and a score per criterion.
-    /// </summary>
-    Task<string> GradeEssayAsync(
-        string criteriaJson, string? promptText, string essayText, CancellationToken cancellationToken = default);
-
     // Phase 3 additions
     Task<string> GenerateFlashcardBackAsync(string frontText, CancellationToken cancellationToken = default);
-
-    // Audio overview (NotebookLM-style two-host dialogue)
-    Task<string> GenerateAudioOverviewScriptAsync(string courseName, string materialsDigest, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Grades a photographed handwritten solution, step by step. Returns the JSON described by
-    /// AiPrompts.GradeHandwrittenWork. Pages are graded together as one continuous solution.
-    /// </summary>
-    Task<string> GradeHandwrittenWorkAsync(
-        IReadOnlyList<(byte[] data, string mimeType)> pages,
-        string? problemStatement,
-        CancellationToken cancellationToken = default);
 
     // Streaming variants
     IAsyncEnumerable<string> StreamSummaryAsync(byte[] fileData, string mimeType, CancellationToken cancellationToken = default);

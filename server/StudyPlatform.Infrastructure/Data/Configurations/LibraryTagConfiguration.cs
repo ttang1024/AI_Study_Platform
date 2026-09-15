@@ -54,24 +54,3 @@ public class LibraryTagAssignmentConfiguration : IEntityTypeConfiguration<Librar
         // constraint can express. Assignments are pruned explicitly when an item is deleted.
     }
 }
-
-public class SavedLibraryViewConfiguration : IEntityTypeConfiguration<SavedLibraryView>
-{
-    public void Configure(EntityTypeBuilder<SavedLibraryView> builder)
-    {
-        builder.HasKey(v => v.SavedLibraryViewId);
-
-        builder.Property(v => v.Name).IsRequired().HasMaxLength(64);
-        builder.Property(v => v.Icon).HasMaxLength(16);
-        builder.Property(v => v.FiltersJson).IsRequired();
-        builder.Property(v => v.CreatedAt).IsRequired();
-        builder.Property(v => v.UpdatedAt).IsRequired();
-
-        builder.HasIndex(v => new { v.UserId, v.Position });
-
-        builder.HasOne(v => v.User)
-            .WithMany()
-            .HasForeignKey(v => v.UserId)
-            .OnDelete(DeleteBehavior.Cascade);
-    }
-}

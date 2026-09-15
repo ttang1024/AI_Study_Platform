@@ -70,7 +70,7 @@ export function useFlashcardsPage() {
   const [showOcclusionEditor, setShowOcclusionEditor] = useState(false);
   const [exporting, setExporting] = useState(false);
 
-  const [activeTab, setActiveTab] = useState<'sets' | 'review' | 'leeches'>(() => {
+  const [activeTab, setActiveTab] = useState<'sets' | 'review' | 'leeches' | 'scheduler'>(() => {
     const tab = new URLSearchParams(window.location.search).get('tab');
     return tab === 'review' || tab === 'leeches' ? tab : 'sets';
   });

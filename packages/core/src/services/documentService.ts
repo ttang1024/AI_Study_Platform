@@ -300,15 +300,6 @@ export function createDocumentService(http: HttpClient, streamSse: SseStreamFn) 
   return {
     invalidateDocumentListCache,
 
-    /**
-     * The document's plain text — the exact string citation offsets index into. Extracted and
-     * persisted server-side on first request, so repeated calls and every stored anchor agree.
-     */
-    getText: (documentId: string) =>
-      http.get<{ data: { documentId: string; text: string | null; contentVersion: number } }>(
-        `/api/documents/${documentId}/text`,
-      ),
-
     /** How much of this document's generated material predates its current source version. */
     getStaleness: (documentId: string) =>
       http.get<{ data: DocumentStaleness }>(`/api/documents/${documentId}/staleness`),
@@ -448,28 +439,6 @@ export function createDocumentService(http: HttpClient, streamSse: SseStreamFn) 
       );
       invalidateDocumentListCache();
       return mapDocument(response.data.data);
-    },
-
-    async generateSummary(
-      courseId: string,
-      documentId: string,
-    ): Promise<{ summary: string; keyPoints: string[] }> {
-      const response = await http.post<{ data: BackendDocument }>(
-        `/api/courses/${courseId}/documents/${documentId}/summary`,
-      );
-      const doc = response.data.data;
-      try {
-        return JSON.parse(doc.summary || '{}');
-      } catch {
-        return { summary: doc.summary || '', keyPoints: [] };
-      }
-    },
-
-    async generateMindMap(courseId: string, documentId: string): Promise<{ mindMapText: string }> {
-      const response = await http.post<{ data: BackendDocument }>(
-        `/api/courses/${courseId}/documents/${documentId}/mindmap`,
-      );
-      return { mindMapText: response.data.data.mindMapText || '' };
     },
 
     async generateQuiz(

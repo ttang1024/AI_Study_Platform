@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLocation } from 'react-router-dom';
-import { User, Shield, LogOut, KeyRound, Volume2, Archive, Activity, CreditCard, MessageSquarePlus, Plug, FileArchive, Gauge } from 'lucide-react';
+import { User, Shield, LogOut, KeyRound, Archive, Activity } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { cn } from '../utils/cn';
 import { useTabParam } from '../components/common/PageTabs';
@@ -8,15 +8,11 @@ import { ProfileTab } from '../components/settings/ProfileTab';
 import { SecurityTab } from '../components/settings/SecurityTab';
 import { AiServicesTab } from '../components/settings/AiServicesTab';
 import { AiUsageTab } from '../components/settings/AiUsageTab';
-import { PlanTab } from '../components/settings/PlanTab';
 import { VoiceTab } from '../components/settings/VoiceTab';
-import { SchedulerTab } from '../components/settings/SchedulerTab';
 import { ExportTab } from '../components/settings/ExportTab';
-import { FeedbackTab } from '../components/settings/FeedbackTab';
-import { IntegrationsTab } from '../components/settings/IntegrationsTab';
 import { DataRightsSection } from '../components/settings/DataRightsSection';
 
-type SettingsTab = 'profile' | 'security' | 'ai' | 'ai-usage' | 'plan' | 'scheduler' | 'voice' | 'export' | 'data' | 'integrations' | 'feedback';
+type SettingsTab = 'profile' | 'security' | 'ai' | 'ai-usage' | 'export';
 
 const tabs = [
   { id: 'profile', label: 'Profile', icon: User },
@@ -24,19 +20,7 @@ const tabs = [
   { id: 'ai', label: 'AI Services', icon: KeyRound },
   // Sits next to AI Services on purpose: the keys are configured there, and this is what they cost.
   { id: 'ai-usage', label: 'AI Usage', icon: Activity },
-  // Directly after usage: the limit shown there is set by the plan shown here.
-  { id: 'plan', label: 'Plan', icon: CreditCard },
-  // Sits with the study-behaviour settings rather than the account ones: it changes what
-  // reviewing feels like, not who you are.
-  { id: 'scheduler', label: 'Scheduler', icon: Gauge },
-  { id: 'voice', label: 'Voice', icon: Volume2 },
   { id: 'export', label: 'Export', icon: Archive },
-  // Next to Export because both are "get my content out"; this one is the whole account rather
-  // than one artifact, and it is also where deletion lives.
-  { id: 'data', label: 'Your data', icon: FileArchive },
-  { id: 'integrations', label: 'Integrations', icon: Plug },
-  // Was its own page reached from the profile menu; both menu entries land in Settings now.
-  { id: 'feedback', label: 'Feedback', icon: MessageSquarePlus },
 ] as const;
 
 const TAB_IDS = tabs.map(t => t.id) as readonly SettingsTab[];
@@ -44,8 +28,8 @@ const TAB_IDS = tabs.map(t => t.id) as readonly SettingsTab[];
 export const SettingsPage: React.FC = () => {
   const { logout } = useAuth();
   const location = useLocation();
-  // The tab is in the URL (so /feedback can redirect to ?tab=feedback), but callers that push
-  // a tab through router state — the AI-provider banner, the plan upsell — still work.
+  // The tab is in the URL, but callers that push a tab through router state — the AI-provider
+  // banner — still work.
   const stateTab = (location.state as { activeTab?: SettingsTab } | null)?.activeTab;
   const { active: activeTab, select: setActiveTab } = useTabParam(TAB_IDS, stateTab ?? 'profile');
 
@@ -86,17 +70,21 @@ export const SettingsPage: React.FC = () => {
 
         {/* Content Area */}
         <div className="flex-1 bg-[var(--bg-sidebar)] rounded-2xl border border-[var(--border-color)] p-8 shadow-sm">
-          {activeTab === 'profile' && <ProfileTab />}
-          {activeTab === 'security' && <SecurityTab />}
+          {activeTab === 'profile' && (
+            <>
+              <ProfileTab />
+              <div className="mt-10 border-t border-[var(--border-color)] pt-10"><VoiceTab /></div>
+            </>
+          )}
+          {activeTab === 'security' && (
+            <>
+              <SecurityTab />
+              <div className="mt-10 border-t border-[var(--border-color)] pt-10"><DataRightsSection /></div>
+            </>
+          )}
           {activeTab === 'ai' && <AiServicesTab />}
           {activeTab === 'ai-usage' && <AiUsageTab />}
-          {activeTab === 'plan' && <PlanTab />}
-          {activeTab === 'scheduler' && <SchedulerTab />}
-          {activeTab === 'voice' && <VoiceTab />}
           {activeTab === 'export' && <ExportTab />}
-          {activeTab === 'data' && <DataRightsSection />}
-          {activeTab === 'integrations' && <IntegrationsTab />}
-          {activeTab === 'feedback' && <FeedbackTab />}
         </div>
       </div>
     </div>

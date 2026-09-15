@@ -1,22 +1,18 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useStudy } from '../context/StudyContext';
-import { Loader2, Download, Plus, GraduationCap, CalendarClock, History, ListChecks, XCircle } from 'lucide-react';
+import { Loader2, Download, GraduationCap, CalendarClock, History, XCircle } from 'lucide-react';
 import { TimedExamModal } from '../components/quiz/TimedExamModal';
 import { ShareModal } from '../components/common/ShareModal';
-import { EditQuestionModal } from '../components/quiz/EditQuestionModal';
 import { MistakesNotebook } from '../components/quiz/MistakesNotebook';
-import { QuestionBankTab } from '../components/quiz/QuestionBankTab';
 import { PracticeSection } from '../components/practice/PracticeSection';
 import { PageTab, PageTabBar, PageTabBlurb, PageTabPanels, useTabParam } from '../components/common/PageTabs';
-import { Pagination } from '../components/common/Pagination';
 import { useRefreshOnVisible } from '../hooks/useRefreshOnVisible';
 import { MainTab } from './quizManagement/types';
 import { useQuizHistory } from './quizManagement/useQuizHistory';
-import { useQuestionBank } from './quizManagement/useQuestionBank';
 import { QuizHistoryTab } from './quizManagement/QuizHistoryTab';
 import { PlannerTab } from './planner/PlannerTab';
 
-const TAB_IDS: MainTab[] = ['practice', 'planner', 'history', 'mistakes', 'bank'];
+const TAB_IDS: MainTab[] = ['practice', 'planner', 'history', 'mistakes'];
 
 export const QuizManagementPage: React.FC = () => {
   const { isLoading: contextLoading } = useStudy();
@@ -24,17 +20,6 @@ export const QuizManagementPage: React.FC = () => {
   const { active: mainTab, select: setMainTab } = useTabParam<MainTab>(TAB_IDS, 'practice');
 
   const history = useQuizHistory();
-  const bank = useQuestionBank(mainTab);
-
-  // Reveal-answer toggle for the Question-Bank tab.
-  const [revealedAnswers, setRevealedAnswers] = useState<Set<string>>(new Set());
-  const toggleAnswer = (id: string) => {
-    setRevealedAnswers(prev => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-  };
 
   useRefreshOnVisible(React.useCallback(async () => {
     await Promise.all([
@@ -49,8 +34,8 @@ export const QuizManagementPage: React.FC = () => {
     // 7+ requests per burst — cap to once a minute rather than every tab switch.
   }, [history]), 60_000);
 
-  // Practice, Planner and Mistakes are self-contained; History and Question Bank are driven
-  // by this page's hooks, so they come in as elements (see PageTab).
+  // Practice, Planner and Mistakes are self-contained; History is driven by this page's
+  // hooks, so it comes in as an element (see PageTab).
   const TABS: PageTab<MainTab>[] = [
     {
       id: 'practice',
@@ -79,41 +64,6 @@ export const QuizManagementPage: React.FC = () => {
       icon: XCircle,
       panel: MistakesNotebook,
       blurb: 'The questions you got wrong, kept until you close them out.',
-    },
-    {
-      id: 'bank',
-      label: 'Question bank',
-      icon: ListChecks,
-      blurb: 'Every generated question in one place — filter it, edit it, or turn it into a mock exam.',
-      content: (
-        <>
-          <QuestionBankTab
-            courses={history.courses}
-            loading={bank.bankLoading}
-            search={bank.bankSearch}
-            onSearchChange={s => bank.handleBankFilterChange(() => bank.setBankSearch(s))}
-            courseId={bank.bankCourseId}
-            onCourseChange={id => bank.handleBankFilterChange(() => bank.setBankCourseId(id))}
-            difficulty={bank.bankDifficulty}
-            onDifficultyChange={d => bank.handleBankFilterChange(() => bank.setBankDifficulty(d))}
-            questions={bank.bankPagedQuestions}
-            totalCount={bank.bankFiltered.length}
-            selectedIds={bank.selectedIds}
-            onSelect={bank.handleSelect}
-            onSelectFiltered={() => bank.setSelectedIds(new Set(bank.bankFiltered.map(q => q.quizId)))}
-            revealedAnswers={revealedAnswers}
-            onToggleAnswer={toggleAnswer}
-            onEdit={bank.setEditing}
-            onDelete={bank.handleDeleteBankQuestion}
-          />
-          <Pagination
-            page={bank.safeBankPage}
-            totalPages={bank.bankTotalPages}
-            onPageChange={(p) => { bank.setBankPage(p); document.getElementById('main-scroll')?.scrollTo({ top: 0, behavior: 'smooth' }); }}
-            size="sm"
-          />
-        </>
-      ),
     },
   ];
 
@@ -158,29 +108,6 @@ export const QuizManagementPage: React.FC = () => {
             </div>
           </div>
         )}
-        {mainTab === 'bank' && (
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => bank.handleStartBankExam('selected')}
-              disabled={bank.selectedQuestions.length === 0 && bank.bankFiltered.length === 0}
-              className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-bold text-white disabled:opacity-40"
-            >
-              <Plus size={15} />
-              Mock Exam
-            </button>
-            {(['csv', 'gift', 'qti'] as const).map(format => (
-              <button
-                key={format}
-                onClick={() => bank.handleBankExport(format)}
-                disabled={!!bank.bankExporting || bank.bankFiltered.length === 0}
-                className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-color)] bg-white px-3 py-2 text-xs font-bold text-text-main hover:border-primary/40 disabled:opacity-40"
-              >
-                {bank.bankExporting === format ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
-                {format.toUpperCase()}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
       <PageTabBar
@@ -194,30 +121,12 @@ export const QuizManagementPage: React.FC = () => {
 
       <PageTabPanels idPrefix="quizzes" tabs={TABS} active={mainTab} />
 
-      {/* Edit question modal */}
-      {bank.editing && (
-        <EditQuestionModal
-          editing={bank.editing}
-          saving={bank.saving}
-          onChange={bank.setEditing}
-          onSave={bank.handleSaveEdit}
-          onClose={() => bank.setEditing(null)}
-        />
-      )}
-
       {/* Timed exam modals */}
       <TimedExamModal
         isOpen={history.timedExamDocId !== null}
         onClose={() => history.setTimedExamDocId(null)}
         questions={history.timedExamQuestions}
         sourceTitle={history.timedExamDocName}
-      />
-      <TimedExamModal
-        isOpen={bank.bankExamQuestions.length > 0}
-        onClose={() => bank.setBankExamQuestions([])}
-        questions={bank.bankExamQuestions}
-        sourceTitle={bank.bankExamTitle}
-        timeLimitMinutes={Math.max(5, Math.ceil(bank.bankExamQuestions.length * 1.5))}
       />
       {history.shareTarget && (
         <ShareModal

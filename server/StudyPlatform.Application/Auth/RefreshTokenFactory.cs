@@ -6,10 +6,8 @@ namespace StudyPlatform.Application.Auth;
 /// <summary>
 /// Builds the refresh-token row that represents a session.
 ///
-/// <para>Shared by every path that signs a user in — password, OAuth, registration, the second leg
-/// of a 2FA login, and refresh itself. Centralised because the session list is only as trustworthy
-/// as its least-annotated row: one login path that forgot to stamp the device would show up as an
-/// unidentifiable session, which is precisely the row a user is scanning for.</para>
+/// <para>Shared by every path that signs a user in — password, OAuth, registration, and refresh
+/// itself — so every row carries the same device annotation.</para>
 /// </summary>
 public static class RefreshTokenFactory
 {

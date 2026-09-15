@@ -61,13 +61,13 @@ export const BentoInsightsCard: React.FC = () => {
           </span>
           <span className="flex-1 text-center text-[10px] font-bold px-2 py-1 rounded-lg"
             style={{ background: 'rgba(34,211,238,0.1)', color: '#22d3ee', border: '1px solid rgba(34,211,238,0.25)' }}>
-            Level 7 · 2,340 XP
+            Streak · 12 days
           </span>
         </div>
       </div>
 
       <p className="text-sm text-white/40 leading-relaxed">
-        Time-on-task, accuracy trends, per-course mastery, knowledge-gap detection, XP levels — plus AI recommendations on what to study next.
+        Time-on-task, accuracy trends, per-course mastery, a year-long activity heatmap and knowledge-gap detection — plus AI recommendations on what to study next.
       </p>
     </BentoCardShell>
   );

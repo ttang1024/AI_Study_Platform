@@ -153,17 +153,3 @@ public class LibraryTagRepository : Repository<LibraryTag>, ILibraryTagRepositor
             .Where(a => a.ItemKind == itemKind && a.ItemId == itemId)
             .ExecuteDeleteAsync(cancellationToken);
 }
-
-public class SavedLibraryViewRepository : Repository<SavedLibraryView>, ISavedLibraryViewRepository
-{
-    public SavedLibraryViewRepository(AppDbContext context) : base(context) { }
-
-    public async Task<IReadOnlyList<SavedLibraryView>> GetForUserAsync(
-        Guid userId, CancellationToken cancellationToken = default)
-        => await _dbSet
-            .AsNoTracking()
-            .Where(v => v.UserId == userId)
-            .OrderBy(v => v.Position)
-            .ThenBy(v => v.CreatedAt)
-            .ToListAsync(cancellationToken);
-}

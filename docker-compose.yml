@@ -18,7 +18,11 @@ services:
     ports:
       - "5432:5432"
 
+  # Optional. Not started by `docker compose up` — the API defaults to Redis__Enabled=false and
+  # serves its cache from the Postgres CacheEntries tier. Bring it up explicitly with
+  # `docker compose up -d redis` and set REDIS_ENABLED=true in .env to exercise the Redis paths.
   redis:
+    profiles: ["cache"]
     image: redis:7-alpine
     restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes"]
@@ -74,15 +78,16 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
-        condition: service_healthy
       minio-init:
         condition: service_completed_successfully
     volumes:
       - data_protection_keys:/root/.aspnet/DataProtection-Keys
     environment:
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-studyplatform};Username=${POSTGRES_USER:-studyplatform};Password=${POSTGRES_PASSWORD}"
+      # Defaults to the bundled postgres service. Point DATABASE_CONNECTION_STRING at a managed
+      # Postgres (Supabase) to run this container against it instead.
+      ConnectionStrings__DefaultConnection: "${DATABASE_CONNECTION_STRING:-Host=postgres;Port=5432;Database=${POSTGRES_DB:-studyplatform};Username=${POSTGRES_USER:-studyplatform};Password=${POSTGRES_PASSWORD}}"
+      Database__MigrateOnStartup: ${DATABASE_MIGRATE_ON_STARTUP:-true}
       AWS__Region: ${AWS_REGION:-us-east-1}
       AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
       AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin123}
@@ -92,8 +97,8 @@ services:
       S3__ForcePathStyle: ${S3_FORCE_PATH_STYLE:-true}
       S3__AccessKey: ${MINIO_ROOT_USER:-minioadmin}
       S3__SecretKey: ${MINIO_ROOT_PASSWORD:-minioadmin123}
-      Redis__Enabled: ${REDIS_ENABLED:-true}
-      Redis__ConnectionString: "redis:6379"
+      Redis__Enabled: ${REDIS_ENABLED:-false}
+      Redis__ConnectionString: ${REDIS_CONNECTION_STRING:-redis:6379}
       Redis__InstanceName: ${REDIS_INSTANCE_NAME:-StudyPlatform:}
       Cache__DashboardStatsSeconds: ${CACHE_DASHBOARD_STATS_SECONDS:-60}
       Cache__AnalyticsSummarySeconds: ${CACHE_ANALYTICS_SUMMARY_SECONDS:-300}
@@ -116,6 +121,9 @@ services:
       Cors__AllowedOrigins__0: ${WEB_ORIGIN:-http://localhost:3000}
       Cors__AllowedOrigins__1: ${ADMIN_ORIGIN:-http://localhost:4200}
       AppLimits__DocumentUploadLimit: ${DOCUMENT_UPLOAD_LIMIT:-20}
+      Embeddings__Provider: ${EMBEDDINGS_PROVIDER:-gemini}
+      Embeddings__Model: ${EMBEDDINGS_MODEL:-gemini-embedding-001}
+      Embeddings__ApiKey: ${EMBEDDINGS_API_KEY:-}
       YouTube__SubtitleLanguages: ${YOUTUBE_SUBTITLE_LANGUAGES:-en.*,en}
       YouTube__ProxyUrl: ${YOUTUBE_PROXY_URL:-}
       YouTube__CookiesBase64: ${YOUTUBE_COOKIES_B64:-}

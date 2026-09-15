@@ -15,11 +15,6 @@ public record CourseMaterialStatsDto(
     int Videos,
     int Total);
 
-public record AchievementStatsDto(
-    int PerfectQuizzes,
-    int AverageQuizScore,
-    int FlashcardsMastered);
-
 public record UserStatsDto(
     int TotalDocuments,
     int TotalArticles,
@@ -31,8 +26,7 @@ public record UserStatsDto(
     int TotalQuizQuestions,
     int TotalQuizSubmissions,
     int TotalVideos,
-    IEnumerable<CourseMaterialStatsDto> CourseMaterialCounts,
-    AchievementStatsDto Achievements);
+    IEnumerable<CourseMaterialStatsDto> CourseMaterialCounts);
 
 public record GetUserStatsQuery(Guid UserId) : IRequest<Result<UserStatsDto>>;
 
@@ -87,8 +81,6 @@ public class GetUserStatsQueryHandler : IRequestHandler<GetUserStatsQuery, Resul
             })
             .ToList();
 
-        var achievements = await _unitOfWork.QuizSubmissions.GetAchievementsAsync(userId, cancellationToken);
-
         return new UserStatsDto(
             materials.Documents,
             materials.Articles,
@@ -100,10 +92,6 @@ public class GetUserStatsQueryHandler : IRequestHandler<GetUserStatsQuery, Resul
             totalQuizQuestions,
             totalQuizSubmissions,
             totalVideos,
-            courseMaterialCounts,
-            new AchievementStatsDto(
-                achievements.PerfectCount,
-                (int)Math.Round(achievements.AverageScorePercent),
-                0));
+            courseMaterialCounts);
     }
 }

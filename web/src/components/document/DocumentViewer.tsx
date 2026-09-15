@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { renderAsync } from 'docx-preview';
-import { Document, Page, pdfjs } from 'react-pdf';
+import { Document, Page } from 'react-pdf';
+import '../../utils/pdfWorker';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import ReactMarkdown from 'react-markdown';
@@ -14,9 +15,6 @@ import { HtmlFileViewer } from './HtmlFileViewer';
 import { prettyPrintData, dataCaption } from '../../utils/dataFile';
 import type { DocumentViewerKind } from '@core/services/documentService';
 import { Loader2 } from 'lucide-react';
-
-// Set up PDF.js worker
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 
 // Kinds whose renderer works from the file's text, whether that text is the

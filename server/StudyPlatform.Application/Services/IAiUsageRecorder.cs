@@ -12,29 +12,16 @@ public sealed record AiUsageRecord(
     bool Streamed);
 
 /// <summary>
-/// Records what each AI call cost and enforces the per-user daily token budget. Writes go to their
-/// own scope/DbContext so accounting never enlists in the caller's unit of work — a failed insert
+/// Records what each AI call cost. Writes go to their own scope/DbContext so accounting never enlists in the caller's unit of work — a failed insert
 /// must not roll back the work the user actually asked for.
 /// </summary>
 public interface IAiUsageRecorder
 {
-    /// <summary>
-    /// Configured default budget, used where no user is in hand. Zero means unlimited.
-    /// Prefer <see cref="GetDailyTokenLimitAsync"/>, which accounts for the user's plan.
-    /// </summary>
+    /// <summary>Configured daily token budget, shown to the user for reference. Zero means unlimited.</summary>
     long DailyTokenLimit { get; }
-
-    /// <summary>The user's effective daily budget, from their plan. Zero means unlimited.</summary>
-    Task<long> GetDailyTokenLimitAsync(Guid userId, CancellationToken cancellationToken = default);
 
     Task RecordAsync(AiUsageRecord usage, CancellationToken cancellationToken = default);
 
     /// <summary>Tokens the user has consumed since UTC midnight.</summary>
     Task<long> GetTokensUsedTodayAsync(Guid userId, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Throws <see cref="AiQuotaExceededException"/> when the user has spent their daily budget.
-    /// No-op when no budget is configured, or when the call can't be attributed to a user.
-    /// </summary>
-    Task EnsureWithinQuotaAsync(Guid userId, CancellationToken cancellationToken = default);
 }

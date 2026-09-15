@@ -32,6 +32,42 @@ public class DocumentTextExtractorServiceTests
         return _service.ExtractTextAsync(blobUrl, contentType);
     }
 
+    // ─── Storage sanitisation ─────────────────────────────────────────────────
+
+    // Postgres refuses NUL in a text value ("invalid byte sequence for encoding UTF8: 0x00") and
+    // aborts the whole SaveChanges, so a single stray byte from a PDF text layer lost the summary
+    // that had just been generated. Every extractor funnels through ExtractTextAsync, so the
+    // stripping happens once, there.
+    [Fact]
+    public async Task ExtractTextAsync_StripsNulBytes()
+    {
+        var text = await ExtractAsync("notes.txt", Encoding.UTF8.GetBytes("before\0after"), "text/plain");
+
+        Assert.DoesNotContain('\0', text);
+        Assert.Contains("before", text);
+        Assert.Contains("after", text);
+    }
+
+    [Fact]
+    public async Task ExtractTextAsync_KeepsTabsAndNewlines()
+    {
+        var text = await ExtractAsync("notes.txt", Encoding.UTF8.GetBytes("a\tb\nc\r\nd"), "text/plain");
+
+        Assert.Contains('\t', text);
+        Assert.Contains('\n', text);
+    }
+
+    [Fact]
+    public async Task ExtractTextAsync_KeepsNonAsciiAndEmoji()
+    {
+        // Emoji are surrogate pairs; the NUL strip must not mistake a valid pair for a lone one.
+        var text = await ExtractAsync("notes.txt", Encoding.UTF8.GetBytes("café — 日本語 🎓"), "text/plain");
+
+        Assert.Contains("café", text);
+        Assert.Contains("日本語", text);
+        Assert.Contains("🎓", text);
+    }
+
     // ─── Subtitles ────────────────────────────────────────────────────────────
 
     [Fact]

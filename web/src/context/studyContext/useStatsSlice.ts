@@ -1,11 +1,5 @@
 import { useCallback, useState } from 'react';
-import { AchievementStats as ServerAchievementStats, CourseMaterialStats, statsService, UserStats } from '../../services/statsService';
-
-export const EMPTY_ACHIEVEMENT_STATS: ServerAchievementStats = {
-  perfectQuizzes: 0,
-  averageQuizScore: 0,
-  flashcardsMastered: 0,
-};
+import { CourseMaterialStats, statsService, UserStats } from '../../services/statsService';
 
 export const EMPTY_STATS: UserStats = {
   totalDocuments: 0,
@@ -19,12 +13,10 @@ export const EMPTY_STATS: UserStats = {
   totalQuizSubmissions: 0,
   totalVideos: 0,
   courseMaterialCounts: [],
-  achievements: EMPTY_ACHIEVEMENT_STATS,
 };
 
 /**
- * The whole-library counters (dashboard tiles, "fetch all" sizing for the other slices) plus
- * achievement stats. Other slices read `documentCount`/`total*` to size their own fetches and call
+ * The whole-library counters (dashboard tiles, "fetch all" sizing for the other slices). Other slices read `documentCount`/`total*` to size their own fetches and call
  * the `setTotal*` setters here for optimistic updates (e.g. a delete decrementing a count) —
  * the raw setters are exposed rather than one combined update fn to keep those call sites terse.
  */
@@ -40,7 +32,6 @@ export function useStatsSlice() {
   const [totalQuizSubmissions, setTotalQuizSubmissions] = useState(0);
   const [totalVideos, setTotalVideos] = useState(0);
   const [courseMaterialCounts, setCourseMaterialCounts] = useState<CourseMaterialStats[]>([]);
-  const [achievementStats, setAchievementStats] = useState<ServerAchievementStats>(EMPTY_ACHIEVEMENT_STATS);
 
   const applyStats = useCallback((stats: UserStats) => {
     setTotalDocuments(stats.totalDocuments);
@@ -54,7 +45,6 @@ export function useStatsSlice() {
     setTotalQuizSubmissions(stats.totalQuizSubmissions);
     setTotalVideos(stats.totalVideos);
     setCourseMaterialCounts(stats.courseMaterialCounts);
-    setAchievementStats(stats.achievements);
   }, []);
 
   const refreshStats = useCallback(async (): Promise<void> => {
@@ -74,7 +64,7 @@ export function useStatsSlice() {
   return {
     totalDocuments, totalArticles, totalAudio, totalMaterials, totalNotes, totalFlashcards,
     totalGlossaryTerms, totalQuizQuestions, totalQuizSubmissions, totalVideos,
-    courseMaterialCounts, achievementStats, documentCount,
+    courseMaterialCounts, documentCount,
     setTotalDocuments, setTotalArticles, setTotalAudio, setTotalMaterials, setTotalNotes,
     setTotalFlashcards, setTotalVideos,
     applyStats, refreshStats, resetStats,

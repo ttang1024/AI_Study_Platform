@@ -27,13 +27,3 @@ public record LibraryItemRef(string ItemKind, Guid ItemId);
 public record AssignLibraryTagRequest(IReadOnlyList<LibraryItemRef> Items);
 
 public record BulkTagResultDto(int Changed, int Requested);
-
-public record SavedLibraryViewDto(
-    Guid SavedLibraryViewId,
-    string Name,
-    string? Icon,
-    string FiltersJson,
-    int Position,
-    DateTime CreatedAt);
-
-public record SaveLibraryViewRequest(string Name, string? Icon, string FiltersJson, int? Position);

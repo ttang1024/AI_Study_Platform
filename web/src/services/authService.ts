@@ -12,23 +12,16 @@ interface LoginResponse {
 	accessToken: string
 	expiresAt: string
 	user: User
-	/** True when the password leg passed but a code is still owed; the tokens are empty. */
-	twoFactorRequired: boolean
-	challengeToken: string | null
 }
 
 const toWebResult = ({
 	accessToken,
 	expiresAt,
 	user,
-	twoFactorRequired,
-	challengeToken,
 }: Awaited<ReturnType<typeof core.login>>): LoginResponse => ({
 	accessToken,
 	expiresAt,
 	user,
-	twoFactorRequired,
-	challengeToken,
 })
 
 export const authService = {
@@ -38,10 +31,6 @@ export const authService = {
 
 	async login(email: string, password: string): Promise<LoginResponse> {
 		return toWebResult(await core.login(email, password))
-	},
-
-	async verifyTwoFactor(challengeToken: string, code: string): Promise<LoginResponse> {
-		return toWebResult(await core.verifyTwoFactor(challengeToken, code))
 	},
 
 	// Refresh token is sent automatically via the HttpOnly cookie (withCredentials).

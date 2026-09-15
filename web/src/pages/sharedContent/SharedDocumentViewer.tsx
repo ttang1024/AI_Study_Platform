@@ -3,10 +3,9 @@ import { FileText, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { renderAsync } from 'docx-preview';
-import { Document as PdfDocument, Page as PdfPage, pdfjs } from 'react-pdf';
+import { Document as PdfDocument, Page as PdfPage } from 'react-pdf';
 import { getApiUrl } from '../../utils/env';
-
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+import '../../utils/pdfWorker';
 
 const API_URL = getApiUrl();
 

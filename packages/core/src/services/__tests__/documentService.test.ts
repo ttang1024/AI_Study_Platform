@@ -206,37 +206,6 @@ describe('createDocumentService', () => {
     })
   })
 
-  describe('generateSummary', () => {
-    it('parses a JSON summary blob', async () => {
-      const service = createDocumentService(fakeHttp, streamSse)
-      vi.mocked(fakeHttp.post).mockResolvedValueOnce({
-        data: { data: backendDoc({ summary: JSON.stringify({ summary: 'S', keyPoints: ['a'] }) }) },
-      })
-      const result = await service.generateSummary('c-1', 'd-1')
-      expect(result).toEqual({ summary: 'S', keyPoints: ['a'] })
-    })
-
-    it('falls back to the raw summary string when it is not JSON', async () => {
-      const service = createDocumentService(fakeHttp, streamSse)
-      vi.mocked(fakeHttp.post).mockResolvedValueOnce({ data: { data: backendDoc({ summary: 'plain text summary' }) } })
-      const result = await service.generateSummary('c-1', 'd-1')
-      expect(result).toEqual({ summary: 'plain text summary', keyPoints: [] })
-    })
-
-    it('parses to an empty object when summary is absent (defaults to the "{}" literal)', async () => {
-      const service = createDocumentService(fakeHttp, streamSse)
-      vi.mocked(fakeHttp.post).mockResolvedValueOnce({ data: { data: backendDoc({ summary: undefined }) } })
-      const result = await service.generateSummary('c-1', 'd-1')
-      expect(result).toEqual({})
-    })
-  })
-
-  it('generateMindMap defaults mindMapText to empty string', async () => {
-    const service = createDocumentService(fakeHttp, streamSse)
-    vi.mocked(fakeHttp.post).mockResolvedValueOnce({ data: { data: backendDoc({ mindMapText: null }) } })
-    expect(await service.generateMindMap('c-1', 'd-1')).toEqual({ mindMapText: '' })
-  })
-
   describe('quiz generation and mapping', () => {
     const backendQuiz = { quizId: 'q-1', question: 'Q', options: ['A', 'B'], correctAnswer: 'A', explanation: 'E' }
 

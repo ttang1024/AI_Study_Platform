@@ -96,7 +96,7 @@ export const FlashcardSessionCard: React.FC<FlashcardSessionCardProps> = ({
         >
           {/* Only once the answer is revealed — showing the source quote alongside the question
               would give the answer away. */}
-          <SourceCitation citation={card.citation} documentId={card.documentId} videoId={card.videoId} />
+          <SourceCitation citation={card.citation} videoId={card.videoId} />
           <RatingControls onRate={onRate} submitting={submitting} />
         </motion.div>
       )}
@@ -418,7 +418,6 @@ export const FlashcardSessionDeck: React.FC<FlashcardSessionDeckProps> = ({
           <div className="px-4 pb-8 space-y-2">
             <SourceCitation
               citation={current.citation}
-              documentId={current.documentId}
               videoId={current.videoId}
             />
             <RatingControls

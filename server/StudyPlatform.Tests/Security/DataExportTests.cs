@@ -65,7 +65,6 @@ public class RequestDataExportCommandHandlerTests
 {
     private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IDataExportRequestRepository> _exports = new();
-    private readonly Mock<IAuditLogger> _audit = new();
     private readonly RequestDataExportCommandHandler _handler;
     private readonly Guid _userId = Guid.NewGuid();
 
@@ -74,7 +73,7 @@ public class RequestDataExportCommandHandlerTests
         _uow.Setup(u => u.DataExportRequests).Returns(_exports.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
         _exports.Setup(r => r.AddAsync(It.IsAny<DataExportRequest>(), default)).Returns(Task.CompletedTask);
-        _handler = new RequestDataExportCommandHandler(_uow.Object, _audit.Object);
+        _handler = new RequestDataExportCommandHandler(_uow.Object);
     }
 
     [Fact]
@@ -134,7 +133,6 @@ public class GetDataExportDownloadQueryHandlerTests
     private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IDataExportRequestRepository> _exports = new();
     private readonly Mock<IBlobStorageService> _blobStorage = new();
-    private readonly Mock<IAuditLogger> _audit = new();
     private readonly GetDataExportDownloadQueryHandler _handler;
     private readonly Guid _userId = Guid.NewGuid();
     private readonly Guid _exportId = Guid.NewGuid();
@@ -142,7 +140,7 @@ public class GetDataExportDownloadQueryHandlerTests
     public GetDataExportDownloadQueryHandlerTests()
     {
         _uow.Setup(u => u.DataExportRequests).Returns(_exports.Object);
-        _handler = new GetDataExportDownloadQueryHandler(_uow.Object, _blobStorage.Object, _audit.Object);
+        _handler = new GetDataExportDownloadQueryHandler(_uow.Object, _blobStorage.Object);
     }
 
     [Fact]
@@ -202,6 +200,5 @@ public class GetDataExportDownloadQueryHandlerTests
 
         Assert.True(result.IsSuccess);
         Assert.Equal("https://signed-url", result.Data);
-        _audit.Verify(a => a.LogAsync(AuditActions.DataExportDownloaded, _userId, null, "DataExportRequest", _exportId.ToString(), null, default), Times.Once);
     }
 }

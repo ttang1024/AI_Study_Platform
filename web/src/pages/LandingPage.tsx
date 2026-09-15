@@ -31,21 +31,57 @@ import {
   BentoSearchCard,
   BentoShareCard,
   BentoPracticeCard,
-  BentoHandwritingCard,
-  BentoKnowledgeGraphCard,
   BentoOfflineCard,
   BentoEverywhereCard,
-  BentoClassroomCard,
-  BentoEssayCard,
-  BentoCodeCard,
-  BentoLanguageCard,
-  BentoCitationCard,
-  BentoCertificateCard,
-  BentoPeerReviewCard,
   BentoSecurityCard,
-  BentoTagsCard,
   BentoFormatsCard,
 } from '../components/landing/bento';
+
+/**
+ * The feature grid, in reading order. `span` widens a card across grid columns — kept off the
+ * base breakpoint, where the grid is a single column and a span would force an implicit second
+ * one and break the layout. A wide card has to start on a column where two still fit at both the
+ * 2- and 3-column breakpoints, so the count of single cards ahead of it matters: change the order
+ * or drop a card and the spans below usually have to move with it.
+ */
+const BENTO_CARDS: { Card: React.FC; span?: string }[] = [
+  { Card: BentoFormatsCard, span: 'sm:col-span-2' },
+  { Card: BentoChatCard },
+  { Card: BentoSummaryCard },
+  { Card: BentoMindMapCard, span: 'sm:col-span-2' },
+  { Card: BentoQuizCard },
+  { Card: BentoFlashcardCard },
+  { Card: BentoNoteCard },
+  { Card: BentoGlossaryCard },
+  { Card: BentoPlannerCard },
+  { Card: BentoTutorCard },
+  { Card: BentoInsightsCard },
+  { Card: BentoProblemCard },
+  { Card: BentoPlayCard },
+  { Card: BentoStudyGroupCard },
+  { Card: BentoPracticeCard },
+  { Card: BentoSearchCard },
+  { Card: BentoEverywhereCard, span: 'sm:col-span-2' },
+  // Offline sits between the two wide cards on purpose: back to back they would need four slots
+  // across a three-column row, so the second would wrap and leave an empty cell beside the first.
+  { Card: BentoOfflineCard },
+  { Card: BentoShareCard },
+  { Card: BentoSecurityCard, span: 'sm:col-span-2' },
+];
+
+/**
+ * Which grid row each card lands in at the widest (3-column) breakpoint. Counted from the slots
+ * consumed rather than from the index, because a card that spans two columns pushes everything
+ * after it along by one — indexing straight off `i` would drift the stagger by a row.
+ */
+const BENTO_ROWS = ((): number[] => {
+  let slot = 0;
+  return BENTO_CARDS.map(({ span }) => {
+    const row = Math.floor(slot / 3);
+    slot += span ? 2 : 1;
+    return row;
+  });
+})();
 
 export const LandingPage: React.FC = () => {
   const auth = useOptionalAuth();
@@ -160,7 +196,7 @@ export const LandingPage: React.FC = () => {
           transition={{ duration: 0.7, delay: 0.52 }}
           className="max-w-2xl text-lg sm:text-xl text-white/45 leading-relaxed mb-10">
           Turn any document, spreadsheet, notebook, video, podcast, or article into AI summaries, mind maps,
-          flashcards, and quizzes — then master it with spaced repetition, mock exams, and a voice tutor.
+          flashcards, and quizzes — then master it with spaced repetition, mock exams, and an AI tutor.
           Web, iOS &amp; Android, even offline.
         </motion.p>
 
@@ -188,7 +224,7 @@ export const LandingPage: React.FC = () => {
           transition={{ duration: 0.8, delay: 0.9 }}
           className="flex flex-wrap justify-center gap-5 mt-14">
           {[
-            { to: 30, suffix: '+', label: 'AI-powered tools' },
+            { to: 20, suffix: '+', label: 'AI-powered tools' },
             { to: 100, suffix: '%', label: 'Free to start' },
             { to: 230, suffix: '+', label: 'file formats' },
           ].map((s, i) => (
@@ -232,102 +268,18 @@ export const LandingPage: React.FC = () => {
             <span style={{ background: 'linear-gradient(135deg, #e0f7ff, #a5f3fc)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Your Complete</span>{' '}
             <span style={{ background: 'linear-gradient(135deg, #14b8a6, #0891b2)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Study Suite</span>
           </h2>
-          <p className="mt-4 text-white/40 max-w-lg mx-auto">30+ AI-powered tools working together — for a solo cram session or a whole classroom.</p>
+          <p className="mt-4 text-white/40 max-w-lg mx-auto">AI-powered tools working together — from first read to exam day.</p>
         </FadeIn>
 
         <div className="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-auto">
-          {/* Ingestion leads the grid: everything below only happens once your
-              file is in, so the breadth of what we accept comes first. */}
-          <FadeIn delay={0.05}>
-            <BentoFormatsCard />
-          </FadeIn>
-          <FadeIn delay={0.05}>
-            <BentoChatCard />
-          </FadeIn>
-          <FadeIn delay={0.05}>
-            <BentoSummaryCard />
-          </FadeIn>
-          <FadeIn delay={0.05}>
-            <BentoMindMapCard />
-          </FadeIn>
-          <FadeIn delay={0.1}>
-            <BentoQuizCard />
-          </FadeIn>
-          <FadeIn delay={0.18}>
-            <BentoFlashcardCard />
-          </FadeIn>
-          <FadeIn delay={0.18}>
-            <BentoNoteCard />
-          </FadeIn>
-          <FadeIn delay={0.18}>
-            <BentoGlossaryCard />
-          </FadeIn>
-          <FadeIn delay={0.24}>
-            <BentoPlannerCard />
-          </FadeIn>
-          <FadeIn delay={0.24}>
-            <BentoTutorCard />
-          </FadeIn>
-          <FadeIn delay={0.24}>
-            <BentoInsightsCard />
-          </FadeIn>
-          <FadeIn delay={0.30}>
-            <BentoProblemCard />
-          </FadeIn>
-          <FadeIn delay={0.30}>
-            <BentoPlayCard />
-          </FadeIn>
-          <FadeIn delay={0.30}>
-            <BentoStudyGroupCard />
-          </FadeIn>
-          <FadeIn delay={0.34}>
-            <BentoPracticeCard />
-          </FadeIn>
-          <FadeIn delay={0.34}>
-            <BentoHandwritingCard />
-          </FadeIn>
-          <FadeIn delay={0.34}>
-            <BentoKnowledgeGraphCard />
-          </FadeIn>
-          <FadeIn delay={0.38}>
-            <BentoCitationCard />
-          </FadeIn>
-          <FadeIn delay={0.38}>
-            <BentoEssayCard />
-          </FadeIn>
-          <FadeIn delay={0.38}>
-            <BentoPeerReviewCard />
-          </FadeIn>
-          <FadeIn delay={0.42}>
-            <BentoCodeCard />
-          </FadeIn>
-          <FadeIn delay={0.42}>
-            <BentoClassroomCard />
-          </FadeIn>
-          <FadeIn delay={0.42}>
-            <BentoCertificateCard />
-          </FadeIn>
-          <FadeIn delay={0.46}>
-            <BentoLanguageCard />
-          </FadeIn>
-          <FadeIn delay={0.46}>
-            <BentoTagsCard />
-          </FadeIn>
-          <FadeIn delay={0.46}>
-            <BentoSearchCard />
-          </FadeIn>
-          <FadeIn delay={0.50}>
-            <BentoEverywhereCard />
-          </FadeIn>
-          <FadeIn delay={0.50}>
-            <BentoSecurityCard />
-          </FadeIn>
-          <FadeIn delay={0.50}>
-            <BentoOfflineCard />
-          </FadeIn>
-          <FadeIn delay={0.54}>
-            <BentoShareCard />
-          </FadeIn>
+          {/* One entry per card, in reading order. Ingestion leads the grid: everything below only
+              happens once your file is in, so the breadth of what we accept comes first. The stagger
+              is derived per row, so adding or removing a card never leaves a gap in the sequence. */}
+          {BENTO_CARDS.map(({ Card, span }, i) => (
+            <FadeIn key={i} delay={0.05 + BENTO_ROWS[i] * 0.06} className={span}>
+              <Card />
+            </FadeIn>
+          ))}
         </div>
       </section>
 

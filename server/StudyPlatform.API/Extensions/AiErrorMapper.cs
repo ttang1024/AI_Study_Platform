@@ -54,9 +54,6 @@ public static class AiErrorMapper
 
     private static (int statusCode, string errorCode) MapException(Exception ex)
     {
-        if (ex is AiQuotaExceededException)
-            return (StatusCodes.Status429TooManyRequests, "AI_QUOTA_EXCEEDED");
-
         if (TryGetAiError(ex.Message, out var statusCode, out var errorCode))
             return (statusCode, errorCode);
 

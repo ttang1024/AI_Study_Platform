@@ -14,17 +14,11 @@ export default function SettingsLayout() {
       <Stack.Screen name="index" options={{ title: 'Settings' }} />
       <Stack.Screen name="ai-services" options={{ title: 'AI Services' }} />
       <Stack.Screen name="ai-usage" options={{ title: 'AI Usage' }} />
-      <Stack.Screen name="plan" options={{ title: 'Plan' }} />
       <Stack.Screen name="language" options={{ title: 'Language' }} />
       <Stack.Screen name="scheduler" options={{ title: 'Scheduler' }} />
       <Stack.Screen name="voice" options={{ title: 'Voice' }} />
       <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />
-      <Stack.Screen name="two-factor" options={{ title: 'Two-factor' }} />
-      <Stack.Screen name="sessions" options={{ title: 'Active sessions' }} />
-      <Stack.Screen name="security-log" options={{ title: 'Security log' }} />
       <Stack.Screen name="data" options={{ title: 'Your data' }} />
-      <Stack.Screen name="certificates" options={{ title: 'Certificates' }} />
-      <Stack.Screen name="integrations" options={{ title: 'Integrations' }} />
       <Stack.Screen name="feedback" options={{ title: 'Feedback' }} />
     </Stack>
   );

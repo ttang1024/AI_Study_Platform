@@ -28,14 +28,12 @@ public class RequestAccountDeletionCommandHandler
 
     private readonly IUnitOfWork _unitOfWork;
     private readonly IPasswordHasher _hasher;
-    private readonly IAuditLogger _audit;
 
     public RequestAccountDeletionCommandHandler(
-        IUnitOfWork unitOfWork, IPasswordHasher hasher, IAuditLogger audit)
+        IUnitOfWork unitOfWork, IPasswordHasher hasher)
     {
         _unitOfWork = unitOfWork;
         _hasher = hasher;
-        _audit = audit;
     }
 
     public async Task<Result<DateTime>> Handle(
@@ -69,8 +67,6 @@ public class RequestAccountDeletionCommandHandler
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         var scheduledFor = now.Add(GracePeriod);
-        await _audit.LogAsync(AuditActions.AccountDeletionRequested, request.UserId,
-            metadata: new { scheduledFor }, cancellationToken: cancellationToken);
 
         return Result<DateTime>.Success(scheduledFor,
             $"Your account is scheduled for deletion on {scheduledFor:yyyy-MM-dd}. Log in before then to cancel.");

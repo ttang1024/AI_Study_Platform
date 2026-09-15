@@ -22,14 +22,12 @@ public class GetDataExportDownloadQueryHandler : IRequestHandler<GetDataExportDo
 
     private readonly IUnitOfWork _unitOfWork;
     private readonly IBlobStorageService _blobStorage;
-    private readonly IAuditLogger _audit;
 
     public GetDataExportDownloadQueryHandler(
-        IUnitOfWork unitOfWork, IBlobStorageService blobStorage, IAuditLogger audit)
+        IUnitOfWork unitOfWork, IBlobStorageService blobStorage)
     {
         _unitOfWork = unitOfWork;
         _blobStorage = blobStorage;
-        _audit = audit;
     }
 
     public async Task<Result<string>> Handle(
@@ -51,9 +49,6 @@ public class GetDataExportDownloadQueryHandler : IRequestHandler<GetDataExportDo
 
         var url = await _blobStorage.GetSasUrlAsync(export.BlobUrl!, DownloadUrlLifetimeMinutes, cancellationToken);
 
-        await _audit.LogAsync(AuditActions.DataExportDownloaded, request.UserId,
-            targetType: "DataExportRequest", targetId: export.DataExportRequestId.ToString(),
-            cancellationToken: cancellationToken);
 
         return Result<string>.Success(url);
     }

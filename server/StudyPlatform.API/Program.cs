@@ -3,15 +3,12 @@ using System.Text;
 using AspNetCoreRateLimit;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.ResponseCompression;
-using Microsoft.AspNetCore.SignalR;
-using Microsoft.AspNetCore.SignalR.StackExchangeRedis;
 using Microsoft.EntityFrameworkCore;
 using StudyPlatform.Infrastructure.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using StackExchange.Redis;
-using StudyPlatform.API.Auth;
+using StudyPlatform.API.Extensions;
 using StudyPlatform.API.HealthChecks;
 using StudyPlatform.API.Hubs;
 using StudyPlatform.API.Json;
@@ -91,23 +88,7 @@ builder.Services.AddSwaggerGen(options =>
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey not configured.");
 
-builder.Services.AddAuthentication(options =>
-{
-    // A selector rather than a fixed default, so one [Authorize] works for both a browser session
-    // and a script holding an API key. The key's "sp_" prefix is what makes the choice unambiguous
-    // when both arrive in the same Authorization header shape.
-    options.DefaultScheme = "JwtOrApiKey";
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-})
-.AddPolicyScheme("JwtOrApiKey", "JWT or API key", options =>
-{
-    options.ForwardDefaultSelector = context =>
-        ApiKeyAuthenticationHandler.ReadKey(context.Request) != null
-            ? ApiKeyAuthenticationOptions.SchemeName
-            : JwtBearerDefaults.AuthenticationScheme;
-})
-.AddScheme<ApiKeyAuthenticationOptions, ApiKeyAuthenticationHandler>(
-    ApiKeyAuthenticationOptions.SchemeName, _ => { })
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 .AddJwtBearer(options =>
 {
     options.TokenValidationParameters = new TokenValidationParameters
@@ -177,40 +158,13 @@ builder.Services.AddCors(options =>
 
 // Rate Limiting
 builder.Services.AddMemoryCache();
-// Reused below by the SignalR backplane: without one, a hub message only reaches the clients
-// connected to the replica that produced it, so group chat silently half-works when scaled out.
-ConfigurationOptions? signalRRedisConfiguration = null;
 
-var redisEnabled = builder.Configuration.GetValue("Redis:Enabled", false);
-var redisConnectionString = builder.Configuration.GetConnectionString("Redis")
-    ?? builder.Configuration["Redis:ConnectionString"];
-if (redisEnabled)
-{
-    if (TryGetRedisConfiguration(redisConnectionString, out var redisConfiguration, out var redisConfigurationError))
-    {
-        ConfigureRedisTimeouts(redisConfiguration!, builder.Configuration);
-        signalRRedisConfiguration = redisConfiguration;
-
-        builder.Services.AddStackExchangeRedisCache(options =>
-        {
-            options.ConfigurationOptions = redisConfiguration;
-            options.InstanceName = builder.Configuration["Redis:InstanceName"] ?? "StudyPlatform:";
-        });
-    }
-    else
-    {
-        if (!string.IsNullOrWhiteSpace(redisConnectionString))
-        {
-            Console.Error.WriteLine($"Redis cache disabled: {redisConfigurationError}");
-        }
-
-        builder.Services.AddDistributedMemoryCache();
-    }
-}
-else
-{
-    builder.Services.AddDistributedMemoryCache();
-}
+// Redis is optional and off by default (Redis:Enabled=false). When it is off nothing in the process
+// touches StackExchange.Redis: no connection multiplexer, no connection string requirement, no socket.
+// The cache falls through to the Postgres CacheEntries tier and SignalR keeps its in-memory lifetime
+// manager, so the API starts and serves normally with no Redis deployed anywhere.
+var redis = RedisServiceExtensions.ResolveRedisConnection(builder.Configuration);
+builder.Services.AddApplicationCache(builder.Configuration, redis);
 
 // Keep rate limiting process-local so Redis outages or bad Redis settings do not
 // turn ordinary API requests into 500s.
@@ -218,42 +172,12 @@ builder.Services.AddInMemoryRateLimiting();
 builder.Services.Configure<IpRateLimitOptions>(builder.Configuration.GetSection("IpRateLimiting"));
 builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
 
-// SignalR. The Redis backplane is added only when Redis is actually configured *and reachable*:
-// unlike the cache tier, the backplane has no fallback path, so a RedisHubLifetimeManager pointed at
-// a dead server fails every hub connect and broadcast. Probing here keeps a developer who hasn't
-// started `docker compose up redis` — or an install whose Redis is down at boot — on the in-memory
-// lifetime manager, which serves a single replica perfectly well.
-var signalR = builder.Services.AddSignalR();
-string? backplaneUnavailableReason = null;
-if (signalRRedisConfiguration == null)
-{
-    backplaneUnavailableReason = "Redis is not configured";
-}
-else if (!TryConnectRedis(signalRRedisConfiguration, out var backplaneProbeError))
-{
-    backplaneUnavailableReason = $"Redis is unreachable: {backplaneProbeError}";
-}
+// SignalR, plus the Redis backplane when Redis is enabled and answering. Without one, a hub message
+// only reaches the clients connected to the replica that produced it, so group chat silently
+// half-works when scaled out.
+var backplaneUnavailableReason = builder.Services.AddApplicationSignalR(builder.Configuration, redis);
 
-if (backplaneUnavailableReason == null)
-{
-    signalR.AddStackExchangeRedis(options =>
-    {
-        // Cloned so the ChannelPrefix below doesn't leak into the cache's copy of the same options.
-        options.Configuration = signalRRedisConfiguration!.Clone();
-        // Namespaced so several environments can share one Redis without cross-talking.
-        options.Configuration.ChannelPrefix =
-            RedisChannel.Literal(builder.Configuration["Redis:InstanceName"] ?? "StudyPlatform:");
-    });
-
-    // …and wrap it so an outage *after* startup degrades to instance-local delivery instead of
-    // failing every send. Registered last, so it wins over the manager AddStackExchangeRedis just
-    // registered — which it now owns as its backplane. The probe above matters here too: it
-    // guarantees the Redis manager's one-time channel subscriptions happen against a live server.
-    builder.Services.AddSingleton(typeof(RedisHubLifetimeManager<>));
-    builder.Services.AddSingleton(typeof(DefaultHubLifetimeManager<>));
-    builder.Services.AddSingleton(typeof(HubLifetimeManager<>), typeof(RedisResilientHubLifetimeManager<>));
-}
-else if (builder.Configuration.GetValue("Api:RequireScaleOutBackplane", false))
+if (backplaneUnavailableReason != null && builder.Configuration.GetValue("Api:RequireScaleOutBackplane", false))
 {
     // Opt-in guard for multi-replica deployments: failing to start is far better than starting and
     // delivering chat messages to only the third of users who happen to share a replica.
@@ -261,7 +185,8 @@ else if (builder.Configuration.GetValue("Api:RequireScaleOutBackplane", false))
         $"Api:RequireScaleOutBackplane is set but {backplaneUnavailableReason}. SignalR needs a "
         + "backplane to run more than one API replica.");
 }
-else if (signalRRedisConfiguration != null)
+
+if (backplaneUnavailableReason != null && redis.Enabled)
 {
     Console.Error.WriteLine(
         $"SignalR Redis backplane disabled: {backplaneUnavailableReason}. Real-time messages will "
@@ -274,21 +199,17 @@ builder.Services.AddHostedService<StaleAiJobReaper>();
 
 builder.Services.AddSingleton<AudioTranscriptionQueue>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<AudioTranscriptionQueue>());
-builder.Services.AddSingleton<AudioOverviewQueue>();
-builder.Services.AddHostedService(sp => sp.GetRequiredService<AudioOverviewQueue>());
 builder.Services.AddSingleton<AiJobQueue>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<AiJobQueue>());
 
 // Application and Infrastructure layers
 builder.Services.AddApplication();
-builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddInfrastructure(builder.Configuration, builder.Environment.IsProduction());
 builder.Services.Configure<AppLimitsOptions>(builder.Configuration.GetSection(AppLimitsOptions.SectionName));
 builder.Services.Configure<CacheOptions>(builder.Configuration.GetSection(CacheOptions.SectionName));
 builder.Services.Configure<VapidOptions>(builder.Configuration.GetSection(VapidOptions.SectionName));
 builder.Services.Configure<AiUsageOptions>(builder.Configuration.GetSection(AiUsageOptions.SectionName));
 builder.Services.Configure<EmbeddingOptions>(builder.Configuration.GetSection(EmbeddingOptions.SectionName));
-builder.Services.Configure<BillingOptions>(builder.Configuration.GetSection(BillingOptions.SectionName));
-builder.Services.Configure<HostedAiOptions>(builder.Configuration.GetSection(HostedAiOptions.SectionName));
 
 // Keeps the semantic index in step with the library (no-op until Embeddings:ApiKey is configured).
 builder.Services.AddHostedService<EmbeddingBackfillWorker>();
@@ -317,11 +238,34 @@ builder.Services.AddHealthChecks()
 
 var app = builder.Build();
 
-// Apply EF Core migrations on startup
+// Apply EF Core migrations on startup.
+//
+// Migrate() only applies pending migrations — it never drops or recreates the database. It stays on by
+// default because it is this project's migration workflow and the only thing that keeps a single-task
+// deployment's schema in step with its image. Set Database:MigrateOnStartup=false to take that out of
+// the request path — for example to run `dotnet ef database update` as a one-off ECS task before the
+// service rolls, which is what you want once more than one task starts at a time (concurrent
+// Migrate() calls race on the migrations-history lock) or once a migration is long enough to blow the
+// load balancer's health-check grace period.
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.Migrate();
+    if (app.Configuration.GetValue("Database:MigrateOnStartup", true))
+    {
+        db.Database.Migrate();
+    }
+    else
+    {
+        var pending = (await db.Database.GetPendingMigrationsAsync()).ToArray();
+        if (pending.Length > 0)
+        {
+            app.Logger.LogWarning(
+                "Database:MigrateOnStartup is false and {Count} migration(s) have not been applied ({Migrations}). "
+                + "Run `dotnet ef database update` against this database before serving traffic.",
+                pending.Length,
+                string.Join(", ", pending));
+        }
+    }
 
     // The AI job queue is in-process, so a restart drops whatever was queued or mid-run. Those jobs
     // are never coming back — fail them so the UI stops showing a spinner that will never resolve.
@@ -352,7 +296,6 @@ app.UseAuthorization();
 
 // After authentication so the caller's identity is known: resolves their plan once per request and
 // leaves it on the HttpContext for the hosted-key and quota paths, which cannot await.
-app.UseEntitlements();
 
 app.MapControllers();
 app.MapHub<GroupChatHub>("/hubs/group-chat");
@@ -371,91 +314,3 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
 app.MapGet("/", () => Results.Ok());
 
 app.Run();
-
-static bool TryGetRedisConfiguration(
-    string? connectionString,
-    out ConfigurationOptions? configuration,
-    out string? error)
-{
-    configuration = null;
-    error = null;
-
-    if (string.IsNullOrWhiteSpace(connectionString))
-        return false;
-
-    try
-    {
-        configuration = ConfigurationOptions.Parse(connectionString);
-        configuration.AbortOnConnectFail = false;
-
-        if (configuration.EndPoints.Count == 0)
-        {
-            error = "no Redis endpoints were configured.";
-            configuration = null;
-            return false;
-        }
-
-        foreach (var endpoint in configuration.EndPoints)
-        {
-            if (endpoint is System.Net.DnsEndPoint dnsEndpoint
-                && string.IsNullOrWhiteSpace(dnsEndpoint.Host.Trim(':')))
-            {
-                error = $"invalid Redis endpoint '{dnsEndpoint.Host}:{dnsEndpoint.Port}'.";
-                configuration = null;
-                return false;
-            }
-        }
-
-        return true;
-    }
-    catch (Exception ex) when (ex is ArgumentException or FormatException)
-    {
-        error = ex.Message;
-        configuration = null;
-        return false;
-    }
-}
-
-// Best-effort reachability check. Bounded by ConnectTimeout/SyncTimeout (1s each by default), so a
-// down Redis costs a couple of seconds of startup, not a hang.
-static bool TryConnectRedis(ConfigurationOptions configuration, out string? error)
-{
-    error = null;
-
-    var probeConfiguration = configuration.Clone();
-    probeConfiguration.AbortOnConnectFail = false;
-    probeConfiguration.ConnectRetry = 1;
-    probeConfiguration.ClientName = "StudyPlatform.BackplaneProbe";
-
-    try
-    {
-        using var probe = ConnectionMultiplexer.Connect(probeConfiguration);
-        if (!probe.IsConnected)
-        {
-            error = $"no endpoint answered within {probeConfiguration.ConnectTimeout} ms";
-            return false;
-        }
-
-        probe.GetDatabase().Ping();
-        return true;
-    }
-    catch (Exception ex)
-    {
-        error = ex.Message;
-        return false;
-    }
-}
-
-static void ConfigureRedisTimeouts(ConfigurationOptions configuration, IConfiguration appConfiguration)
-{
-    configuration.ConnectTimeout = GetConfiguredMilliseconds(appConfiguration, "Redis:ConnectTimeoutMilliseconds", 1000);
-    configuration.AsyncTimeout = GetConfiguredMilliseconds(appConfiguration, "Redis:AsyncTimeoutMilliseconds", 1000);
-    configuration.SyncTimeout = GetConfiguredMilliseconds(appConfiguration, "Redis:SyncTimeoutMilliseconds", 1000);
-}
-
-static int GetConfiguredMilliseconds(IConfiguration configuration, string key, int defaultMilliseconds)
-{
-    return int.TryParse(configuration[key], out var milliseconds) && milliseconds > 0
-        ? milliseconds
-        : defaultMilliseconds;
-}

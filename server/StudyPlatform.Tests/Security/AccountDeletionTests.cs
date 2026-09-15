@@ -13,7 +13,6 @@ public class RequestAccountDeletionCommandHandlerTests
     private readonly Mock<IUserRepository> _users = new();
     private readonly Mock<IRefreshTokenRepository> _tokens = new();
     private readonly Mock<IPasswordHasher> _hasher = new();
-    private readonly Mock<IAuditLogger> _audit = new();
     private readonly RequestAccountDeletionCommandHandler _handler;
     private readonly Guid _userId = Guid.NewGuid();
 
@@ -24,7 +23,7 @@ public class RequestAccountDeletionCommandHandlerTests
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
         _users.Setup(r => r.GetByIdAsync(_userId, default)).ReturnsAsync(new User { UserId = _userId, PasswordHash = "hash" });
         _tokens.Setup(r => r.RevokeAllUserTokensAsync(_userId, default)).Returns(Task.CompletedTask);
-        _handler = new RequestAccountDeletionCommandHandler(_uow.Object, _hasher.Object, _audit.Object);
+        _handler = new RequestAccountDeletionCommandHandler(_uow.Object, _hasher.Object);
     }
 
     private const string Confirmation = RequestAccountDeletionCommandHandler.RequiredConfirmation;
@@ -115,14 +114,13 @@ public class CancelAccountDeletionCommandHandlerTests
     private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IUserRepository> _users = new();
     private readonly Mock<IPasswordHasher> _hasher = new();
-    private readonly Mock<IAuditLogger> _audit = new();
     private readonly CancelAccountDeletionCommandHandler _handler;
 
     public CancelAccountDeletionCommandHandlerTests()
     {
         _uow.Setup(u => u.Users).Returns(_users.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new CancelAccountDeletionCommandHandler(_uow.Object, _hasher.Object, _audit.Object);
+        _handler = new CancelAccountDeletionCommandHandler(_uow.Object, _hasher.Object);
     }
 
     [Fact]

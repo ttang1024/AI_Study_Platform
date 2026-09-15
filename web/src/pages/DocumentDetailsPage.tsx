@@ -4,7 +4,6 @@ import { FileText, Sparkles, ChevronLeft, Share2, Highlighter } from 'lucide-rea
 import { useStudy } from '../context/StudyContext';
 import { DocumentViewer } from '../components/document/DocumentViewer';
 import StaleSourceBanner from '../components/document/StaleSourceBanner';
-import DocumentSourceView from '../components/document/DocumentSourceView';
 import { AnnotatedPdfViewer } from '../components/AnnotatedPdfViewer';
 import { ChatPanel, ChatPanelRef } from '../components/ai/ChatPanel';
 import { ChatConversationBar } from '../components/ai/ChatConversationBar';
@@ -22,7 +21,7 @@ import { apiClient } from '../services/apiClient';
 import { ShareModal } from '../components/common/ShareModal';
 import { DetailPageSkeleton } from '../components/common/DetailPageSkeleton';
 import { ShareableQuiz, ShareableCard } from '../services/shareContentService';
-import { DOCUMENT_TABS } from '../constants/tab';
+import { TABS } from '../constants/tab';
 import { cn } from '../utils/cn';
 import { Document } from '../types';
 import { getApiErrorCode } from '../utils/apiError';
@@ -40,19 +39,9 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
   // The document list is loaded lazily by StudyContext; pull it so we can resolve
   // this document (and its courseId) on direct navigation / refresh.
   useEffect(() => { void ensureDocuments(); }, [ensureDocuments]);
-  // A citation links here as ?highlight=start-end. Parsed before the initial tab is chosen so
-  // arriving from one opens straight onto the passage rather than the summary.
-  const citationHighlight = useMemo(() => {
-    const raw = new URLSearchParams(location.search).get('highlight');
-    if (!raw) return null;
-
-    const [start, end] = raw.split('-').map(Number);
-    return Number.isFinite(start) && Number.isFinite(end) && end > start ? { start, end } : null;
-  }, [location.search]);
-
-  const initialTab = citationHighlight ? 'source' : ((location.state as any)?.activeTab ?? 'summary');
+  const initialTab = (location.state as any)?.activeTab ?? 'summary';
   const targetQuizQuestionId = (location.state as any)?.targetQuizQuestionId as string | undefined;
-  const [activeTab, setActiveTab] = useState<'summary' | 'mindmap' | 'notes' | 'flashcards' | 'quiz' | 'problems' | 'chat' | 'source'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'summary' | 'mindmap' | 'notes' | 'flashcards' | 'quiz' | 'problems' | 'chat'>(initialTab);
   const [summary, setSummary] = useState<string | null>(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [summaryStreamText, setSummaryStreamText] = useState('');
@@ -375,7 +364,7 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
           <div className="flex flex-col h-full w-full">
             {/* Horizontal Tab Bar */}
             <div className="flex items-center border-b border-[var(--border-color)] bg-[var(--bg-sidebar)] shrink-0 overflow-x-auto no-scrollbar">
-              {DOCUMENT_TABS.map((tab) => (
+              {TABS.map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
@@ -446,11 +435,6 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
                     <WorkedProblemsPanel documentId={currentDocument.id} />
                   )}
                 </div>
-
-                <div className={cn("h-full overflow-y-auto no-scrollbar", activeTab !== 'source' && "hidden")}>
-                  <DocumentSourceView documentId={currentDocument.id} highlight={citationHighlight} />
-                </div>
-
 
               </div>
 

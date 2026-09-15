@@ -76,8 +76,5 @@ export type { TodayPlan, TodayPlanItem, TodayPlanItemType } from '@core/services
 export type { DashboardSummary, ReinforcementCounts } from '@core/services/analyticsService';
 
 // Shared with web/ via packages/core.
-export type { UserStats, UserXp } from '@core/services/statsService';
-
-// Shared with web/ via packages/core.
-export type { WeeklyDigest } from '@core/services/gamificationService';
+export type { UserStats } from '@core/services/statsService';
 

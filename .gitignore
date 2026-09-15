@@ -95,6 +95,9 @@ __azurite_db_blob_extent__.json
 __blobstorage__
 AzuriteConfig
 .env_variables
+# deploy.sh and the migration scripts snapshot .env_variables before editing it; those
+# backups hold the same live credentials and must never be committed.
+.env_variables.bak-*
 report
 cookies.txt
 cookies1.txt
@@ -115,3 +118,6 @@ playwright-report
 test-results
 *.lscache
 dump.rdb
+
+# Local database dumps produced by scripts/migrate-db.sh — never commit these.
+.migration/

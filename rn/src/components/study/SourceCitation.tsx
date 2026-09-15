@@ -10,7 +10,6 @@ import { formatTimecode } from '@core/utils/format';
 
 interface Props {
   citation?: Citation;
-  documentId?: string;
   videoId?: string;
 }
 
@@ -24,39 +23,28 @@ const formatTimestamp = formatTimecode;
  * supporting quote could not be located in the source, simply have none — that absence is meaningful
  * and must not be papered over with a guessed position.
  */
-export const SourceCitation: React.FC<Props> = ({ citation, documentId, videoId }) => {
+export const SourceCitation: React.FC<Props> = ({ citation, videoId }) => {
   const router = useRouter();
   const [expanded, setExpanded] = useState(false);
 
   if (!citation) return null;
 
-  // `!= null` throughout, never `!== undefined`: the API serializes an unresolved offset as an
-  // explicit null, which passes an undefined check and yields a jump to position zero.
-  const isLocated = citation.startOffset != null && citation.endOffset != null;
+  // Only videos have somewhere to land — the player seeks to the timestamp. Documents do not, so a
+  // document citation stays quote-only.
+  // `!= null`, never `!== undefined`: the API serializes an unresolved timestamp as an explicit
+  // null, which passes an undefined check and yields a jump to position zero.
   const hasTimestamp = citation.startSeconds != null;
 
   const jump = () => {
-    if (videoId && hasTimestamp) {
-      router.push({
-        pathname: '/(tabs)/library/video/[id]',
-        params: { id: videoId, t: String(Math.floor(citation.startSeconds!)) },
-      } as never);
-      return;
-    }
+    if (!videoId || !hasTimestamp) return;
 
-    if (documentId && isLocated) {
-      router.push({
-        pathname: '/(tabs)/library/document/source',
-        params: {
-          id: documentId,
-          start: String(citation.startOffset),
-          end: String(citation.endOffset),
-        },
-      } as never);
-    }
+    router.push({
+      pathname: '/(tabs)/library/video/[id]',
+      params: { id: videoId, t: String(Math.floor(citation.startSeconds!)) },
+    } as never);
   };
 
-  const canJump = (videoId && hasTimestamp) || (documentId && isLocated);
+  const canJump = videoId && hasTimestamp;
 
   const label =
     hasTimestamp
@@ -81,9 +69,7 @@ export const SourceCitation: React.FC<Props> = ({ citation, documentId, videoId 
               <ExternalLink size={12} color={Colors.primary} />
             </Pressable>
           ) : (
-            <Text style={styles.unlocated}>
-              Quoted from the source; the exact position could not be resolved.
-            </Text>
+            <Text style={styles.unlocated}>Quoted from the source.</Text>
           )}
         </View>
       )}

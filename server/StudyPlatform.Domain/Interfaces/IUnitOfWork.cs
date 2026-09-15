@@ -26,38 +26,17 @@ public interface IUnitOfWork : IDisposable
     IStudyGroupMemberRepository StudyGroupMembers { get; }
     IStudyGroupSharedCourseRepository StudyGroupSharedCourses { get; }
     IGroupChatMessageRepository GroupChatMessages { get; }
-    IConceptLinkRepository ConceptLinks { get; }
     IFlashcardSrsDataRepository FlashcardSrs { get; }
     IStudySessionRepository StudySessions { get; }
     IMistakeEntryRepository MistakeEntries { get; }
     IExamPlanRepository ExamPlans { get; }
-    IQuizBattleRepository QuizBattles { get; }
-    IGroupAssignmentRepository GroupAssignments { get; }
     IFlashcardReviewLogRepository FlashcardReviewLogs { get; }
     IStreakCoverDayRepository StreakCoverDays { get; }
     IUserCalendarFeedRepository UserCalendarFeeds { get; }
-    ICourseAudioOverviewRepository CourseAudioOverviews { get; }
-    IGroupNoteRepository GroupNotes { get; }
     IAiJobRepository AiJobs { get; }
     IAiUsageRepository AiUsage { get; }
-    IOrganizationRepository Organizations { get; }
-    IOrganizationMemberRepository OrganizationMembers { get; }
-    IClassroomRepository Classrooms { get; }
-    IClassroomEnrollmentRepository ClassroomEnrollments { get; }
-    IClassroomCourseRepository ClassroomCourses { get; }
-    IClassroomAssignmentRepository ClassroomAssignments { get; }
-    IClassroomSubmissionRepository ClassroomSubmissions { get; }
-    ISubscriptionRepository Subscriptions { get; }
-    IRubricRepository Rubrics { get; }
-    IEssaySubmissionRepository EssaySubmissions { get; }
-    IUserTwoFactorRepository UserTwoFactors { get; }
     IDataExportRequestRepository DataExportRequests { get; }
     ILibraryTagRepository LibraryTags { get; }
-    ISavedLibraryViewRepository SavedLibraryViews { get; }
-    ICourseCertificateRepository CourseCertificates { get; }
-    IEssayPeerReviewRepository EssayPeerReviews { get; }
-    IApiKeyRepository ApiKeys { get; }
-    IWebhookRepository Webhooks { get; }
     IUserFsrsSettingsRepository UserFsrsSettings { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

@@ -2,7 +2,6 @@ using System.Linq.Expressions;
 using MediatR;
 using Moq;
 using StudyPlatform.Application.Calendar;
-using StudyPlatform.Application.Classrooms;
 using StudyPlatform.Application.Common;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
@@ -15,7 +14,6 @@ public class GetCalendarFeedQueryHandlerTests
     private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IFlashcardSrsDataRepository> _srs = new();
     private readonly Mock<IExamPlanRepository> _plans = new();
-    private readonly Mock<IMediator> _mediator = new();
     private readonly GetCalendarFeedQueryHandler _handler;
     private readonly Guid _userId = Guid.NewGuid();
 
@@ -27,10 +25,8 @@ public class GetCalendarFeedQueryHandlerTests
             .ReturnsAsync(Array.Empty<FlashcardSrsData>());
         _plans.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<ExamPlan, bool>>>(), default))
             .ReturnsAsync(Array.Empty<ExamPlan>());
-        _mediator.Setup(m => m.Send(It.IsAny<GetClassroomDeadlinesQuery>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Result<IReadOnlyList<ClassroomDeadlineDto>>.Success(Array.Empty<ClassroomDeadlineDto>()));
 
-        _handler = new GetCalendarFeedQueryHandler(_uow.Object, _mediator.Object);
+        _handler = new GetCalendarFeedQueryHandler(_uow.Object);
     }
 
     [Fact]
@@ -82,20 +78,6 @@ public class GetCalendarFeedQueryHandlerTests
 
         Assert.Contains("Exam: Finals", result.Data);
         Assert.Contains("Study 45 min — Finals", result.Data);
-    }
-
-    [Fact]
-    public async Task Handle_ClassroomDeadline_UsesATimedEventNotAllDay()
-    {
-        var dueAt = DateTime.UtcNow.AddDays(1);
-        var deadline = new ClassroomDeadlineDto(Guid.NewGuid(), "CS 101", Guid.NewGuid(), null, "Essay", dueAt, "assigned", false);
-        _mediator.Setup(m => m.Send(It.IsAny<GetClassroomDeadlinesQuery>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Result<IReadOnlyList<ClassroomDeadlineDto>>.Success(new[] { deadline }));
-
-        var result = await _handler.Handle(new GetCalendarFeedQuery(_userId), default);
-
-        Assert.Contains("Due: Essay", result.Data);
-        Assert.Contains($"DTSTART:{dueAt.ToUniversalTime():yyyyMMdd'T'HHmmss'Z'}", result.Data);
     }
 
     [Fact]

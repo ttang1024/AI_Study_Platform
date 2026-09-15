@@ -8,9 +8,6 @@ import { setupAuthenticatedStudyApp } from './fixtures'
  */
 const routes: [string, RegExp, RegExp][] = [
   // path, expected final URL, expected selected tab
-  ['/spaces', /\/spaces/, /study groups/i],
-  ['/groups', /\/spaces\?tab=groups/, /study groups/i],
-  ['/classrooms', /\/spaces\?tab=classrooms/, /classrooms/i],
   ['/quizzes', /\/quizzes/, /^practice$/i],
   ['/practice', /\/quizzes\?tab=practice/, /^practice$/i],
   ['/planner', /\/quizzes\?tab=planner/, /planner/i],
@@ -19,7 +16,6 @@ const routes: [string, RegExp, RegExp][] = [
   ['/notes', /\/materials\?tab=notes/, /^notes$/i],
   ['/glossary', /\/materials\?tab=glossary/, /glossary/i],
   ['/insights', /\/insights/, /analytics/i],
-  ['/knowledge-graph', /\/insights\?tab=graph/, /concept map/i],
 ]
 
 for (const [path, url, tab] of routes) {
@@ -34,13 +30,21 @@ for (const [path, url, tab] of routes) {
   })
 }
 
-test('probe /feedback lands on the settings feedback tab', async ({ page }) => {
+/**
+ * Spaces lost its Classrooms half, so it is a single page again rather than a tab hub — checked by
+ * heading, and /groups still has to land on it.
+ */
+test('probe /spaces and /groups land on the study-groups page', async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', e => errors.push(e.message))
   await setupAuthenticatedStudyApp(page)
-  await page.goto('/feedback')
-  await expect(page).toHaveURL(/\/settings\?tab=feedback/)
-  await expect(page.getByRole('heading', { name: /^feedback$/i })).toBeVisible()
+
+  await page.goto('/spaces')
+  await expect(page.getByRole('heading', { name: /study groups/i })).toBeVisible()
+
+  await page.goto('/groups')
+  await expect(page).toHaveURL(/\/spaces/)
+  await expect(page.getByRole('heading', { name: /study groups/i })).toBeVisible()
   expect(errors).toEqual([])
 })
 
@@ -89,13 +93,6 @@ test('probe practice smart deep link survives the redirect', async ({ page }) =>
   await setupAuthenticatedStudyApp(page)
   await page.goto('/practice?smart=1')
   await expect(page).toHaveURL(/\/quizzes\?tab=practice&smart=1/)
-})
-
-test('probe the code scratchpad moved from the Practice Center to Study tools', async ({ page }) => {
-  await setupAuthenticatedStudyApp(page)
-  await page.goto('/quizzes?tab=code')
-  await expect(page).toHaveURL(/\/tools\?tab=code/)
-  await expect(page.getByRole('tab', { name: /^code$/i })).toHaveAttribute('aria-selected', 'true')
 })
 
 test('probe switching tabs keeps a mounted panel alive', async ({ page }) => {

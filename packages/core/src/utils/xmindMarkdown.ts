@@ -37,19 +37,36 @@ export function xmindMarkToMarkdown(text: string): string {
   const lines = trimmed.split('\n').map((l) => l.replace(/\t/g, '    '));
   const out: string[] = [];
   let rootFound = false;
+  // The indent widths of the branches we are currently inside, outermost first. Emitted depth
+  // is this stack's height, never the source indent divided by a fixed step: the model is asked
+  // for 4 spaces per level but returns 2- and 3-space steps, skips levels, and sometimes drops
+  // the dash from a branch line (which we discard, orphaning its children at their original
+  // depth). Any of those used to emit a bullet indented further than its parent can hold, and
+  // markdown reads that as an indented code block, not as nesting — that is how a whole subtree
+  // collapsed into a single grey <pre> node in the viewer. Deriving depth from the enclosing
+  // branches keeps every child exactly one level below its parent whatever the source did.
+  const openIndents: number[] = [];
 
   for (const line of lines) {
     if (!line.trim()) continue;
-    const bulletMatch = line.match(/^(\s*)[-*]\s+(.+)/);
+    // Fences the model was told not to emit but sometimes does; without this the opening one
+    // would be taken for the root topic.
+    if (/^\s*(```|~~~)/.test(line)) continue;
+
+    const bulletMatch = line.match(/^(\s*)(?:[-*+]|\d+[.)])\s+(.+)/);
     if (!rootFound && !bulletMatch) {
-      out.push(`# ${line.trim()}`);
+      out.push(`# ${line.trim().replace(/^#+\s*/, '')}`);
       rootFound = true;
-    } else if (bulletMatch) {
-      rootFound = true;
-      const depth = Math.floor(bulletMatch[1].length / 4);
-      const title = bulletMatch[2].replace(/\s*\[[^\]]+\]/g, '').trim();
-      out.push('  '.repeat(depth) + `- ${title}`);
+      continue;
     }
+    if (!bulletMatch) continue;
+
+    rootFound = true;
+    const indent = bulletMatch[1].length;
+    while (openIndents.length && openIndents[openIndents.length - 1] >= indent) openIndents.pop();
+    openIndents.push(indent);
+    const title = bulletMatch[2].replace(/\s*\[[^\]]+\]/g, '').trim();
+    out.push('  '.repeat(openIndents.length - 1) + `- ${title}`);
   }
 
   return out.join('\n');

@@ -69,38 +69,6 @@ describe('questionBankService', () => {
     })
   })
 
-  // ─── updateQuestion ────────────────────────────────────────────────────────
-
-  describe('updateQuestion', () => {
-    it('patches the question and returns updated data', async () => {
-      const updated = { ...baseQuestion, question: 'Updated Q?' }
-      mockApiClient.patch.mockResolvedValueOnce({ data: { data: updated } })
-
-      const payload = {
-        question: 'Updated Q?',
-        options: baseQuestion.options,
-        correctAnswer: 'B',
-        explanation: 'New explanation',
-        difficulty: 'hard' as const,
-      }
-      const result = await questionBankService.updateQuestion('q-1', payload)
-
-      expect(mockApiClient.patch).toHaveBeenCalledWith('/api/question-bank/q-1', payload)
-      expect(result.question).toBe('Updated Q?')
-    })
-  })
-
-  // ─── deleteQuestion ────────────────────────────────────────────────────────
-
-  describe('deleteQuestion', () => {
-    it('calls DELETE with the quiz id', async () => {
-      mockApiClient.delete.mockResolvedValueOnce({})
-
-      await questionBankService.deleteQuestion('q-1')
-
-      expect(mockApiClient.delete).toHaveBeenCalledWith('/api/question-bank/q-1')
-    })
-  })
 })
 
 // ─── getDifficultyLabel / DIFFICULTY_LABELS ────────────────────────────────

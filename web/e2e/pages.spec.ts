@@ -36,31 +36,14 @@ test.describe('Settings page', () => {
     await expect(page.getByText('student@example.com')).toBeVisible()
   })
 
-  test('shows the security tab: password, two-factor, sessions and the log', async ({ page }) => {
+  test('shows the security tab with the password form', async ({ page }) => {
     await page.getByRole('button', { name: /security/i }).click()
 
-    // The tab grew from a bare password form into the account-security hub, so it asserts on
-    // each section rather than one heading — a missing section is the failure worth catching.
     await expect(page.getByRole('heading', { name: 'Password' })).toBeVisible()
-    await expect(page.getByRole('heading', { name: /two-factor authentication/i })).toBeVisible()
-    await expect(page.getByRole('heading', { name: /active sessions/i })).toBeVisible()
-    await expect(page.getByRole('heading', { name: /security log/i })).toBeVisible()
-  })
-
-  test('the sessions list flags the current device and the log reads in plain English', async ({ page }) => {
-    await page.getByRole('button', { name: /security/i }).click()
-
-    await expect(page.getByText('Chrome on macOS')).toBeVisible()
-    await expect(page.getByText('This device')).toBeVisible()
-    // Exact, because "signed in" also appears in the section blurb and in each session's
-    // "signed in <date>" line. The raw key is "auth.login.succeeded"; the point of the label
-    // map is that it never reaches the page.
-    await expect(page.getByText('Signed in', { exact: true })).toBeVisible()
-    await expect(page.getByText('auth.login.succeeded')).toHaveCount(0)
   })
 
   test('offers a data export and account deletion behind a typed confirmation', async ({ page }) => {
-    await page.getByRole('button', { name: /your data/i }).click()
+    await page.getByRole('button', { name: /security/i }).click()
 
     await expect(page.getByRole('button', { name: /request an export/i })).toBeVisible()
 
@@ -107,9 +90,9 @@ test.describe('Reinforcement Center page', () => {
   // The standalone page was merged into Insights as a tab; /reinforcement-center is now
   // a back-compat redirect (see ReinforcementRedirect in App.tsx). Assert that redirect
   // still holds, rather than the retired page title.
-  test('redirects into the Insights reinforcement tab and shows its description', async ({ page }) => {
-    await expect(page).toHaveURL(/\/insights\?tab=reinforcement/)
-    await expect(page.getByText(/strengthen weak areas/i)).toBeVisible()
+  test('redirects into the Insights analytics tab and shows its description', async ({ page }) => {
+    await expect(page).toHaveURL(/\/insights\?tab=analytics/)
+    await expect(page.getByText(/weak spots worth reinforcing/i)).toBeVisible()
   })
 
   test('shows the three study modules', async ({ page }) => {

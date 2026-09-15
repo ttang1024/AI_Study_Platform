@@ -30,8 +30,6 @@ if (!localStorage.getItem('sp_access_token')) void landingLoader();
 const LandingPage = lazyPage(landingLoader, 'LandingPage');
 
 const DashboardPage = lazyPage(() => import('./pages/DashboardPage'), 'DashboardPage');
-// Public: a certificate link has to open for someone with no account.
-const VerifyCertificatePage = lazyPage(() => import('./pages/VerifyCertificatePage'), 'VerifyCertificatePage');
 const LibraryPage = lazyPage(() => import('./pages/LibraryPage'), 'LibraryPage');
 // Adding content (the old AI Summarizer) is its own page, not a Library tab.
 const AddContentPage = lazyPage(() => import('./pages/AddContentPage'), 'AddContentPage');
@@ -46,13 +44,10 @@ const VideoDetailPage = lazyPage(() => import('./pages/VideoDetailPage'), 'Video
 const ArticlePage = lazyPage(() => import('./pages/ArticlePage'), 'ArticlePage');
 const AudioDetailPage = lazyPage(() => import('./pages/AudioDetailPage'), 'AudioDetailPage');
 const SearchResultsPage = lazyPage(() => import('./pages/SearchResultsPage'), 'SearchResultsPage');
-// Spaces = study groups + classrooms.
+// Spaces = study groups.
 const SpacesPage = lazyPage(() => import('./pages/SpacesPage'), 'SpacesPage');
 const StudyGroupDetailPage = lazyPage(() => import('./pages/StudyGroupDetailPage'), 'StudyGroupDetailPage');
-const ToolsPage = lazyPage(() => import('./pages/ToolsPage'), 'ToolsPage');
-const ClassroomDetailPage = lazyPage(() => import('./pages/ClassroomDetailPage'), 'ClassroomDetailPage');
 const ChatListPage = lazyPage(() => import('./pages/ChatListPage'), 'ChatListPage');
-// Insights gained the Concept map tab (the old /knowledge-graph page).
 const InsightsPage = lazyPage(() => import('./pages/InsightsPage'), 'InsightsPage');
 const OfflinePage = lazyPage(() => import('./pages/OfflinePage'), 'OfflinePage');
 const DocumentDetailsPage = lazyPage(() => import('./pages/DocumentDetailsPage'), 'DocumentDetailsPage');
@@ -77,7 +72,7 @@ const ReinforcementRedirect: React.FC = () => {
   const [params] = useSearchParams();
   const module = params.get('tab');
   const suffix = (module === 'quiz' || module === 'glossary' || module === 'flashcards') ? `&module=${module}` : '';
-  return <Navigate to={`/insights?tab=reinforcement${suffix}`} replace />;
+  return <Navigate to={`/insights?tab=analytics${suffix}`} replace />;
 };
 
 /**
@@ -91,13 +86,6 @@ const LibraryRoute: React.FC = () => {
   next.delete('view');
   const query = next.toString();
   return <Navigate to={`/library/add${query ? `?${query}` : ''}`} replace />;
-};
-
-/** The Code scratchpad left the Practice Center for /tools; old deep links follow it. */
-const QuizzesRoute: React.FC = () => {
-  const [params] = useSearchParams();
-  if (params.get('tab') === 'code') return <Navigate to="/tools?tab=code" replace />;
-  return <QuizManagementPage />;
 };
 
 /**
@@ -129,7 +117,6 @@ export default function App() {
                   <Route path="/login" element={<LoginPage />} />
                   <Route path="/register" element={<RegisterPage />} />
                   <Route path="/verify-email" element={<EmailVerificationPage />} />
-                  <Route path="/verify/:token" element={<VerifyCertificatePage />} />
 
                   <Route path="/" element={
                     <ProtectedRoute>
@@ -139,11 +126,6 @@ export default function App() {
                     <Route path="dashboard" element={<DashboardPage />} />
                     {/* The Today plan now lives as the dashboard hero + the Insights → Analytics tab. */}
                     <Route path="today" element={<Navigate to="/dashboard" replace />} />
-                    <Route path="tools" element={<ToolsPage />} />
-                    {/* Check Working / Writing / Language were three pages; they are tabs of /tools now. */}
-                    <Route path="handwriting" element={<Navigate to="/tools?tab=working" replace />} />
-                    <Route path="essays" element={<Navigate to="/tools?tab=writing" replace />} />
-                    <Route path="language" element={<Navigate to="/tools?tab=language" replace />} />
 
                     {/* Library — browse what you have; adding content is the page next door. */}
                     <Route path="library" element={<LibraryRoute />} />
@@ -154,7 +136,7 @@ export default function App() {
                     <Route path="summarizer" element={<TabRedirect to="/library/add" />} />
 
                     {/* Practice Center — practice, planner, quiz history, mistakes, bank. */}
-                    <Route path="quizzes" element={<QuizzesRoute />} />
+                    <Route path="quizzes" element={<QuizManagementPage />} />
                     <Route path="practice" element={<TabRedirect to="/quizzes" extra={{ tab: 'practice' }} />} />
                     <Route path="planner" element={<TabRedirect to="/quizzes" extra={{ tab: 'planner' }} />} />
                     <Route path="mistakes" element={<TabRedirect to="/quizzes" extra={{ tab: 'mistakes' }} />} />
@@ -166,21 +148,17 @@ export default function App() {
 
                     <Route path="flashcards" element={<FlashcardsPage />} />
 
-                    {/* Insights — analytics, retention, reinforcement, concept map. */}
+                    {/* Insights — analytics (with reinforcement) and retention. */}
                     <Route path="insights" element={<InsightsPage />} />
                     <Route path="analytics" element={<Navigate to="/insights" replace />} />
-                    <Route path="knowledge-graph" element={<TabRedirect to="/insights" extra={{ tab: 'graph' }} />} />
                     <Route path="reinforcement-center" element={<ReinforcementRedirect />} />
 
-                    {/* Shared spaces — study groups + classrooms. */}
+                    {/* Shared spaces — study groups. */}
                     <Route path="spaces" element={<SpacesPage />} />
                     <Route path="groups" element={<TabRedirect to="/spaces" extra={{ tab: 'groups' }} />} />
-                    <Route path="classrooms" element={<TabRedirect to="/spaces" extra={{ tab: 'classrooms' }} />} />
-                    <Route path="classrooms/:id" element={<ClassroomDetailPage />} />
 
                     <Route path="settings" element={<SettingsPage />} />
                     {/* Feedback was its own page; it is a Settings tab now. */}
-                    <Route path="feedback" element={<TabRedirect to="/settings" extra={{ tab: 'feedback' }} />} />
                     <Route path="offline" element={<OfflinePage />} />
                     <Route path="search" element={<SearchResultsPage />} />
                     <Route path="chat" element={<ChatListPage />} />

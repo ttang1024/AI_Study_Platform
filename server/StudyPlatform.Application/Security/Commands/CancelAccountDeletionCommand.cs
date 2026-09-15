@@ -17,14 +17,12 @@ public class CancelAccountDeletionCommandHandler : IRequestHandler<CancelAccount
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly IPasswordHasher _hasher;
-    private readonly IAuditLogger _audit;
 
     public CancelAccountDeletionCommandHandler(
-        IUnitOfWork unitOfWork, IPasswordHasher hasher, IAuditLogger audit)
+        IUnitOfWork unitOfWork, IPasswordHasher hasher)
     {
         _unitOfWork = unitOfWork;
         _hasher = hasher;
-        _audit = audit;
     }
 
     public async Task<Result> Handle(CancelAccountDeletionCommand request, CancellationToken cancellationToken)
@@ -46,8 +44,6 @@ public class CancelAccountDeletionCommandHandler : IRequestHandler<CancelAccount
         _unitOfWork.Users.Update(user);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        await _audit.LogAsync("account.deletion.cancelled", user.UserId,
-            cancellationToken: cancellationToken);
 
         return Result.Success("Account deletion cancelled. You can log in again.");
     }

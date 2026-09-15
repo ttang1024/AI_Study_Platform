@@ -34,7 +34,7 @@ export type ShareTarget = {
 export function useQuizHistory() {
   const {
     documents, courses, quizSubmissions, totalMaterials, totalQuizSubmissions,
-    achievementStats, refreshQuizSubmissions, refreshStats, refreshDocuments,
+    refreshQuizSubmissions, refreshStats, refreshDocuments,
     videos: videoList, refreshVideos, ensureVideos,
   } = useStudy();
   const { showPrompt } = usePrompt();
@@ -296,11 +296,18 @@ export function useQuizHistory() {
     return pendingItems.filter(item => item.kind === 'video' ? !generatedVideoIds.has(item.video.id) : !generatedDocIds.has(item.doc.id));
   }, [generatedPending, pendingItems]);
 
-  const docStats = {
-    totalTaken: totalQuizSubmissions,
-    avgScore: achievementStats.averageQuizScore,
-    perfectScores: achievementStats.perfectQuizzes,
-  };
+  // Derived from the loaded submissions; empty quizzes (total 0) have no score to average.
+  const docStats = useMemo(() => {
+    const scored = quizSubmissions.filter(s => s.total > 0);
+    const avg = scored.length
+      ? scored.reduce((sum, s) => sum + (s.score / s.total) * 100, 0) / scored.length
+      : 0;
+    return {
+      totalTaken: totalQuizSubmissions,
+      avgScore: Math.round(avg),
+      perfectScores: scored.filter(s => s.score === s.total).length,
+    };
+  }, [quizSubmissions, totalQuizSubmissions]);
 
   // ── Export ──────────────────────────────────────────────────────────────────
 

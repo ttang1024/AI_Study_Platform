@@ -8,7 +8,6 @@ import { aiService, ChatSessionSummary } from '../../services/aiService';
 import { useAuth } from '../../context/AuthContext';
 import { cn } from '../../utils/cn';
 import { ArtifactKind } from './ArtifactSection';
-import { AudioOverviewPanel } from './AudioOverviewPanel';
 import { CourseArtifactSections } from './CourseArtifactSections';
 import { useArtifactFilters } from './useArtifactFilters';
 import { useArtifactDetail } from './useArtifactDetail';
@@ -175,7 +174,6 @@ export const CourseArtifactsWorkspace: React.FC<CourseArtifactsWorkspaceProps> =
           </div>
         </div>
 
-        {course?.id && <AudioOverviewPanel courseId={course.id} />}
 
         {/* Metrics */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-4">

@@ -84,7 +84,7 @@ export const BentoShareCard: React.FC = () => {
       </div>
 
       <p className="text-sm text-white/40 leading-relaxed">
-        Share summaries, mind maps, quizzes, flashcards, clips, videos, and podcasts with a single public link — anyone can study from them, no account needed.
+        Share summaries, mind maps, quizzes, flashcards, videos, and podcasts, anyone can study from them, no account needed.
       </p>
     </BentoCardShell>
   );

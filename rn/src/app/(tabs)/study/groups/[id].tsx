@@ -11,29 +11,21 @@ import LogOut from 'lucide-react-native/icons/log-out';
 import Trash2 from 'lucide-react-native/icons/trash-2';
 import Users from 'lucide-react-native/icons/users';
 
-import { AssignmentsTab } from '@/components/groups/AssignmentsTab';
-import { BattlesTab } from '@/components/groups/BattlesTab';
 import { GroupChatView } from '@/components/groups/GroupChatView';
-import { LeaderboardTab } from '@/components/groups/LeaderboardTab';
 import { MembersTab } from '@/components/groups/MembersTab';
 import { SharedCoursesTab } from '@/components/groups/SharedCoursesTab';
-import { StudyRoomTab } from '@/components/groups/StudyRoomTab';
 import { Colors, Gradients, Layout, Overlay, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
 import {
-  GroupChatSocket, type ConnectionState, type GroupChatMessage, type StudyRoomState,
+  GroupChatSocket, type ConnectionState, type GroupChatMessage,
 } from '@/services/groupChatSocket';
 import { studyGroupService, type StudyGroupDetail } from '@/services/studyGroupService';
 
-type Tab = 'chat' | 'room' | 'members' | 'courses' | 'leaderboard' | 'battles' | 'assignments';
+type Tab = 'chat' | 'members' | 'courses';
 const TABS: { value: Tab; label: string }[] = [
   { value: 'chat', label: 'Chat' },
-  { value: 'room', label: 'Room' },
   { value: 'members', label: 'Members' },
   { value: 'courses', label: 'Courses' },
-  { value: 'leaderboard', label: 'Leaderboard' },
-  { value: 'battles', label: 'Battles' },
-  { value: 'assignments', label: 'Assignments' },
 ];
 
 export default function GroupDetailScreen() {
@@ -45,14 +37,11 @@ export default function GroupDetailScreen() {
   const [tab, setTab] = useState<Tab>('chat');
   const [copied, setCopied] = useState(false);
 
-  // The screen owns the hub connection so live chat AND the study room keep
-  // working while switching tabs (room presence is dropped server-side the
-  // moment the connection closes).
+  // The screen owns the hub connection so live chat keeps working while switching tabs.
   const socketRef = useRef<GroupChatSocket | null>(null);
   const [messages, setMessages] = useState<GroupChatMessage[]>([]);
   const [chatLoading, setChatLoading] = useState(true);
   const [connectionState, setConnectionState] = useState<ConnectionState>('connecting');
-  const [roomState, setRoomState] = useState<StudyRoomState | null>(null);
 
   useEffect(() => {
     studyGroupService.getGroupDetail(id).then(setGroup);
@@ -70,7 +59,6 @@ export default function GroupDetailScreen() {
     socketRef.current = socket;
     socket.connect(id, {
       onMessage: (message) => setMessages((prev) => [...prev, message]),
-      onRoomState: setRoomState,
       onConnectionStateChange: setConnectionState,
     }).catch(() => setConnectionState('disconnected'));
 
@@ -171,17 +159,6 @@ export default function GroupDetailScreen() {
             onSend={(content) => socketRef.current?.sendMessage(content) ?? Promise.resolve()}
           />
         )}
-        {tab === 'room' && (
-          <StudyRoomTab
-            state={roomState}
-            currentUserId={user?.id}
-            connected={connectionState === 'connected'}
-            onJoin={() => socketRef.current?.joinStudyRoom().catch(() => {})}
-            onLeave={() => socketRef.current?.leaveStudyRoom().catch(() => {})}
-            onSetStatus={(status) => socketRef.current?.setStudyStatus(status).catch(() => {})}
-            onStartTimer={(minutes) => socketRef.current?.startRoomTimer(minutes).catch(() => {})}
-          />
-        )}
         {tab === 'members' && (
           <MembersTab
             members={group.members}
@@ -200,9 +177,6 @@ export default function GroupDetailScreen() {
             onChange={(sharedCourses) => setGroup((g) => (g ? { ...g, sharedCourses } : g))}
           />
         )}
-        {tab === 'leaderboard' && <LeaderboardTab groupId={group.studyGroupId} />}
-        {tab === 'battles' && <BattlesTab groupId={group.studyGroupId} />}
-        {tab === 'assignments' && <AssignmentsTab groupId={group.studyGroupId} isOwner={isOwner} />}
       </View>
     </View>
   );

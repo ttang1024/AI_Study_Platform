@@ -2,10 +2,9 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Info, Download, Archive, FileText, CloudDownload } from 'lucide-react';
 import { useStudy } from '../../context/StudyContext';
-import { gamificationService } from '../../services/gamificationService';
+import { calendarService } from '../../services/calendarService';
 import { useSettingsExport } from '../../hooks/useSettingsExport';
 import { ConnectedCalendarsCard } from './ConnectedCalendarsCard';
-import { CourseVaultExportCard } from './CourseVaultExportCard';
 
 export const ExportTab: React.FC = () => {
   const { allNotes } = useStudy();
@@ -16,7 +15,7 @@ export const ExportTab: React.FC = () => {
       <div>
         <h3 className="text-lg font-bold text-text-main">Export and Interop</h3>
         <p className="text-sm text-text-muted mt-1">
-          Download your learning materials for review, backup, Obsidian, and LMS import.
+          Download your learning materials for review, backup, and LMS import.
         </p>
       </div>
 
@@ -28,20 +27,6 @@ export const ExportTab: React.FC = () => {
             description: `${allNotes.length} notes as one Markdown file.`,
             icon: FileText,
             label: 'Export MD',
-          },
-          {
-            id: 'pdf' as const,
-            title: 'PDF Study Pack',
-            description: 'Notes, quizzes, flashcards, and glossary in a printable pack.',
-            icon: Download,
-            label: 'Export PDF',
-          },
-          {
-            id: 'obsidian' as const,
-            title: 'Obsidian Vault',
-            description: 'ZIP with Markdown folders for notes, quizzes, flashcards, and glossary.',
-            icon: Archive,
-            label: 'Export ZIP',
           },
           {
             id: 'quizCsv' as const,
@@ -79,7 +64,6 @@ export const ExportTab: React.FC = () => {
           </div>
         ))}
 
-        <CourseVaultExportCard />
       </div>
 
       <div className="flex items-start gap-2 p-3 rounded-xl bg-zinc-50 border border-zinc-100">
@@ -111,9 +95,6 @@ export const ExportTab: React.FC = () => {
           >
             📎 Clip to Easy Study
           </a>
-          <p className="mt-2 text-[10px] text-zinc-400">
-            A browser-extension version lives in the repo's <code>extension/</code> folder.
-          </p>
         </div>
 
         <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-app)] p-4">
@@ -138,7 +119,7 @@ export const ExportTab: React.FC = () => {
             type="button"
             onClick={async () => {
               try {
-                const blob = await gamificationService.downloadCalendarIcs();
+                const blob = await calendarService.downloadIcs();
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;

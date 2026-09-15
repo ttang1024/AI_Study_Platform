@@ -1,5 +1,5 @@
 // The provider list, default models, settings shape, storage key, and the
-// active-provider/key/model derivations are shared across web/, rn/, and extension/
+// active-provider/key/model derivations are shared across web/ and rn/
 // (see packages/core/src/ai.ts and packages/core/src/settings.ts). Only the storage
 // itself is per-platform — localStorage here, expo-secure-store in rn. Re-exported so
 // existing `@/services/aiSettingsService` imports keep working unchanged.

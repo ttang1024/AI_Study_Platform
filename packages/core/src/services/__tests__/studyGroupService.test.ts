@@ -69,38 +69,4 @@ describe('studyGroupService', () => {
     expect(fakeHttp.post).toHaveBeenCalledWith('/api/study-groups/g-1/chat', { content: 'hello' })
   })
 
-  it('getLeaderboard defaults days to 7', () => {
-    service.getLeaderboard('g-1')
-    expect(fakeHttp.get).toHaveBeenCalledWith('/api/study-groups/g-1/leaderboard?days=7')
-  })
-
-  it('createBattle posts the battle payload', () => {
-    service.createBattle('g-1', { title: 'Quiz Off', count: 10 })
-    expect(fakeHttp.post).toHaveBeenCalledWith('/api/study-groups/g-1/battles', { title: 'Quiz Off', count: 10 })
-  })
-
-  it('getBattle GETs the top-level battle endpoint (not group-scoped)', () => {
-    service.getBattle('b-1')
-    expect(fakeHttp.get).toHaveBeenCalledWith('/api/study-groups/battles/b-1')
-  })
-
-  it('submitBattleEntry posts answers and duration', () => {
-    service.submitBattleEntry('b-1', { 'q-1': 'A' }, 60)
-    expect(fakeHttp.post).toHaveBeenCalledWith('/api/study-groups/battles/b-1/entries', { answers: { 'q-1': 'A' }, durationSeconds: 60 })
-  })
-
-  it('createAssignment posts the assignment payload', () => {
-    service.createAssignment('g-1', { title: 'Read Ch 3' })
-    expect(fakeHttp.post).toHaveBeenCalledWith('/api/study-groups/g-1/assignments', { title: 'Read Ch 3' })
-  })
-
-  it('setAssignmentCompletion posts completed to the top-level assignment endpoint', () => {
-    service.setAssignmentCompletion('a-1', true)
-    expect(fakeHttp.post).toHaveBeenCalledWith('/api/study-groups/assignments/a-1/completion', { completed: true })
-  })
-
-  it('deleteAssignment deletes by id', () => {
-    service.deleteAssignment('a-1')
-    expect(fakeHttp.delete).toHaveBeenCalledWith('/api/study-groups/assignments/a-1')
-  })
 })

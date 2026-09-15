@@ -52,7 +52,7 @@ export const BentoOfflineCard: React.FC = () => (
     </div>
 
     <p className="text-sm text-white/40 leading-relaxed">
-      Save flashcards, glossary, and notes to your device and keep studying on the subway or a flight — progress syncs when you're back online.
+      Save flashcards, glossary, and notes to your device, keep studying on the subway or a flight.
     </p>
   </BentoCardShell>
 );

@@ -16,7 +16,6 @@ public partial class AiService : IAiService
     private readonly IAppCache _cache;
     private readonly CacheOptions _cacheOptions;
     private readonly IAiUsageRecorder _usageRecorder;
-    private readonly IHostedAiKeyProvider _hostedKeys;
 
     public AiService(
         HttpClient httpClient,
@@ -24,8 +23,7 @@ public partial class AiService : IAiService
         IHttpContextAccessor httpContextAccessor,
         IAppCache cache,
         IOptions<CacheOptions> cacheOptions,
-        IAiUsageRecorder usageRecorder,
-        IHostedAiKeyProvider hostedKeys)
+        IAiUsageRecorder usageRecorder)
     {
         _httpClient = httpClient;
         _logger = logger;
@@ -33,7 +31,6 @@ public partial class AiService : IAiService
         _cache = cache;
         _cacheOptions = cacheOptions.Value;
         _usageRecorder = usageRecorder;
-        _hostedKeys = hostedKeys;
     }
 
     // ── Credentials ───────────────────────────────────────────────────────
@@ -51,8 +48,6 @@ public partial class AiService : IAiService
         var model = headers?["X-AI-Model"].FirstOrDefault();
         var key = headers?["X-AI-Key"].FirstOrDefault()?.Trim();
 
-        // A user who brought their own key always uses it, even on a hosted-key plan: it is the one
-        // they chose, and silently spending ours instead would be billing them for nothing.
         var hasOwnCredentials =
             !string.IsNullOrWhiteSpace(provider)
             && !string.IsNullOrWhiteSpace(model)
@@ -60,10 +55,6 @@ public partial class AiService : IAiService
 
         if (hasOwnCredentials)
             return new AiCredentials(provider!.ToLowerInvariant(), model!, key!, CurrentUserId());
-
-        var hosted = _hostedKeys.TryGetForCurrentRequest();
-        if (hosted != null)
-            return hosted;
 
         if (string.IsNullOrWhiteSpace(provider))
             throw new InvalidOperationException("No AI provider specified. Please configure a provider in Settings → AI Services.");
@@ -303,51 +294,7 @@ public partial class AiService : IAiService
             cancellationToken);
     }
 
-    public Task<string> GenerateAudioOverviewScriptAsync(string courseName, string materialsDigest, CancellationToken cancellationToken = default)
-    {
-        var prompt = $@"Write a lively two-host podcast dialogue that gives an engaging audio overview of the course ""{courseName}"".
-Host A (curious, asks sharp questions) and Host B (expert, explains clearly with concrete examples).
-Cover the most important concepts across the materials, connect them, and close with 2-3 key takeaways.
-Keep it conversational — short turns, natural interjections, no lists read aloud. Target 8-14 minutes of speech (roughly 1200-2000 words).
 
-Course materials digest:
-{AiResponseParsing.TruncateContent(materialsDigest, 12000)}
-
-Return ONLY a JSON array of dialogue turns, no markdown, no code blocks:
-[{{""speaker"":""A""|""B"",""text"":""...""}}]";
-        return CacheGeneratedResultAsync(
-            "audio-overview:text",
-            HashText(prompt),
-            ct => SendTextAsync(null, [("user", prompt)], 0.8, 8192, cleanJson: true, ct),
-            cancellationToken);
-    }
-
-    public Task<string> GradeHandwrittenWorkAsync(
-        IReadOnlyList<(byte[] data, string mimeType)> pages,
-        string? problemStatement,
-        CancellationToken cancellationToken = default)
-    {
-        if (pages.Count == 0)
-            throw new InvalidOperationException("At least one image of the work is required.");
-
-        var prompt = AiPrompts.GradeHandwrittenWork(problemStatement);
-
-        // Temperature is low: grading should be reproducible. A learner who re-submits the same photo
-        // and gets a different verdict has no reason to trust either one.
-        return CacheGeneratedResultAsync(
-            "grade-handwriting",
-            HashPages(pages, prompt),
-            ct => SendMultimodalTextAsync(
-                systemPrompt: null,
-                history: [],
-                userMessage: prompt,
-                attachments: pages,
-                temperature: 0.2,
-                maxTokens: 4096,
-                cleanJson: true,
-                cancellationToken: ct),
-            cancellationToken);
-    }
 
     private static string HashPages(IReadOnlyList<(byte[] data, string mimeType)> pages, string prompt)
     {

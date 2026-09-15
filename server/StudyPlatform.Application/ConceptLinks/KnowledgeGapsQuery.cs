@@ -62,7 +62,7 @@ public class GetKnowledgeGapsQueryHandler : IRequestHandler<GetKnowledgeGapsQuer
         var result = await _cache.GetOrCreateAsync(
             $"concept-links:gaps:user:{request.UserId}",
             ct => ComputeAsync(request.UserId, ct),
-            TimeSpan.FromSeconds(_cacheOptions.KnowledgeGraphSeconds),
+            TimeSpan.FromSeconds(_cacheOptions.KnowledgeGapsSeconds),
             cancellationToken);
         return Result<KnowledgeGapsDto>.Success(result);
     }

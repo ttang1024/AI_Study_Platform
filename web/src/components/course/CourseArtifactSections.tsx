@@ -20,6 +20,7 @@ import {
 } from './artifactsWorkspaceModel';
 import { ArtifactFilters } from './useArtifactFilters';
 import { stripHtml } from '@core/utils/stripHtml';
+import { MathText } from '../study/MathText';
 
 const emptyLine = <p className="text-sm text-text-muted">Nothing generated yet.</p>;
 
@@ -32,9 +33,15 @@ const ItemButton: React.FC<{
   onClick: () => void;
 }> = ({ title, subtitle, titleLines = 1, subtitleLines = 2, onClick }) => (
   <button onClick={onClick} className="w-full rounded-xl bg-[var(--bg-app)] p-3 text-left hover:bg-primary/5">
-    <p className={`${titleLines === 1 ? 'truncate' : 'line-clamp-2'} text-sm font-semibold text-text-main`}>{title}</p>
+    {/* Rows carry the same AI-authored markdown/LaTeX the detail modal renders, so
+        render it here too rather than printing the raw $…$ source. */}
+    <div className={`${titleLines === 1 ? 'truncate' : 'line-clamp-2'} text-sm font-semibold text-text-main`}>
+      <MathText text={title} />
+    </div>
     {subtitle !== undefined && (
-      <p className={`mt-1 ${subtitleLines === 1 ? 'line-clamp-1' : 'line-clamp-2'} text-xs text-text-muted`}>{subtitle}</p>
+      <div className={`mt-1 ${subtitleLines === 1 ? 'line-clamp-1' : 'line-clamp-2'} text-xs text-text-muted`}>
+        <MathText text={subtitle} />
+      </div>
     )}
   </button>
 );

@@ -132,107 +132,6 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.ToTable("AiUsageLogs");
                 });
 
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.ApiKey", b =>
-                {
-                    b.Property<Guid>("ApiKeyId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("ExpiresAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("KeyHash")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<DateTime?>("LastUsedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<string>("Prefix")
-                        .IsRequired()
-                        .HasMaxLength(24)
-                        .HasColumnType("character varying(24)");
-
-                    b.Property<DateTime?>("RevokedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Scopes")
-                        .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("ApiKeyId");
-
-                    b.HasIndex("KeyHash")
-                        .IsUnique();
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("ApiKeys");
-                });
-
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.AuditLogEntry", b =>
-                {
-                    b.Property<Guid>("AuditLogEntryId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Action")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<Guid?>("ActorUserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("IpAddress")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<string>("MetadataJson")
-                        .HasColumnType("text");
-
-                    b.Property<Guid?>("SubjectUserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("TargetId")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<string>("TargetType")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<string>("UserAgent")
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)");
-
-                    b.HasKey("AuditLogEntryId");
-
-                    b.HasIndex("Action", "CreatedAt");
-
-                    b.HasIndex("ActorUserId", "CreatedAt");
-
-                    b.HasIndex("SubjectUserId", "CreatedAt");
-
-                    b.ToTable("AuditLogEntries");
-                });
-
             modelBuilder.Entity("StudyPlatform.Domain.Entities.CacheEntry", b =>
                 {
                     b.Property<string>("Key")
@@ -350,266 +249,6 @@ namespace StudyPlatform.Infrastructure.Migrations
                         });
                 });
 
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.Classroom", b =>
-                {
-                    b.Property<Guid>("ClassroomId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("ArchivedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("CreatedByUserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
-
-                    b.Property<bool>("EnrollmentOpen")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(true);
-
-                    b.Property<string>("JoinCode")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<Guid>("OrganizationId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("ClassroomId");
-
-                    b.HasIndex("CreatedByUserId");
-
-                    b.HasIndex("JoinCode")
-                        .IsUnique();
-
-                    b.HasIndex("OrganizationId");
-
-                    b.ToTable("Classrooms");
-                });
-
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.ClassroomAssignment", b =>
-                {
-                    b.Property<Guid>("ClassroomAssignmentId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<bool>("AllowLateSubmissions")
-                        .HasColumnType("boolean");
-
-                    b.Property<Guid>("ClassroomId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("CourseId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("CreatedByUserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("DueAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Instructions")
-                        .HasMaxLength(20000)
-                        .HasColumnType("character varying(20000)");
-
-                    b.Property<double>("PointsPossible")
-                        .HasColumnType("double precision");
-
-                    b.Property<DateTime?>("PublishedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("ClassroomAssignmentId");
-
-                    b.HasIndex("CourseId");
-
-                    b.HasIndex("CreatedByUserId");
-
-                    b.HasIndex("ClassroomId", "DueAt");
-
-                    b.ToTable("ClassroomAssignments");
-                });
-
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.ClassroomCourse", b =>
-                {
-                    b.Property<Guid>("ClassroomCourseId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("AssignedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("AssignedByUserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("ClassroomId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("CourseId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("DueAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("ClassroomCourseId");
-
-                    b.HasIndex("AssignedByUserId");
-
-                    b.HasIndex("CourseId");
-
-                    b.HasIndex("ClassroomId", "CourseId")
-                        .IsUnique();
-
-                    b.ToTable("ClassroomCourses");
-                });
-
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.ClassroomEnrollment", b =>
-                {
-                    b.Property<Guid>("ClassroomEnrollmentId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("ClassroomId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("EnrolledAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("RemovedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Role")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("ClassroomEnrollmentId");
-
-                    b.HasIndex("UserId");
-
-                    b.HasIndex("ClassroomId", "UserId");
-
-                    b.ToTable("ClassroomEnrollments");
-                });
-
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.ClassroomSubmission", b =>
-                {
-                    b.Property<Guid>("ClassroomSubmissionId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("ClassroomAssignmentId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Feedback")
-                        .HasMaxLength(20000)
-                        .HasColumnType("character varying(20000)");
-
-                    b.Property<DateTime?>("GradedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("GradedByUserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<double?>("PointsAwarded")
-                        .HasColumnType("double precision");
-
-                    b.Property<Guid>("StudentUserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("SubmittedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Text")
-                        .IsRequired()
-                        .HasMaxLength(100000)
-                        .HasColumnType("character varying(100000)");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("ClassroomSubmissionId");
-
-                    b.HasIndex("GradedByUserId");
-
-                    b.HasIndex("StudentUserId");
-
-                    b.HasIndex("ClassroomAssignmentId", "StudentUserId")
-                        .IsUnique();
-
-                    b.ToTable("ClassroomSubmissions");
-                });
-
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.ConceptLink", b =>
-                {
-                    b.Property<Guid>("ConceptLinkId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LinkLabel")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<Guid>("SourceEntityId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("SourceEntityType")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<Guid>("TargetEntityId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("TargetEntityType")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("ConceptLinkId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("ConceptLinks");
-                });
-
             modelBuilder.Entity("StudyPlatform.Domain.Entities.ContentEmbedding", b =>
                 {
                     b.Property<Guid>("ContentEmbeddingId")
@@ -698,96 +337,6 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("Courses");
-                });
-
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.CourseAudioOverview", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("AudioUrl")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("CompletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("CourseId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("DurationSeconds")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Error")
-                        .HasColumnType("text");
-
-                    b.Property<string>("ScriptJson")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CourseId");
-
-                    b.HasIndex("UserId", "CourseId");
-
-                    b.ToTable("CourseAudioOverviews");
-                });
-
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.CourseCertificate", b =>
-                {
-                    b.Property<Guid>("CourseCertificateId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("CourseId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("CourseName")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
-
-                    b.Property<DateTime>("IssuedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<double>("MasteryScore")
-                        .HasColumnType("double precision");
-
-                    b.Property<string>("PublicToken")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<string>("RecipientName")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
-
-                    b.Property<DateTime?>("RevokedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("CourseCertificateId");
-
-                    b.HasIndex("PublicToken")
-                        .IsUnique();
-
-                    b.HasIndex("UserId", "CourseId");
-
-                    b.ToTable("CourseCertificates");
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.DataExportRequest", b =>
@@ -971,114 +520,6 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("DocumentAnnotations");
-                });
-
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.EssayPeerReview", b =>
-                {
-                    b.Property<Guid>("EssayPeerReviewId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("AssignedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("ClassroomId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("EssaySubmissionId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("OverallComment")
-                        .HasMaxLength(4000)
-                        .HasColumnType("character varying(4000)");
-
-                    b.Property<Guid>("ReviewerUserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<double?>("ScorePercent")
-                        .HasColumnType("double precision");
-
-                    b.Property<string>("ScoresJson")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(16)
-                        .HasColumnType("character varying(16)");
-
-                    b.Property<DateTime?>("SubmittedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("EssayPeerReviewId");
-
-                    b.HasIndex("EssaySubmissionId", "ReviewerUserId")
-                        .IsUnique();
-
-                    b.HasIndex("ReviewerUserId", "Status");
-
-                    b.ToTable("EssayPeerReviews");
-                });
-
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.EssaySubmission", b =>
-                {
-                    b.Property<Guid>("EssaySubmissionId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("DocumentId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("FeedbackJson")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("GradedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("ParentSubmissionId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("PromptText")
-                        .HasColumnType("text");
-
-                    b.Property<Guid?>("RubricId")
-                        .HasColumnType("uuid");
-
-                    b.Property<double?>("ScorePercent")
-                        .HasColumnType("double precision");
-
-                    b.Property<string>("Text")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(300)
-                        .HasColumnType("character varying(300)");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<int>("Version")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("WordCount")
-                        .HasColumnType("integer");
-
-                    b.HasKey("EssaySubmissionId");
-
-                    b.HasIndex("ParentSubmissionId");
-
-                    b.HasIndex("RubricId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("EssaySubmissions");
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.ExamPlan", b =>
@@ -1450,68 +891,6 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.ToTable("GlossaryTerms", (string)null);
                 });
 
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.GroupAssignment", b =>
-                {
-                    b.Property<Guid>("GroupAssignmentId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("CreatedByUserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("DueAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("GroupId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("LinkUrl")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(300)
-                        .HasColumnType("character varying(300)");
-
-                    b.HasKey("GroupAssignmentId");
-
-                    b.HasIndex("GroupId", "CreatedAt");
-
-                    b.ToTable("GroupAssignments");
-                });
-
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.GroupAssignmentCompletion", b =>
-                {
-                    b.Property<Guid>("GroupAssignmentCompletionId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("AssignmentId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CompletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("GroupAssignmentCompletionId");
-
-                    b.HasIndex("UserId");
-
-                    b.HasIndex("AssignmentId", "UserId")
-                        .IsUnique();
-
-                    b.ToTable("GroupAssignmentCompletions");
-                });
-
             modelBuilder.Entity("StudyPlatform.Domain.Entities.GroupChatMessage", b =>
                 {
                     b.Property<Guid>("GroupChatMessageId")
@@ -1538,48 +917,6 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("GroupChatMessages");
-                });
-
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.GroupNote", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("ContentPreview")
-                        .IsRequired()
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("CreatedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("GroupId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("LastEditedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<byte[]>("State")
-                        .IsRequired()
-                        .HasColumnType("bytea");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(300)
-                        .HasColumnType("character varying(300)");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("GroupId");
-
-                    b.ToTable("GroupNotes");
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.LibraryTag", b =>
@@ -1780,71 +1117,6 @@ namespace StudyPlatform.Infrastructure.Migrations
                         });
                 });
 
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.Organization", b =>
-                {
-                    b.Property<Guid>("OrganizationId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<Guid>("OwnerId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Slug")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("OrganizationId");
-
-                    b.HasIndex("OwnerId");
-
-                    b.HasIndex("Slug")
-                        .IsUnique();
-
-                    b.ToTable("Organizations");
-                });
-
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.OrganizationMember", b =>
-                {
-                    b.Property<Guid>("OrganizationMemberId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("JoinedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("OrganizationId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Role")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("OrganizationMemberId");
-
-                    b.HasIndex("UserId");
-
-                    b.HasIndex("OrganizationId", "UserId")
-                        .IsUnique();
-
-                    b.ToTable("OrganizationMembers");
-                });
-
             modelBuilder.Entity("StudyPlatform.Domain.Entities.OtpCode", b =>
                 {
                     b.Property<Guid>("OtpId")
@@ -1983,83 +1255,6 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.ToTable("QuizAttempts");
                 });
 
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.QuizBattle", b =>
-                {
-                    b.Property<Guid>("QuizBattleId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("ClosesAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("CreatedByUserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("GroupId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("QuestionsJson")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.HasKey("QuizBattleId");
-
-                    b.HasIndex("GroupId", "CreatedAt");
-
-                    b.ToTable("QuizBattles");
-                });
-
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.QuizBattleEntry", b =>
-                {
-                    b.Property<Guid>("QuizBattleEntryId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("AnswersJson")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("BattleId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CompletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("DurationSeconds")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("Score")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("Total")
-                        .HasColumnType("integer");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("QuizBattleEntryId");
-
-                    b.HasIndex("UserId");
-
-                    b.HasIndex("BattleId", "UserId")
-                        .IsUnique();
-
-                    b.ToTable("QuizBattleEntries");
-                });
-
             modelBuilder.Entity("StudyPlatform.Domain.Entities.QuizSubmission", b =>
                 {
                     b.Property<Guid>("SubmissionId")
@@ -2168,82 +1363,6 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.HasIndex("UserId", "IsRevoked", "ExpiresAt");
 
                     b.ToTable("RefreshTokens");
-                });
-
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.Rubric", b =>
-                {
-                    b.Property<Guid>("RubricId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("ClassroomId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CriteriaJson")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("RubricId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("Rubrics");
-                });
-
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.SavedLibraryView", b =>
-                {
-                    b.Property<Guid>("SavedLibraryViewId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("FiltersJson")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Icon")
-                        .HasMaxLength(16)
-                        .HasColumnType("character varying(16)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<int>("Position")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("SavedLibraryViewId");
-
-                    b.HasIndex("UserId", "Position");
-
-                    b.ToTable("SavedLibraryViews");
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.ShareToken", b =>
@@ -2466,62 +1585,6 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.ToTable("StudySessions");
                 });
 
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.Subscription", b =>
-                {
-                    b.Property<Guid>("SubscriptionId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("CurrentPeriodEnd")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ExternalCustomerId")
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<string>("ExternalSubscriptionId")
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<Guid?>("OrganizationId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("PlanKey")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("SubscriptionId");
-
-                    b.HasIndex("ExternalCustomerId");
-
-                    b.HasIndex("ExternalSubscriptionId");
-
-                    b.HasIndex("OrganizationId")
-                        .IsUnique()
-                        .HasFilter("\"OrganizationId\" IS NOT NULL");
-
-                    b.HasIndex("UserId")
-                        .IsUnique()
-                        .HasFilter("\"UserId\" IS NOT NULL");
-
-                    b.ToTable("Subscriptions");
-                });
-
             modelBuilder.Entity("StudyPlatform.Domain.Entities.User", b =>
                 {
                     b.Property<Guid>("UserId")
@@ -2717,40 +1780,6 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.ToTable("UserPushSubscriptions");
                 });
 
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.UserTwoFactor", b =>
-                {
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("EnabledAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<bool>("IsEnabled")
-                        .HasColumnType("boolean");
-
-                    b.Property<long>("LastUsedStep")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("RecoveryCodeHashesJson")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("SecretBase32")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("UserId");
-
-                    b.ToTable("UserTwoFactors");
-                });
-
             modelBuilder.Entity("StudyPlatform.Domain.Entities.Video", b =>
                 {
                     b.Property<Guid>("VideoId")
@@ -2847,52 +1876,6 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.HasIndex("ExpiresAt");
 
                     b.ToTable("VideoTranscriptEntries");
-                });
-
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.Webhook", b =>
-                {
-                    b.Property<Guid>("WebhookId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<int>("ConsecutiveFailures")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Events")
-                        .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTime?>("LastDeliveryAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int?>("LastStatusCode")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Secret")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<string>("Url")
-                        .IsRequired()
-                        .HasMaxLength(2048)
-                        .HasColumnType("character varying(2048)");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("WebhookId");
-
-                    b.HasIndex("UserId", "IsActive");
-
-                    b.ToTable("Webhooks");
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.WorkedProblem", b =>
@@ -3030,17 +2013,6 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.ApiKey", b =>
-                {
-                    b.HasOne("StudyPlatform.Domain.Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("StudyPlatform.Domain.Entities.ChatConversation", b =>
                 {
                     b.HasOne("StudyPlatform.Domain.Entities.Document", "Document")
@@ -3082,134 +2054,6 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Navigation("Video");
                 });
 
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.Classroom", b =>
-                {
-                    b.HasOne("StudyPlatform.Domain.Entities.User", "CreatedBy")
-                        .WithMany()
-                        .HasForeignKey("CreatedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("StudyPlatform.Domain.Entities.Organization", "Organization")
-                        .WithMany("Classrooms")
-                        .HasForeignKey("OrganizationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("CreatedBy");
-
-                    b.Navigation("Organization");
-                });
-
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.ClassroomAssignment", b =>
-                {
-                    b.HasOne("StudyPlatform.Domain.Entities.Classroom", "Classroom")
-                        .WithMany()
-                        .HasForeignKey("ClassroomId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("StudyPlatform.Domain.Entities.Course", "Course")
-                        .WithMany()
-                        .HasForeignKey("CourseId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("StudyPlatform.Domain.Entities.User", "CreatedBy")
-                        .WithMany()
-                        .HasForeignKey("CreatedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Classroom");
-
-                    b.Navigation("Course");
-
-                    b.Navigation("CreatedBy");
-                });
-
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.ClassroomCourse", b =>
-                {
-                    b.HasOne("StudyPlatform.Domain.Entities.User", "AssignedBy")
-                        .WithMany()
-                        .HasForeignKey("AssignedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("StudyPlatform.Domain.Entities.Classroom", "Classroom")
-                        .WithMany("Courses")
-                        .HasForeignKey("ClassroomId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("StudyPlatform.Domain.Entities.Course", "Course")
-                        .WithMany()
-                        .HasForeignKey("CourseId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("AssignedBy");
-
-                    b.Navigation("Classroom");
-
-                    b.Navigation("Course");
-                });
-
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.ClassroomEnrollment", b =>
-                {
-                    b.HasOne("StudyPlatform.Domain.Entities.Classroom", "Classroom")
-                        .WithMany("Enrollments")
-                        .HasForeignKey("ClassroomId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("StudyPlatform.Domain.Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Classroom");
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.ClassroomSubmission", b =>
-                {
-                    b.HasOne("StudyPlatform.Domain.Entities.ClassroomAssignment", "Assignment")
-                        .WithMany("Submissions")
-                        .HasForeignKey("ClassroomAssignmentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("StudyPlatform.Domain.Entities.User", "GradedBy")
-                        .WithMany()
-                        .HasForeignKey("GradedByUserId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("StudyPlatform.Domain.Entities.User", "Student")
-                        .WithMany()
-                        .HasForeignKey("StudentUserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Assignment");
-
-                    b.Navigation("GradedBy");
-
-                    b.Navigation("Student");
-                });
-
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.ConceptLink", b =>
-                {
-                    b.HasOne("StudyPlatform.Domain.Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("StudyPlatform.Domain.Entities.ContentEmbedding", b =>
                 {
                     b.HasOne("StudyPlatform.Domain.Entities.User", "User")
@@ -3225,28 +2069,6 @@ namespace StudyPlatform.Infrastructure.Migrations
                 {
                     b.HasOne("StudyPlatform.Domain.Entities.User", "User")
                         .WithMany("Courses")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.CourseAudioOverview", b =>
-                {
-                    b.HasOne("StudyPlatform.Domain.Entities.Course", "Course")
-                        .WithMany()
-                        .HasForeignKey("CourseId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Course");
-                });
-
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.CourseCertificate", b =>
-                {
-                    b.HasOne("StudyPlatform.Domain.Entities.User", "User")
-                        .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -3299,43 +2121,6 @@ namespace StudyPlatform.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Document");
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.EssayPeerReview", b =>
-                {
-                    b.HasOne("StudyPlatform.Domain.Entities.EssaySubmission", "Submission")
-                        .WithMany()
-                        .HasForeignKey("EssaySubmissionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("StudyPlatform.Domain.Entities.User", "Reviewer")
-                        .WithMany()
-                        .HasForeignKey("ReviewerUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Reviewer");
-
-                    b.Navigation("Submission");
-                });
-
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.EssaySubmission", b =>
-                {
-                    b.HasOne("StudyPlatform.Domain.Entities.Rubric", "Rubric")
-                        .WithMany()
-                        .HasForeignKey("RubricId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("StudyPlatform.Domain.Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Rubric");
 
                     b.Navigation("User");
                 });
@@ -3414,36 +2199,6 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Navigation("Video");
                 });
 
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.GroupAssignment", b =>
-                {
-                    b.HasOne("StudyPlatform.Domain.Entities.StudyGroup", "Group")
-                        .WithMany()
-                        .HasForeignKey("GroupId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Group");
-                });
-
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.GroupAssignmentCompletion", b =>
-                {
-                    b.HasOne("StudyPlatform.Domain.Entities.GroupAssignment", "Assignment")
-                        .WithMany("Completions")
-                        .HasForeignKey("AssignmentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("StudyPlatform.Domain.Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Assignment");
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("StudyPlatform.Domain.Entities.GroupChatMessage", b =>
                 {
                     b.HasOne("StudyPlatform.Domain.Entities.StudyGroup", "Group")
@@ -3461,17 +2216,6 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Navigation("Group");
 
                     b.Navigation("User");
-                });
-
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.GroupNote", b =>
-                {
-                    b.HasOne("StudyPlatform.Domain.Entities.StudyGroup", "Group")
-                        .WithMany()
-                        .HasForeignKey("GroupId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Group");
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.LibraryTag", b =>
@@ -3529,36 +2273,6 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Navigation("Video");
                 });
 
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.Organization", b =>
-                {
-                    b.HasOne("StudyPlatform.Domain.Entities.User", "Owner")
-                        .WithMany()
-                        .HasForeignKey("OwnerId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Owner");
-                });
-
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.OrganizationMember", b =>
-                {
-                    b.HasOne("StudyPlatform.Domain.Entities.Organization", "Organization")
-                        .WithMany("Members")
-                        .HasForeignKey("OrganizationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("StudyPlatform.Domain.Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Organization");
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("StudyPlatform.Domain.Entities.OtpCode", b =>
                 {
                     b.HasOne("StudyPlatform.Domain.Entities.User", "User")
@@ -3586,36 +2300,6 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Navigation("Video");
                 });
 
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.QuizBattle", b =>
-                {
-                    b.HasOne("StudyPlatform.Domain.Entities.StudyGroup", "Group")
-                        .WithMany()
-                        .HasForeignKey("GroupId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Group");
-                });
-
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.QuizBattleEntry", b =>
-                {
-                    b.HasOne("StudyPlatform.Domain.Entities.QuizBattle", "Battle")
-                        .WithMany("Entries")
-                        .HasForeignKey("BattleId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("StudyPlatform.Domain.Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Battle");
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("StudyPlatform.Domain.Entities.QuizSubmission", b =>
                 {
                     b.HasOne("StudyPlatform.Domain.Entities.Document", "Document")
@@ -3637,28 +2321,6 @@ namespace StudyPlatform.Infrastructure.Migrations
                 {
                     b.HasOne("StudyPlatform.Domain.Entities.User", "User")
                         .WithMany("RefreshTokens")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.Rubric", b =>
-                {
-                    b.HasOne("StudyPlatform.Domain.Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.SavedLibraryView", b =>
-                {
-                    b.HasOne("StudyPlatform.Domain.Entities.User", "User")
-                        .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -3745,39 +2407,11 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.Subscription", b =>
-                {
-                    b.HasOne("StudyPlatform.Domain.Entities.Organization", "Organization")
-                        .WithMany()
-                        .HasForeignKey("OrganizationId")
-                        .OnDelete(DeleteBehavior.Cascade);
-
-                    b.HasOne("StudyPlatform.Domain.Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade);
-
-                    b.Navigation("Organization");
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("StudyPlatform.Domain.Entities.UserPushSubscription", b =>
                 {
                     b.HasOne("StudyPlatform.Domain.Entities.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.UserTwoFactor", b =>
-                {
-                    b.HasOne("StudyPlatform.Domain.Entities.User", "User")
-                        .WithOne()
-                        .HasForeignKey("StudyPlatform.Domain.Entities.UserTwoFactor", "UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -3799,17 +2433,6 @@ namespace StudyPlatform.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Course");
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.Webhook", b =>
-                {
-                    b.HasOne("StudyPlatform.Domain.Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
 
                     b.Navigation("User");
                 });
@@ -3860,18 +2483,6 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Navigation("Messages");
                 });
 
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.Classroom", b =>
-                {
-                    b.Navigation("Courses");
-
-                    b.Navigation("Enrollments");
-                });
-
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.ClassroomAssignment", b =>
-                {
-                    b.Navigation("Submissions");
-                });
-
             modelBuilder.Entity("StudyPlatform.Domain.Entities.Course", b =>
                 {
                     b.Navigation("Documents");
@@ -3888,26 +2499,9 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Navigation("Quizzes");
                 });
 
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.GroupAssignment", b =>
-                {
-                    b.Navigation("Completions");
-                });
-
             modelBuilder.Entity("StudyPlatform.Domain.Entities.LibraryTag", b =>
                 {
                     b.Navigation("Assignments");
-                });
-
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.Organization", b =>
-                {
-                    b.Navigation("Classrooms");
-
-                    b.Navigation("Members");
-                });
-
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.QuizBattle", b =>
-                {
-                    b.Navigation("Entries");
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.StudyGroup", b =>

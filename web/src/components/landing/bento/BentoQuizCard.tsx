@@ -68,13 +68,13 @@ export const BentoQuizCard: React.FC = () => {
         </div>
         <p className="mt-2 text-[10px] text-white/25">
           {picked === null ? 'Tap an answer to check it'
-            : picked === QUIZ_CORRECT ? 'Correct! +10 XP'
+            : picked === QUIZ_CORRECT ? 'Correct — nice one'
             : 'Added to your mistakes notebook'}
         </p>
       </div>
 
       <p className="text-sm text-white/40 leading-relaxed">
-        Question Bank with filtering &amp; pagination, one-button smart sessions that mix due reviews with mistake redos, timed mock exams, and shareable quiz links.
+        One-button smart sessions that mix due reviews with mistake redos, timed mock exams, a mistakes notebook that keeps score, and shareable quiz links.
       </p>
     </BentoCardShell>
   );

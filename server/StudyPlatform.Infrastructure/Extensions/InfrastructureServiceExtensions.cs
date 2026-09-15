@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using StudyPlatform.Application.Billing;
 using StudyPlatform.Application.Services;
 using StudyPlatform.Application.Settings;
 using StudyPlatform.Domain.Interfaces;
@@ -14,15 +13,26 @@ namespace StudyPlatform.Infrastructure.Extensions;
 
 public static class InfrastructureServiceExtensions
 {
-    public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
+    /// <param name="isProduction">
+    /// Whether the host is running as Production. Only used to refuse a loopback database there —
+    /// see <see cref="NpgsqlConnectionStringFactory"/>.
+    /// </param>
+    public static IServiceCollection AddInfrastructure(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        bool isProduction = false)
     {
-        // Database
+        // Database. The connection string is normalised for a remotely hosted managed Postgres
+        // (pool size, timeouts, TLS) without overriding anything the operator set explicitly.
+        var connectionString = NpgsqlConnectionStringFactory.Create(configuration, isProduction);
+
         services.AddDbContext<AppDbContext>(options =>
         {
-            var connectionString = configuration.GetConnectionString("DefaultConnection")
-                ?? throw new InvalidOperationException("Database connection string 'DefaultConnection' is not configured.");
             options.UseNpgsql(connectionString, npgsqlOptions =>
             {
+                // Matters more against a managed database over the internet than against a local one:
+                // transient network faults and the provider's own connection recycling both surface as
+                // retryable Npgsql errors.
                 npgsqlOptions.EnableRetryOnFailure(
                     maxRetryCount: 5,
                     maxRetryDelay: TimeSpan.FromSeconds(30),
@@ -39,33 +49,17 @@ public static class InfrastructureServiceExtensions
 
         // Admin platform-wide analytics (reads across all users; admin-only endpoints)
         services.AddScoped<IAdminAnalyticsRepository, AdminAnalyticsRepository>();
-        services.AddScoped<IClassroomGradebookRepository, ClassroomGradebookRepository>();
 
         // Unified library list (documents + videos merged, server-paginated)
         services.AddScoped<ILibraryRepository, LibraryRepository>();
 
         // Security trail. Read through its own repository rather than the unit of work: nothing
         // writes audit rows transactionally, so it has no business enlisting in anyone's save.
-        services.AddScoped<IAuditLogRepository, AuditLogRepository>();
         // Singleton for the same reason AiUsageRecorder is one — it opens a scope per write so an
         // audit entry survives the operation it describes failing.
-        services.AddSingleton<IAuditLogger, AuditLogger>();
-
-        services.AddSingleton<ITotpService, TotpService>();
         services.AddScoped<IRequestContext, HttpRequestContext>();
         services.AddScoped<IDataExportBuilder, DataExportBuilder>();
         services.AddScoped<IAccountEraser, AccountEraser>();
-        services.AddScoped<IMarkdownExportBuilder, MarkdownExportBuilder>();
-
-        // Outbound webhooks. The URL is user-supplied and fetched by the server, so this goes
-        // through the same per-hop private-IP guard as calendar, podcast, and clipper ingestion —
-        // an unguarded client here would make the platform a probe of its own network.
-        services.AddHttpClient<IWebhookDispatcher, WebhookDispatcher>(client =>
-        {
-            client.Timeout = TimeSpan.FromSeconds(10);
-            client.DefaultRequestHeaders.Add("User-Agent", "StudyPlatform-Webhooks");
-        })
-        .ConfigurePrimaryHttpMessageHandler(() => SsrfGuard.CreateHandler());
 
         // Services
         services.AddScoped<ITokenService, TokenService>();
@@ -85,23 +79,6 @@ public static class InfrastructureServiceExtensions
         // rows never enlist in the caller's unit of work.
         services.AddSingleton<IAiUsageRecorder, AiUsageRecorder>();
         services.AddSingleton<IInstanceIdentity, InstanceIdentity>();
-
-        // Singleton: the quota gate is a singleton and consults entitlements on every AI call.
-        services.AddSingleton<IEntitlementService, EntitlementService>();
-        services.AddScoped<IHostedAiKeyProvider, HostedAiKeyProvider>();
-
-        // Billing binds to a real processor only when one is configured; otherwise a no-op provider
-        // keeps every user on the free plan and the UI hides upgrade affordances.
-        var billingConfigured = !string.IsNullOrWhiteSpace(
-            configuration[$"{BillingOptions.SectionName}:SecretKey"]);
-
-        if (billingConfigured)
-            services.AddHttpClient<IBillingProvider, StripeBillingProvider>(client =>
-            {
-                client.Timeout = TimeSpan.FromSeconds(30);
-            });
-        else
-            services.AddSingleton<IBillingProvider, NullBillingProvider>();
 
         // External ICS calendars ("secret address" feeds) for planner busy-time import.
         // User-supplied URL → SSRF-guarded handler that refuses private/loopback/metadata addresses

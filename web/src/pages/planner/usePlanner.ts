@@ -4,7 +4,6 @@ import { calendarService, type DayBusySummary } from '../../services/calendarSer
 import {
   plannerService, type ExamPlan, type ExamSchedule, type MockExam,
 } from '../../services/plannerService';
-import { gamificationService } from '../../services/gamificationService';
 
 /** All state, effects and handlers backing PlannerPage. */
 export function usePlanner() {
@@ -101,7 +100,7 @@ export function usePlanner() {
 
   const handleDownloadIcs = useCallback(async () => {
     try {
-      const blob = await gamificationService.downloadCalendarIcs();
+      const blob = await calendarService.downloadIcs();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;

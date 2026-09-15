@@ -44,8 +44,3 @@ public interface ILibraryTagRepository : IRepository<LibraryTag>
     Task RemoveAssignmentsForItemAsync(
         string itemKind, Guid itemId, CancellationToken cancellationToken = default);
 }
-
-public interface ISavedLibraryViewRepository : IRepository<SavedLibraryView>
-{
-    Task<IReadOnlyList<SavedLibraryView>> GetForUserAsync(Guid userId, CancellationToken cancellationToken = default);
-}

@@ -2,7 +2,6 @@ using MediatR;
 using Moq;
 using StudyPlatform.Application.Analytics.DTOs;
 using StudyPlatform.Application.Analytics.Queries;
-using StudyPlatform.Application.Classrooms;
 using StudyPlatform.Application.Common;
 using StudyPlatform.Application.ConceptLinks;
 using StudyPlatform.Application.Notifications;
@@ -21,7 +20,6 @@ public class GetNotificationsQueryHandlerTests
     public GetNotificationsQueryHandlerTests()
     {
         SetupSummary(dueFlashcards: 0, currentStreak: 0, todaySeconds: 0, todayMinutes: 0, dailyGoal: 30);
-        SetupDeadlines();
         SetupGaps();
         SetupRecommendations();
 
@@ -35,12 +33,6 @@ public class GetNotificationsQueryHandlerTests
             dueFlashcards, new ReinforcementCountsDto(0, 0, 0), dailyGoal);
         _mediator.Setup(m => m.Send(It.IsAny<GetDashboardSummaryQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result<DashboardSummaryDto>.Success(summary));
-    }
-
-    private void SetupDeadlines(IReadOnlyList<ClassroomDeadlineDto>? deadlines = null)
-    {
-        _mediator.Setup(m => m.Send(It.IsAny<GetClassroomDeadlinesQuery>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Result<IReadOnlyList<ClassroomDeadlineDto>>.Success(deadlines ?? Array.Empty<ClassroomDeadlineDto>()));
     }
 
     private void SetupGaps(IEnumerable<ConceptGapDto>? gaps = null)
@@ -115,32 +107,6 @@ public class GetNotificationsQueryHandlerTests
         var result = await _handler.Handle(new GetNotificationsQuery(_userId), default);
 
         Assert.DoesNotContain(result.Data!.Items, i => i.Id == "goal-remaining");
-    }
-
-    [Fact]
-    public async Task Handle_OverdueClassroomDeadline_LabeledOverdue()
-    {
-        SetupDeadlines(new[]
-        {
-            new ClassroomDeadlineDto(Guid.NewGuid(), "CS 101", Guid.NewGuid(), null, "Essay", DateTime.UtcNow.AddDays(-1), "assigned", true),
-        });
-
-        var result = await _handler.Handle(new GetNotificationsQuery(_userId), default);
-
-        Assert.Contains(result.Data!.Items, i => i.Title.StartsWith("Overdue:"));
-    }
-
-    [Fact]
-    public async Task Handle_ClassroomDeadlines_CappedAtThree()
-    {
-        var deadlines = Enumerable.Range(0, 5)
-            .Select(i => new ClassroomDeadlineDto(Guid.NewGuid(), "CS 101", Guid.NewGuid(), null, $"Task {i}", DateTime.UtcNow.AddDays(1), "assigned", false))
-            .ToList();
-        SetupDeadlines(deadlines);
-
-        var result = await _handler.Handle(new GetNotificationsQuery(_userId), default);
-
-        Assert.Equal(3, result.Data!.Items.Count(i => i.Type == "due" && i.Id.StartsWith("classroom-")));
     }
 
     [Fact]

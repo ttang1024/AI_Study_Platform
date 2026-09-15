@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrainCircuit, Loader2, CalendarDays, Bug } from 'lucide-react';
+import { BrainCircuit, Loader2, CalendarDays, Bug, Gauge } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../utils/cn';
@@ -20,6 +20,7 @@ import { FlashcardSetCard } from '../components/study/FlashcardSetCard';
 import { useFlashcardsPage } from './flashcards/useFlashcardsPage';
 import { FlashcardsHeader } from './flashcards/FlashcardsHeader';
 import { ClassifiedCardList } from './flashcards/ClassifiedCardList';
+import { SchedulerTab } from '../components/settings/SchedulerTab';
 
 export const FlashcardsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -73,6 +74,7 @@ export const FlashcardsPage: React.FC = () => {
           { id: 'sets', label: 'My Sets', icon: BrainCircuit },
           { id: 'review', label: 'Review Queue', icon: CalendarDays },
           { id: 'leeches', label: 'Leeches', icon: Bug },
+          { id: 'scheduler', label: 'Scheduler', icon: Gauge },
         ] as const).map(tab => (
           <button
             key={tab.id}
@@ -96,6 +98,11 @@ export const FlashcardsPage: React.FC = () => {
 
       {s.activeTab === 'leeches' && (
         <LeechesTab onEdit={s.setClassifyCard} />
+      )}
+
+      {/* FSRS settings live with the cards they schedule rather than in account Settings. */}
+      {s.activeTab === 'scheduler' && (
+        <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-sidebar)] p-8"><SchedulerTab /></div>
       )}
 
       {s.activeTab === 'sets' && <>

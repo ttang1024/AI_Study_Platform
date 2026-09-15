@@ -1,8 +1,10 @@
 // Service logic moved to the shared package (packages/core). This file wires the
 // RN HTTP + SSE adapters into the shared factory. RN-local overrides: PickedFile
-// uploads (uploadDocument/uploadAudio), SimpleCard flashcard mapping (RN renders
-// the lightweight card shape), and generateSummary keeping rn's Document return
-// (core's parses the {summary, keyPoints} blob instead).
+// uploads (uploadDocument/uploadAudio) and SimpleCard flashcard mapping (RN renders
+// the lightweight card shape).
+//
+// There is deliberately no generateSummary override: the API exposes only
+// `summary/stream`, so callers use core's streamSummary and accumulate the chunks.
 import { createDocumentService, mapDocument, type BackendDocument } from '@core/services/documentService';
 import { normalizeCitation } from '@core/types';
 import { apiClient } from '@/services/apiClient';
@@ -56,11 +58,6 @@ export const documentService = {
     );
     coreService.invalidateDocumentListCache();
     return response.data.data;
-  },
-
-  async generateSummary(courseId: string, documentId: string): Promise<Document> {
-    const response = await apiClient.post(`/api/courses/${courseId}/documents/${documentId}/summary`);
-    return mapDocument(response.data.data as BackendDocument);
   },
 
   async getFlashcards(courseId: string, documentId: string): Promise<SimpleCard[]> {

@@ -155,7 +155,6 @@ export const QuizModal: React.FC = () => {
               <p className="mt-1 text-sm text-zinc-600">{currentQuestion.explanation}</p>
               <SourceCitation
                 citation={currentQuestion.citation}
-                documentId={currentQuestion.documentId}
                 videoId={currentQuestion.videoId}
                 className="mt-3"
               />

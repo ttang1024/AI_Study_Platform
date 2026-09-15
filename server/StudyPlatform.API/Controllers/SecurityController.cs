@@ -10,10 +10,7 @@ using StudyPlatform.Application.Security.Queries;
 namespace StudyPlatform.API.Controllers;
 
 /// <summary>
-/// Account security: second factor, sessions, and the security log.
-///
-/// <para>Split into partial files by concern the way the other large controllers are —
-/// <c>.TwoFactor</c>, <c>.Sessions</c>, <c>.Data</c> — with the shared plumbing here.</para>
+/// Account security: data export and account deletion (<c>.Data</c>), with the shared plumbing here.
 /// </summary>
 [ApiController]
 [Route("api/security")]
@@ -53,17 +50,5 @@ public partial class SecurityController : ControllerBase
 
         var header = Request.Headers[RefreshTokenHeaderName].ToString();
         return string.IsNullOrWhiteSpace(header) ? null : header;
-    }
-
-    /// <summary>Your own security history: sign-ins, factor changes, session revocations.</summary>
-    [HttpGet("audit-log")]
-    [ProducesResponseType(typeof(BaseResponse<PaginatedList<AuditEntryDto>>), 200)]
-    public async Task<IActionResult> GetAuditLog([FromQuery] int page = 1, [FromQuery] int pageSize = 25)
-    {
-        var result = await _mediator.Send(new GetAuditLogQuery(User.GetUserId(), page, pageSize));
-        if (!result.IsSuccess)
-            return BadRequest(BaseResponse<PaginatedList<AuditEntryDto>>.Fail(result.Message, result.ErrorCode, result.Errors));
-
-        return Ok(BaseResponse<PaginatedList<AuditEntryDto>>.Ok(result.Data!, result.Message));
     }
 }

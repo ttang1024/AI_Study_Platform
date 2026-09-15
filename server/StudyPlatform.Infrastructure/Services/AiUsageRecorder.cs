@@ -2,7 +2,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using StudyPlatform.Application.Billing;
 using StudyPlatform.Application.Services;
 using StudyPlatform.Application.Settings;
 using StudyPlatform.Domain.Entities;
@@ -22,42 +21,21 @@ public class AiUsageRecorder : IAiUsageRecorder
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IAppCache _cache;
     private readonly AiUsageOptions _options;
-    private readonly IEntitlementService _entitlements;
     private readonly ILogger<AiUsageRecorder> _logger;
 
     public AiUsageRecorder(
         IServiceScopeFactory scopeFactory,
         IAppCache cache,
         IOptions<AiUsageOptions> options,
-        IEntitlementService entitlements,
         ILogger<AiUsageRecorder> logger)
     {
         _scopeFactory = scopeFactory;
         _cache = cache;
         _options = options.Value;
-        _entitlements = entitlements;
         _logger = logger;
     }
 
-    /// <summary>
-    /// The configured floor, used where no user is in hand. The limit actually enforced is
-    /// per-user and comes from their plan — see <see cref="GetDailyTokenLimitAsync"/>.
-    /// </summary>
     public long DailyTokenLimit => _options.DailyTokenLimit;
-
-    /// <summary>
-    /// The user's effective daily budget: their plan's allowance, or the configured default when
-    /// the plan does not set one. Zero means unlimited.
-    /// </summary>
-    public async Task<long> GetDailyTokenLimitAsync(Guid userId, CancellationToken cancellationToken = default)
-    {
-        if (userId == Guid.Empty) return _options.DailyTokenLimit;
-
-        var entitlement = await _entitlements.GetForUserAsync(userId, cancellationToken);
-        return entitlement.Plan.DailyTokenLimit > 0
-            ? entitlement.Plan.DailyTokenLimit
-            : _options.DailyTokenLimit;
-    }
 
     private static string DailyTotalKey(Guid userId) => $"ai-usage:day:{DateTime.UtcNow:yyyy-MM-dd}:{userId}";
 
@@ -95,8 +73,7 @@ public class AiUsageRecorder : IAiUsageRecorder
             return;
         }
 
-        // Keep the cached daily total honest rather than waiting for it to expire, otherwise a burst
-        // of calls inside one TTL window could all pass a quota gate the first of them should have closed.
+        // Keep the cached daily total honest rather than waiting for it to expire.
         await _cache.RemoveAsync(DailyTotalKey(usage.UserId), cancellationToken);
     }
 
@@ -116,20 +93,6 @@ public class AiUsageRecorder : IAiUsageRecorder
             },
             DailyTotalCacheTtl,
             cancellationToken);
-
-    public async Task EnsureWithinQuotaAsync(Guid userId, CancellationToken cancellationToken = default)
-    {
-        if (userId == Guid.Empty)
-            return;
-
-        var limit = await GetDailyTokenLimitAsync(userId, cancellationToken);
-        if (limit <= 0)
-            return;
-
-        var used = await GetTokensUsedTodayAsync(userId, cancellationToken);
-        if (used >= limit)
-            throw new AiQuotaExceededException(used, limit);
-    }
 
     /// <summary>
     /// Prices the call from the longest configured model-id prefix that matches. Cache hits are billed

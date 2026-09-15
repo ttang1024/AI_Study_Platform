@@ -8,7 +8,6 @@ import { useStudy } from '../context/StudyContext';
 import { StudyCalendar } from '../components/common/StudyCalendar';
 import OnboardingChecklist from '../components/dashboard/OnboardingChecklist';
 import { ReinforcementSummaryCards } from '../components/dashboard/ReinforcementSummaryCards';
-import { XpDigestCards } from '../components/dashboard/XpDigestCards';
 import { TodayProgressHero } from '../components/today/TodayProgressHero';
 import { useDashboardSummary } from '../hooks/useDashboardSummary';
 
@@ -257,18 +256,12 @@ export const DashboardPage: React.FC = () => {
       <motion.div variants={item}>
         <div className="flex items-center justify-between mb-3 px-0.5">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">Reinforcement Center</p>
-          <Link to="/insights?tab=reinforcement" className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--primary)] hover:opacity-75 transition-opacity">
+          <Link to="/insights?tab=analytics" className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--primary)] hover:opacity-75 transition-opacity">
             <CalendarCheck2 size={13} />
             Open
           </Link>
         </div>
         <ReinforcementSummaryCards counts={summary?.reinforcement ?? null} loading={summaryLoading} />
-      </motion.div>
-
-      {/* ── XP & Weekly digest ───────────────────────────────────────────── */}
-      <motion.div variants={item} className="space-y-3">
-        <SectionLabel>Progress</SectionLabel>
-        <XpDigestCards />
       </motion.div>
 
       {/* ── Study Calendar ────────────────────────────────────────────────── */}

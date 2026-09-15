@@ -1,11 +1,15 @@
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using StudyPlatform.API.Extensions;
 
 namespace StudyPlatform.API.HealthChecks;
 
 /// <summary>
-/// Reachability of the configured distributed cache — Redis in any real deployment, an in-process
-/// memory cache when Redis is not configured.
+/// Reachability of the configured distributed cache.
+///
+/// Redis is optional and off by default, and a deployment that never asked for it has nothing to
+/// probe: the check reports Healthy immediately rather than describing the absence of an unrequested
+/// dependency as a problem. Only when Redis is actually enabled does a round trip run.
 ///
 /// A failure here is Degraded, never Unhealthy: <c>IAppCache</c> falls back to the Postgres CacheEntries
 /// tier when Redis is down, so the API still serves correct (slower) responses. Reporting Unhealthy would
@@ -22,12 +26,22 @@ public sealed class CacheHealthCheck : IHealthCheck
     private const string ProbeKey = "health:probe";
 
     private readonly IDistributedCache _cache;
+    private readonly CacheBackend _backend;
 
-    public CacheHealthCheck(IDistributedCache cache) => _cache = cache;
+    public CacheHealthCheck(IDistributedCache cache, CacheBackend backend)
+    {
+        _cache = cache;
+        _backend = backend;
+    }
 
     public async Task<HealthCheckResult> CheckHealthAsync(
         HealthCheckContext context, CancellationToken cancellationToken = default)
     {
+        // No Redis, nothing to probe. The Postgres cache tier is the cache, and the postgres check
+        // already covers it — so this must not drag readiness down.
+        if (!_backend.UsesRedis)
+            return HealthCheckResult.Healthy($"No distributed cache configured; serving from the {_backend.Description}.");
+
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(ProbeTimeout);
 

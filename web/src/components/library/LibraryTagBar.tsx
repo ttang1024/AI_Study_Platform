@@ -1,21 +1,15 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Bookmark, Check, FolderOpen, Loader2, Pencil, Plus, Tag, Trash2, X } from 'lucide-react';
+import { Check, FolderOpen, Loader2, Pencil, Plus, Tag, Trash2, X } from 'lucide-react';
 import {
   libraryTagsService,
-  parseSavedViewFilters,
   type LibraryTag,
   type LibraryTagKind,
-  type SavedLibraryView,
 } from '../../services/libraryTagsService';
 import { cn } from '../../utils/cn';
 
 interface Props {
   selectedTagIds: string[];
   onChange: (tagIds: string[]) => void;
-  /** Applies a saved view's whole filter set, not just its tags. */
-  onApplyView: (filters: ReturnType<typeof parseSavedViewFilters>) => void;
-  /** The filters currently in effect, so "save this view" captures what the user is looking at. */
-  currentFilters: object;
   /** Bumped by the page after a bulk assign so the item counts on the chips catch up. */
   reloadSignal?: number;
 }
@@ -23,17 +17,16 @@ interface Props {
 const KIND_ICON = { tag: Tag, collection: FolderOpen } as const;
 
 /**
- * The filter strip above the library grid: collections, then tags, then saved views.
+ * The filter strip above the library grid: collections, then tags.
  *
  * Collections come first because they are the coarse grouping people organise by, and tags are the
  * cross-cutting labels applied on top — putting them the other way round buries the folders under a
  * long row of chips.
  */
 export const LibraryTagBar: React.FC<Props> = ({
-  selectedTagIds, onChange, onApplyView, currentFilters, reloadSignal = 0,
+  selectedTagIds, onChange, reloadSignal = 0,
 }) => {
   const [tags, setTags] = useState<LibraryTag[]>([]);
-  const [views, setViews] = useState<SavedLibraryView[]>([]);
   const [loading, setLoading] = useState(true);
   const [managing, setManaging] = useState(false);
 
@@ -43,20 +36,13 @@ export const LibraryTagBar: React.FC<Props> = ({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [viewName, setViewName] = useState('');
-  const [savingView, setSavingView] = useState(false);
-
   const load = useCallback(async () => {
     try {
-      const [t, v] = await Promise.all([
-        libraryTagsService.getTags(),
-        libraryTagsService.getViews(),
-      ]);
+      const t = await libraryTagsService.getTags();
       setTags(t.data.data);
-      setViews(v.data.data);
     } catch {
       // A failed tag fetch must not blank the library. The strip simply doesn't render.
-      setTags([]); setViews([]);
+      setTags([]);
     } finally {
       setLoading(false);
     }
@@ -98,26 +84,11 @@ export const LibraryTagBar: React.FC<Props> = ({
     }
   };
 
-  const saveCurrentView = async () => {
-    const name = viewName.trim();
-    if (!name) return;
-    setSavingView(true); setError(null);
-    try {
-      await libraryTagsService.createView({ name, filtersJson: JSON.stringify(currentFilters) });
-      setViewName('');
-      await load();
-    } catch (err: any) {
-      setError(err?.response?.data?.message ?? 'Could not save that view.');
-    } finally {
-      setSavingView(false);
-    }
-  };
-
   if (loading) return null;
 
   const collections = tags.filter(t => t.kind === 'collection');
   const plainTags = tags.filter(t => t.kind === 'tag');
-  const hasAnything = tags.length > 0 || views.length > 0;
+  const hasAnything = tags.length > 0;
 
   const Chip: React.FC<{ tag: LibraryTag }> = ({ tag }) => {
     const Icon = KIND_ICON[tag.kind];
@@ -153,22 +124,6 @@ export const LibraryTagBar: React.FC<Props> = ({
           )}
           {plainTags.map(t => <Chip key={t.libraryTagId} tag={t} />)}
 
-          {views.length > 0 && (
-            <>
-              <span className="mx-1 h-4 w-px bg-[var(--border-color)]" />
-              {views.map(view => (
-                <button
-                  key={view.savedLibraryViewId}
-                  onClick={() => onApplyView(parseSavedViewFilters(view.filtersJson))}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-[var(--border-color)] px-3 py-1.5 text-xs font-medium text-text-muted hover:text-text-main"
-                >
-                  <span aria-hidden>{view.icon ?? '🔖'}</span>
-                  {view.name}
-                </button>
-              ))}
-            </>
-          )}
-
           {selectedTagIds.length > 0 && (
             <button
               onClick={() => onChange([])}
@@ -187,26 +142,6 @@ export const LibraryTagBar: React.FC<Props> = ({
         >
           <Plus size={12} /> {managing ? 'Done' : 'Collections & tags'}
         </button>
-
-        {selectedTagIds.length > 0 && (
-          <>
-            <span className="h-3 w-px bg-[var(--border-color)]" />
-            <input
-              value={viewName}
-              onChange={e => setViewName(e.target.value)}
-              placeholder="Save this filter as…"
-              className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)] px-2 py-1 text-xs"
-            />
-            <button
-              onClick={saveCurrentView}
-              disabled={savingView || !viewName.trim()}
-              className="inline-flex items-center gap-1 text-xs font-medium text-[var(--primary)] disabled:opacity-40"
-            >
-              {savingView ? <Loader2 size={12} className="animate-spin" /> : <Bookmark size={12} />}
-              Save view
-            </button>
-          </>
-        )}
       </div>
 
       {managing && (

@@ -24,6 +24,7 @@ public class CoursesController : ControllerBase
         _mediator = mediator;
     }
 
+
     /// <summary>
     /// Get all courses for the authenticated user
     /// </summary>
@@ -83,41 +84,6 @@ public class CoursesController : ControllerBase
             return NotFound(BaseResponse<CourseDto>.Fail(result.Message, result.ErrorCode));
 
         return Ok(BaseResponse<CourseDto>.Ok(result.Data!, result.Message));
-    }
-
-    /// <summary>
-    /// Get the latest AI audio overview for a course (status, script, audio URL)
-    /// </summary>
-    [HttpGet("{courseId:guid}/audio-overview")]
-    [ProducesResponseType(typeof(BaseResponse<AudioOverviewDto?>), 200)]
-    public async Task<IActionResult> GetAudioOverview(Guid courseId)
-    {
-        var userId = User.GetUserId();
-        var result = await _mediator.Send(new GetAudioOverviewQuery(userId, courseId));
-        return Ok(BaseResponse<AudioOverviewDto?>.Ok(result.Data));
-    }
-
-    /// <summary>
-    /// Generate a two-host AI audio overview of the course's materials
-    /// </summary>
-    [HttpPost("{courseId:guid}/audio-overview")]
-    [ProducesResponseType(typeof(BaseResponse<AudioOverviewDto>), 200)]
-    [ProducesResponseType(typeof(BaseResponse), 400)]
-    public async Task<IActionResult> RequestAudioOverview(Guid courseId, [FromServices] AudioOverviewQueue queue)
-    {
-        var userId = User.GetUserId();
-
-        // The worker scripts the overview with the AI, and it has no request to read the key from —
-        // so capture it here, where a missing key can still fail the call the user is watching.
-        var credentials = this.CaptureAiCredentials();
-
-        var result = await _mediator.Send(new RequestAudioOverviewCommand(userId, courseId));
-        if (!result.IsSuccess)
-            return BadRequest(BaseResponse<AudioOverviewDto>.Fail(result.Message, result.ErrorCode));
-
-        if (result.Data!.Status == "pending")
-            queue.TryEnqueue(result.Data.Id, credentials);
-        return Ok(BaseResponse<AudioOverviewDto>.Ok(result.Data, result.Message));
     }
 
     /// <summary>
