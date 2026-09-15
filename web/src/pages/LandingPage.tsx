@@ -33,37 +33,55 @@ import {
   BentoPracticeCard,
   BentoOfflineCard,
   BentoEverywhereCard,
-  BentoCitationCard,
   BentoSecurityCard,
-  BentoTagsCard,
   BentoFormatsCard,
 } from '../components/landing/bento';
 
-/** The feature grid, in reading order. */
-const BENTO_CARDS = [
-  BentoFormatsCard,
-  BentoChatCard,
-  BentoSummaryCard,
-  BentoMindMapCard,
-  BentoQuizCard,
-  BentoFlashcardCard,
-  BentoNoteCard,
-  BentoGlossaryCard,
-  BentoPlannerCard,
-  BentoTutorCard,
-  BentoInsightsCard,
-  BentoProblemCard,
-  BentoPlayCard,
-  BentoStudyGroupCard,
-  BentoPracticeCard,
-  BentoCitationCard,
-  BentoTagsCard,
-  BentoSearchCard,
-  BentoEverywhereCard,
-  BentoSecurityCard,
-  BentoOfflineCard,
-  BentoShareCard,
+/**
+ * The feature grid, in reading order. `span` widens a card across grid columns — kept off the
+ * base breakpoint, where the grid is a single column and a span would force an implicit second
+ * one and break the layout. A wide card has to start on a column where two still fit at both the
+ * 2- and 3-column breakpoints, so the count of single cards ahead of it matters: change the order
+ * or drop a card and the spans below usually have to move with it.
+ */
+const BENTO_CARDS: { Card: React.FC; span?: string }[] = [
+  { Card: BentoFormatsCard, span: 'sm:col-span-2' },
+  { Card: BentoChatCard },
+  { Card: BentoSummaryCard },
+  { Card: BentoMindMapCard, span: 'sm:col-span-2' },
+  { Card: BentoQuizCard },
+  { Card: BentoFlashcardCard },
+  { Card: BentoNoteCard },
+  { Card: BentoGlossaryCard },
+  { Card: BentoPlannerCard },
+  { Card: BentoTutorCard },
+  { Card: BentoInsightsCard },
+  { Card: BentoProblemCard },
+  { Card: BentoPlayCard },
+  { Card: BentoStudyGroupCard },
+  { Card: BentoPracticeCard },
+  { Card: BentoSearchCard },
+  { Card: BentoEverywhereCard, span: 'sm:col-span-2' },
+  // Offline sits between the two wide cards on purpose: back to back they would need four slots
+  // across a three-column row, so the second would wrap and leave an empty cell beside the first.
+  { Card: BentoOfflineCard },
+  { Card: BentoShareCard },
+  { Card: BentoSecurityCard, span: 'sm:col-span-2' },
 ];
+
+/**
+ * Which grid row each card lands in at the widest (3-column) breakpoint. Counted from the slots
+ * consumed rather than from the index, because a card that spans two columns pushes everything
+ * after it along by one — indexing straight off `i` would drift the stagger by a row.
+ */
+const BENTO_ROWS = ((): number[] => {
+  let slot = 0;
+  return BENTO_CARDS.map(({ span }) => {
+    const row = Math.floor(slot / 3);
+    slot += span ? 2 : 1;
+    return row;
+  });
+})();
 
 export const LandingPage: React.FC = () => {
   const auth = useOptionalAuth();
@@ -257,8 +275,8 @@ export const LandingPage: React.FC = () => {
           {/* One entry per card, in reading order. Ingestion leads the grid: everything below only
               happens once your file is in, so the breadth of what we accept comes first. The stagger
               is derived per row, so adding or removing a card never leaves a gap in the sequence. */}
-          {BENTO_CARDS.map((Card, i) => (
-            <FadeIn key={i} delay={0.05 + Math.floor(i / 3) * 0.06}>
+          {BENTO_CARDS.map(({ Card, span }, i) => (
+            <FadeIn key={i} delay={0.05 + BENTO_ROWS[i] * 0.06} className={span}>
               <Card />
             </FadeIn>
           ))}

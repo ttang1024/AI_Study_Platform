@@ -34,7 +34,9 @@ export const BentoEverywhereCard: React.FC = () => {
         iconGlow="0 6px 22px rgba(129,140,248,0.4)"
       />
 
-      <div className="flex-1 rounded-xl p-3 flex flex-col gap-2.5 mb-3" style={{ background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(255,255,255,0.06)' }}>
+      {/* The card spans two grid columns from `sm` up, and the two groups sit side by side there
+          rather than stacked — full-width rows across that much card are mostly empty space. */}
+      <div className="rounded-xl p-3 grid gap-2.5 sm:grid-cols-2 sm:gap-4 mb-3" style={{ background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(255,255,255,0.06)' }}>
         {[
           { icon: Smartphone, heading: 'Mobile app · iOS & Android', items: MOBILE_FEATURES, color: '#a5b4fc' },
           { icon: Bookmark, heading: 'Web clipper bookmarklet', items: CLIPPER_FEATURES, color: '#c4b5fd' },

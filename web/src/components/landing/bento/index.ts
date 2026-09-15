@@ -16,7 +16,5 @@ export { BentoShareCard } from './BentoShareCard';
 export { BentoPracticeCard } from './BentoPracticeCard';
 export { BentoOfflineCard } from './BentoOfflineCard';
 export { BentoEverywhereCard } from './BentoEverywhereCard';
-export { BentoCitationCard } from './BentoCitationCard';
 export { BentoSecurityCard } from './BentoSecurityCard';
-export { BentoTagsCard } from './BentoTagsCard';
 export { BentoFormatsCard } from './BentoFormatsCard';
