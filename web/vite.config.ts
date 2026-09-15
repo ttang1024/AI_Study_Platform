@@ -2,11 +2,21 @@ import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 import { defineConfig, loadEnv } from 'vite'
+import { seoPlugin } from './vite-plugin-seo'
 
 export default defineConfig(({ mode }) => {
 	const env = loadEnv(mode, '.', '')
 	return {
-		plugins: [react(), tailwindcss()],
+		plugins: [
+			react(),
+			tailwindcss(),
+			// Emits robots.txt + sitemap.xml and injects the Search Console tag. Build-only, so it
+			// never runs in dev. See vite-plugin-seo.ts for why the sitemap lists so few routes.
+			seoPlugin({
+				origin: env.VITE_SHARE_BASE_URL,
+				googleSiteVerification: env.VITE_GOOGLE_SITE_VERIFICATION,
+			}),
+		],
 		resolve: {
 			alias: {
 				// Shared platform-agnostic package (packages/core). Listed before '@' —

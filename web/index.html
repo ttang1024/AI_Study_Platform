@@ -19,13 +19,13 @@
 			href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Bangers&family=Quicksand:wght@400;600;700&family=Orbitron:wght@400;700&family=Cinzel:wght@400;700&display=swap" />
 		<meta
 			name="description"
-			content="Turn documents, videos from 11 sites (YouTube, Bilibili, Vimeo, TED, TikTok &amp; more), podcasts, audio lectures, and web articles into AI summaries, mind maps, flashcards, and quizzes." />
+			content="Turn any document, video, podcast, or article into AI summaries, mind maps, flashcards, and quizzes — then master it with spaced repetition, mock exams, and an AI tutor." />
 		<meta property="og:type" content="website" />
 		<meta property="og:site_name" content="toto.ai" />
 		<meta property="og:title" content="toto.ai - AI Study Platform" />
 		<meta
 			property="og:description"
-			content="Turn documents, videos from 11 sites (YouTube, Bilibili, Vimeo, TED, TikTok &amp; more), podcasts, audio lectures, and web articles into AI summaries, mind maps, flashcards, and quizzes." />
+			content="Turn any document, video, podcast, or article into AI summaries, mind maps, flashcards, and quizzes — then master it with spaced repetition, mock exams, and an AI tutor." />
 		<meta property="og:url" content="%VITE_SHARE_BASE_URL%/" />
 		<meta
 			property="og:image"
@@ -40,14 +40,14 @@
 		<meta name="twitter:title" content="toto.ai - AI Study Platform" />
 		<meta
 			name="twitter:description"
-			content="Turn documents, videos from 11 sites (YouTube, Bilibili, Vimeo, TED, TikTok &amp; more), podcasts, audio lectures, and web articles into AI summaries, mind maps, flashcards, and quizzes." />
+			content="Turn any document, video, podcast, or article into AI summaries, mind maps, flashcards, and quizzes — then master it with spaced repetition, mock exams, and an AI tutor." />
 		<meta
 			name="twitter:image"
 			content="%VITE_SHARE_BASE_URL%/share.png" />
 		<meta name="wechat:title" content="toto.ai - AI Study Platform" />
 		<meta
 			name="wechat:description"
-			content="Turn documents, videos from 11 sites (YouTube, Bilibili, Vimeo, TED, TikTok &amp; more), podcasts, audio lectures, and web articles into AI summaries, mind maps, flashcards, and quizzes." />
+			content="Turn any document, video, podcast, or article into AI summaries, mind maps, flashcards, and quizzes — then master it with spaced repetition, mock exams, and an AI tutor." />
 		<meta
 			name="wechat:image"
 			content="%VITE_SHARE_BASE_URL%/share.png" />
@@ -60,9 +60,23 @@
 				"@type": "SoftwareApplication",
 				"name": "toto.ai",
 				"applicationCategory": "EducationalApplication",
-				"operatingSystem": "Web",
+				"operatingSystem": "Web, iOS, Android",
 				"url": "%VITE_SHARE_BASE_URL%/",
-				"description": "AI study platform that turns documents, videos from 11 sites (YouTube, Bilibili, Vimeo, TED, TikTok and more), podcasts, audio lectures, and web articles into summaries, mind maps, flashcards, and quizzes.",
+				"description": "Turn any document, video, podcast, or article into AI summaries, mind maps, flashcards, and quizzes — then master it with spaced repetition, mock exams, and an AI tutor.",
+				"featureList": [
+					"AI summaries of any source",
+					"AI flashcards with FSRS spaced repetition",
+					"AI quizzes and adaptive question banks",
+					"Mind maps and knowledge graphs",
+					"Worked problems with step-by-step solutions",
+					"Glossary and key-term extraction",
+					"AI chat and AI tutor over your own library",
+					"Voice chat and teach-back practice",
+					"Exam planner and timed mock exams",
+					"Global semantic search across your library",
+					"Study groups and public sharing",
+					"Reads 240+ file formats"
+				],
 				"offers": {
 					"@type": "Offer",
 					"price": "0",
@@ -74,10 +88,72 @@
 	<body>
 		<img src="/app.png" alt="toto.ai" width="64" height="64" style="display: none" />
 		<div id="root"></div>
+		<!-- Mirrors the copy rendered by web/src/pages/LandingPage.tsx. This is a client-rendered SPA,
+		     so the crawl that happens before JS rendering sees only what is in this file — keep the two
+		     in sync whenever the landing hero, bento cards, or How It Works steps change. -->
 		<noscript>
-			<h1>toto.ai - AI Study Platform</h1>
-			<p>Turn documents, videos from 11 sites (YouTube, Bilibili, Vimeo, TED, TikTok &amp; more), podcasts, audio lectures, and web articles into AI summaries, mind maps, flashcards, and quizzes.</p>
-			<p>Study with AI chat, spaced repetition flashcards, question banks, public sharing, and knowledge maps.</p>
+			<h1>toto.ai — AI Study Platform</h1>
+			<p>
+				Turn any document, video, podcast, or article into summaries, mind maps, flashcards, and
+				quizzes — then master it with spaced repetition, mock exams, and an AI tutor.
+				Web, iOS &amp; Android, even offline.
+			</p>
+
+			<h2>Your complete study suite</h2>
+			<p>AI-powered tools working together — from first read to exam day.</p>
+			<ul>
+				<li>AI summaries of any source</li>
+				<li>AI flashcards with FSRS spaced repetition</li>
+				<li>AI quizzes and adaptive question banks</li>
+				<li>Mind maps and knowledge graphs</li>
+				<li>Worked problems with step-by-step solutions</li>
+				<li>Glossary and key-term extraction</li>
+				<li>AI chat and an AI tutor over your own library</li>
+				<li>Voice chat and teach-back practice</li>
+				<li>Notes and a practice center</li>
+				<li>Exam planner and timed mock exams</li>
+				<li>Play study audio (text to speech)</li>
+				<li>Global semantic search across everything you have added</li>
+				<li>Study groups and public sharing</li>
+				<li>Insights and analytics on your progress</li>
+			</ul>
+
+			<h2>Reads 240+ file formats</h2>
+			<p>
+				PDF, Word, PowerPoint, Excel, EPUB, Markdown, plain text, source code, notebooks,
+				spreadsheets, subtitle files, and images with OCR.
+			</p>
+
+			<h2>Videos, podcasts and web articles</h2>
+			<p>
+				Paste a link from YouTube, Bilibili, Vimeo, TED, TikTok and other supported video sites,
+				any podcast episode page or MP3, or any web article — toto.ai pulls the transcript and
+				turns it into study material.
+			</p>
+
+			<h2>How it works</h2>
+			<ol>
+				<li>
+					<strong>Add your content.</strong> Documents in 240+ formats, any video or podcast link,
+					web articles, audio — drop it in and we detect the rest.
+				</li>
+				<li>
+					<strong>AI does the work.</strong> Summaries, mind maps, flashcards, quizzes, and worked
+					problems in seconds.
+				</li>
+				<li>
+					<strong>Master the topic.</strong> One-button smart sessions, timed mock exams, and spaced
+					repetition that schedules every review for you.
+				</li>
+			</ol>
+
+			<h2>Your keys, your data</h2>
+			<p>
+				Bring your own AI provider key. It travels with your request and is never stored on our
+				servers.
+			</p>
+
+			<p>Free to start. easy study platform · built to help you learn faster with AI.</p>
 		</noscript>
 		<script type="module" src="/src/main.tsx"></script>
 	</body>
