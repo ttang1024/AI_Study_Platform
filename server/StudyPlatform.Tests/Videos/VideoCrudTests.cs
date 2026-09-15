@@ -1,7 +1,6 @@
 using System.Linq.Expressions;
 using Microsoft.Extensions.Options;
 using Moq;
-using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Services;
 using StudyPlatform.Application.Settings;
 using StudyPlatform.Application.Videos.Commands;

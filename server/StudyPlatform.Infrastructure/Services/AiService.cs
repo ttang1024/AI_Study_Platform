@@ -295,23 +295,6 @@ public partial class AiService : IAiService
     }
 
 
-
-    private static string HashPages(IReadOnlyList<(byte[] data, string mimeType)> pages, string prompt)
-    {
-        using var sha = SHA256.Create();
-        foreach (var (data, mimeType) in pages)
-        {
-            sha.TransformBlock(data, 0, data.Length, null, 0);
-            var meta = Encoding.UTF8.GetBytes(mimeType);
-            sha.TransformBlock(meta, 0, meta.Length, null, 0);
-        }
-
-        var suffix = Encoding.UTF8.GetBytes(prompt);
-        sha.TransformFinalBlock(suffix, 0, suffix.Length);
-
-        return Convert.ToHexString(sha.Hash!).ToLowerInvariant();
-    }
-
     public Task<string> ChatAsync(string documentContent, string userMessage, IEnumerable<(string role, string content)> history, CancellationToken cancellationToken = default)
     {
         // The document goes in the system block and the history stays as real turns, rather than all

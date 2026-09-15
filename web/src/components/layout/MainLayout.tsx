@@ -27,7 +27,8 @@ export const MainLayout: React.FC = () => {
     { key: 'f', description: 'Flashcards', action: () => navigate('/flashcards') },
     { key: 'q', description: 'Practice Center', action: () => navigate('/quizzes') },
     { key: 'p', description: 'Practice', action: () => navigate('/quizzes?tab=practice') },
-    { key: 'n', description: 'Notes', action: () => navigate('/materials') },
+    { key: 'n', description: 'Notes', action: () => navigate('/notes') },
+    { key: 'g', description: 'Glossary', action: () => navigate('/glossary') },
   ]);
 
   return (

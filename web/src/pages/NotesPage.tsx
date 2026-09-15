@@ -1,24 +1,24 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, X, Loader2, Play, Download } from 'lucide-react';
-import { STUDY_TYPE_ICONS } from '../../constants/contentTypeIcons';
-import { CONTENT_TYPE_ICONS } from '../../constants/contentTypeIcons';
-import { useStudy } from '../../context/StudyContext';
-import { Button } from '../../components/common/Button';
-import { videoService } from '../../services/videoService';
-import { noteService } from '../../services/noteService';
-import { SourceFilterBar, SourceType } from '../../components/common/SourceFilterBar';
-import { ShareModal } from '../../components/common/ShareModal';
-import { Pagination } from '../../components/common/Pagination';
-import { downloadNotesMarkdown, ExportNoteRecord } from '../../services/exportInteropService';
-import { NoteCard } from '../../components/notes/NoteCard';
-import { useNotesData } from '../../hooks/useNotesData';
-import { useNotesAudio } from '../../hooks/useNotesAudio';
+import { STUDY_TYPE_ICONS } from '../constants/contentTypeIcons';
+import { CONTENT_TYPE_ICONS } from '../constants/contentTypeIcons';
+import { useStudy } from '../context/StudyContext';
+import { Button } from '../components/common/Button';
+import { videoService } from '../services/videoService';
+import { noteService } from '../services/noteService';
+import { SourceFilterBar, SourceType } from '../components/common/SourceFilterBar';
+import { ShareModal } from '../components/common/ShareModal';
+import { Pagination } from '../components/common/Pagination';
+import { downloadNotesMarkdown, ExportNoteRecord } from '../services/exportInteropService';
+import { NoteCard } from '../components/notes/NoteCard';
+import { useNotesData } from '../hooks/useNotesData';
+import { useNotesAudio } from '../hooks/useNotesAudio';
 
 const PAGE_SIZE = 5;
 
-/** The Notes half of /materials. The old /notes route redirects to ?tab=notes. */
-export const NotesTab: React.FC = () => {
+/** Everything you wrote while studying, filtered by source, paged, playable. */
+export const NotesPage: React.FC = () => {
   const navigate = useNavigate();
   const { documents, courses, allNotes, isLoading: contextLoading, deleteNote, updateNote, refreshNotes, videos: videoList, ensureDocuments, ensureVideos } = useStudy();
 
@@ -118,9 +118,16 @@ export const NotesTab: React.FC = () => {
 
   return (
     <div className="space-y-8">
-      {/* Actions only — the title and blurb belong to the /materials shell above the tab bar. */}
-      <div className="flex justify-end">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-4xl font-semibold tracking-tight text-text-main leading-tight">
+            Study <span className="text-[var(--primary)]">notes</span>
+          </h1>
+          <p className="text-sm text-text-muted mt-1 max-w-2xl">
+            Capture your thoughts across every document &amp; lecture.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
           {filteredItems.length > 0 && playerState === 'idle' && (
             <Button
               onClick={() => play(0)}
@@ -327,3 +334,5 @@ export const NotesTab: React.FC = () => {
     </div>
   );
 };
+
+export default NotesPage;

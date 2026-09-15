@@ -70,7 +70,7 @@ export const InsightsPage: React.FC = () => {
     <div className="space-y-5">
       <div>
         <h1 className="text-4xl font-semibold tracking-tight text-text-main leading-tight">
-          Your <span className="text-[var(--primary)]">Insights</span>
+          Learning <span className="text-[var(--primary)]">insights</span>
         </h1>
         <PageTabBlurb tabKey={active}>{current.blurb}</PageTabBlurb>
       </div>

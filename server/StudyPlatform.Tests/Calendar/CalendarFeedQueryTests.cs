@@ -1,8 +1,6 @@
 using System.Linq.Expressions;
-using MediatR;
 using Moq;
 using StudyPlatform.Application.Calendar;
-using StudyPlatform.Application.Common;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
 using Xunit;

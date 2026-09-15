@@ -1,8 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
-# Copy the API's database from one PostgreSQL server to another — in practice, the existing AWS RDS
-# instance to a Supabase project.
+# Copy the API's database from one PostgreSQL server to another — in practice, into a Supabase
+# project.
 #
 #   scripts/migrate-db.sh preflight   # read-only: reports what would happen, changes nothing
 #   scripts/migrate-db.sh run         # dump, restore, verify
@@ -13,7 +13,7 @@ set -euo pipefail
 #
 # Connection strings come from the environment in the app's own ADO.NET format (a postgresql:// URL
 # works too):
-#   SOURCE_CONNECTION_STRING   defaults to the RDS string built from DB_* in .env_variables
+#   SOURCE_CONNECTION_STRING   the database being copied from (required)
 #   TARGET_CONNECTION_STRING   defaults to DATABASE_CONNECTION_STRING
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
@@ -26,7 +26,7 @@ if [[ -f "$ROOT_DIR/.env_variables" ]]; then
 fi
 
 COMMAND="${1:-preflight}"
-DUMP_FILE="${DUMP_FILE:-$ROOT_DIR/.migration/rds-$(date +%Y%m%d-%H%M%S).dump}"
+DUMP_FILE="${DUMP_FILE:-$ROOT_DIR/.migration/source-$(date +%Y%m%d-%H%M%S).dump}"
 
 # Extensions the schema needs. They must live in `public` on the target: pg_dump emits an empty
 # search_path and schema-qualifies every type, so a `vector` sitting in Supabase's default
@@ -44,10 +44,7 @@ q() { psql -v ON_ERROR_STOP=1 -tAqc "$1"; }
 
 load_source() {
   local raw="${SOURCE_CONNECTION_STRING:-}"
-  if [[ -z "$raw" ]]; then
-    [[ -n "${DB_HOST:-}" ]] || die "set SOURCE_CONNECTION_STRING (or DB_HOST/DB_PASS) for the source database"
-    raw="Host=${DB_HOST};Port=${DB_PORT:-5432};Database=${DB_NAME:-studyplatform};Username=${DB_USER:-studyplatform};Password=${DB_PASS:?DB_PASS is not set};SSL Mode=Require"
-  fi
+  [[ -n "$raw" ]] || die "set SOURCE_CONNECTION_STRING for the source database"
   eval "$(python3 "$CONN" "$raw")"
 }
 

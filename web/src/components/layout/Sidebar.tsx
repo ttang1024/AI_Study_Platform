@@ -4,7 +4,7 @@ import { motion } from 'motion/react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Library, Settings, LogOut, BrainCircuit,
-  Award, NotebookPen, X, ChevronLeft, ChevronRight,
+  Award, NotebookPen, BookMarked, X, ChevronLeft, ChevronRight,
   User, MessageSquarePlus, Search, Users, Bot,
   LineChart, Wand2,
 } from 'lucide-react';
@@ -24,17 +24,19 @@ interface SidebarProps {
 
 // `labelKey` rather than a literal: the label is resolved at render time so switching language
 // re-renders the nav without rebuilding this list.
-// Ten entries, not fifteen: pages that answered the same question were merged into one page with
-// tabs, and the nav follows. Practice/Planner → Practice Center, Glossary → Materials, Concept map →
-// Insights, Groups → Spaces. One entry per page — browsing the library and feeding it (the
-// Summarizer, at /library/add) are two pages, so they are two entries.
+// Pages that answered the same question were merged into one page with tabs, and the nav follows:
+// Practice/Planner → Practice Center, Concept map → Insights, Groups → Spaces. Notes and Glossary
+// are the exception — they were merged and split apart again, because a note you wrote and a term
+// the AI pulled out are not the same thing to look for. One entry per page — browsing the library
+// and feeding it (the Summarizer, at /library/add) are two pages, so they are two entries.
 const navItems: { icon: typeof LayoutDashboard; labelKey: TranslationKey; path: string }[] = [
   { icon: LayoutDashboard, labelKey: 'nav.dashboard', path: '/dashboard' },
   { icon: Library, labelKey: 'nav.library', path: '/library' },
   { icon: Wand2, labelKey: 'nav.summarizer', path: '/library/add' },
   { icon: BrainCircuit, labelKey: 'nav.flashcards', path: '/flashcards' },
   { icon: Award, labelKey: 'nav.practiceCenter', path: '/quizzes' },
-  { icon: NotebookPen, labelKey: 'nav.materials', path: '/materials' },
+  { icon: NotebookPen, labelKey: 'nav.notes', path: '/notes' },
+  { icon: BookMarked, labelKey: 'nav.glossary', path: '/glossary' },
   { icon: LineChart, labelKey: 'nav.insights', path: '/insights' },
   { icon: Bot, labelKey: 'nav.chat', path: '/chat' },
   { icon: Users, labelKey: 'nav.spaces', path: '/spaces' },

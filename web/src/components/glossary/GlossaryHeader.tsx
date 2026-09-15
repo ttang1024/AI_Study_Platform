@@ -16,27 +16,35 @@ interface GlossaryHeaderProps {
   onDownloadMp3: () => void;
 }
 
-/** Term/mastered stats and the share / play / download actions. The title lives on the
- *  /materials shell above the tab bar. */
+/** The Glossary page header: title, term/mastered stats, and the share / play / download
+ *  actions. */
 export const GlossaryHeader: React.FC<GlossaryHeaderProps> = ({
   totalTerms, masteredCount, filteredCount, selectedCount, playCount,
   masteryFilter, playerIdle, downloadingMp3,
   onShare, onPlay, onDownloadTxt, onDownloadMp3,
 }) => (
-  <div className="flex justify-between gap-4">
-    <div className="flex items-center gap-3">
-      <div>
-        <p className="text-3xl font-black text-text-main">{totalTerms}</p>
-        <p className="text-xs text-text-muted font-medium">total terms</p>
-      </div>
-      {masteredCount > 0 && (
+  <div className="flex flex-wrap items-end justify-between gap-4">
+    <div>
+      <h1 className="text-4xl font-semibold tracking-tight text-text-main leading-tight">
+        Glossary of <span className="text-[var(--primary)]">terms</span>
+      </h1>
+      <p className="text-sm text-text-muted mt-1 max-w-2xl">
+        AI-extracted key terms and definitions from all your content.
+      </p>
+      <div className="mt-3 flex items-center gap-4">
         <div>
-          <p className="text-3xl font-black text-emerald-600">{masteredCount}</p>
-          <p className="text-xs text-emerald-500/70 font-medium">mastered</p>
+          <p className="text-3xl font-black text-text-main">{totalTerms}</p>
+          <p className="text-xs text-text-muted font-medium">total terms</p>
         </div>
-      )}
+        {masteredCount > 0 && (
+          <div>
+            <p className="text-3xl font-black text-emerald-600">{masteredCount}</p>
+            <p className="text-xs text-emerald-500/70 font-medium">mastered</p>
+          </div>
+        )}
+      </div>
     </div>
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       {filteredCount > 0 && (
         <button
           onClick={onShare}

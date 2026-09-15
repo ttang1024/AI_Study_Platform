@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using StudyPlatform.API.Extensions;
 using StudyPlatform.Application.Common;
-using StudyPlatform.API.Services;
 using StudyPlatform.Application.Courses;
 using StudyPlatform.Application.Courses.Commands;
 using StudyPlatform.Application.Courses.DTOs;
