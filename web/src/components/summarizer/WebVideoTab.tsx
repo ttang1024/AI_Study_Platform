@@ -8,21 +8,13 @@ import { usePrompt } from '../common/PromptBox';
 import { useStudy } from '../../context/StudyContext';
 import { videoService, VideoListItem } from '../../services/videoService';
 import { cn } from '../../utils/cn';
+import { container, item } from './summarizerShared';
 import { PlaylistImportModal } from './PlaylistImportModal';
 import { DuplicateAlert } from './DuplicateAlert';
 import {
   detectVideoSource, parseUrlVideoId, isExternalVideoSource,
   URL_SOURCE_BRANDING, type ExternalSourceBranding,
 } from '../../constants/videoSources';
-
-const container = {
-  hidden: { opacity: 0, y: 24 },
-  show: { opacity: 1, y: 0, transition: { staggerChildren: 0.09 } },
-};
-const item = {
-  hidden: { opacity: 0, y: 16, scale: 0.97 },
-  show: { opacity: 1, y: 0, scale: 1 },
-};
 
 const FEATURES = [
   { icon: Brain, label: 'AI Summary', color: 'text-red-400 bg-red-50' },

@@ -11,20 +11,17 @@ public record LoginCommand(string Email, string Password) : IRequest<Result<Auth
 public class LoginCommandHandler : IRequestHandler<LoginCommand, Result<AuthResponse>>
 {
     private readonly IUnitOfWork _unitOfWork;
-    private readonly ITokenService _tokenService;
     private readonly IPasswordHasher _passwordHasher;
-    private readonly IRequestContext _requestContext;
+    private readonly IAuthSessionIssuer _sessionIssuer;
 
     public LoginCommandHandler(
         IUnitOfWork unitOfWork,
-        ITokenService tokenService,
         IPasswordHasher passwordHasher,
-        IRequestContext requestContext)
+        IAuthSessionIssuer sessionIssuer)
     {
         _unitOfWork = unitOfWork;
-        _tokenService = tokenService;
         _passwordHasher = passwordHasher;
-        _requestContext = requestContext;
+        _sessionIssuer = sessionIssuer;
     }
 
     public async Task<Result<AuthResponse>> Handle(LoginCommand request, CancellationToken cancellationToken)
@@ -46,22 +43,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, Result<AuthResp
         if (!user.IsActive)
             return Result<AuthResponse>.Failure("Your account has been deactivated. Please contact support.", "ACCOUNT_DEACTIVATED");
 
-        var accessToken = _tokenService.GenerateAccessToken(user);
-        var refreshTokenValue = _tokenService.GenerateRefreshToken();
-        var refreshToken = RefreshTokenFactory.Create(user.UserId, refreshTokenValue, _requestContext);
-
-        await _unitOfWork.RefreshTokens.AddAsync(refreshToken, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-
-        var response = new AuthResponse(
-            user.UserId,
-            user.Email,
-            user.FullName,
-            accessToken,
-            refreshTokenValue,
-            DateTime.UtcNow.AddMinutes(15));
-
+        var response = await _sessionIssuer.IssueAsync(user, cancellationToken: cancellationToken);
         return Result<AuthResponse>.Success(response, "Login successful.");
     }
 }

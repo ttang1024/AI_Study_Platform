@@ -58,4 +58,3 @@ export function createStatsService(http: HttpClient) {
   };
 }
 
-export type StatsService = ReturnType<typeof createStatsService>;

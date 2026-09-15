@@ -2,65 +2,16 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { analyticsService, type ActivityHeatmap } from '../../services/analyticsService';
 import { ChartCard, EmptyState, PRIMARY } from './dashboardChrome';
+import { buildHeatmapGrid, HEATMAP_WEEKS } from '@core/utils/heatmapGrid';
 
 const CELL = 11;
 const GAP = 2;
 const STEP = CELL + GAP;
 const PAD_LEFT = 28; // weekday labels
 const PAD_TOP = 16; // month labels
-const WEEKS = 53;
 
 /** Opacity ramp for activity levels 1–4 (level 0 renders the empty-cell fill). */
 const LEVEL_OPACITY = [0, 0.25, 0.45, 0.7, 1];
-
-interface DayCell {
-  date: Date;
-  key: string;
-  reviews: number;
-  minutes: number;
-  score: number;
-  inRange: boolean;
-}
-
-const dayKey = (d: Date) => d.toISOString().slice(0, 10);
-
-/** 53 week-columns of 7 days each, ending in the week containing `to`. */
-const buildGrid = (data: ActivityHeatmap): DayCell[][] => {
-  const byDay = new Map<string, { reviews: number; minutes: number }>();
-  for (const d of data.days) {
-    byDay.set(d.date.slice(0, 10), { reviews: d.reviews, minutes: d.studyMinutes });
-  }
-
-  const to = new Date(data.to);
-  const from = new Date(data.from);
-  const end = new Date(Date.UTC(to.getUTCFullYear(), to.getUTCMonth(), to.getUTCDate()));
-  // Pad the final column out to Saturday, then walk back 53 whole weeks.
-  const gridEnd = new Date(end);
-  gridEnd.setUTCDate(gridEnd.getUTCDate() + (6 - gridEnd.getUTCDay()));
-  const gridStart = new Date(gridEnd);
-  gridStart.setUTCDate(gridStart.getUTCDate() - (WEEKS * 7 - 1));
-
-  const weeks: DayCell[][] = [];
-  const cursor = new Date(gridStart);
-  for (let w = 0; w < WEEKS; w++) {
-    const col: DayCell[] = [];
-    for (let d = 0; d < 7; d++) {
-      const key = dayKey(cursor);
-      const activity = byDay.get(key);
-      col.push({
-        date: new Date(cursor),
-        key,
-        reviews: activity?.reviews ?? 0,
-        minutes: activity?.minutes ?? 0,
-        score: (activity?.reviews ?? 0) + (activity?.minutes ?? 0),
-        inRange: cursor >= from && cursor <= end,
-      });
-      cursor.setUTCDate(cursor.getUTCDate() + 1);
-    }
-    weeks.push(col);
-  }
-  return weeks;
-};
 
 export const ActivityHeatmapSection: React.FC = () => {
   const [data, setData] = useState<ActivityHeatmap | null>(null);
@@ -76,7 +27,7 @@ export const ActivityHeatmapSection: React.FC = () => {
     return () => { cancelled = true; };
   }, []);
 
-  const weeks = useMemo(() => (data ? buildGrid(data) : []), [data]);
+  const weeks = useMemo(() => (data ? buildHeatmapGrid(data) : []), [data]);
 
   // Quartile thresholds over the non-zero scores decide the four intensity levels,
   // so a light-study user and a heavy one both get a full-range heatmap.
@@ -104,7 +55,7 @@ export const ActivityHeatmapSection: React.FC = () => {
     return labels;
   }, [weeks]);
 
-  const W = PAD_LEFT + WEEKS * STEP;
+  const W = PAD_LEFT + HEATMAP_WEEKS * STEP;
   const H = PAD_TOP + 7 * STEP;
 
   const hoveredCell = hover ? weeks[hover.w]?.[hover.d] : null;

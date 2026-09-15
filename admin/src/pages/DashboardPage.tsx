@@ -4,6 +4,7 @@ import { MessageSquare, Bug, Lightbulb, Star, TrendingUp, Clock, BarChart3 } fro
 import { adminApi } from '../services/api';
 import type { FeedbackStats } from '../types';
 import { StatCard } from '../components/common/StatCard';
+import { ErrorBanner } from '../components/common/ErrorBanner';
 
 export const DashboardPage: React.FC = () => {
   const [stats, setStats] = useState<FeedbackStats | null>(null);
@@ -22,11 +23,7 @@ export const DashboardPage: React.FC = () => {
         <p className="mt-2 text-sm text-[var(--text-secondary)]">Overview of user-submitted feedback</p>
       </div>
 
-      {error && (
-        <div className="mb-6 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-600">
-          {error}
-        </div>
-      )}
+      <ErrorBanner error={error} className="mb-6" />
 
       {!stats && !error && (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">

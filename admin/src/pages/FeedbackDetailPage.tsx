@@ -7,6 +7,7 @@ import { TypeBadge, StatusBadge } from '../components/common/Badge';
 import { Button } from '../components/common/Button';
 import { formatDate } from '../utils/format';
 import { cn } from '../utils/cn';
+import { ErrorBanner } from '../components/common/ErrorBanner';
 
 const STATUS_OPTIONS: { value: FeedbackStatus; label: string }[] = [
   { value: 'new', label: 'New' },
@@ -115,11 +116,7 @@ export const FeedbackDetailPage: React.FC = () => {
         <span className="text-sm text-[var(--text-secondary)] truncate max-w-[200px]">{item.subject}</span>
       </div>
 
-      {error && (
-        <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-600">
-          {error}
-        </div>
-      )}
+      <ErrorBanner error={error} />
 
       <div className="space-y-5">
         {/* Main card */}

@@ -1,11 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { createMockApiClient } from '../../test/mockApiClient'
 
-const mockApiClient = {
-  get: vi.fn(),
-  post: vi.fn(),
-  put: vi.fn(),
-  delete: vi.fn(),
-}
+const mockApiClient = createMockApiClient()
 
 vi.mock('../apiClient', () => ({ apiClient: mockApiClient }))
 

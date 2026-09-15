@@ -1,26 +1,18 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Mic, X, Loader2, ShieldCheck, Zap, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Mic, X, Loader2, ShieldCheck, ArrowRight } from 'lucide-react';
 import { Button } from '../common/Button';
 import { DocumentCard } from '../common/DocumentCard';
 import { usePrompt } from '../common/PromptBox';
 import { useStudy } from '../../context/StudyContext';
 import { apiClient } from '../../services/apiClient';
 import { cn } from '../../utils/cn';
+import { container, item, StartLearningLabel, FileDropZone } from './summarizerShared';
 import { getApiErrorMessage } from '../../utils/apiError';
 import { calculateSha256 } from '../../utils/fileHash';
 import { DuplicateAlert } from './DuplicateAlert';
 import { getDuplicateDocRoute } from './duplicateDocRoute';
-
-const container = {
-  hidden: { opacity: 0, y: 24 },
-  show: { opacity: 1, y: 0, transition: { staggerChildren: 0.09 } },
-};
-const item = {
-  hidden: { opacity: 0, y: 16, scale: 0.97 },
-  show: { opacity: 1, y: 0, scale: 1 },
-};
 
 const AUDIO_TYPES = [
   { label: 'MP3', color: 'text-amber-500 bg-amber-50' },
@@ -118,29 +110,14 @@ export const AudioTab: React.FC<AudioTabProps> = ({ selectedCourseId, onCourseEr
 
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="flex flex-col gap-5">
-      <motion.div
-        variants={item}
-        onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-        onDragLeave={() => setIsDragging(false)}
-        onDrop={(e) => { e.preventDefault(); setIsDragging(false); validateAndSetFile(e.dataTransfer.files[0]); }}
-        className={cn(
-          'group relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed transition-all duration-500 overflow-hidden cursor-pointer h-60',
-          isDragging
-            ? 'border-primary bg-primary/5 scale-[1.02]'
-            : audioFile
-              ? 'border-emerald-400 bg-emerald-50/50'
-              : 'border-zinc-200 bg-white hover:border-primary/40 hover:bg-primary/[0.02]',
-        )}
+      <FileDropZone
+        hasFile={!!audioFile}
+        isDragging={isDragging}
+        onDraggingChange={setIsDragging}
+        onFile={validateAndSetFile}
+        accept={"audio/*,.mp3,.m4a,.m4b,.wav,.ogg,.aac,.flac,.opus,.aiff,.aif,.wma,.amr,.mka"}
+        inputRef={audioInputRef}
       >
-        <div className="absolute inset-0 opacity-30 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, #d4d4d8 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
-        <input
-          ref={audioInputRef}
-          type="file"
-          className="absolute inset-0 cursor-pointer opacity-0 z-10"
-          onClick={(e) => { (e.target as HTMLInputElement).value = ''; }}
-          onChange={(e) => { const f = e.target.files?.[0]; if (f) validateAndSetFile(f); }}
-          accept="audio/*,.mp3,.m4a,.m4b,.wav,.ogg,.aac,.flac,.opus,.aiff,.aif,.wma,.amr,.mka"
-        />
         <AnimatePresence mode="wait">
           {!audioFile ? (
             <motion.div key="empty" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.05 }}
@@ -190,7 +167,7 @@ export const AudioTab: React.FC<AudioTabProps> = ({ selectedCourseId, onCourseEr
             </motion.div>
           )}
         </AnimatePresence>
-      </motion.div>
+      </FileDropZone>
 
       <AnimatePresence>
         {duplicateAudio && (
@@ -230,11 +207,7 @@ export const AudioTab: React.FC<AudioTabProps> = ({ selectedCourseId, onCourseEr
               : 'bg-zinc-100 text-zinc-400',
           )}
         >
-          {uploading
-            ? <span className="flex items-center gap-2"><Loader2 size={18} className="animate-spin" /> Processing...</span>
-            : duplicateAudio
-              ? <span className="flex items-center gap-2"><CheckCircle2 size={18} /> Already in Library</span>
-              : <span className="flex items-center gap-2"><Zap size={18} fill="currentColor" /> Start Learning</span>}
+          <StartLearningLabel busy={uploading} duplicate={duplicateAudio} />
         </Button>
       </motion.div>
 

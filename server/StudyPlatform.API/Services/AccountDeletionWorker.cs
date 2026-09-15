@@ -12,48 +12,25 @@ namespace StudyPlatform.API.Services;
 /// tighter loop would buy is load. Erasing one account per pass keeps a backlog from turning into a
 /// single long transaction — the next pass is an hour away at worst, and nothing is waiting on it.</para>
 /// </summary>
-public sealed class AccountDeletionWorker : BackgroundService
+public sealed class AccountDeletionWorker : PeriodicSweepWorker
 {
-    private static readonly TimeSpan SweepInterval = TimeSpan.FromHours(1);
+    private static readonly TimeSpan SweepEvery = TimeSpan.FromHours(1);
 
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<AccountDeletionWorker> _logger;
 
     public AccountDeletionWorker(IServiceScopeFactory scopeFactory, ILogger<AccountDeletionWorker> logger)
+        : base(logger)
     {
         _scopeFactory = scopeFactory;
         _logger = logger;
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            try
-            {
-                await SweepAsync(stoppingToken);
-            }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Account deletion sweep failed; will retry.");
-            }
+    protected override TimeSpan SweepInterval => SweepEvery;
 
-            try
-            {
-                await Task.Delay(SweepInterval, stoppingToken);
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-        }
-    }
+    protected override string SweepName => "Account deletion";
 
-    private async Task SweepAsync(CancellationToken cancellationToken)
+    protected override async Task SweepAsync(CancellationToken cancellationToken)
     {
         using var scope = _scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();

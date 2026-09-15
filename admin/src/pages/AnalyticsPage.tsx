@@ -10,6 +10,7 @@ import { StatCard } from '../components/common/StatCard';
 import { BarTrend } from '../components/common/BarTrend';
 import { formatNumber, formatMinutes, formatRelative } from '../utils/format';
 import { cn } from '../utils/cn';
+import { ErrorBanner } from '../components/common/ErrorBanner';
 
 const CONTENT_ROWS: { key: keyof PlatformAnalytics['content']; label: string; icon: typeof FileText; color: string; bar: string }[] = [
   { key: 'documents', label: 'Documents', icon: FileText, color: 'text-sky-600', bar: 'bg-sky-500' },
@@ -31,13 +32,7 @@ export const AnalyticsPage: React.FC = () => {
       .catch(() => setError('Failed to load analytics.'));
   }, []);
 
-  if (error) {
-    return (
-      <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-600">
-        {error}
-      </div>
-    );
-  }
+  if (error) return <ErrorBanner error={error} className="mb-0" />;
 
   if (!data) {
     return (

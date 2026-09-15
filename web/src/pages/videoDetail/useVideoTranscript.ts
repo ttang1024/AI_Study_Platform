@@ -33,9 +33,6 @@ export function useVideoTranscript({ id, videoId, videoUrl, sourceType, videoTit
   const [resolvedSubtitlesVideoId, setResolvedSubtitlesVideoId] = useState<string | null>(null);
 
   // Transcript copy/download menus
-  const [openMenu, setOpenMenu] = useState<'copy' | 'download' | null>(null);
-  const copyMenuRef = useRef<HTMLDivElement>(null);
-  const downloadMenuRef = useRef<HTMLDivElement>(null);
 
   const fetchTranscript = async (vid: string, fetcher: (v: string) => Promise<TranscriptSegment[]>) => {
     setIsLoadingTranscript(true);
@@ -106,18 +103,6 @@ export function useVideoTranscript({ id, videoId, videoUrl, sourceType, videoTit
     else if (id) fetchSubtitles(id, videoService.getVideoSubtitles);
   };
 
-  // Click-outside to close transcript menus
-  useEffect(() => {
-    if (!openMenu) return;
-    const handleClick = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (copyMenuRef.current?.contains(target) || downloadMenuRef.current?.contains(target)) return;
-      setOpenMenu(null);
-    };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [openMenu]);
-
   // ─── Transcript export ───────────────────────────────────────────────────────
 
   const getTranscriptText = (withTimestamp: boolean) => {
@@ -134,7 +119,6 @@ export function useVideoTranscript({ id, videoId, videoUrl, sourceType, videoTit
 
   const copyTranscript = (withTimestamp: boolean) => {
     navigator.clipboard.writeText(getTranscriptText(withTimestamp));
-    setOpenMenu(null);
   };
 
   const downloadTranscript = (format: 'txt' | 'srt', withTimestamp: boolean) => {
@@ -149,7 +133,6 @@ export function useVideoTranscript({ id, videoId, videoUrl, sourceType, videoTit
     a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
-    setOpenMenu(null);
   };
 
   return {
@@ -157,6 +140,6 @@ export function useVideoTranscript({ id, videoId, videoUrl, sourceType, videoTit
     centerView, setCenterView, loadSubtitlesOnDemand,
     transcript, transcriptError, isLoadingTranscript, refreshTranscript,
     subtitles, subtitlesError, isLoadingSubtitles, refreshSubtitles, resolvedSubtitlesVideoId,
-    openMenu, setOpenMenu, copyMenuRef, downloadMenuRef, copyTranscript, downloadTranscript,
+    copyTranscript, downloadTranscript,
   };
 }

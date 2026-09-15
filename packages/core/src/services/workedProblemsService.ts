@@ -82,4 +82,3 @@ export function createWorkedProblemsService(http: HttpClient) {
   };
 }
 
-export type WorkedProblemsService = ReturnType<typeof createWorkedProblemsService>;

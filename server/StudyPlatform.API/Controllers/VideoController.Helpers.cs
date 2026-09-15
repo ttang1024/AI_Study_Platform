@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using StudyPlatform.API.Extensions;
 using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Services;
+using StudyPlatform.Application.Videos;
 using StudyPlatform.Domain.Entities;
 
 namespace StudyPlatform.API.Controllers;
@@ -71,25 +72,9 @@ public partial class VideoController
         return null;
     }
 
-    private static string NormalizeSourceType(string? sourceType) => sourceType?.Trim().ToLowerInvariant() switch
-    {
-        "bilibili" => "bilibili",
-        "upload" => "upload",
-        "vimeo" => "vimeo",
-        "ted" => "ted",
-        "dailymotion" => "dailymotion",
-        "facebook" => "facebook",
-        "instagram" => "instagram",
-        "twitter" => "twitter",
-        "reddit" => "reddit",
-        "linkedin" => "linkedin",
-        "tiktok" => "tiktok",
-        _ => "youtube"
-    };
-
     // Sources whose transcript must be fetched by full URL (yt-dlp) rather than YouTube video id.
     private static bool IsExternalVideoSource(Video video)
-        => NormalizeSourceType(video.SourceType)
+        => VideoSourceTypes.Normalize(video.SourceType)
             is "bilibili" or "vimeo" or "ted" or "dailymotion"
             or "facebook" or "instagram" or "twitter" or "reddit" or "linkedin" or "tiktok";
 
@@ -202,7 +187,7 @@ public partial class VideoController
     private async Task<List<(double StartSeconds, int TextOffset)>?> GetTranscriptSegmentOffsetsAsync(
         Video video, CancellationToken cancellationToken)
     {
-        var transcriptKey = $"{NormalizeSourceType(video.SourceType)}:{video.ExternalVideoId}";
+        var transcriptKey = $"{VideoSourceTypes.Normalize(video.SourceType)}:{video.ExternalVideoId}";
 
         var segments = await GetStoredTranscriptSegmentsAsync(transcriptKey, cancellationToken, SubtitlesKind, TranscriptKind);
 
@@ -223,7 +208,7 @@ public partial class VideoController
 
     private async Task<string?> GetOrFetchTranscriptAsync(Video video, CancellationToken cancellationToken)
     {
-        var transcriptKey = $"{NormalizeSourceType(video.SourceType)}:{video.ExternalVideoId}";
+        var transcriptKey = $"{VideoSourceTypes.Normalize(video.SourceType)}:{video.ExternalVideoId}";
         var cacheKey = TranscriptCacheKey(transcriptKey);
         var ttl = TimeSpan.FromSeconds(_cacheOptions.TranscriptSeconds);
 
@@ -265,7 +250,7 @@ public partial class VideoController
     // Returns a timestamped transcript for a saved video (used by timeline-aware summary).
     private async Task<string?> GetOrFetchTimelineTranscriptAsync(Video video, CancellationToken cancellationToken)
     {
-        var transcriptKey = $"{NormalizeSourceType(video.SourceType)}:{video.ExternalVideoId}";
+        var transcriptKey = $"{VideoSourceTypes.Normalize(video.SourceType)}:{video.ExternalVideoId}";
         var segmentsCacheKey = TranscriptSegmentsCacheKey(transcriptKey);
         var ttl = TimeSpan.FromSeconds(_cacheOptions.TranscriptSeconds);
 

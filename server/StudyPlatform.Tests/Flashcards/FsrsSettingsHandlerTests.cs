@@ -4,6 +4,7 @@ using StudyPlatform.Application.Flashcards.Commands;
 using StudyPlatform.Application.Services;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
+using StudyPlatform.Tests.TestSupport;
 using Xunit;
 
 namespace StudyPlatform.Tests.Flashcards;
@@ -183,7 +184,7 @@ public class FsrsSettingsHandlerTests
     public async Task Optimize_StoresFittedWeightsAndMetrics()
     {
         var existing = Existing();
-        _reviewLogs.Setup(r => r.GetByUserAsync(_userId, null, default)).ReturnsAsync(DurableHistory());
+        _reviewLogs.Setup(r => r.GetByUserAsync(_userId, null, default)).ReturnsAsync(ReviewHistory.Durable(_userId));
         var handler = new OptimizeFsrsWeightsCommandHandler(_uow.Object, new FsrsOptimizer());
 
         var result = await handler.Handle(new OptimizeFsrsWeightsCommand(_userId), default);
@@ -208,7 +209,7 @@ public class FsrsSettingsHandlerTests
         previousFit[0] = 0.05;
         existing.WeightsJson = FsrsParameters.Serialize(previousFit);
 
-        var logs = DurableHistory();
+        var logs = ReviewHistory.Durable(_userId);
         _reviewLogs.Setup(r => r.GetByUserAsync(_userId, null, default)).ReturnsAsync(logs);
         var handler = new OptimizeFsrsWeightsCommandHandler(_uow.Object, new FsrsOptimizer());
 
@@ -267,32 +268,4 @@ public class FsrsSettingsHandlerTests
         return settings;
     }
 
-    private List<FlashcardReviewLog> DurableHistory(int cards = 60, int reviewsPerCard = 10)
-    {
-        var logs = new List<FlashcardReviewLog>();
-        var start = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-
-        for (var c = 0; c < cards; c++)
-        {
-            var cardId = Guid.NewGuid();
-            var at = start;
-            for (var i = 0; i < reviewsPerCard; i++)
-            {
-                var elapsed = i == 0 ? 0 : 10 + i * 10;
-                at = at.AddDays(elapsed);
-                logs.Add(new FlashcardReviewLog
-                {
-                    Id = Guid.NewGuid(),
-                    UserId = _userId,
-                    FlashcardId = cardId,
-                    Rating = 3,
-                    StateBefore = i == 0 ? 0 : 2,
-                    ElapsedDays = elapsed,
-                    ReviewedAt = at,
-                });
-            }
-        }
-
-        return logs;
-    }
 }

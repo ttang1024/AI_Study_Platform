@@ -1,4 +1,5 @@
 using Moq;
+using StudyPlatform.Application.Auth;
 using StudyPlatform.Application.Auth.Commands;
 using StudyPlatform.Application.Services;
 using StudyPlatform.Domain.Entities;
@@ -21,7 +22,9 @@ public class RefreshTokenCommandHandlerTests
         _uow.Setup(u => u.Users).Returns(_users.Object);
         _uow.Setup(u => u.RefreshTokens).Returns(_tokens.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new RefreshTokenCommandHandler(_uow.Object, _tokenService.Object, _requestContext.Object);
+        _handler = new RefreshTokenCommandHandler(
+            _uow.Object,
+            new AuthSessionIssuer(_uow.Object, _tokenService.Object, _requestContext.Object));
     }
 
     private User MakeUser() => new()

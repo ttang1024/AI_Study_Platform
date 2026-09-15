@@ -141,4 +141,3 @@ export function createGlossaryService(http: HttpClient, offlineCache?: GlossaryO
   };
 }
 
-export type GlossaryService = ReturnType<typeof createGlossaryService>;

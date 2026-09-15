@@ -11,15 +11,12 @@ public record RefreshTokenCommand(string RefreshToken) : IRequest<Result<AuthRes
 public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, Result<AuthResponse>>
 {
     private readonly IUnitOfWork _unitOfWork;
-    private readonly ITokenService _tokenService;
-    private readonly IRequestContext _requestContext;
+    private readonly IAuthSessionIssuer _sessionIssuer;
 
-    public RefreshTokenCommandHandler(
-        IUnitOfWork unitOfWork, ITokenService tokenService, IRequestContext requestContext)
+    public RefreshTokenCommandHandler(IUnitOfWork unitOfWork, IAuthSessionIssuer sessionIssuer)
     {
         _unitOfWork = unitOfWork;
-        _tokenService = tokenService;
-        _requestContext = requestContext;
+        _sessionIssuer = sessionIssuer;
     }
 
     public async Task<Result<AuthResponse>> Handle(RefreshTokenCommand request, CancellationToken cancellationToken)
@@ -36,31 +33,7 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, R
         token.RevokedAt = DateTime.UtcNow;
         _unitOfWork.RefreshTokens.Update(token);
 
-        var accessToken = _tokenService.GenerateAccessToken(user);
-        var refreshTokenValue = _tokenService.GenerateRefreshToken();
-
-        // Inherits the session id, so rotation keeps the sign-in's identity rather than presenting
-        // the user with a brand-new "device" in their session list every fifteen minutes.
-        var newRefreshToken = RefreshTokenFactory.Create(
-            user.UserId, refreshTokenValue, _requestContext, token.SessionId);
-
-        // The device fields are carried over rather than re-derived when the refresh arrives without
-        // a recognisable user agent, so a session keeps the name it was signed in under.
-        newRefreshToken.DeviceName ??= token.DeviceName;
-        newRefreshToken.UserAgent ??= token.UserAgent;
-        newRefreshToken.IpAddress ??= token.IpAddress;
-
-        await _unitOfWork.RefreshTokens.AddAsync(newRefreshToken, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-        var response = new AuthResponse(
-            user.UserId,
-            user.Email,
-            user.FullName,
-            accessToken,
-            refreshTokenValue,
-            DateTime.UtcNow.AddMinutes(15));
-
+        var response = await _sessionIssuer.IssueAsync(user, token, cancellationToken);
         return Result<AuthResponse>.Success(response, "Token refreshed successfully.");
     }
 }

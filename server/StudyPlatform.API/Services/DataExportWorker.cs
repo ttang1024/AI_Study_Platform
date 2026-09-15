@@ -17,7 +17,7 @@ namespace StudyPlatform.API.Services;
 /// so two replicas polling the same row cannot both build it. The loser's update matches zero rows
 /// and it moves on.</para>
 /// </summary>
-public sealed class DataExportWorker : BackgroundService
+public sealed class DataExportWorker : PeriodicSweepWorker
 {
     private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(20);
 
@@ -38,38 +38,23 @@ public sealed class DataExportWorker : BackgroundService
     private readonly ILogger<DataExportWorker> _logger;
 
     public DataExportWorker(IServiceScopeFactory scopeFactory, ILogger<DataExportWorker> logger)
+        : base(logger)
     {
         _scopeFactory = scopeFactory;
         _logger = logger;
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            try
-            {
-                await ReclaimStaleAsync(stoppingToken);
-                await ProcessNextAsync(stoppingToken);
-            }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Data export sweep failed; will retry.");
-            }
+    protected override TimeSpan SweepInterval => PollInterval;
 
-            try
-            {
-                await Task.Delay(PollInterval, stoppingToken);
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-        }
+    protected override string SweepName => "Data export";
+
+    // A poll that loses its claim race or catches a restart is ordinary; it is not an error.
+    protected override LogLevel SweepFailureLevel => LogLevel.Warning;
+
+    protected override async Task SweepAsync(CancellationToken cancellationToken)
+    {
+        await ReclaimStaleAsync(cancellationToken);
+        await ProcessNextAsync(cancellationToken);
     }
 
     private async Task ReclaimStaleAsync(CancellationToken cancellationToken)

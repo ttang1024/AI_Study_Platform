@@ -1,5 +1,6 @@
 using System.Linq.Expressions;
 using Moq;
+using StudyPlatform.Application.Documents;
 using StudyPlatform.Application.Flashcards.Commands;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
@@ -53,10 +54,10 @@ public class GetPendingFlashcardMaterialsQueryHandlerTests
         _uow.Setup(u => u.Documents).Returns(_documents.Object);
         _uow.Setup(u => u.Videos).Returns(_videos.Object);
         _flashcards.Setup(r => r.GetCoverageByUserIdAsync(_userId, default)).ReturnsAsync((Array.Empty<Guid>(), Array.Empty<Guid>()));
-        _courses.Setup(r => r.FindAsync(It.IsAny<Expression<Func<Course, bool>>>(), default)).ReturnsAsync(Array.Empty<Course>());
-        _documents.Setup(r => r.FindAsync(It.IsAny<Expression<Func<Document, bool>>>(), default)).ReturnsAsync(Array.Empty<Document>());
-        _videos.Setup(r => r.FindAsync(It.IsAny<Expression<Func<Video, bool>>>(), default)).ReturnsAsync(Array.Empty<Video>());
-        _handler = new GetPendingFlashcardMaterialsQueryHandler(_uow.Object);
+        _courses.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Course, bool>>>(), default)).ReturnsAsync(Array.Empty<Course>());
+        _documents.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Document, bool>>>(), default)).ReturnsAsync(Array.Empty<Document>());
+        _videos.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Video, bool>>>(), default)).ReturnsAsync(Array.Empty<Video>());
+        _handler = new GetPendingFlashcardMaterialsQueryHandler(_uow.Object, new StudyMaterialLookup(_uow.Object));
     }
 
     [Fact]
@@ -65,7 +66,7 @@ public class GetPendingFlashcardMaterialsQueryHandlerTests
         var coveredDocId = Guid.NewGuid();
         var pendingDocId = Guid.NewGuid();
         _flashcards.Setup(r => r.GetCoverageByUserIdAsync(_userId, default)).ReturnsAsync((new[] { coveredDocId }, Array.Empty<Guid>()));
-        _documents.Setup(r => r.FindAsync(It.IsAny<Expression<Func<Document, bool>>>(), default))
+        _documents.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Document, bool>>>(), default))
             .ReturnsAsync(new[] { new Document { DocumentId = pendingDocId, UserId = _userId, FileName = "Pending.pdf" } });
 
         var result = await _handler.Handle(new GetPendingFlashcardMaterialsQuery(_userId), default);
@@ -80,9 +81,9 @@ public class GetPendingFlashcardMaterialsQueryHandlerTests
     {
         var courseId = Guid.NewGuid();
         var docId = Guid.NewGuid();
-        _courses.Setup(r => r.FindAsync(It.IsAny<Expression<Func<Course, bool>>>(), default))
+        _courses.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Course, bool>>>(), default))
             .ReturnsAsync(new[] { new Course { CourseId = courseId, UserId = _userId, CourseName = "Algorithms", CourseColor = "#123456" } });
-        _documents.Setup(r => r.FindAsync(It.IsAny<Expression<Func<Document, bool>>>(), default))
+        _documents.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Document, bool>>>(), default))
             .ReturnsAsync(new[] { new Document { DocumentId = docId, UserId = _userId, CourseId = courseId, FileName = "F.pdf" } });
 
         var result = await _handler.Handle(new GetPendingFlashcardMaterialsQuery(_userId), default);
@@ -96,7 +97,7 @@ public class GetPendingFlashcardMaterialsQueryHandlerTests
     public async Task Handle_MissingCourse_UsesFallbackNameAndColor()
     {
         var docId = Guid.NewGuid();
-        _documents.Setup(r => r.FindAsync(It.IsAny<Expression<Func<Document, bool>>>(), default))
+        _documents.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Document, bool>>>(), default))
             .ReturnsAsync(new[] { new Document { DocumentId = docId, UserId = _userId, CourseId = Guid.NewGuid(), FileName = "F.pdf" } });
 
         var result = await _handler.Handle(new GetPendingFlashcardMaterialsQuery(_userId), default);
@@ -110,7 +111,7 @@ public class GetPendingFlashcardMaterialsQueryHandlerTests
     public async Task Handle_IncludesPendingVideos()
     {
         var videoId = Guid.NewGuid();
-        _videos.Setup(r => r.FindAsync(It.IsAny<Expression<Func<Video, bool>>>(), default))
+        _videos.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Video, bool>>>(), default))
             .ReturnsAsync(new[] { new Video { VideoId = videoId, UserId = _userId, Title = "Lecture 1", ExternalVideoId = "abc" } });
 
         var result = await _handler.Handle(new GetPendingFlashcardMaterialsQuery(_userId), default);
@@ -125,7 +126,7 @@ public class GetPendingFlashcardMaterialsQueryHandlerTests
     {
         var older = new Document { DocumentId = Guid.NewGuid(), UserId = _userId, FileName = "Old.pdf", CreatedAt = DateTime.UtcNow.AddDays(-5) };
         var newer = new Document { DocumentId = Guid.NewGuid(), UserId = _userId, FileName = "New.pdf", CreatedAt = DateTime.UtcNow };
-        _documents.Setup(r => r.FindAsync(It.IsAny<Expression<Func<Document, bool>>>(), default)).ReturnsAsync(new[] { older, newer });
+        _documents.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Document, bool>>>(), default)).ReturnsAsync(new[] { older, newer });
 
         var result = await _handler.Handle(new GetPendingFlashcardMaterialsQuery(_userId), default);
 

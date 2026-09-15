@@ -31,6 +31,7 @@ public partial class VideoController : ControllerBase
     private readonly IBlobStorageService _blobStorageService;
     private readonly ITranscriptionService _transcriptionService;
     private readonly ITokenService _tokenService;
+    private readonly IChatTurnRecorder _chatTurns;
     private readonly CacheOptions _cacheOptions;
     private readonly AppLimitsOptions _limits;
     private const string TranscriptKind = "transcript";
@@ -38,7 +39,7 @@ public partial class VideoController : ControllerBase
     private const double MinTranscriptSegmentSeconds = 30.0;
     private const double MaxTranscriptSegmentSeconds = 60.0;
 
-    public VideoController(IYouTubeTranscriptService transcriptService, IAiService aiService, IMediator mediator, IUnitOfWork unitOfWork, AppDbContext db, IAppCache cache, IBlobStorageService blobStorageService, ITranscriptionService transcriptionService, ITokenService tokenService, IOptions<CacheOptions> cacheOptions, IOptions<AppLimitsOptions> limits)
+    public VideoController(IYouTubeTranscriptService transcriptService, IAiService aiService, IMediator mediator, IUnitOfWork unitOfWork, AppDbContext db, IAppCache cache, IBlobStorageService blobStorageService, ITranscriptionService transcriptionService, ITokenService tokenService, IChatTurnRecorder chatTurns, IOptions<CacheOptions> cacheOptions, IOptions<AppLimitsOptions> limits)
     {
         _transcriptService = transcriptService;
         _aiService = aiService;
@@ -49,6 +50,7 @@ public partial class VideoController : ControllerBase
         _blobStorageService = blobStorageService;
         _transcriptionService = transcriptionService;
         _tokenService = tokenService;
+        _chatTurns = chatTurns;
         _cacheOptions = cacheOptions.Value;
         _limits = limits.Value;
     }

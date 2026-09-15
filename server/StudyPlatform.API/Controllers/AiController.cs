@@ -39,12 +39,14 @@ public partial class AiController : ControllerBase
     private readonly IAiService _aiService;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IBlobStorageService _blobStorageService;
+    private readonly IChatTurnRecorder _chatTurns;
 
-    public AiController(IAiService aiService, IUnitOfWork unitOfWork, IBlobStorageService blobStorageService)
+    public AiController(IAiService aiService, IUnitOfWork unitOfWork, IBlobStorageService blobStorageService, IChatTurnRecorder chatTurns)
     {
         _aiService = aiService;
         _unitOfWork = unitOfWork;
         _blobStorageService = blobStorageService;
+        _chatTurns = chatTurns;
     }
 
     /// <summary>Get all chat conversation summaries (documents + videos) for the current user.</summary>
@@ -220,19 +222,8 @@ public partial class AiController : ControllerBase
     [ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status502BadGateway)]
     public async Task<IActionResult> StreamChatConversation(Guid conversationId, [FromBody] AIChatRequest request, CancellationToken cancellationToken)
     {
-        var attachmentList = request.Attachments?.ToList() ?? [];
-        if (string.IsNullOrWhiteSpace(request.Message) && attachmentList.Count == 0)
-            return BadRequest(BaseResponse<string>.Fail("message is required.", "MISSING_MESSAGE"));
-
-        List<(byte[] data, string mimeType, string? fileName)> attachments;
-        try
-        {
-            attachments = ChatAttachments.Decode(attachmentList);
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(BaseResponse<string>.Fail(ex.Message, "INVALID_ATTACHMENT"));
-        }
+        if (ChatAttachments.TryDecodeTurn(request.Attachments, request.Message, out var attachmentList, out var attachments) is { } invalid)
+            return invalid;
 
         var userId = User.GetUserId();
         var conversation = await _unitOfWork.ChatMessages.GetConversationAsync(conversationId, userId, cancellationToken);
@@ -250,46 +241,15 @@ public partial class AiController : ControllerBase
 
         var history = await _unitOfWork.ChatMessages.GetByConversationIdAsync(conversationId, userId, cancellationToken);
         var stream = _aiService.StreamGeneralChatAsync(history.Select(m => (m.Role, m.Content)), promptMessage, ChatAttachments.ToModelInputs(attachments), cancellationToken);
+        var thread = new ChatThread(userId, conversation, "general");
         return await this.StreamAiToSseAsync(stream, cancellationToken,
-            beforeStream: async ct =>
-            {
-                var now = DateTime.UtcNow;
-                await _unitOfWork.ChatMessages.AddAsync(new ChatMessage
-                {
-                    MessageId = Guid.NewGuid(),
-                    ChatConversationId = conversationId,
-                    SourceType = "general",
-                    UserId = userId,
-                    Role = "user",
-                    Content = savedMessage,
-                    AttachmentsJson = attachmentsJson,
-                    CreatedAt = now
-                }, ct);
-
-                if (!history.Any())
-                    conversation.Title = CreateTitle(titleSource);
-                conversation.UpdatedAt = now;
-                _unitOfWork.ChatMessages.UpdateConversation(conversation);
-                await _unitOfWork.SaveChangesAsync(ct);
-            },
-            onCompleted: async (text, ct) =>
-            {
-                var completedAt = DateTime.UtcNow;
-                await _unitOfWork.ChatMessages.AddAsync(new ChatMessage
-                {
-                    MessageId = Guid.NewGuid(),
-                    ChatConversationId = conversationId,
-                    SourceType = "general",
-                    UserId = userId,
-                    Role = "assistant",
-                    Content = text,
-                    CreatedAt = completedAt
-                }, ct);
-
-                conversation.UpdatedAt = completedAt;
-                _unitOfWork.ChatMessages.UpdateConversation(conversation);
-                await _unitOfWork.SaveChangesAsync(ct);
-            });
+            beforeStream: ct => _chatTurns.RecordUserAsync(
+                thread,
+                savedMessage,
+                attachmentsJson,
+                history.Any() ? null : CreateTitle(titleSource),
+                ct),
+            onCompleted: (text, ct) => _chatTurns.RecordAssistantAsync(thread, text, ct));
     }
 
     private static GeneralChatConversationDto ToConversationDto(ChatConversation conversation)

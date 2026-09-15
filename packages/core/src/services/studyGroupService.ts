@@ -79,4 +79,3 @@ export function createStudyGroupService(http: HttpClient) {
   };
 }
 
-export type StudyGroupService = ReturnType<typeof createStudyGroupService>;

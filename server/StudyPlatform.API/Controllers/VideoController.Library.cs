@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using StudyPlatform.API.Extensions;
 using StudyPlatform.Application.Common;
+using StudyPlatform.Application.Videos;
 using StudyPlatform.Application.Videos.Commands;
 using StudyPlatform.Application.Videos.DTOs;
 using StudyPlatform.Application.Videos.Queries;
@@ -217,7 +218,7 @@ public partial class VideoController
         if (video is null)
             return NotFound(BaseResponse<IReadOnlyList<TranscriptSegmentDto>>.Fail("Video not found.", "VIDEO_NOT_FOUND"));
 
-        var transcriptKey = $"{NormalizeSourceType(video.SourceType)}:{video.ExternalVideoId}";
+        var transcriptKey = $"{VideoSourceTypes.Normalize(video.SourceType)}:{video.ExternalVideoId}";
         var ttl = TimeSpan.FromSeconds(_cacheOptions.TranscriptSeconds);
         var stored = await GetStoredTranscriptSegmentsAsync(transcriptKey, TranscriptKind, cancellationToken)
                      ?? await GetStoredTranscriptSegmentsAsync(transcriptKey, SubtitlesKind, cancellationToken);
@@ -247,7 +248,7 @@ public partial class VideoController
         if (video is null)
             return NotFound(BaseResponse<IReadOnlyList<TranscriptSegmentDto>>.Fail("Video not found.", "VIDEO_NOT_FOUND"));
 
-        var transcriptKey = $"{NormalizeSourceType(video.SourceType)}:{video.ExternalVideoId}";
+        var transcriptKey = $"{VideoSourceTypes.Normalize(video.SourceType)}:{video.ExternalVideoId}";
         var ttl = TimeSpan.FromSeconds(_cacheOptions.TranscriptSeconds);
         var stored = await GetStoredTranscriptSegmentsAsync(transcriptKey, SubtitlesKind, cancellationToken)
                      ?? await GetStoredTranscriptSegmentsAsync(transcriptKey, TranscriptKind, cancellationToken);

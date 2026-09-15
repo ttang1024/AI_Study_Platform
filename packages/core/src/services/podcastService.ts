@@ -88,4 +88,3 @@ export function createPodcastService(http: HttpClient) {
   };
 }
 
-export type PodcastService = ReturnType<typeof createPodcastService>;

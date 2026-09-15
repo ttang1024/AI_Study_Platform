@@ -124,4 +124,3 @@ export function createShareService(http: HttpClient) {
   };
 }
 
-export type ShareService = ReturnType<typeof createShareService>;

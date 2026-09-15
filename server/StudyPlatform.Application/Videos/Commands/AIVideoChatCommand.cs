@@ -84,16 +84,7 @@ public class AIVideoChatCommandHandler : IRequestHandler<AIVideoChatCommand, Res
         await _unitOfWork.ChatMessages.AddAsync(assistantMessage, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        var dto = new ChatMessageDto(
-            assistantMessage.MessageId,
-            assistantMessage.DocumentId,
-            assistantMessage.VideoId,
-            assistantMessage.SourceType,
-            assistantMessage.Role,
-            assistantMessage.Content,
-            assistantMessage.CreatedAt);
-
-        return Result<ChatMessageDto>.Success(dto, "Message sent successfully.");
+        return Result<ChatMessageDto>.Success(assistantMessage.ToChatMessageDto(), "Message sent successfully.");
     }
 }
 

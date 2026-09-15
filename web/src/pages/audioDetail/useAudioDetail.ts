@@ -59,9 +59,6 @@ export function useAudioDetail(propId?: string, propCourseId?: string) {
   const [transcriptError, setTranscriptError] = useState<string | null>(null);
 
   // Transcript copy/download menus
-  const [openMenu, setOpenMenu] = useState<'copy' | 'download' | null>(null);
-  const copyMenuRef = useRef<HTMLDivElement>(null);
-  const downloadMenuRef = useRef<HTMLDivElement>(null);
 
   // Layout
   const initialTab = (location.state as any)?.activeTab ?? 'summary';
@@ -112,18 +109,6 @@ export function useAudioDetail(propId?: string, propCourseId?: string) {
   // Chat — multiple conversations (threads), shared with document/article pages
   const docChat = useDocumentChatThreads(courseId || null, id || null);
   const chatPanelRef = useRef<ChatPanelRef>(null);
-
-  // Click-outside to close transcript menus
-  useEffect(() => {
-    if (!openMenu) return;
-    const handleClick = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (copyMenuRef.current?.contains(target) || downloadMenuRef.current?.contains(target)) return;
-      setOpenMenu(null);
-    };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [openMenu]);
 
   useEffect(() => () => {
     if (audioObjectUrlRef.current) {
@@ -301,7 +286,6 @@ export function useAudioDetail(propId?: string, propCourseId?: string) {
 
   const copyTranscript = (withTimestamp: boolean) => {
     navigator.clipboard.writeText(getTranscriptPlainText(withTimestamp));
-    setOpenMenu(null);
   };
 
   const downloadTranscript = (format: 'txt' | 'srt', withTimestamp: boolean) => {
@@ -316,7 +300,6 @@ export function useAudioDetail(propId?: string, propCourseId?: string) {
     a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
-    setOpenMenu(null);
   };
 
   // ─── Generation handlers ─────────────────────────────────────────────────────
@@ -468,7 +451,7 @@ export function useAudioDetail(propId?: string, propCourseId?: string) {
     fileName, isPodcast, podcastOriginalUrl, audioUrl, isLoadingPage,
     audioRef, activeSegmentRef, currentTime, setCurrentTime,
     transcript, isTranscribing, transcriptError, handleTranscribe, seekAudioTo,
-    openMenu, setOpenMenu, copyMenuRef, downloadMenuRef, copyTranscript, downloadTranscript,
+    copyTranscript, downloadTranscript,
     activeTab, setActiveTab, activeView, setActiveView, targetQuizQuestionId,
     summary, isLoadingSummary, summaryStreamText, summaryError, generateSummary, handleSaveSummary,
     summaryRef, summaryToolbar, setSummaryToolbar, handleSummaryMouseUp,

@@ -29,4 +29,3 @@ export function createRecommendationService(http: HttpClient) {
   };
 }
 
-export type RecommendationService = ReturnType<typeof createRecommendationService>;

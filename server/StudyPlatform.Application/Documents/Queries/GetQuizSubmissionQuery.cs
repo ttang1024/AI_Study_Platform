@@ -1,6 +1,7 @@
 using MediatR;
 using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Documents.DTOs;
+using StudyPlatform.Application.Services;
 using StudyPlatform.Domain.Interfaces;
 
 namespace StudyPlatform.Application.Documents.Queries;
@@ -70,77 +71,32 @@ public class GetQuizSubmissionCoverageQueryHandler : IRequestHandler<GetQuizSubm
 public class GetPendingQuizMaterialsQueryHandler : IRequestHandler<GetPendingQuizMaterialsQuery, Result<IEnumerable<PendingMaterialDto>>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IStudyMaterialLookup _materials;
 
-    public GetPendingQuizMaterialsQueryHandler(IUnitOfWork unitOfWork)
+    public GetPendingQuizMaterialsQueryHandler(IUnitOfWork unitOfWork, IStudyMaterialLookup materials)
     {
         _unitOfWork = unitOfWork;
+        _materials = materials;
     }
 
     public async Task<Result<IEnumerable<PendingMaterialDto>>> Handle(GetPendingQuizMaterialsQuery request, CancellationToken cancellationToken)
     {
         var (documentIdsWithSubmissions, videoIdsWithSubmissions) = await _unitOfWork.QuizSubmissions.GetCoverageByUserAsync(request.UserId, cancellationToken);
-        var documentIdSet = documentIdsWithSubmissions.ToHashSet();
-        var videoIdSet = videoIdsWithSubmissions.ToHashSet();
-        var courseMap = (await _unitOfWork.Courses.FindAsNoTrackingAsync(c => c.UserId == request.UserId, cancellationToken))
-            .ToDictionary(c => c.CourseId);
-
-        var documents = (await _unitOfWork.Documents.FindAsNoTrackingAsync(
-                d => d.UserId == request.UserId && !documentIdSet.Contains(d.DocumentId),
-                cancellationToken))
-            .Select(d =>
-            {
-                courseMap.TryGetValue(d.CourseId, out var course);
-                return new PendingMaterialDto(
-                    "document",
-                    d.DocumentId,
-                    d.CourseId,
-                    course?.CourseName ?? string.Empty,
-                    course?.CourseColor ?? "#a1a1aa",
-                    d.FileName,
-                    d.ContentType,
-                    d.BlobUrl,
-                    d.OriginalUrl,
-                    null,
-                    null,
-                    null,
-                    d.CreatedAt);
-            });
-
-        var videos = (await _unitOfWork.Videos.FindAsNoTrackingAsync(
-                v => v.UserId == request.UserId && !videoIdSet.Contains(v.VideoId),
-                cancellationToken))
-            .Select(v =>
-            {
-                courseMap.TryGetValue(v.CourseId, out var course);
-                return new PendingMaterialDto(
-                    "video",
-                    v.VideoId,
-                    v.CourseId,
-                    course?.CourseName ?? string.Empty,
-                    course?.CourseColor ?? "#a1a1aa",
-                    v.Title,
-                    null,
-                    null,
-                    null,
-                    v.ExternalVideoId,
-                    v.VideoUrl,
-                    v.ThumbnailUrl,
-                    v.CreatedAt,
-                    v.SourceType);
-            });
-
-        return Result<IEnumerable<PendingMaterialDto>>.Success(
-            documents.Concat(videos).OrderByDescending(m => m.CreatedAt));
+        var pending = await _materials.ListUncoveredAsync(
+            request.UserId, documentIdsWithSubmissions, videoIdsWithSubmissions, cancellationToken);
+        return Result<IEnumerable<PendingMaterialDto>>.Success(pending);
     }
 }
 
 public class GetGeneratedQuizMaterialsQueryHandler : IRequestHandler<GetGeneratedQuizMaterialsQuery, Result<IEnumerable<PendingMaterialDto>>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IStudyMaterialLookup _materials;
 
-    public GetGeneratedQuizMaterialsQueryHandler(IUnitOfWork unitOfWork)
+    public GetGeneratedQuizMaterialsQueryHandler(IUnitOfWork unitOfWork, IStudyMaterialLookup materials)
     {
         _unitOfWork = unitOfWork;
+        _materials = materials;
     }
 
     public async Task<Result<IEnumerable<PendingMaterialDto>>> Handle(GetGeneratedQuizMaterialsQuery request, CancellationToken cancellationToken)
@@ -159,59 +115,13 @@ public class GetGeneratedQuizMaterialsQueryHandler : IRequestHandler<GetGenerate
             .Distinct()
             .ToHashSet();
 
+        // Generated but not yet taken: a submission means the material has moved on from this list.
         var (documentIdsWithSubmissions, videoIdsWithSubmissions) = await _unitOfWork.QuizSubmissions.GetCoverageByUserAsync(request.UserId, cancellationToken);
         generatedDocumentIds.ExceptWith(documentIdsWithSubmissions);
         generatedVideoIds.ExceptWith(videoIdsWithSubmissions);
 
-        var courseMap = (await _unitOfWork.Courses.FindAsNoTrackingAsync(c => c.UserId == request.UserId, cancellationToken))
-            .ToDictionary(c => c.CourseId);
-
-        var documents = (await _unitOfWork.Documents.FindAsNoTrackingAsync(
-                d => d.UserId == request.UserId && generatedDocumentIds.Contains(d.DocumentId),
-                cancellationToken))
-            .Select(d =>
-            {
-                courseMap.TryGetValue(d.CourseId, out var course);
-                return new PendingMaterialDto(
-                    "document",
-                    d.DocumentId,
-                    d.CourseId,
-                    course?.CourseName ?? string.Empty,
-                    course?.CourseColor ?? "#a1a1aa",
-                    d.FileName,
-                    d.ContentType,
-                    d.BlobUrl,
-                    d.OriginalUrl,
-                    null,
-                    null,
-                    null,
-                    d.CreatedAt);
-            });
-
-        var videos = (await _unitOfWork.Videos.FindAsNoTrackingAsync(
-                v => v.UserId == request.UserId && generatedVideoIds.Contains(v.VideoId),
-                cancellationToken))
-            .Select(v =>
-            {
-                courseMap.TryGetValue(v.CourseId, out var course);
-                return new PendingMaterialDto(
-                    "video",
-                    v.VideoId,
-                    v.CourseId,
-                    course?.CourseName ?? string.Empty,
-                    course?.CourseColor ?? "#a1a1aa",
-                    v.Title,
-                    null,
-                    null,
-                    null,
-                    v.ExternalVideoId,
-                    v.VideoUrl,
-                    v.ThumbnailUrl,
-                    v.CreatedAt,
-                    v.SourceType);
-            });
-
-        return Result<IEnumerable<PendingMaterialDto>>.Success(
-            documents.Concat(videos).OrderByDescending(m => m.CreatedAt));
+        var generated = await _materials.ListSelectedAsync(
+            request.UserId, generatedDocumentIds, generatedVideoIds, cancellationToken);
+        return Result<IEnumerable<PendingMaterialDto>>.Success(generated);
     }
 }

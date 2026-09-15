@@ -1,9 +1,7 @@
-using System.Text.Json;
 using MediatR;
 using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Documents.DTOs;
-using StudyPlatform.Application.Mistakes;
-using StudyPlatform.Domain.Entities;
+using StudyPlatform.Application.Services;
 using StudyPlatform.Domain.Interfaces;
 
 namespace StudyPlatform.Application.Videos.Commands;
@@ -23,10 +21,12 @@ public record SaveVideoQuizSubmissionCommand(
 public class SaveVideoQuizSubmissionCommandHandler : IRequestHandler<SaveVideoQuizSubmissionCommand, Result<QuizSubmissionDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IQuizSubmissionWriter _submissions;
 
-    public SaveVideoQuizSubmissionCommandHandler(IUnitOfWork unitOfWork)
+    public SaveVideoQuizSubmissionCommandHandler(IUnitOfWork unitOfWork, IQuizSubmissionWriter submissions)
     {
         _unitOfWork = unitOfWork;
+        _submissions = submissions;
     }
 
     public async Task<Result<QuizSubmissionDto>> Handle(SaveVideoQuizSubmissionCommand request, CancellationToken cancellationToken)
@@ -35,43 +35,9 @@ public class SaveVideoQuizSubmissionCommandHandler : IRequestHandler<SaveVideoQu
         if (video is null)
             return Result<QuizSubmissionDto>.Failure("Video not found.", "VIDEO_NOT_FOUND");
 
-        var existing = await _unitOfWork.QuizSubmissions.GetByVideoAndUserAsync(request.VideoId, request.UserId, cancellationToken);
-
-        var answersJson = JsonSerializer.Serialize(request.Answers);
-        var confidenceJson = ConfidenceSerializer.Serialize(request.Confidence);
-
-        if (existing != null)
-        {
-            existing.AnswersJson = answersJson;
-            existing.ConfidenceJson = confidenceJson;
-            existing.Score = request.Score;
-            existing.Total = request.Total;
-            existing.SubmittedAt = DateTime.UtcNow;
-            _unitOfWork.QuizSubmissions.Update(existing);
-        }
-        else
-        {
-            existing = new QuizSubmission
-            {
-                SubmissionId = Guid.NewGuid(),
-                VideoId = request.VideoId,
-                SourceType = "video",
-                UserId = request.UserId,
-                AnswersJson = answersJson,
-                ConfidenceJson = confidenceJson,
-                Score = request.Score,
-                Total = request.Total,
-                SubmittedAt = DateTime.UtcNow,
-            };
-            await _unitOfWork.QuizSubmissions.AddAsync(existing, cancellationToken);
-        }
-
-        await MistakeCapture.CaptureAsync(
-            _unitOfWork, request.UserId, "video", null, request.VideoId, request.Answers, cancellationToken);
-
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-        var dto = existing.ToQuizSubmissionDto();
+        var dto = await _submissions.UpsertAsync(
+            request.UserId, QuizSource.Video(request.VideoId),
+            request.Answers, request.Score, request.Total, request.Confidence, cancellationToken);
 
         return Result<QuizSubmissionDto>.Success(dto, "Quiz submission saved.");
     }

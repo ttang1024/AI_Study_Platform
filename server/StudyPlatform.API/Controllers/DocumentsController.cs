@@ -17,6 +17,7 @@ public partial class DocumentsController : ControllerBase
     private readonly IAiService _aiService;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IDocumentContentService _contentService;
+    private readonly IChatTurnRecorder _chatTurns;
     private readonly ILogger<DocumentsController> _logger;
 
     public DocumentsController(
@@ -25,6 +26,7 @@ public partial class DocumentsController : ControllerBase
         IAiService aiService,
         IUnitOfWork unitOfWork,
         IDocumentContentService contentService,
+        IChatTurnRecorder chatTurns,
         ILogger<DocumentsController> logger)
     {
         _mediator = mediator;
@@ -32,6 +34,7 @@ public partial class DocumentsController : ControllerBase
         _aiService = aiService;
         _unitOfWork = unitOfWork;
         _contentService = contentService;
+        _chatTurns = chatTurns;
         _logger = logger;
     }
 }

@@ -333,7 +333,6 @@ export function useVideoDetail(propId?: string) {
     transcript: transcript.transcript, transcriptError: transcript.transcriptError, isLoadingTranscript: transcript.isLoadingTranscript, refreshTranscript: transcript.refreshTranscript,
     subtitles: transcript.subtitles, subtitlesError: transcript.subtitlesError, isLoadingSubtitles: transcript.isLoadingSubtitles, refreshSubtitles: transcript.refreshSubtitles,
     iframeRef, uploadedVideoRef,
-    openMenu: transcript.openMenu, setOpenMenu: transcript.setOpenMenu, copyMenuRef: transcript.copyMenuRef, downloadMenuRef: transcript.downloadMenuRef,
     copyTranscript: transcript.copyTranscript, downloadTranscript: transcript.downloadTranscript,
     mindMapText, isLoadingMindMap, mindMapStreamingText, generateMindMap, handleSaveMindMap,
     flashcards, isLoadingFlashcards, generateFlashcards,

@@ -56,4 +56,3 @@ export function createQuestionBankService(http: HttpClient) {
   };
 }
 
-export type QuestionBankService = ReturnType<typeof createQuestionBankService>;

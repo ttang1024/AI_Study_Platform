@@ -63,4 +63,3 @@ export function createPracticeService(http: HttpClient) {
   };
 }
 
-export type PracticeService = ReturnType<typeof createPracticeService>;

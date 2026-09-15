@@ -1,6 +1,7 @@
 using FluentValidation.TestHelper;
 using StudyPlatform.Application.Auth.Commands;
 using StudyPlatform.Application.Auth.Validators;
+using StudyPlatform.Tests.TestSupport;
 using Xunit;
 
 namespace StudyPlatform.Tests.Validators;
@@ -63,10 +64,7 @@ public class RegisterValidatorTests
     }
 
     [Theory]
-    [InlineData("short1!")]              // too short
-    [InlineData("alllowercase1")]        // only lowercase + numbers
-    [InlineData("NoDigitsHere")]         // only uppercase + lowercase
-    [InlineData("ThisPasswordIsTooLong1!")] // too long
+    [MemberData(nameof(ValidationCases.WeakPasswords), MemberType = typeof(ValidationCases))]
     public void Weak_Password_FailsValidation(string password)
     {
         _validator.TestValidate(Valid() with { Password = password })
@@ -129,10 +127,7 @@ public class ResetPasswordValidatorTests
     }
 
     [Theory]
-    [InlineData("short1!")]
-    [InlineData("alllower1")]
-    [InlineData("NoDigits")]
-    [InlineData("ThisPasswordIsTooLong1!")]
+    [MemberData(nameof(ValidationCases.WeakPasswords), MemberType = typeof(ValidationCases))]
     public void Weak_NewPassword_FailsValidation(string password)
     {
         _validator.TestValidate(Valid() with { NewPassword = password })
@@ -161,10 +156,7 @@ public class ChangePasswordValidatorTests
     }
 
     [Theory]
-    [InlineData("short1!")]
-    [InlineData("alllower1")]
-    [InlineData("NoDigits")]
-    [InlineData("ThisPasswordIsTooLong1!")]
+    [MemberData(nameof(ValidationCases.WeakPasswords), MemberType = typeof(ValidationCases))]
     public void Weak_NewPassword_FailsValidation(string password)
     {
         _validator.TestValidate(Valid() with { NewPassword = password })

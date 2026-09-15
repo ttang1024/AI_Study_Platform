@@ -9,16 +9,8 @@ import { podcastService, PodcastFeed, PodcastFeedEpisode } from '../../services/
 import { detectPodcastSource, isDirectAudioUrl, looksLikeRssFeedUrl, validatePodcastUrl, PODCAST_SOURCES } from '../../constants/podcastSources';
 import { getApiErrorCode, getApiErrorMessage } from '../../utils/apiError';
 import { cn } from '../../utils/cn';
+import { container, item } from './summarizerShared';
 import { DuplicateAlert } from './DuplicateAlert';
-
-const container = {
-  hidden: { opacity: 0, y: 24 },
-  show: { opacity: 1, y: 0, transition: { staggerChildren: 0.09 } },
-};
-const item = {
-  hidden: { opacity: 0, y: 16, scale: 0.97 },
-  show: { opacity: 1, y: 0, scale: 1 },
-};
 
 const PODCAST_FEATURES = [
   { icon: Brain, label: 'AI Summary', color: 'text-teal-500 bg-teal-50' },

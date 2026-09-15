@@ -1,14 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { createStatsService } from '../statsService'
-import type { HttpClient } from '../../http'
+import { createFakeHttp, deferredResponse } from './fakeHttp'
 
-const fakeHttp: HttpClient = {
-  get: vi.fn(),
-  post: vi.fn(),
-  put: vi.fn(),
-  patch: vi.fn(),
-  delete: vi.fn(),
-}
+const fakeHttp = createFakeHttp()
 
 const fullStats = {
   totalDocuments: 5,
@@ -61,17 +55,13 @@ describe('statsService', () => {
 
     it('collapses concurrent calls into a single in-flight request', async () => {
       const service = createStatsService(fakeHttp)
-      let resolveRequest: (v: unknown) => void
-      vi.mocked(fakeHttp.get).mockReturnValueOnce(
-        new Promise((resolve) => {
-          resolveRequest = resolve
-        }) as never,
-      )
+      const inFlight = deferredResponse<unknown>()
+      vi.mocked(fakeHttp.get).mockReturnValueOnce(inFlight.promise as never)
 
       const p1 = service.getUserStats()
       const p2 = service.getUserStats()
 
-      resolveRequest!({ data: { data: fullStats } })
+      inFlight.resolve({ data: { data: fullStats } })
       await Promise.all([p1, p2])
 
       expect(fakeHttp.get).toHaveBeenCalledTimes(1)

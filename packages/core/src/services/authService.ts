@@ -119,4 +119,3 @@ export function createAuthService(http: HttpClient) {
   };
 }
 
-export type AuthService = ReturnType<typeof createAuthService>;

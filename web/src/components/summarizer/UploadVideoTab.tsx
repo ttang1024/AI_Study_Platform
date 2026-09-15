@@ -8,17 +8,9 @@ import { usePrompt } from '../common/PromptBox';
 import { useStudy } from '../../context/StudyContext';
 import { videoService, VideoListItem } from '../../services/videoService';
 import { cn } from '../../utils/cn';
+import { container, item, FileDropZone } from './summarizerShared';
 import { getApiErrorMessage } from '../../utils/apiError';
 import { DuplicateAlert } from './DuplicateAlert';
-
-const container = {
-  hidden: { opacity: 0, y: 24 },
-  show: { opacity: 1, y: 0, transition: { staggerChildren: 0.09 } },
-};
-const item = {
-  hidden: { opacity: 0, y: 16, scale: 0.97 },
-  show: { opacity: 1, y: 0, scale: 1 },
-};
 
 const VIDEO_TYPES = ['MP4', 'MOV', 'WEBM', 'MKV'];
 
@@ -153,25 +145,14 @@ export const UploadVideoTab: React.FC<UploadVideoTabProps> = ({ selectedCourseId
 
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="flex flex-col gap-5">
-      <motion.div
-        variants={item}
-        onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-        onDragLeave={() => setIsDragging(false)}
-        onDrop={(e) => { e.preventDefault(); setIsDragging(false); validateAndSetFile(e.dataTransfer.files[0]); }}
-        className={cn(
-          'group relative flex h-60 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-xl border-2 border-dashed transition-all duration-500',
-          isDragging ? 'border-primary bg-primary/5 scale-[1.02]' : file ? 'border-emerald-400 bg-emerald-50/50' : 'border-zinc-200 bg-white hover:border-primary/40 hover:bg-primary/[0.02]',
-        )}
+      <FileDropZone
+        hasFile={!!file}
+        isDragging={isDragging}
+        onDraggingChange={setIsDragging}
+        onFile={validateAndSetFile}
+        accept={"video/*,.mp4,.mov,.m4v,.webm,.mkv,.avi,.wmv,.flv,.3gp,.3g2,.ts,.mts,.m2ts,.mpg,.mpeg,.ogv,.vob,.asf"}
+        inputRef={inputRef}
       >
-        <div className="absolute inset-0 opacity-30 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, #d4d4d8 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
-        <input
-          ref={inputRef}
-          type="file"
-          className="absolute inset-0 z-10 cursor-pointer opacity-0"
-          accept="video/*,.mp4,.mov,.m4v,.webm,.mkv,.avi,.wmv,.flv,.3gp,.3g2,.ts,.mts,.m2ts,.mpg,.mpeg,.ogv,.vob,.asf"
-          onClick={(e) => { (e.target as HTMLInputElement).value = ''; }}
-          onChange={(e) => validateAndSetFile(e.target.files?.[0])}
-        />
         <AnimatePresence mode="wait">
           {!file ? (
             <motion.div key="empty" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.05 }} className="relative z-10 flex flex-col items-center gap-3 px-6 text-center pointer-events-none">
@@ -209,7 +190,7 @@ export const UploadVideoTab: React.FC<UploadVideoTabProps> = ({ selectedCourseId
             </motion.div>
           )}
         </AnimatePresence>
-      </motion.div>
+      </FileDropZone>
 
       <AnimatePresence>
         {duplicateVideo && (

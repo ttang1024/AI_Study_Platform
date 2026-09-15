@@ -11,19 +11,23 @@ namespace StudyPlatform.Infrastructure.Services;
 // plus the token accounting that wraps every call.
 public partial class AiService
 {
-    // ── Provider-agnostic core: non-streaming ─────────────────────────────
+    // ── Send & stream cores ───────────────────────────────────────────────
 
-    private async Task<string> SendTextAsync(
-        string? systemPrompt,
-        IEnumerable<(string role, string content)> messages,
-        double temperature,
-        int maxTokens,
+    /// <summary>
+    /// The one non-streaming round trip: send, fail loudly on a non-2xx, record the usage the body
+    /// reports, and hand back the model's text.
+    /// </summary>
+    /// <param name="buildRequest">
+    /// Deferred so the caller decides only the request shape — plain messages, a file, or a
+    /// multimodal turn — and inherits everything else.
+    /// </param>
+    private async Task<string> SendAsync(
+        Func<HttpRequestMessage> buildRequest,
         bool cleanJson,
-        CancellationToken cancellationToken,
-        [CallerMemberName] string operation = "")
+        string operation,
+        CancellationToken cancellationToken)
     {
-
-        using var request = BuildRequest(systemPrompt, messages, temperature, maxTokens, stream: false, GetNonStreamUrl());
+        using var request = buildRequest();
 
         using var response = await _httpClient.SendAsync(request, cancellationToken);
         if (!response.IsSuccessStatusCode)
@@ -40,18 +44,16 @@ public partial class AiService
         return cleanJson ? AiResponseParsing.CleanJsonResponse(text) : text.Trim();
     }
 
-    // ── Provider-agnostic core: streaming ────────────────────────────────
-
-    private async IAsyncEnumerable<string> StreamTextAsync(
-        string? systemPrompt,
-        IEnumerable<(string role, string content)> messages,
-        double temperature,
-        int maxTokens,
-        [EnumeratorCancellation] CancellationToken cancellationToken,
-        [CallerMemberName] string operation = "")
+    /// <summary>
+    /// The one streaming round trip. Usage is recorded in a <c>finally</c> so a consumer that
+    /// abandons the enumeration mid-answer is still accounted for.
+    /// </summary>
+    private async IAsyncEnumerable<string> StreamAsync(
+        Func<HttpRequestMessage> buildRequest,
+        string operation,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-
-        using var request = BuildRequest(systemPrompt, messages, temperature, maxTokens, stream: true, GetStreamUrl());
+        using var request = buildRequest();
 
         using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         if (!response.IsSuccessStatusCode)
@@ -71,6 +73,34 @@ public partial class AiService
             await RecordUsageAsync(usage.Result, operation, streamed: true);
         }
     }
+
+    // ── Provider-agnostic cores ───────────────────────────────────────────
+
+    private Task<string> SendTextAsync(
+        string? systemPrompt,
+        IEnumerable<(string role, string content)> messages,
+        double temperature,
+        int maxTokens,
+        bool cleanJson,
+        CancellationToken cancellationToken,
+        [CallerMemberName] string operation = "")
+        => SendAsync(
+            () => BuildRequest(systemPrompt, messages, temperature, maxTokens, stream: false, GetNonStreamUrl()),
+            cleanJson,
+            operation,
+            cancellationToken);
+
+    private IAsyncEnumerable<string> StreamTextAsync(
+        string? systemPrompt,
+        IEnumerable<(string role, string content)> messages,
+        double temperature,
+        int maxTokens,
+        CancellationToken cancellationToken,
+        [CallerMemberName] string operation = "")
+        => StreamAsync(
+            () => BuildRequest(systemPrompt, messages, temperature, maxTokens, stream: true, GetStreamUrl()),
+            operation,
+            cancellationToken);
 
     // ── SSE reading ───────────────────────────────────────────────────────
 
@@ -523,44 +553,27 @@ public partial class AiService
 
     // ── Provider-aware multimodal core: streaming ─────────────────────────
 
-    private async IAsyncEnumerable<string> StreamMultimodalTextAsync(
+    private IAsyncEnumerable<string> StreamMultimodalTextAsync(
         string? systemPrompt,
         IEnumerable<(string role, string content)> history,
         string userMessage,
         IReadOnlyList<(byte[] data, string mimeType)> attachments,
         double temperature,
         int maxTokens,
-        [EnumeratorCancellation] CancellationToken cancellationToken,
+        CancellationToken cancellationToken,
         [CallerMemberName] string operation = "")
-    {
+        => StreamAsync(
+            () => BuildMultimodalRequest(
+                systemPrompt, history, userMessage, attachments, temperature, maxTokens, stream: true, GetStreamUrl()),
+            operation,
+            cancellationToken);
 
-        using var request = BuildMultimodalRequest(systemPrompt, history, userMessage, attachments, temperature, maxTokens, stream: true, GetStreamUrl());
-
-        using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-        if (!response.IsSuccessStatusCode)
-        {
-            var err = await response.Content.ReadAsStringAsync(cancellationToken);
-            throw new InvalidOperationException($"{Provider} streaming API returned {response.StatusCode}: {err}");
-        }
-
-        var usage = new StreamUsageAccumulator();
-        try
-        {
-            await foreach (var text in ReadSseAsync(response, usage, cancellationToken))
-                yield return text;
-        }
-        finally
-        {
-            await RecordUsageAsync(usage.Result, operation, streamed: true);
-        }
-    }
-
-    // ── Provider-aware file core: non-streaming ───────────────────────────
+    // ── Provider-aware file cores ─────────────────────────────────────────
 
     private Task<string> CallAiWithFileAsync(byte[] fileData, string mimeType, string prompt, CancellationToken cancellationToken, bool cleanJson = true, [CallerMemberName] string operation = "")
         => SendFileTextAsync(fileData, mimeType, prompt, 0.7, 8192, cleanJson, cancellationToken, operation);
 
-    private async Task<string> SendFileTextAsync(
+    private Task<string> SendFileTextAsync(
         byte[] fileData,
         string mimeType,
         string prompt,
@@ -569,55 +582,22 @@ public partial class AiService
         bool cleanJson,
         CancellationToken cancellationToken,
         [CallerMemberName] string operation = "")
-    {
+        => SendAsync(
+            () => BuildFileRequest(fileData, mimeType, prompt, temperature, maxTokens, stream: false, GetNonStreamUrl()),
+            cleanJson,
+            operation,
+            cancellationToken);
 
-        using var request = BuildFileRequest(fileData, mimeType, prompt, temperature, maxTokens, stream: false, GetNonStreamUrl());
-
-        using var response = await _httpClient.SendAsync(request, cancellationToken);
-        if (!response.IsSuccessStatusCode)
-        {
-            var err = await response.Content.ReadAsStringAsync(cancellationToken);
-            _logger.LogError("{Provider} API error: {Status} - {Content}", Provider, response.StatusCode, err);
-            throw new InvalidOperationException($"{Provider} API returned {response.StatusCode}: {err}");
-        }
-
-        var json = await response.Content.ReadAsStringAsync(cancellationToken);
-        await RecordUsageAsync(ExtractUsage(json), operation, streamed: false);
-
-        var text = ExtractTextFromResponse(json);
-        return cleanJson ? AiResponseParsing.CleanJsonResponse(text) : text.Trim();
-    }
-
-    // ── Provider-aware file core: streaming ──────────────────────────────
-
-    private async IAsyncEnumerable<string> StreamFileTextAsync(
+    private IAsyncEnumerable<string> StreamFileTextAsync(
         byte[] fileData,
         string mimeType,
         string prompt,
         double temperature,
         int maxTokens,
-        [EnumeratorCancellation] CancellationToken cancellationToken,
+        CancellationToken cancellationToken,
         [CallerMemberName] string operation = "")
-    {
-
-        using var request = BuildFileRequest(fileData, mimeType, prompt, temperature, maxTokens, stream: true, GetStreamUrl());
-
-        using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-        if (!response.IsSuccessStatusCode)
-        {
-            var err = await response.Content.ReadAsStringAsync(cancellationToken);
-            throw new InvalidOperationException($"{Provider} streaming API returned {response.StatusCode}: {err}");
-        }
-
-        var usage = new StreamUsageAccumulator();
-        try
-        {
-            await foreach (var text in ReadSseAsync(response, usage, cancellationToken))
-                yield return text;
-        }
-        finally
-        {
-            await RecordUsageAsync(usage.Result, operation, streamed: true);
-        }
-    }
+        => StreamAsync(
+            () => BuildFileRequest(fileData, mimeType, prompt, temperature, maxTokens, stream: true, GetStreamUrl()),
+            operation,
+            cancellationToken);
 }

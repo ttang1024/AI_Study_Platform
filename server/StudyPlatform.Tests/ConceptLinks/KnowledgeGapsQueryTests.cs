@@ -128,18 +128,20 @@ public class GetKnowledgeGapsQueryHandlerTests
         Assert.Equal(1, result.Data.Stats.Undefined);
     }
 
-    [Fact]
-    public async Task Handle_CrossCourseUnmasteredTerm_IsHighSeverity()
+    /// <summary>
+    /// The arrangement both cross-course cases share: a term defined in course A's document and
+    /// mentioned by a note filed under course B. Severity then turns only on whether it is mastered.
+    /// </summary>
+    private Guid ArrangeTermDefinedInOneCourseAndReferencedInAnother()
     {
         var termId = Guid.NewGuid();
         var docA = Guid.NewGuid();
         var docB = Guid.NewGuid();
-        var courseA = Guid.NewGuid();
-        var courseB = Guid.NewGuid();
+
         _documents.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Document, bool>>>(), default)).ReturnsAsync(new[]
         {
-            new Document { DocumentId = docA, UserId = _userId, CourseId = courseA },
-            new Document { DocumentId = docB, UserId = _userId, CourseId = courseB },
+            new Document { DocumentId = docA, UserId = _userId, CourseId = Guid.NewGuid() },
+            new Document { DocumentId = docB, UserId = _userId, CourseId = Guid.NewGuid() },
         });
         _terms.Setup(r => r.GetByUserWithSourcesAsync(_userId, default))
             .ReturnsAsync(new[] { new GlossaryTerm { GlossaryTermId = termId, UserId = _userId, Term = "Mitosis", Definition = "def", DocumentId = docA } });
@@ -147,6 +149,14 @@ public class GetKnowledgeGapsQueryHandlerTests
         {
             new Note { NoteId = Guid.NewGuid(), UserId = _userId, Title = "N1", Content = "Mitosis!", DocumentId = docB },
         });
+
+        return termId;
+    }
+
+    [Fact]
+    public async Task Handle_CrossCourseUnmasteredTerm_IsHighSeverity()
+    {
+        ArrangeTermDefinedInOneCourseAndReferencedInAnother();
 
         var result = await _handler.Handle(new GetKnowledgeGapsQuery(_userId), default);
 
@@ -159,23 +169,8 @@ public class GetKnowledgeGapsQueryHandlerTests
     [Fact]
     public async Task Handle_CrossCourseMasteredTermWithNoOtherSignal_IsLowSeverity()
     {
-        var termId = Guid.NewGuid();
-        var docA = Guid.NewGuid();
-        var docB = Guid.NewGuid();
-        var courseA = Guid.NewGuid();
-        var courseB = Guid.NewGuid();
-        _documents.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Document, bool>>>(), default)).ReturnsAsync(new[]
-        {
-            new Document { DocumentId = docA, UserId = _userId, CourseId = courseA },
-            new Document { DocumentId = docB, UserId = _userId, CourseId = courseB },
-        });
-        _terms.Setup(r => r.GetByUserWithSourcesAsync(_userId, default))
-            .ReturnsAsync(new[] { new GlossaryTerm { GlossaryTermId = termId, UserId = _userId, Term = "Mitosis", Definition = "def", DocumentId = docA } });
+        var termId = ArrangeTermDefinedInOneCourseAndReferencedInAnother();
         _mastered.Setup(r => r.GetMasteredTermIdsByUserAsync(_userId, default)).ReturnsAsync(new[] { termId });
-        _notes.Setup(r => r.GetByUserIdAsync(_userId, default)).ReturnsAsync(new[]
-        {
-            new Note { NoteId = Guid.NewGuid(), UserId = _userId, Title = "N1", Content = "Mitosis!", DocumentId = docB },
-        });
 
         var result = await _handler.Handle(new GetKnowledgeGapsQuery(_userId), default);
 

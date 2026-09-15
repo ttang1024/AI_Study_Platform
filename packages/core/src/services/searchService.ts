@@ -48,4 +48,3 @@ export function createSearchService(http: HttpClient) {
   };
 }
 
-export type SearchService = ReturnType<typeof createSearchService>;

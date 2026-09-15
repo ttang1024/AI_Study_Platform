@@ -1,14 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { createVideoService } from '../videoService'
-import type { HttpClient } from '../../http'
+import { createFakeHttp } from './fakeHttp'
 
-const fakeHttp: HttpClient = {
-  get: vi.fn(),
-  post: vi.fn(),
-  put: vi.fn(),
-  patch: vi.fn(),
-  delete: vi.fn(),
-}
+const fakeHttp = createFakeHttp()
 
 const streamSse = vi.fn()
 

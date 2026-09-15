@@ -16,7 +16,6 @@ import Target from 'lucide-react-native/icons/target';
 import Video from 'lucide-react-native/icons/video';
 
 import { AnimatedNumber } from '@/components/AnimatedNumber';
-import { Card } from '@/components/Card';
 import { IconBadge } from '@/components/IconBadge';
 import { PressableScale } from '@/components/PressableScale';
 import { ProgressBar } from '@/components/ProgressBar';

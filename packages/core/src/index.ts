@@ -26,6 +26,8 @@ export * from './utils/apiError';
 export * from './utils/analyticsBuckets';
 export * from './utils/documentDisplay';
 export * from './utils/format';
+export * from './utils/heatmapGrid';
+export * from './utils/textChunks';
 export * from './utils/pdfRects';
 export * from './utils/quizAnswers';
 export * from './utils/ankiImport';

@@ -1,26 +1,17 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useNavigate, Link as RouterLink } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Upload, File, X, Loader2, ShieldCheck, Zap, FileText, BookOpen, ArrowRight, Image, Presentation, CheckCircle2 } from 'lucide-react';
+import { Upload, File, X, Loader2, ShieldCheck, FileText, BookOpen, Image, Presentation } from 'lucide-react';
 import { Button } from '../common/Button';
-import { DocumentCard } from '../common/DocumentCard';
 import { usePrompt } from '../common/PromptBox';
 import { useStudy } from '../../context/StudyContext';
 import { cn } from '../../utils/cn';
+import { container, item, RecentDocuments, StartLearningLabel, FileDropZone } from './summarizerShared';
 import { getApiErrorMessage } from '../../utils/apiError';
 import { calculateSha256 } from '../../utils/fileHash';
 import { DuplicateAlert } from './DuplicateAlert';
 import { getDuplicateDocRoute } from './duplicateDocRoute';
 import { DOCUMENT_ACCEPT_ATTR, isAcceptedDocumentFile } from '../../constants/documentUpload';
-
-const container = {
-  hidden: { opacity: 0, y: 24 },
-  show: { opacity: 1, y: 0, transition: { staggerChildren: 0.09 } },
-};
-const item = {
-  hidden: { opacity: 0, y: 16, scale: 0.97 },
-  show: { opacity: 1, y: 0, scale: 1 },
-};
 
 const FILE_TYPES = [
   { icon: BookOpen, label: 'PDF', color: 'text-red-400 bg-red-50' },
@@ -113,29 +104,14 @@ export const DocumentTab: React.FC<DocumentTabProps> = ({ selectedCourseId, onCo
 
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="flex flex-col gap-5">
-      <motion.div
-        variants={item}
-        onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-        onDragLeave={() => setIsDragging(false)}
-        onDrop={(e) => { e.preventDefault(); setIsDragging(false); validateAndSetFile(e.dataTransfer.files[0]); }}
-        className={cn(
-          'group relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed transition-all duration-500 overflow-hidden cursor-pointer h-60',
-          isDragging
-            ? 'border-primary bg-primary/5 scale-[1.02]'
-            : file
-              ? 'border-emerald-400 bg-emerald-50/50'
-              : 'border-zinc-200 bg-white hover:border-primary/40 hover:bg-primary/[0.02]',
-        )}
+      <FileDropZone
+        hasFile={!!file}
+        isDragging={isDragging}
+        onDraggingChange={setIsDragging}
+        onFile={validateAndSetFile}
+        accept={DOCUMENT_ACCEPT_ATTR}
+        inputRef={fileInputRef}
       >
-        <div className="absolute inset-0 opacity-30 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, #d4d4d8 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
-        <input
-          ref={fileInputRef}
-          type="file"
-          className="absolute inset-0 cursor-pointer opacity-0 z-10"
-          onClick={(e) => { (e.target as HTMLInputElement).value = ''; }}
-          onChange={(e) => { const f = e.target.files?.[0]; if (f) validateAndSetFile(f); }}
-          accept={DOCUMENT_ACCEPT_ATTR}
-        />
         <AnimatePresence mode="wait">
           {!file ? (
             <motion.div key="empty" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.05 }}
@@ -185,7 +161,7 @@ export const DocumentTab: React.FC<DocumentTabProps> = ({ selectedCourseId, onCo
             </motion.div>
           )}
         </AnimatePresence>
-      </motion.div>
+      </FileDropZone>
 
       <AnimatePresence>
         {duplicateDoc && (
@@ -225,29 +201,11 @@ export const DocumentTab: React.FC<DocumentTabProps> = ({ selectedCourseId, onCo
               : 'bg-zinc-100 text-zinc-400',
           )}
         >
-          {uploading
-            ? <span className="flex items-center gap-2"><Loader2 size={18} className="animate-spin" /> Processing...</span>
-            : duplicateDoc
-              ? <span className="flex items-center gap-2"><CheckCircle2 size={18} /> Already in Library</span>
-              : <span className="flex items-center gap-2"><Zap size={18} fill="currentColor" /> Start Learning</span>}
+          <StartLearningLabel busy={uploading} duplicate={duplicateDoc} />
         </Button>
       </motion.div>
 
-      {recentDocs.length > 0 && (
-        <motion.div variants={item} className="space-y-3 pt-2">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-text-main">Recent Documents</h3>
-            <RouterLink to="/library" className="flex items-center gap-1 text-xs font-medium text-[var(--primary)] hover:underline">
-              View All <ArrowRight size={12} />
-            </RouterLink>
-          </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {recentDocs.map(doc => (
-              <DocumentCard key={doc.id} doc={doc} course={getCourse(doc.courseId)} compact />
-            ))}
-          </div>
-        </motion.div>
-      )}
+      <RecentDocuments docs={recentDocs} getCourse={getCourse} />
     </motion.div>
   );
 };

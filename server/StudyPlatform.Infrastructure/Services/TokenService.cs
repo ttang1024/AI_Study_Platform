@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
+using StudyPlatform.Application.Auth;
 using StudyPlatform.Application.Services;
 using StudyPlatform.Domain.Entities;
 
@@ -44,7 +45,7 @@ public class TokenService : ITokenService
             issuer: issuer,
             audience: audience,
             claims: claims,
-            expires: DateTime.UtcNow.AddMinutes(15),
+            expires: DateTime.UtcNow.Add(AuthTokenLifetimes.AccessToken),
             signingCredentials: credentials);
 
         return new JwtSecurityTokenHandler().WriteToken(token);

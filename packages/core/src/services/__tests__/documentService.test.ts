@@ -6,15 +6,9 @@ import {
   mapDocument,
   type BackendDocument,
 } from '../documentService'
-import type { HttpClient } from '../../http'
+import { createFakeHttp } from './fakeHttp'
 
-const fakeHttp: HttpClient = {
-  get: vi.fn(),
-  post: vi.fn(),
-  put: vi.fn(),
-  patch: vi.fn(),
-  delete: vi.fn(),
-}
+const fakeHttp = createFakeHttp()
 const streamSse = vi.fn()
 
 describe('usesServerExtractedText', () => {

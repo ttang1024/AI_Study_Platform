@@ -1,4 +1,5 @@
 using Moq;
+using StudyPlatform.Application.Auth;
 using StudyPlatform.Application.Auth.Commands;
 using StudyPlatform.Application.Services;
 using StudyPlatform.Domain.Entities;
@@ -26,7 +27,9 @@ public class RegisterCommandHandlerTests
         _uow.Setup(u => u.Otps).Returns(_otps.Object);
         _uow.Setup(u => u.RefreshTokens).Returns(_tokens.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new RegisterCommandHandler(_uow.Object, _tokenService.Object, _emailService.Object, _hasher.Object, _requestContext.Object);
+        _handler = new RegisterCommandHandler(
+            _uow.Object, _emailService.Object, _hasher.Object,
+            new AuthSessionIssuer(_uow.Object, _tokenService.Object, _requestContext.Object));
     }
 
     private static RegisterCommand Valid() => new("user@example.com", "Password1", "Test User", "123456");

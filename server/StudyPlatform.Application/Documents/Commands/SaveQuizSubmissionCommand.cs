@@ -1,9 +1,7 @@
-using System.Text.Json;
 using MediatR;
 using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Documents.DTOs;
-using StudyPlatform.Application.Mistakes;
-using StudyPlatform.Domain.Entities;
+using StudyPlatform.Application.Services;
 using StudyPlatform.Domain.Interfaces;
 
 namespace StudyPlatform.Application.Documents.Commands;
@@ -23,10 +21,12 @@ public record SaveQuizSubmissionCommand(
 public class SaveQuizSubmissionCommandHandler : IRequestHandler<SaveQuizSubmissionCommand, Result<QuizSubmissionDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IQuizSubmissionWriter _submissions;
 
-    public SaveQuizSubmissionCommandHandler(IUnitOfWork unitOfWork)
+    public SaveQuizSubmissionCommandHandler(IUnitOfWork unitOfWork, IQuizSubmissionWriter submissions)
     {
         _unitOfWork = unitOfWork;
+        _submissions = submissions;
     }
 
     public async Task<Result<QuizSubmissionDto>> Handle(SaveQuizSubmissionCommand request, CancellationToken cancellationToken)
@@ -35,43 +35,9 @@ public class SaveQuizSubmissionCommandHandler : IRequestHandler<SaveQuizSubmissi
         if (document == null || document.UserId != request.UserId)
             return Result<QuizSubmissionDto>.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
 
-        var existing = await _unitOfWork.QuizSubmissions.GetByDocumentAndUserAsync(request.DocumentId, request.UserId, cancellationToken);
-
-        var answersJson = JsonSerializer.Serialize(request.Answers);
-        var confidenceJson = ConfidenceSerializer.Serialize(request.Confidence);
-
-        if (existing != null)
-        {
-            existing.AnswersJson = answersJson;
-            existing.ConfidenceJson = confidenceJson;
-            existing.Score = request.Score;
-            existing.Total = request.Total;
-            existing.SubmittedAt = DateTime.UtcNow;
-            _unitOfWork.QuizSubmissions.Update(existing);
-        }
-        else
-        {
-            existing = new QuizSubmission
-            {
-                SubmissionId = Guid.NewGuid(),
-                DocumentId = request.DocumentId,
-                SourceType = "document",
-                UserId = request.UserId,
-                AnswersJson = answersJson,
-                ConfidenceJson = confidenceJson,
-                Score = request.Score,
-                Total = request.Total,
-                SubmittedAt = DateTime.UtcNow,
-            };
-            await _unitOfWork.QuizSubmissions.AddAsync(existing, cancellationToken);
-        }
-
-        await MistakeCapture.CaptureAsync(
-            _unitOfWork, request.UserId, "document", request.DocumentId, null, request.Answers, cancellationToken);
-
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-        var dto = existing.ToQuizSubmissionDto();
+        var dto = await _submissions.UpsertAsync(
+            request.UserId, QuizSource.Document(request.DocumentId),
+            request.Answers, request.Score, request.Total, request.Confidence, cancellationToken);
 
         return Result<QuizSubmissionDto>.Success(dto, "Quiz submission saved.");
     }

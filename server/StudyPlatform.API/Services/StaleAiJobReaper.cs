@@ -17,7 +17,7 @@ namespace StudyPlatform.API.Services;
 /// catches the hung-run case that a liveness check would miss. It also cleans up jobs stranded by
 /// an ordinary deploy, which was already possible on a single replica.</para>
 /// </summary>
-public sealed class StaleAiJobReaper : BackgroundService
+public sealed class StaleAiJobReaper : PeriodicSweepWorker
 {
     /// <summary>
     /// Generous on purpose. Legitimate generations against a slow provider on a long document take
@@ -25,49 +25,28 @@ public sealed class StaleAiJobReaper : BackgroundService
     /// </summary>
     private static readonly TimeSpan StaleAfter = TimeSpan.FromMinutes(30);
 
-    private static readonly TimeSpan SweepInterval = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan SweepEvery = TimeSpan.FromMinutes(5);
 
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<StaleAiJobReaper> _logger;
 
     public StaleAiJobReaper(IServiceScopeFactory scopeFactory, ILogger<StaleAiJobReaper> logger)
+        : base(logger)
     {
         _scopeFactory = scopeFactory;
         _logger = logger;
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        // Sweep once at startup as well as on the timer: a deploy is the single most likely cause of
-        // orphaned jobs, and the users affected are waiting right now.
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            try
-            {
-                await SweepAsync(stoppingToken);
-            }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                // Never let the reaper die; a transient database blip must not stop future sweeps.
-                _logger.LogWarning(ex, "Stale AI job sweep failed; will retry.");
-            }
+    // Sweeps once at startup as well as on the timer: a deploy is the single most likely cause of
+    // orphaned jobs, and the users affected are waiting right now.
+    protected override TimeSpan SweepInterval => SweepEvery;
 
-            try
-            {
-                await Task.Delay(SweepInterval, stoppingToken);
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-        }
-    }
+    protected override string SweepName => "Stale AI job";
 
-    private async Task SweepAsync(CancellationToken cancellationToken)
+    // A transient database blip here is not worth an error; the next sweep is five minutes away.
+    protected override LogLevel SweepFailureLevel => LogLevel.Warning;
+
+    protected override async Task SweepAsync(CancellationToken cancellationToken)
     {
         using var scope = _scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();

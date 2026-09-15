@@ -2,6 +2,7 @@ using Moq;
 using StudyPlatform.Application.Documents.Queries;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
+using StudyPlatform.Tests.TestSupport;
 using Xunit;
 
 namespace StudyPlatform.Tests.Documents;
@@ -21,22 +22,11 @@ public class GetAllDocumentsQueryHandlerTests
         _handler = new GetAllDocumentsQueryHandler(_uow.Object);
     }
 
-    private Document MakeDocument() => new()
-    {
-        DocumentId = Guid.NewGuid(),
-        UserId = _userId,
-        CourseId = Guid.NewGuid(),
-        FileName = "file.pdf",
-        BlobUrl = "blob://x",
-        ContentType = "application/pdf",
-        CreatedAt = DateTime.UtcNow,
-        UpdatedAt = DateTime.UtcNow,
-    };
 
     [Fact]
     public async Task Handle_ReturnsMappedPagedResult()
     {
-        var docs = new[] { MakeDocument(), MakeDocument() };
+        var docs = new[] { DocumentFixtures.Make(_userId), DocumentFixtures.Make(_userId) };
         _documents.Setup(r => r.GetAllByUserIdAsync(_userId, 1, 20, null, default))
             .ReturnsAsync((docs, 2));
 
@@ -89,22 +79,11 @@ public class GetDocumentByIdQueryHandlerTests
         _handler = new GetDocumentByIdQueryHandler(_uow.Object);
     }
 
-    private Document MakeDocument(Guid? userId = null) => new()
-    {
-        DocumentId = Guid.NewGuid(),
-        UserId = userId ?? _userId,
-        CourseId = Guid.NewGuid(),
-        FileName = "file.pdf",
-        BlobUrl = "blob://x",
-        ContentType = "application/pdf",
-        CreatedAt = DateTime.UtcNow,
-        UpdatedAt = DateTime.UtcNow,
-    };
 
     [Fact]
     public async Task Handle_OwnedDocument_ReturnsMappedDto()
     {
-        var doc = MakeDocument();
+        var doc = DocumentFixtures.Make(_userId);
         _documents.Setup(r => r.GetByIdAsync(doc.DocumentId, default)).ReturnsAsync(doc);
 
         var result = await _handler.Handle(new GetDocumentByIdQuery(doc.DocumentId, _userId), default);
@@ -143,17 +122,6 @@ public class GetDocumentQuizzesQueryHandlerTests
         _handler = new GetDocumentQuizzesQueryHandler(_uow.Object);
     }
 
-    private Document MakeDocument(Guid? userId = null) => new()
-    {
-        DocumentId = Guid.NewGuid(),
-        UserId = userId ?? _userId,
-        CourseId = Guid.NewGuid(),
-        FileName = "file.pdf",
-        BlobUrl = "blob://x",
-        ContentType = "application/pdf",
-        CreatedAt = DateTime.UtcNow,
-        UpdatedAt = DateTime.UtcNow,
-    };
 
     private Quiz MakeQuiz(Guid documentId, string difficulty = "medium") => new()
     {
@@ -171,7 +139,7 @@ public class GetDocumentQuizzesQueryHandlerTests
     [Fact]
     public async Task Handle_ReturnsAllQuizzesForDocument()
     {
-        var doc = MakeDocument();
+        var doc = DocumentFixtures.Make(_userId);
         var quizzes = new[] { MakeQuiz(doc.DocumentId), MakeQuiz(doc.DocumentId) };
         _documents.Setup(r => r.GetByIdAsync(doc.DocumentId, default)).ReturnsAsync(doc);
         _quizzes.Setup(r => r.GetByDocumentIdAsync(doc.DocumentId, default)).ReturnsAsync(quizzes);
@@ -185,7 +153,7 @@ public class GetDocumentQuizzesQueryHandlerTests
     [Fact]
     public async Task Handle_DifficultyFilter_UsesFilteredQuery()
     {
-        var doc = MakeDocument();
+        var doc = DocumentFixtures.Make(_userId);
         var quiz = MakeQuiz(doc.DocumentId, "easy");
         _documents.Setup(r => r.GetByIdAsync(doc.DocumentId, default)).ReturnsAsync(doc);
         _quizzes.Setup(r => r.GetByDocumentIdAndDifficultyAsync(doc.DocumentId, "easy", default))
@@ -228,22 +196,11 @@ public class GetGlossaryTermsQueryHandlerTests
         _handler = new GetGlossaryTermsQueryHandler(_uow.Object);
     }
 
-    private Document MakeDocument(Guid? userId = null) => new()
-    {
-        DocumentId = Guid.NewGuid(),
-        UserId = userId ?? _userId,
-        CourseId = Guid.NewGuid(),
-        FileName = "file.pdf",
-        BlobUrl = "blob://x",
-        ContentType = "application/pdf",
-        CreatedAt = DateTime.UtcNow,
-        UpdatedAt = DateTime.UtcNow,
-    };
 
     [Fact]
     public async Task Handle_ReturnsMappedTermDtos()
     {
-        var doc = MakeDocument();
+        var doc = DocumentFixtures.Make(_userId);
         var glossaryTerms = new[]
         {
             new GlossaryTerm { GlossaryTermId = Guid.NewGuid(), DocumentId = doc.DocumentId, UserId = _userId, Term = "Foo", Definition = "Bar", CreatedAt = DateTime.UtcNow },
@@ -272,7 +229,7 @@ public class GetGlossaryTermsQueryHandlerTests
     [Fact]
     public async Task Handle_DocumentOwnedByOtherUser_ReturnsFailure()
     {
-        var doc = MakeDocument(userId: Guid.NewGuid());
+        var doc = DocumentFixtures.Make(userId: Guid.NewGuid());
         _documents.Setup(r => r.GetByIdAsync(doc.DocumentId, default)).ReturnsAsync(doc);
 
         var result = await _handler.Handle(new GetGlossaryTermsQuery(doc.DocumentId, _userId), default);

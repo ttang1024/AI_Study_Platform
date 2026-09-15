@@ -1,14 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { createAnalyticsService } from '../analyticsService'
-import type { HttpClient } from '../../http'
+import { createFakeHttp, deferredResponse } from './fakeHttp'
 
-const fakeHttp: HttpClient = {
-  get: vi.fn(),
-  post: vi.fn(),
-  put: vi.fn(),
-  patch: vi.fn(),
-  delete: vi.fn(),
-}
+const fakeHttp = createFakeHttp()
 
 const summary = { streak: { currentStreak: 1, longestStreak: 1, todaySeconds: 0, todayMinutes: 0, freezesAvailable: 0, vacationUntil: null }, dueFlashcards: 0, reinforcement: { quizMistakes: 0, unmasteredTerms: 0, hardFlashcards: 0 }, dailyGoalMinutes: 30 }
 
@@ -87,16 +81,12 @@ describe('analyticsService', () => {
 
     it('collapses concurrent in-flight requests', async () => {
       const service = createAnalyticsService(fakeHttp)
-      let resolveRequest: (v: unknown) => void
-      vi.mocked(fakeHttp.get).mockReturnValueOnce(
-        new Promise((resolve) => {
-          resolveRequest = resolve
-        }) as never,
-      )
+      const inFlight = deferredResponse<unknown>()
+      vi.mocked(fakeHttp.get).mockReturnValueOnce(inFlight.promise as never)
 
       const p1 = service.getDashboardSummary()
       const p2 = service.getDashboardSummary()
-      resolveRequest!({ data: { data: summary } })
+      inFlight.resolve({ data: { data: summary } })
       await Promise.all([p1, p2])
 
       expect(fakeHttp.get).toHaveBeenCalledTimes(1)

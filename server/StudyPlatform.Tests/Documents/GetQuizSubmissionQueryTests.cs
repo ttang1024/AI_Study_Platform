@@ -1,5 +1,6 @@
 using System.Linq.Expressions;
 using Moq;
+using StudyPlatform.Application.Documents;
 using StudyPlatform.Application.Documents.Queries;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
@@ -129,7 +130,7 @@ public class GetPendingQuizMaterialsQueryHandlerTests
         _courses.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Course, bool>>>(), default)).ReturnsAsync(Array.Empty<Course>());
         _documents.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Document, bool>>>(), default)).ReturnsAsync(Array.Empty<Document>());
         _videos.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Video, bool>>>(), default)).ReturnsAsync(Array.Empty<Video>());
-        _handler = new GetPendingQuizMaterialsQueryHandler(_uow.Object);
+        _handler = new GetPendingQuizMaterialsQueryHandler(_uow.Object, new StudyMaterialLookup(_uow.Object));
     }
 
     [Fact]
@@ -185,7 +186,7 @@ public class GetGeneratedQuizMaterialsQueryHandlerTests
         _courses.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Course, bool>>>(), default)).ReturnsAsync(Array.Empty<Course>());
         _documents.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Document, bool>>>(), default)).ReturnsAsync(Array.Empty<Document>());
         _videos.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Video, bool>>>(), default)).ReturnsAsync(Array.Empty<Video>());
-        _handler = new GetGeneratedQuizMaterialsQueryHandler(_uow.Object);
+        _handler = new GetGeneratedQuizMaterialsQueryHandler(_uow.Object, new StudyMaterialLookup(_uow.Object));
     }
 
     [Fact]

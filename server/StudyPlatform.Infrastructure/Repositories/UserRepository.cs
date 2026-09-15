@@ -15,9 +15,6 @@ public class UserRepository : Repository<User>, IUserRepository
     public async Task<bool> EmailExistsAsync(string email, CancellationToken cancellationToken = default)
         => await _dbSet.AnyAsync(u => u.Email == email.ToLowerInvariant(), cancellationToken);
 
-    public async Task<User?> GetByIdAsync(Guid userId, CancellationToken cancellationToken = default)
-        => await _dbSet.FirstOrDefaultAsync(u => u.UserId == userId, cancellationToken);
-
     public async Task<(List<User> Items, int Total)> ListAsync(
         int page, int pageSize, string? search, string? status, string? sort,
         CancellationToken cancellationToken = default)

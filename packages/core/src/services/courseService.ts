@@ -46,4 +46,3 @@ export function createCourseService(http: HttpClient) {
   };
 }
 
-export type CourseService = ReturnType<typeof createCourseService>;

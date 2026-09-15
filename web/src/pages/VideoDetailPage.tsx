@@ -1,17 +1,17 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Youtube, Sparkles, Loader2, RotateCcw, ChevronLeft, AlertCircle, Copy, Download, Share2, FileVideo, Clapperboard } from 'lucide-react';
+import { Youtube, Sparkles, Loader2, ChevronLeft, AlertCircle, Share2, FileVideo, Clapperboard } from 'lucide-react';
 import { VideoNoteEditor } from '../components/youtube/VideoNoteEditor';
 import { MindMapViewer } from '../components/mindmap/MindMapViewer';
 import { Flashcards } from '../components/study/Flashcards';
 import { DocumentQuiz } from '../components/quiz/DocumentQuiz';
-import { ChatPanel } from '../components/ai/ChatPanel';
-import { ChatConversationBar } from '../components/ai/ChatConversationBar';
+import { StudyChatTab } from '../components/ai/StudyChatTab';
 import { SummaryPanel } from '../components/study/SummaryPanel';
 import { WorkedProblemsPanel } from '../components/WorkedProblemsPanel';
 import { TextSelectionToolbar } from '../components/document/TextSelectionToolbar';
 import { cn } from '../utils/cn';
-import { TABS } from '../constants/tab';
+import { StudyTabBar } from '../components/common/StudyTabBar';
+import { TranscriptActions, TranscriptRefreshButton } from '../components/common/TranscriptActions';
 import { ShareModal } from '../components/common/ShareModal';
 import { DetailPageSkeleton } from '../components/common/DetailPageSkeleton';
 import { ShareableQuiz, ShareableCard } from '../services/shareContentService';
@@ -37,7 +37,7 @@ export const VideoDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
     transcript, transcriptError, isLoadingTranscript, refreshTranscript,
     subtitles, subtitlesError, isLoadingSubtitles, refreshSubtitles,
     iframeRef, uploadedVideoRef,
-    openMenu, setOpenMenu, copyMenuRef, downloadMenuRef, copyTranscript, downloadTranscript,
+    copyTranscript, downloadTranscript,
     mindMapText, isLoadingMindMap, mindMapStreamingText, generateMindMap, handleSaveMindMap,
     flashcards, isLoadingFlashcards, generateFlashcards,
     activeQuizDifficulty, quizQuestionSets, quizQuestions, userAnswers, isQuizSubmitted,
@@ -57,24 +57,7 @@ export const VideoDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
   // ─── Study Panel ─────────────────────────────────────────────────────────
   const studyPanel = (
     <div className="flex flex-col h-full w-full">
-      {/* Horizontal Tab Bar */}
-      <div className="flex items-center border-b border-[var(--border-color)] bg-[var(--bg-sidebar)] shrink-0 overflow-x-auto no-scrollbar">
-        {TABS.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={cn(
-              'flex flex-1 flex-col items-center gap-1 px-2 py-2.5 text-[9px] font-bold uppercase tracking-wider transition-colors border-b-2 shrink-0',
-              activeTab === tab.id
-                ? 'border-[var(--primary)] text-[var(--primary)]'
-                : 'border-transparent text-text-muted hover:text-text-main',
-            )}
-          >
-            <tab.icon size={15} />
-            <span>{tab.label}</span>
-          </button>
-        ))}
-      </div>
+      <StudyTabBar activeTab={activeTab} onSelect={setActiveTab} />
 
       {/* Tab Content */}
       <div className="flex-1 flex flex-col overflow-hidden bg-[var(--bg-sidebar)]">
@@ -177,28 +160,22 @@ export const VideoDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
         </div>
 
         {/* AI Chat */}
-        <div className={cn('flex-1 overflow-hidden flex flex-col', activeTab !== 'chat' && 'hidden')}>
-          <ChatConversationBar
-            conversations={chatConversations}
-            activeId={activeConversationId}
-            onSelect={selectConversation}
-            onNew={newConversation}
-            onDelete={deleteConversation}
-          />
-          <div className="flex-1 overflow-hidden">
-            <ChatPanel
-              ref={chatPanelRef}
-              externalMessages={chatMessages}
-              onExternalStreamSend={streamChat}
-              enableAttachments
-              onExternalAddToNote={(html) => {
-                noteEditorRef.current?.appendContent(html);
-                setActiveTab('notes');
-              }}
-              placeholder="Ask anything about the video…"
-            />
-          </div>
-        </div>
+        <StudyChatTab
+          ref={chatPanelRef}
+          hidden={activeTab !== 'chat'}
+          conversations={chatConversations}
+          activeConversationId={activeConversationId}
+          onSelectConversation={selectConversation}
+          onNewConversation={newConversation}
+          onDeleteConversation={deleteConversation}
+          messages={chatMessages}
+          onStreamSend={streamChat}
+          onAddToNote={(html) => {
+            noteEditorRef.current?.appendContent(html);
+            setActiveTab('notes');
+          }}
+          placeholder="Ask anything about the video…"
+        />
       </div>
     </div>
   );
@@ -323,66 +300,18 @@ export const VideoDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
                   ))}
                 </div>
                 {centerView === 'transcript' && transcript && (
-                  <div className="flex items-center gap-1">
-                    {/* Copy dropdown */}
-                    <div className="relative" ref={copyMenuRef}>
-                      <button
-                        onClick={() => setOpenMenu(openMenu === 'copy' ? null : 'copy')}
-                        className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-[10px] font-medium text-text-muted hover:bg-zinc-100 transition-colors"
-                      >
-                        <Copy size={11} /> Copy
-                      </button>
-                      {openMenu === 'copy' && (
-                        <div className="absolute right-0 top-full mt-1 z-50 min-w-[170px] rounded-lg border border-[var(--border-color)] bg-white shadow-lg overflow-hidden">
-                          <button onClick={() => copyTranscript(true)} className="w-full px-3 py-2 text-left text-[11px] text-text-main hover:bg-zinc-50 transition-colors">
-                            Copy with timestamp
-                          </button>
-                          <button onClick={() => copyTranscript(false)} className="w-full px-3 py-2 text-left text-[11px] text-text-main hover:bg-zinc-50 transition-colors">
-                            Copy without timestamp
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                    {/* Download dropdown */}
-                    <div className="relative" ref={downloadMenuRef}>
-                      <button
-                        onClick={() => setOpenMenu(openMenu === 'download' ? null : 'download')}
-                        className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-[10px] font-medium text-text-muted hover:bg-zinc-100 transition-colors"
-                      >
-                        <Download size={11} /> Download
-                      </button>
-                      {openMenu === 'download' && (
-                        <div className="absolute right-0 top-full mt-1 z-50 min-w-[190px] rounded-lg border border-[var(--border-color)] bg-white shadow-lg overflow-hidden">
-                          <button onClick={() => downloadTranscript('txt', true)} className="w-full px-3 py-2 text-left text-[11px] text-text-main hover:bg-zinc-50 transition-colors">
-                            TXT with timestamps
-                          </button>
-                          <button onClick={() => downloadTranscript('txt', false)} className="w-full px-3 py-2 text-left text-[11px] text-text-main hover:bg-zinc-50 transition-colors">
-                            TXT without timestamps
-                          </button>
-                          <button onClick={() => downloadTranscript('srt', true)} className="w-full px-3 py-2 text-left text-[11px] text-text-main hover:bg-zinc-50 transition-colors">
-                            SRT with timestamps
-                          </button>
-                          <button onClick={() => downloadTranscript('srt', false)} className="w-full px-3 py-2 text-left text-[11px] text-text-main hover:bg-zinc-50 transition-colors">
-                            SRT without timestamps
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                    {/* Refresh */}
-                    <button onClick={refreshTranscript} disabled={isLoadingTranscript} className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-[10px] font-medium text-text-muted hover:bg-zinc-100 transition-colors disabled:opacity-50">
-                      <RotateCcw size={11} className={isLoadingTranscript ? 'animate-spin' : ''} /> Refresh
-                    </button>
-                  </div>
+                  <TranscriptActions
+                    onCopy={copyTranscript}
+                    onDownload={downloadTranscript}
+                    onRefresh={refreshTranscript}
+                    isRefreshing={isLoadingTranscript}
+                  />
                 )}
                 {centerView === 'transcript' && !transcript && transcriptError && (
-                  <button onClick={refreshTranscript} disabled={isLoadingTranscript} className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-[10px] font-medium text-text-muted hover:bg-zinc-100 transition-colors disabled:opacity-50">
-                    <RotateCcw size={11} className={isLoadingTranscript ? 'animate-spin' : ''} /> Refresh
-                  </button>
+                  <TranscriptRefreshButton onClick={refreshTranscript} isRefreshing={isLoadingTranscript} />
                 )}
                 {centerView === 'subtitles' && (subtitles || subtitlesError) && (
-                  <button onClick={refreshSubtitles} disabled={isLoadingSubtitles} className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-[10px] font-medium text-text-muted hover:bg-zinc-100 transition-colors disabled:opacity-50">
-                    <RotateCcw size={11} className={isLoadingSubtitles ? 'animate-spin' : ''} /> Refresh
-                  </button>
+                  <TranscriptRefreshButton onClick={refreshSubtitles} isRefreshing={isLoadingSubtitles} />
                 )}
               </div>
 

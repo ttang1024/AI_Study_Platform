@@ -11,7 +11,6 @@ import Gauge from 'lucide-react-native/icons/gauge';
 import Volume2 from 'lucide-react-native/icons/volume-2';
 import Languages from 'lucide-react-native/icons/languages';
 import FileArchive from 'lucide-react-native/icons/file-archive';
-import History from 'lucide-react-native/icons/history';
 
 import { Button } from '@/components/Button';
 import { IconBadge } from '@/components/IconBadge';

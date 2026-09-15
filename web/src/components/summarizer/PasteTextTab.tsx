@@ -1,25 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, Link as RouterLink } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Loader2, Zap, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { Button } from '../common/Button';
-import { DocumentCard } from '../common/DocumentCard';
 import { usePrompt } from '../common/PromptBox';
 import { useStudy } from '../../context/StudyContext';
 import { cn } from '../../utils/cn';
+import { container, item, RecentDocuments, StartLearningLabel } from './summarizerShared';
 import { getApiErrorMessage } from '../../utils/apiError';
 import { calculateSha256 } from '../../utils/fileHash';
 import { DuplicateAlert } from './DuplicateAlert';
 import { getDuplicateDocRoute } from './duplicateDocRoute';
-
-const container = {
-  hidden: { opacity: 0, y: 24 },
-  show: { opacity: 1, y: 0, transition: { staggerChildren: 0.09 } },
-};
-const item = {
-  hidden: { opacity: 0, y: 16, scale: 0.97 },
-  show: { opacity: 1, y: 0, scale: 1 },
-};
 
 const MIN_CHARS = 20;
 const MAX_CHARS = 500_000;
@@ -144,29 +134,11 @@ export const PasteTextTab: React.FC<PasteTextTabProps> = ({ selectedCourseId, on
               : 'bg-zinc-100 text-zinc-400',
           )}
         >
-          {submitting
-            ? <span className="flex items-center gap-2"><Loader2 size={18} className="animate-spin" /> Processing...</span>
-            : duplicateDoc
-              ? <span className="flex items-center gap-2"><CheckCircle2 size={18} /> Already in Library</span>
-              : <span className="flex items-center gap-2"><Zap size={18} fill="currentColor" /> Start Learning</span>}
+          <StartLearningLabel busy={submitting} duplicate={duplicateDoc} />
         </Button>
       </motion.div>
 
-      {recentDocs.length > 0 && (
-        <motion.div variants={item} className="space-y-3 pt-2">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-text-main">Recent Documents</h3>
-            <RouterLink to="/library" className="flex items-center gap-1 text-xs font-medium text-[var(--primary)] hover:underline">
-              View All <ArrowRight size={12} />
-            </RouterLink>
-          </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {recentDocs.map(doc => (
-              <DocumentCard key={doc.id} doc={doc} course={getCourse(doc.courseId)} compact />
-            ))}
-          </div>
-        </motion.div>
-      )}
+      <RecentDocuments docs={recentDocs} getCourse={getCourse} />
     </motion.div>
   );
 };

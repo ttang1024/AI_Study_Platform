@@ -68,10 +68,7 @@ public static class ChatAttachmentStore
     public static async Task<ChatMessageDto> ToDtoAsync(this ChatMessage message, IBlobStorageService blob, CancellationToken cancellationToken)
     {
         var attachments = await LoadAsync(blob, message.AttachmentsJson, cancellationToken);
-        return new ChatMessageDto(
-            message.MessageId, message.DocumentId, message.VideoId, message.SourceType,
-            message.Role, message.Content, message.CreatedAt,
-            attachments.Count > 0 ? attachments : null);
+        return message.ToChatMessageDto(attachments.Count > 0 ? attachments : null);
     }
 
     private static string ExtensionFor(string mimeType) => mimeType switch

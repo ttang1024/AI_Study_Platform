@@ -3,64 +3,17 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Colors, Spacing, Typography } from '@/constants/theme';
 import type { ActivityHeatmap as ActivityHeatmapData } from '@core/services/analyticsService';
+import { buildHeatmapGrid, HEATMAP_WEEKS, type HeatmapDayCell } from '@core/utils/heatmapGrid';
 
 const CELL = 11;
 const GAP = 2;
 const STEP = CELL + GAP;
-const WEEKS = 53;
 const LEVEL_OPACITY = [0, 0.28, 0.48, 0.72, 1];
-
-interface DayCell {
-  date: Date;
-  key: string;
-  reviews: number;
-  minutes: number;
-  score: number;
-  inRange: boolean;
-}
-
-const dayKey = (d: Date) => d.toISOString().slice(0, 10);
-
-/** Same grid math as web's ActivityHeatmapSection — 53 week-columns ending in the
- *  week containing `to`, so the two surfaces always agree pixel-for-pixel in shape. */
-const buildGrid = (data: ActivityHeatmapData): DayCell[][] => {
-  const byDay = new Map<string, { reviews: number; minutes: number }>();
-  for (const d of data.days) byDay.set(d.date.slice(0, 10), { reviews: d.reviews, minutes: d.studyMinutes });
-
-  const to = new Date(data.to);
-  const from = new Date(data.from);
-  const end = new Date(Date.UTC(to.getUTCFullYear(), to.getUTCMonth(), to.getUTCDate()));
-  const gridEnd = new Date(end);
-  gridEnd.setUTCDate(gridEnd.getUTCDate() + (6 - gridEnd.getUTCDay()));
-  const gridStart = new Date(gridEnd);
-  gridStart.setUTCDate(gridStart.getUTCDate() - (WEEKS * 7 - 1));
-
-  const weeks: DayCell[][] = [];
-  const cursor = new Date(gridStart);
-  for (let w = 0; w < WEEKS; w++) {
-    const col: DayCell[] = [];
-    for (let d = 0; d < 7; d++) {
-      const key = dayKey(cursor);
-      const activity = byDay.get(key);
-      col.push({
-        date: new Date(cursor),
-        key,
-        reviews: activity?.reviews ?? 0,
-        minutes: activity?.minutes ?? 0,
-        score: (activity?.reviews ?? 0) + (activity?.minutes ?? 0),
-        inRange: cursor >= from && cursor <= end,
-      });
-      cursor.setUTCDate(cursor.getUTCDate() + 1);
-    }
-    weeks.push(col);
-  }
-  return weeks;
-};
 
 export const ActivityHeatmap: React.FC<{ data: ActivityHeatmapData }> = ({ data }) => {
   const scrollRef = useRef<ScrollView>(null);
-  const [selected, setSelected] = useState<DayCell | null>(null);
-  const weeks = useMemo(() => buildGrid(data), [data]);
+  const [selected, setSelected] = useState<HeatmapDayCell | null>(null);
+  const weeks = useMemo(() => buildHeatmapGrid(data), [data]);
 
   // Quartile thresholds over the non-zero scores, so a light-study week and a heavy
   // one both get the full four-level range instead of everything landing on level 1.

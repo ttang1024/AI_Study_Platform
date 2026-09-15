@@ -1,8 +1,10 @@
 using Moq;
+using StudyPlatform.Application.Documents;
 using StudyPlatform.Application.Documents.Commands;
 using StudyPlatform.Application.Services;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
+using StudyPlatform.Tests.TestSupport;
 using Xunit;
 
 namespace StudyPlatform.Tests.Documents;
@@ -27,22 +29,11 @@ public class DeleteDocumentCommandHandlerTests
         _handler = new DeleteDocumentCommandHandler(_uow.Object, _storage.Object, _embeddingIndex.Object);
     }
 
-    private Document MakeDocument(Guid? userId = null) => new()
-    {
-        DocumentId = Guid.NewGuid(),
-        UserId = userId ?? _userId,
-        CourseId = Guid.NewGuid(),
-        FileName = "test.pdf",
-        BlobUrl = "blob://test",
-        ContentType = "application/pdf",
-        CreatedAt = DateTime.UtcNow,
-        UpdatedAt = DateTime.UtcNow,
-    };
 
     [Fact]
     public async Task Handle_OwnedDocument_DeletesAndReturnsSuccess()
     {
-        var doc = MakeDocument();
+        var doc = DocumentFixtures.Make(_userId);
         _documents.Setup(r => r.GetByIdAsync(doc.DocumentId, default)).ReturnsAsync(doc);
         _storage.Setup(s => s.DeleteAsync(doc.BlobUrl, default)).Returns(Task.CompletedTask);
 
@@ -56,7 +47,7 @@ public class DeleteDocumentCommandHandlerTests
     [Fact]
     public async Task Handle_OwnedDocument_PrunesEmbeddingsAfterSaving()
     {
-        var doc = MakeDocument();
+        var doc = DocumentFixtures.Make(_userId);
         _documents.Setup(r => r.GetByIdAsync(doc.DocumentId, default)).ReturnsAsync(doc);
 
         var saved = false;
@@ -91,7 +82,7 @@ public class DeleteDocumentCommandHandlerTests
     [Fact]
     public async Task Handle_DocumentOwnedByOtherUser_ReturnsFailure()
     {
-        var doc = MakeDocument(userId: Guid.NewGuid());
+        var doc = DocumentFixtures.Make(userId: Guid.NewGuid());
         _documents.Setup(r => r.GetByIdAsync(doc.DocumentId, default)).ReturnsAsync(doc);
 
         var result = await _handler.Handle(new DeleteDocumentCommand(doc.DocumentId, _userId), default);
@@ -103,7 +94,7 @@ public class DeleteDocumentCommandHandlerTests
     [Fact]
     public async Task Handle_BlobDeletionFails_StillDeletesDocument()
     {
-        var doc = MakeDocument();
+        var doc = DocumentFixtures.Make(_userId);
         _documents.Setup(r => r.GetByIdAsync(doc.DocumentId, default)).ReturnsAsync(doc);
         _storage.Setup(s => s.DeleteAsync(doc.BlobUrl, default)).ThrowsAsync(new Exception("blob error"));
 
@@ -130,22 +121,11 @@ public class UpdateDocumentCommandHandlerTests
         _handler = new UpdateDocumentCommandHandler(_uow.Object);
     }
 
-    private Document MakeDocument(Guid? userId = null) => new()
-    {
-        DocumentId = Guid.NewGuid(),
-        UserId = userId ?? _userId,
-        CourseId = Guid.NewGuid(),
-        FileName = "old.pdf",
-        BlobUrl = "blob://test",
-        ContentType = "application/pdf",
-        CreatedAt = DateTime.UtcNow,
-        UpdatedAt = DateTime.UtcNow,
-    };
 
     [Fact]
     public async Task Handle_OwnedDocument_UpdatesFileNameAndReturnsDto()
     {
-        var doc = MakeDocument();
+        var doc = DocumentFixtures.Make(_userId);
         _documents.Setup(r => r.GetByIdAsync(doc.DocumentId, default)).ReturnsAsync(doc);
 
         var result = await _handler.Handle(new UpdateDocumentCommand(doc.DocumentId, _userId, "  new name.pdf  "), default);
@@ -169,7 +149,7 @@ public class UpdateDocumentCommandHandlerTests
     [Fact]
     public async Task Handle_DocumentOwnedByOtherUser_ReturnsFailure()
     {
-        var doc = MakeDocument(userId: Guid.NewGuid());
+        var doc = DocumentFixtures.Make(userId: Guid.NewGuid());
         _documents.Setup(r => r.GetByIdAsync(doc.DocumentId, default)).ReturnsAsync(doc);
 
         var result = await _handler.Handle(new UpdateDocumentCommand(doc.DocumentId, _userId, "name.pdf"), default);
@@ -180,7 +160,7 @@ public class UpdateDocumentCommandHandlerTests
     [Fact]
     public async Task Handle_EmptyFileName_ReturnsFailure()
     {
-        var doc = MakeDocument();
+        var doc = DocumentFixtures.Make(_userId);
         _documents.Setup(r => r.GetByIdAsync(doc.DocumentId, default)).ReturnsAsync(doc);
 
         var result = await _handler.Handle(new UpdateDocumentCommand(doc.DocumentId, _userId, "   "), default);
@@ -192,7 +172,7 @@ public class UpdateDocumentCommandHandlerTests
     [Fact]
     public async Task Handle_FileNameOver500Chars_ReturnsFailure()
     {
-        var doc = MakeDocument();
+        var doc = DocumentFixtures.Make(_userId);
         _documents.Setup(r => r.GetByIdAsync(doc.DocumentId, default)).ReturnsAsync(doc);
         var longName = new string('a', 501);
 
@@ -221,22 +201,11 @@ public class MoveDocumentCommandHandlerTests
         _handler = new MoveDocumentCommandHandler(_uow.Object);
     }
 
-    private Document MakeDocument(Guid? userId = null) => new()
-    {
-        DocumentId = Guid.NewGuid(),
-        UserId = userId ?? _userId,
-        CourseId = Guid.NewGuid(),
-        FileName = "test.pdf",
-        BlobUrl = "blob://test",
-        ContentType = "application/pdf",
-        CreatedAt = DateTime.UtcNow,
-        UpdatedAt = DateTime.UtcNow,
-    };
 
     [Fact]
     public async Task Handle_OwnedDocument_MovesToTargetCourse()
     {
-        var doc = MakeDocument();
+        var doc = DocumentFixtures.Make(_userId);
         var targetCourseId = Guid.NewGuid();
         _documents.Setup(r => r.GetByIdAsync(doc.DocumentId, default)).ReturnsAsync(doc);
         _courses.Setup(r => r.BelongsToUserAsync(targetCourseId, _userId, default)).ReturnsAsync(true);
@@ -261,7 +230,7 @@ public class MoveDocumentCommandHandlerTests
     [Fact]
     public async Task Handle_TargetCourseNotFound_ReturnsFailure()
     {
-        var doc = MakeDocument();
+        var doc = DocumentFixtures.Make(_userId);
         var targetCourseId = Guid.NewGuid();
         _documents.Setup(r => r.GetByIdAsync(doc.DocumentId, default)).ReturnsAsync(doc);
         _courses.Setup(r => r.BelongsToUserAsync(targetCourseId, _userId, default)).ReturnsAsync(false);
@@ -296,25 +265,14 @@ public class SaveQuizSubmissionCommandHandlerTests
         _mistakes.Setup(r => r.FindAsync(It.IsAny<System.Linq.Expressions.Expression<Func<MistakeEntry, bool>>>(), default))
             .ReturnsAsync(Array.Empty<MistakeEntry>());
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new SaveQuizSubmissionCommandHandler(_uow.Object);
+        _handler = new SaveQuizSubmissionCommandHandler(_uow.Object, new QuizSubmissionWriter(_uow.Object));
     }
 
-    private Document MakeDocument(Guid? userId = null) => new()
-    {
-        DocumentId = Guid.NewGuid(),
-        UserId = userId ?? _userId,
-        CourseId = Guid.NewGuid(),
-        FileName = "test.pdf",
-        BlobUrl = "blob://test",
-        ContentType = "application/pdf",
-        CreatedAt = DateTime.UtcNow,
-        UpdatedAt = DateTime.UtcNow,
-    };
 
     [Fact]
     public async Task Handle_NewSubmission_CreatesAndReturnsDto()
     {
-        var doc = MakeDocument();
+        var doc = DocumentFixtures.Make(_userId);
         var answers = new Dictionary<string, string> { ["q1"] = "A", ["q2"] = "B" };
         _documents.Setup(r => r.GetByIdAsync(doc.DocumentId, default)).ReturnsAsync(doc);
         _submissions.Setup(r => r.GetByDocumentAndUserAsync(doc.DocumentId, _userId, default))
@@ -334,7 +292,7 @@ public class SaveQuizSubmissionCommandHandlerTests
     [Fact]
     public async Task Handle_ExistingSubmission_UpdatesAndReturnsDto()
     {
-        var doc = MakeDocument();
+        var doc = DocumentFixtures.Make(_userId);
         var existing = new QuizSubmission
         {
             SubmissionId = Guid.NewGuid(),
@@ -374,7 +332,7 @@ public class SaveQuizSubmissionCommandHandlerTests
     [Fact]
     public async Task Handle_DocumentOwnedByOtherUser_ReturnsFailure()
     {
-        var doc = MakeDocument(userId: Guid.NewGuid());
+        var doc = DocumentFixtures.Make(userId: Guid.NewGuid());
         _documents.Setup(r => r.GetByIdAsync(doc.DocumentId, default)).ReturnsAsync(doc);
 
         var result = await _handler.Handle(

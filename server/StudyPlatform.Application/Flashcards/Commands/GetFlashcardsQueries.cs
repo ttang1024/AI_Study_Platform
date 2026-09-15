@@ -2,6 +2,7 @@ using MediatR;
 using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Documents.DTOs;
 using StudyPlatform.Application.Flashcards.DTOs;
+using StudyPlatform.Application.Services;
 using StudyPlatform.Domain.Interfaces;
 
 namespace StudyPlatform.Application.Flashcards.Commands;
@@ -42,62 +43,19 @@ public class GetFlashcardCoverageQueryHandler : IRequestHandler<GetFlashcardCove
 public class GetPendingFlashcardMaterialsQueryHandler : IRequestHandler<GetPendingFlashcardMaterialsQuery, Result<IEnumerable<PendingMaterialDto>>>
 {
     private readonly IUnitOfWork _unitOfWork;
-    public GetPendingFlashcardMaterialsQueryHandler(IUnitOfWork unitOfWork) { _unitOfWork = unitOfWork; }
+    private readonly IStudyMaterialLookup _materials;
+
+    public GetPendingFlashcardMaterialsQueryHandler(IUnitOfWork unitOfWork, IStudyMaterialLookup materials)
+    {
+        _unitOfWork = unitOfWork;
+        _materials = materials;
+    }
 
     public async Task<Result<IEnumerable<PendingMaterialDto>>> Handle(GetPendingFlashcardMaterialsQuery request, CancellationToken cancellationToken)
     {
         var (documentIdsWithCards, videoIdsWithCards) = await _unitOfWork.Flashcards.GetCoverageByUserIdAsync(request.UserId, cancellationToken);
-        var documentIdSet = documentIdsWithCards.ToHashSet();
-        var videoIdSet = videoIdsWithCards.ToHashSet();
-        var courseMap = (await _unitOfWork.Courses.FindAsync(c => c.UserId == request.UserId, cancellationToken))
-            .ToDictionary(c => c.CourseId);
-
-        var documents = (await _unitOfWork.Documents.FindAsync(
-                d => d.UserId == request.UserId && !documentIdSet.Contains(d.DocumentId),
-                cancellationToken))
-            .Select(d =>
-            {
-                courseMap.TryGetValue(d.CourseId, out var course);
-                return new PendingMaterialDto(
-                    "document",
-                    d.DocumentId,
-                    d.CourseId,
-                    course?.CourseName ?? string.Empty,
-                    course?.CourseColor ?? "#a1a1aa",
-                    d.FileName,
-                    d.ContentType,
-                    d.BlobUrl,
-                    d.OriginalUrl,
-                    null,
-                    null,
-                    null,
-                    d.CreatedAt);
-            });
-
-        var videos = (await _unitOfWork.Videos.FindAsync(
-                v => v.UserId == request.UserId && !videoIdSet.Contains(v.VideoId),
-                cancellationToken))
-            .Select(v =>
-            {
-                courseMap.TryGetValue(v.CourseId, out var course);
-                return new PendingMaterialDto(
-                    "video",
-                    v.VideoId,
-                    v.CourseId,
-                    course?.CourseName ?? string.Empty,
-                    course?.CourseColor ?? "#a1a1aa",
-                    v.Title,
-                    null,
-                    null,
-                    null,
-                    v.ExternalVideoId,
-                    v.VideoUrl,
-                    v.ThumbnailUrl,
-                    v.CreatedAt,
-                    v.SourceType);
-            });
-
-        return Result<IEnumerable<PendingMaterialDto>>.Success(
-            documents.Concat(videos).OrderByDescending(m => m.CreatedAt));
+        var pending = await _materials.ListUncoveredAsync(
+            request.UserId, documentIdsWithCards, videoIdsWithCards, cancellationToken);
+        return Result<IEnumerable<PendingMaterialDto>>.Success(pending);
     }
 }

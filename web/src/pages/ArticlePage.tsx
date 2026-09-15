@@ -4,8 +4,8 @@ import {
   Globe, ChevronLeft, Sparkles, Share2,
 } from 'lucide-react';
 import { useStudy } from '../context/StudyContext';
-import { ChatPanel, ChatPanelRef } from '../components/ai/ChatPanel';
-import { ChatConversationBar } from '../components/ai/ChatConversationBar';
+import { ChatPanelRef } from '../components/ai/ChatPanel';
+import { StudyChatTab } from '../components/ai/StudyChatTab';
 import { useDocumentChatThreads } from '../components/ai/useDocumentChatThreads';
 import { MindMapViewer } from '../components/mindmap/MindMapViewer';
 import { Flashcards } from '../components/study/Flashcards';
@@ -16,7 +16,7 @@ import { TextSelectionToolbar } from '../components/document/TextSelectionToolba
 import { VideoNoteEditor, VideoNoteEditorRef } from '../components/youtube/VideoNoteEditor';
 import { SummaryPanel } from '../components/study/SummaryPanel';
 import { documentService } from '../services/documentService';
-import { TABS } from '../constants/tab';
+import { StudyTabBar } from '../components/common/StudyTabBar';
 import { cn } from '../utils/cn';
 import { getDocDisplayName } from '../utils/docName';
 import { ShareModal } from '../components/common/ShareModal';
@@ -287,24 +287,7 @@ export const ArticlePage: React.FC<{ embedded?: boolean; id?: string; courseId?:
           activeView === 'study' ? 'translate-x-0' : 'translate-x-full lg:translate-x-0',
         )}>
           <div className="flex flex-col h-full w-full">
-            {/* Horizontal Tab Bar */}
-            <div className="flex items-center border-b border-[var(--border-color)] bg-[var(--bg-sidebar)] shrink-0 overflow-x-auto no-scrollbar">
-              {TABS.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={cn(
-                    'flex flex-1 flex-col items-center gap-1 px-2 py-2.5 text-[9px] font-bold uppercase tracking-wider transition-colors border-b-2 shrink-0',
-                    activeTab === tab.id
-                      ? 'border-[var(--primary)] text-[var(--primary)]'
-                      : 'border-transparent text-text-muted hover:text-text-main',
-                  )}
-                >
-                  <tab.icon size={15} />
-                  <span>{tab.label}</span>
-                </button>
-              ))}
-            </div>
+            <StudyTabBar activeTab={activeTab} onSelect={setActiveTab} />
 
             {/* Tab Content */}
             <div className="flex-1 flex flex-col overflow-hidden bg-[var(--bg-sidebar)]">
@@ -348,28 +331,22 @@ export const ArticlePage: React.FC<{ embedded?: boolean; id?: string; courseId?:
                 </div>
               </div>
 
-              <div className={cn('flex-1 overflow-hidden flex flex-col', activeTab !== 'chat' && 'hidden')}>
-                <ChatConversationBar
-                  conversations={docChat.conversations}
-                  activeId={docChat.activeConversationId}
-                  onSelect={docChat.selectConversation}
-                  onNew={docChat.newConversation}
-                  onDelete={docChat.deleteConversation}
-                />
-                <div className="flex-1 overflow-hidden">
-                  <ChatPanel
-                    ref={chatPanelRef}
-                    onTabChange={setActiveTab}
-                    externalMessages={docChat.messages}
-                    enableAttachments
-                    onExternalStreamSend={docChat.streamChat}
-                    onExternalAddToNote={(html) => {
-                      noteEditorRef.current?.appendContent(html);
-                      setActiveTab('notes');
-                    }}
-                  />
-                </div>
-              </div>
+              <StudyChatTab
+                ref={chatPanelRef}
+                hidden={activeTab !== 'chat'}
+                conversations={docChat.conversations}
+                activeConversationId={docChat.activeConversationId}
+                onSelectConversation={docChat.selectConversation}
+                onNewConversation={docChat.newConversation}
+                onDeleteConversation={docChat.deleteConversation}
+                messages={docChat.messages}
+                onStreamSend={docChat.streamChat}
+                onTabChange={setActiveTab}
+                onAddToNote={(html) => {
+                  noteEditorRef.current?.appendContent(html);
+                  setActiveTab('notes');
+                }}
+              />
             </div>
           </div>
         </div>

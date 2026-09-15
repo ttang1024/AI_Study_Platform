@@ -58,13 +58,6 @@ export interface AISettings {
   models: Partial<Record<AIProvider, string>>;
 }
 
-/** The resolved per-request trio that becomes the X-AI-* headers. */
-export interface ResolvedAiSettings {
-  provider: string;
-  model: string;
-  key: string;
-}
-
 /** Build the X-AI-* request headers from a resolved trio. Omits the key header when empty. */
 export function buildAiHeaders(settings: { provider: string; model: string; key?: string }): Record<string, string> {
   const headers: Record<string, string> = {

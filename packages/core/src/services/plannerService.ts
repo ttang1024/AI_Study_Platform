@@ -121,4 +121,3 @@ export function createPlannerService(http: HttpClient) {
   };
 }
 
-export type PlannerService = ReturnType<typeof createPlannerService>;

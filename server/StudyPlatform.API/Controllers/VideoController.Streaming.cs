@@ -71,19 +71,8 @@ public partial class VideoController
     [ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status502BadGateway)]
     public async Task<IActionResult> StreamVideoChat(Guid id, [FromBody] AIChatRequest request, CancellationToken cancellationToken)
     {
-        var attachmentList = request.Attachments?.ToList() ?? [];
-        if (string.IsNullOrWhiteSpace(request.Message) && attachmentList.Count == 0)
-            return BadRequest(BaseResponse<string>.Fail("message is required.", "MISSING_MESSAGE"));
-
-        List<(byte[] data, string mimeType, string? fileName)> attachments;
-        try
-        {
-            attachments = ChatAttachments.Decode(attachmentList);
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(BaseResponse<string>.Fail(ex.Message, "INVALID_ATTACHMENT"));
-        }
+        if (ChatAttachments.TryDecodeTurn(request.Attachments, request.Message, out _, out var attachments) is { } invalid)
+            return invalid;
 
         var userId = User.GetUserId();
         var video = await GetVideoWithAccessCheckAsync(id, userId, cancellationToken);
@@ -116,43 +105,16 @@ public partial class VideoController
         var videoTranscript = await GetOrFetchTranscriptAsync(video, cancellationToken) ?? string.Empty;
 
         var stream = _aiService.StreamChatWithYouTubeAsync(videoTranscript, historyTuples, promptMessage, ChatAttachments.ToModelInputs(attachments), cancellationToken);
+        var thread = new ChatThread(userId, conversation, "video", VideoId: id);
         return await this.StreamAiToSseAsync(stream, cancellationToken,
-            beforeStream: async ct =>
-            {
-                if (historyTuples.Count == 0 && conversation.Title == ChatThreads.DefaultTitle)
-                    conversation.Title = ChatThreads.TitleFrom(promptMessage);
-                conversation.UpdatedAt = DateTime.UtcNow;
-                _unitOfWork.ChatMessages.UpdateConversation(conversation);
-                await _unitOfWork.ChatMessages.AddAsync(new ChatMessage
-                {
-                    MessageId = Guid.NewGuid(),
-                    VideoId = id,
-                    ChatConversationId = conversation.ConversationId,
-                    SourceType = "video",
-                    UserId = userId,
-                    Role = "user",
-                    Content = savedMessage,
-                    AttachmentsJson = attachmentsJson,
-                    CreatedAt = DateTime.UtcNow
-                }, ct);
-                await _unitOfWork.SaveChangesAsync(ct);
-            },
-            onCompleted: async (text, ct) =>
-            {
-                conversation.UpdatedAt = DateTime.UtcNow;
-                _unitOfWork.ChatMessages.UpdateConversation(conversation);
-                await _unitOfWork.ChatMessages.AddAsync(new ChatMessage
-                {
-                    MessageId = Guid.NewGuid(),
-                    VideoId = id,
-                    ChatConversationId = conversation.ConversationId,
-                    SourceType = "video",
-                    UserId = userId,
-                    Role = "assistant",
-                    Content = text,
-                    CreatedAt = DateTime.UtcNow
-                }, ct);
-                await _unitOfWork.SaveChangesAsync(ct);
-            });
+            beforeStream: ct => _chatTurns.RecordUserAsync(
+                thread,
+                savedMessage,
+                attachmentsJson,
+                historyTuples.Count == 0 && conversation.Title == ChatThreads.DefaultTitle
+                    ? ChatThreads.TitleFrom(promptMessage)
+                    : null,
+                ct),
+            onCompleted: (text, ct) => _chatTurns.RecordAssistantAsync(thread, text, ct));
     }
 }

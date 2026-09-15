@@ -1,12 +1,15 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Search, ChevronLeft, ChevronRight, ChevronDown, Star } from 'lucide-react';
+import { Search, ChevronDown, Star } from 'lucide-react';
 import { adminApi } from '../services/api';
 import type { FeedbackItem, FeedbackStatus } from '../types';
 import { TypeBadge, StatusBadge } from '../components/common/Badge';
 import { Button } from '../components/common/Button';
 import { formatRelative } from '../utils/format';
 import { cn } from '../utils/cn';
+import { ErrorBanner } from '../components/common/ErrorBanner';
+import { Pagination } from '../components/common/Pagination';
+import { useSearchParamSetter } from '../hooks/useSearchParamSetter';
 
 const PAGE_SIZE = 20;
 
@@ -66,15 +69,7 @@ export const FeedbackListPage: React.FC = () => {
 
   useEffect(() => { load(); }, [load]);
 
-  const setParam = (key: string, value: string) => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      if (value) next.set(key, value);
-      else next.delete(key);
-      if (key !== 'page') next.delete('page');
-      return next;
-    });
-  };
+  const setParam = useSearchParamSetter(setSearchParams);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -134,11 +129,7 @@ export const FeedbackListPage: React.FC = () => {
         )}
       </div>
 
-      {error && (
-        <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-600">
-          {error}
-        </div>
-      )}
+      <ErrorBanner error={error} />
 
       {/* Table */}
       <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] overflow-hidden">
@@ -210,32 +201,7 @@ export const FeedbackListPage: React.FC = () => {
         )}
       </div>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="mt-4 flex items-center justify-between">
-          <p className="text-xs text-[var(--text-secondary)]">
-            Page {page} of {totalPages}
-          </p>
-          <div className="flex items-center gap-1">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page <= 1}
-              onClick={() => setParam('page', String(page - 1))}
-            >
-              <ChevronLeft size={14} />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page >= totalPages}
-              onClick={() => setParam('page', String(page + 1))}
-            >
-              <ChevronRight size={14} />
-            </Button>
-          </div>
-        </div>
-      )}
+      <Pagination page={page} totalPages={totalPages} onPageChange={p => setParam('page', String(p))} />
     </div>
   );
 };

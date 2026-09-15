@@ -46,4 +46,3 @@ export function createAnnotationsService(http: HttpClient) {
   };
 }
 
-export type AnnotationsService = ReturnType<typeof createAnnotationsService>;

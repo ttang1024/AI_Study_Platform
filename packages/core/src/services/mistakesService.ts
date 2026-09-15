@@ -82,4 +82,3 @@ export function createMistakesService(http: HttpClient) {
   };
 }
 
-export type MistakesService = ReturnType<typeof createMistakesService>;

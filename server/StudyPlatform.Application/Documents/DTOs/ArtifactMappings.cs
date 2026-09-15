@@ -11,6 +11,12 @@ namespace StudyPlatform.Application.Documents.DTOs;
 /// </summary>
 public static class ArtifactMappings
 {
+    /// <param name="attachments">Presigned attachment URLs, when the caller has resolved them.</param>
+    public static ChatMessageDto ToChatMessageDto(
+        this ChatMessage m, IEnumerable<ChatMessageAttachmentDto>? attachments = null) => new(
+        m.MessageId, m.DocumentId, m.VideoId, m.SourceType,
+        m.Role, m.Content, m.CreatedAt, attachments);
+
     public static QuizDto ToQuizDto(this Quiz q) => new(
         q.QuizId, q.DocumentId, q.VideoId, q.SourceType, q.Question,
         JsonSerializer.Deserialize<string[]>(q.OptionsJson) ?? Array.Empty<string>(),

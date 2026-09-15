@@ -61,21 +61,7 @@ public class ClipUrlCommandHandler : IRequestHandler<ClipUrlCommand, Result<Docu
         await _unitOfWork.Documents.AddAsync(document, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return Result<DocumentDto>.Success(MapToDto(document), "Article clipped successfully.");
+        return Result<DocumentDto>.Success(document.ToDocumentDto(), "Article clipped successfully.");
     }
 
-    private static DocumentDto MapToDto(Document doc) => new(
-        doc.DocumentId,
-        doc.CourseId,
-        doc.UserId,
-        doc.FileName,
-        doc.BlobUrl,
-        doc.ContentType,
-        doc.FileSize,
-        doc.FileHash,
-        doc.Summary,
-        doc.MindMapText,
-        doc.CreatedAt,
-        doc.UpdatedAt,
-        OriginalUrl: doc.OriginalUrl);
 }

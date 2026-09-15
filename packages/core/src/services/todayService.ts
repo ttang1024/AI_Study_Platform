@@ -52,4 +52,3 @@ export function createTodayService(http: HttpClient) {
   };
 }
 
-export type TodayService = ReturnType<typeof createTodayService>;

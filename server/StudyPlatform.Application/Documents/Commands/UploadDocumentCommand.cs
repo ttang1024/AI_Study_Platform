@@ -104,24 +104,9 @@ public class UploadDocumentCommandHandler : IRequestHandler<UploadDocumentComman
         await _unitOfWork.Documents.AddAsync(document, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        var dto = MapToDto(document);
+        var dto = document.ToDocumentDto();
         return Result<DocumentDto>.Success(dto, "Document uploaded successfully.");
     }
-
-    private static DocumentDto MapToDto(Document doc) => new(
-        doc.DocumentId,
-        doc.CourseId,
-        doc.UserId,
-        doc.FileName,
-        doc.BlobUrl,
-        doc.ContentType,
-        doc.FileSize,
-        doc.FileHash,
-        doc.Summary,
-        doc.MindMapText,
-        doc.CreatedAt,
-        doc.UpdatedAt,
-        doc.Transcript);
 
     private static bool IsAudioUpload(string contentType)
         => contentType.StartsWith("audio/", StringComparison.OrdinalIgnoreCase)

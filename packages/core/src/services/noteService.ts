@@ -105,4 +105,3 @@ export function createNoteService(http: HttpClient) {
   };
 }
 
-export type NoteService = ReturnType<typeof createNoteService>;

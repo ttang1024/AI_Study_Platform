@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Youtube, Clock, Trash2, Sparkles, FolderInput, Pencil, Loader2, FileVideo, Clapperboard } from 'lucide-react';
+import { Youtube, Clock, Trash2, Sparkles, FolderInput, Pencil, FileVideo, Clapperboard } from 'lucide-react';
 import { useStudy } from '../../context/StudyContext';
 import { videoService } from '../../services/videoService';
 import { isExternalVideoSource, EXTERNAL_SOURCE_BRANDING, type VideoSourceType } from '../../constants/videoSources';
 import { MoveToCourseModal } from './MoveToCourseModal';
 import { DeleteModal } from './DeleteModal';
-import { Modal } from './Modal';
+import { RenameModal } from './RenameModal';
 
 function hashCode(str: string) {
   let h = 0;
@@ -255,45 +255,17 @@ export const VideoCard: React.FC<VideoCardProps> = ({ video, to, onDeleted, onMo
         onConfirm={handleDelete}
       />
 
-      <Modal
+      <RenameModal
         isOpen={showRenameModal}
-        onClose={() => !isRenaming && setShowRenameModal(false)}
         title="Edit video title"
-        className="max-w-md"
-      >
-        <form onSubmit={handleRename} className="space-y-4">
-          <div>
-            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-text-muted">
-              Video title
-            </label>
-            <input
-              autoFocus
-              value={renameDraft}
-              onChange={e => setRenameDraft(e.target.value)}
-              className="w-full rounded-xl border border-[var(--border-color)] px-3 py-2 text-sm font-medium text-text-main outline-none transition-colors focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15"
-            />
-            {renameError && <p className="mt-2 text-xs font-medium text-red-500">{renameError}</p>}
-          </div>
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => setShowRenameModal(false)}
-              disabled={isRenaming}
-              className="rounded-lg border border-[var(--border-color)] px-3 py-2 text-xs font-semibold text-text-main hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isRenaming}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--primary)] px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isRenaming && <Loader2 size={13} className="animate-spin" />}
-              Save
-            </button>
-          </div>
-        </form>
-      </Modal>
+        label="Video title"
+        value={renameDraft}
+        onChange={setRenameDraft}
+        error={renameError}
+        isSaving={isRenaming}
+        onClose={() => setShowRenameModal(false)}
+        onSubmit={handleRename}
+      />
 
       {/* Move modal */}
       {showMoveModal && (

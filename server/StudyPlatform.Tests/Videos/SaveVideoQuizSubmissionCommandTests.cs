@@ -1,5 +1,6 @@
 using System.Linq.Expressions;
 using Moq;
+using StudyPlatform.Application.Documents;
 using StudyPlatform.Application.Videos.Commands;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
@@ -29,7 +30,7 @@ public class SaveVideoQuizSubmissionCommandHandlerTests
             .ReturnsAsync(new Video { VideoId = _videoId, UserId = _userId });
         _quizzes.Setup(r => r.FindAsync(It.IsAny<Expression<Func<Quiz, bool>>>(), default)).ReturnsAsync(Array.Empty<Quiz>());
         _mistakes.Setup(r => r.FindAsync(It.IsAny<Expression<Func<MistakeEntry, bool>>>(), default)).ReturnsAsync(Array.Empty<MistakeEntry>());
-        _handler = new SaveVideoQuizSubmissionCommandHandler(_uow.Object);
+        _handler = new SaveVideoQuizSubmissionCommandHandler(_uow.Object, new QuizSubmissionWriter(_uow.Object));
     }
 
     [Fact]

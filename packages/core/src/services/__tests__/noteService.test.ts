@@ -1,14 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { createNoteService, mapBackendNote } from '../noteService'
-import type { HttpClient } from '../../http'
+import { createFakeHttp, deferredResponse } from './fakeHttp'
 
-const fakeHttp: HttpClient = {
-  get: vi.fn(),
-  post: vi.fn(),
-  put: vi.fn(),
-  patch: vi.fn(),
-  delete: vi.fn(),
-}
+const fakeHttp = createFakeHttp()
 
 const backendNote = (overrides: Record<string, unknown> = {}) => ({
   noteId: 'n-1',
@@ -53,16 +47,12 @@ describe('noteService', () => {
 
     it('collapses concurrent calls to the same page/pageSize into one request', async () => {
       const service = createNoteService(fakeHttp)
-      let resolveRequest: (v: unknown) => void
-      vi.mocked(fakeHttp.get).mockReturnValueOnce(
-        new Promise((resolve) => {
-          resolveRequest = resolve
-        }) as never,
-      )
+      const inFlight = deferredResponse<unknown>()
+      vi.mocked(fakeHttp.get).mockReturnValueOnce(inFlight.promise as never)
 
       const p1 = service.getAllNotes(2, 10)
       const p2 = service.getAllNotes(2, 10)
-      resolveRequest!({ data: { data: { items: [], totalCount: 0, page: 2, pageSize: 10, totalPages: 0 } } })
+      inFlight.resolve({ data: { data: { items: [], totalCount: 0, page: 2, pageSize: 10, totalPages: 0 } } })
       await Promise.all([p1, p2])
 
       expect(fakeHttp.get).toHaveBeenCalledTimes(1)

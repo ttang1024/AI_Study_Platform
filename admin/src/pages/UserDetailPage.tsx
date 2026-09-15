@@ -10,6 +10,7 @@ import { Button } from '../components/common/Button';
 import { BarTrend } from '../components/common/BarTrend';
 import { formatDate, formatRelative, formatMinutes, formatNumber } from '../utils/format';
 import { cn } from '../utils/cn';
+import { ErrorBanner } from '../components/common/ErrorBanner';
 
 const CONTENT_TILES: { key: keyof UserDetail['content']; label: string; icon: typeof FileText; color: string }[] = [
   { key: 'courses', label: 'Courses', icon: BookOpen, color: 'text-emerald-600' },
@@ -54,9 +55,7 @@ export const UserDetailPage: React.FC = () => {
         <ArrowLeft size={15} /> Back to users
       </Link>
 
-      {error && (
-        <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-600">{error}</div>
-      )}
+      <ErrorBanner error={error} />
 
       {!user && !error && (
         <div className="space-y-5">

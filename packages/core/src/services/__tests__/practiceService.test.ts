@@ -1,14 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { createPracticeService } from '../practiceService'
-import type { HttpClient } from '../../http'
+import { createFakeHttp } from './fakeHttp'
 
-const fakeHttp: HttpClient = {
-  get: vi.fn(),
-  post: vi.fn(),
-  put: vi.fn(),
-  patch: vi.fn(),
-  delete: vi.fn(),
-}
+const fakeHttp = createFakeHttp()
 
 describe('practiceService', () => {
   beforeEach(() => vi.clearAllMocks())

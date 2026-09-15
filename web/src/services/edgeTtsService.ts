@@ -1,37 +1,14 @@
 import { apiClient } from './apiClient';
 import { ttsSettingsService } from './ttsSettingsService';
+import { splitIntoSpeechChunks } from '@core/utils/textChunks';
 
-const MAX_CHUNK = 5000;
-
-function splitIntoChunks(text: string): string[] {
-  if (text.length <= MAX_CHUNK) return [text];
-
-  const chunks: string[] = [];
-  let remaining = text.trim();
-
-  while (remaining.length > MAX_CHUNK) {
-    const slice = remaining.slice(0, MAX_CHUNK);
-    const cut = Math.max(
-      slice.lastIndexOf('. '),
-      slice.lastIndexOf('.\n'),
-      slice.lastIndexOf('! '),
-      slice.lastIndexOf('? '),
-    );
-    const splitAt = cut > 0 ? cut + 1 : MAX_CHUNK;
-    chunks.push(remaining.slice(0, splitAt).trim());
-    remaining = remaining.slice(splitAt).trim();
-  }
-
-  if (remaining.length > 0) chunks.push(remaining);
-  return chunks;
-}
 
 export async function synthesizeSpeech(
   text: string,
   signal?: AbortSignal,
 ): Promise<string[]> {
   const voice = ttsSettingsService.getVoice();
-  const chunks = splitIntoChunks(text);
+  const chunks = splitIntoSpeechChunks(text);
 
   return Promise.all(
     chunks.map(async (chunk) => {
@@ -52,7 +29,7 @@ export async function synthesizeToBlob(
   signal?: AbortSignal,
 ): Promise<Blob> {
   const voice = ttsSettingsService.getVoice();
-  const chunks = splitIntoChunks(text);
+  const chunks = splitIntoSpeechChunks(text);
 
   const parts = await Promise.all(
     chunks.map(async (chunk) => {

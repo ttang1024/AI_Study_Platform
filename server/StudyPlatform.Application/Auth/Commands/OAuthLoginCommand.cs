@@ -2,8 +2,6 @@ using MediatR;
 using StudyPlatform.Application.Auth.DTOs;
 using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Services;
-using StudyPlatform.Domain.Entities;
-using StudyPlatform.Domain.Interfaces;
 
 namespace StudyPlatform.Application.Auth.Commands;
 
@@ -12,83 +10,35 @@ public record GoogleCredentialLoginCommand(string Credential) : IRequest<Result<
 
 public class OAuthLoginCommandHandler : IRequestHandler<OAuthLoginCommand, Result<AuthResponse>>
 {
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ITokenService _tokenService;
     private readonly IOAuthService _oAuthService;
-    private readonly IRequestContext _requestContext;
+    private readonly IExternalSignIn _externalSignIn;
 
-    public OAuthLoginCommandHandler(
-        IUnitOfWork unitOfWork, ITokenService tokenService, IOAuthService oAuthService,
-        IRequestContext requestContext)
+    public OAuthLoginCommandHandler(IOAuthService oAuthService, IExternalSignIn externalSignIn)
     {
-        _unitOfWork = unitOfWork;
-        _tokenService = tokenService;
         _oAuthService = oAuthService;
-        _requestContext = requestContext;
+        _externalSignIn = externalSignIn;
     }
 
     public async Task<Result<AuthResponse>> Handle(OAuthLoginCommand request, CancellationToken cancellationToken)
     {
-        var userInfo = await _oAuthService.GetUserInfoAsync(request.Provider, request.Code, request.RedirectUri, cancellationToken);
+        var userInfo = await _oAuthService.GetUserInfoAsync(
+            request.Provider, request.Code, request.RedirectUri, cancellationToken);
         if (userInfo == null)
             return Result<AuthResponse>.Failure($"Failed to authenticate with {request.Provider}. Please try again.", "OAUTH_FAILED");
 
-        var user = await _unitOfWork.Users.GetByEmailAsync(userInfo.Email.ToLowerInvariant(), cancellationToken);
-
-        if (user == null)
-        {
-            user = new User
-            {
-                UserId = Guid.NewGuid(),
-                Email = userInfo.Email.ToLowerInvariant(),
-                PasswordHash = string.Empty,
-                FullName = userInfo.FullName,
-                IsEmailVerified = true,
-                IsActive = true,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            };
-            await _unitOfWork.Users.AddAsync(user, cancellationToken);
-        }
-
-        if (!user.IsActive)
-            return Result<AuthResponse>.Failure("Your account has been deactivated. Please contact support.", "ACCOUNT_DEACTIVATED");
-
-        var accessToken = _tokenService.GenerateAccessToken(user);
-        var refreshTokenValue = _tokenService.GenerateRefreshToken();
-        var refreshToken = RefreshTokenFactory.Create(user.UserId, refreshTokenValue, _requestContext);
-
-        await _unitOfWork.RefreshTokens.AddAsync(refreshToken, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-        var response = new AuthResponse(
-            user.UserId,
-            user.Email,
-            user.FullName,
-            accessToken,
-            refreshTokenValue,
-            DateTime.UtcNow.AddMinutes(15));
-
-        return Result<AuthResponse>.Success(response, "Login successful.");
+        return await _externalSignIn.CompleteAsync(userInfo, cancellationToken);
     }
 }
 
 public class GoogleCredentialLoginCommandHandler : IRequestHandler<GoogleCredentialLoginCommand, Result<AuthResponse>>
 {
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ITokenService _tokenService;
     private readonly IOAuthService _oAuthService;
+    private readonly IExternalSignIn _externalSignIn;
 
-    private readonly IRequestContext _requestContext;
-
-    public GoogleCredentialLoginCommandHandler(
-        IUnitOfWork unitOfWork, ITokenService tokenService, IOAuthService oAuthService,
-        IRequestContext requestContext)
+    public GoogleCredentialLoginCommandHandler(IOAuthService oAuthService, IExternalSignIn externalSignIn)
     {
-        _unitOfWork = unitOfWork;
-        _tokenService = tokenService;
         _oAuthService = oAuthService;
-        _requestContext = requestContext;
+        _externalSignIn = externalSignIn;
     }
 
     public async Task<Result<AuthResponse>> Handle(GoogleCredentialLoginCommand request, CancellationToken cancellationToken)
@@ -97,42 +47,6 @@ public class GoogleCredentialLoginCommandHandler : IRequestHandler<GoogleCredent
         if (userInfo == null)
             return Result<AuthResponse>.Failure("Failed to authenticate with Google. Please try again.", "GOOGLE_CREDENTIAL_FAILED");
 
-        var user = await _unitOfWork.Users.GetByEmailAsync(userInfo.Email.ToLowerInvariant(), cancellationToken);
-
-        if (user == null)
-        {
-            user = new User
-            {
-                UserId = Guid.NewGuid(),
-                Email = userInfo.Email.ToLowerInvariant(),
-                PasswordHash = string.Empty,
-                FullName = userInfo.FullName,
-                IsEmailVerified = true,
-                IsActive = true,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            };
-            await _unitOfWork.Users.AddAsync(user, cancellationToken);
-        }
-
-        if (!user.IsActive)
-            return Result<AuthResponse>.Failure("Your account has been deactivated. Please contact support.", "ACCOUNT_DEACTIVATED");
-
-        var accessToken = _tokenService.GenerateAccessToken(user);
-        var refreshTokenValue = _tokenService.GenerateRefreshToken();
-        var refreshToken = RefreshTokenFactory.Create(user.UserId, refreshTokenValue, _requestContext);
-
-        await _unitOfWork.RefreshTokens.AddAsync(refreshToken, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-        var response = new AuthResponse(
-            user.UserId,
-            user.Email,
-            user.FullName,
-            accessToken,
-            refreshTokenValue,
-            DateTime.UtcNow.AddMinutes(15));
-
-        return Result<AuthResponse>.Success(response, "Login successful.");
+        return await _externalSignIn.CompleteAsync(userInfo, cancellationToken);
     }
 }

@@ -1,14 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { createQuizSubmissionService } from '../documentService'
-import type { HttpClient } from '../../http'
+import { createFakeHttp, deferredResponse } from './fakeHttp'
 
-const fakeHttp: HttpClient = {
-  get: vi.fn(),
-  post: vi.fn(),
-  put: vi.fn(),
-  patch: vi.fn(),
-  delete: vi.fn(),
-}
+const fakeHttp = createFakeHttp()
 
 describe('createQuizSubmissionService', () => {
   beforeEach(() => vi.clearAllMocks())
@@ -53,16 +47,12 @@ describe('createQuizSubmissionService', () => {
 
     it('collapses concurrent in-flight requests for the same page', async () => {
       const service = createQuizSubmissionService(fakeHttp)
-      let resolveRequest: (v: unknown) => void
-      vi.mocked(fakeHttp.get).mockReturnValueOnce(
-        new Promise((resolve) => {
-          resolveRequest = resolve
-        }) as never,
-      )
+      const inFlight = deferredResponse<unknown>()
+      vi.mocked(fakeHttp.get).mockReturnValueOnce(inFlight.promise as never)
 
       const p1 = service.getAllSubmissions()
       const p2 = service.getAllSubmissions()
-      resolveRequest!({ data: { data: { items: [], totalCount: 0, page: 1, pageSize: 20, totalPages: 0 } } })
+      inFlight.resolve({ data: { data: { items: [], totalCount: 0, page: 1, pageSize: 20, totalPages: 0 } } })
       await Promise.all([p1, p2])
 
       expect(fakeHttp.get).toHaveBeenCalledTimes(1)
@@ -71,16 +61,12 @@ describe('createQuizSubmissionService', () => {
 
   it('getCoverage defaults ids to [] and dedupes concurrent calls', async () => {
     const service = createQuizSubmissionService(fakeHttp)
-    let resolveRequest: (v: unknown) => void
-    vi.mocked(fakeHttp.get).mockReturnValueOnce(
-      new Promise((resolve) => {
-        resolveRequest = resolve
-      }) as never,
-    )
+    const inFlight = deferredResponse<unknown>()
+    vi.mocked(fakeHttp.get).mockReturnValueOnce(inFlight.promise as never)
 
     const p1 = service.getCoverage()
     const p2 = service.getCoverage()
-    resolveRequest!({ data: { data: {} } })
+    inFlight.resolve({ data: { data: {} } })
     const [c1, c2] = await Promise.all([p1, p2])
 
     expect(fakeHttp.get).toHaveBeenCalledTimes(1)

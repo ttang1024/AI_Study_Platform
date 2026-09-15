@@ -32,7 +32,7 @@ public class SaveVideoCommandHandler : IRequestHandler<SaveVideoCommand, Result<
     public async Task<Result<VideoDto>> Handle(SaveVideoCommand request, CancellationToken cancellationToken)
     {
         // Look for an existing record with the same YouTube videoId so we can reuse cached AI content
-        var sourceType = NormalizeSourceType(request.SourceType);
+        var sourceType = VideoSourceTypes.Normalize(request.SourceType);
 
         if (sourceType == "upload" && _limits.VideoUploadLimit >= 0)
         {
@@ -139,19 +139,4 @@ public class SaveVideoCommandHandler : IRequestHandler<SaveVideoCommand, Result<
         v.CreatedAt,
         v.UpdatedAt);
 
-    private static string NormalizeSourceType(string? sourceType) => sourceType?.Trim().ToLowerInvariant() switch
-    {
-        "bilibili" => "bilibili",
-        "upload" => "upload",
-        "vimeo" => "vimeo",
-        "ted" => "ted",
-        "dailymotion" => "dailymotion",
-        "facebook" => "facebook",
-        "instagram" => "instagram",
-        "twitter" => "twitter",
-        "reddit" => "reddit",
-        "linkedin" => "linkedin",
-        "tiktok" => "tiktok",
-        _ => "youtube"
-    };
 }

@@ -17,23 +17,20 @@ public record RegisterCommand(
 public class RegisterCommandHandler : IRequestHandler<RegisterCommand, Result<AuthResponse>>
 {
     private readonly IUnitOfWork _unitOfWork;
-    private readonly ITokenService _tokenService;
     private readonly IEmailService _emailService;
     private readonly IPasswordHasher _passwordHasher;
-    private readonly IRequestContext _requestContext;
+    private readonly IAuthSessionIssuer _sessionIssuer;
 
     public RegisterCommandHandler(
         IUnitOfWork unitOfWork,
-        ITokenService tokenService,
         IEmailService emailService,
         IPasswordHasher passwordHasher,
-        IRequestContext requestContext)
+        IAuthSessionIssuer sessionIssuer)
     {
         _unitOfWork = unitOfWork;
-        _tokenService = tokenService;
         _emailService = emailService;
         _passwordHasher = passwordHasher;
-        _requestContext = requestContext;
+        _sessionIssuer = sessionIssuer;
     }
 
     public async Task<Result<AuthResponse>> Handle(RegisterCommand request, CancellationToken cancellationToken)
@@ -62,22 +59,11 @@ public class RegisterCommandHandler : IRequestHandler<RegisterCommand, Result<Au
         await _unitOfWork.Users.AddAsync(user, cancellationToken);
         _unitOfWork.Otps.Update(otp);
 
-        var accessToken = _tokenService.GenerateAccessToken(user);
-        var refreshTokenValue = _tokenService.GenerateRefreshToken();
-        var refreshToken = RefreshTokenFactory.Create(user.UserId, refreshTokenValue, _requestContext);
-
-        await _unitOfWork.RefreshTokens.AddAsync(refreshToken, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        // Issuing the session is what saves the unit of work, so the new user and the spent OTP
+        // land in the same transaction as the refresh-token row.
+        var response = await _sessionIssuer.IssueAsync(user, cancellationToken: cancellationToken);
 
         await _emailService.SendWelcomeEmailAsync(user.Email, user.FullName, cancellationToken);
-
-        var response = new AuthResponse(
-            user.UserId,
-            user.Email,
-            user.FullName,
-            accessToken,
-            refreshTokenValue,
-            DateTime.UtcNow.AddMinutes(15));
 
         return Result<AuthResponse>.Success(response, "Registration successful.");
     }

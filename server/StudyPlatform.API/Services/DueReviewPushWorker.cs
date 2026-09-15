@@ -13,7 +13,7 @@ namespace StudyPlatform.API.Services;
 /// the throttle, so users get the reminder roughly when their cards come due
 /// rather than at a fixed global hour.
 /// </summary>
-public sealed class DueReviewPushWorker : BackgroundService
+public sealed class DueReviewPushWorker : PeriodicSweepWorker
 {
     private static readonly TimeSpan CheckInterval = TimeSpan.FromHours(1);
     private static readonly TimeSpan MinTimeBetweenPushes = TimeSpan.FromHours(20);
@@ -26,13 +26,18 @@ public sealed class DueReviewPushWorker : BackgroundService
         IServiceScopeFactory scopeFactory,
         IOptions<VapidOptions> vapid,
         ILogger<DueReviewPushWorker> logger)
+        : base(logger)
     {
         _scopeFactory = scopeFactory;
         _logger = logger;
         _vapid = vapid.Value;
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    protected override TimeSpan SweepInterval => CheckInterval;
+
+    protected override string SweepName => "Due-review push";
+
+    protected override Task<bool> OnStartingAsync(CancellationToken cancellationToken)
     {
         if (!_vapid.IsConfigured)
         {
@@ -41,24 +46,11 @@ public sealed class DueReviewPushWorker : BackgroundService
             _logger.LogInformation("Web push disabled: no VAPID keys configured — due-review reminders go to mobile devices only");
         }
 
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            try
-            {
-                await NotifyUsersWithDueCardsAsync(stoppingToken);
-            }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-            {
-                return;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Due-review push sweep failed");
-            }
-
-            await Task.Delay(CheckInterval, stoppingToken);
-        }
+        return Task.FromResult(true);
     }
+
+    protected override Task SweepAsync(CancellationToken cancellationToken)
+        => NotifyUsersWithDueCardsAsync(cancellationToken);
 
     private async Task NotifyUsersWithDueCardsAsync(CancellationToken ct)
     {

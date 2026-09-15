@@ -1,4 +1,5 @@
 using Moq;
+using StudyPlatform.Application.Auth;
 using StudyPlatform.Application.Auth.Commands;
 using StudyPlatform.Application.Services;
 using StudyPlatform.Domain.Entities;
@@ -25,7 +26,11 @@ public class OAuthLoginCommandHandlerTests
         _tokens.Setup(r => r.AddAsync(It.IsAny<RefreshToken>(), default)).Returns(Task.CompletedTask);
         _tokenService.Setup(t => t.GenerateAccessToken(It.IsAny<User>())).Returns("access-token");
         _tokenService.Setup(t => t.GenerateRefreshToken()).Returns("refresh-token");
-        _handler = new OAuthLoginCommandHandler(_uow.Object, _tokenService.Object, _oAuthService.Object, _requestContext.Object);
+        _handler = new OAuthLoginCommandHandler(
+            _oAuthService.Object,
+            new ExternalSignIn(
+                _uow.Object,
+                new AuthSessionIssuer(_uow.Object, _tokenService.Object, _requestContext.Object)));
     }
 
     [Fact]
@@ -115,7 +120,11 @@ public class GoogleCredentialLoginCommandHandlerTests
         _tokens.Setup(r => r.AddAsync(It.IsAny<RefreshToken>(), default)).Returns(Task.CompletedTask);
         _tokenService.Setup(t => t.GenerateAccessToken(It.IsAny<User>())).Returns("access-token");
         _tokenService.Setup(t => t.GenerateRefreshToken()).Returns("refresh-token");
-        _handler = new GoogleCredentialLoginCommandHandler(_uow.Object, _tokenService.Object, _oAuthService.Object, _requestContext.Object);
+        _handler = new GoogleCredentialLoginCommandHandler(
+            _oAuthService.Object,
+            new ExternalSignIn(
+                _uow.Object,
+                new AuthSessionIssuer(_uow.Object, _tokenService.Object, _requestContext.Object)));
     }
 
     [Fact]

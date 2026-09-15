@@ -14,4 +14,3 @@ export function createLanguageService(http: HttpClient) {
   };
 }
 
-export type LanguageService = ReturnType<typeof createLanguageService>;

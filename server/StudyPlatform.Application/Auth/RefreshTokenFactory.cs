@@ -11,8 +11,6 @@ namespace StudyPlatform.Application.Auth;
 /// </summary>
 public static class RefreshTokenFactory
 {
-    public static readonly TimeSpan Lifetime = TimeSpan.FromDays(7);
-
     /// <param name="sessionId">
     /// Pass the rotating token's existing session id so the sign-in keeps its identity; omit it at
     /// sign-in to start a new session.
@@ -27,7 +25,7 @@ public static class RefreshTokenFactory
             SessionId = sessionId ?? Guid.NewGuid(),
             UserId = userId,
             Token = tokenValue,
-            ExpiresAt = now.Add(Lifetime),
+            ExpiresAt = now.Add(AuthTokenLifetimes.RefreshToken),
             IsRevoked = false,
             CreatedAt = now,
             LastUsedAt = now,

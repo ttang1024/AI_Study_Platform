@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Mvc;
+using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Documents.DTOs;
 
 namespace StudyPlatform.API.Extensions;
@@ -15,6 +17,35 @@ public static class ChatAttachments
     {
         "image/png", "image/jpeg", "image/jpg", "image/gif", "image/webp", "application/pdf",
     };
+
+    /// <summary>
+    /// The guard every chat endpoint opens with: a turn needs either text or attachments, and the
+    /// attachments have to decode. Returns the problem response to send, or <c>null</c> to proceed
+    /// with <paramref name="attachments"/> populated.
+    /// </summary>
+    public static IActionResult? TryDecodeTurn(
+        IEnumerable<ChatAttachmentDto>? requestAttachments,
+        string? message,
+        out List<ChatAttachmentDto> attachmentList,
+        out List<(byte[] data, string mimeType, string? fileName)> attachments)
+    {
+        attachmentList = requestAttachments?.ToList() ?? [];
+        attachments = [];
+
+        if (string.IsNullOrWhiteSpace(message) && attachmentList.Count == 0)
+            return new BadRequestObjectResult(BaseResponse<string>.Fail("message is required.", "MISSING_MESSAGE"));
+
+        try
+        {
+            attachments = Decode(attachmentList);
+        }
+        catch (ArgumentException ex)
+        {
+            return new BadRequestObjectResult(BaseResponse<string>.Fail(ex.Message, "INVALID_ATTACHMENT"));
+        }
+
+        return null;
+    }
 
     /// <summary>Validates and decodes chat attachments. Throws <see cref="ArgumentException"/> on invalid input.</summary>
     public static List<(byte[] data, string mimeType, string? fileName)> Decode(IEnumerable<ChatAttachmentDto>? attachments)
