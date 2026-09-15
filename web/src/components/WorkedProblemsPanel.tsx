@@ -3,12 +3,40 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ChevronDown, ChevronUp, Loader2, Sparkles, Eye, EyeOff, CheckCircle2, XCircle, Send, AlertCircle, RotateCcw } from 'lucide-react';
 import { Select } from './common/Select';
 import ReactMarkdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import { MathText } from './study/MathText';
 import { workedProblemsService, WorkedProblem, ProblemAttempt } from '../services/workedProblemsService';
 import { cn } from '../utils/cn';
 import { getApiErrorCode } from '../utils/apiError';
 
 const DIFFICULTIES = ['easy', 'medium', 'hard'] as const;
 const COUNTS = [3, 5, 10] as const;
+
+// Step formulas come back as bare LaTeX ("\theta = 5"), sometimes already wrapped in
+// delimiters. Normalise to a standalone $$ block so remark-math sees display math.
+const LATEX_HINT = /[\\^_{}$]/;
+
+const toDisplayMath = (formula: string): string => {
+  const trimmed = formula.trim();
+  const inner =
+    /^\$\$[\s\S]*\$\$$/.test(trimmed) ? trimmed.slice(2, -2)
+    : /^\\\[[\s\S]*\\\]$/.test(trimmed) ? trimmed.slice(2, -2)
+    : /^\\\([\s\S]*\\\)$/.test(trimmed) ? trimmed.slice(2, -2)
+    : /^\$[\s\S]*\$$/.test(trimmed) ? trimmed.slice(1, -1)
+    : trimmed;
+  return `$$\n${inner.trim()}\n$$`;
+};
+
+// Anything that doesn't look like LaTeX keeps the plain monospace block it always had.
+const StepFormula: React.FC<{ formula: string }> = ({ formula }) =>
+  LATEX_HINT.test(formula) ? (
+    <div className="mt-1 overflow-x-auto rounded bg-zinc-100 px-2 py-1 text-sm">
+      <MathText text={toDisplayMath(formula)} inline={false} />
+    </div>
+  ) : (
+    <code className="text-xs bg-zinc-100 px-2 py-0.5 rounded mt-1 block font-mono">{formula}</code>
+  );
 
 interface ProblemCardProps {
   problem: WorkedProblem;
@@ -52,7 +80,9 @@ const ProblemCard: React.FC<ProblemCardProps> = ({ problem }) => {
           {problem.topic && (
             <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted">{problem.topic}</span>
           )}
-          <p className="text-sm font-medium text-text-main mt-0.5 leading-snug">{problem.problemText}</p>
+          <div className="text-sm font-medium text-text-main mt-0.5 leading-snug">
+            <MathText text={problem.problemText} inline={false} />
+          </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-bold capitalize', difficultyColor)}>
@@ -81,13 +111,11 @@ const ProblemCard: React.FC<ProblemCardProps> = ({ problem }) => {
                       <span className="w-5 h-5 rounded-full bg-primary/10 text-primary text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">
                         {step.stepNumber}
                       </span>
-                      <div>
-                        <p className="text-sm text-text-main">{step.description}</p>
-                        {step.formula && (
-                          <code className="text-xs bg-zinc-100 px-2 py-0.5 rounded mt-1 block font-mono">
-                            {step.formula}
-                          </code>
-                        )}
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm text-text-main">
+                          <MathText text={step.description} inline={false} />
+                        </div>
+                        {step.formula && <StepFormula formula={step.formula} />}
                       </div>
                     </div>
                   ))}
@@ -113,7 +141,9 @@ const ProblemCard: React.FC<ProblemCardProps> = ({ problem }) => {
                 </button>
                 {showAnswer && (
                   <div className="mt-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2 prose prose-sm prose-green max-w-none text-green-800 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-                    <ReactMarkdown>{problem.finalAnswer}</ReactMarkdown>
+                    <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                      {problem.finalAnswer}
+                    </ReactMarkdown>
                   </div>
                 )}
               </div>
@@ -166,7 +196,9 @@ const ProblemCard: React.FC<ProblemCardProps> = ({ problem }) => {
                     </span>
                   </div>
                   {attempt.aiEvaluation && (
-                    <p className="text-xs text-text-main leading-relaxed">{attempt.aiEvaluation}</p>
+                    <div className="text-xs text-text-main leading-relaxed">
+                      <MathText text={attempt.aiEvaluation} inline={false} />
+                    </div>
                   )}
                 </motion.div>
               )}
@@ -236,6 +268,7 @@ export const WorkedProblemsPanel: React.FC<WorkedProblemsPanelProps> = ({ docume
           value={difficulty}
           onChange={e => setDifficulty(e.target.value as typeof DIFFICULTIES[number])}
           size="xs"
+          className="min-w-28"
           selectClassName="rounded-lg bg-[var(--bg-sidebar)] font-medium"
         >
           {DIFFICULTIES.map(d => (
@@ -246,6 +279,7 @@ export const WorkedProblemsPanel: React.FC<WorkedProblemsPanelProps> = ({ docume
           value={count}
           onChange={e => setCount(Number(e.target.value) as typeof COUNTS[number])}
           size="xs"
+          className="min-w-32"
           selectClassName="rounded-lg bg-[var(--bg-sidebar)] font-medium"
         >
           {COUNTS.map(c => (
