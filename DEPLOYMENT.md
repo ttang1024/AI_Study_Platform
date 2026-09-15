@@ -1,10 +1,10 @@
-# Production deployment — Vercel · ECS Fargate · Supabase
+# Production deployment — S3 + CloudFront · ECS Fargate · Supabase
 
 ```
         Browser
            │ HTTPS
-        Vercel (frontend)
-           │ HTTPS   NEXT_PUBLIC_API_URL → the ALB / CloudFront in front of the API
+        CloudFront → S3 (static web / admin builds)
+           │ HTTPS   VITE_API_URL, baked in at build time → the API's CloudFront / ALB
         AWS ECS Fargate — ASP.NET Core 10 API
            │ PostgreSQL over TLS
         Supabase PostgreSQL + pgvector
@@ -14,8 +14,8 @@ Two things are true of this topology and worth stating plainly:
 
 * **Redis is off.** Nothing in the API requires it. No ElastiCache cluster, no Redis container, no
   Redis connection string.
-* **The database connection exists only on the API.** The browser and the Vercel frontend never see a
-  Postgres credential, and the frontend needs no Supabase key of any kind.
+* **The database connection exists only on the API.** The browser and the static frontends never see
+  a Postgres credential, and the frontend needs no Supabase key of any kind.
 
 ---
 
@@ -91,7 +91,7 @@ Everything below is read from the environment. The image contains no credentials
 | `ConnectionStrings__DefaultConnection` | the Supabase session-pooler connection string |
 | `JwtSettings__SecretKey` | 64-char hex secret |
 | `AWS__Region` / `S3__BucketName` | region and documents bucket |
-| `Cors__AllowedOrigins__0` | your Vercel production origin, e.g. `https://app.example.com` |
+| `Cors__AllowedOrigins__0` | your web frontend's public origin, e.g. `https://example.com` |
 | `Cors__AllowedOrigins__1`, `…__2` | any further origins (www, admin) |
 | `Embeddings__ApiKey` | embeddings provider key. Optional, but without it semantic search / RAG indexing does not run — it used to arrive baked into the image (see §7) and is now an environment variable. |
 
@@ -267,9 +267,17 @@ immutable.
 
 ### Frontend
 
-The frontend reads `NEXT_PUBLIC_API_URL` (falling back to `VITE_API_URL`). Set it in Vercel to the
-API's public origin. No database credential, Supabase URL, or Supabase key belongs in any
-`NEXT_PUBLIC_*` variable — the frontend talks only to the API.
+`deploy.sh` builds `web/` and `admin/` with Vite, syncs each `dist/` to its own S3 website bucket, and
+serves them through a CloudFront distribution (`<app>-web-cloudfront`, `<app>-admin-cloudfront`).
+`WEB_PUBLIC_ORIGIN` / `ADMIN_PUBLIC_ORIGIN` override the origins if you front them yourself.
+
+The API origin is **baked in at build time** as `VITE_API_URL` (`web/src/utils/env.ts` reads
+`NEXT_PUBLIC_API_URL` first and falls back to it, so a host that injects the `NEXT_PUBLIC_*` name
+works too). Baked-in means a changed API origin needs a frontend rebuild and re-sync — `./deploy.sh`
+with `DEPLOY_WEB_ONLY=1` does that without touching ECS.
+
+No database credential, Supabase URL, or Supabase key belongs in any frontend variable — the frontend
+talks only to the API.
 
 ---
 

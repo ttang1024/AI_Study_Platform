@@ -135,15 +135,12 @@ docker compose exec api dotnet ef database update \
 Web `:3000` · Admin `:4200` · API + Swagger `:5001` · MinIO console `:9001`. `VITE_*` values are baked
 in at build time, so rebuild the frontend images after changing them.
 
-**AWS** — `./deploy.sh` provisions ECS Fargate behind an ALB, S3 buckets, and static `web` / `admin`
-frontends, pointing the API at Supabase. No RDS and no ElastiCache. Export
-`DATABASE_CONNECTION_STRING`, `JWT_SECRET`, `GOOGLE_CLIENT_ID/SECRET`, `GITHUB_CLIENT_ID/SECRET`,
-`SMTP_USER` and `SMTP_PASSWORD` first. The older topology is still there behind `DB_PROVIDER=rds`,
-`ECS_LAUNCH_TYPE=EC2` and `REDIS_ENABLED=true`.
+**AWS** — `./deploy.sh` provisions ECS Fargate behind an ALB, S3 + CloudFront for the `web` and
+`admin` builds, and points the API at Supabase. No RDS and no ElastiCache.
 
-**[DEPLOYMENT.md](DEPLOYMENT.md)** is the full runbook — Supabase setup, connection strings, pooling,
-migrations, scaling past one replica, and the video-transcript proxy settings YouTube needs from
-cloud IPs.
+**[DEPLOYMENT.md](DEPLOYMENT.md)** is the full runbook — Supabase setup, connection strings, the
+credentials to export before deploying, pooling, migrations, scaling past one replica, and the
+video-transcript proxy settings YouTube needs from cloud IPs.
 
 ---
 
