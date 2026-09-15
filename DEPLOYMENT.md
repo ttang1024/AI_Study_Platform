@@ -1,10 +1,10 @@
-# Production deployment — Vercel · ECS Fargate · Supabase
+# Production deployment — S3 + CloudFront · ECS Fargate · Supabase
 
 ```
         Browser
            │ HTTPS
-        Vercel (frontend)
-           │ HTTPS   NEXT_PUBLIC_API_URL → the ALB / CloudFront in front of the API
+        CloudFront → S3 (static web / admin builds)
+           │ HTTPS   VITE_API_URL, baked in at build time → the API's CloudFront / ALB
         AWS ECS Fargate — ASP.NET Core 10 API
            │ PostgreSQL over TLS
         Supabase PostgreSQL + pgvector
@@ -14,8 +14,8 @@ Two things are true of this topology and worth stating plainly:
 
 * **Redis is off.** Nothing in the API requires it. No ElastiCache cluster, no Redis container, no
   Redis connection string.
-* **The database connection exists only on the API.** The browser and the Vercel frontend never see a
-  Postgres credential, and the frontend needs no Supabase key of any kind.
+* **The database connection exists only on the API.** The browser and the static frontends never see
+  a Postgres credential, and the frontend needs no Supabase key of any kind.
 
 ---
 
@@ -62,8 +62,7 @@ string, and keep `SSL Mode=Require` on it.
 
 ### 1.3 Close the Supabase Data API
 
-This is the one Supabase-specific thing that has no equivalent in a plain RDS deployment, and it
-matters. Supabase auto-generates a public REST API (PostgREST) over the `public` schema, and its
+This is the one Supabase-specific thing to get right, and it matters. Supabase auto-generates a public REST API (PostgREST) over the `public` schema, and its
 default privileges grant the `anon` and `authenticated` roles access to tables created there — which
 is every table EF Core migrates. Row Level Security is **not** on by default for tables created
 outside the dashboard, so those tables can be readable with the project's (publishable) anon key even
@@ -91,7 +90,7 @@ Everything below is read from the environment. The image contains no credentials
 | `ConnectionStrings__DefaultConnection` | the Supabase session-pooler connection string |
 | `JwtSettings__SecretKey` | 64-char hex secret |
 | `AWS__Region` / `S3__BucketName` | region and documents bucket |
-| `Cors__AllowedOrigins__0` | your Vercel production origin, e.g. `https://app.example.com` |
+| `Cors__AllowedOrigins__0` | your web frontend's public origin, e.g. `https://example.com` |
 | `Cors__AllowedOrigins__1`, `…__2` | any further origins (www, admin) |
 | `Embeddings__ApiKey` | embeddings provider key. Optional, but without it semantic search / RAG indexing does not run — it used to arrive baked into the image (see §7) and is now an environment variable. |
 
@@ -186,12 +185,12 @@ pending migration instead of silently serving a stale schema.
 
 ## 4b. Migrating an existing database into Supabase
 
-`scripts/migrate-db.sh` copies a populated database (the previous RDS instance) into the Supabase
-project. The source is only ever read.
+`scripts/migrate-db.sh` copies a populated PostgreSQL database into the Supabase project. The source
+is only ever read.
 
 ```bash
-# Source defaults to the RDS string built from DB_HOST/DB_PASS in .env_variables;
-# target defaults to DATABASE_CONNECTION_STRING.
+export SOURCE_CONNECTION_STRING='Host=...;Port=5432;Database=...;Username=...;Password=...'
+# Target defaults to DATABASE_CONNECTION_STRING.
 ./scripts/migrate-db.sh preflight   # read-only; reports what would happen
 ./scripts/migrate-db.sh run         # dump → restore → verify
 ./scripts/migrate-db.sh verify      # re-compare row counts at any time
@@ -237,10 +236,10 @@ export EMBEDDINGS_API_KEY=...   # optional; enables semantic search indexing
 ./deploy-backend.sh      # API only
 ```
 
-Defaults: `DB_PROVIDER=supabase` (no RDS is created), `ECS_LAUNCH_TYPE=FARGATE`,
-`ECS_CPU_ARCHITECTURE=X86_64`, `REDIS_ENABLED=false` (no ElastiCache is created), and
-`PUBLIC_DOMAIN` unset. The older topology is still reachable with `DB_PROVIDER=rds` and
-`ECS_LAUNCH_TYPE=EC2`.
+Defaults: `ECS_CPU_ARCHITECTURE=X86_64`, `REDIS_ENABLED=false` (no cache is provisioned or used), and
+`PUBLIC_DOMAIN` unset. The database is always the external managed PostgreSQL named by
+`DATABASE_CONNECTION_STRING` — nothing database-shaped is provisioned in AWS. Compute is always ECS
+Fargate, and the image is always built with local Docker, so the daemon must be running.
 
 **Put `AWS_REGION` in the same region as the Supabase project.** Every database call is now a network
 round trip; pairing regions across continents adds 150–250 ms to each one, and a single API request
@@ -261,15 +260,21 @@ hands out, then set `PUBLIC_DOMAIN` and redeploy once DNS and the certificate ar
 
 Fargate specifics the script handles: `awsvpc` networking with a task ENI, `assignPublicIp=ENABLED`
 so the task can pull from ECR and reach Supabase without a NAT gateway, an `ip`-type target group, and
-a CPU/memory pair Fargate accepts (1024 / 2048 by default — Fargate rejects the EC2 path's 768 MB).
-Switching an existing service between launch types recreates it, because a service's launch type is
-immutable.
+a CPU/memory pair Fargate accepts (1024 / 2048 by default).
 
 ### Frontend
 
-The frontend reads `NEXT_PUBLIC_API_URL` (falling back to `VITE_API_URL`). Set it in Vercel to the
-API's public origin. No database credential, Supabase URL, or Supabase key belongs in any
-`NEXT_PUBLIC_*` variable — the frontend talks only to the API.
+`deploy.sh` builds `web/` and `admin/` with Vite, syncs each `dist/` to its own S3 website bucket, and
+serves them through a CloudFront distribution (`<app>-web-cloudfront`, `<app>-admin-cloudfront`).
+`WEB_PUBLIC_ORIGIN` / `ADMIN_PUBLIC_ORIGIN` override the origins if you front them yourself.
+
+The API origin is **baked in at build time** as `VITE_API_URL` (`web/src/utils/env.ts` reads
+`NEXT_PUBLIC_API_URL` first and falls back to it, so a host that injects the `NEXT_PUBLIC_*` name
+works too). Baked-in means a changed API origin needs a frontend rebuild and re-sync — `./deploy.sh`
+with `DEPLOY_WEB_ONLY=1` does that without touching ECS.
+
+No database credential, Supabase URL, or Supabase key belongs in any frontend variable — the frontend
+talks only to the API.
 
 ---
 
@@ -306,9 +311,10 @@ Redis answers a startup ping. If it does not, the app still starts: the cache fa
 backplane is skipped with a warning on stderr. Set `Api__RequireScaleOutBackplane=true` to make a
 missing backplane a startup failure instead, which is what you want when running several replicas.
 
-`./deploy.sh` with `REDIS_ENABLED=true` will provision an ElastiCache cluster; if you would rather not
-have one, point `REDIS_CONNECTION_STRING` at your own Redis and leave `REDIS_ENABLED` false for the
-provisioning step while setting `Redis__Enabled=true` in the task definition.
+`deploy.sh` provisions no Redis of its own — bring your own (ElastiCache, Upstash, anything that
+speaks the protocol) and pass it through: `REDIS_ENABLED=true` and `REDIS_CONNECTION_STRING=...`
+(optionally `REDIS_INSTANCE_NAME`) become the `Redis__*` settings above in the task definition. An
+ElastiCache cluster must sit in the same VPC with the ECS task's security group allowed on its port.
 
 ### What still depends on Redis
 

@@ -2,7 +2,6 @@ using MediatR;
 using StudyPlatform.Application.Auth.DTOs;
 using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Services;
-using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
 
 namespace StudyPlatform.Application.Auth.Commands;

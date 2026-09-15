@@ -1,10 +1,8 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.Connections.Features;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.SignalR;
-using Microsoft.AspNetCore.SignalR.Protocol;
 using Microsoft.Extensions.Logging.Abstractions;
 using StackExchange.Redis;
 using StudyPlatform.API.Hubs;

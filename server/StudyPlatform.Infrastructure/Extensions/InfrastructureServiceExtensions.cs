@@ -2,7 +2,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using StudyPlatform.Application.Services;
-using StudyPlatform.Application.Settings;
 using StudyPlatform.Domain.Interfaces;
 using StudyPlatform.Infrastructure.Data;
 using StudyPlatform.Infrastructure.Http;
@@ -73,7 +72,6 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<Func<IDocumentTextExtractor>>(sp => sp.GetRequiredService<IDocumentTextExtractor>);
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddSingleton<IAnkiExportService, AnkiExportService>();
-        services.AddSingleton<ITtsSynthesisService, EdgeTtsService>();
         services.AddSingleton<IAppCache, DistributedAppCache>();
         // Token accounting for every AI call. Singleton: it opens its own scope per write so usage
         // rows never enlist in the caller's unit of work.

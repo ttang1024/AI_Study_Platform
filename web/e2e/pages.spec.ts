@@ -58,7 +58,7 @@ test.describe('Settings page', () => {
   })
 })
 
-// ─── Glossary (a tab of the Materials page) ────────────────────────────────────
+// ─── Glossary ─────────────────────────────────────────────────────────────────
 
 test.describe('Glossary page', () => {
   test.beforeEach(async ({ page }) => {
@@ -66,10 +66,9 @@ test.describe('Glossary page', () => {
     await page.goto('/glossary')
   })
 
-  test('redirects into the Materials glossary tab and shows its description', async ({ page }) => {
-    await expect(page).toHaveURL(/\/materials\?tab=glossary/)
-    await expect(page.getByRole('heading', { name: /study materials/i })).toBeVisible()
-    await expect(page.getByRole('tab', { name: /glossary/i })).toHaveAttribute('aria-selected', 'true')
+  test('shows its heading and description', async ({ page }) => {
+    await expect(page).toHaveURL(/\/glossary/)
+    await expect(page.getByRole('heading', { name: /glossary of terms/i })).toBeVisible()
     await expect(page.getByText(/ai-extracted key terms/i)).toBeVisible()
   })
 

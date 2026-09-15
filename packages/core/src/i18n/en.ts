@@ -8,35 +8,22 @@ export const en = {
   'nav.library': 'Library',
   // Adding content is its own page again, so the web nav shows this next to the library.
   'nav.summarizer': 'Summarizer',
-  // The web nav shows the merged pages; the per-page keys below are still used by the mobile
-  // app, which keeps these as separate screens under its Study tab.
+  // The web nav shows merged hubs, so one key labels a page that used to be several tabs.
+  // Notes and Glossary stay separate nav entries on both web and mobile.
   'nav.practiceCenter': 'Practice Center',
-  'nav.materials': 'Materials',
   'nav.spaces': 'Spaces',
   'nav.flashcards': 'Flashcards',
-  'nav.quizzes': 'Quizzes',
-  'nav.practice': 'Practice',
   // Check Working / Writing / Language are tabs of one page now, not three nav entries.
   'nav.planner': 'Planner',
   'nav.glossary': 'Glossary',
   'nav.notes': 'Notes',
   'nav.chat': 'AI Chat',
-  'nav.groups': 'Study Groups',
   'nav.search': 'Search',
   'nav.settings': 'Settings',
-  'nav.signOut': 'Sign Out',
-
-  'common.save': 'Save',
-  'common.cancel': 'Cancel',
-  'common.delete': 'Delete',
-  'common.loading': 'Loading…',
-  'common.retry': 'Try again',
-  'common.close': 'Close',
 
   'settings.language': 'Language',
   'settings.languageHelp': 'Changes the interface language. Your study material is not translated.',
 
-  'translate.title': 'Translate',
   'translate.action': 'Translate this',
   'translate.into': 'Translate into',
   'translate.working': 'Translating…',

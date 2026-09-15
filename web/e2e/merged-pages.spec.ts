@@ -12,9 +12,6 @@ const routes: [string, RegExp, RegExp][] = [
   ['/practice', /\/quizzes\?tab=practice/, /^practice$/i],
   ['/planner', /\/quizzes\?tab=planner/, /planner/i],
   ['/mistakes', /\/quizzes\?tab=mistakes/, /review mistakes/i],
-  ['/materials', /\/materials/, /^notes$/i],
-  ['/notes', /\/materials\?tab=notes/, /^notes$/i],
-  ['/glossary', /\/materials\?tab=glossary/, /glossary/i],
   ['/insights', /\/insights/, /analytics/i],
 ]
 
@@ -29,6 +26,37 @@ for (const [path, url, tab] of routes) {
     expect(errors).toEqual([])
   })
 }
+
+/**
+ * Notes and Glossary were the two tabs of /materials and are two pages again, so they are checked
+ * by heading; /materials has to land on the page that took each tab's place, deep-link params and
+ * all.
+ */
+test('probe /notes and /glossary are separate pages', async ({ page }) => {
+  const errors: string[] = []
+  page.on('pageerror', e => errors.push(e.message))
+  await setupAuthenticatedStudyApp(page)
+
+  await page.goto('/notes')
+  await expect(page.getByRole('heading', { name: /study notes/i })).toBeVisible()
+
+  await page.goto('/glossary')
+  await expect(page.getByRole('heading', { name: /glossary of terms/i })).toBeVisible()
+  expect(errors).toEqual([])
+})
+
+test('probe the retired /materials route lands on the page that replaced each tab', async ({ page }) => {
+  await setupAuthenticatedStudyApp(page)
+
+  await page.goto('/materials')
+  await expect(page).toHaveURL(/\/notes$/)
+
+  await page.goto('/materials?tab=notes')
+  await expect(page).toHaveURL(/\/notes$/)
+
+  await page.goto('/materials?tab=glossary&mastery=unmastered')
+  await expect(page).toHaveURL(/\/glossary\?mastery=unmastered$/)
+})
 
 /**
  * Spaces lost its Classrooms half, so it is a single page again rather than a tab hub — checked by
@@ -97,11 +125,13 @@ test('probe practice smart deep link survives the redirect', async ({ page }) =>
 
 test('probe switching tabs keeps a mounted panel alive', async ({ page }) => {
   await setupAuthenticatedStudyApp(page)
-  await page.goto('/materials')
-  await page.getByPlaceholder(/search notes/i).fill('telophase')
-  await page.getByRole('tab', { name: /glossary/i }).click()
-  await expect(page).toHaveURL(/tab=glossary/)
-  await page.getByRole('tab', { name: /^notes$/i }).click()
-  // The panel was hidden, not unmounted, so the typed filter is still there.
-  await expect(page.getByPlaceholder(/search notes/i)).toHaveValue('telophase')
+  await page.goto('/quizzes')
+  const practicePanel = page.locator('#quizzes-panel-practice')
+  await expect(practicePanel).toBeVisible()
+
+  await page.getByRole('tab', { name: /planner/i }).click()
+  await expect(page).toHaveURL(/tab=planner/)
+  // The panel was hidden, not unmounted — work in progress inside it survives the tab switch.
+  await expect(practicePanel).toBeAttached()
+  await expect(practicePanel).toBeHidden()
 })

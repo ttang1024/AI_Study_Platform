@@ -1,6 +1,5 @@
 using Moq;
 using StudyPlatform.Application.Feedback.Commands;
-using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
 using Xunit;
 

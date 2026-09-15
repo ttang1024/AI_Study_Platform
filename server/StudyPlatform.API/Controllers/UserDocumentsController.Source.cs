@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Mvc;
 using StudyPlatform.API.Extensions;
 using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Documents.Commands;
-using StudyPlatform.Application.Documents.Queries;
 
 namespace StudyPlatform.API.Controllers;
 

@@ -2,7 +2,6 @@ using System.Linq.Expressions;
 using MediatR;
 using Moq;
 using StudyPlatform.Application.Analytics.Queries;
-using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Flashcards.Commands;
 using StudyPlatform.Application.Practice.Queries;
 using StudyPlatform.Application.Services;

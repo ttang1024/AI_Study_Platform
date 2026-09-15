@@ -64,8 +64,7 @@ export const BentoSecurityCard: React.FC = () => {
       </div>
 
       <p className="text-sm text-white/40 leading-relaxed">
-        Your provider key travels with each request and is never written to our database — so the AI bills you,
-        not us. Export your whole archive whenever you like, or delete it all, no support ticket required.
+        Your provider key travels with each request and is never written to our database. Export your whole archive whenever you like, or delete it all, no support ticket required.
       </p>
     </BentoCardShell>
   );

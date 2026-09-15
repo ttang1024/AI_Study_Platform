@@ -29,10 +29,14 @@ test.describe('Authenticated application', () => {
     await expect(page).toHaveURL(/\/quizzes/)
     await expect(page.getByRole('heading', { name: /practice center/i })).toBeVisible()
 
-    // Likewise notes and the glossary, under Materials.
-    await page.getByRole('link', { name: /materials/i }).click()
-    await expect(page).toHaveURL(/\/materials/)
-    await expect(page.getByRole('heading', { name: /study materials/i })).toBeVisible()
+    // Notes and the glossary are two nav entries again.
+    await page.getByRole('link', { name: /^notes$/i }).click()
+    await expect(page).toHaveURL(/\/notes/)
+    await expect(page.getByRole('heading', { name: /study notes/i })).toBeVisible()
+
+    await page.getByRole('link', { name: /^glossary$/i }).click()
+    await expect(page).toHaveURL(/\/glossary/)
+    await expect(page.getByRole('heading', { name: /glossary of terms/i })).toBeVisible()
   })
 
   test('renders library content and supports type and search filters', async ({ page }) => {
@@ -105,11 +109,9 @@ test.describe('Authenticated application', () => {
   })
 
   test('shows notes across documents and videos with search filtering', async ({ page }) => {
-    // /notes is a redirect into the Materials page's Notes tab.
     await page.goto('/notes')
-    await expect(page).toHaveURL(/\/materials\?tab=notes/)
 
-    await expect(page.getByRole('heading', { name: /study materials/i })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /study notes/i })).toBeVisible()
     await expect(page.getByText('Cell Biology.pdf')).toBeVisible()
     await expect(page.getByText(/mitochondria generate atp/i)).toBeVisible()
     await expect(page.getByText('Mitosis Explained')).toBeVisible()

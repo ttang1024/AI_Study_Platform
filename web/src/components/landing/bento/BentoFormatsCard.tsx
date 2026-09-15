@@ -1,92 +1,91 @@
-import React from 'react';
-import { motion } from 'motion/react';
-import { FileStack, ClipboardPaste } from 'lucide-react';
+import React, { useRef } from 'react';
+import { motion, useInView } from 'motion/react';
+import { FileStack } from 'lucide-react';
 import { BentoCardShell, BentoCardHeader } from './BentoCardShell';
 import { CONTENT_TYPE_ICONS } from '../../../constants/contentTypeIcons';
+import { DOCUMENT_ACCEPTED_EXTENSIONS } from '../../../constants/documentUpload';
 
-// The five inputs the add-content page offers, in its order and with its icons and colours — the
-// card is a preview of that screen, so it reads from the same map rather than restating it.
-// Paste Text is the exception: it has no content type of its own, and that screen draws its tab in
-// the app's primary green, so the colour is spelled out here.
+// The content types the add-content page offers, in its order and with its icons — the card is a
+// preview of that screen, so it reads from the same map rather than restating it. Each row also
+// carries that type's colour, one step lighter than `CONTENT_TYPE_ICONS`: those hexes are picked
+// for the app's white surfaces and go muddy on this near-black panel.
 const SOURCES = [
   {
-    ...CONTENT_TYPE_ICONS.document,
-    label: 'Document',
-    detail: '234 types — PDF, Office, eBooks, notebooks, code',
+    icon: CONTENT_TYPE_ICONS.document.icon,
+    color: '#60a5fa', // blue-400 — app blue-600
+    label: 'Documents',
+    // Counted off the upload allowlist itself rather than written out, so the claim can't drift
+    // the way a hand-typed number already did when the list grew.
+    detail: `${DOCUMENT_ACCEPTED_EXTENSIONS.length} types — PDF, Office, eBooks, notebooks, code`,
   },
   {
-    ...CONTENT_TYPE_ICONS.video,
+    icon: CONTENT_TYPE_ICONS.video.icon,
+    color: '#f87171', // red-400 — app red-500
     label: 'Video',
-    detail: 'YouTube, Bilibili and 9 more sites, or your own upload',
+    detail: 'YouTube and 10 more sites, or your own upload',
   },
   {
-    ...CONTENT_TYPE_ICONS.article,
-    label: 'Web Article',
+    icon: CONTENT_TYPE_ICONS.article.icon,
+    color: '#2dd4bf', // teal-400 — app teal-500
+    label: 'Web articles',
     detail: 'Any page, clipped to clean readable Markdown',
   },
   {
-    ...CONTENT_TYPE_ICONS.audio,
+    icon: CONTENT_TYPE_ICONS.audio.icon,
+    color: '#fbbf24', // amber-400 — app amber-500
     label: 'Audio',
     detail: 'Lectures, podcast episodes, an RSS feed or an MP3',
   },
-  {
-    icon: ClipboardPaste,
-    color: '#059669',
-    label: 'Paste Text',
-    detail: 'Straight from the clipboard — notes, an email, anything',
-  },
 ];
 
-export const BentoFormatsCard: React.FC = () => (
-  <BentoCardShell
-    background="rgba(45,212,191,0.06)"
-    border="rgba(45,212,191,0.2)"
-    hoverShadow="0 0 48px rgba(45,212,191,0.22), 0 0 80px rgba(45,212,191,0.10)"
-    hoverBorder="rgba(45,212,191,0.42)"
-  >
-    <BentoCardHeader
-      icon={FileStack}
-      title="Reads 230+ Formats"
-      gradient="from-teal-400 to-cyan-600"
-      iconGlow="0 6px 22px rgba(45,212,191,0.4)"
-      isNew
-    />
+export const BentoFormatsCard: React.FC = () => {
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref, { once: true });
 
-    {/* The card spans two grid columns from `sm` up, so the five sources straighten out into a
-        single row once there is room for it, and pack two-up below that. */}
-    <div className="grid grid-cols-2 lg:grid-cols-5 gap-2.5 mb-3">
-      {SOURCES.map(({ icon: Icon, color, label, detail }, i) => (
-        <motion.div
-          key={label}
-          initial={{ opacity: 0, y: 8 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ delay: 0.08 * i }}
-          className="flex flex-col gap-1.5 p-3 rounded-xl"
-          // Each tile is tinted with its own source colour, the same one the app uses for that
-          // content type everywhere else, so the five stay distinguishable at a glance.
-          style={{ background: `${color}14`, border: `1px solid ${color}33` }}
-        >
-          {/* Icon above the label rather than beside it: five-across leaves a tile barely wider
-              than "Web Article", and sharing that row with the icon wrapped the label onto a
-              second line, pushing its detail text out of line with the other four. */}
-          <div
-            className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-            style={{ background: `${color}26` }}
+  return (
+    <BentoCardShell
+      rootRef={ref}
+      background="rgba(45,212,191,0.06)"
+      border="rgba(45,212,191,0.2)"
+      hoverShadow="0 0 48px rgba(45,212,191,0.22), 0 0 80px rgba(45,212,191,0.10)"
+      hoverBorder="rgba(45,212,191,0.42)"
+    >
+      <BentoCardHeader
+        icon={FileStack}
+        title="Reads 240+ Formats"
+        gradient="from-teal-400 to-cyan-600"
+        iconGlow="0 6px 22px rgba(45,212,191,0.4)"
+      />
+
+      {/* One inset panel of rules-separated rows rather than five tinted tiles. The card is a
+          single column of the grid, so each detail sits under its label instead of in a second
+          column — beside a label it would only wrap after two or three words. */}
+      <div
+        className="rounded-xl px-3 py-1 mb-3"
+        style={{ background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(255,255,255,0.06)' }}
+      >
+        {SOURCES.map(({ icon: Icon, label, detail, color }, i) => (
+          <motion.div
+            key={label}
+            initial={{ opacity: 0, x: -6 }}
+            animate={inView ? { opacity: 1, x: 0 } : {}}
+            transition={{ delay: 0.15 + i * 0.08 }}
+            /* Two-column grid rather than a flex row with a nudged icon: the icon shares the
+               label's grid row, so `items-center` centres it on the label whatever line height the
+               label inherits, and the detail starts on the label's left edge in the second row. */
+            className="grid grid-cols-[0.875rem_1fr] items-center gap-x-2.5 py-2"
+            style={i > 0 ? { borderTop: '1px solid rgba(255,255,255,0.06)' } : undefined}
           >
             <Icon className="w-3.5 h-3.5" style={{ color }} />
-          </div>
-          <span className="text-[13px] font-bold text-white/85 leading-tight">{label}</span>
-          <p className="text-[11px] text-white/40 leading-snug">{detail}</p>
-        </motion.div>
-      ))}
-    </div>
+            <span className="text-[13px] font-semibold text-white/80 leading-tight">{label}</span>
+            <p className="col-start-2 text-[11px] text-white/40 leading-snug">{detail}</p>
+          </motion.div>
+        ))}
+      </div>
 
-    {/* mt-auto, not flex-1 on the tiles: the card stretches to its row's height, and stretching the
-        tiles with it leaves a block of dead space under the shorter ones. */}
-    <p className="mt-auto text-sm text-white/40 leading-relaxed">
-      Drop in whatever you already have. Source files, spreadsheets, notebooks and captions render
-      natively — highlighted, tabulated and timestamped, not dumped as flat text.
-    </p>
-  </BentoCardShell>
-);
+      <p className="mt-auto text-sm text-white/40 leading-relaxed">
+        Drop in whatever you already have.
+      </p>
+    </BentoCardShell>
+  );
+};

@@ -63,7 +63,7 @@ export const BentoChatCard: React.FC = () => {
       </div>
 
       <p className="text-sm text-white/40 leading-relaxed">
-        Ask anything about your documents, videos, audio, podcasts, and web articles. Answers stream back grounded in the source you are studying.
+        Ask anything about your files. Answers stream back grounded in the source you are studying.
       </p>
     </BentoCardShell>
   );

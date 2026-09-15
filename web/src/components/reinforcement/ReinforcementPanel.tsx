@@ -400,7 +400,7 @@ export const ReinforcementPanel: React.FC = () => {
                   )}
                 </div>
                 <button
-                  onClick={() => navigate('/materials?tab=glossary&mastery=unmastered')}
+                  onClick={() => navigate('/glossary?mastery=unmastered')}
                   className="flex items-center gap-1 text-xs text-text-muted hover:text-[var(--primary)] transition-colors"
                 >
                   View all <ChevronRight size={12} />

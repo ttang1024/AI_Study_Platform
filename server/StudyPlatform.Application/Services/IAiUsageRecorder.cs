@@ -17,11 +17,5 @@ public sealed record AiUsageRecord(
 /// </summary>
 public interface IAiUsageRecorder
 {
-    /// <summary>Configured daily token budget, shown to the user for reference. Zero means unlimited.</summary>
-    long DailyTokenLimit { get; }
-
     Task RecordAsync(AiUsageRecord usage, CancellationToken cancellationToken = default);
-
-    /// <summary>Tokens the user has consumed since UTC midnight.</summary>
-    Task<long> GetTokensUsedTodayAsync(Guid userId, CancellationToken cancellationToken = default);
 }

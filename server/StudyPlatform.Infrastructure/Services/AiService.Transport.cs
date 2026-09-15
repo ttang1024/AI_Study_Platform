@@ -521,38 +521,6 @@ public partial class AiService
         return BuildHttpRequest(url, body);
     }
 
-    // ── Provider-aware multimodal core: non-streaming ─────────────────────
-
-    private async Task<string> SendMultimodalTextAsync(
-        string? systemPrompt,
-        IEnumerable<(string role, string content)> history,
-        string userMessage,
-        IReadOnlyList<(byte[] data, string mimeType)> attachments,
-        double temperature,
-        int maxTokens,
-        bool cleanJson,
-        CancellationToken cancellationToken,
-        [CallerMemberName] string operation = "")
-    {
-
-        using var request = BuildMultimodalRequest(
-            systemPrompt, history, userMessage, attachments, temperature, maxTokens, stream: false, GetNonStreamUrl());
-
-        using var response = await _httpClient.SendAsync(request, cancellationToken);
-        if (!response.IsSuccessStatusCode)
-        {
-            var err = await response.Content.ReadAsStringAsync(cancellationToken);
-            _logger.LogError("{Provider} API error: {Status} - {Content}", Provider, response.StatusCode, err);
-            throw new InvalidOperationException($"{Provider} API returned {response.StatusCode}: {err}");
-        }
-
-        var json = await response.Content.ReadAsStringAsync(cancellationToken);
-        await RecordUsageAsync(ExtractUsage(json), operation, streamed: false);
-
-        var text = ExtractTextFromResponse(json);
-        return cleanJson ? AiResponseParsing.CleanJsonResponse(text) : text.Trim();
-    }
-
     // ── Provider-aware multimodal core: streaming ─────────────────────────
 
     private async IAsyncEnumerable<string> StreamMultimodalTextAsync(

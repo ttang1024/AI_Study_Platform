@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -11,33 +10,23 @@ namespace StudyPlatform.Infrastructure.Services;
 
 /// <summary>
 /// Writes AI usage rows on a scope of its own, so a failure to account for a call can never roll
-/// back the call's actual result. The daily total is cached for a minute: the quota gate runs on
-/// every AI call and must not add a SUM over the day's rows to each one.
+/// back the call's actual result.
 /// </summary>
 public class AiUsageRecorder : IAiUsageRecorder
 {
-    private static readonly TimeSpan DailyTotalCacheTtl = TimeSpan.FromMinutes(1);
-
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly IAppCache _cache;
     private readonly AiUsageOptions _options;
     private readonly ILogger<AiUsageRecorder> _logger;
 
     public AiUsageRecorder(
         IServiceScopeFactory scopeFactory,
-        IAppCache cache,
         IOptions<AiUsageOptions> options,
         ILogger<AiUsageRecorder> logger)
     {
         _scopeFactory = scopeFactory;
-        _cache = cache;
         _options = options.Value;
         _logger = logger;
     }
-
-    public long DailyTokenLimit => _options.DailyTokenLimit;
-
-    private static string DailyTotalKey(Guid userId) => $"ai-usage:day:{DateTime.UtcNow:yyyy-MM-dd}:{userId}";
 
     public async Task RecordAsync(AiUsageRecord usage, CancellationToken cancellationToken = default)
     {
@@ -70,29 +59,8 @@ public class AiUsageRecorder : IAiUsageRecorder
         {
             // Accounting is best-effort. Losing a usage row is far better than failing the user's request.
             _logger.LogWarning(ex, "Failed to record AI usage for user {UserId}", usage.UserId);
-            return;
         }
-
-        // Keep the cached daily total honest rather than waiting for it to expire.
-        await _cache.RemoveAsync(DailyTotalKey(usage.UserId), cancellationToken);
     }
-
-    public Task<long> GetTokensUsedTodayAsync(Guid userId, CancellationToken cancellationToken = default)
-        => _cache.GetOrCreateAsync(
-            DailyTotalKey(userId),
-            async ct =>
-            {
-                using var scope = _scopeFactory.CreateScope();
-                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-                var since = DateTime.UtcNow.Date;
-                return await db.AiUsageLogs
-                    .AsNoTracking()
-                    .Where(u => u.UserId == userId && u.CreatedAt >= since)
-                    .SumAsync(u => (long)u.TotalTokens, ct);
-            },
-            DailyTotalCacheTtl,
-            cancellationToken);
 
     /// <summary>
     /// Prices the call from the longest configured model-id prefix that matches. Cache hits are billed

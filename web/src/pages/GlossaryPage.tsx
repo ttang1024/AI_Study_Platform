@@ -1,25 +1,25 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useStudy } from '../../context/StudyContext';
-import { useAuth } from '../../context/AuthContext';
+import { useStudy } from '../context/StudyContext';
+import { useAuth } from '../context/AuthContext';
 import { motion } from 'motion/react';
 import { BookMarked, Search, X } from 'lucide-react';
-import { GlossaryTerm } from '../../types';
-import { getDocDisplayName } from '../../utils/docName';
-import { SourceFilterBar, SourceType } from '../../components/common/SourceFilterBar';
-import { GlossaryShareModal } from '../../components/common/GlossaryShareModal';
-import { GlossaryTermCard } from '../../components/common/GlossaryTermCard';
-import { GlossaryGeneratePanel } from '../../components/glossary/GlossaryGeneratePanel';
-import { GlossaryHeader } from '../../components/glossary/GlossaryHeader';
-import { GlossaryMasteryFilter, MasteryFilter } from '../../components/glossary/GlossaryMasteryFilter';
-import { GlossaryLetterNav } from '../../components/glossary/GlossaryLetterNav';
-import { useStudyTimer } from '../../hooks/useStudyTimer';
-import { useGlossaryAudio } from '../../hooks/useGlossaryAudio';
-import { useGlossaryTerms, getDocKind } from '../../hooks/useGlossaryTerms';
-import { useMasteredTerms } from '../../hooks/useMasteredTerms';
+import { GlossaryTerm } from '../types';
+import { getDocDisplayName } from '../utils/docName';
+import { SourceFilterBar, SourceType } from '../components/common/SourceFilterBar';
+import { GlossaryShareModal } from '../components/common/GlossaryShareModal';
+import { GlossaryTermCard } from '../components/common/GlossaryTermCard';
+import { GlossaryGeneratePanel } from '../components/glossary/GlossaryGeneratePanel';
+import { GlossaryHeader } from '../components/glossary/GlossaryHeader';
+import { GlossaryMasteryFilter, MasteryFilter } from '../components/glossary/GlossaryMasteryFilter';
+import { GlossaryLetterNav } from '../components/glossary/GlossaryLetterNav';
+import { useStudyTimer } from '../hooks/useStudyTimer';
+import { useGlossaryAudio } from '../hooks/useGlossaryAudio';
+import { useGlossaryTerms, getDocKind } from '../hooks/useGlossaryTerms';
+import { useMasteredTerms } from '../hooks/useMasteredTerms';
 
-/** The Glossary half of /materials. The old /glossary route redirects to ?tab=glossary. */
-export const GlossaryTab: React.FC = () => {
+/** Every AI-extracted key term across your sources, filtered, grouped A–Z and playable. */
+export const GlossaryPage: React.FC = () => {
   const { documents, courses, videos, ensureDocuments, ensureVideos } = useStudy();
   // The document and video lists (used to label glossary sources) load lazily.
   useEffect(() => { void ensureDocuments(); void ensureVideos(); }, [ensureDocuments, ensureVideos]);
@@ -404,3 +404,5 @@ export const GlossaryTab: React.FC = () => {
     </motion.div>
   );
 };
+
+export default GlossaryPage;

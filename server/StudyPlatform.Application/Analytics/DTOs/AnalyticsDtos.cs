@@ -4,8 +4,6 @@ public record DailyStudyDurationDto(DateTime Date, int TotalSeconds, int TotalMi
 
 public record DailyQuizAccuracyDto(DateTime Date, int TotalAttempts, int CorrectAttempts, double AccuracyPercentage);
 
-public record DailyDocumentsStudiedDto(DateTime Date, int DocumentCount, IEnumerable<string> DocumentNames);
-
 public record RecordStudySessionRequest(Guid? CourseId, string ContextType, Guid? ContextId, int DurationSeconds);
 
 public record CourseTimeDto(Guid? CourseId, string CourseName, string? CourseColor, int TotalSeconds);

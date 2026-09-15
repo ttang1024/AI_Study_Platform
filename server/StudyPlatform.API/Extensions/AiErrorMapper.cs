@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
 using StudyPlatform.Application.Common;
-using StudyPlatform.Application.Services;
 
 namespace StudyPlatform.API.Extensions;
 

@@ -1,7 +1,6 @@
 using MediatR;
 using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Security.DTOs;
-using StudyPlatform.Application.Services;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
 

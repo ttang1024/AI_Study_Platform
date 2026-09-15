@@ -36,8 +36,9 @@ const AddContentPage = lazyPage(() => import('./pages/AddContentPage'), 'AddCont
 // Practice Center = practice + planner + quiz history + mistakes + question bank.
 const QuizManagementPage = lazyPage(() => import('./pages/QuizManagementPage'), 'QuizManagementPage');
 const FlashcardsPage = lazyPage(() => import('./pages/FlashcardsPage'), 'FlashcardsPage');
-// Materials = notes + glossary.
-const MaterialsPage = lazyPage(() => import('./pages/MaterialsPage'), 'MaterialsPage');
+// Notes and Glossary are two pages again — they answer different questions and the nav says so.
+const NotesPage = lazyPage(() => import('./pages/NotesPage'), 'NotesPage');
+const GlossaryPage = lazyPage(() => import('./pages/GlossaryPage'), 'GlossaryPage');
 // Settings gained the Feedback tab.
 const SettingsPage = lazyPage(() => import('./pages/SettingsPage'), 'SettingsPage');
 const VideoDetailPage = lazyPage(() => import('./pages/VideoDetailPage'), 'VideoDetailPage');
@@ -86,6 +87,20 @@ const LibraryRoute: React.FC = () => {
   next.delete('view');
   const query = next.toString();
   return <Navigate to={`/library/add${query ? `?${query}` : ''}`} replace />;
+};
+
+/**
+ * /materials was Notes and Glossary as two tabs of one page; they are two pages again. Links minted
+ * while they were tabs (`?tab=glossary`, and the deep links that ride with it like
+ * `&mastery=unmastered`) follow to the page that took the tab's place.
+ */
+const MaterialsRedirect: React.FC = () => {
+  const [params] = useSearchParams();
+  const next = new URLSearchParams(params);
+  next.delete('tab');
+  const query = next.toString();
+  const to = params.get('tab') === 'glossary' ? '/glossary' : '/notes';
+  return <Navigate to={query ? `${to}?${query}` : to} replace />;
 };
 
 /**
@@ -141,10 +156,10 @@ export default function App() {
                     <Route path="planner" element={<TabRedirect to="/quizzes" extra={{ tab: 'planner' }} />} />
                     <Route path="mistakes" element={<TabRedirect to="/quizzes" extra={{ tab: 'mistakes' }} />} />
 
-                    {/* Study materials — notes + glossary. */}
-                    <Route path="materials" element={<MaterialsPage />} />
-                    <Route path="notes" element={<TabRedirect to="/materials" extra={{ tab: 'notes' }} />} />
-                    <Route path="glossary" element={<TabRedirect to="/materials" extra={{ tab: 'glossary' }} />} />
+                    {/* Notes and Glossary — one page each; /materials was the merged pair. */}
+                    <Route path="notes" element={<NotesPage />} />
+                    <Route path="glossary" element={<GlossaryPage />} />
+                    <Route path="materials" element={<MaterialsRedirect />} />
 
                     <Route path="flashcards" element={<FlashcardsPage />} />
 

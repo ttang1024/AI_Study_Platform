@@ -31,7 +31,6 @@ import {
   BentoSearchCard,
   BentoShareCard,
   BentoPracticeCard,
-  BentoOfflineCard,
   BentoEverywhereCard,
   BentoSecurityCard,
   BentoFormatsCard,
@@ -45,27 +44,24 @@ import {
  * or drop a card and the spans below usually have to move with it.
  */
 const BENTO_CARDS: { Card: React.FC; span?: string }[] = [
-  { Card: BentoFormatsCard, span: 'sm:col-span-2' },
+  { Card: BentoFormatsCard },
   { Card: BentoChatCard },
   { Card: BentoSummaryCard },
-  { Card: BentoMindMapCard, span: 'sm:col-span-2' },
+  { Card: BentoMindMapCard },
   { Card: BentoQuizCard },
   { Card: BentoFlashcardCard },
   { Card: BentoNoteCard },
   { Card: BentoGlossaryCard },
-  { Card: BentoPlannerCard },
   { Card: BentoTutorCard },
+  { Card: BentoPlannerCard },
   { Card: BentoInsightsCard },
   { Card: BentoProblemCard },
-  { Card: BentoPlayCard },
-  { Card: BentoStudyGroupCard },
   { Card: BentoPracticeCard },
-  { Card: BentoSearchCard },
   { Card: BentoEverywhereCard, span: 'sm:col-span-2' },
-  // Offline sits between the two wide cards on purpose: back to back they would need four slots
-  // across a three-column row, so the second would wrap and leave an empty cell beside the first.
-  { Card: BentoOfflineCard },
+  { Card: BentoSearchCard },
+  { Card: BentoStudyGroupCard },
   { Card: BentoShareCard },
+  { Card: BentoPlayCard },
   { Card: BentoSecurityCard, span: 'sm:col-span-2' },
 ];
 
@@ -195,8 +191,8 @@ export const LandingPage: React.FC = () => {
         <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.52 }}
           className="max-w-2xl text-lg sm:text-xl text-white/45 leading-relaxed mb-10">
-          Turn any document, spreadsheet, notebook, video, podcast, or article into AI summaries, mind maps,
-          flashcards, and quizzes — then master it with spaced repetition, mock exams, and an AI tutor.
+          Turn any document, video, podcast, or article into summaries, mind maps, flashcards, and
+          quizzes — then master it with spaced repetition, mock exams, and an AI tutor.
           Web, iOS &amp; Android, even offline.
         </motion.p>
 
@@ -226,7 +222,7 @@ export const LandingPage: React.FC = () => {
           {[
             { to: 20, suffix: '+', label: 'AI-powered tools' },
             { to: 100, suffix: '%', label: 'Free to start' },
-            { to: 230, suffix: '+', label: 'file formats' },
+            { to: 240, suffix: '+', label: 'file formats' },
           ].map((s, i) => (
             <motion.div key={i}
               initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}

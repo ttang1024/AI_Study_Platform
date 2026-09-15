@@ -106,9 +106,8 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) =
       cmd('nav-leeches', `${t('nav.flashcards')} · Leeches`, '/flashcards?tab=leeches'),
       cmd('nav-practice', t('nav.practiceCenter'), '/quizzes'),
       cmd('nav-planner', `${t('nav.practiceCenter')} · ${t('nav.planner')}`, '/quizzes?tab=planner'),
-      cmd('nav-materials', t('nav.materials'), '/materials'),
-      cmd('nav-notes', `${t('nav.materials')} · ${t('nav.notes')}`, '/materials?tab=notes'),
-      cmd('nav-glossary', `${t('nav.materials')} · ${t('nav.glossary')}`, '/materials?tab=glossary'),
+      cmd('nav-notes', t('nav.notes'), '/notes'),
+      cmd('nav-glossary', t('nav.glossary'), '/glossary'),
       cmd('nav-insights', t('nav.insights'), '/insights'),
       cmd('nav-chat', t('nav.chat'), '/chat'),
       cmd('nav-spaces', t('nav.spaces'), '/spaces'),
@@ -155,7 +154,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) =
           title: note.documentName ?? note.videoName ?? 'Note',
           subtitle: preview,
           type: 'note',
-          href: '/materials?tab=notes',
+          href: '/notes',
         });
       }
     }
@@ -167,7 +166,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) =
           title: term.term,
           subtitle: term.definition,
           type: 'glossary',
-          href: '/materials?tab=glossary',
+          href: '/glossary',
         });
       }
     }

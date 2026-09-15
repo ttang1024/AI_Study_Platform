@@ -91,21 +91,6 @@ public class GetCalendarFeedQueryHandler : IRequestHandler<GetCalendarFeedQuery,
         sb.AppendLine("END:VEVENT");
     }
 
-    /// <summary>A point-in-time event, for deadlines where the hour actually matters.</summary>
-    private static void AddTimedEvent(StringBuilder sb, string uid, DateTime at, string summary, string description)
-    {
-        var utc = at.Kind == DateTimeKind.Utc ? at : at.ToUniversalTime();
-
-        sb.AppendLine("BEGIN:VEVENT");
-        sb.AppendLine($"UID:{uid}@easystudy");
-        sb.AppendLine($"DTSTAMP:{DateTime.UtcNow:yyyyMMdd'T'HHmmss'Z'}");
-        sb.AppendLine($"DTSTART:{utc:yyyyMMdd'T'HHmmss'Z'}");
-        sb.AppendLine($"DTEND:{utc:yyyyMMdd'T'HHmmss'Z'}");
-        sb.AppendLine($"SUMMARY:{Escape(summary)}");
-        sb.AppendLine($"DESCRIPTION:{Escape(description)}");
-        sb.AppendLine("END:VEVENT");
-    }
-
     private static string Escape(string value) =>
         value.Replace("\\", "\\\\").Replace(";", "\\;").Replace(",", "\\,").Replace("\n", "\\n");
 }
