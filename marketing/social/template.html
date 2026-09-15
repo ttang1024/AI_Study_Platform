@@ -1,0 +1,792 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>toto.ai social card template</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Orbitron:wght@700;800;900&display=swap"
+    />
+    <style>
+      /*
+			 * One card, five layouts. generate.mjs sets mode/width/height through the query string;
+			 * every length is written against a per-mode base width and multiplied by --s, so any
+			 * size in the same family renders at the same visual weight.
+			 *
+			 *   landscape  link previews / feed posts   base 1200   LinkedIn, Facebook, X
+			 *   thumb      YouTube thumbnail            base 1280   text only — must read at 246px wide
+			 *   square     square post                  base 1080   Instagram, WeChat, share.png
+			 *   portrait   4:5 feed post                base 1080   Instagram
+			 *   story      9:16 full screen             base 1080   Stories, TikTok — keeps UI safe areas clear
+			 *
+			 * Which blocks each mode shows is driven entirely by the visibility rules at the bottom,
+			 * so the markup stays one shape.
+			 */
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: var(--w);
+        height: var(--h);
+        overflow: hidden;
+      }
+
+      body {
+        font-family: Inter, sans-serif;
+        color: #fff;
+        background: linear-gradient(160deg, #020810 0%, #040c18 50%, #020810 100%);
+      }
+
+      /* ─────────────────────────────────────────── stage + background ── */
+
+      .stage {
+        position: relative;
+        width: var(--w);
+        height: var(--h);
+        overflow: hidden;
+      }
+
+      .dots,
+      .orbs,
+      .vignette {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+      }
+
+      .dots {
+        background-image: radial-gradient(
+          circle at 1px 1px,
+          rgba(255, 255, 255, 0.025) 1px,
+          transparent 0
+        );
+        background-size: calc(40px * var(--s)) calc(40px * var(--s));
+      }
+
+      .orb {
+        position: absolute;
+        aspect-ratio: 1;
+        border-radius: 9999px;
+        filter: blur(calc(80px * var(--s)));
+      }
+
+      .orb-cyan {
+        width: 92%;
+        top: -26%;
+        left: -26%;
+        opacity: 0.2;
+        background: radial-gradient(circle, #0891b2, transparent 65%);
+      }
+
+      .orb-emerald {
+        width: 66%;
+        top: 22%;
+        right: -22%;
+        opacity: 0.15;
+        background: radial-gradient(circle, #059669, transparent 65%);
+      }
+
+      .orb-pink {
+        width: 56%;
+        bottom: -16%;
+        left: 20%;
+        opacity: 0.12;
+        background: radial-gradient(circle, #ec4899, transparent 65%);
+      }
+
+      .vignette {
+        background: radial-gradient(ellipse at 50% 42%, transparent 40%, rgba(2, 8, 16, 0.55) 100%);
+      }
+
+      .rule {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: calc(8px * var(--s));
+        background: linear-gradient(90deg, #059669, #14b8a6, #22d3ee, #6366f1, #ec4899);
+      }
+
+      /* ────────────────────────────────────────────────────── content ── */
+
+      .content {
+        position: relative;
+        display: flex;
+        width: 100%;
+        height: 100%;
+        padding: var(--pad-y) var(--pad-x);
+      }
+
+      .col {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+
+      .col-main {
+        flex: 1 1 auto;
+      }
+
+      /* brand ---------------------------------------------------------- */
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: calc(20px * var(--s));
+      }
+
+      .brand img {
+        width: calc(var(--brand) * var(--s));
+        height: calc(var(--brand) * var(--s));
+        border-radius: calc(18px * var(--s));
+        object-fit: cover;
+        box-shadow:
+          0 calc(4px * var(--s)) calc(28px * var(--s)) rgba(20, 184, 166, 0.55),
+          0 0 calc(36px * var(--s)) rgba(8, 145, 178, 0.2);
+      }
+
+      .wordmark {
+        font-family: Orbitron, sans-serif;
+        font-weight: 800;
+        font-size: calc(var(--wordmark) * var(--s));
+        letter-spacing: -0.02em;
+        line-height: 1;
+      }
+
+      .wordmark .ai {
+        color: #22d3ee;
+      }
+
+      .oss {
+        padding: calc(9px * var(--s)) calc(20px * var(--s));
+        border-radius: 9999px;
+        font-size: calc(var(--oss) * var(--s));
+        font-weight: 700;
+        white-space: nowrap;
+        color: #4ade80;
+        background: rgba(74, 222, 128, 0.12);
+        border: 1px solid rgba(74, 222, 128, 0.3);
+      }
+
+      /* headline ------------------------------------------------------- */
+
+      h1 {
+        font-family: Orbitron, sans-serif;
+        font-weight: 800;
+        font-size: calc(var(--h1) * var(--s));
+        line-height: 0.96;
+        letter-spacing: -0.03em;
+      }
+
+      h1 .learn {
+        background: linear-gradient(135deg, #e0f7ff 0%, #a5f3fc 50%, #c7d2fe 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        filter: drop-shadow(0 0 calc(24px * var(--s)) rgba(34, 211, 238, 0.3));
+      }
+
+      h1 .anything {
+        background: linear-gradient(135deg, #14b8a6 0%, #22d3ee 55%, #38bdf8 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        filter: drop-shadow(0 0 calc(28px * var(--s)) rgba(34, 211, 238, 0.35));
+      }
+
+      .lede {
+        font-size: calc(var(--lede) * var(--s));
+        line-height: 1.42;
+        color: rgba(255, 255, 255, 0.52);
+      }
+
+      .lede b {
+        font-weight: 700;
+        color: rgba(255, 255, 255, 0.9);
+      }
+
+      /* artifact cards ------------------------------------------------- */
+
+      .cards {
+        display: flex;
+        flex-direction: column;
+        gap: calc(16px * var(--s));
+      }
+
+      .artifact {
+        border-radius: calc(22px * var(--s));
+        padding: calc(19px * var(--s)) calc(26px * var(--s));
+        background: linear-gradient(145deg, rgba(14, 26, 40, 0.92), rgba(8, 17, 28, 0.92));
+        border: 1px solid rgba(255, 255, 255, 0.07);
+        box-shadow: 0 calc(24px * var(--s)) calc(60px * var(--s)) rgba(0, 0, 0, 0.45);
+      }
+
+      .artifact-head {
+        display: flex;
+        align-items: center;
+        gap: calc(16px * var(--s));
+      }
+
+      .icon {
+        width: calc(42px * var(--s));
+        height: calc(42px * var(--s));
+        border-radius: calc(14px * var(--s));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+
+      .icon svg {
+        width: calc(24px * var(--s));
+        height: calc(24px * var(--s));
+        stroke-width: 2.2;
+        fill: none;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .icon-summary {
+        background: rgba(8, 145, 178, 0.18);
+        border: 1px solid rgba(34, 211, 238, 0.28);
+      }
+
+      .icon-summary svg {
+        stroke: #22d3ee;
+      }
+
+      .icon-flash {
+        background: rgba(5, 150, 105, 0.18);
+        border: 1px solid rgba(52, 211, 153, 0.28);
+      }
+
+      .icon-flash svg {
+        stroke: #34d399;
+      }
+
+      .icon-quiz {
+        background: rgba(129, 140, 248, 0.18);
+        border: 1px solid rgba(165, 180, 252, 0.28);
+      }
+
+      .icon-quiz svg {
+        stroke: #a5b4fc;
+      }
+
+      .artifact-title {
+        font-size: calc(var(--card-title) * var(--s));
+        font-weight: 700;
+        letter-spacing: -0.01em;
+      }
+
+      .lines {
+        margin-top: calc(15px * var(--s));
+        display: flex;
+        flex-direction: column;
+        gap: calc(12px * var(--s));
+      }
+
+      .line {
+        height: calc(11px * var(--s));
+        border-radius: 9999px;
+        background: rgba(255, 255, 255, 0.11);
+      }
+
+      .qa {
+        margin-top: calc(15px * var(--s));
+        font-size: calc(var(--card-body) * var(--s));
+        line-height: 1.5;
+        color: rgba(255, 255, 255, 0.5);
+      }
+
+      .qa .answer {
+        display: block;
+        margin-top: calc(6px * var(--s));
+        font-weight: 700;
+        color: #a5f3fc;
+      }
+
+      .options {
+        margin-top: calc(15px * var(--s));
+        display: flex;
+        flex-direction: column;
+        gap: calc(11px * var(--s));
+        font-size: calc(var(--card-body) * var(--s));
+      }
+
+      .option {
+        display: flex;
+        align-items: center;
+        gap: calc(14px * var(--s));
+        color: rgba(255, 255, 255, 0.42);
+      }
+
+      .option .dot {
+        width: calc(17px * var(--s));
+        height: calc(17px * var(--s));
+        border-radius: 9999px;
+        border: calc(2px * var(--s)) solid rgba(255, 255, 255, 0.25);
+      }
+
+      .option.correct {
+        color: #4ade80;
+      }
+
+      .option.correct .dot {
+        background: #4ade80;
+        border-color: #4ade80;
+      }
+
+      /* chips, domain, cta --------------------------------------------- */
+
+      .footer {
+        margin-top: auto;
+        padding-top: calc(28px * var(--s));
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: calc(24px * var(--s));
+      }
+
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: calc(14px * var(--s));
+      }
+
+      .chip {
+        padding: calc(11px * var(--s)) calc(21px * var(--s));
+        border-radius: 9999px;
+        font-size: calc(var(--chip) * var(--s));
+        font-weight: 600;
+        white-space: nowrap;
+        color: rgba(255, 255, 255, 0.82);
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+      }
+
+      .domain {
+        flex-shrink: 0;
+        font-size: calc(var(--domain) * var(--s));
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.45);
+      }
+
+      .cta {
+        align-self: flex-start;
+        margin-top: calc(56px * var(--s));
+        padding: calc(20px * var(--s)) calc(44px * var(--s));
+        border-radius: 9999px;
+        font-size: calc(var(--cta) * var(--s));
+        font-weight: 800;
+        letter-spacing: -0.01em;
+        color: #04121c;
+        background: linear-gradient(135deg, #34d399, #22d3ee);
+        box-shadow: 0 0 calc(40px * var(--s)) rgba(34, 211, 238, 0.35);
+      }
+
+      /* ══════════════════════════════════════════════════ landscape ════ */
+
+      html[data-mode='landscape'] {
+        --pad-x: calc(64px * var(--s));
+        --pad-y: calc(56px * var(--s));
+        --brand: 56px;
+        --wordmark: 44px;
+        --oss: 18px;
+        --h1: 82px;
+        --lede: 24px;
+        --card-title: 24px;
+        --card-body: 23px;
+        --chip: 19px;
+        --domain: 22px;
+      }
+
+      html[data-mode='landscape'] .content {
+        flex-direction: row;
+        gap: calc(48px * var(--s));
+      }
+
+      html[data-mode='landscape'] .col-side {
+        flex: 0 0 calc(430px * var(--s));
+        justify-content: center;
+      }
+
+      /* The narrower side column wraps the card text onto more lines; LinkedIn's 627px is the
+			   shortest landscape frame, so the cards have to give back the difference. */
+      html[data-mode='landscape'] .cards {
+        gap: calc(13px * var(--s));
+      }
+
+      html[data-mode='landscape'] .artifact {
+        padding: calc(16px * var(--s)) calc(24px * var(--s));
+      }
+
+      html[data-mode='landscape'] .domain,
+      html[data-mode='thumb'] .domain {
+        position: absolute;
+        right: var(--pad-x);
+        bottom: calc(var(--pad-y) - 16px * var(--s));
+      }
+
+      html[data-mode='landscape'] h1 {
+        margin-top: calc(32px * var(--s));
+      }
+
+      html[data-mode='landscape'] .lede {
+        margin-top: calc(22px * var(--s));
+      }
+
+      /* ══════════════════════════════════════════════════════ thumb ════ */
+
+      html[data-mode='thumb'] {
+        --pad-x: calc(78px * var(--s));
+        --pad-y: calc(62px * var(--s));
+        --brand: 74px;
+        --wordmark: 58px;
+        --oss: 24px;
+        --h1: 140px;
+        --lede: 38px;
+        --chip: 29px;
+        --domain: 31px;
+      }
+
+      html[data-mode='thumb'] .content {
+        flex-direction: column;
+      }
+
+      html[data-mode='thumb'] .col-main {
+        justify-content: center;
+      }
+
+      html[data-mode='thumb'] .brand {
+        margin-bottom: calc(18px * var(--s));
+      }
+
+      html[data-mode='thumb'] h1 {
+        line-height: 0.92;
+      }
+
+      html[data-mode='thumb'] .lede {
+        margin-top: calc(24px * var(--s));
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.62);
+      }
+
+      html[data-mode='thumb'] .footer {
+        margin-top: calc(32px * var(--s));
+        padding-top: 0;
+      }
+
+      /* ═══════════════════════════════════════════ square + portrait ═══ */
+
+      html[data-mode='square'] {
+        --pad-x: calc(62px * var(--s));
+        --pad-y: calc(58px * var(--s));
+        --brand: 54px;
+        --wordmark: 45px;
+        --oss: 18px;
+        --h1: 82px;
+        --lede: 25px;
+        --card-title: 24px;
+        --card-body: 23px;
+        --chip: 18px;
+        --domain: 24px;
+      }
+
+      html[data-mode='portrait'] {
+        --pad-x: calc(66px * var(--s));
+        --pad-y: calc(80px * var(--s));
+        --brand: 60px;
+        --wordmark: 50px;
+        --oss: 20px;
+        --h1: 98px;
+        --lede: 31px;
+        --card-title: 28px;
+        --card-body: 27px;
+        --chip: 24px;
+        --domain: 27px;
+      }
+
+      html[data-mode='square'] .content,
+      html[data-mode='portrait'] .content {
+        flex-direction: column;
+      }
+
+      html[data-mode='square'] h1,
+      html[data-mode='portrait'] h1 {
+        margin-top: calc(34px * var(--s));
+      }
+
+      html[data-mode='square'] .lede,
+      html[data-mode='portrait'] .lede {
+        margin-top: calc(24px * var(--s));
+      }
+
+      html[data-mode='square'] .cards,
+      html[data-mode='portrait'] .cards {
+        margin-top: calc(28px * var(--s));
+      }
+
+      /* ══════════════════════════════════════════════════════ story ════ */
+
+      /*
+			 * 9:16 surfaces draw their own UI over the frame — the profile row at the top, the
+			 * caption and action strip at the bottom. Content stays inside a generous safe area
+			 * instead of filling the canvas.
+			 */
+      html[data-mode='story'] {
+        --pad-x: calc(80px * var(--s));
+        --pad-y: calc(300px * var(--s));
+        --brand: 68px;
+        --wordmark: 56px;
+        --oss: 24px;
+        --h1: 116px;
+        --lede: 34px;
+        --card-title: 33px;
+        --card-body: 31px;
+        --cta: 38px;
+        --domain: 32px;
+      }
+
+      html[data-mode='story'] .content {
+        flex-direction: column;
+        padding-bottom: calc(400px * var(--s));
+      }
+
+      html[data-mode='story'] .col-main {
+        justify-content: center;
+      }
+
+      html[data-mode='story'] h1 {
+        margin-top: calc(42px * var(--s));
+      }
+
+      html[data-mode='story'] .lede {
+        margin-top: calc(28px * var(--s));
+      }
+
+      html[data-mode='story'] .cards {
+        margin-top: calc(48px * var(--s));
+      }
+
+      /* ═══════════════════════════════════ what each mode actually shows ═ */
+
+      /* The side column of cards is the landscape layout only. */
+      html:not([data-mode='landscape']) .col-side {
+        display: none;
+      }
+
+      /* The stacked cards inside the main column belong to every other layout. */
+      html[data-mode='landscape'] .cards-main,
+      html[data-mode='thumb'] .cards-main {
+        display: none;
+      }
+
+      /* Chips are a landscape/thumbnail device; the tall formats end on the CTA instead. */
+      html[data-mode='story'] .footer {
+        display: none;
+      }
+
+      /* The CTA pill replaces the corner domain on story/TikTok. */
+      html:not([data-mode='story']) .cta {
+        display: none;
+      }
+
+      html[data-mode='story'] .domain {
+        display: none;
+      }
+
+      /* Three ledes: full, short for 9:16, shortest for the thumbnail. */
+      .lede-story,
+      .lede-thumb {
+        display: none;
+      }
+
+      html[data-mode='story'] .lede-full,
+      html[data-mode='thumb'] .lede-full {
+        display: none;
+      }
+
+      html[data-mode='story'] .lede-story,
+      html[data-mode='thumb'] .lede-thumb {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="stage">
+      <div class="dots"></div>
+      <div class="orbs">
+        <div class="orb orb-cyan"></div>
+        <div class="orb orb-emerald"></div>
+        <div class="orb orb-pink"></div>
+      </div>
+      <div class="vignette"></div>
+
+      <div class="content">
+        <div class="col col-main">
+          <div class="brand">
+            <img src="../../web/public/app.png" alt="" />
+            <span class="wordmark">toto<span class="ai">.ai</span></span>
+            <span class="oss">Open Source</span>
+          </div>
+
+          <h1><span class="learn">Learn</span><br /><span class="anything">Anything.</span></h1>
+
+          <p class="lede lede-full">
+            Turn any <b>document, video, podcast or article</b> into AI summaries, flashcards,
+            quizzes and mind maps — then master it with spaced repetition.
+          </p>
+          <p class="lede lede-story">
+            Turn any <b>document, video or podcast</b> into AI summaries, flashcards and quizzes.
+          </p>
+          <p class="lede lede-thumb">Any document or video → summaries, flashcards, quizzes.</p>
+
+          <div class="cards cards-main">
+            <div class="artifact">
+              <div class="artifact-head">
+                <span class="icon icon-summary">
+                  <svg viewBox="0 0 24 24">
+                    <line x1="4" y1="7" x2="20" y2="7" />
+                    <line x1="4" y1="12" x2="20" y2="12" />
+                    <line x1="4" y1="17" x2="13" y2="17" />
+                  </svg>
+                </span>
+                <span class="artifact-title">Summary</span>
+              </div>
+              <div class="lines">
+                <div class="line" style="width: 100%"></div>
+                <div class="line" style="width: 92%"></div>
+                <div class="line" style="width: 62%"></div>
+              </div>
+            </div>
+
+            <div class="artifact">
+              <div class="artifact-head">
+                <span class="icon icon-flash">
+                  <svg viewBox="0 0 24 24">
+                    <rect x="3" y="7" width="14" height="12" rx="2.5" />
+                    <path d="M7 7V5.5A1.5 1.5 0 0 1 8.5 4H19a2 2 0 0 1 2 2v9" />
+                  </svg>
+                </span>
+                <span class="artifact-title">Flashcard</span>
+              </div>
+              <p class="qa">
+                When should you review this?
+                <span class="answer">Right before you forget it.</span>
+              </p>
+            </div>
+
+            <div class="artifact">
+              <div class="artifact-head">
+                <span class="icon icon-quiz">
+                  <svg viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="M9.5 9.2a2.6 2.6 0 0 1 5 .9c0 1.7-2.5 2.2-2.5 3.6" />
+                    <line x1="12" y1="17" x2="12" y2="17.01" />
+                  </svg>
+                </span>
+                <span class="artifact-title">Quiz</span>
+              </div>
+              <div class="options">
+                <div class="option correct"><span class="dot"></span>Spaced repetition</div>
+                <div class="option"><span class="dot"></span>Re-reading notes</div>
+              </div>
+            </div>
+          </div>
+
+          <span class="cta">toto-study.com</span>
+
+          <div class="footer">
+            <div class="chips">
+              <span class="chip">Summaries</span>
+              <span class="chip">Flashcards</span>
+              <span class="chip">Quizzes</span>
+              <span class="chip">Mind Maps</span>
+              <span class="chip">AI Tutor</span>
+            </div>
+            <span class="domain">toto-study.com</span>
+          </div>
+        </div>
+
+        <div class="col col-side">
+          <div class="cards">
+            <div class="artifact">
+              <div class="artifact-head">
+                <span class="icon icon-summary">
+                  <svg viewBox="0 0 24 24">
+                    <line x1="4" y1="7" x2="20" y2="7" />
+                    <line x1="4" y1="12" x2="20" y2="12" />
+                    <line x1="4" y1="17" x2="13" y2="17" />
+                  </svg>
+                </span>
+                <span class="artifact-title">Summary</span>
+              </div>
+              <div class="lines">
+                <div class="line" style="width: 100%"></div>
+                <div class="line" style="width: 92%"></div>
+                <div class="line" style="width: 62%"></div>
+              </div>
+            </div>
+
+            <div class="artifact">
+              <div class="artifact-head">
+                <span class="icon icon-flash">
+                  <svg viewBox="0 0 24 24">
+                    <rect x="3" y="7" width="14" height="12" rx="2.5" />
+                    <path d="M7 7V5.5A1.5 1.5 0 0 1 8.5 4H19a2 2 0 0 1 2 2v9" />
+                  </svg>
+                </span>
+                <span class="artifact-title">Flashcard</span>
+              </div>
+              <p class="qa">
+                When should you review this?
+                <span class="answer">Right before you forget it.</span>
+              </p>
+            </div>
+
+            <div class="artifact">
+              <div class="artifact-head">
+                <span class="icon icon-quiz">
+                  <svg viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="M9.5 9.2a2.6 2.6 0 0 1 5 .9c0 1.7-2.5 2.2-2.5 3.6" />
+                    <line x1="12" y1="17" x2="12" y2="17.01" />
+                  </svg>
+                </span>
+                <span class="artifact-title">Quiz</span>
+              </div>
+              <div class="options">
+                <div class="option correct"><span class="dot"></span>Spaced repetition</div>
+                <div class="option"><span class="dot"></span>Re-reading notes</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="rule"></div>
+    </div>
+
+    <script>
+      const q = new URLSearchParams(location.search);
+      const mode = q.get('mode') || 'landscape';
+      const w = Number(q.get('w') || 1200);
+      const h = Number(q.get('h') || 630);
+      const base = { landscape: 1200, thumb: 1280, square: 1080, portrait: 1080, story: 1080 }[
+        mode
+      ];
+
+      const root = document.documentElement;
+      root.dataset.mode = mode;
+      root.style.setProperty('--w', w + 'px');
+      root.style.setProperty('--h', h + 'px');
+      root.style.setProperty('--s', String(w / base));
+    </script>
+  </body>
+</html>
