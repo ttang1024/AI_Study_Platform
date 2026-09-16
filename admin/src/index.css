@@ -47,3 +47,26 @@ select option {
   background: var(--bg-card);
   color: var(--text-primary);
 }
+
+/* Mobile nav drawer (AdminLayout) */
+@keyframes admin-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes admin-slide-in {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+.animate-admin-fade-in {
+  animation: admin-fade-in 0.15s ease-out;
+}
+.animate-admin-slide-in {
+  animation: admin-slide-in 0.2s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-admin-fade-in,
+  .animate-admin-slide-in {
+    animation: none;
+  }
+}

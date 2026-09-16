@@ -18,8 +18,8 @@ export const DashboardPage: React.FC = () => {
 
   return (
     <div>
-      <div className="mb-10">
-        <h1 className="text-3xl font-bold text-[var(--text-primary)]">Dashboard</h1>
+      <div className="mb-6 sm:mb-10">
+        <h1 className="text-2xl font-bold text-[var(--text-primary)] sm:text-3xl">Dashboard</h1>
         <p className="mt-2 text-sm text-[var(--text-secondary)]">Overview of user-submitted feedback</p>
       </div>
 
@@ -27,7 +27,7 @@ export const DashboardPage: React.FC = () => {
 
       {!stats && !error && (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          {Array.from({ length: 6 }).map((_, i) => (
+          {Array.from({ length: 8 }).map((_, i) => (
             <div key={i} className="h-28 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] animate-pulse" />
           ))}
         </div>
@@ -36,7 +36,7 @@ export const DashboardPage: React.FC = () => {
       {stats && (
         <>
           {/* Top stats */}
-          <div className="grid grid-cols-2 gap-5 sm:grid-cols-4 mb-5">
+          <div className="mb-4 grid grid-cols-2 gap-4 sm:mb-5 sm:gap-5 sm:grid-cols-4">
             <StatCard
               label="Total Feedback"
               value={stats.total}
@@ -66,7 +66,7 @@ export const DashboardPage: React.FC = () => {
           </div>
 
           {/* By type */}
-          <div className="grid grid-cols-3 gap-5 mb-10">
+          <div className="mb-6 grid grid-cols-2 gap-4 sm:mb-10 sm:gap-5 sm:grid-cols-3">
             <StatCard
               label="Bug Reports"
               value={stats.byType.bug ?? 0}
@@ -84,37 +84,38 @@ export const DashboardPage: React.FC = () => {
               value={stats.byType.general ?? 0}
               icon={MessageSquare}
               iconColor="text-sky-600"
+              className="max-sm:col-span-2"
             />
           </div>
 
           {/* Quick actions */}
-          <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-7">
-            <h2 className="mb-5 text-sm font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Quick Actions</h2>
-            <div className="flex flex-wrap gap-3">
+          <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-5 sm:p-7">
+            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-[var(--text-secondary)] sm:mb-5">Quick Actions</h2>
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-3">
               <Link
                 to="/analytics"
-                className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-500/15 transition-colors"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border sm:justify-start border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-500/15 transition-colors"
               >
                 <BarChart3 size={14} />
                 View platform analytics
               </Link>
               <Link
                 to="/feedback?status=new"
-                className="inline-flex items-center gap-2 rounded-xl border border-sky-500/30 bg-sky-500/10 px-4 py-2 text-sm font-medium text-sky-700 hover:bg-sky-500/15 transition-colors"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border sm:justify-start border-sky-500/30 bg-sky-500/10 px-4 py-2 text-sm font-medium text-sky-700 hover:bg-sky-500/15 transition-colors"
               >
                 <Clock size={14} />
                 View new submissions ({stats.byStatus.new ?? 0})
               </Link>
               <Link
                 to="/feedback?type=bug"
-                className="inline-flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-500/15 transition-colors"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border sm:justify-start border-red-500/30 bg-red-500/10 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-500/15 transition-colors"
               >
                 <Bug size={14} />
                 View bug reports ({stats.byType.bug ?? 0})
               </Link>
               <Link
                 to="/feedback"
-                className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-color)] bg-transparent px-4 py-2 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-black/5 transition-colors"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border sm:justify-start border-[var(--border-color)] bg-transparent px-4 py-2 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-black/5 transition-colors"
               >
                 <MessageSquare size={14} />
                 All feedback

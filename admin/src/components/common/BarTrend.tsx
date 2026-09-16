@@ -30,19 +30,19 @@ export const BarTrend: React.FC<BarTrendProps> = ({
   const hasAny = data.some((d) => d.count > 0);
 
   return (
-    <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-6">
-      <div className="mb-5 flex items-baseline justify-between">
+    <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-4 sm:p-6">
+      <div className="mb-4 flex flex-wrap items-baseline justify-between gap-x-3 sm:mb-5">
         <h3 className="text-sm font-semibold text-[var(--text-primary)]">{title}</h3>
         {subtitle && <span className="text-xs text-[var(--text-secondary)]">{subtitle}</span>}
       </div>
 
-      <div className="flex h-36 items-end gap-1">
+      <div className="flex h-28 items-end gap-px sm:h-36 sm:gap-1">
         {data.map((d) => {
           const heightPct = hasAny ? Math.max(2, (d.count / max) * 100) : 2;
           return (
             <div
               key={d.date}
-              className="group relative flex flex-1 flex-col items-center justify-end"
+              className="group relative flex h-full flex-1 flex-col items-center justify-end"
               title={`${formatDay(d.date)} · ${formatValue(d.count)}`}
             >
               <div

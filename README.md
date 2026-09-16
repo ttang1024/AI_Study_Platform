@@ -23,20 +23,20 @@ flashcards, quizzes, glossaries and mind maps, and an FSRS-4.5 scheduler drives 
 
 ## Features
 
-|     | Category            | What you get                                                                                                                                       |
-| --- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 📄  | **Content**         | 234 document types (PDF, Office, eBooks, notebooks, code — scans get AI OCR), video from 11 auto-detected sites or your own uploads, audio, podcasts, web articles. Duplicates caught by content hash |
-| 🤖  | **AI Generation**   | Summaries, flashcards, adaptive quizzes, glossaries, mind maps, worked problems — each citing its source passage, flagged stale when the source changes |
-| 🎯  | **Study**           | FSRS-4.5 spaced repetition with per-user scheduler settings, rich-text notes, chat with voice dictation and read-aloud, graded teach-back, photo problem capture |
-| 🗓️  | **Today & Exams**   | Daily plan, one-button **smart session** (due reviews + mistake redos + weak concepts), Practice/Exam mode, exam planner with AI mock exams and cram sheets, mistakes notebook |
-| 📊  | **Insights**        | Time-on-task and accuracy analytics, per-course mastery, knowledge-gap detection, AI recommendations, AI usage and estimated cost                      |
-| 🔎  | **Search**          | Semantic search across your whole library — finds related concepts when the words differ — plus ask-your-library answers with clickable citations       |
-| 🔊  | **Extras**          | Tags and collections, PDF annotations, text-to-speech, share links, offline PWA, push reminders, invite-code study groups with real-time chat           |
-| 🔄  | **Import/Export**   | Anki import & export, Markdown notes, quiz CSV / GIFT / QTI, ICS calendar feed, web-clipper bookmarklet                                                |
-| 📱  | **Mobile**          | React Native (Expo) app in [`rn/`](rn/README.md) at full web parity, plus biometric lock, camera scan-to-summarize, offline review                     |
+|     | Category          | What you get                                                                                                              |
+| --- | ----------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| 📄  | **Content**       | 234 document types (PDF, Office, eBooks, notebooks, code; scans get AI OCR), video from 11 auto-detected sites or uploads, audio, podcasts, web articles; duplicates caught by content hash |
+| 🤖  | **AI Generation** | Summaries, flashcards, adaptive quizzes, glossaries, mind maps, worked problems — each cites its source passage and is flagged stale when the source changes |
+| 🎯  | **Study**         | FSRS-4.5 spaced repetition with per-user scheduler settings, rich-text notes, chat with dictation and read-aloud, graded teach-back, photo problem capture |
+| 🗓️  | **Today & Exams** | Daily plan, one-button **smart session** (due reviews + mistake redos + weak concepts), Practice/Exam mode, exam planner with AI mock exams and cram sheets, mistakes notebook |
+| 📊  | **Insights**      | Time-on-task and accuracy analytics, per-course mastery, knowledge-gap detection, AI recommendations, AI usage and cost    |
+| 🔎  | **Search**        | Semantic search across your library — finds related concepts when the words differ — plus ask-your-library answers with clickable citations |
+| 🔊  | **Extras**        | Tags and collections, PDF annotations, text-to-speech, share links, offline PWA, push reminders, invite-code study groups with live chat |
+| 🔄  | **Import/Export** | Anki, Markdown notes, quiz CSV / GIFT / QTI, ICS calendar feed, web-clipper bookmarklet                                    |
+| 📱  | **Mobile**        | React Native (Expo) app in [`rn/`](rn/README.md) at full web parity, plus biometric lock, camera scan-to-summarize, offline review |
 
-**AI providers** — Gemini · OpenAI · Claude · Grok · DeepSeek · Kimi · Doubao · Qwen · Wenxin Yiyan
-(switchable from settings; keys stay client-side and travel per request)
+**AI providers** — Gemini · OpenAI · Claude · Grok · DeepSeek · Kimi · Doubao · Qwen · Wenxin Yiyan.
+Switchable from settings; keys stay client-side and travel per request.
 
 ---
 
@@ -52,32 +52,25 @@ flashcards, quizzes, glossaries and mind maps, and an FSRS-4.5 scheduler drives 
 
 ## Local Setup
 
-**Prerequisites** — .NET SDK 10 · Node.js 18+ · PostgreSQL 17 with
-[pgvector](https://github.com/pgvector/pgvector) (stock Postgres will not migrate) · ffmpeg · AWS CLI.
-You will need a Gemini API key, Google + GitHub OAuth apps, SMTP/SES email, and S3 or MinIO storage.
-Redis is optional and off by default.
+Needs .NET SDK 10 · Node 18+ · PostgreSQL 17 with
+[pgvector](https://github.com/pgvector/pgvector) (stock Postgres will not migrate) · ffmpeg · AWS CLI,
+plus a Gemini key, Google + GitHub OAuth apps, SMTP/SES email, and S3 or MinIO. Redis is optional and
+off by default.
 
 ```bash
-git clone https://github.com/ttang1024/AI_Study_Platform.git
-cd AI_Study_Platform
+git clone https://github.com/ttang1024/AI_Study_Platform.git && cd AI_Study_Platform
 
-# Database
 psql postgres -c "CREATE USER studyplatform WITH PASSWORD 'yourpassword';"
 psql postgres -c "CREATE DATABASE studyplatform OWNER studyplatform;"
+docker compose up -d minio minio-init          # MinIO console :9001, minioadmin / minioadmin123
 
-# Storage (MinIO console: http://localhost:9001, minioadmin / minioadmin123)
-docker compose up -d minio minio-init
-
-# Backend — configure appsettings.Development.json first (below)
-cd server
+cd server                                      # configure appsettings.Development.json first (below)
 dotnet ef database update --project StudyPlatform.Infrastructure --startup-project StudyPlatform.API
-dotnet run --project StudyPlatform.API     # → http://localhost:5001
+dotnet run --project StudyPlatform.API         # → http://localhost:5001
 
-# Frontend
-cd web && npm install && npm run dev       # → http://localhost:3000
+cd web && npm install && npm run dev           # → http://localhost:3000
+cd rn  && npm install && npx expo start        # mobile; env setup in rn/README.md
 ```
-
-The mobile app is `cd rn && npm install && npx expo start` — see [`rn/README.md`](rn/README.md) for its env setup.
 
 ---
 
@@ -87,26 +80,19 @@ The mobile app is `cd rn && npm install && npx expo start` — see [`rn/README.m
 
 ```jsonc
 {
-  "ConnectionStrings": {
-    "DefaultConnection": "Host=localhost;Port=5432;Database=studyplatform;Username=studyplatform;Password=yourpassword",
-  },
+  "ConnectionStrings": { "DefaultConnection": "Host=localhost;Port=5432;Database=studyplatform;Username=studyplatform;Password=yourpassword" },
   "JwtSettings": { "SecretKey": "your-32-char-secret", "AccessTokenExpiryMinutes": 15, "RefreshTokenExpiryDays": 7 },
   "EmailSettings": { "Provider": "Ses", "FromEmail": "you@gmail.com", "SesRegion": "ap-southeast-2" },
-  "S3": {
-    "BucketName": "documents-dev",
-    "ServiceUrl": "http://localhost:9000", // local MinIO
-    "PublicServiceUrl": "http://localhost:9000",
-    "ForcePathStyle": true,
-    "AccessKey": "minioadmin",
-    "SecretKey": "minioadmin123",
-  },
+  // local MinIO
+  "S3": { "BucketName": "documents-dev", "ServiceUrl": "http://localhost:9000", "PublicServiceUrl": "http://localhost:9000",
+          "ForcePathStyle": true, "AccessKey": "minioadmin", "SecretKey": "minioadmin123" },
   "GoogleOAuth": { "ClientId": "xxxx.apps.googleusercontent.com", "ClientSecret": "GOCSPX-..." },
   "GitHubOAuth": { "ClientId": "Ov23lic...", "ClientSecret": "..." },
   "Cors": { "AllowedOrigins": ["http://localhost:3000", "http://localhost:3001"] },
-  "Redis": { "Enabled": false }, // optional; cache falls through to the Postgres CacheEntries tier
+  "Redis": { "Enabled": false },              // off → cache falls through to the Postgres CacheEntries tier
   "AppLimits": { "DocumentUploadLimit": -1 }, // -1 = unlimited
   "Vapid": { "PublicKey": "", "PrivateKey": "" }, // optional browser push: npx web-push generate-vapid-keys
-  "AiUsage": { "DailyTokenLimit": 0 }, // optional metering; see appsettings.Production.json for pricing
+  "AiUsage": { "DailyTokenLimit": 0 },        // optional metering; pricing in appsettings.Production.json
 }
 ```
 
@@ -122,8 +108,8 @@ VITE_GITHUB_CLIENT_ID=Ov23lic...
 
 ## Deployment
 
-**Docker (self-hosted)** — bundles PostgreSQL and MinIO, so no external database or storage account
-is needed.
+**Docker (self-hosted)** — bundles PostgreSQL and MinIO, so no external database or storage account is
+needed.
 
 ```bash
 cp .env.example .env          # fill in all values
@@ -133,14 +119,11 @@ docker compose exec api dotnet ef database update \
 ```
 
 Web `:3000` · Admin `:4200` · API + Swagger `:5001` · MinIO console `:9001`. `VITE_*` values are baked
-in at build time, so rebuild the frontend images after changing them.
+in at build time — rebuild the frontend images after changing them.
 
 **AWS** — `./deploy.sh` provisions ECS Fargate behind an ALB, S3 + CloudFront for the `web` and
-`admin` builds, and points the API at Supabase. No RDS and no ElastiCache.
-
-**[DEPLOYMENT.md](DEPLOYMENT.md)** is the full runbook — Supabase setup, connection strings, the
-credentials to export before deploying, pooling, migrations, scaling past one replica, and the
-video-transcript proxy settings YouTube needs from cloud IPs.
+`admin` builds, and points the API at Supabase. No RDS, no ElastiCache.
+[DEPLOYMENT.md](DEPLOYMENT.md) is the full runbook.
 
 ---
 

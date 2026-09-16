@@ -36,7 +36,7 @@ export const AnalyticsPage: React.FC = () => {
 
   if (!data) {
     return (
-      <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:gap-5 sm:grid-cols-4">
         {Array.from({ length: 8 }).map((_, i) => (
           <div key={i} className="h-28 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] animate-pulse" />
         ))}
@@ -50,13 +50,13 @@ export const AnalyticsPage: React.FC = () => {
 
   return (
     <div>
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-[var(--text-primary)]">Analytics</h1>
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-2xl font-bold text-[var(--text-primary)] sm:text-3xl">Analytics</h1>
         <p className="mt-2 text-sm text-[var(--text-secondary)]">Platform-wide usage and engagement</p>
       </div>
 
       {/* Headline user metrics */}
-      <div className="mb-5 grid grid-cols-2 gap-5 sm:grid-cols-4">
+      <div className="mb-4 grid grid-cols-2 gap-4 sm:mb-5 sm:gap-5 sm:grid-cols-4">
         <StatCard label="Total Users" value={formatNumber(users.total)} icon={Users} iconColor="text-emerald-600" />
         <StatCard
           label="Active (30d)"
@@ -78,7 +78,7 @@ export const AnalyticsPage: React.FC = () => {
       </div>
 
       {/* Engagement / activity windows */}
-      <div className="mb-8 grid grid-cols-2 gap-5 sm:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 gap-4 sm:mb-8 sm:gap-5 sm:grid-cols-4">
         <StatCard label="Active Today" value={formatNumber(engagement.dau)} icon={Activity} iconColor="text-emerald-600" />
         <StatCard label="Active (7d)" value={formatNumber(engagement.wau)} icon={UserCheck} iconColor="text-emerald-600" />
         <StatCard label="Quiz Subs (30d)" value={formatNumber(engagement.quizSubmissionsLast30Days)} icon={ListChecks} iconColor="text-amber-600" />
@@ -92,7 +92,7 @@ export const AnalyticsPage: React.FC = () => {
       </div>
 
       {/* Trend charts */}
-      <div className="mb-8 grid grid-cols-1 gap-5 lg:grid-cols-2">
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:mb-8 sm:gap-5 lg:grid-cols-2">
         <BarTrend
           title="New signups"
           subtitle={`${formatNumber(users.newLast30Days)} in last 30 days`}
@@ -109,22 +109,22 @@ export const AnalyticsPage: React.FC = () => {
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:gap-5 lg:grid-cols-2">
         {/* Content breakdown */}
-        <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-6">
-          <h3 className="mb-5 text-sm font-semibold text-[var(--text-primary)]">Content library</h3>
+        <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-4 sm:p-6">
+          <h3 className="mb-4 text-sm font-semibold text-[var(--text-primary)] sm:mb-5">Content library</h3>
           <div className="space-y-3.5">
             {CONTENT_ROWS.map(({ key, label, icon: Icon, color, bar }) => {
               const value = content[key];
               const pct = (value / maxContent) * 100;
               return (
-                <div key={key} className="flex items-center gap-3">
+                <div key={key} className="flex items-center gap-2 sm:gap-3">
                   <Icon size={15} className={cn('shrink-0', color)} />
-                  <span className="w-28 shrink-0 text-xs text-[var(--text-secondary)]">{label}</span>
+                  <span className="w-20 shrink-0 truncate text-[11px] text-[var(--text-secondary)] sm:w-28 sm:text-xs">{label}</span>
                   <div className="h-2 flex-1 overflow-hidden rounded-full bg-black/5">
                     <div className={cn('h-full rounded-full', bar)} style={{ width: `${Math.max(2, pct)}%` }} />
                   </div>
-                  <span className="w-12 shrink-0 text-right text-xs font-medium text-[var(--text-primary)]">{formatNumber(value)}</span>
+                  <span className="w-10 shrink-0 text-right text-[11px] font-medium text-[var(--text-primary)] sm:w-12 sm:text-xs">{formatNumber(value)}</span>
                 </div>
               );
             })}
@@ -132,8 +132,8 @@ export const AnalyticsPage: React.FC = () => {
         </div>
 
         {/* Top users */}
-        <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-6">
-          <div className="mb-5 flex items-center gap-2">
+        <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-4 sm:p-6">
+          <div className="mb-4 flex items-center gap-2 sm:mb-5">
             <TrendingUp size={15} className="text-amber-600" />
             <h3 className="text-sm font-semibold text-[var(--text-primary)]">Most active users (30d)</h3>
           </div>
@@ -145,7 +145,7 @@ export const AnalyticsPage: React.FC = () => {
                 <Link
                   key={u.userId}
                   to={`/users/${u.userId}`}
-                  className="group flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-black/5"
+                  className="group flex items-center gap-2.5 rounded-lg px-2 py-2.5 transition-colors hover:bg-black/5 sm:gap-3"
                 >
                   <span className="w-5 shrink-0 text-center text-xs font-semibold text-[var(--text-secondary)]">{i + 1}</span>
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-600/10 text-xs font-semibold text-emerald-700">
@@ -161,7 +161,7 @@ export const AnalyticsPage: React.FC = () => {
                       {u.lastActiveAt ? formatRelative(u.lastActiveAt) : '—'}
                     </p>
                   </div>
-                  <ChevronRight size={14} className="shrink-0 text-[var(--text-secondary)] opacity-0 transition-opacity group-hover:opacity-100" />
+                  <ChevronRight size={14} className="hidden shrink-0 text-[var(--text-secondary)] opacity-0 transition-opacity group-hover:opacity-100 sm:block" />
                 </Link>
               ))}
             </div>

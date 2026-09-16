@@ -51,7 +51,7 @@ export const UserDetailPage: React.FC = () => {
 
   return (
     <div>
-      <Link to="/users" className="mb-6 inline-flex items-center gap-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
+      <Link to="/users" className="mb-4 inline-flex min-h-10 items-center gap-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors sm:mb-6">
         <ArrowLeft size={15} /> Back to users
       </Link>
 
@@ -71,22 +71,22 @@ export const UserDetailPage: React.FC = () => {
       {user && (
         <>
           {/* Profile header */}
-          <div className="mb-6 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-6">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div className="flex items-center gap-4">
+          <div className="mb-6 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-5 sm:p-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
+              <div className="flex min-w-0 items-center gap-4 sm:flex-1">
                 <div className={cn(
-                  'flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-xl font-semibold',
+                  'flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-lg font-semibold sm:h-14 sm:w-14 sm:text-xl',
                   user.isAdmin ? 'bg-emerald-600/10 text-emerald-700' : 'bg-black/5 text-[var(--text-primary)]',
                 )}>
                   {user.fullName.charAt(0).toUpperCase()}
                 </div>
-                <div>
+                <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <h1 className="text-2xl font-bold text-[var(--text-primary)]">{user.fullName}</h1>
-                    {user.isAdmin && <ShieldCheck size={17} className="text-emerald-700" />}
+                    <h1 className="truncate text-xl font-bold text-[var(--text-primary)] sm:text-2xl">{user.fullName}</h1>
+                    {user.isAdmin && <ShieldCheck size={17} className="shrink-0 text-emerald-700" />}
                   </div>
                   <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[var(--text-secondary)]">
-                    <span className="inline-flex items-center gap-1"><Mail size={12} /> {user.email}</span>
+                    <span className="inline-flex min-w-0 max-w-full items-center gap-1"><Mail size={12} className="shrink-0" /> <span className="truncate">{user.email}</span></span>
                     <span className="inline-flex items-center gap-1"><Calendar size={12} /> Joined {formatDate(user.createdAt)}</span>
                     <span className="inline-flex items-center gap-1">
                       {user.isEmailVerified
@@ -99,7 +99,7 @@ export const UserDetailPage: React.FC = () => {
 
               <div className="flex items-center gap-3">
                 <span className={cn(
-                  'rounded-full px-3 py-1 text-xs font-medium',
+                  'shrink-0 rounded-full px-3 py-1 text-xs font-medium',
                   user.isAdmin ? 'bg-emerald-600/10 text-emerald-700'
                     : user.isActive ? 'bg-emerald-500/15 text-emerald-700' : 'bg-red-500/15 text-red-700',
                 )}>
@@ -121,7 +121,7 @@ export const UserDetailPage: React.FC = () => {
           </div>
 
           {/* Engagement summary */}
-          <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-4">
             <Metric icon={Clock} color="text-amber-600" label="Total study time" value={formatMinutes(user.studyMinutesTotal)} />
             <Metric icon={Activity} color="text-emerald-600" label="Study time (30d)" value={formatMinutes(user.studyMinutesLast30Days)} />
             <Metric icon={Calendar} color="text-sky-600" label="Last active" value={user.lastActiveAt ? formatRelative(user.lastActiveAt) : 'Never'} />
@@ -146,14 +146,14 @@ export const UserDetailPage: React.FC = () => {
           </div>
 
           {/* Content created */}
-          <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-6">
-            <h3 className="mb-5 text-sm font-semibold text-[var(--text-primary)]">Content created</h3>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
+          <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-5 sm:p-6">
+            <h3 className="mb-4 text-sm font-semibold text-[var(--text-primary)] sm:mb-5">Content created</h3>
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 sm:gap-3 lg:grid-cols-7">
               {CONTENT_TILES.map(({ key, label, icon: Icon, color }) => (
-                <div key={key} className="rounded-xl border border-[var(--border-color)] bg-black/[0.02] p-4 text-center">
+                <div key={key} className="rounded-xl border border-[var(--border-color)] bg-black/[0.02] p-3 text-center sm:p-4">
                   <Icon size={18} className={cn('mx-auto mb-2', color)} />
-                  <p className="text-xl font-bold text-[var(--text-primary)]">{formatNumber(user.content[key])}</p>
-                  <p className="mt-0.5 text-[11px] text-[var(--text-secondary)]">{label}</p>
+                  <p className="text-lg font-bold text-[var(--text-primary)] sm:text-xl">{formatNumber(user.content[key])}</p>
+                  <p className="mt-0.5 truncate text-[10px] text-[var(--text-secondary)] sm:text-[11px]">{label}</p>
                 </div>
               ))}
             </div>
@@ -167,12 +167,12 @@ export const UserDetailPage: React.FC = () => {
 const Metric: React.FC<{ icon: typeof FileText; color: string; label: string; value: string; sub?: string }> = ({
   icon: Icon, color, label, value, sub,
 }) => (
-  <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-5">
-    <div className="mb-3 flex items-center justify-between">
-      <span className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">{label}</span>
-      <Icon size={15} className={color} />
+  <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-4 sm:p-5">
+    <div className="mb-3 flex items-start justify-between gap-2">
+      <span className="text-[10px] font-medium leading-tight text-[var(--text-secondary)] uppercase tracking-wider sm:text-xs">{label}</span>
+      <Icon size={15} className={cn('shrink-0', color)} />
     </div>
-    <p className="text-2xl font-bold text-[var(--text-primary)] leading-none">{value}</p>
+    <p className="text-xl font-bold text-[var(--text-primary)] leading-none sm:text-2xl">{value}</p>
     {sub && <p className="mt-1.5 text-xs text-[var(--text-secondary)]">{sub}</p>}
   </div>
 );
