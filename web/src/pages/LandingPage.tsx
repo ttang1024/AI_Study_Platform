@@ -291,6 +291,21 @@ export const LandingPage: React.FC = () => {
           <Logo sm />
         </div>
         <p className="text-xs text-white mt-2">easy study platform · built to help you learn faster with AI.</p>
+        {/* The header's GitHub link is hidden below sm; this one is the only one a phone gets. */}
+        <motion.a
+          href="https://github.com/ttang1024/AI_Study_Platform"
+          target="_blank"
+          rel="noopener noreferrer"
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
+          style={{ background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.25)', color: '#4ade80' }}
+          title="Self-host with your own API keys"
+        >
+          <Github className="w-3.5 h-3.5" />
+          View on GitHub
+          <ExternalLink className="w-3 h-3 opacity-60" />
+        </motion.a>
       </footer>
     </div>
   );
