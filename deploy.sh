@@ -275,6 +275,46 @@ resolve_public_origins() {
   fi
 }
 
+# Uploads a built frontend to its bucket. Hashed files under assets/ are NEVER pruned by the same
+# run that uploads their replacements: an already-open browser tab, and the API's cached copy of
+# index.html (WebAppShellProvider caches it for 5 minutes, so /share/{token} keeps quoting the old
+# filenames right after a deploy), both still ask for the *previous* build's chunks. The website
+# bucket rewrites a miss to index.html with a 200, so a deleted chunk does not 404 — it comes back
+# as HTML and the browser refuses it ("Expected a JavaScript-or-Wasm module script but the server
+# responded with a MIME type of text/html"). Leaving the old chunks in place makes a stale shell
+# boot the old build instead of breaking.
+#
+# New assets go up before index.html so the shell never points at a chunk that is not there yet;
+# everything outside assets/ is still pruned. Superseded chunks are cleaned up on a later run, once
+# they are old enough that nothing can still be holding a reference (see prune_stale_assets).
+sync_frontend() {
+  local dist="$1" bucket="$2"
+  aws s3 sync "$dist/assets" "s3://$bucket/assets"
+  aws s3 sync "$dist" "s3://$bucket" --delete --exclude 'assets/*'
+  prune_stale_assets "$dist" "$bucket"
+}
+
+# Deletes assets/ objects that this build did not produce and that are older than ASSET_RETENTION_DAYS,
+# so the bucket does not grow by a build every deploy. The age check is what makes it safe: the
+# previous build is minutes old and always survives, and an unchanged chunk keeps being re-uploaded
+# by `aws s3 sync` only when its content changes — so it is matched by name here, never by age.
+ASSET_RETENTION_DAYS="${ASSET_RETENTION_DAYS:-7}"
+prune_stale_assets() {
+  local dist="$1" bucket="$2" cutoff key modified
+  # No zone suffix on either side: LastModified comes back as 2026-09-16T02:10:33+00:00 and the
+  # comparison below is lexicographic, so both have to stop at the seconds.
+  cutoff="$(date -u -v-"${ASSET_RETENTION_DAYS}"d +%Y-%m-%dT%H:%M:%S 2>/dev/null \
+    || date -u -d "${ASSET_RETENTION_DAYS} days ago" +%Y-%m-%dT%H:%M:%S)"
+  while read -r key modified; do
+    [[ -z "$key" || -z "$modified" || "$key" == "None" ]] && continue
+    [[ -e "$dist/$key" ]] && continue          # still part of the current build
+    [[ "${modified:0:19}" > "$cutoff" ]] && continue  # ISO-8601 UTC sorts lexicographically
+    aws s3 rm "s3://$bucket/$key" >/dev/null
+    echo "    pruned superseded asset $key"
+  done < <(aws s3api list-objects-v2 --bucket "$bucket" --prefix assets/ \
+    --query 'Contents[].[Key,LastModified]' --output text 2>/dev/null)
+}
+
 # Builds web and admin against the resolved origins, syncs each to its bucket and invalidates its
 # distribution. VITE_* values are baked in at build time, so this must run after the origins exist.
 deploy_frontends() {
@@ -291,7 +331,7 @@ deploy_frontends() {
     # robots.txt and sitemap.xml are emitted by the build itself (web/vite-plugin-seo.ts), which
     # reads VITE_SHARE_BASE_URL — they are not written here.
   )
-  aws s3 sync web/dist "s3://$WEB_BUCKET" --delete
+  sync_frontend web/dist "$WEB_BUCKET"
   invalidate_cloudfront_by_comment "$WEB_CLOUDFRONT_COMMENT"
 
   echo "==> Building admin frontend"
@@ -306,7 +346,7 @@ User-agent: *
 Disallow: /
 EOF
   )
-  aws s3 sync admin/dist "s3://$ADMIN_BUCKET" --delete
+  sync_frontend admin/dist "$ADMIN_BUCKET"
   invalidate_cloudfront_by_comment "$ADMIN_CLOUDFRONT_COMMENT"
 }
 

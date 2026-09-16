@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Share2, AlertCircle, FileText, MessageCircle, Award,
-  Check, Copy, User, Calendar, Youtube, Mic, Rss, FileVideo,
+  Check, Copy, User, Calendar, Youtube, Mic, Rss, FileVideo, Github,
 } from 'lucide-react';
 import { STUDY_TYPE_ICONS } from '../constants/contentTypeIcons';
 import { getShare, SharedContent } from '../services/shareContentService';
@@ -17,6 +17,7 @@ import { SharedGlossary } from './sharedContent/SharedGlossary';
 import { SharedMedia, NormalizedSourceType } from './sharedContent/SharedMedia';
 
 const API_URL = getApiUrl();
+const GITHUB_REPO_URL = 'https://github.com/ttang1024/AI_Study_Platform';
 
 type Tab = 'summary' | 'mindmap' | 'notes' | 'flashcards' | 'quiz' | 'glossary';
 
@@ -301,9 +302,19 @@ export const SharedContentPage: React.FC<{ token?: string }> = ({ token: tokenPr
           <Award size={22} className="mx-auto text-primary mb-3" />
           <p className="font-bold text-text-main mb-1">Want to create your own study materials?</p>
           <p className="text-sm text-text-muted mb-4">Upload documents or YouTube videos and get AI-generated summaries, mind maps, quizzes and flashcards.</p>
-          <a href="/" className="inline-block rounded-xl bg-primary px-6 py-2.5 text-sm font-bold text-white hover:opacity-90 transition-opacity">
-            Try Easy Study →
-          </a>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <a href="/" className="inline-block rounded-xl bg-primary px-6 py-2.5 text-sm font-bold text-white hover:opacity-90 transition-opacity">
+              Try Easy Study →
+            </a>
+            <a
+              href={GITHUB_REPO_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-color)] px-6 py-2.5 text-sm font-bold text-text-muted hover:border-primary/50 hover:text-text-main transition-colors"
+            >
+              <Github size={15} /> View on GitHub
+            </a>
+          </div>
         </div>
 
       </div>

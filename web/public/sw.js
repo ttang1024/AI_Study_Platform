@@ -4,7 +4,9 @@
  *   - same-origin static assets: stale-while-revalidate
  *   - API requests (/api/*): always network; offline data is served by the IndexedDB layer
  */
-const VERSION = 'v1';
+// Bumped to v2 to drop caches from before the guard below: a deploy that removed a still-referenced
+// chunk let the CDN's HTML fallback be cached under a .js URL, which no later fetch would correct.
+const VERSION = 'v2';
 const SHELL_CACHE = `shell-${VERSION}`;
 const ASSET_CACHE = `assets-${VERSION}`;
 const SHELL_URLS = ['/', '/index.html', '/app.png', '/manifest.webmanifest'];
@@ -48,7 +50,16 @@ self.addEventListener('fetch', (event) => {
           }
           return response;
         })
-        .catch(() => caches.match('/index.html').then((cached) => cached || caches.match('/'))),
+        .catch(async () => (await caches.match('/index.html'))
+          || (await caches.match('/'))
+          // respondWith() throws "Failed to convert value to 'Response'" on undefined, which turns
+          // a plain offline navigation into a console error with nothing rendered. The install-time
+          // cache.addAll() is best-effort, so the shell genuinely can be missing.
+          || new Response(
+            '<!doctype html><meta charset="utf-8"><title>Offline</title>'
+            + '<p style="font:16px system-ui;padding:2rem">You are offline. Reconnect and reload.</p>',
+            { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } },
+          )),
     );
     return;
   }
@@ -58,7 +69,14 @@ self.addEventListener('fetch', (event) => {
       const cached = await cache.match(request);
       const network = fetch(request)
         .then((response) => {
-          if (response && response.status === 200) cache.put(request, response.clone());
+          // A missing hashed chunk comes back from the CDN as the SPA shell — 200 text/html, not a
+          // 404. Caching that would pin a broken answer for this URL forever, so only store a
+          // response whose type still matches what was asked for.
+          const html = (response?.headers.get('Content-Type') || '').includes('text/html');
+          const wantsScript = request.destination === 'script' || request.destination === 'style';
+          if (response && response.status === 200 && !(html && wantsScript)) {
+            cache.put(request, response.clone());
+          }
           return response;
         })
         .catch(() => cached);
