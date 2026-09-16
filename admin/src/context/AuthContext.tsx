@@ -10,8 +10,16 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+// The token is what the API actually authenticates with, so it — not the remembered email — decides
+// whether this browser is signed in. Keeping the email as the source of truth let a session with no
+// usable token through to the protected routes, where every request then 401s.
+const readSession = () => {
+  const token = localStorage.getItem('admin_token');
+  return token ? localStorage.getItem('admin_email') : null;
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [email, setEmail] = useState<string | null>(() => localStorage.getItem('admin_email'));
+  const [email, setEmail] = useState<string | null>(readSession);
 
   const login = useCallback(async (email: string, password: string) => {
     const { token } = await adminApi.login(email, password);

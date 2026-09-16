@@ -1,7 +1,8 @@
 import axios from 'axios';
 import type { FeedbackItem, FeedbackStatus, FeedbackStats, PaginatedResponse, UserItem, PlatformAnalytics, UserDetail } from '../types';
+import { getApiBaseUrl } from '../utils/env';
 
-const http = axios.create({ baseURL: '/api' });
+const http = axios.create({ baseURL: getApiBaseUrl() });
 
 // Attach bearer token from localStorage on every request
 http.interceptors.request.use((config) => {
@@ -10,9 +11,17 @@ http.interceptors.request.use((config) => {
   return config;
 });
 
-// Redirect to login on 401
 http.interceptors.response.use(
-  (res) => res,
+  (res) => {
+    // Every endpoint here returns JSON. An HTML body means the request never reached the API — an
+    // SPA-fallback origin answered it with index.html — and handing that string to a page as if it
+    // were the DTO is what turns a routing mistake into a blank screen.
+    if (typeof res.data === 'string' && res.data.trimStart().startsWith('<')) {
+      return Promise.reject(new Error(`Expected JSON from ${res.config.url} but received an HTML document.`));
+    }
+    return res;
+  },
+  // Redirect to login on 401
   (err) => {
     if (err.response?.status === 401) {
       localStorage.removeItem('admin_token');
@@ -35,6 +44,11 @@ export interface FeedbackListParams {
 export const adminApi = {
   login: async (email: string, password: string) => {
     const { data } = await http.post<{ token: string }>('/admin/auth/login', { email, password });
+    // A misrouted /api (an SPA-fallback origin answering with index.html) is a 200 with no token.
+    // Treat that as a failed login rather than storing `undefined` and letting the app in.
+    if (!data || typeof data.token !== 'string' || !data.token) {
+      throw new Error('Login failed: the server did not return a token.');
+    }
     return data;
   },
 

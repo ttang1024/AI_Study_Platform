@@ -27,7 +27,7 @@
 		"docx-preview": "^0.3.7",
 		"html-to-image": "^1.11.13",
 		"idb-keyval": "^6.2.2",
-		"jspdf": "^4.2.0",
+		"jspdf": "^4.2.1",
 		"jszip": "^3.10.1",
 		"lucide-react": "^0.546.0",
 		"markmap-lib": "^0.18.12",

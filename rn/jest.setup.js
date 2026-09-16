@@ -11,3 +11,14 @@ jest.mock('react-native-webview', () => {
   const MockWebView = (props) => React.createElement(View, { ...props, testID: props.testID ?? 'webview' });
   return { WebView: MockWebView, default: MockWebView };
 });
+
+// expo-image wires itself into a native observer registry at import time, which
+// under jest throws "observe.getIntegrations is not a function" before any
+// component renders. Only `Image` is used, so stand it in with react-native's
+// own Image, forwarding props so a testID still lands on the rendered element.
+jest.mock('expo-image', () => {
+  const React = require('react');
+  const { Image } = require('react-native');
+  const MockImage = (props) => React.createElement(Image, props);
+  return { Image: MockImage, default: { Image: MockImage } };
+});
