@@ -141,6 +141,16 @@ public static class InfrastructureServiceExtensions
         })
         .ConfigurePrimaryHttpMessageHandler(() => SsrfGuard.CreateHandler());
 
+        // The built web app's index.html, read back from the web origin so a server-rendered
+        // /share/{token} page can boot the same SPA build the CDN serves. The URL comes from
+        // operator configuration rather than from a user, so this is deliberately not one of the
+        // SSRF-guarded clients.
+        services.AddHttpClient<IAppShellProvider, WebAppShellProvider>(client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(10);
+            client.DefaultRequestHeaders.Add("User-Agent", "StudyPlatform");
+        });
+
         // Web Clipper — used by ClipUrl to fetch article HTML server-side
         services.AddHttpClient("WebClipper", client =>
         {

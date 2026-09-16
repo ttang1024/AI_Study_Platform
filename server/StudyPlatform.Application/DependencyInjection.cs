@@ -8,6 +8,7 @@ using StudyPlatform.Application.Documents;
 using StudyPlatform.Application.Flashcards;
 using StudyPlatform.Application.Practice;
 using StudyPlatform.Application.Services;
+using StudyPlatform.Application.Share.Preview;
 
 namespace StudyPlatform.Application;
 
@@ -58,6 +59,14 @@ public static class DependencyInjection
         // Owns "which settings does this user schedule with, and which day is quietest" so the
         // review handler stays a handler.
         services.AddScoped<IReviewScheduler, ReviewScheduler>();
+
+        // Social link previews for /share/{token}. Small collaborators rather than one builder:
+        // markdown snippets, the "what's inside" inventory, the card's wording and the meta-tag
+        // writing each change for their own reasons, and each is worth testing on its own.
+        services.AddSingleton<ISummarySnippetExtractor, SummarySnippetExtractor>();
+        services.AddSingleton<IShareContentsInventory, ShareContentsInventory>();
+        services.AddSingleton<ISharePreviewFactory, SharePreviewFactory>();
+        services.AddSingleton<ISharePreviewHtmlRenderer, SharePreviewHtmlRenderer>();
 
         return services;
     }

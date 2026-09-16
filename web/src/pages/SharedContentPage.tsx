@@ -61,6 +61,16 @@ export const SharedContentPage: React.FC<{ token?: string }> = ({ token: tokenPr
       .finally(() => setLoading(false));
   }, [token]);
 
+  // The server renders this route's <title> and social meta tags for crawlers
+  // (StudyPlatform.API/Controllers/SharePreviewController.cs). Once the app takes over, keep the
+  // tab named after the share rather than letting the SPA shell's generic title stand.
+  useEffect(() => {
+    if (!content?.title) return;
+    const previous = document.title;
+    document.title = `${content.title} · toto.ai`;
+    return () => { document.title = previous; };
+  }, [content?.title]);
+
   const handleCopy = () => {
     navigator.clipboard.writeText(window.location.href);
     setCopied(true);
@@ -113,7 +123,9 @@ export const SharedContentPage: React.FC<{ token?: string }> = ({ token: tokenPr
 
         {/* Header */}
         <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-sidebar)] p-6">
-          <div className="flex items-start justify-between gap-4">
+          {/* Stacked on phones so the title gets the full width instead of sharing the line
+              with the copy button, which leaves it about 200px on a 400px viewport. */}
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap mb-3">
                 <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
@@ -178,7 +190,7 @@ export const SharedContentPage: React.FC<{ token?: string }> = ({ token: tokenPr
             <button
               onClick={handleCopy}
               className={cn(
-                'flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold border transition-all shrink-0',
+                'flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold border transition-all shrink-0 self-start',
                 copied ? 'border-emerald-300 bg-emerald-50 text-emerald-600' : 'border-[var(--border-color)] text-text-muted hover:border-primary/50',
               )}
             >

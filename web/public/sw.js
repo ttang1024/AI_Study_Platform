@@ -39,8 +39,13 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const copy = response.clone();
-          caches.open(SHELL_CACHE).then((cache) => cache.put('/index.html', copy)).catch(() => undefined);
+          // /share/{token} is served by the API with that share's own <title> and social meta
+          // tags baked in. It boots the same app, but it is one share's page — not the shell
+          // every other route should fall back to offline.
+          if (!url.pathname.startsWith('/share/')) {
+            const copy = response.clone();
+            caches.open(SHELL_CACHE).then((cache) => cache.put('/index.html', copy)).catch(() => undefined);
+          }
           return response;
         })
         .catch(() => caches.match('/index.html').then((cached) => cached || caches.match('/'))),

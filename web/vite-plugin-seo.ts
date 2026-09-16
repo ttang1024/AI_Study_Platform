@@ -71,6 +71,36 @@ const DISALLOWED_PREFIXES = [
 	'/youtube',
 ]
 
+/**
+ * Crawlers that exist to build a link-preview card, not a search index.
+ *
+ * They need /share/ — a share link is worth pasting into a chat or a post, and the API renders
+ * that route with the share's own title, summary snippet and contents (see
+ * StudyPlatform.API/Controllers/SharePreviewController.cs). Several of these fetch strictly
+ * according to robots.txt (Twitterbot and facebookexternalhit document that they do), so the
+ * blanket Disallow above would otherwise leave every share link unfurling as a bare URL.
+ *
+ * Letting an unfurler read a link someone deliberately pasted is not the same as letting a search
+ * engine index it: the User-agent: * group still keeps /share/ out of search results, and the page
+ * itself carries a googlebot noindex.
+ */
+const LINK_PREVIEW_AGENTS = [
+	'Twitterbot',
+	'facebookexternalhit',
+	'Facebot',
+	'LinkedInBot',
+	'Slackbot',
+	'Slackbot-LinkExpanding',
+	'WhatsApp',
+	'TelegramBot',
+	'Discordbot',
+	'redditbot',
+	'Pinterestbot',
+	'SkypeUriPreview',
+	'Iframely',
+	'Embedly',
+]
+
 const xmlEscape = (value: string): string =>
 	value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
@@ -78,6 +108,16 @@ const buildRobotsTxt = (origin: string): string => {
 	// Anything not matched by a Disallow is crawlable by default, so "/" and the auth pages in
 	// SITEMAP_ROUTES need no explicit Allow.
 	const lines = ['User-agent: *', ...DISALLOWED_PREFIXES.map((p) => `Disallow: ${p}`)]
+
+	// A crawler obeys only the group that names it, so the preview agents need the whole list
+	// repeated back with /share/ taken out of it. Consecutive User-agent lines share one rule
+	// block, which is what keeps that from being fourteen copies of it.
+	lines.push(
+		'',
+		...LINK_PREVIEW_AGENTS.map((agent) => `User-agent: ${agent}`),
+		...DISALLOWED_PREFIXES.filter((p) => p !== '/share/').map((p) => `Disallow: ${p}`),
+	)
+
 	if (origin) lines.push('', `Sitemap: ${origin}/sitemap.xml`)
 	return `${lines.join('\n')}\n`
 }

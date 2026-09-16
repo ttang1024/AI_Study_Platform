@@ -90,6 +90,7 @@ Everything below is read from the environment. The image contains no credentials
 | `ConnectionStrings__DefaultConnection` | the Supabase session-pooler connection string |
 | `JwtSettings__SecretKey` | 64-char hex secret |
 | `AWS__Region` / `S3__BucketName` | region and documents bucket |
+| `Web__PublicOrigin` | your web frontend's public origin, e.g. `https://example.com`. The API reads `index.html` back from it to render `/share/{token}` for link previews, and builds the share URLs in those previews from it. Unset means share links fall back to the generic landing-page card. |
 | `Cors__AllowedOrigins__0` | your web frontend's public origin, e.g. `https://example.com` |
 | `Cors__AllowedOrigins__1`, `…__2` | any further origins (www, admin) |
 | `Embeddings__ApiKey` | embeddings provider key. Optional, but without it semantic search / RAG indexing does not run — it used to arrive baked into the image (see §7) and is now an environment variable. |
@@ -275,6 +276,24 @@ with `DEPLOY_WEB_ONLY=1` does that without touching ECS.
 
 No database credential, Supabase URL, or Supabase key belongs in any frontend variable — the frontend
 talks only to the API.
+
+#### `/share/*` is served by the API, not by S3
+
+Share pages are the one route the web distribution does not serve from its bucket. `deploy.sh`
+(`ensure_share_preview_behavior`) adds a `/share/*` cache behavior pointing at the API's load
+balancer, because a crawler cannot run the JavaScript that fetches the shared content — served the
+plain `index.html` it would build the same landing-page preview card for every shared link. The API
+returns that same shell with this share's title, summary snippet and contents already written into
+the meta tags, so the browser still boots the identical SPA build.
+
+Two consequences worth knowing:
+
+- The API must be able to reach `Web__PublicOrigin` over HTTPS; that is where it reads the shell
+  from. It caches it for 5 minutes, and keeps a last-known-good copy for 24 hours so a blip at the
+  web origin does not take share pages down.
+- Search engines are still kept off `/share/` by `robots.txt`; the explicit `Allow` groups there name
+  only link-preview crawlers (Twitterbot, facebookexternalhit, Slackbot, …), which are the agents
+  that fetch a URL because somebody pasted it.
 
 ---
 

@@ -153,6 +153,98 @@ ensure_cloudfront() {
   printf 'https://%s\n' "$domain"
 }
 
+# ensure_share_preview_behavior <alb dns name>. Points /share/* on the web distribution at the API
+# instead of the S3 bucket, and is a no-op once that behavior exists.
+#
+# Why: /share/{token} is a client-rendered route, so a crawler served the S3 index.html sees the
+# landing page's card and every shared link unfurls identically on Slack, X, LinkedIn and WeChat.
+# The API renders the same shell with that share's title, summary snippet and contents already in
+# the meta tags (SharePreviewController), so the app still boots exactly as before — the crawler
+# just gets something to read. Everything outside /share/* keeps coming from S3.
+ensure_share_preview_behavior() {
+  local alb="$1" dist_id etag config updated config_file
+  dist_id="$(cloudfront_field_by_comment "$WEB_CLOUDFRONT_COMMENT" Id)"
+  if [[ -z "$dist_id" || "$dist_id" == "None" ]]; then
+    echo "    Web distribution not found by comment '$WEB_CLOUDFRONT_COMMENT'; skipping the /share/* behavior." >&2
+    return 0
+  fi
+
+  config_file="$(mktemp -t share-behavior)"
+  if ! aws cloudfront get-distribution-config --id "$dist_id" > "$config_file" 2>/dev/null; then
+    echo "    Could not read the web distribution config; skipping the /share/* behavior." >&2
+    rm -f "$config_file"
+    return 0
+  fi
+  etag="$(jq -r '.ETag' "$config_file")"
+  config="$(jq '.DistributionConfig' "$config_file")"
+
+  if jq -e --arg origin "$alb" '
+      (.CacheBehaviors.Items // []) | any(.PathPattern == "/share/*" and .TargetOriginId == $origin)
+    ' <<<"$config" >/dev/null; then
+    echo "    /share/* already routed to the API"
+    rm -f "$config_file"
+    return 0
+  fi
+
+  # The API is reached at its load balancer rather than through its own CloudFront distribution:
+  # one hop, and the same origin settings that distribution uses.
+  updated="$(jq --arg origin "$alb" '
+    .Origins.Items |= (map(select(.Id != $origin)) + [{
+      Id: $origin,
+      DomainName: $origin,
+      OriginPath: "",
+      CustomHeaders: {Quantity: 0},
+      CustomOriginConfig: {
+        HTTPPort: 80,
+        HTTPSPort: 443,
+        OriginProtocolPolicy: "http-only",
+        OriginReadTimeout: 30,
+        OriginKeepaliveTimeout: 5,
+        OriginSslProtocols: {Quantity: 1, Items: ["TLSv1.2"]}
+      }
+    }])
+    | .Origins.Quantity = (.Origins.Items | length)
+    | .CacheBehaviors.Items = ((.CacheBehaviors.Items // []) | map(select(.PathPattern != "/share/*")) + [{
+        PathPattern: "/share/*",
+        TargetOriginId: $origin,
+        ViewerProtocolPolicy: "redirect-to-https",
+        Compress: true,
+        TrustedSigners: {Enabled: false, Quantity: 0},
+        AllowedMethods: {
+          Quantity: 3,
+          Items: ["GET", "HEAD", "OPTIONS"],
+          CachedMethods: {Quantity: 2, Items: ["GET", "HEAD"]}
+        },
+        # No headers or cookies forwarded: the page is the same for every visitor, which is what
+        # makes it cacheable at the edge. The API sets no-store for a token that does not resolve.
+        ForwardedValues: {
+          QueryString: false,
+          Cookies: {Forward: "none"},
+          Headers: {Quantity: 0},
+          QueryStringCacheKeys: {Quantity: 0}
+        },
+        MinTTL: 0,
+        DefaultTTL: 300,
+        MaxTTL: 3600,
+        SmoothStreaming: false,
+        FieldLevelEncryptionId: "",
+        LambdaFunctionAssociations: {Quantity: 0}
+      }])
+    | .CacheBehaviors.Quantity = (.CacheBehaviors.Items | length)
+  ' <<<"$config")"
+
+  printf '%s' "$updated" > "$config_file"
+  if aws cloudfront update-distribution --id "$dist_id" --if-match "$etag" \
+      --distribution-config "file://$config_file" >/dev/null; then
+    echo "    /share/* now rendered by the API (social link previews)"
+    aws cloudfront create-invalidation --distribution-id "$dist_id" --paths '/share/*' >/dev/null || true
+  else
+    echo "    Failed to add the /share/* behavior to the web distribution; share links will still" >&2
+    echo "    work but will unfurl with the generic landing-page card." >&2
+  fi
+  rm -f "$config_file"
+}
+
 invalidate_cloudfront_by_comment() {
   local id
   id="$(cloudfront_field_by_comment "$1" Id)"
@@ -341,6 +433,7 @@ if [[ "$DEPLOY_WEB_ONLY" == "1" ]]; then
   fi
   echo "==> Resolving public origins"
   resolve_public_origins "$ALB_DNS_NAME"
+  ensure_share_preview_behavior "$ALB_DNS_NAME"
   deploy_frontends
   summary "Frontend deployment complete"
   exit 0
@@ -451,6 +544,7 @@ echo "    Target group and HTTP listener ready"
 
 echo "==> Resolving public origins"
 resolve_public_origins "$ALB_DNS_NAME"
+ensure_share_preview_behavior "$ALB_DNS_NAME"
 echo "    Web:   $WEB_ORIGIN"
 echo "    Admin: $ADMIN_ORIGIN"
 echo "    API:   $API_URL"
@@ -491,6 +585,9 @@ TASK_ENVIRONMENT=(
   "Embeddings__Provider=${EMBEDDINGS_PROVIDER:-gemini}"
   "Embeddings__Model=${EMBEDDINGS_MODEL:-gemini-embedding-001}"
   "Embeddings__ApiKey=$EMBEDDINGS_API_KEY"
+  # Where the API reads index.html from to render /share/{token}, and the origin the share URLs
+  # in those previews are built from.
+  "Web__PublicOrigin=$WEB_ORIGIN"
   "Cors__AllowedOrigins__0=$WEB_ORIGIN"
   "Cors__AllowedOrigins__1=$ADMIN_ORIGIN"
   "Cors__AllowedOrigins__2=$WEB_WWW_ORIGIN"
