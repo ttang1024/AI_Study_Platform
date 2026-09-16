@@ -116,7 +116,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isCollapsed, 
               )}
               title={isCollapsed ? 'Expand sidebar' : undefined}
             >
-              <img src="/app.png" alt="toto.ai logo" className="w-full h-full object-cover" />
+              <img src="/app.png" alt="Toto Study logo" className="w-full h-full object-cover" />
             </motion.div>
 
             {!isCollapsed && (

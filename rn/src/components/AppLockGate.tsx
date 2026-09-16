@@ -49,7 +49,7 @@ export function AppLockGate({ children }: { children: React.ReactNode }) {
       <View style={styles.iconCircle}>
         <LockKeyhole size={30} color={Colors.primary} />
       </View>
-      <Text style={styles.title}>toto.ai is locked</Text>
+      <Text style={styles.title}>Toto Study is locked</Text>
       <Text style={styles.subtitle}>Unlock with biometrics or your device passcode.</Text>
       <Button title="Unlock" onPress={promptUnlock} />
     </View>

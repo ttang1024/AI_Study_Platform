@@ -2,7 +2,7 @@
 module.exports = (config) => ({
   type: 'widget',
   name: 'StudyWidget',
-  displayName: 'toto.ai',
+  displayName: 'Toto Study',
   colors: {
     $accent: { color: '#059669', darkColor: '#10b981' },
   },

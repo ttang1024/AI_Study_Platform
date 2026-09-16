@@ -52,7 +52,7 @@ export const BentoShareCard: React.FC = () => {
           <div className="flex items-center gap-1.5 rounded-lg px-2.5 py-2"
             style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
             <Link2 className="w-3 h-3 text-white/30 flex-shrink-0" />
-            <span className="font-mono text-[10px] text-white/45 truncate">toto.ai/share/x7Kp9q</span>
+            <span className="font-mono text-[10px] text-white/45 truncate">toto-study.com/share/x7Kp9q</span>
             <motion.button
               whileHover={{ scale: 1.08 }}
               whileTap={{ scale: 0.92 }}

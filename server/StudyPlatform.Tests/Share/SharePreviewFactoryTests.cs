@@ -53,7 +53,7 @@ public class SharePreviewFactoryTests
     {
         var share = new ShareToken { Token = "abc", Title = "Empty", Owner = new User { FullName = "Ting Tang" } };
 
-        Assert.Equal("Shared by Ting Tang on toto.ai", _factory.Create(share, Origin).Description);
+        Assert.Equal("Shared by Ting Tang on Toto Study", _factory.Create(share, Origin).Description);
     }
 
     [Fact]
@@ -61,7 +61,7 @@ public class SharePreviewFactoryTests
     {
         var share = new ShareToken { Token = "abc", Title = "Anon", Summary = "Body." };
 
-        Assert.EndsWith("Shared by a toto.ai user · Summary", _factory.Create(share, Origin).Description);
+        Assert.EndsWith("Shared by a Toto Study user · Summary", _factory.Create(share, Origin).Description);
     }
 
     [Fact]

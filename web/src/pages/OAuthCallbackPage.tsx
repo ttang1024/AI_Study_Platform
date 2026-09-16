@@ -74,7 +74,7 @@ export const OAuthCallbackPage: React.FC = () => {
           transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
           className="relative h-16 w-16 overflow-hidden rounded-2xl"
         >
-          <img src="/app.png" alt="toto.ai logo" className="h-full w-full object-cover" />
+          <img src="/app.png" alt="Toto Study logo" className="h-full w-full object-cover" />
         </motion.div>
         <div className="space-y-2 text-center">
           <div className="flex items-center justify-center gap-2">

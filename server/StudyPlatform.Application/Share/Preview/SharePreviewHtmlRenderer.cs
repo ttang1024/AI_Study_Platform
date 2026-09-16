@@ -66,7 +66,7 @@ public partial class SharePreviewHtmlRenderer : ISharePreviewHtmlRenderer
         var tags = new StringBuilder();
         void Line(string tag) => tags.Append(indent).Append(tag).Append('\n');
 
-        Line($"<title>{Text(preview.Title)} · toto.ai</title>");
+        Line($"<title>{Text(preview.Title)} · Toto Study</title>");
         Line($"""<meta name="description" content="{description}" />""");
         Line($"""<link rel="canonical" href="{url}" />""");
         // Share links are public-by-token, not public-to-search: robots.txt keeps crawlers off
@@ -74,7 +74,7 @@ public partial class SharePreviewHtmlRenderer : ISharePreviewHtmlRenderer
         // indexers and ignore it, so rich previews are unaffected.
         Line("""<meta name="googlebot" content="noindex, nofollow" />""");
         Line("""<meta property="og:type" content="article" />""");
-        Line("""<meta property="og:site_name" content="toto.ai" />""");
+        Line("""<meta property="og:site_name" content="Toto Study" />""");
         Line($"""<meta property="og:title" content="{title}" />""");
         Line($"""<meta property="og:description" content="{description}" />""");
         Line($"""<meta property="og:url" content="{url}" />""");
@@ -109,7 +109,7 @@ public partial class SharePreviewHtmlRenderer : ISharePreviewHtmlRenderer
         foreach (var paragraph in preview.Description.Split('\n', StringSplitOptions.RemoveEmptyEntries))
             body.Append(indent).Append("\t<p>").Append(Text(paragraph.Trim())).Append("</p>\n");
 
-        body.Append(indent).Append("\t<p><a href=\"").Append(Attr(preview.Url)).Append("\">Open this on toto.ai</a></p>\n");
+        body.Append(indent).Append("\t<p><a href=\"").Append(Attr(preview.Url)).Append("\">Open this on Toto Study</a></p>\n");
         body.Append(indent).Append("</noscript>\n");
         return body.ToString();
     }

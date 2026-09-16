@@ -9,15 +9,15 @@ public class SharePreviewHtmlRendererTests
         <!doctype html>
         <html lang="en">
         	<head>
-        		<title>toto.ai - AI Study Platform</title>
+        		<title>Toto Study - AI Study Platform</title>
         		<link rel="canonical" href="https://toto-study.com/" />
         		<meta name="description" content="Turn any document…" />
-        		<meta property="og:title" content="toto.ai - AI Study Platform" />
+        		<meta property="og:title" content="Toto Study - AI Study Platform" />
         		<meta
         			property="og:description"
         			content="Turn any document…" />
-        		<meta name="twitter:title" content="toto.ai - AI Study Platform" />
-        		<meta name="wechat:title" content="toto.ai - AI Study Platform" />
+        		<meta name="twitter:title" content="Toto Study - AI Study Platform" />
+        		<meta name="wechat:title" content="Toto Study - AI Study Platform" />
         		<meta name="image_src" content="https://toto-study.com/share.png" />
         		<meta name="theme-color" content="#0d9488" />
         		<link rel="manifest" href="/manifest.webmanifest" />
@@ -29,7 +29,7 @@ public class SharePreviewHtmlRendererTests
         		<div id="root"></div>
         		<!-- Mirrors the copy rendered by web/src/pages/LandingPage.tsx. -->
         		<noscript>
-        			<h1>toto.ai — AI Study Platform</h1>
+        			<h1>Toto Study — AI Study Platform</h1>
         		</noscript>
         		<script type="module" crossorigin src="/assets/index-a1b2c3.js"></script>
         	</body>
@@ -55,9 +55,9 @@ public class SharePreviewHtmlRendererTests
         Assert.Contains("""<meta property="og:title" content="13_gans.pdf" />""", html);
         Assert.Contains("""<meta property="og:url" content="https://toto-study.com/share/3jSLWBdGx2MI" />""", html);
         Assert.Contains("""<meta name="twitter:card" content="summary_large_image" />""", html);
-        Assert.Contains("<title>13_gans.pdf · toto.ai</title>", html);
+        Assert.Contains("<title>13_gans.pdf · Toto Study</title>", html);
         Assert.Contains("""<link rel="canonical" href="https://toto-study.com/share/3jSLWBdGx2MI" />""", html);
-        Assert.DoesNotContain("toto.ai - AI Study Platform", html);
+        Assert.DoesNotContain("Toto Study - AI Study Platform", html);
         Assert.DoesNotContain("Turn any document", html);
         Assert.DoesNotContain("application/ld+json", html);
     }
@@ -91,7 +91,7 @@ public class SharePreviewHtmlRendererTests
     {
         var html = _renderer.Render(Shell, Preview());
 
-        Assert.DoesNotContain("toto.ai — AI Study Platform", html);
+        Assert.DoesNotContain("Toto Study — AI Study Platform", html);
         Assert.DoesNotContain("LandingPage.tsx", html);
         Assert.Contains("<h1>13_gans.pdf</h1>", html);
         Assert.Contains("<p>Generative Adversarial Networks.</p>", html);
@@ -138,7 +138,7 @@ public class SharePreviewHtmlRendererTests
         Assert.StartsWith("<!doctype html>", html);
         Assert.Contains("</head>", html);
         Assert.Contains("""<meta property="og:description" """.TrimEnd(), html);
-        Assert.Contains("""<a href="https://toto-study.com/share/3jSLWBdGx2MI">Open this on toto.ai</a>""", html);
+        Assert.Contains("""<a href="https://toto-study.com/share/3jSLWBdGx2MI">Open this on Toto Study</a>""", html);
     }
 
     private static int Occurrences(string haystack, string needle)

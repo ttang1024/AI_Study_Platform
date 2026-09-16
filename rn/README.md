@@ -1,4 +1,4 @@
-# toto.ai — mobile app
+# Toto Study — mobile app
 
 React Native (Expo SDK 57, expo-router, TypeScript) client for the AI Study Platform. It has full
 feature parity with the web app in `../web`, plus mobile-native features that only make sense on a

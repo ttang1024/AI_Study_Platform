@@ -56,7 +56,7 @@ export async function biometricLabel(): Promise<string> {
 export async function authenticateForUnlock(): Promise<boolean> {
   try {
     const result = await LocalAuthentication.authenticateAsync({
-      promptMessage: 'Unlock toto.ai',
+      promptMessage: 'Unlock Toto Study',
       cancelLabel: 'Cancel',
     });
     return result.success;

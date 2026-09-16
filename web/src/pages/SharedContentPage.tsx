@@ -67,7 +67,7 @@ export const SharedContentPage: React.FC<{ token?: string }> = ({ token: tokenPr
   useEffect(() => {
     if (!content?.title) return;
     const previous = document.title;
-    document.title = `${content.title} · toto.ai`;
+    document.title = `${content.title} · Toto Study`;
     return () => { document.title = previous; };
   }, [content?.title]);
 

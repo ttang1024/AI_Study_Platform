@@ -50,7 +50,7 @@ public class SharePreviewFactory : ISharePreviewFactory
         return new SharePreview(
             Title: "Shared study material",
             Description: "This share link has expired or no longer exists. Turn your own documents, "
-                + "videos, podcasts and articles into summaries, mind maps, flashcards and quizzes on toto.ai.",
+                + "videos, podcasts and articles into summaries, mind maps, flashcards and quizzes on Toto Study.",
             Url: $"{baseUrl}/share/{token}",
             ImageUrl: $"{baseUrl}{CardImagePath}",
             ImageWidth: CardImageWidth,
@@ -65,12 +65,12 @@ public class SharePreviewFactory : ISharePreviewFactory
     private string BuildDescription(ShareToken share)
     {
         var snippet = _snippets.Extract(share.Summary, SnippetMaxLength);
-        var owner = string.IsNullOrWhiteSpace(share.Owner?.FullName) ? "a toto.ai user" : share.Owner!.FullName.Trim();
+        var owner = string.IsNullOrWhiteSpace(share.Owner?.FullName) ? "a Toto Study user" : share.Owner!.FullName.Trim();
         var contents = _inventory.Describe(share);
 
         var attribution = contents.Length > 0
             ? $"Shared by {owner} · {contents}"
-            : $"Shared by {owner} on toto.ai";
+            : $"Shared by {owner} on Toto Study";
 
         return snippet.Length > 0 ? $"{snippet}\n\n{attribution}" : attribution;
     }

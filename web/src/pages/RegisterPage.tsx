@@ -80,7 +80,7 @@ export const RegisterPage: React.FC = () => {
             transition={{ type: 'spring', stiffness: 380, damping: 16 }}
             className="p-0.5 relative mx-auto mb-4 h-14 w-14 rounded-2xl overflow-hidden"
           >
-            <img src="/app.png" alt="toto.ai logo" className="w-full h-full object-cover" />
+            <img src="/app.png" alt="Toto Study logo" className="w-full h-full object-cover" />
           </motion.div>
           <h1 className="text-2xl font-bold text-zinc-900">Create account</h1>
         </div>

@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "toto.ai",
+    "name": "Toto Study",
     "slug": "rn",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -44,28 +44,28 @@
       [
         "expo-audio",
         {
-          "microphonePermission": "Allow toto.ai to use the microphone to check your pronunciation."
+          "microphonePermission": "Allow Toto Study to use the microphone to check your pronunciation."
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow toto.ai to access your photos to attach them to a chat message.",
-          "cameraPermission": "Allow toto.ai to use your camera to scan study material and attach photos to chat messages.",
+          "photosPermission": "Allow Toto Study to access your photos to attach them to a chat message.",
+          "cameraPermission": "Allow Toto Study to use your camera to scan study material and attach photos to chat messages.",
           "microphonePermission": false
         }
       ],
       [
         "expo-local-authentication",
         {
-          "faceIDPermission": "Allow toto.ai to use Face ID to unlock the app."
+          "faceIDPermission": "Allow Toto Study to use Face ID to unlock the app."
         }
       ],
       [
         "expo-speech-recognition",
         {
-          "microphonePermission": "Allow toto.ai to use the microphone for voice input in chat.",
-          "speechRecognitionPermission": "Allow toto.ai to use speech recognition to transcribe your voice input in chat."
+          "microphonePermission": "Allow Toto Study to use the microphone for voice input in chat.",
+          "speechRecognitionPermission": "Allow Toto Study to use speech recognition to transcribe your voice input in chat."
         }
       ],
       "expo-web-browser",

@@ -28,7 +28,7 @@ export const CtaSection: React.FC<{ go: () => void }> = ({ go }) => (
 
           <h2 className="text-4xl sm:text-5xl font-extrabold mb-3 leading-tight" style={{ fontFamily: 'Orbitron, sans-serif' }}>
             <span style={{ background: 'linear-gradient(135deg, #e0f7ff, #22d3ee 40%, #14b8a6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-              Start with toto.ai
+              Start with Toto Study
             </span>
           </h2>
           <p className="text-white/50 text-base mb-10 max-w-md mx-auto leading-relaxed">

@@ -16,13 +16,13 @@ export const Logo: React.FC<{ sm?: boolean }> = ({ sm }) => (
       className={`relative p-0.5 ${sm ? 'w-6 h-6' : 'w-9 h-9'} rounded-xl overflow-hidden`}
       style={{ animation: 'logoGlow 3s ease-in-out infinite' }}
     >
-      <img src="/app.png" alt="toto.ai logo" className="w-full h-full object-cover" />
+      <img src="/app.png" alt="Toto Study logo" className="w-full h-full object-cover" />
     </motion.div>
     <span
       className={`${sm ? 'text-sm' : 'text-lg'} font-extrabold tracking-tight`}
       style={{ fontFamily: 'Orbitron, sans-serif' }}
     >
-      toto<span style={{ color: '#22d3ee' }}>.ai</span>
+      Toto <span style={{ color: '#22d3ee' }}>Study</span>
     </span>
   </div>
 );

@@ -167,7 +167,7 @@ export const LandingPage: React.FC = () => {
               WebkitTextFillColor: 'transparent',
               filter: 'drop-shadow(0 0 18px rgba(34,211,238,0.5))',
             }}>
-            toto.ai
+            Toto Study
           </span>
           <span className="ml-3 text-sm sm:text-base text-white/30 font-medium tracking-wide">easy study platform</span>
         </motion.div>

@@ -1,6 +1,6 @@
 {
-  "name": "toto.ai — AI Study Platform",
-  "short_name": "toto.ai",
+  "name": "Toto Study — AI Study Platform",
+  "short_name": "Toto Study",
   "description": "Study with AI summaries, flashcards, quizzes, and glossaries — even offline.",
   "start_url": "/dashboard",
   "scope": "/",

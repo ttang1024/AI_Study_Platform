@@ -126,7 +126,7 @@ private struct EmptyFace: View {
             Image(systemName: "book.closed")
                 .font(.system(size: 20))
                 .foregroundStyle(.secondary)
-            Text("Open toto.ai to sync")
+            Text("Open Toto Study to sync")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

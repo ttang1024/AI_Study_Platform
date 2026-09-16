@@ -1,4 +1,4 @@
-/* toto.ai service worker — app-shell + runtime caching for offline study.
+/* Toto Study service worker — app-shell + runtime caching for offline study.
  * Strategy:
  *   - navigations: network-first, fall back to the cached app shell (so the SPA boots offline)
  *   - same-origin static assets: stale-while-revalidate

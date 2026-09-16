@@ -38,7 +38,7 @@ export function AuthScaffold({ title, subtitle, footerText, footerLinkText, foot
             <View style={styles.logoTile}>
               <Image source={require('@/assets/images/logo.png')} style={styles.logo} resizeMode="contain" />
             </View>
-            <Text style={styles.brandName}>toto.ai</Text>
+            <Text style={styles.brandName}>Toto Study</Text>
           </LinearGradient>
 
           <View style={styles.card}>

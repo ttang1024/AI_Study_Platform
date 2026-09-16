@@ -78,7 +78,7 @@ export default function ShareIntentScreen() {
     <>
       <Stack.Screen
         options={{
-          title: 'Save to toto.ai',
+          title: 'Save to Toto Study',
           headerLeft: () => (
             <Pressable onPress={cancel} hitSlop={8}>
               <ChevronLeft size={24} color={Colors.primary} />
