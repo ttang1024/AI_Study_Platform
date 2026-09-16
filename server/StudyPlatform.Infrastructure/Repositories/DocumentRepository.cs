@@ -144,20 +144,4 @@ public class DocumentRepository : Repository<Document>, IDocumentRepository
             .Take(limit)
             .Select(d => new DocumentListItem(d.DocumentId, d.CourseId, d.FileName, d.CreatedAt))
             .ToListAsync(cancellationToken);
-
-    public async Task<IReadOnlyList<DocumentGraphNode>> GetGraphNodesAsync(Guid userId, CancellationToken cancellationToken = default)
-        => await _dbSet
-            .AsNoTracking()
-            .Where(d => d.UserId == userId)
-            .Select(d => new DocumentGraphNode(
-                d.DocumentId,
-                d.CourseId,
-                d.FileName,
-                d.ContentType,
-                d.OriginalUrl,
-                // Evaluated as a NOT NULL / <> '' test in SQL — the text itself is never read.
-                (d.Summary != null && d.Summary != "")
-                    || (d.MindMapText != null && d.MindMapText != "")
-                    || (d.Transcript != null && d.Transcript != "")))
-            .ToListAsync(cancellationToken);
 }

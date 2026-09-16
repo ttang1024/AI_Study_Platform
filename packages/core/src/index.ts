@@ -21,6 +21,8 @@ export * from './chat';
 export * from './sse';
 export * from './podcastSources';
 export * from './videoSources';
+export * from './tts';
+export * from './fsrsPresets';
 export * from './documentUpload';
 export * from './utils/apiError';
 export * from './utils/analyticsBuckets';

@@ -1,215 +1,58 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import {
+  createUseTts,
+  type TtsAudioDriver,
+  type TtsAudioHandle,
+  type TtsChunkCallbacks,
+} from '@core/react/ttsQueue';
+import {
+  formatSleepCountdown,
+  SLEEP_OPTIONS,
+  type TtsError,
+  type TtsItem,
+  type TtsState,
+  type UseTtsReturn,
+} from '@core/tts';
 import { synthesizeSpeech } from '../services/edgeTtsService';
 
-export interface TtsItem {
-  text: string;
-  title: string;
-}
+export { SLEEP_OPTIONS, formatSleepCountdown };
+export type { TtsError, TtsItem, TtsState, UseTtsReturn };
 
-export type TtsState = 'idle' | 'loading' | 'playing' | 'paused';
-export type TtsErrorCode = 'api_error';
-export interface TtsError { code: TtsErrorCode; message: string; }
+/**
+ * Browser half of the shared TTS queue: one HTMLAudioElement per chunk over the
+ * blob URL `synthesizeSpeech` hands back. Each handle owns its own object URL and
+ * revokes it on release or on ending, so the only URLs left for the queue to
+ * discard are the chunks it never reached.
+ */
+const webAudioDriver: TtsAudioDriver = {
+  open(source: string, { onEnded, onFailed }: TtsChunkCallbacks): TtsAudioHandle | null {
+    const audio = new Audio(source);
+    let released = false;
 
-const SLEEP_OPTIONS = [
-  { label: '15 min', minutes: 15 },
-  { label: '30 min', minutes: 30 },
-  { label: '45 min', minutes: 45 },
-  { label: '60 min', minutes: 60 },
-];
-export { SLEEP_OPTIONS };
+    const release = () => {
+      if (released) return;
+      released = true;
+      audio.pause();
+      audio.onended = null;
+      URL.revokeObjectURL(source);
+    };
 
-export interface UseTtsReturn {
-  playerState: TtsState;
-  currentIndex: number;
-  ttsError: TtsError | null;
-  items: TtsItem[];
-  setItems: (items: TtsItem[]) => void;
-  play: (index?: number) => void;
-  pause: () => void;
-  resume: () => void;
-  stop: () => void;
-  skipForward: () => void;
-  skipBack: () => void;
-  clearError: () => void;
-  sleepTimeLeft: string | null;
-  hasSleepTimer: boolean;
-  setSleepTimer: (minutes: number) => void;
-  cancelSleepTimer: () => void;
-}
+    audio.onended = () => { release(); onEnded(); };
+    audio.play().catch(() => { release(); onFailed(); });
 
-export function useTts(items: TtsItem[]): UseTtsReturn {
-  const [storedItems, setStoredItems] = useState(items);
-  const [playerState, setPlayerState] = useState<TtsState>('idle');
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [ttsError, setTtsError] = useState<TtsError | null>(null);
-  const [sleepTimeLeft, setSleepTimeLeft] = useState<string | null>(null);
-  const [hasSleepTimer, setHasSleepTimer] = useState(false);
+    return {
+      pause: () => audio.pause(),
+      resume: () => { audio.play().catch(() => {}); },
+      release,
+    };
+  },
+  discard(sources: string[]) {
+    sources.forEach(URL.revokeObjectURL);
+  },
+};
 
-  const isActiveRef = useRef(false);
-  const currentIndexRef = useRef(0);
-  const itemsRef = useRef(items);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
-  const blobUrlRef = useRef<string | null>(null);
-  const pendingBlobUrlsRef = useRef<string[]>([]);
-  const sleepTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const sleepCountdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  useEffect(() => {
-    itemsRef.current = items;
-    setStoredItems(items);
-  }, [items]);
-  useEffect(() => { currentIndexRef.current = currentIndex; }, [currentIndex]);
-
-  const replaceItems = useCallback((nextItems: TtsItem[]) => {
-    itemsRef.current = nextItems;
-    setStoredItems(nextItems);
-  }, []);
-
-  const releaseAudio = useCallback(() => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.onended = null;
-      audioRef.current = null;
-    }
-    if (blobUrlRef.current) {
-      URL.revokeObjectURL(blobUrlRef.current);
-      blobUrlRef.current = null;
-    }
-    pendingBlobUrlsRef.current.forEach(URL.revokeObjectURL);
-    pendingBlobUrlsRef.current = [];
-    if (abortRef.current) {
-      abortRef.current.abort();
-      abortRef.current = null;
-    }
-  }, []);
-
-  const clearSleepTimer = useCallback(() => {
-    if (sleepTimerRef.current) { clearTimeout(sleepTimerRef.current); sleepTimerRef.current = null; }
-    if (sleepCountdownRef.current) { clearInterval(sleepCountdownRef.current); sleepCountdownRef.current = null; }
-    setHasSleepTimer(false);
-    setSleepTimeLeft(null);
-  }, []);
-
-  const stop = useCallback(() => {
-    isActiveRef.current = false;
-    releaseAudio();
-    setPlayerState('idle');
-    clearSleepTimer();
-  }, [releaseAudio, clearSleepTimer]);
-
-  const clearError = useCallback(() => setTtsError(null), []);
-
-  const playAtIndex = useCallback((index: number) => {
-    const current = itemsRef.current;
-    if (index < 0 || index >= current.length) { stop(); return; }
-
-    releaseAudio();
-
-    isActiveRef.current = true;
-    setCurrentIndex(index);
-    currentIndexRef.current = index;
-    setTtsError(null);
-    setPlayerState('loading');
-
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    synthesizeSpeech(current[index].text, controller.signal)
-      .then((blobUrls) => {
-        if (controller.signal.aborted) { blobUrls.forEach(URL.revokeObjectURL); return; }
-        abortRef.current = null;
-
-        pendingBlobUrlsRef.current = [...blobUrls];
-        let chunkIdx = 0;
-
-        const playNextChunk = () => {
-          if (!isActiveRef.current) return;
-
-          if (chunkIdx >= blobUrls.length) {
-            pendingBlobUrlsRef.current = [];
-            const next = currentIndexRef.current + 1;
-            setCurrentIndex(next);
-            currentIndexRef.current = next;
-            playAtIndex(next);
-            return;
-          }
-
-          const blobUrl = blobUrls[chunkIdx++];
-          pendingBlobUrlsRef.current = blobUrls.slice(chunkIdx);
-          blobUrlRef.current = blobUrl;
-          const audio = new Audio(blobUrl);
-          audioRef.current = audio;
-          setPlayerState('playing');
-          audio.onended = () => {
-            URL.revokeObjectURL(blobUrl);
-            blobUrlRef.current = null;
-            audioRef.current = null;
-            playNextChunk();
-          };
-          audio.play().catch(() => { if (isActiveRef.current) stop(); });
-        };
-
-        playNextChunk();
-      })
-      .catch((err) => {
-        if (controller.signal.aborted) return;
-        setTtsError({ code: 'api_error', message: err?.message ?? 'TTS failed. Please try again.' });
-        stop();
-      });
-  }, [stop, releaseAudio]);
-
-  const play = useCallback((index?: number) => {
-    playAtIndex(index ?? currentIndexRef.current);
-  }, [playAtIndex]);
-
-  const pause = useCallback(() => {
-    if (audioRef.current) { audioRef.current.pause(); }
-    isActiveRef.current = false;
-    setPlayerState('paused');
-  }, []);
-
-  const resume = useCallback(() => {
-    if (audioRef.current) { audioRef.current.play().catch(() => {}); }
-    isActiveRef.current = true;
-    setPlayerState('playing');
-  }, []);
-
-  const skipForward = useCallback(() => {
-    playAtIndex(currentIndexRef.current + 1);
-  }, [playAtIndex]);
-
-  const skipBack = useCallback(() => {
-    playAtIndex(Math.max(0, currentIndexRef.current - 1));
-  }, [playAtIndex]);
-
-  const setSleepTimer = useCallback((minutes: number) => {
-    clearSleepTimer();
-    const end = new Date(Date.now() + minutes * 60 * 1000);
-    setHasSleepTimer(true);
-    sleepTimerRef.current = setTimeout(() => { stop(); }, minutes * 60 * 1000);
-    sleepCountdownRef.current = setInterval(() => {
-      const remaining = end.getTime() - Date.now();
-      if (remaining <= 0) {
-        setSleepTimeLeft(null);
-        if (sleepCountdownRef.current) clearInterval(sleepCountdownRef.current);
-      } else {
-        const m = Math.floor(remaining / 60000);
-        const s = Math.floor((remaining % 60000) / 1000);
-        setSleepTimeLeft(`${m}:${s.toString().padStart(2, '0')}`);
-      }
-    }, 1000);
-  }, [clearSleepTimer, stop]);
-
-  const cancelSleepTimer = useCallback(() => { clearSleepTimer(); }, [clearSleepTimer]);
-
-  useEffect(() => () => { stop(); }, [stop]);
-
-  return {
-    playerState, currentIndex, ttsError,
-    items: storedItems,
-    setItems: replaceItems,
-    play, pause, resume, stop, skipForward, skipBack,
-    clearError, sleepTimeLeft, hasSleepTimer, setSleepTimer, cancelSleepTimer,
-  };
-}
+export const useTts = createUseTts({
+  synthesize: (text, signal) => synthesizeSpeech(text, signal),
+  driver: webAudioDriver,
+  synthesisErrorMessage: 'TTS failed. Please try again.',
+  errorCode: 'api_error',
+});

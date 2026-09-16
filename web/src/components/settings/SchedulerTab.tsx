@@ -10,25 +10,14 @@ import {
 } from '../../services/flashcardService';
 import { SettingsAlert } from './SettingsAlert';
 import { PRIMARY } from '../dashboard/dashboardChrome';
+import {
+  BACKLOG_SPREADS,
+  MAX_INTERVAL_PRESETS,
+  NEW_PER_DAY_PRESETS,
+  RETENTION_PRESETS,
+  REVIEWS_PER_DAY_PRESETS,
+} from '@core/fsrsPresets';
 
-/** Presets phrased as the trade-off the learner is actually making, not as a probability. */
-const RETENTION_PRESETS = [
-  { value: 0.85, label: 'Relaxed', hint: 'Fewer reviews, more forgetting' },
-  { value: 0.9, label: 'Balanced', hint: 'The FSRS default' },
-  { value: 0.95, label: 'Thorough', hint: 'More reviews, less forgetting' },
-] as const;
-
-const MAX_INTERVAL_PRESETS = [
-  { value: 180, label: '6 months' },
-  { value: 365, label: '1 year' },
-  { value: 1825, label: '5 years' },
-  { value: 36500, label: 'No limit' },
-] as const;
-
-const NEW_PER_DAY_PRESETS = [0, 5, 10, 20, 40] as const;
-const REVIEWS_PER_DAY_PRESETS = [50, 100, 200, 0] as const;
-
-const BACKLOG_SPREADS = [3, 7, 14] as const;
 
 // amber-500, matching the Tailwind amber the rest of the app warns in. Inline rather than a class
 // because it is an SVG fill.

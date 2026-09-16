@@ -12,6 +12,7 @@ import { Logo, LOGO_STYLES } from '../components/landing/Logo';
 import { Badge } from '../components/landing/Badge';
 import { ProvidersSection } from '../components/landing/ProvidersSection';
 import { HowItWorksSection } from '../components/landing/HowItWorksSection';
+import { ExamplesSection } from '../components/landing/ExamplesSection';
 import { CtaSection } from '../components/landing/CtaSection';
 import { useGoogleOneTap } from '../hooks/useGoogleOneTap';
 import {
@@ -282,6 +283,8 @@ export const LandingPage: React.FC = () => {
       <ProvidersSection />
 
       <HowItWorksSection />
+
+      <ExamplesSection />
 
       <CtaSection go={go} />
 

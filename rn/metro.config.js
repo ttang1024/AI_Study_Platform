@@ -38,7 +38,6 @@ config.resolver.blockList = [
   new RegExp(`^${escapeRe(path.join(workspaceRoot, 'server'))}/.*`),
   new RegExp(`^${escapeRe(path.join(workspaceRoot, 'web'))}/.*`),
   new RegExp(`^${escapeRe(path.join(workspaceRoot, 'admin'))}/.*`),
-  new RegExp(`^${escapeRe(path.join(workspaceRoot, 'extension'))}/.*`),
 ];
 
 // Expo's tsconfig-paths support resolves `@/*` (inside the project root) but not

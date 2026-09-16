@@ -18,12 +18,21 @@ export default defineConfig(({ mode }) => {
 			}),
 		],
 		resolve: {
-			alias: {
+			// Array form: one entry needs a regex (exact-match 'react'), which the
+			// object form can't express.
+			alias: [
 				// Shared platform-agnostic package (packages/core). Listed before '@' —
 				// harmless either way since '@' only matches '@/'-prefixed ids, but explicit.
-				'@core': path.resolve(__dirname, '../packages/core/src'),
-				'@': path.resolve(__dirname, '.'),
-			},
+				{ find: '@core', replacement: path.resolve(__dirname, '../packages/core/src') },
+				{ find: '@', replacement: path.resolve(__dirname, '.') },
+				// packages/core's @core/react/* modules import React as a peer dependency,
+				// but they live outside this app's tree and each app installs its own
+				// node_modules, so node resolution from packages/core/src finds nothing.
+				// Point bare 'react' at this app's copy — exact match only, so subpaths
+				// like react/jsx-runtime still resolve normally. `dedupe` below cannot do
+				// this job: it only picks between copies that already resolved.
+				{ find: /^react$/, replacement: path.resolve(__dirname, 'node_modules/react') },
+			],
 			// Force a single instance of React and the router. Without this, Vite can
 			// end up serving a lazy route chunk a second, separately-optimized copy of
 			// react-router, whose <Router> context the entry chunk's hooks can't read —

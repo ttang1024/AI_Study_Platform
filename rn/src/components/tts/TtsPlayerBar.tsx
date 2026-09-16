@@ -11,31 +11,15 @@ import Volume2 from 'lucide-react-native/icons/volume-2';
 import X from 'lucide-react-native/icons/x';
 
 import { Alpha, Colors, Layout, Radius, Spacing } from '@/constants/theme';
-import { SLEEP_OPTIONS, type TtsState } from '@/hooks/useTts';
+import { SLEEP_OPTIONS } from '@/hooks/useTts';
+// The prop contract is shared with web's TtsPlayer — it is what createTtsContext passes.
+import type { TtsPlayerProps } from '@core/react/ttsContext';
 
-interface TtsPlayerBarProps {
-  state: TtsState;
-  title: string;
-  subtitle?: string;
-  onPlay: () => void;
-  onPause: () => void;
-  onStop: () => void;
-  onSkipBack?: () => void;
-  onSkipForward?: () => void;
-  disableSkipBack?: boolean;
-  disableSkipForward?: boolean;
-  sleepTimeLeft?: string | null;
-  hasSleepTimer?: boolean;
-  onSetSleepTimer?: (minutes: number) => void;
-  onCancelSleepTimer?: () => void;
-  error?: string | null;
-  onDismissError?: () => void;
-}
 
 // RN port of web/src/components/common/TtsPlayer.tsx. Floats above the tab
 // bar (no createPortal equivalent needed — it's mounted at the app root in
 // TtsContext.tsx, so it naturally layers over everything).
-export const TtsPlayerBar: React.FC<TtsPlayerBarProps> = ({
+export const TtsPlayerBar: React.FC<TtsPlayerProps> = ({
   state,
   title,
   subtitle,

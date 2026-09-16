@@ -63,7 +63,4 @@ public interface IDocumentRepository : IRepository<Document>
     /// </summary>
     Task<IReadOnlyList<DocumentListItem>> GetRecentUntestedAsync(
         Guid userId, IReadOnlyCollection<Guid> excludeDocumentIds, int limit, CancellationToken cancellationToken = default);
-
-    /// <summary>Every one of a user's documents as knowledge-graph nodes — labels and flags only, no text.</summary>
-    Task<IReadOnlyList<DocumentGraphNode>> GetGraphNodesAsync(Guid userId, CancellationToken cancellationToken = default);
 }

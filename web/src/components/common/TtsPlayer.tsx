@@ -1,26 +1,10 @@
 import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
 import { Volume2, Play, Pause, SkipBack, SkipForward, X, Timer, ChevronDown, Loader2, AlertCircle } from 'lucide-react';
-import { TtsState, SLEEP_OPTIONS } from '../../hooks/useTts';
+import { SLEEP_OPTIONS } from '../../hooks/useTts';
+// The prop contract is shared with rn's TtsPlayerBar — it is what createTtsContext passes.
+import type { TtsPlayerProps } from '@core/react/ttsContext';
 
-interface TtsPlayerProps {
-  state: TtsState;
-  title: string;
-  subtitle?: string;
-  onPlay: () => void;
-  onPause: () => void;
-  onStop: () => void;
-  onSkipBack?: () => void;
-  onSkipForward?: () => void;
-  disableSkipBack?: boolean;
-  disableSkipForward?: boolean;
-  sleepTimeLeft?: string | null;
-  hasSleepTimer?: boolean;
-  onSetSleepTimer?: (minutes: number) => void;
-  onCancelSleepTimer?: () => void;
-  error?: string | null;
-  onDismissError?: () => void;
-}
 
 export const TtsPlayer: React.FC<TtsPlayerProps> = ({
   state,
