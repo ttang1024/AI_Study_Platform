@@ -406,7 +406,10 @@ ECS_EXECUTION_ROLE_NAME="${ECS_EXECUTION_ROLE_NAME:-${APP_NAME}-ecs-execution}"
 ECS_TASK_ROLE_NAME="${ECS_TASK_ROLE_NAME:-${APP_NAME}-ecs-task}"
 ECS_SECURITY_GROUP_NAME="${ECS_SECURITY_GROUP_NAME:-${APP_NAME}-ecs-api}"
 ECS_DESIRED_COUNT="${ECS_DESIRED_COUNT:-1}"
-ECS_MIN_HEALTHY_PERCENT="${ECS_MIN_HEALTHY_PERCENT:-0}"
+# 100 with maximumPercent=200 means the replacement task has to pass its target-group health
+# check before the old one is stopped. At 0 ECS stops the only task first, and with a single
+# task that leaves the ALB with no healthy target — the API answers 503 for the whole rollout.
+ECS_MIN_HEALTHY_PERCENT="${ECS_MIN_HEALTHY_PERCENT:-100}"
 ECS_MAX_PERCENT="${ECS_MAX_PERCENT:-200}"
 ECS_CPU="${ECS_CPU:-1024}"
 # Fargate only accepts specific cpu/memory pairs — 1024 CPU units means 2–8 GB.
