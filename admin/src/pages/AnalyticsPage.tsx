@@ -8,6 +8,8 @@ import { adminApi } from '../services/api';
 import type { PlatformAnalytics } from '../types';
 import { StatCard } from '../components/common/StatCard';
 import { BarTrend } from '../components/common/BarTrend';
+import { PageVisitsSection } from '../components/analytics/PageVisitsSection';
+import { usePageVisitAnalytics } from '../hooks/usePageVisitAnalytics';
 import { formatNumber, formatMinutes, formatRelative } from '../utils/format';
 import { cn } from '../utils/cn';
 import { ErrorBanner } from '../components/common/ErrorBanner';
@@ -25,28 +27,13 @@ const CONTENT_ROWS: { key: keyof PlatformAnalytics['content']; label: string; ic
 export const AnalyticsPage: React.FC = () => {
   const [data, setData] = useState<PlatformAnalytics | null>(null);
   const [error, setError] = useState('');
+  const visits = usePageVisitAnalytics();
 
   useEffect(() => {
     adminApi.getPlatformAnalytics()
       .then(setData)
       .catch(() => setError('Failed to load analytics.'));
   }, []);
-
-  if (error) return <ErrorBanner error={error} className="mb-0" />;
-
-  if (!data) {
-    return (
-      <div className="grid grid-cols-2 gap-4 sm:gap-5 sm:grid-cols-4">
-        {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} className="h-28 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] animate-pulse" />
-        ))}
-      </div>
-    );
-  }
-
-  const { users, engagement, content, signupTrend, activeUsersTrend, topUsers } = data;
-  const maxContent = Math.max(1, ...CONTENT_ROWS.map((r) => content[r.key]));
-  const verifiedPct = users.total > 0 ? Math.round((users.verified / users.total) * 100) : 0;
 
   return (
     <div>
@@ -55,6 +42,38 @@ export const AnalyticsPage: React.FC = () => {
         <p className="mt-2 text-sm text-[var(--text-secondary)]">Platform-wide usage and engagement</p>
       </div>
 
+      {/* Traffic first: it is the top of the funnel the rest of this page measures. Its own query,
+          its own window, and its own failure — a page-visit outage must not blank the dashboard. */}
+      <PageVisitsSection
+        data={visits.data}
+        error={visits.error}
+        days={visits.days}
+        onDaysChange={visits.setDays}
+      />
+
+      {error && <ErrorBanner error={error} className="mb-0" />}
+
+      {!error && !data && (
+        <div className="grid grid-cols-2 gap-4 sm:gap-5 sm:grid-cols-4">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="h-28 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] animate-pulse" />
+          ))}
+        </div>
+      )}
+
+      {!error && data && <PlatformOverview data={data} />}
+    </div>
+  );
+};
+
+/** Users, engagement and content — everything that counts accounts rather than page views. */
+const PlatformOverview: React.FC<{ data: PlatformAnalytics }> = ({ data }) => {
+  const { users, engagement, content, signupTrend, activeUsersTrend, topUsers } = data;
+  const maxContent = Math.max(1, ...CONTENT_ROWS.map((r) => content[r.key]));
+  const verifiedPct = users.total > 0 ? Math.round((users.verified / users.total) * 100) : 0;
+
+  return (
+    <>
       {/* Headline user metrics */}
       <div className="mb-4 grid grid-cols-2 gap-4 sm:mb-5 sm:gap-5 sm:grid-cols-4">
         <StatCard label="Total Users" value={formatNumber(users.total)} icon={Users} iconColor="text-emerald-600" />
@@ -168,6 +187,6 @@ export const AnalyticsPage: React.FC = () => {
           )}
         </div>
       </div>
-    </div>
+    </>
   );
 };

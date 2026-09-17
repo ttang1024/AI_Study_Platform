@@ -127,6 +127,18 @@ public class AdminController : ControllerBase
         return Ok(result.Data);
     }
 
+    /// <summary>Page-view analytics over a trailing window (defaults to 30 days).</summary>
+    [HttpGet("analytics/page-visits")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> GetPageVisitAnalytics([FromQuery] int days = 30)
+    {
+        var result = await _mediator.Send(new GetPageVisitAnalyticsQuery(days));
+        if (!result.IsSuccess)
+            return BadRequest(BaseResponse<object>.Fail(result.Message));
+
+        return Ok(result.Data);
+    }
+
     // ── User Management ──────────────────────────────────────────────────────
 
     [HttpGet("users")]

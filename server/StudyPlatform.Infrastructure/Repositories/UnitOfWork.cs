@@ -44,6 +44,7 @@ public class UnitOfWork : IUnitOfWork
     private IDataExportRequestRepository? _dataExportRequests;
     private ILibraryTagRepository? _libraryTags;
     private IUserFsrsSettingsRepository? _userFsrsSettings;
+    private IPageVisitRepository? _pageVisits;
 
     public UnitOfWork(AppDbContext context)
     {
@@ -86,6 +87,7 @@ public class UnitOfWork : IUnitOfWork
     public IDataExportRequestRepository DataExportRequests => _dataExportRequests ??= new DataExportRequestRepository(_context);
     public ILibraryTagRepository LibraryTags => _libraryTags ??= new LibraryTagRepository(_context);
     public IUserFsrsSettingsRepository UserFsrsSettings => _userFsrsSettings ??= new UserFsrsSettingsRepository(_context);
+    public IPageVisitRepository PageVisits => _pageVisits ??= new PageVisitRepository(_context);
 
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         => await _context.SaveChangesAsync(cancellationToken);

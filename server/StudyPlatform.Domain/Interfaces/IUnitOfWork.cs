@@ -38,5 +38,6 @@ public interface IUnitOfWork : IDisposable
     IDataExportRequestRepository DataExportRequests { get; }
     ILibraryTagRepository LibraryTags { get; }
     IUserFsrsSettingsRepository UserFsrsSettings { get; }
+    IPageVisitRepository PageVisits { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

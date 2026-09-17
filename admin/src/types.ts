@@ -89,6 +89,33 @@ export interface TopUser {
   lastActiveAt: string | null;
 }
 
+// ── Page visits ─────────────────────────────────────────────────────────────
+
+export interface PagePopularity {
+  path: string;
+  visits: number;
+  uniqueVisitors: number;
+}
+
+export interface PageVisitAnalytics {
+  windowDays: number;
+  totals: {
+    visits: number;
+    uniqueVisitors: number;
+    sessions: number;
+    visitsToday: number;
+    visitsLast7Days: number;
+    signedInVisits: number;
+    anonymousVisits: number;
+    visitsPerSession: number;
+  };
+  visitTrend: DailyCount[];
+  visitorTrend: DailyCount[];
+  topPages: PagePopularity[];
+  topReferrers: { referrer: string; visits: number }[];
+  devices: { device: string; visits: number }[];
+}
+
 export interface UserDetail {
   userId: string;
   email: string;

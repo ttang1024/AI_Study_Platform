@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { FeedbackItem, FeedbackStatus, FeedbackStats, PaginatedResponse, UserItem, PlatformAnalytics, UserDetail } from '../types';
+import type { FeedbackItem, FeedbackStatus, FeedbackStats, PaginatedResponse, UserItem, PlatformAnalytics, PageVisitAnalytics, UserDetail } from '../types';
 import { getApiBaseUrl } from '../utils/env';
 
 const http = axios.create({ baseURL: getApiBaseUrl() });
@@ -93,6 +93,11 @@ export const adminApi = {
 
   getPlatformAnalytics: async (): Promise<PlatformAnalytics> => {
     const { data } = await http.get<PlatformAnalytics>('/admin/analytics');
+    return data;
+  },
+
+  getPageVisitAnalytics: async (days: number): Promise<PageVisitAnalytics> => {
+    const { data } = await http.get<PageVisitAnalytics>('/admin/analytics/page-visits', { params: { days } });
     return data;
   },
 

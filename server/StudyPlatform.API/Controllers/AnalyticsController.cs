@@ -13,7 +13,7 @@ namespace StudyPlatform.API.Controllers;
 [Route("api/analytics")]
 [Authorize]
 [Produces("application/json")]
-public class AnalyticsController : ControllerBase
+public partial class AnalyticsController : ControllerBase
 {
     private readonly IMediator _mediator;
 

@@ -9,7 +9,7 @@ namespace StudyPlatform.Infrastructure.Repositories;
 /// Postgres where it's cheap (counts, grouped sums); only the small grouped result sets are pulled
 /// into memory to fill calendar gaps and derive the active-user windows.
 /// </summary>
-public class AdminAnalyticsRepository : IAdminAnalyticsRepository
+public partial class AdminAnalyticsRepository : IAdminAnalyticsRepository
 {
     private readonly AppDbContext _db;
 

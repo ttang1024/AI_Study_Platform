@@ -11,6 +11,13 @@ public interface IAdminAnalyticsRepository
 
     /// <summary>Per-user activity rollup for the admin user-detail drill-down. Null when the user does not exist.</summary>
     Task<UserActivityDetail?> GetUserDetailAsync(Guid userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Page-view rollup over the trailing <paramref name="days"/> window. Separate from
+    /// <see cref="GetPlatformAnalyticsAsync"/> because the visits table is the one that grows per
+    /// page view rather than per user, and the dashboard lets an admin change the window.
+    /// </summary>
+    Task<PageVisitAnalytics> GetPageVisitAnalyticsAsync(int days, CancellationToken cancellationToken = default);
 }
 
 // ── Result records (kept in Domain so the repository contract is self-contained) ──────────
@@ -41,6 +48,29 @@ public record PlatformAnalytics(
     IReadOnlyList<DailyCount> SignupTrend,       // daily, last 30 days
     IReadOnlyList<DailyCount> ActiveUsersTrend,  // daily distinct active users, last 14 days
     IReadOnlyList<TopUser> TopUsers);            // top 10 by study minutes, last 30 days
+
+// ── Page visits ───────────────────────────────────────────────────────────────────────────
+
+public record PageVisitTotals(
+    long Visits, int UniqueVisitors, int Sessions,
+    long VisitsToday, long VisitsLast7Days,
+    long SignedInVisits, long AnonymousVisits,
+    double VisitsPerSession);
+
+public record PagePopularity(string Path, long Visits, int UniqueVisitors);
+
+public record ReferrerCount(string Referrer, long Visits);
+
+public record DeviceCount(string Device, long Visits);
+
+public record PageVisitAnalytics(
+    int WindowDays,
+    PageVisitTotals Totals,
+    IReadOnlyList<DailyCount> VisitTrend,        // daily visits across the window
+    IReadOnlyList<DailyCount> VisitorTrend,      // daily distinct visitors across the window
+    IReadOnlyList<PagePopularity> TopPages,      // top 12 by visits
+    IReadOnlyList<ReferrerCount> TopReferrers,   // top 8 external origins
+    IReadOnlyList<DeviceCount> Devices);
 
 public record UserContentCounts(
     int Courses, int Documents, int Videos, int Quizzes,

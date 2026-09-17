@@ -224,6 +224,10 @@ builder.Services.AddHostedService<DataExportWorker>();
 // Erases accounts once their deletion grace period expires.
 builder.Services.AddHostedService<AccountDeletionWorker>();
 
+// Trims the page-view table to its retention window. Safe on every replica: the delete is
+// idempotent, so a second instance sweeping the same rows finds nothing left to do.
+builder.Services.AddHostedService<PageVisitRetentionWorker>();
+
 // Health checks.
 //
 // Split by intent, because the probes mean different things. Liveness asks "is this process wedged?" —

@@ -49,6 +49,7 @@ public class AppDbContext : DbContext
     public DbSet<LibraryTag> LibraryTags => Set<LibraryTag>();
     public DbSet<LibraryTagAssignment> LibraryTagAssignments => Set<LibraryTagAssignment>();
     public DbSet<UserFsrsSettings> UserFsrsSettings => Set<UserFsrsSettings>();
+    public DbSet<PageVisit> PageVisits => Set<PageVisit>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

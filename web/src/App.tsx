@@ -7,6 +7,7 @@ import { TtsProvider } from './context/TtsContext';
 import { MainLayout } from './components/layout/MainLayout';
 import { PromptProvider } from './components/common/PromptBox';
 import { PomodoroTimer } from './components/common/PomodoroTimer';
+import { usePageVisitTracking } from './hooks/usePageVisitTracking';
 // Public/auth pages stay eager so first paint never waits on a second request.
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
@@ -54,6 +55,12 @@ const OfflinePage = lazyPage(() => import('./pages/OfflinePage'), 'OfflinePage')
 const DocumentDetailsPage = lazyPage(() => import('./pages/DocumentDetailsPage'), 'DocumentDetailsPage');
 const CourseStudyPage = lazyPage(() => import('./pages/CourseStudyPage'), 'CourseStudyPage');
 const SharedContentPage = lazyPage(() => import('./pages/SharedContentPage'), 'SharedContentPage');
+
+/** Posts a page-view beacon on every route change. Renders nothing; must sit inside the router. */
+const PageVisitTracker: React.FC = () => {
+  usePageVisitTracking();
+  return null;
+};
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -126,6 +133,7 @@ export default function App() {
         <PromptProvider>
           <TtsProvider>
             <BrowserRouter>
+              <PageVisitTracker />
               <Suspense fallback={null}>
                 <Routes>
                   <Route path="/" element={<LandingPage />} />
