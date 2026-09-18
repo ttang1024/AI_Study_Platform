@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { ShareableGlossaryTerm } from '../../services/shareContentService';
 import { GlossaryLetterNav } from '../../components/glossary/GlossaryLetterNav';
+import { cn } from '../../utils/cn';
+import { SHARE_CARD } from './shareCard';
 
 export const SharedGlossary: React.FC<{ terms: ShareableGlossaryTerm[] }> = ({ terms }) => {
   const [activeLetter, setActiveLetter] = useState<string | null>(null);
@@ -22,7 +24,7 @@ export const SharedGlossary: React.FC<{ terms: ShareableGlossaryTerm[] }> = ({ t
   };
 
   return (
-    <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-sidebar)] p-6">
+    <div className={cn(SHARE_CARD, 'p-6 sm:p-7')}>
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-sm font-bold uppercase tracking-widest text-text-muted">Glossary</h2>
         <span className="text-xs text-text-muted">{terms.length} terms</span>

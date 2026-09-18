@@ -5,6 +5,8 @@ import remarkGfm from 'remark-gfm';
 import { renderAsync } from 'docx-preview';
 import { Document as PdfDocument, Page as PdfPage } from 'react-pdf';
 import { getApiUrl } from '../../utils/env';
+import { cn } from '../../utils/cn';
+import { SHARE_CARD } from './shareCard';
 import '../../utils/pdfWorker';
 
 const API_URL = getApiUrl();
@@ -45,7 +47,7 @@ export const SharedDocumentViewer: React.FC<{ token: string; fileType: string }>
   }, [fileUrl, isTxt, isMd, isDocx]);
 
   return (
-    <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-sidebar)] overflow-hidden">
+    <div className={cn(SHARE_CARD, 'overflow-hidden')}>
       <div className="flex items-center gap-2 px-4 py-2.5 border-b border-[var(--border-color)]">
         <div className="w-6 h-6 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
           <FileText size={13} className="text-primary" />

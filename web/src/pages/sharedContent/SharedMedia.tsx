@@ -10,6 +10,8 @@ import {
   parseBilibiliVideo, parseYouTubeId, EXTERNAL_SOURCE_BRANDING, type VideoSourceType,
 } from '../../constants/videoSources';
 import { getApiUrl } from '../../utils/env';
+import { cn } from '../../utils/cn';
+import { SHARE_CARD } from './shareCard';
 import { SharedDocumentViewer } from './SharedDocumentViewer';
 
 const API_URL = getApiUrl();
@@ -34,7 +36,7 @@ export const SharedMedia: React.FC<SharedMediaProps> = ({
   if (normalizedSourceType === 'youtube' && content.sourceUrl) {
     const videoId = parseYouTubeId(content.sourceUrl);
     return videoId ? (
-      <div className="rounded-2xl overflow-hidden border border-[var(--border-color)] bg-black">
+      <div className={cn(SHARE_CARD, 'overflow-hidden bg-black')}>
         <a
           href={content.sourceUrl}
           target="_blank"
@@ -63,7 +65,7 @@ export const SharedMedia: React.FC<SharedMediaProps> = ({
   if (normalizedSourceType === 'bilibili' && content.sourceUrl) {
     const video = parseBilibiliVideo(content.sourceUrl);
     return video ? (
-      <div className="rounded-2xl overflow-hidden border border-[var(--border-color)] bg-black">
+      <div className={cn(SHARE_CARD, 'overflow-hidden bg-black')}>
         <a
           href={content.sourceUrl}
           target="_blank"
@@ -93,7 +95,7 @@ export const SharedMedia: React.FC<SharedMediaProps> = ({
     const externalId = parseExternalVideoId(normalizedSourceType, content.sourceUrl);
     const brand = EXTERNAL_SOURCE_BRANDING[normalizedSourceType];
     return externalId ? (
-      <div className="rounded-2xl overflow-hidden border border-[var(--border-color)] bg-black">
+      <div className={cn(SHARE_CARD, 'overflow-hidden bg-black')}>
         <a
           href={content.sourceUrl}
           target="_blank"
@@ -121,7 +123,7 @@ export const SharedMedia: React.FC<SharedMediaProps> = ({
 
   if (normalizedSourceType === 'upload') {
     return (
-      <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-sidebar)] overflow-hidden">
+      <div className={cn(SHARE_CARD, 'overflow-hidden')}>
         <div className="flex items-center gap-2 px-4 py-2.5 border-b border-[var(--border-color)]">
           <div className="w-6 h-6 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
             <FileVideo size={13} className="text-primary" />
@@ -142,7 +144,7 @@ export const SharedMedia: React.FC<SharedMediaProps> = ({
 
   if (normalizedSourceType === 'audio') {
     return (
-      <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-sidebar)] overflow-hidden">
+      <div className={cn(SHARE_CARD, 'overflow-hidden')}>
         <div className="flex items-center gap-2 px-4 py-2.5 border-b border-[var(--border-color)]">
           <div className="w-6 h-6 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
             <Mic size={13} className="text-primary" />
@@ -158,7 +160,7 @@ export const SharedMedia: React.FC<SharedMediaProps> = ({
 
   if (normalizedSourceType === 'podcast') {
     return (
-      <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-sidebar)] overflow-hidden">
+      <div className={cn(SHARE_CARD, 'overflow-hidden')}>
         <div className="flex items-center gap-2 px-4 py-2.5 border-b border-[var(--border-color)]">
           <div className="w-6 h-6 rounded-md bg-amber-100 flex items-center justify-center shrink-0">
             <Rss size={13} className="text-amber-500" />
@@ -192,7 +194,7 @@ export const SharedMedia: React.FC<SharedMediaProps> = ({
 
   if (normalizedSourceType === 'article') {
     return (
-      <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-sidebar)] overflow-hidden">
+      <div className={cn(SHARE_CARD, 'overflow-hidden')}>
         {/* Header */}
         <div className="flex items-center gap-2 px-4 py-2.5 border-b border-[var(--border-color)]">
           <div className="w-6 h-6 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
