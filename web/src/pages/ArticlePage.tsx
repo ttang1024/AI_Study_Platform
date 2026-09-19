@@ -33,7 +33,7 @@ export const ArticlePage: React.FC<{ embedded?: boolean; id?: string; courseId?:
   const id = propId ?? paramId;
   const navigate = useNavigate();
   const location = useLocation();
-  const { isLoading, documents, currentDocument, setCurrentDocument, updateDocumentInList, ensureDocuments } = useStudy();
+  const { isLoading, documents, documentsLoaded, currentDocument, setCurrentDocument, updateDocumentInList, ensureDocuments } = useStudy();
 
   // The document list is loaded lazily by StudyContext; pull it so we can resolve
   // this article (and its courseId) on direct navigation / refresh.
@@ -121,7 +121,7 @@ export const ArticlePage: React.FC<{ embedded?: boolean; id?: string; courseId?:
         }
       })
       .catch(() => { });
-  }, [currentDocument?.id]);
+  }, [currentDocument?.id, currentDocument?.courseId]);
 
   useEffect(() => {
     if (!showShareModal || !currentDocument?.courseId || !currentDocument?.id) return;
@@ -221,10 +221,16 @@ export const ArticlePage: React.FC<{ embedded?: boolean; id?: string; courseId?:
     }
   }
 
+  // Until the lazily-fetched document list has arrived (and the effect above has had a
+  // render to promote a match to currentDocument) we can't tell "missing" from "not
+  // loaded yet" — showing the skeleton keeps "Article not found." from flashing on a refresh.
+  const stillResolving =
+    isLoading || isDocumentLoading || !documentsLoaded || documents.some(d => d.id === id);
+
   if (!currentDocument) {
     return (
       <div className={cn("bg-[var(--bg-app)]", embedded ? "h-full" : "h-screen")}>
-        {(isLoading || isDocumentLoading) ? <DetailPageSkeleton variant="article" embedded={embedded} /> : (
+        {stillResolving ? <DetailPageSkeleton variant="article" embedded={embedded} /> : (
           <div className="flex h-full items-center justify-center">
             <div className="text-center">
               <p className="text-text-muted">Article not found.</p>

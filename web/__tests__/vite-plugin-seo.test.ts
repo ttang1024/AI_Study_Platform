@@ -16,6 +16,30 @@ const emit = (origin: string): Record<string, string> => {
 	return files
 }
 
+/** Runs the plugin's transformIndexHtml hook over a shell and returns the rewritten HTML. */
+const transform = (origin: string, html: string): string => {
+	const plugin = seoPlugin({ origin })
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const result = (plugin.transformIndexHtml as any).handler(html, {} as any)
+	return typeof result === 'string' ? result : result.html
+}
+
+const SHELL = `<!doctype html>
+<html>
+	<head>
+		<link rel="canonical" href="%VITE_SHARE_BASE_URL%/" />
+		<meta
+			property="og:image"
+			content="%VITE_SHARE_BASE_URL%/share.png" />
+		<meta property="og:url" content="%VITE_SHARE_BASE_URL%/" />
+		<meta name="theme-color" content="#0d9488" />
+		<script type="application/ld+json">{ "url": "%VITE_SHARE_BASE_URL%/" }</script>
+	</head>
+	<body>
+		<img data-social-thumbnail src="%VITE_SHARE_BASE_URL%/share.png" />
+	</body>
+</html>`
+
 /**
  * The Disallow lines of the group naming `agent`, which is the only group that agent obeys. A
  * group can name several agents, so every User-agent line in the block counts.
@@ -59,5 +83,44 @@ describe('sitemap.xml', () => {
 
 	it('is skipped without an origin, since it needs absolute URLs', () => {
 		expect(emit('')['sitemap.xml']).toBeUndefined()
+	})
+})
+
+describe('absolute social URLs', () => {
+	it('resolves every origin placeholder when an origin is given', () => {
+		const html = transform('https://toto-study.com', SHELL)
+
+		expect(html).not.toContain('%VITE_SHARE_BASE_URL%')
+		expect(html).toContain('<meta property="og:url" content="https://toto-study.com/" />')
+		expect(html).toContain('content="https://toto-study.com/share.png"')
+		expect(html).toContain('href="https://toto-study.com/"')
+	})
+
+	it('never ships a placeholder or a relative og:image when the origin is missing', () => {
+		const html = transform('', SHELL)
+
+		// A crawler reads og:image off-site, so a relative path is no better than the placeholder.
+		expect(html).not.toContain('%VITE_SHARE_BASE_URL%')
+		expect(html).not.toContain('og:image')
+		expect(html).not.toContain('og:url')
+		expect(html).not.toContain('rel="canonical"')
+	})
+
+	it('leaves the rest of the shell alone when the origin is missing', () => {
+		const html = transform('', SHELL)
+
+		expect(html).toContain('<meta name="theme-color" content="#0d9488" />')
+		// An <img> src and the ld+json url resolve fine against the page the crawler already has.
+		expect(html).toContain('<img data-social-thumbnail src="/share.png" />')
+		expect(html).toContain('"url": "/"')
+	})
+
+	it('keeps the Search Console tag independent of the origin', () => {
+		const plugin = seoPlugin({ origin: '', googleSiteVerification: 'tok123' })
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const result = (plugin.transformIndexHtml as any).handler(SHELL, {} as any)
+
+		expect(result.tags).toHaveLength(1)
+		expect(result.tags[0].attrs.content).toBe('tok123')
 	})
 })

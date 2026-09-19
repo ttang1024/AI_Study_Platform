@@ -54,6 +54,7 @@
 		<meta
 			name="image_src"
 			content="%VITE_SHARE_BASE_URL%/share.png" />
+		<link rel="image_src" href="%VITE_SHARE_BASE_URL%/share.png" />
 		<script type="application/ld+json">
 			{
 				"@context": "https://schema.org",
@@ -86,7 +87,22 @@
 		</script>
 	</head>
 	<body>
-		<img src="/app.png" alt="Toto Study" width="64" height="64" style="display: none" />
+		<!-- WeChat builds its link card from the first usable <img> in the body, not from og:image,
+		     and it skips anything display:none or smaller than roughly 300px — which is why this used
+		     to be a hidden 64px app icon and why a link pasted into Moments came out with no picture.
+		     It is the real 1200x1200 share card now, at an absolute URL. SharePreviewHtmlRenderer
+		     swaps the src for the share's own card on /share/{token} and finds this tag by
+		     data-social-thumbnail, so keep that attribute. position:fixed keeps it out of the document's
+		     scroll height and loading="lazy" keeps real browsers from fetching an image nobody sees. -->
+		<img
+			data-social-thumbnail
+			src="%VITE_SHARE_BASE_URL%/share.png"
+			alt="Toto Study"
+			width="1200"
+			height="1200"
+			loading="lazy"
+			aria-hidden="true"
+			style="position: fixed; left: -9999px; top: -9999px; opacity: 0; pointer-events: none" />
 		<div id="root"></div>
 		<!-- Mirrors the copy rendered by web/src/pages/LandingPage.tsx. This is a client-rendered SPA,
 		     so the crawl that happens before JS rendering sees only what is in this file — keep the two

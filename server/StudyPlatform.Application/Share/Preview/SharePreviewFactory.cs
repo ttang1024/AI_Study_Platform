@@ -75,7 +75,20 @@ public class SharePreviewFactory : ISharePreviewFactory
         return snippet.Length > 0 ? $"{snippet}\n\n{attribution}" : attribution;
     }
 
-    private static string Normalize(string origin) => (origin ?? string.Empty).TrimEnd('/');
+    /// <summary>
+    /// og:image and og:url are read off-site, so both have to be absolute — a relative path
+    /// resolves against the crawler's own host, or not at all. A Web:PublicOrigin configured
+    /// without a scheme ("toto-study.com") would otherwise build "toto-study.com/share.png",
+    /// which no unfurler can fetch, so the scheme is assumed rather than left missing.
+    /// </summary>
+    private static string Normalize(string origin)
+    {
+        var value = (origin ?? string.Empty).Trim().TrimEnd('/');
+
+        return value.Length == 0 || value.Contains("://", StringComparison.Ordinal)
+            ? value
+            : $"https://{value}";
+    }
 
     private static string Shorten(string? text, int maxLength)
     {

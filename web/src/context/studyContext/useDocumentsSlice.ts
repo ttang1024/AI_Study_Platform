@@ -19,12 +19,17 @@ export function useDocumentsSlice({
   const [documents, setDocuments] = useState<Document[]>([]);
   const [progress, setProgress] = useState<LearningProgress[]>([]);
   const statusRef = useRef<'idle' | 'loading' | 'loaded'>('idle');
+  // Mirrors statusRef as state so consumers can tell "the list hasn't arrived yet"
+  // from "the list arrived and this id really isn't in it" — the detail pages use
+  // it to avoid flashing "not found" on a hard refresh.
+  const [documentsLoaded, setDocumentsLoaded] = useState(false);
 
   const refreshDocuments = useCallback(async (): Promise<void> => {
     try {
       const result = await documentService.getAllDocuments(1, fetchAllSize(documentCount));
       setDocuments(result.items);
       statusRef.current = 'loaded';
+      setDocumentsLoaded(true);
     } catch (error) {
       console.error('Failed to refresh documents:', error);
     }
@@ -41,9 +46,11 @@ export function useDocumentsSlice({
       const result = await documentService.getAllDocuments(1, fetchAllSize(documentCount));
       setDocuments(result.items);
       statusRef.current = 'loaded';
+      setDocumentsLoaded(true);
     } catch (error) {
       console.error('Failed to load documents:', error);
       statusRef.current = 'idle';
+      setDocumentsLoaded(true);
     }
   }, [isAuthenticated, isLoading, documentCount]);
 
@@ -98,10 +105,10 @@ export function useDocumentsSlice({
     });
   };
 
-  const markIdle = useCallback(() => { statusRef.current = 'idle'; }, []);
+  const markIdle = useCallback(() => { statusRef.current = 'idle'; setDocumentsLoaded(false); }, []);
 
   return {
-    documents, setDocuments, refreshDocuments, ensureDocuments,
+    documents, setDocuments, documentsLoaded, refreshDocuments, ensureDocuments,
     deleteDocument, addDocument, updateDocumentInList,
     progress, updateProgress,
     markIdle,

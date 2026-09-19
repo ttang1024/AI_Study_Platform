@@ -34,6 +34,34 @@ public class SharePreviewFactoryTests
         Assert.Contains("2026-09-15", preview.PublishedAtIso);
     }
 
+    [Theory]
+    [InlineData("https://toto-study.com")]
+    [InlineData("https://toto-study.com/")]
+    // A Web:PublicOrigin with the scheme left off: og:image and og:url are read off-site, so the
+    // card image must still come out as something an unfurler can fetch.
+    [InlineData("toto-study.com")]
+    [InlineData("toto-study.com/")]
+    public void Create_AlwaysBuildsAbsoluteUrls(string origin)
+    {
+        var share = new ShareToken { Token = "abc", Title = "Deck", Owner = new User { FullName = "Ting Tang" } };
+
+        var preview = _factory.Create(share, origin);
+
+        Assert.Equal("https://toto-study.com/share.png", preview.ImageUrl);
+        Assert.Equal("https://toto-study.com/share/abc", preview.Url);
+        Assert.True(Uri.IsWellFormedUriString(preview.ImageUrl, UriKind.Absolute));
+        Assert.True(Uri.IsWellFormedUriString(preview.Url, UriKind.Absolute));
+    }
+
+    [Fact]
+    public void CreateUnavailable_AlsoBuildsAbsoluteUrls()
+    {
+        var preview = _factory.CreateUnavailable("abc", "toto-study.com");
+
+        Assert.Equal("https://toto-study.com/share.png", preview.ImageUrl);
+        Assert.Equal("https://toto-study.com/share/abc", preview.Url);
+    }
+
     [Fact]
     public void Create_WithoutASummaryFallsBackToTheAttributionLine()
     {

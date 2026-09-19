@@ -34,7 +34,7 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
   const id = propId ?? paramId;
   const navigate = useNavigate();
   const location = useLocation();
-  const { isLoading, documents, currentDocument, setCurrentDocument, updateDocumentInList, ensureDocuments } = useStudy();
+  const { isLoading, documents, documentsLoaded, currentDocument, setCurrentDocument, updateDocumentInList, ensureDocuments } = useStudy();
 
   // The document list is loaded lazily by StudyContext; pull it so we can resolve
   // this document (and its courseId) on direct navigation / refresh.
@@ -132,7 +132,7 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
         }
       })
       .catch(() => { });
-  }, [currentDocument?.id]);
+  }, [currentDocument?.id, currentDocument?.courseId]);
 
   useEffect(() => {
     if (!showShareModal || !currentDocument?.courseId || !currentDocument?.id) return;
@@ -255,10 +255,17 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
     ? `${API_URL}/api/courses/${currentDocument.courseId}/documents/${currentDocument.id}/${usesExtractedText ? 'text' : 'file'}`
     : currentDocument?.url ?? '';
 
+  // On a hard refresh the document list is still being lazily fetched, and there is
+  // one more render between the list arriving and the effect above promoting the match
+  // to currentDocument. Treat all of that as "still resolving" — otherwise "Document
+  // not found." flashes before the page renders.
+  const stillResolving =
+    isLoading || !documentsLoaded || !!initialDoc || documents.some(d => d.id === id);
+
   if (!currentDocument) {
     return (
       <div className={cn("bg-[var(--bg-app)]", embedded ? "h-full" : "h-screen")}>
-        {isLoading ? <DetailPageSkeleton variant="document" embedded={embedded} /> : (
+        {stillResolving ? <DetailPageSkeleton variant="document" embedded={embedded} /> : (
           <div className="flex h-full items-center justify-center">
             <div className="text-center">
               <p className="text-text-muted">Document not found.</p>

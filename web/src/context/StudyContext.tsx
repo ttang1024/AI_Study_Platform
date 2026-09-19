@@ -19,6 +19,8 @@ import { useQuizSubmissionsSlice } from './studyContext/useQuizSubmissionsSlice'
 interface StudyContextType {
   isLoading: boolean;
   documents: Document[];
+  /** True once the lazy document list has been fetched at least once for this session. */
+  documentsLoaded: boolean;
   videos: VideoListItem[];
   videosLoading: boolean;
   totalDocuments: number;
@@ -179,6 +181,7 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       value={{
         isLoading,
         documents: documentsSlice.documents,
+        documentsLoaded: documentsSlice.documentsLoaded,
         videos: videos.videos,
         videosLoading: videos.videosLoading,
         totalDocuments: stats.totalDocuments,

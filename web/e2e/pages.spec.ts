@@ -189,6 +189,37 @@ test.describe('Document detail page', () => {
     await expect(page.getByText('In [1]')).toBeVisible()
   })
 
+  test('shows the skeleton, not "Document not found", while the list is still loading', async ({ page }) => {
+    // The document list is fetched lazily, so a hard refresh renders before it arrives.
+    // Slow that request down to hold the page in that window and make sure it never
+    // flashes the empty state on its way to the document.
+    await page.route('**/api/documents*', async route => {
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      await route.fallback()
+    })
+
+    await page.goto('/documents/doc-cells')
+
+    // Sample across the whole delayed window, without auto-retry — a retrying
+    // assertion would happily wait out a flash instead of catching it.
+    for (let i = 0; i < 12; i++) {
+      expect(await page.getByText('Document not found.').count()).toBe(0)
+      await page.waitForTimeout(150)
+    }
+
+    await expect(page.getByRole('heading', { name: 'Cell Biology.pdf' })).toBeVisible()
+  })
+
+  test('shows the saved note in the Notes tab after a direct load', async ({ page }) => {
+    await page.goto('/documents/doc-cells')
+    await expect(page.getByRole('heading', { name: 'Cell Biology.pdf' })).toBeVisible()
+
+    await page.getByRole('button', { name: /^notes$/i }).click()
+
+    // The note is fetched after the editor mounts, so it has to be applied late.
+    await expect(page.getByText('Remember that mitochondria generate ATP.')).toBeVisible()
+  })
+
   test('renders captions as a timestamped transcript', async ({ page }) => {
     await page.goto('/documents/doc-captions')
 

@@ -59,12 +59,23 @@ export const VideoNoteEditor = React.forwardRef<VideoNoteEditorRef, VideoNoteEdi
 			},
 		}), [editor, scheduleSave]);
 
-		// Reload content when video changes
+		// Tracks which record's content is currently in the editor, so a record switch
+		// always reloads while a content-only change is judged on its own merits.
+		const loadedRecordRef = useRef<string | null>(null);
+
+		// Reload content when the record changes, and also when the saved note finally
+		// arrives: the parent fetches it after this editor has mounted, so the first
+		// render usually hands us an empty `initialContent`. Late content is only applied
+		// to an untouched (empty) editor — never over something the user has typed, and
+		// never on the save round-trip that echoes the current HTML back as initialContent.
 		useEffect(() => {
 			if (!editor) return;
+			const recordChanged = loadedRecordRef.current !== videoRecordId;
+			if (!recordChanged && (!initialContent || !editor.isEmpty)) return;
+			loadedRecordRef.current = videoRecordId;
 			isFirstLoad.current = true;
 			editor.commands.setContent(initialContent);
-		}, [videoRecordId, editor]);
+		}, [videoRecordId, initialContent, editor]);
 
 		useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
 

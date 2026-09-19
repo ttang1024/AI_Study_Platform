@@ -1,4 +1,4 @@
-import type { Plugin } from 'vite'
+import type { HtmlTagDescriptor, Plugin } from 'vite'
 
 /**
  * Build-time SEO artifacts for the web SPA: robots.txt, sitemap.xml, and the optional
@@ -99,7 +99,51 @@ const LINK_PREVIEW_AGENTS = [
 	'SkypeUriPreview',
 	'Iframely',
 	'Embedly',
+	// WeChat's unfurler identifies itself by the MicroMessenger product token; QQ and Weibo build
+	// the same kind of card and are the other two links get pasted into from the same phone.
+	'MicroMessenger',
+	'WeChat',
+	'QQ',
+	'Weibo',
 ]
+
+/**
+ * index.html writes its absolute URLs as `%VITE_SHARE_BASE_URL%/…`. Vite substitutes that itself,
+ * but when the variable is unset it only warns and leaves the placeholder in the output — so a
+ * build without an origin used to ship `og:image="%VITE_SHARE_BASE_URL%/share.png"`, which is not
+ * a URL at all. deploy.sh always passes the origin, so production was never affected; this is the
+ * guard for every other way the file gets built.
+ */
+const ORIGIN_PLACEHOLDER = '%VITE_SHARE_BASE_URL%'
+
+/**
+ * A <meta content> / <link href> built on the placeholder. Matched by the placeholder rather than
+ * by tag name so a newly added og:/twitter: tag is covered without touching this file.
+ */
+const PLACEHOLDER_URL_TAG = new RegExp(
+	`[ \\t]*<(?:meta|link)\\b[^>]*?(?:content|href)\\s*=\\s*"${ORIGIN_PLACEHOLDER}[^"]*"[^>]*>\\s*`,
+	'gi',
+)
+
+/**
+ * Resolves index.html's origin placeholders to `origin`.
+ *
+ * og:image, og:url, twitter:image and canonical are only meaningful as absolute URLs — a crawler
+ * reads them off-site, where a relative path resolves against the wrong host or not at all. Without
+ * an origin there is no absolute URL to emit, so those tags are dropped rather than shipped broken:
+ * a link that unfurls plainly beats one that unfurls to a 404 image. Placeholders anywhere else
+ * (the ld+json url, the crawler thumbnail's src) degrade to a same-origin relative path, which the
+ * browser and the crawler both resolve correctly from the page they already fetched.
+ */
+const resolveOrigin = (html: string, origin: string): string => {
+	if (origin) return html.split(ORIGIN_PLACEHOLDER).join(origin)
+
+	console.warn(
+		`(!) ${ORIGIN_PLACEHOLDER} is unset — dropping the og:/twitter:/canonical tags that require ` +
+			'an absolute URL. Pass VITE_SHARE_BASE_URL to build a shell with working link previews.',
+	)
+	return html.replace(PLACEHOLDER_URL_TAG, '').split(ORIGIN_PLACEHOLDER).join('')
+}
 
 const xmlEscape = (value: string): string =>
 	value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -160,21 +204,23 @@ export function seoPlugin({ origin = '', googleSiteVerification = '' }: SeoPlugi
 		apply: 'build',
 
 		transformIndexHtml: {
+			// Ahead of Vite's own %VAR% substitution, so the placeholders are already resolved (or
+			// their tags already gone) by the time it would warn about them.
 			order: 'pre',
 			handler(html) {
-				if (!token) return html
 				// Search Console reads this on the homepage. S3 serves index.html for every path,
 				// so it lands site-wide, which the verifier is fine with.
-				return {
-					html,
-					tags: [
-						{
-							tag: 'meta',
-							attrs: { name: 'google-site-verification', content: token },
-							injectTo: 'head',
-						},
-					],
-				}
+				const tags: HtmlTagDescriptor[] = token
+					? [
+							{
+								tag: 'meta',
+								attrs: { name: 'google-site-verification', content: token },
+								injectTo: 'head',
+							},
+						]
+					: []
+
+				return { html: resolveOrigin(html, baseUrl), tags }
 			},
 		},
 

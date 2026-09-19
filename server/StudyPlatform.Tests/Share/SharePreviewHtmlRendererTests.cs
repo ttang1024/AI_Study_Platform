@@ -19,6 +19,7 @@ public class SharePreviewHtmlRendererTests
         		<meta name="twitter:title" content="Toto Study - AI Study Platform" />
         		<meta name="wechat:title" content="Toto Study - AI Study Platform" />
         		<meta name="image_src" content="https://toto-study.com/share.png" />
+        		<link rel="image_src" href="https://toto-study.com/share.png" />
         		<meta name="theme-color" content="#0d9488" />
         		<link rel="manifest" href="/manifest.webmanifest" />
         		<script type="application/ld+json">
@@ -26,6 +27,8 @@ public class SharePreviewHtmlRendererTests
         		</script>
         	</head>
         	<body>
+        		<!-- WeChat builds its link card from the first usable img in the body. -->
+        		<img data-social-thumbnail src="https://toto-study.com/share.png" alt="Toto Study" width="1200" height="1200" loading="lazy" aria-hidden="true" style="position: fixed; left: -9999px; top: -9999px; opacity: 0; pointer-events: none" />
         		<div id="root"></div>
         		<!-- Mirrors the copy rendered by web/src/pages/LandingPage.tsx. -->
         		<noscript>
@@ -139,6 +142,50 @@ public class SharePreviewHtmlRendererTests
         Assert.Contains("</head>", html);
         Assert.Contains("""<meta property="og:description" """.TrimEnd(), html);
         Assert.Contains("""<a href="https://toto-study.com/share/3jSLWBdGx2MI">Open this on Toto Study</a>""", html);
+    }
+
+    [Fact]
+    public void Render_PointsTheCrawlerThumbnailAtTheShareCard()
+    {
+        var html = _renderer.Render(Shell, Preview() with { ImageUrl = "https://toto-study.com/share/3jSLWBdGx2MI/card.png" });
+
+        Assert.Contains("""src="https://toto-study.com/share/3jSLWBdGx2MI/card.png" alt=""".TrimEnd(), html);
+        Assert.Equal(1, Occurrences(html, "data-social-thumbnail"));
+        // WeChat skips a hidden or small image, which is what the landing shell used to hand it.
+        Assert.DoesNotContain("display: none", html);
+        Assert.Contains("""width="1200" height="1200" loading=""".TrimEnd(), html);
+    }
+
+    [Fact]
+    public void Render_InjectsTheCrawlerThumbnailIntoAShellThatHasNone()
+    {
+        var shell = Shell.Replace("<img data-social-thumbnail", "<img data-nothing-of-the-sort");
+
+        var html = _renderer.Render(shell, Preview());
+        var body = html[html.IndexOf("<body>", StringComparison.Ordinal)..];
+
+        Assert.Equal(1, Occurrences(html, "data-social-thumbnail"));
+        // First image in the body, so the crawler reaches it before the old app icon.
+        Assert.True(
+            body.IndexOf("data-social-thumbnail", StringComparison.Ordinal)
+                < body.IndexOf("data-nothing-of-the-sort", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void RenderStandalone_CarriesTheCrawlerThumbnail()
+    {
+        var html = _renderer.RenderStandalone(Preview());
+
+        Assert.Contains("""<img data-social-thumbnail src="https://toto-study.com/share.png" alt=""".TrimEnd(), html);
+    }
+
+    [Fact]
+    public void Render_EmitsOneImageSrcLinkPointingAtSomethingWeChatCanFetch()
+    {
+        var html = _renderer.Render(Shell, Preview());
+
+        Assert.Equal(1, Occurrences(html, """rel="image_src" """.TrimEnd()));
+        Assert.Contains("""<link rel="image_src" href="https://toto-study.com/share.png" />""", html);
     }
 
     private static int Occurrences(string haystack, string needle)

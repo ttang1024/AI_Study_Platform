@@ -16,7 +16,7 @@ public partial class SharePreviewHtmlRenderer : ISharePreviewHtmlRenderer
         // TrimEnd + the tab put back in front of </head> keep the indentation tidy after the
         // stripped tags take their own leading whitespace with them.
         var head = StripGenericMetadata(shellHtml[..headEnd]).TrimEnd();
-        var rest = ReplaceNoscript(shellHtml[headEnd..], preview);
+        var rest = ReplaceSocialThumbnail(ReplaceNoscript(shellHtml[headEnd..], preview), preview);
 
         return head + "\n" + MetaTags(preview, indent: "\t\t") + "\t" + rest;
     }
@@ -30,7 +30,7 @@ public partial class SharePreviewHtmlRenderer : ISharePreviewHtmlRenderer
         		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
         {MetaTags(preview, indent: "\t\t")}	</head>
         	<body>
-        {NoscriptBody(preview, indent: "\t\t")}	</body>
+        {SocialThumbnail(preview, indent: "\t\t")}{NoscriptBody(preview, indent: "\t\t")}	</body>
         </html>
         """;
 
@@ -43,7 +43,7 @@ public partial class SharePreviewHtmlRenderer : ISharePreviewHtmlRenderer
     {
         head = TitleTag().Replace(head, string.Empty);
         head = SocialMetaTag().Replace(head, string.Empty);
-        head = CanonicalLink().Replace(head, string.Empty);
+        head = StrippedLink().Replace(head, string.Empty);
         head = LdJsonScript().Replace(head, string.Empty);
         return head;
     }
@@ -96,9 +96,40 @@ public partial class SharePreviewHtmlRenderer : ISharePreviewHtmlRenderer
         Line($"""<meta name="wechat:description" content="{description}" />""");
         Line($"""<meta name="wechat:image" content="{image}" />""");
         Line($"""<meta name="image_src" content="{image}" />""");
+        Line($"""<link rel="image_src" href="{image}" />""");
 
         return tags.ToString();
     }
+
+    /// <summary>
+    /// WeChat does not build its card from og:image — it takes the first usable &lt;img&gt; in the
+    /// body, and skips anything hidden or small. index.html carries one marked
+    /// <c>data-social-thumbnail</c> for exactly that; on a share page it has to point at this
+    /// share's card rather than the landing one. A shell without the marker (an older deploy, or
+    /// one whose only image is the 64px app icon) gets the tag injected as the body's first child
+    /// instead, so the crawler still reaches it first.
+    /// </summary>
+    private static string ReplaceSocialThumbnail(string html, SharePreview preview)
+    {
+        var tag = SocialThumbnail(preview, indent: string.Empty).Trim();
+
+        var replaced = SocialThumbnailTag().Replace(html, _ => tag, 1);
+        if (replaced != html) return replaced;
+
+        return BodyOpenTag().Replace(html, m => $"{m.Value}\n\t\t{tag}", 1);
+    }
+
+    /// <summary>
+    /// Off-screen rather than <c>display:none</c>: WeChat ignores a hidden image, and
+    /// <c>position:fixed</c> keeps it out of the document's scroll height. The width and height
+    /// are the card's real pixels — WeChat rejects a thumbnail under roughly 300px.
+    /// </summary>
+    private static string SocialThumbnail(SharePreview preview, string indent) =>
+        indent
+        + $"""<img data-social-thumbnail src="{Attr(preview.ImageUrl)}" alt="{Attr(preview.Title)}" """
+        + $"""width="{preview.ImageWidth}" height="{preview.ImageHeight}" loading="lazy" aria-hidden="true" """
+        + """style="position: fixed; left: -9999px; top: -9999px; opacity: 0; pointer-events: none" />"""
+        + "\n";
 
     private static string NoscriptBody(SharePreview preview, string indent)
     {
@@ -141,8 +172,10 @@ public partial class SharePreviewHtmlRenderer : ISharePreviewHtmlRenderer
         RegexOptions.IgnoreCase)]
     private static partial Regex SocialMetaTag();
 
-    [GeneratedRegex("""<link\b[^>]*\brel\s*=\s*"canonical"[^>]*>\s*""", RegexOptions.IgnoreCase)]
-    private static partial Regex CanonicalLink();
+    [GeneratedRegex(
+        """<link\b[^>]*\brel\s*=\s*"(?:canonical|image_src)"[^>]*>\s*""",
+        RegexOptions.IgnoreCase)]
+    private static partial Regex StrippedLink();
 
     [GeneratedRegex(
         """<script\b[^>]*\btype\s*=\s*"application/ld\+json"[^>]*>.*?</script>\s*""",
@@ -150,7 +183,15 @@ public partial class SharePreviewHtmlRenderer : ISharePreviewHtmlRenderer
     private static partial Regex LdJsonScript();
 
     [GeneratedRegex(
-        @"(?:[ \t]*<!--.*?-->[ \t]*\r?\n)?[ \t]*<noscript\b[^>]*>.*?</noscript>",
+        @"(?:[ \t]*<!--(?:(?!-->)[\s\S])*-->[ \t]*\r?\n)?[ \t]*<img\b[^>]*\bdata-social-thumbnail\b[^>]*>",
+        RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    private static partial Regex SocialThumbnailTag();
+
+    [GeneratedRegex(@"<body\b[^>]*>", RegexOptions.IgnoreCase)]
+    private static partial Regex BodyOpenTag();
+
+    [GeneratedRegex(
+        @"(?:[ \t]*<!--(?:(?!-->)[\s\S])*-->[ \t]*\r?\n)?[ \t]*<noscript\b[^>]*>.*?</noscript>",
         RegexOptions.IgnoreCase | RegexOptions.Singleline)]
     private static partial Regex NoscriptBlock();
 }

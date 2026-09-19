@@ -107,8 +107,14 @@ describe('seoPlugin Search Console verification', () => {
 		expect(result.tags[0].attrs.content).toBe('token-123')
 	})
 
-	it('leaves the HTML untouched when no token is configured', () => {
-		expect(transform({}, '<html></html>')).toBe('<html></html>')
-		expect(transform({ googleSiteVerification: '   ' }, '<html></html>')).toBe('<html></html>')
+	it('injects no tag when no token is configured', () => {
+		// The handler still returns {html, tags} either way — it also resolves the origin
+		// placeholders — so the absence of a token shows up as an empty tag list, not as a
+		// bare string.
+		expect(transform({}, '<html></html>')).toEqual({ html: '<html></html>', tags: [] })
+		expect(transform({ googleSiteVerification: '   ' }, '<html></html>')).toEqual({
+			html: '<html></html>',
+			tags: [],
+		})
 	})
 })

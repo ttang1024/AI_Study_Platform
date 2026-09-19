@@ -485,6 +485,13 @@ export async function mockStudyApi(page: Page) {
       const doc = [...documents, ...viewerDocuments].find(d => d.documentId === singleDocMatch[1])
       if (doc) return json(route, doc)
     }
+    // The detail page reads the document's saved note from its own endpoint (the flat
+    // /api/notes list is what the Notes page reads) — serve the matching fixture note.
+    const docNotesMatch = path.match(/^\/api\/courses\/[^/]+\/documents\/([^/]+)\/notes$/)
+    if (method === 'GET' && docNotesMatch) {
+      return json(route, notes.filter(n => n.documentId === docNotesMatch[1]))
+    }
+
     const docFileMatch = path.match(/^\/api\/courses\/[^/]+\/documents\/([^/]+)\/file$/)
     if (docFileMatch && viewerDocumentFiles[docFileMatch[1]]) {
       // The viewers read this endpoint as text, not as a BaseResponse envelope.
