@@ -2,7 +2,10 @@
 set -euo pipefail
 
 # AWS deployment:
-# - API: ECS Fargate behind an ALB, image from ECR, fronted by CloudFront.
+# - API: a single Lightsail instance running the container from ECR, fronted by CloudFront.
+#   (Was ECS Fargate behind an ALB until 2026-09-21; that cost ~$54/month in compute, load
+#   balancer hours and public IPv4 addresses for a box that idles at 0.5% CPU. The Lightsail
+#   bundle is a flat $12 and includes its own transfer allowance.)
 # - Web/Admin: S3 static websites behind CloudFront.
 # - Documents: private S3 bucket.
 # - Database: external managed PostgreSQL (Supabase) over TLS — nothing database-shaped is
@@ -69,22 +72,6 @@ ensure_website_bucket() {
   }')" >/dev/null
 }
 
-ensure_role() {
-  local name="$1"
-  aws iam get-role --role-name "$name" >/dev/null 2>&1 || \
-    aws iam create-role --role-name "$name" --assume-role-policy-document \
-      '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"ecs-tasks.amazonaws.com"},"Action":"sts:AssumeRole"}]}' >/dev/null
-  aws iam get-role --role-name "$name" --query Role.Arn --output text
-}
-
-ensure_security_group() {
-  local name="$1" description="$2" id
-  id="$(aws_opt ec2 describe-security-groups --filters Name=group-name,Values="$name" Name=vpc-id,Values="$VPC_ID" --query 'SecurityGroups[0].GroupId' --output text)"
-  [[ -n "$id" ]] || id="$(aws ec2 create-security-group --group-name "$name" --description "$description" --vpc-id "$VPC_ID" --query GroupId --output text)"
-  printf '%s' "$id"
-}
-
-# field is DomainName or Id.
 cloudfront_field_by_comment() {
   aws_opt cloudfront list-distributions --query "DistributionList.Items[?Comment=='$1'].$2 | [0]" --output text
 }
@@ -153,7 +140,7 @@ ensure_cloudfront() {
   printf 'https://%s\n' "$domain"
 }
 
-# ensure_share_preview_behavior <alb dns name>. Points /share/* on the web distribution at the API
+# ensure_share_preview_behavior <api origin host>. Points /share/* on the web distribution at the API
 # instead of the S3 bucket, and is a no-op once that behavior exists.
 #
 # Why: /share/{token} is a client-rendered route, so a crawler served the S3 index.html sees the
@@ -162,7 +149,7 @@ ensure_cloudfront() {
 # the meta tags (SharePreviewController), so the app still boots exactly as before — the crawler
 # just gets something to read. Everything outside /share/* keeps coming from S3.
 ensure_share_preview_behavior() {
-  local alb="$1" dist_id etag config updated config_file
+  local origin_host="$1" dist_id etag config updated config_file
   dist_id="$(cloudfront_field_by_comment "$WEB_CLOUDFRONT_COMMENT" Id)"
   if [[ -z "$dist_id" || "$dist_id" == "None" ]]; then
     echo "    Web distribution not found by comment '$WEB_CLOUDFRONT_COMMENT'; skipping the /share/* behavior." >&2
@@ -178,7 +165,7 @@ ensure_share_preview_behavior() {
   etag="$(jq -r '.ETag' "$config_file")"
   config="$(jq '.DistributionConfig' "$config_file")"
 
-  if jq -e --arg origin "$alb" '
+  if jq -e --arg origin "$origin_host" '
       (.CacheBehaviors.Items // []) | any(.PathPattern == "/share/*" and .TargetOriginId == $origin)
     ' <<<"$config" >/dev/null; then
     echo "    /share/* already routed to the API"
@@ -186,9 +173,9 @@ ensure_share_preview_behavior() {
     return 0
   fi
 
-  # The API is reached at its load balancer rather than through its own CloudFront distribution:
+  # The API is reached at its own origin host rather than through its CloudFront distribution:
   # one hop, and the same origin settings that distribution uses.
-  updated="$(jq --arg origin "$alb" '
+  updated="$(jq --arg origin "$origin_host" '
     .Origins.Items |= (map(select(.Id != $origin)) + [{
       Id: $origin,
       DomainName: $origin,
@@ -262,12 +249,12 @@ domain_origin() {
 # WEB_ORIGIN, ADMIN_ORIGIN, WEB_WWW_ORIGIN and API_URL. An explicit *_PUBLIC_ORIGIN always wins, and
 # PUBLIC_DOMAIN derives the api./admin./www. hostnames — see the PUBLIC_DOMAIN note below.
 resolve_public_origins() {
-  local alb_dns_name="$1" website_suffix="s3-website-$AWS_REGION.amazonaws.com" admin api
+  local api_origin_host="$1" website_suffix="s3-website-$AWS_REGION.amazonaws.com" admin api
   admin="${ADMIN_PUBLIC_ORIGIN:-$(domain_origin admin)}"
   api="${API_PUBLIC_ORIGIN:-$(domain_origin api)}"
   WEB_ORIGIN="${WEB_PUBLIC_ORIGIN:-$(ensure_cloudfront "$WEB_CLOUDFRONT_COMMENT" "$WEB_BUCKET.$website_suffix" static)}"
   ADMIN_ORIGIN="${admin:-$(ensure_cloudfront "$ADMIN_CLOUDFRONT_COMMENT" "$ADMIN_BUCKET.$website_suffix" static)}"
-  API_URL="${api:-$(ensure_cloudfront "$API_CLOUDFRONT_COMMENT" "$alb_dns_name" api)}"
+  API_URL="${api:-$(ensure_cloudfront "$API_CLOUDFRONT_COMMENT" "$api_origin_host" api)}"
   if [[ -n "$PUBLIC_DOMAIN" && "$WEB_ORIGIN" == "https://$PUBLIC_DOMAIN" ]]; then
     WEB_WWW_ORIGIN="${WEB_WWW_PUBLIC_ORIGIN:-https://www.$PUBLIC_DOMAIN}"
   else
@@ -372,7 +359,7 @@ GITHUB_CLIENT_ID="${GITHUB_CLIENT_ID:?Set GITHUB_CLIENT_ID env var}"
 # only). Unset simply omits the meta tag. Not needed if the property was verified via DNS instead.
 GOOGLE_SITE_VERIFICATION="${GOOGLE_SITE_VERIFICATION:-}"
 if [[ "$DEPLOY_WEB_ONLY" != "1" ]]; then
-  # The one database credential this script handles, and it never leaves the ECS task definition.
+  # The one database credential this script handles, and it never leaves the container's env file.
   DATABASE_CONNECTION_STRING="${DATABASE_CONNECTION_STRING:?Set DATABASE_CONNECTION_STRING to the Supabase connection string (see DEPLOYMENT.md)}"
   JWT_SECRET="${JWT_SECRET:?Set JWT_SECRET env var}"
   GOOGLE_CLIENT_SECRET="${GOOGLE_CLIENT_SECRET:?Set GOOGLE_CLIENT_SECRET env var}"
@@ -401,7 +388,7 @@ YOUTUBE_COOKIES_B64="${YOUTUBE_COOKIES_B64:-${YouTube__CookiesBase64:-}}"
 # hands out, then set it once DNS and the certificate are in place.
 PUBLIC_DOMAIN="${PUBLIC_DOMAIN:-}"
 
-# No ElastiCache is provisioned; these only reach the task definition, for a Redis you run yourself.
+# No ElastiCache is provisioned; these only reach the container, for a Redis you run yourself.
 REDIS_ENABLED="${REDIS_ENABLED:-false}"
 REDIS_CONNECTION_STRING="${REDIS_CONNECTION_STRING:-}"
 REDIS_INSTANCE_NAME="${REDIS_INSTANCE_NAME:-StudyPlatform:}"
@@ -418,20 +405,10 @@ for __v in GOOGLE_CLIENT_ID GITHUB_CLIENT_ID JWT_SECRET GOOGLE_CLIENT_SECRET GIT
 done
 unset __v
 
-# The image architecture and the task's runtime architecture must agree, and on a developer's
-# Apple-silicon Mac they do not by default: `docker build` produces linux/arm64 while ECS defaults
-# Fargate tasks to X86_64, so the task fails to start with "image manifest does not contain a
-# descriptor matching platform". One variable sets both.
-#
-# X86_64 is the default because it matches ECS's own default and is the best-supported target for the
-# native Whisper.net runtime in the image. ARM64 (Graviton) is cheaper and builds natively on an
-# M-series Mac — switch only after confirming the image actually runs there.
-ECS_CPU_ARCHITECTURE="$(printf '%s' "${ECS_CPU_ARCHITECTURE:-X86_64}" | tr '[:lower:]' '[:upper:]')"
-case "$ECS_CPU_ARCHITECTURE" in
-  X86_64) DOCKER_BUILD_PLATFORM="linux/amd64" ;;
-  ARM64)  DOCKER_BUILD_PLATFORM="linux/arm64" ;;
-  *) echo "ECS_CPU_ARCHITECTURE must be X86_64 (default) or ARM64; got '$ECS_CPU_ARCHITECTURE'" >&2; exit 1 ;;
-esac
+# Lightsail bundles are x86_64, so the image must be too — and on an Apple-silicon Mac
+# `docker build` produces linux/arm64 by default, which the instance cannot run at all
+# ("exec format error" in the container logs, a healthy-looking deploy, a dead API).
+DOCKER_BUILD_PLATFORM="${DOCKER_BUILD_PLATFORM:-linux/amd64}"
 
 AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
 ECR_REPOSITORY="${ECR_REPOSITORY:-$APP_NAME-api}"
@@ -439,27 +416,23 @@ ECR_URI="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY"
 DOCS_BUCKET="${DOCS_BUCKET:-$(bucket_name documents)}"
 WEB_BUCKET="${WEB_BUCKET:-$(bucket_name web)}"
 ADMIN_BUCKET="${ADMIN_BUCKET:-$(bucket_name admin)}"
-ECS_CLUSTER_NAME="${ECS_CLUSTER_NAME:-${APP_NAME}-cluster}"
-ECS_SERVICE_NAME="${ECS_SERVICE_NAME:-${APP_NAME}-api}"
-ECS_TASK_FAMILY="${ECS_TASK_FAMILY:-${APP_NAME}-api}"
-ECS_EXECUTION_ROLE_NAME="${ECS_EXECUTION_ROLE_NAME:-${APP_NAME}-ecs-execution}"
-ECS_TASK_ROLE_NAME="${ECS_TASK_ROLE_NAME:-${APP_NAME}-ecs-task}"
-ECS_SECURITY_GROUP_NAME="${ECS_SECURITY_GROUP_NAME:-${APP_NAME}-ecs-api}"
-ECS_DESIRED_COUNT="${ECS_DESIRED_COUNT:-1}"
-# 100 with maximumPercent=200 means the replacement task has to pass its target-group health
-# check before the old one is stopped. At 0 ECS stops the only task first, and with a single
-# task that leaves the ALB with no healthy target — the API answers 503 for the whole rollout.
-ECS_MIN_HEALTHY_PERCENT="${ECS_MIN_HEALTHY_PERCENT:-100}"
-ECS_MAX_PERCENT="${ECS_MAX_PERCENT:-200}"
-ECS_CPU="${ECS_CPU:-1024}"
-# Fargate only accepts specific cpu/memory pairs — 1024 CPU units means 2–8 GB.
-ECS_MEMORY="${ECS_MEMORY:-2048}"
+LIGHTSAIL_INSTANCE_NAME="${LIGHTSAIL_INSTANCE_NAME:-${APP_NAME}-api}"
+API_IAM_USER_NAME="${API_IAM_USER_NAME:-${APP_NAME}-lightsail}"
+LIGHTSAIL_SSH_USER="${LIGHTSAIL_SSH_USER:-ubuntu}"
+LIGHTSAIL_SSH_KEY="${LIGHTSAIL_SSH_KEY:-$HOME/.ssh/study-platform-lightsail}"
+# Where the container's env file and the persisted DataProtection keys live on the instance.
+LIGHTSAIL_APP_DIR="${LIGHTSAIL_APP_DIR:-/opt/study-platform}"
+# CloudFront needs a hostname for a custom origin, never a bare IP, so the instance's static IP
+# is published as this A record and the distributions point at it. Changing the instance means
+# repointing this record, not touching CloudFront.
+API_ORIGIN_HOST="${API_ORIGIN_HOST:-origin.${PUBLIC_DOMAIN:-toto-study.com}}"
+# Lightsail has no IAM roles, so the S3 (documents bucket) and SES permissions that used to come
+# from the ECS task role now come from an IAM user's access key, read by the SDK's default
+# credential chain inside the container.
+LIGHTSAIL_AWS_ACCESS_KEY_ID="${LIGHTSAIL_AWS_ACCESS_KEY_ID:-}"
+LIGHTSAIL_AWS_SECRET_ACCESS_KEY="${LIGHTSAIL_AWS_SECRET_ACCESS_KEY:-}"
 API_CONTAINER_NAME="${API_CONTAINER_NAME:-api}"
 API_CONTAINER_PORT="${API_CONTAINER_PORT:-5000}"
-ALB_NAME="${ALB_NAME:-${APP_NAME}-api}"
-ALB_SECURITY_GROUP_NAME="${ALB_SECURITY_GROUP_NAME:-${APP_NAME}-alb}"
-# Fargate tasks register with the target group by IP.
-ALB_TARGET_GROUP_NAME="${ALB_TARGET_GROUP_NAME:-${APP_NAME}-api-fg-tg}"
 LOG_GROUP_NAME="${LOG_GROUP_NAME:-/ecs/${APP_NAME}-api}"
 WEB_CLOUDFRONT_COMMENT="${WEB_CLOUDFRONT_COMMENT:-${APP_NAME}-web-cloudfront}"
 ADMIN_CLOUDFRONT_COMMENT="${ADMIN_CLOUDFRONT_COMMENT:-${APP_NAME}-admin-cloudfront}"
@@ -469,14 +442,9 @@ IMAGE_TAG="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)-$(date +%Y%
 # ------------------------------------------------------------------- web -----
 
 if [[ "$DEPLOY_WEB_ONLY" == "1" ]]; then
-  ALB_DNS_NAME="$(aws_opt elbv2 describe-load-balancers --names "$ALB_NAME" --query 'LoadBalancers[0].DNSName' --output text)"
-  if [[ -z "$ALB_DNS_NAME" ]]; then
-    echo "ECS load balancer $ALB_NAME was not found. Run ./deploy.sh first." >&2
-    exit 1
-  fi
   echo "==> Resolving public origins"
-  resolve_public_origins "$ALB_DNS_NAME"
-  ensure_share_preview_behavior "$ALB_DNS_NAME"
+  resolve_public_origins "$API_ORIGIN_HOST"
+  ensure_share_preview_behavior "$API_ORIGIN_HOST"
   deploy_frontends
   summary "Frontend deployment complete"
   exit 0
@@ -506,42 +474,44 @@ docker push "$ECR_URI:latest"
 
 # ------------------------------------------------------------ iam/network ----
 
-echo "==> Creating ECS IAM roles"
-EXECUTION_ROLE_ARN="$(ensure_role "$ECS_EXECUTION_ROLE_NAME")"
-aws iam attach-role-policy --role-name "$ECS_EXECUTION_ROLE_NAME" \
-  --policy-arn arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy >/dev/null
-TASK_ROLE_ARN="$(ensure_role "$ECS_TASK_ROLE_NAME")"
-aws iam put-role-policy --role-name "$ECS_TASK_ROLE_NAME" --policy-name "${APP_NAME}-documents-s3" \
+echo "==> Ensuring the API's IAM user"
+# Lightsail instances cannot assume an IAM role the way an ECS task can, so the two permissions the
+# container needs — the documents bucket and SES — hang off a plain IAM user whose access key is
+# injected as AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY below. The key itself is created once, by
+# hand, and lives in .env_variables; this script only keeps the policies in sync.
+if [[ -z "$LIGHTSAIL_AWS_ACCESS_KEY_ID" || -z "$LIGHTSAIL_AWS_SECRET_ACCESS_KEY" ]]; then
+  echo "Set LIGHTSAIL_AWS_ACCESS_KEY_ID and LIGHTSAIL_AWS_SECRET_ACCESS_KEY in .env_variables." >&2
+  echo "They are the access key of the IAM user $API_IAM_USER_NAME; see DEPLOYMENT.md." >&2
+  exit 1
+fi
+aws iam get-user --user-name "$API_IAM_USER_NAME" >/dev/null 2>&1 || \
+  aws iam create-user --user-name "$API_IAM_USER_NAME" >/dev/null
+aws iam put-user-policy --user-name "$API_IAM_USER_NAME" --policy-name "${APP_NAME}-documents-s3" \
   --policy-document "$(jq -nc --arg bucket "arn:aws:s3:::$DOCS_BUCKET" '{
     Version: "2012-10-17",
     Statement: [
       {Effect: "Allow", Action: ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"], Resource: ($bucket + "/*")},
       {Effect: "Allow", Action: ["s3:ListBucket", "s3:GetBucketLocation"], Resource: $bucket}
     ]}')" >/dev/null
-aws iam put-role-policy --role-name "$ECS_TASK_ROLE_NAME" --policy-name "${APP_NAME}-ses-email" \
+aws iam put-user-policy --user-name "$API_IAM_USER_NAME" --policy-name "${APP_NAME}-ses-email" \
   --policy-document '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["ses:SendEmail"],"Resource":"*"}]}' >/dev/null
-
-echo "==> Resolving network"
-VPC_ID="$(aws_opt ec2 describe-vpcs --filters Name=is-default,Values=true --query 'Vpcs[0].VpcId' --output text)"
-if [[ -z "$VPC_ID" ]]; then
-  echo "    No default VPC found in $AWS_REGION; creating one"
-  VPC_ID="$(aws ec2 create-default-vpc --query Vpc.VpcId --output text)"
-fi
-read -r -a SUBNET_IDS <<< "$(aws ec2 describe-subnets --filters Name=vpc-id,Values="$VPC_ID" --query 'Subnets[].SubnetId' --output text)"
-if [[ "${#SUBNET_IDS[@]}" -eq 0 ]]; then
-  echo "No subnets found in default VPC $VPC_ID" >&2
-  exit 1
-fi
-
-# The database is reached outbound over TLS, so there is no inbound database port to open here.
-ALB_SECURITY_GROUP_ID="$(ensure_security_group "$ALB_SECURITY_GROUP_NAME" "${APP_NAME} public API load balancer")"
-aws ec2 authorize-security-group-ingress --group-id "$ALB_SECURITY_GROUP_ID" --protocol tcp --port 80 --cidr 0.0.0.0/0 >/dev/null 2>&1 || true
-ECS_SECURITY_GROUP_ID="$(ensure_security_group "$ECS_SECURITY_GROUP_NAME" "${APP_NAME} ECS API tasks")"
-aws ec2 authorize-security-group-ingress --group-id "$ECS_SECURITY_GROUP_ID" --protocol tcp --port "$API_CONTAINER_PORT" --source-group "$ALB_SECURITY_GROUP_ID" >/dev/null 2>&1 || true
+# Pulling the image and shipping container logs are the instance's own jobs, not the app's, but they
+# run under the same key: the Docker daemon reads it for the awslogs driver, and the deploy below
+# pipes a short-lived ECR token over ssh.
+aws iam put-user-policy --user-name "$API_IAM_USER_NAME" --policy-name "${APP_NAME}-ecr-logs" \
+  --policy-document "$(jq -nc --arg repo "arn:aws:ecr:$AWS_REGION:$AWS_ACCOUNT_ID:repository/$ECR_REPOSITORY" \
+    --arg logs "arn:aws:logs:$AWS_REGION:$AWS_ACCOUNT_ID:log-group:$LOG_GROUP_NAME:*" '{
+    Version: "2012-10-17",
+    Statement: [
+      {Effect: "Allow", Action: "ecr:GetAuthorizationToken", Resource: "*"},
+      {Effect: "Allow", Action: ["ecr:BatchCheckLayerAvailability", "ecr:BatchGetImage", "ecr:GetDownloadUrlForLayer"], Resource: $repo},
+      {Effect: "Allow", Action: ["logs:CreateLogStream", "logs:PutLogEvents"], Resource: $logs}
+    ]}')" >/dev/null
+echo "    IAM user ready: $API_IAM_USER_NAME"
 
 # Nothing to provision for the database: it lives in Supabase and is reached over TLS. The connection
-# string is passed straight through to the task definition — never into the image, a file in the
-# repo, or any frontend build.
+# string is passed straight through to the container's env file — never into the image, a file in
+# the repo, or any frontend build.
 echo "==> Using external managed PostgreSQL (Supabase)"
 echo "    Database host: $(printf '%s' "$DATABASE_CONNECTION_STRING" | tr ';' '\n' | awk -F= 'tolower($1) ~ /^ *host *$/ {print $2}' | head -1)"
 if printf '%s' "$DATABASE_CONNECTION_STRING" | grep -qiE '(^|;) *ssl *mode *= *disable'; then
@@ -549,50 +519,49 @@ if printf '%s' "$DATABASE_CONNECTION_STRING" | grep -qiE '(^|;) *ssl *mode *= *d
   exit 1
 fi
 
-# ------------------------------------------------------------- alb + ecs -----
+# ------------------------------------------------------------- lightsail -----
 
-echo "==> Deploying API to ECS (Fargate)"
+echo "==> Resolving the Lightsail instance"
 aws logs create-log-group --log-group-name "$LOG_GROUP_NAME" >/dev/null 2>&1 || true
-[[ "$(aws_opt ecs describe-clusters --clusters "$ECS_CLUSTER_NAME" --query 'clusters[0].status' --output text)" == "ACTIVE" ]] || \
-  aws ecs create-cluster --cluster-name "$ECS_CLUSTER_NAME" >/dev/null
-echo "    ECS cluster ready: $ECS_CLUSTER_NAME"
-
-ALB_ARN="$(aws_opt elbv2 describe-load-balancers --names "$ALB_NAME" --query 'LoadBalancers[0].LoadBalancerArn' --output text)"
-if [[ -z "$ALB_ARN" ]]; then
-  ALB_ARN="$(aws elbv2 create-load-balancer --name "$ALB_NAME" --subnets "${SUBNET_IDS[@]}" \
-    --security-groups "$ALB_SECURITY_GROUP_ID" --scheme internet-facing --type application \
-    --query 'LoadBalancers[0].LoadBalancerArn' --output text)"
+LIGHTSAIL_IP="$(aws_opt lightsail get-instance --instance-name "$LIGHTSAIL_INSTANCE_NAME" --query 'instance.publicIpAddress' --output text)"
+if [[ -z "$LIGHTSAIL_IP" ]]; then
+  echo "Lightsail instance '$LIGHTSAIL_INSTANCE_NAME' was not found in $AWS_REGION." >&2
+  echo "It is created once, by hand — see the Lightsail section of DEPLOYMENT.md." >&2
+  exit 1
 fi
-aws elbv2 wait load-balancer-available --load-balancer-arns "$ALB_ARN"
-ALB_DNS_NAME="$(aws elbv2 describe-load-balancers --load-balancer-arns "$ALB_ARN" --query 'LoadBalancers[0].DNSName' --output text)"
-echo "    Load balancer ready: $ALB_DNS_NAME"
-
-TARGET_GROUP_ARN="$(aws_opt elbv2 describe-target-groups --names "$ALB_TARGET_GROUP_NAME" --query 'TargetGroups[0].TargetGroupArn' --output text)"
-if [[ -z "$TARGET_GROUP_ARN" ]]; then
-  TARGET_GROUP_ARN="$(aws elbv2 create-target-group --name "$ALB_TARGET_GROUP_NAME" --protocol HTTP \
-    --port "$API_CONTAINER_PORT" --vpc-id "$VPC_ID" --target-type ip \
-    --health-check-protocol HTTP --health-check-path /health --matcher HttpCode=200-399 \
-    --query 'TargetGroups[0].TargetGroupArn' --output text)"
+if [[ ! -f "$LIGHTSAIL_SSH_KEY" ]]; then
+  echo "SSH key $LIGHTSAIL_SSH_KEY not found; set LIGHTSAIL_SSH_KEY to the deploy key." >&2
+  exit 1
 fi
+SSH=(ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 -i "$LIGHTSAIL_SSH_KEY" "$LIGHTSAIL_SSH_USER@$LIGHTSAIL_IP")
+"${SSH[@]}" true || { echo "Cannot ssh to $LIGHTSAIL_IP with $LIGHTSAIL_SSH_KEY." >&2; exit 1; }
+echo "    Instance ready: $LIGHTSAIL_INSTANCE_NAME ($LIGHTSAIL_IP)"
 
-LISTENER_ARN="$(aws_opt elbv2 describe-listeners --load-balancer-arn "$ALB_ARN" --query 'Listeners[?Port==`80`].ListenerArn | [0]' --output text)"
-if [[ -z "$LISTENER_ARN" ]]; then
-  aws elbv2 create-listener --load-balancer-arn "$ALB_ARN" --protocol HTTP --port 80 \
-    --default-actions Type=forward,TargetGroupArn="$TARGET_GROUP_ARN" >/dev/null
-else
-  aws elbv2 modify-listener --listener-arn "$LISTENER_ARN" \
-    --default-actions Type=forward,TargetGroupArn="$TARGET_GROUP_ARN" >/dev/null
+# The A record is what CloudFront actually points at, so a rebuilt instance is picked up here
+# rather than by editing two distributions.
+HOSTED_ZONE_ID="$(aws_opt route53 list-hosted-zones-by-name --dns-name "${PUBLIC_DOMAIN:-toto-study.com}" --query 'HostedZones[0].Id' --output text)"
+HOSTED_ZONE_ID="${HOSTED_ZONE_ID##*/}"
+if [[ -n "$HOSTED_ZONE_ID" ]]; then
+  CURRENT_ORIGIN_IP="$(aws_opt route53 list-resource-record-sets --hosted-zone-id "$HOSTED_ZONE_ID" \
+    --query "ResourceRecordSets[?Name=='${API_ORIGIN_HOST}.' && Type=='A'].ResourceRecords[0].Value | [0]" --output text)"
+  if [[ "$CURRENT_ORIGIN_IP" != "$LIGHTSAIL_IP" ]]; then
+    aws route53 change-resource-record-sets --hosted-zone-id "$HOSTED_ZONE_ID" --change-batch "$(jq -nc \
+      --arg name "$API_ORIGIN_HOST" --arg ip "$LIGHTSAIL_IP" '{
+        Comment: "API origin for CloudFront (Lightsail instance)",
+        Changes: [{Action: "UPSERT", ResourceRecordSet: {Name: $name, Type: "A", TTL: 60, ResourceRecords: [{Value: $ip}]}}]
+      }')" >/dev/null
+    echo "    $API_ORIGIN_HOST -> $LIGHTSAIL_IP"
+  fi
 fi
-echo "    Target group and HTTP listener ready"
 
 echo "==> Resolving public origins"
-resolve_public_origins "$ALB_DNS_NAME"
-ensure_share_preview_behavior "$ALB_DNS_NAME"
+resolve_public_origins "$API_ORIGIN_HOST"
+ensure_share_preview_behavior "$API_ORIGIN_HOST"
 echo "    Web:   $WEB_ORIGIN"
 echo "    Admin: $ADMIN_ORIGIN"
 echo "    API:   $API_URL"
 
-TASK_ENVIRONMENT=(
+API_ENVIRONMENT=(
   "ASPNETCORE_ENVIRONMENT=Production"
   "AWS__Region=$AWS_REGION"
   "S3__BucketName=$DOCS_BUCKET"
@@ -634,77 +603,66 @@ TASK_ENVIRONMENT=(
   "Cors__AllowedOrigins__0=$WEB_ORIGIN"
   "Cors__AllowedOrigins__1=$ADMIN_ORIGIN"
   "Cors__AllowedOrigins__2=$WEB_WWW_ORIGIN"
+  # What the ECS task role used to provide. The SDK's default credential chain picks these up for
+  # both the documents bucket and SES.
+  "AWS_ACCESS_KEY_ID=$LIGHTSAIL_AWS_ACCESS_KEY_ID"
+  "AWS_SECRET_ACCESS_KEY=$LIGHTSAIL_AWS_SECRET_ACCESS_KEY"
+  "AWS_REGION=$AWS_REGION"
 )
 
-TASK_DEFINITION="$(jq -n \
-  --arg family "$ECS_TASK_FAMILY" \
-  --arg executionRoleArn "$EXECUTION_ROLE_ARN" \
-  --arg taskRoleArn "$TASK_ROLE_ARN" \
-  --arg cpu "$ECS_CPU" \
-  --arg memory "$ECS_MEMORY" \
-  --arg cpuArchitecture "$ECS_CPU_ARCHITECTURE" \
-  --arg containerName "$API_CONTAINER_NAME" \
-  --argjson containerPort "$API_CONTAINER_PORT" \
-  --arg image "$ECR_URI:$IMAGE_TAG" \
-  --arg awsRegion "$AWS_REGION" \
-  --arg logGroup "$LOG_GROUP_NAME" \
-  --args '{
-    family: $family,
-    networkMode: "awsvpc",
-    requiresCompatibilities: ["FARGATE"],
-    runtimePlatform: {cpuArchitecture: $cpuArchitecture, operatingSystemFamily: "LINUX"},
-    cpu: $cpu,
-    memory: $memory,
-    executionRoleArn: $executionRoleArn,
-    taskRoleArn: $taskRoleArn,
-    containerDefinitions: [{
-      name: $containerName,
-      image: $image,
-      essential: true,
-      portMappings: [{containerPort: $containerPort, protocol: "tcp"}],
-      environment: [$ARGS.positional[] | index("=") as $i | {name: .[:$i], value: .[$i + 1:]}],
-      logConfiguration: {
-        logDriver: "awslogs",
-        options: {
-          "awslogs-group": $logGroup,
-          "awslogs-region": $awsRegion,
-          "awslogs-stream-prefix": $containerName
-        }
-      }
-    }]
-  }' "${TASK_ENVIRONMENT[@]}")"
-TASK_DEFINITION_ARN="$(aws ecs register-task-definition --cli-input-json "$TASK_DEFINITION" --query 'taskDefinition.taskDefinitionArn' --output text)"
-echo "    Task definition registered: $TASK_DEFINITION_ARN"
-
-SERVICE_STATUS="$(aws_opt ecs describe-services --cluster "$ECS_CLUSTER_NAME" --services "$ECS_SERVICE_NAME" --query 'services[0].status' --output text)"
-# awsvpc gives each Fargate task its own ENI. A public IP is what lets it pull from ECR and reach
-# Supabase without a NAT gateway; the security group still allows inbound only from the ALB.
-NETWORK_CONFIGURATION=(--network-configuration "awsvpcConfiguration={subnets=[$(IFS=,; echo "${SUBNET_IDS[*]}")],securityGroups=[$ECS_SECURITY_GROUP_ID],assignPublicIp=ENABLED}")
-DEPLOYMENT_CONFIGURATION=(--deployment-configuration "minimumHealthyPercent=$ECS_MIN_HEALTHY_PERCENT,maximumPercent=$ECS_MAX_PERCENT")
-
-if [[ "$SERVICE_STATUS" == "ACTIVE" || "$SERVICE_STATUS" == "DRAINING" ]]; then
-  aws ecs update-service \
-    --cluster "$ECS_CLUSTER_NAME" \
-    --service "$ECS_SERVICE_NAME" \
-    --task-definition "$TASK_DEFINITION_ARN" \
-    --desired-count "$ECS_DESIRED_COUNT" \
-    "${NETWORK_CONFIGURATION[@]}" \
-    "${DEPLOYMENT_CONFIGURATION[@]}" \
-    --force-new-deployment >/dev/null
-else
-  aws ecs create-service \
-    --cluster "$ECS_CLUSTER_NAME" \
-    --service-name "$ECS_SERVICE_NAME" \
-    --task-definition "$TASK_DEFINITION_ARN" \
-    --desired-count "$ECS_DESIRED_COUNT" \
-    --launch-type FARGATE \
-    "${NETWORK_CONFIGURATION[@]}" \
-    "${DEPLOYMENT_CONFIGURATION[@]}" \
-    --load-balancers "targetGroupArn=$TARGET_GROUP_ARN,containerName=$API_CONTAINER_NAME,containerPort=$API_CONTAINER_PORT" \
-    --health-check-grace-period-seconds 120 >/dev/null
+echo "==> Deploying the API container"
+# The env file carries every secret the container needs, so it is written with a restrictive umask
+# here, moved into place root-owned 0600, and never echoed. docker --env-file takes each line
+# literally: no quoting, no expansion, and no value may contain a newline.
+ENV_FILE="$(mktemp)"
+trap 'rm -f "$ENV_FILE"' EXIT
+(umask 077; printf '%s\n' "${API_ENVIRONMENT[@]}" > "$ENV_FILE")
+if grep -qc $'\r' "$ENV_FILE"; then
+  echo "An environment value contains a carriage return; docker --env-file would keep it." >&2
+  exit 1
 fi
-echo "    ECS service deploying: $ECS_SERVICE_NAME"
-aws ecs wait services-stable --cluster "$ECS_CLUSTER_NAME" --services "$ECS_SERVICE_NAME"
+scp -o StrictHostKeyChecking=accept-new -q -i "$LIGHTSAIL_SSH_KEY" "$ENV_FILE" \
+  "$LIGHTSAIL_SSH_USER@$LIGHTSAIL_IP:/tmp/api.env.new"
+"${SSH[@]}" "sudo install -o root -g root -m 600 /tmp/api.env.new $LIGHTSAIL_APP_DIR/api.env && rm -f /tmp/api.env.new"
+
+# A 12-hour ECR token travels over the ssh pipe, so no AWS credential has to sit on the instance
+# for the pull itself.
+aws ecr get-login-password --region "$AWS_REGION" | \
+  "${SSH[@]}" "sudo docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com" >/dev/null
+"${SSH[@]}" "sudo docker pull $ECR_URI:$IMAGE_TAG" >/dev/null
+echo "    Image on the instance: $IMAGE_TAG"
+
+# One box means one container: the old one stops before the new one starts, so a deploy is a short
+# outage (container start plus any pending migration) rather than a rolling replacement. The
+# DataProtection volume is what keeps that restart from invalidating every issued antiforgery token.
+"${SSH[@]}" "set -e
+  sudo mkdir -p $LIGHTSAIL_APP_DIR/dp-keys
+  sudo docker rm -f $API_CONTAINER_NAME >/dev/null 2>&1 || true
+  sudo docker run -d --name $API_CONTAINER_NAME --restart unless-stopped \
+    -p 80:$API_CONTAINER_PORT \
+    --env-file $LIGHTSAIL_APP_DIR/api.env \
+    -v $LIGHTSAIL_APP_DIR/dp-keys:/root/.aspnet/DataProtection-Keys \
+    --log-driver=awslogs \
+    --log-opt awslogs-region=$AWS_REGION \
+    --log-opt awslogs-group=$LOG_GROUP_NAME \
+    --log-opt awslogs-stream=lightsail/$API_CONTAINER_NAME \
+    $ECR_URI:$IMAGE_TAG >/dev/null" 
+echo "    Container started; waiting for /health"
+
+API_HEALTHY=0
+for _ in $(seq 1 30); do
+  if "${SSH[@]}" "curl -sf -m 5 http://localhost/health >/dev/null"; then API_HEALTHY=1; break; fi
+  sleep 5
+done
+if [[ "$API_HEALTHY" != "1" ]]; then
+  echo "The API never reported healthy. Last container logs:" >&2
+  "${SSH[@]}" "sudo docker logs --tail 40 $API_CONTAINER_NAME" >&2 || true
+  exit 1
+fi
+echo "    API healthy on $LIGHTSAIL_IP"
+
+# Images are ~1.2 GB each; without this the 60 GB disk fills after roughly forty deploys.
+"${SSH[@]}" "sudo docker image prune -af --filter 'until=168h'" >/dev/null 2>&1 || true
 
 if [[ "$DEPLOY_BACKEND_ONLY" == "1" ]]; then
   echo ""

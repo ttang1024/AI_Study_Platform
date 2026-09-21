@@ -1,16 +1,22 @@
-# Production deployment — S3 + CloudFront · ECS Fargate · Supabase
+# Production deployment — S3 + CloudFront · Lightsail · Supabase
 
 ```
         Browser
            │ HTTPS
         CloudFront → S3 (static web / admin builds)
-           │ HTTPS   VITE_API_URL, baked in at build time → the API's CloudFront / ALB
-        AWS ECS Fargate — ASP.NET Core 10 API
+           │ HTTPS   VITE_API_URL, baked in at build time → the API's CloudFront
+        CloudFront (api.<domain>) → origin.<domain> :80
+        Lightsail instance — one Docker container, ASP.NET Core 10 API
            │ PostgreSQL over TLS
         Supabase PostgreSQL + pgvector
 ```
 
 * **Redis is off.** Nothing in the API requires it — no ElastiCache, no Redis container, no connection string.
+* **One box, no load balancer.** The API moved off ECS Fargate + ALB on 2026-09-21: that stack cost
+  about $54/month (Fargate hours, ALB hours and three public IPv4 addresses) to serve a container
+  that idles at 0.5% CPU. A $12 Lightsail bundle replaces all three, and CloudFront still terminates
+  TLS in front of it. The trade is real, though: a deploy is a short outage rather than a rolling
+  replacement, and there is no second availability zone.
 * **The database connection exists only on the API.** The browser and the static frontends never see a
   Postgres credential, and need no Supabase key of any kind.
 
@@ -68,7 +74,7 @@ key returns an error rather than rows.
 
 Everything is read from the environment; the image contains no credentials.
 
-### 2.1 Required ECS task environment variables
+### 2.1 Required API environment variables
 
 | Variable | Value |
 | --- | --- |
@@ -87,17 +93,19 @@ Everything is read from the environment; the image contains no credentials.
 | --- | --- | --- |
 | `Redis__Enabled` | `false` | Already the default in `appsettings.json`; documentation more than configuration. |
 | `Database__MigrateOnStartup` | `true` | See §4. |
-| `Database__MaxPoolSize` | `20` | Npgsql connections per task. See §3. |
+| `Database__MaxPoolSize` | `20` | Npgsql connections per container. See §3. |
 | `Database__CommandTimeoutSeconds` | `60` | |
 | `Database__ConnectTimeoutSeconds` | `15` | |
-| `Api__RequireScaleOutBackplane` | `false` | Fails startup if SignalR has no Redis backplane. Only meaningful with >1 task **and** Redis on. |
+| `Api__RequireScaleOutBackplane` | `false` | Fails startup if SignalR has no Redis backplane. Only meaningful with >1 replica **and** Redis on. |
 
 ### 2.3 Secrets
 
 `ConnectionStrings__DefaultConnection`, `JwtSettings__SecretKey`, `GoogleOAuth__ClientSecret`,
 `GitHubOAuth__ClientSecret`, `EmailSettings__SmtpPassword` and `Embeddings__ApiKey` are credentials.
-Put them in Secrets Manager or SSM and reference them from the task definition's `secrets` block, not
-`environment`, so they stay out of `aws ecs describe-task-definition` output.
+They reach the container through `/opt/study-platform/api.env` on the instance — written root-owned
+`0600` by `deploy.sh` from `.env_variables`, never baked into the image and never committed. Anyone
+with root on the instance can read them, which is the price of dropping the ALB and the task
+definition; if that stops being acceptable, move them to Secrets Manager and fetch them at startup.
 
 ---
 
@@ -105,7 +113,7 @@ Put them in Secrets Manager or SSM and reference them from the task definition's
 
 Npgsql pools inside each process; Supabase pools in front of Postgres. Npgsql's default is **100
 connections per process**, sized for a database you own — against a shared managed instance two or
-three tasks at that setting can consume the whole connection allowance and every later connection
+three containers at that setting can consume the whole connection allowance and every later connection
 fails with *"remaining connection slots are reserved"*. The default here is **20**
 (`Database__MaxPoolSize`), ample for this service plus its background workers.
 
@@ -123,12 +131,11 @@ it available to the container, and set `SSL Mode=VerifyFull;Root Certificate=/ap
 ## 4. Migrations
 
 `db.Database.Migrate()` runs at startup by default — it applies pending migrations and never drops or
-recreates anything. That is fine for a single task.
+recreates anything. That is fine for a single container.
 
-Turn it off once you run more than one task (concurrent `Migrate()` calls contend on the
-migration-history lock) or once a migration outlasts the load balancer's health-check grace period.
-Set `Database__MigrateOnStartup=false` in the task definition and apply migrations yourself before
-rolling the service:
+Turn it off once you run more than one (concurrent `Migrate()` calls contend on the migration-history
+lock) or once a migration takes longer than the deploy's health poll allows (30 tries, 5s apart). Set
+`Database__MigrateOnStartup=false` in `.env_variables` and apply migrations yourself before deploying:
 
 ```bash
 cd server
@@ -136,7 +143,7 @@ ConnectionStrings__DefaultConnection='<supabase connection string>' \
 dotnet ef database update --project StudyPlatform.Infrastructure --startup-project StudyPlatform.API
 ```
 
-With the flag off, a task starting against an un-migrated database logs a warning naming every pending
+With the flag off, a container starting against an un-migrated database logs a warning naming every pending
 migration instead of silently serving a stale schema.
 
 ---
@@ -175,6 +182,51 @@ no-op.
 
 ---
 
+## 4c. The Lightsail host (one-time setup)
+
+`deploy.sh` never creates the instance — it expects one called `study-platform-api` and only ships
+code to it. Recreating the host from scratch is these six steps.
+
+**1. The instance.** Ubuntu 24.04, bundle `small_3_0` ($12/month: 2 GB, 2 vCPU, 60 GB, 3 TB transfer),
+in the same region as `AWS_REGION`. Its launch script must not use bash-only syntax — Lightsail runs
+user data under `dash`, so `set -o pipefail` silently kills the whole script and leaves a bare box.
+Running the provisioning script over SSH afterwards is more predictable:
+
+```bash
+aws lightsail create-instances --instance-names study-platform-api \
+  --availability-zone <region>a --blueprint-id ubuntu_24_04 --bundle-id small_3_0 \
+  --key-pair-name study-platform-deploy
+```
+
+It needs Docker, a swapfile (Whisper transcription is what pushes memory past the steady ~120 MB),
+`/opt/study-platform` at mode 700, and a `json-file` log-rotation default in `/etc/docker/daemon.json`
+so a fallback log driver cannot fill the disk.
+
+**2. The key pair.** `aws lightsail import-key-pair --key-pair-name study-platform-deploy
+--public-key-base64 "$(cat ~/.ssh/study-platform-lightsail.pub)"` — despite the parameter name, it
+takes the public key verbatim, not base64 of it. `LIGHTSAIL_SSH_KEY` points at the private half.
+
+**3. The static IP.** `allocate-static-ip` + `attach-static-ip`, so rebooting or rebuilding does not
+change the address behind `origin.<domain>`.
+
+**4. The firewall.** TCP 22 and TCP 80 only. TLS is CloudFront's job; the instance speaks plain HTTP
+to it, exactly as the ALB did.
+
+**5. The IAM user.** Lightsail instances cannot assume an IAM role, so the documents-bucket and SES
+permissions that used to come from the ECS task role now hang off the IAM user
+`study-platform-lightsail`. `deploy.sh` keeps its three policies in sync, but creates no access key —
+do that once by hand and put the result in `.env_variables` as `LIGHTSAIL_AWS_ACCESS_KEY_ID` /
+`LIGHTSAIL_AWS_SECRET_ACCESS_KEY`. To rotate: create a second key, update `.env_variables`, redeploy,
+then delete the old one.
+
+**6. The Docker daemon's credentials.** The container logs to CloudWatch through Docker's `awslogs`
+driver, and that driver reads credentials from the *daemon's* environment, not the container's. Write
+the same access key into `/etc/systemd/system/docker.service.d/aws-credentials.conf` (mode 600) as
+`Environment="AWS_ACCESS_KEY_ID=…"` etc., then `systemctl daemon-reload && systemctl restart docker`.
+Skip this and the container will not start at all, because the log driver fails before the app does.
+
+---
+
 ## 5. Deploying
 
 ```bash
@@ -184,35 +236,39 @@ export GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=...
 export GITHUB_CLIENT_ID=... GITHUB_CLIENT_SECRET=...
 export SMTP_USER=... SMTP_PASSWORD=...
 export EMBEDDINGS_API_KEY=...   # optional; enables semantic search indexing
+export LIGHTSAIL_AWS_ACCESS_KEY_ID=... LIGHTSAIL_AWS_SECRET_ACCESS_KEY=...   # see §4c
 
 ./deploy.sh              # everything
 ./deploy-backend.sh      # API only
 ```
 
-Defaults: `ECS_CPU_ARCHITECTURE=X86_64`, `REDIS_ENABLED=false`, `PUBLIC_DOMAIN` unset. The database is
-always the external managed PostgreSQL named by `DATABASE_CONNECTION_STRING` — nothing database-shaped
-is provisioned in AWS. Compute is always ECS Fargate and the image is always built with local Docker,
-so the daemon must be running.
+Defaults: `REDIS_ENABLED=false`, `PUBLIC_DOMAIN` unset. The database is always the external managed
+PostgreSQL named by `DATABASE_CONNECTION_STRING` — nothing database-shaped is provisioned in AWS.
+Compute is always the Lightsail instance named by `LIGHTSAIL_INSTANCE_NAME`, and the image is always
+built with local Docker, so the daemon must be running.
+
+`deploy.sh` does **not** create the instance. It expects one to exist and only builds, pushes, ships
+the env file and restarts the container — see §4c for the one-time setup.
 
 **Put `AWS_REGION` in the same region as the Supabase project.** Every database call is a network round
 trip; pairing regions across continents adds 150–250 ms to each, and one API request makes several.
 
-**Image architecture.** `ECS_CPU_ARCHITECTURE` sets both `docker build --platform` and the task's
-`runtimePlatform`, because they must agree. On an Apple-silicon Mac an unpinned build produces
-`linux/arm64` while ECS defaults Fargate to `X86_64`, and the task fails to start with *"image manifest
-does not contain a descriptor matching platform"*. `ARM64` (Graviton) is cheaper and builds natively on
-such a Mac — confirm the Whisper.net native runtime works there before switching.
+**Image architecture.** Lightsail bundles are x86_64, so `DOCKER_BUILD_PLATFORM` is pinned to
+`linux/amd64`. On an Apple-silicon Mac an unpinned `docker build` produces `linux/arm64`, which the
+instance cannot execute: the deploy looks fine, the container exits with *"exec format error"*, and
+the health poll is what fails.
 
 **Custom domains are opt-in.** `PUBLIC_DOMAIN=example.com` yields `https://example.com`, `https://www.…`,
 `https://api.…` and `https://admin.…`. Leave it unset for a first deploy: with an API origin set the
 script skips creating the API's CloudFront distribution and bakes that hostname into the frontend
 build, so if DNS and the ACM certificate are not yet in this account the deploy reports success and the
-site is entirely broken. Deploy first, verify on the CloudFront/ALB hostnames AWS hands out, then set
+site is entirely broken. Deploy first, verify on the CloudFront hostnames AWS hands out, then set
 `PUBLIC_DOMAIN` and redeploy.
 
-Fargate specifics the script handles: `awsvpc` networking with a task ENI, `assignPublicIp=ENABLED` so
-the task can reach ECR and Supabase without a NAT gateway, an `ip`-type target group, and a CPU/memory
-pair Fargate accepts (1024 / 2048 by default).
+**The origin hostname is a Route 53 record, not the instance.** CloudFront custom origins must be
+hostnames, never bare IPs, so the instance's static IP is published as `origin.<domain>` and both
+distributions point at that. `deploy.sh` re-points the record whenever the instance's IP differs, so
+replacing the instance needs no CloudFront edit at all.
 
 ### Frontend
 
@@ -222,7 +278,7 @@ serves them through a CloudFront distribution (`<app>-web-cloudfront`, `<app>-ad
 
 The API origin is **baked in at build time** as `VITE_API_URL` (`web/src/utils/env.ts` reads
 `NEXT_PUBLIC_API_URL` first and falls back to it). Baked-in means a changed API origin needs a frontend
-rebuild and re-sync — `./deploy.sh` with `DEPLOY_WEB_ONLY=1` does that without touching ECS.
+rebuild and re-sync — `./deploy.sh` with `DEPLOY_WEB_ONLY=1` does that without touching the API.
 
 No database credential, Supabase URL or Supabase key belongs in any frontend variable; the frontend
 talks only to the API.
@@ -230,7 +286,7 @@ talks only to the API.
 #### `/share/*` is served by the API, not by S3
 
 Share pages are the one route the web distribution does not serve from its bucket. `deploy.sh`
-(`ensure_share_preview_behavior`) adds a `/share/*` cache behavior pointing at the API's load balancer,
+(`ensure_share_preview_behavior`) adds a `/share/*` cache behavior pointing at the API's origin host,
 because a crawler cannot run the JavaScript that fetches the shared content — served the plain
 `index.html` it would build the same landing-page card for every shared link. The API returns that same
 shell with this share's title, summary snippet and contents already in the meta tags, so the browser
@@ -276,24 +332,28 @@ startup failure instead, which is what you want with several replicas.
 `deploy.sh` provisions no Redis — bring your own (ElastiCache, Upstash, anything that speaks the
 protocol) and pass `REDIS_ENABLED=true` and `REDIS_CONNECTION_STRING=...` (optionally
 `REDIS_INSTANCE_NAME`), which become the `Redis__*` settings above. An ElastiCache cluster must sit in
-the same VPC with the ECS task's security group allowed on its port.
+a network the Lightsail instance can reach — Lightsail lives outside your VPC, so that means VPC
+peering or a public endpoint, not a security-group rule.
 
 **What still depends on Redis:** only multi-replica real-time messaging. Without a backplane, group-chat
-hub messages reach only clients connected to the task that produced them. Everything else — caching,
-rate limiting, sessions, jobs — works identically with Redis off, and a single task has no such limit.
+hub messages reach only clients connected to the instance that produced them. Everything else —
+caching, rate limiting, sessions, jobs — works identically with Redis off, and one box has no such
+limit.
 
 ---
 
 ## 7. Known limitations of this topology
 
+* **A deploy is a short outage.** One container on one box: the old one is removed before the new one
+  starts, so the API is down for the container's startup plus any pending migration. There is also no
+  second availability zone — if `us-east-1a` goes, the API goes.
 * **AI generation jobs are replica-affine.** A job's provider credentials live only in the accepting
-  task's in-memory queue, never in the row, so no other task can run it. `StaleAiJobReaper` fails
-  orphans after 30 minutes. Draining a task fails its in-flight jobs; the user retries.
-* **`EmbeddingBackfillWorker` duplicates work** if every task runs it. Keep `ECS_DESIRED_COUNT=1`
-  unless you gate that worker.
-* **Data Protection keys are per-task and ephemeral** on Fargate (no persistent volume). JWTs are
-  HMAC-signed from `JwtSettings__SecretKey` and unaffected, but anything that starts using
-  `IDataProtector` will need a shared key ring (S3 or Secrets Manager).
+  instance's in-memory queue, never in the row, so no other instance can run it. `StaleAiJobReaper`
+  fails orphans after 30 minutes. A deploy fails the in-flight jobs; the user retries.
+* **`EmbeddingBackfillWorker` duplicates work** if more than one instance runs it. Nothing enforces
+  that — keep it to one box unless you gate the worker.
+* **The container's AWS credentials are a long-lived access key**, not a role Lightsail can assume.
+  Rotating it is manual (§4c).
 * **`appsettings.json` held live credentials that were being baked into the image.** It is gitignored
   (so not in git history — verified), but the Dockerfile's `COPY . .` had no `.dockerignore` and copied
   the developer's file — SMTP app password, Google/GitHub OAuth secrets, a Gemini embeddings key, a JWT
