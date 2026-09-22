@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { createAudioPlayer, type AudioPlayer, type AudioStatus } from 'expo-audio';
 
 import { synthesizeSpeech } from '@/services/ttsService';
-import { markdownToPlainText } from '@/utils/markdownToPlainText';
+import { markdownToPlainText } from '@core/utils/markdownToPlainText';
 
 // RN port of web/src/components/ai/useSpeakReplies.ts — reads a single chat
 // message aloud on demand. Deliberately separate from the queue-based

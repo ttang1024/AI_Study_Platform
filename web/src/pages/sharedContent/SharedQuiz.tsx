@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { ShareableQuiz } from '../../services/shareContentService';
 import { cn } from '../../utils/cn';
-import { getCorrectQuizOptionText, isQuizOptionCorrect } from '../../utils/quizAnswers';
+import { getCorrectQuizOptionText, isQuizOptionCorrect } from '@core/utils/quizAnswers';
 
 type QuizPhase = 'intro' | 'quiz' | 'results';
 interface Answer { idx: number; selected: string; correct: boolean; }

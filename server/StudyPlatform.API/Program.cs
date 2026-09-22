@@ -193,14 +193,8 @@ if (backplaneUnavailableReason != null && redis.Enabled)
         + "reach only clients on this instance — fine for a single replica, not for scale-out. "
         + "Set Api:RequireScaleOutBackplane=true to make this a startup failure instead.");
 }
-// Fails jobs stranded by a restart, a crash, or a hung provider call. Without it those rows sit at
-// "queued" forever and the user watches a spinner that will never resolve.
-builder.Services.AddHostedService<StaleAiJobReaper>();
-
 builder.Services.AddSingleton<AudioTranscriptionQueue>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<AudioTranscriptionQueue>());
-builder.Services.AddSingleton<AiJobQueue>();
-builder.Services.AddHostedService(sp => sp.GetRequiredService<AiJobQueue>());
 
 // Application and Infrastructure layers
 builder.Services.AddApplication();
@@ -270,13 +264,6 @@ using (var scope = app.Services.CreateScope())
                 string.Join(", ", pending));
         }
     }
-
-    // The AI job queue is in-process, so a restart drops whatever was queued or mid-run. Those jobs
-    // are never coming back — fail them so the UI stops showing a spinner that will never resolve.
-    var jobs = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-    var interrupted = await jobs.AiJobs.FailInterruptedAsync("Interrupted by a server restart. Please try again.");
-    if (interrupted > 0)
-        app.Logger.LogWarning("Failed {Count} AI job(s) left in flight by a previous shutdown", interrupted);
 }
 
 // Middleware pipeline

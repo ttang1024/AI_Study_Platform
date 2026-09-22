@@ -14,7 +14,7 @@ import { Alpha, Colors, Layout, Radius, Spacing, Typography } from '@/constants/
 import { flashcardService } from '@/services/flashcardService';
 import type { Flashcard } from '@/types';
 import { cardBackText, cardFrontText } from '@/utils/flashcardDisplay';
-import { getApiErrorMessage } from '@/utils/apiError';
+import { getApiErrorMessage } from '@core/utils/apiError';
 import { haptics } from '@/utils/haptics';
 
 /**

@@ -8,10 +8,9 @@ namespace StudyPlatform.API.Services;
 /// <summary>
 /// Builds queued data exports.
 ///
-/// <para>Polls rather than taking work through an in-memory channel, and that is the difference
-/// between this and <c>AiJobQueue</c>: an export needs no per-caller credentials, so any replica can
-/// run any request. Polling makes the work replica-agnostic, which in turn means a request stranded
-/// by a restart is picked up by whoever is next round rather than needing a reaper.</para>
+/// <para>Polls rather than taking work through an in-memory channel: an export needs no per-caller
+/// credentials, so any replica can run any request. Polling makes the work replica-agnostic, which in
+/// turn means a request stranded by a restart is picked up by whoever is next round.</para>
 ///
 /// <para>The claim is a conditional update — <c>Pending → Running</c> only if still <c>Pending</c> —
 /// so two replicas polling the same row cannot both build it. The loser's update matches zero rows

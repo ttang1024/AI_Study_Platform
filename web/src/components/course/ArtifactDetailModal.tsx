@@ -1,7 +1,7 @@
 import React from 'react';
 import { CheckCircle2, ChevronLeft, ChevronRight, Eye, Loader2, X, XCircle } from 'lucide-react';
 import { cn } from '../../utils/cn';
-import { isQuizOptionCorrect } from '../../utils/quizAnswers';
+import { isQuizOptionCorrect } from '@core/utils/quizAnswers';
 import { toDisplayMath } from '../../utils/latex';
 import { ArtifactContent } from './ArtifactContent';
 import { MindMapViewer } from '../mindmap/MindMapViewer';

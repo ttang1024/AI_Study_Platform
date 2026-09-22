@@ -10,7 +10,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../../utils/cn';
 import { useStudy } from '../../context/StudyContext';
 import { documentService } from '../../services/documentService';
-import { getApiErrorCode } from '../../utils/apiError';
+import { getApiErrorCode } from '@core/utils/apiError';
 import { EmptyGenerationState, GenerationFailedState } from '../common/GenerationStates';
 import { MarkmapRenderer } from './MarkmapRenderer';
 import { useMindMapDownloads } from './useMindMapDownloads';

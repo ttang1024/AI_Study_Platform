@@ -5,7 +5,7 @@ import {
   ExternalLink, X, Loader2, Layers,
 } from 'lucide-react';
 import { mistakesService, type Mistake, type VariantQuestion } from '../../services/mistakesService';
-import { isQuizOptionCorrect } from '../../utils/quizAnswers';
+import { isQuizOptionCorrect } from '@core/utils/quizAnswers';
 import { TimedExamModal } from './TimedExamModal';
 import type { Document, QuizQuestion } from '../../types';
 import { useStudy } from '../../context/StudyContext';

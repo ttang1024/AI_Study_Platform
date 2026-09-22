@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Clock, X, Trophy, CheckCircle2, XCircle, ChevronRight, RotateCcw, AlertTriangle } from 'lucide-react';
 import { QuizQuestion } from '../../types';
 import { cn } from '../../utils/cn';
-import { getCorrectQuizOptionText, isQuizOptionCorrect } from '../../utils/quizAnswers';
+import { getCorrectQuizOptionText, isQuizOptionCorrect } from '@core/utils/quizAnswers';
 
 interface TimedExamModalProps {
   isOpen: boolean;

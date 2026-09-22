@@ -17,7 +17,7 @@ import { videoService } from '@/services/videoService';
 import { detectVideoSource, parseUrlVideoId, URL_SOURCE_BRANDING } from '@/constants/videoSources';
 import { useLibraryEntries } from '@/hooks/useLibraryEntries';
 import { useSubmitLock } from '@/hooks/useSubmitLock';
-import { getApiErrorMessage } from '@/utils/apiError';
+import { getApiErrorMessage } from '@core/utils/apiError';
 import type { PickedFile } from '@/types';
 
 interface VideoFormProps {

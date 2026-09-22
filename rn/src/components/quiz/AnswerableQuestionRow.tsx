@@ -9,7 +9,7 @@ import { Card } from '@/components/Card';
 import { Alpha, Colors, Layout, Radius, Spacing, Typography } from '@/constants/theme';
 import type { QuizQuestion } from '@/types';
 import { haptics } from '@/utils/haptics';
-import { isQuizOptionCorrect, stripQuizOptionPrefix } from '@/utils/quizAnswers';
+import { isQuizOptionCorrect, stripQuizOptionPrefix } from '@core/utils/quizAnswers';
 
 interface AnswerableQuestionRowProps {
   question: QuizQuestion;

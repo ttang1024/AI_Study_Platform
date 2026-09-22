@@ -7,7 +7,7 @@ import { audioService } from '../../services/audioService';
 import { VideoNoteEditorRef } from '../../components/youtube/VideoNoteEditor';
 import { ChatPanelRef } from '../../components/ai/ChatPanel';
 import { QuizQuestion } from '../../types';
-import { getApiErrorCode } from '../../utils/apiError';
+import { getApiErrorCode } from '@core/utils/apiError';
 import { useSelectionToolbar } from '../../hooks/useSelectionToolbar';
 import { buildSrt } from '@core/utils/format';
 import { parseTranscript, formatTime } from './transcript';

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useStudy } from '../../context/StudyContext';
-import { getDocDisplayName } from '../../utils/docName';
+import { getDocDisplayName } from '@core/utils/documentDisplay';
 import { SourceType } from '../../components/common/SourceFilterBar';
 import { PendingItem } from '../../components/common/PendingItemsGrid';
 import { videoService } from '../../services/videoService';
@@ -9,7 +9,7 @@ import { documentService, quizSubmissionService } from '../../services/documentS
 import { QuizQuestion } from '../../types';
 import { PendingMaterial, pendingMaterialToItem } from '../../services/pendingMaterialService';
 import { usePrompt } from '../../components/common/PromptBox';
-import { getCorrectQuizOptionText } from '../../utils/quizAnswers';
+import { getCorrectQuizOptionText } from '@core/utils/quizAnswers';
 import {
   downloadMoodleGift,
   downloadQtiZip,

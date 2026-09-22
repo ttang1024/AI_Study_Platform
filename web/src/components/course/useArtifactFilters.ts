@@ -3,7 +3,7 @@ import { Flashcard } from '../../types';
 import { SessionRating } from '../study/FlashcardSessionCard';
 import { workedProblemsService } from '../../services/workedProblemsService';
 import { quizSubmissionService, QuizSubmission } from '../../services/documentService';
-import { isQuizOptionCorrect } from '../../utils/quizAnswers';
+import { isQuizOptionCorrect } from '@core/utils/quizAnswers';
 import { masteredService } from '../../services/masteredService';
 import { CourseArtifacts, CourseStudySelected } from './artifactsWorkspaceModel';
 

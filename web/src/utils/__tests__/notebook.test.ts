@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseNotebook, notebookCodeFileName } from '../notebook';
+import { parseNotebook, notebookCodeFileName } from '@core/viewers/notebook';
 
 const notebook = (cells: unknown[], language = 'python') =>
   JSON.stringify({ cells, metadata: { language_info: { name: language } }, nbformat: 4 });

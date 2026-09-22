@@ -9,7 +9,7 @@ import { useStudy } from '../../context/StudyContext';
 import { videoService, VideoListItem } from '../../services/videoService';
 import { cn } from '../../utils/cn';
 import { container, item, FileDropZone } from './summarizerShared';
-import { getApiErrorMessage } from '../../utils/apiError';
+import { getApiErrorMessage } from '@core/utils/apiError';
 import { DuplicateAlert } from './DuplicateAlert';
 
 const VIDEO_TYPES = ['MP4', 'MOV', 'WEBM', 'MKV'];

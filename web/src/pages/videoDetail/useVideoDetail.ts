@@ -3,7 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { aiService } from '../../services/aiService';
 import { videoService, type VideoChatConversation } from '../../services/videoService';
 import { VideoNoteEditorRef } from '../../components/youtube/VideoNoteEditor';
-import { getApiErrorCode } from '../../utils/apiError';
+import { getApiErrorCode } from '@core/utils/apiError';
 import { useStudyTimer } from '../../hooks/useStudyTimer';
 import { useSelectionToolbar } from '../../hooks/useSelectionToolbar';
 import { useVideoTranscript } from './useVideoTranscript';

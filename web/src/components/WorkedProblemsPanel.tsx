@@ -8,7 +8,7 @@ import rehypeKatex from 'rehype-katex';
 import { MathText } from './study/MathText';
 import { workedProblemsService, WorkedProblem, ProblemAttempt } from '../services/workedProblemsService';
 import { cn } from '../utils/cn';
-import { getApiErrorCode } from '../utils/apiError';
+import { getApiErrorCode } from '@core/utils/apiError';
 import { looksLikeLatex, toDisplayMath } from '../utils/latex';
 
 const DIFFICULTIES = ['easy', 'medium', 'hard'] as const;

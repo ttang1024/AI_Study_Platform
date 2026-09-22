@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { videoService, type VideoQuizItem } from '../../services/videoService';
 import { QuizQuestion } from '../../types';
-import { getApiErrorCode } from '../../utils/apiError';
+import { getApiErrorCode } from '@core/utils/apiError';
 import { isOptionCorrect } from './helpers';
 import type { QuizDifficulty } from './types';
 

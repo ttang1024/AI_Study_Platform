@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Languages, Loader2 } from 'lucide-react';
 import { languageService } from '../../services/languageService';
 import { useTranslation, LOCALES, getLocale, type LocaleCode } from '../../i18n';
-import { getApiErrorMessage } from '../../utils/apiError';
+import { getApiErrorMessage } from '@core/utils/apiError';
 
 interface Props {
   /** The material to translate — usually a summary or a note body. */

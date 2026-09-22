@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { documentService } from '../../services/documentService';
 import { attachmentsToDisplay, type ChatAttachment, type ChatMessageAttachment } from '../../services/aiService';
-import { getApiErrorCode } from '../../utils/apiError';
+import { getApiErrorCode } from '@core/utils/apiError';
 import type { ChatThreadSummary } from '../../types';
 
 export interface ThreadChatMsg {

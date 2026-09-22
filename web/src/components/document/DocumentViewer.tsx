@@ -12,7 +12,7 @@ import { TableFileViewer } from './TableFileViewer';
 import { NotebookViewer } from './NotebookViewer';
 import { SubtitleViewer } from './SubtitleViewer';
 import { HtmlFileViewer } from './HtmlFileViewer';
-import { prettyPrintData, dataCaption } from '../../utils/dataFile';
+import { prettyPrintData, dataCaption } from '@core/viewers/dataFile';
 import type { DocumentViewerKind } from '@core/services/documentService';
 import { Loader2 } from 'lucide-react';
 

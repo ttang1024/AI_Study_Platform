@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { BrainCircuit, Pencil } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../../utils/cn';
-import { getDocDisplayName } from '../../utils/docName';
+import { getDocDisplayName } from '@core/utils/documentDisplay';
 import { getDocumentRoute } from '../../utils/documentRoute';
 import { Flashcard, Document } from '../../types';
 import { VideoListItem } from '../../services/videoService';

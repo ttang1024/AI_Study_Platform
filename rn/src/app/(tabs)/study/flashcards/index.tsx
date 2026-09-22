@@ -21,8 +21,8 @@ import { Alpha, Colors, Gradients, Layout, Radius, Shadows, Spacing, Typography 
 import { flashcardService } from '@/services/flashcardService';
 import { formatLastSync, offlineCache } from '@/services/offlineCache';
 import type { Flashcard } from '@/types';
-import { parseAnkiExport } from '@/utils/ankiImport';
-import { getApiErrorMessage } from '@/utils/apiError';
+import { parseAnkiExport } from '@core/utils/ankiImport';
+import { getApiErrorMessage } from '@core/utils/apiError';
 import { groupFlashcardSets, type FlashcardSet } from '@/utils/flashcardSets';
 
 /** Fetch + offline fallback, with no state of its own — so the mount effect can

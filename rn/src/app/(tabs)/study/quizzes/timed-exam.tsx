@@ -10,7 +10,7 @@ import { ExamSetup } from '@/components/study/ExamSetup';
 import { Colors, Layout, Spacing, Typography } from '@/constants/theme';
 import type { QuizQuestion } from '@/types';
 import { examSessionStore } from '@/utils/examSession';
-import { isQuizOptionCorrect, shuffle } from '@/utils/quizAnswers';
+import { isQuizOptionCorrect, shuffle } from '@core/utils/quizAnswers';
 
 type Phase = 'setup' | 'running' | 'results';
 

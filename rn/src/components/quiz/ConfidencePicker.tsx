@@ -7,7 +7,7 @@ import { haptics } from '@/utils/haptics';
 // Mirrors web/src/components/quiz/ConfidencePicker.tsx.
 
 /** 1 = guessing, 2 = unsure, 3 = confident. Matches ConfidenceLevel on the server. */
-export const CONFIDENCE_LEVELS = [
+const CONFIDENCE_LEVELS = [
   { level: 1, label: 'Guessing' },
   { level: 2, label: 'Unsure' },
   { level: 3, label: 'Confident' },

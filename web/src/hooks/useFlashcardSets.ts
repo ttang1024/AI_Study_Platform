@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { Flashcard, Document, Course } from '../types';
 import { VideoListItem, videoService } from '../services/videoService';
 import { SourceType } from '../components/common/SourceFilterBar';
-import { getDocDisplayName, documentSourceKind } from '../utils/docName';
+import { getDocDisplayName, documentSourceKind } from '@core/utils/documentDisplay';
 import { UnifiedSet } from '../components/study/FlashcardSetCard';
 
 export function getVideoSetThumbnail(video?: VideoListItem) {

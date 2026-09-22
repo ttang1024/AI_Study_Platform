@@ -5,7 +5,7 @@ import { FileText, FileType, FileCode, Clock, Trash2, Sparkles, FolderInput, Pen
 import { CONTENT_TYPE_ICONS } from '../../constants/contentTypeIcons';
 import { Document, Course } from '../../types';
 import { cn } from '../../utils/cn';
-import { getDocDisplayName } from '../../utils/docName';
+import { getDocDisplayName } from '@core/utils/documentDisplay';
 import { documentService } from '../../services/documentService';
 import { useStudy } from '../../context/StudyContext';
 import { MoveToCourseModal } from './MoveToCourseModal';

@@ -6,7 +6,7 @@ import { Button } from '@/components/Button';
 import { EditableSection, type SectionMessage } from '@/components/settings/EditableSection';
 import { InfoBanner } from '@/components/InfoBanner';
 import { TextField } from '@/components/TextField';
-import { validatePassword } from '@/utils/validatePassword';
+import { validatePassword } from '@core/utils/validatePassword';
 
 interface PasswordSectionProps {
   onSave: (data: { currentPassword: string; newPassword: string }) => Promise<void>;

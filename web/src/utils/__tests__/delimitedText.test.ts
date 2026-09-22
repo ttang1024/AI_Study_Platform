@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseDelimited, isTabular, MAX_TABLE_ROWS } from '../delimitedText';
+import { parseDelimited, isTabular, MAX_TABLE_ROWS } from '@core/viewers/delimitedText';
 
 describe('parseDelimited', () => {
   it('reads a simple csv', () => {

@@ -16,7 +16,7 @@ import { STREAM_ERROR_MESSAGE } from '@/services/sse';
 import { useSpeakReplies } from '@/hooks/useSpeakReplies';
 import { MAX_ATTACHMENTS, useChatAttachments } from '@/hooks/useChatAttachments';
 import { useDictation } from '@/hooks/useDictation';
-import { markdownToPlainText } from '@/utils/markdownToPlainText';
+import { markdownToPlainText } from '@core/utils/markdownToPlainText';
 
 function createId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;

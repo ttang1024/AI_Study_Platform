@@ -9,7 +9,7 @@ import {
   ExportNoteRecord,
   ExportQuizRecord,
 } from '../services/exportInteropService';
-import { getCorrectQuizOptionText } from '../utils/quizAnswers';
+import { getCorrectQuizOptionText } from '@core/utils/quizAnswers';
 
 export type ExportKind = 'notes' | 'quizCsv' | 'qti';
 

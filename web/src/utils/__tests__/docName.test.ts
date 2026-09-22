@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getDocDisplayName } from '../docName'
+import { getDocDisplayName } from '@core/utils/documentDisplay'
 
 describe('getDocDisplayName', () => {
   it('strips .md extension for web articles (with originalUrl)', () => {

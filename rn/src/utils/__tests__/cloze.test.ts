@@ -1,4 +1,4 @@
-import { clozeAnswerText, clozeQuestionText, hasClozeMarkers } from '@/utils/cloze';
+import { clozeAnswerText, clozeQuestionText, hasClozeMarkers } from '@core/utils/cloze';
 
 describe('cloze', () => {
   it('blanks every marker on the question side', () => {

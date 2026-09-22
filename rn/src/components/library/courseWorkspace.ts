@@ -7,7 +7,7 @@ import type { LucideIcon } from 'lucide-react-native';
 import { Colors } from '@/constants/theme';
 import type { Flashcard, GlossaryTerm, Note, QuizQuestion } from '@/types';
 import { cardBackText, cardFrontText } from '@/utils/flashcardDisplay';
-import { stripHtml } from '@/utils/stripHtml';
+import { stripHtml } from '@core/utils/stripHtml';
 
 export type Mode = 'materials' | 'artifacts';
 export type ArtifactKind = 'notes' | 'flashcards' | 'questions' | 'glossary';

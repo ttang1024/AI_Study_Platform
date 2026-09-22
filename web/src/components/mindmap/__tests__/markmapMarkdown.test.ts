@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Transformer } from 'markmap-lib';
-import { xmindMarkToMarkdown } from '../xmindMarkdown';
+import { xmindMarkToMarkdown } from '@core/utils/xmindMarkdown';
 
 // The string-level rules live in packages/core's own tests. What matters here is what markmap
 // actually builds from the markdown we hand it: a bullet indented further than its parent can

@@ -1,5 +1,5 @@
 import type { Flashcard } from '@/types';
-import { clozeAnswerText, clozeQuestionText, hasClozeMarkers } from '@/utils/cloze';
+import { clozeAnswerText, clozeQuestionText, hasClozeMarkers } from '@core/utils/cloze';
 
 // Only the fields the front/back text derivation actually reads — so both the
 // full `Flashcard` and the lightweight `SimpleCard` (per-source Cards tab) work.

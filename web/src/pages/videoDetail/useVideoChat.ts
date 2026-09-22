@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { attachmentsToDisplay, type ChatAttachment } from '../../services/aiService';
 import { videoService, type VideoChatConversation } from '../../services/videoService';
 import { ChatPanelRef } from '../../components/ai/ChatPanel';
-import { getApiErrorCode } from '../../utils/apiError';
+import { getApiErrorCode } from '@core/utils/apiError';
 import type { ChatMsg, VideoStudyTab } from './types';
 
 interface UseVideoChatArgs {

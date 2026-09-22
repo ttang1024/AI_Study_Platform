@@ -10,7 +10,7 @@ import { resolveTabs } from '@/components/library/documentDetailMeta';
 import { useDocumentDetail } from '@/hooks/useDocumentDetail';
 import { quizService } from '@/services/quizService';
 import { fetchDocumentShareCards } from '@/services/shareService';
-import { normalizeSummaryText } from '@/utils/summary';
+import { normalizeSummaryText } from '@core/utils/summary';
 import { StaleSourceBanner } from '@/components/library/StaleSourceBanner';
 
 export default function DocumentDetailScreen() {

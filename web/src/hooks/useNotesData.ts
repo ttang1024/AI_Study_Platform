@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Note, Document, Course } from '../types';
 import { VideoListItem } from '../services/videoService';
 import { SourceType } from '../components/common/SourceFilterBar';
-import { getDocDisplayName, documentSourceKind, type DocumentSourceKind } from '../utils/docName';
+import { getDocDisplayName, documentSourceKind, type DocumentSourceKind } from '@core/utils/documentDisplay';
 
 export interface VideoNoteEntry {
   noteId: string;

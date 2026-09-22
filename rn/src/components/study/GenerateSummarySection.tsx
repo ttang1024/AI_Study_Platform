@@ -5,7 +5,7 @@ import FileText from 'lucide-react-native/icons/file-text';
 import { EmptyState } from '@/components/EmptyState';
 import { Skeleton } from '@/components/Skeleton';
 import { Radius, Spacing } from '@/constants/theme';
-import { getApiErrorCode } from '@/utils/apiError';
+import { getApiErrorCode } from '@core/utils/apiError';
 
 interface GenerateSummarySectionProps {
   // Resolves to the final summary text — document generation resolves in one shot,

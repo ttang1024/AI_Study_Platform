@@ -11,7 +11,7 @@ import { Colors, Spacing } from '@/constants/theme';
 import { documentService } from '@/services/documentService';
 import { useLibraryEntries } from '@/hooks/useLibraryEntries';
 import { useSubmitLock } from '@/hooks/useSubmitLock';
-import { getApiErrorMessage } from '@/utils/apiError';
+import { getApiErrorMessage } from '@core/utils/apiError';
 
 interface WebArticleFormProps {
   selectedCourseId: string;

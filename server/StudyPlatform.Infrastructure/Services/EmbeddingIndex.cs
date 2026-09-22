@@ -101,7 +101,7 @@ public class EmbeddingIndex : IEmbeddingIndex
         await _context.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task RemoveSourceAsync(string sourceType, Guid sourceId, CancellationToken cancellationToken = default)
+    private async Task RemoveSourceAsync(string sourceType, Guid sourceId, CancellationToken cancellationToken)
         => await _context.ContentEmbeddings
             .Where(e => e.SourceType == sourceType && e.SourceId == sourceId)
             .ExecuteDeleteAsync(cancellationToken);

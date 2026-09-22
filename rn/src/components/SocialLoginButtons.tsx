@@ -6,7 +6,7 @@ import { PressableScale } from '@/components/PressableScale';
 import { Colors, Layout, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
 import { OAuthProvider, useOAuthLogin } from '@/hooks/useOAuthLogin';
-import { getApiErrorMessage } from '@/utils/apiError';
+import { getApiErrorMessage } from '@core/utils/apiError';
 
 const PROVIDER_LABEL: Record<OAuthProvider, string> = {
   google: 'Google',

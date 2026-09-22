@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { motion } from 'motion/react';
 import { BookMarked, Search, X } from 'lucide-react';
 import { GlossaryTerm } from '../types';
-import { getDocDisplayName } from '../utils/docName';
+import { getDocDisplayName } from '@core/utils/documentDisplay';
 import { SourceFilterBar, SourceType } from '../components/common/SourceFilterBar';
 import { GlossaryShareModal } from '../components/common/GlossaryShareModal';
 import { GlossaryTermCard } from '../components/common/GlossaryTermCard';

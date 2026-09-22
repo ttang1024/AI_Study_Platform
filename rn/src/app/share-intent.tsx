@@ -12,7 +12,7 @@ import { CourseChipPicker } from '@/components/summarizer/CourseChipPicker';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { courseService } from '@/services/courseService';
 import { documentService } from '@/services/documentService';
-import { getApiErrorMessage } from '@/utils/apiError';
+import { getApiErrorMessage } from '@core/utils/apiError';
 import type { Course } from '@/types';
 
 /**

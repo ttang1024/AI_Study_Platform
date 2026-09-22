@@ -14,7 +14,7 @@ import { usePersistentTts } from '@/context/TtsContext';
 import { noteService } from '@/services/noteService';
 import type { Note } from '@/types';
 import { noteEditorStore } from '@/utils/noteEditorStore';
-import { stripHtml } from '@/utils/stripHtml';
+import { stripHtml } from '@core/utils/stripHtml';
 
 type SourceFilter = 'all' | 'document' | 'video';
 

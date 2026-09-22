@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getCorrectQuizOptionText, isQuizOptionCorrect, shuffle } from '../quizAnswers';
+import { getCorrectQuizOptionText, isQuizOptionCorrect, shuffle } from '@core/utils/quizAnswers';
 
 describe('isQuizOptionCorrect', () => {
 	it('matches a selected option against a bare answer letter', () => {

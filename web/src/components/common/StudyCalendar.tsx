@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useStudy } from '../../context/StudyContext';
 import { videoService } from '../../services/videoService';
 import { cn } from '../../utils/cn';
-import { documentSourceKind } from '../../utils/docName';
+import { documentSourceKind } from '@core/utils/documentDisplay';
 import { toLocalDateKey as toLocalDateStr } from '@core/utils/format';
 
 // ─── Constants ───────────────────────────────────────────────────────────────

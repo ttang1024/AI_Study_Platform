@@ -4,7 +4,7 @@ import { Upload, X, CheckCircle2, Loader2, AlertCircle, AlertTriangle, Files, Pl
 import { useNavigate } from 'react-router-dom';
 import { useStudy } from '../../context/StudyContext';
 import { cn } from '../../utils/cn';
-import { getApiErrorMessage } from '../../utils/apiError';
+import { getApiErrorMessage } from '@core/utils/apiError';
 import { calculateSha256 } from '../../utils/fileHash';
 import { usePrompt } from './PromptBox';
 import { getDuplicateDocRoute } from '../summarizer/duplicateDocRoute';

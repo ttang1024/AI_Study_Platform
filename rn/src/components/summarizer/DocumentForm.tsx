@@ -13,7 +13,7 @@ import { Dropzone } from '@/components/summarizer/Dropzone';
 import { findDuplicateDocument } from '@/components/summarizer/duplicateFile';
 import { Colors, Layout, Radius, Spacing } from '@/constants/theme';
 import { documentService } from '@/services/documentService';
-import { isAcceptedDocumentFile } from '@/constants/documentUpload';
+import { isAcceptedDocumentFile } from '@core/documentUpload';
 import { useLibraryEntries } from '@/hooks/useLibraryEntries';
 import { useSubmitLock } from '@/hooks/useSubmitLock';
 import type { PickedFile } from '@/types';

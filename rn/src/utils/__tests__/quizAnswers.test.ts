@@ -3,7 +3,7 @@ import {
   isQuizOptionCorrect,
   shuffle,
   stripQuizOptionPrefix,
-} from '@/utils/quizAnswers';
+} from '@core/utils/quizAnswers';
 
 // Grading happens on the client, and the backend's `correctAnswer` may be a bare letter, a
 // prefixed option, or the full option text depending on how the AI generated it. Every case

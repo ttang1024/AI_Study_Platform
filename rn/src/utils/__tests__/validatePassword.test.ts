@@ -1,4 +1,4 @@
-import { validatePassword } from '@/utils/validatePassword';
+import { validatePassword } from '@core/utils/validatePassword';
 
 // 8-20 chars, at least 3 of {uppercase, lowercase, number, symbol}. Must stay in step with the
 // server's rule, or users get accepted here and rejected on submit.

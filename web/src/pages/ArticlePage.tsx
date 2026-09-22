@@ -18,13 +18,13 @@ import { SummaryPanel } from '../components/study/SummaryPanel';
 import { documentService } from '../services/documentService';
 import { StudyTabBar } from '../components/common/StudyTabBar';
 import { cn } from '../utils/cn';
-import { getDocDisplayName } from '../utils/docName';
+import { getDocDisplayName } from '@core/utils/documentDisplay';
 import { ShareModal } from '../components/common/ShareModal';
 import { DetailPageSkeleton } from '../components/common/DetailPageSkeleton';
 import { ArticleReader } from '../components/article/ArticleReader';
 import { ShareableQuiz } from '../services/shareContentService';
 import { Document } from '../types';
-import { getApiErrorCode } from '../utils/apiError';
+import { getApiErrorCode } from '@core/utils/apiError';
 
 // ─── Article Page ─────────────────────────────────────────────────────────────
 

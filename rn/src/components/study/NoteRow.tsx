@@ -6,7 +6,7 @@ import Trash2 from 'lucide-react-native/icons/trash-2';
 import { Card } from '@/components/Card';
 import { Colors, Layout, Spacing, Typography } from '@/constants/theme';
 import type { Note } from '@/types';
-import { stripHtml } from '@/utils/stripHtml';
+import { stripHtml } from '@core/utils/stripHtml';
 
 interface NoteRowProps {
   note: Note;

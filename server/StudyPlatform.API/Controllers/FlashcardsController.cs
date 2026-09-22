@@ -10,7 +10,6 @@ using StudyPlatform.Application.Flashcards.DTOs;
 namespace StudyPlatform.API.Controllers;
 
 public record ImportFlashcardsRequest(List<ImportFlashcardRow> Rows);
-public record CreateFlashcardFromTextRequest(string Text, string? SourceTitle, string? SourceUrl);
 
 [ApiController]
 [Route("api/flashcards")]
@@ -116,22 +115,6 @@ public partial class FlashcardsController : ControllerBase
             return BadRequest(BaseResponse<FlashcardDto>.Fail(result.Message, result.ErrorCode));
 
         return CreatedAtAction(nameof(GetAllFlashcards), BaseResponse<FlashcardDto>.Ok(result.Data!, result.Message));
-    }
-
-    /// <summary>
-    /// Mint a flashcard from selected text (browser-extension highlight → flashcard).
-    /// The selection is the front; the AI writes the back.
-    /// </summary>
-    [HttpPost("from-text")]
-    [ProducesResponseType(typeof(BaseResponse<FlashcardDto>), 200)]
-    [ProducesResponseType(typeof(BaseResponse), 400)]
-    public async Task<IActionResult> CreateFromText([FromBody] CreateFlashcardFromTextRequest request)
-    {
-        var result = await _mediator.Send(new CreateFlashcardFromTextCommand(
-            User.GetUserId(), request.Text, request.SourceTitle, request.SourceUrl));
-        if (!result.IsSuccess)
-            return BadRequest(BaseResponse<FlashcardDto>.Fail(result.Message, result.ErrorCode));
-        return Ok(BaseResponse<FlashcardDto>.Ok(result.Data!, result.Message));
     }
 
     /// <summary>

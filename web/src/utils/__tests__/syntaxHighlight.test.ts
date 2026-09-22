@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { tokenize, tokenizeLines, HIGHLIGHT_SIZE_LIMIT } from '../syntaxHighlight';
+import { tokenize, tokenizeLines, HIGHLIGHT_SIZE_LIMIT } from '@core/viewers/syntaxHighlight';
 
 const kindsOf = (source: string, fileName: string) =>
   tokenize(source, fileName).map(t => [t.kind, t.text] as const);

@@ -24,7 +24,7 @@ import { ShareableQuiz, ShareableCard } from '../services/shareContentService';
 import { StudyTabBar } from '../components/common/StudyTabBar';
 import { cn } from '../utils/cn';
 import { Document } from '../types';
-import { getApiErrorCode } from '../utils/apiError';
+import { getApiErrorCode } from '@core/utils/apiError';
 import { normalizeSummaryText } from '@core/utils/summary';
 import { getApiUrl } from '../utils/env';
 import { useStudyTimer } from '../hooks/useStudyTimer';

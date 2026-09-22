@@ -5,7 +5,7 @@ import { SourceFilterBar } from '../../components/common/SourceFilterBar';
 import { PendingItemsGrid } from '../../components/common/PendingItemsGrid';
 import { QuizItemRow } from '../../components/quiz/QuizItemRow';
 import { Pagination } from '../../components/common/Pagination';
-import { getDocDisplayName } from '../../utils/docName';
+import { getDocDisplayName } from '@core/utils/documentDisplay';
 import { docToQuizType } from './types';
 import { useQuizHistory } from './useQuizHistory';
 

@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { parseNotebook, notebookCodeFileName } from '../../utils/notebook';
+import { parseNotebook, notebookCodeFileName } from '@core/viewers/notebook';
 import { MARKDOWN_COMPONENTS, MARKDOWN_REHYPE_PLUGINS, MARKDOWN_REMARK_PLUGINS } from './markdownComponents';
 import { CodeFileViewer } from './CodeFileViewer';
 

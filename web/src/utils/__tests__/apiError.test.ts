@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getApiErrorCode, getApiErrorMessage } from '../apiError'
+import { getApiErrorCode, getApiErrorMessage } from '@core/utils/apiError'
 
 describe('getApiErrorCode', () => {
   it('returns errorCode from response.data.errorCode', () => {

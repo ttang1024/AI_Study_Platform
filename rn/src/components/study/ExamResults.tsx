@@ -2,7 +2,7 @@ import React from 'react';
 
 import { ExamReview } from '@/components/study/ExamReview';
 import type { QuizQuestion } from '@/types';
-import { isQuizOptionCorrect } from '@/utils/quizAnswers';
+import { isQuizOptionCorrect } from '@core/utils/quizAnswers';
 
 interface ExamResultsProps {
   questions: QuizQuestion[];

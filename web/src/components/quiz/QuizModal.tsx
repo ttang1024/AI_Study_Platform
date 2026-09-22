@@ -5,7 +5,7 @@ import { QuizQuestion } from '../../types';
 import { documentService } from '../../services/documentService';
 import { useStudy } from '../../context/StudyContext';
 import { CheckCircle2, XCircle, ChevronRight, Loader2 } from 'lucide-react';
-import { isQuizOptionCorrect } from '../../utils/quizAnswers';
+import { isQuizOptionCorrect } from '@core/utils/quizAnswers';
 import SourceCitation from '../common/SourceCitation';
 
 export const QuizModal: React.FC = () => {

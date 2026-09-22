@@ -103,7 +103,6 @@ public class AccountEraser : IAccountEraser
             .ExecuteDeleteAsync(cancellationToken);
         await _db.LibraryTags.Where(x => x.UserId == userId).ExecuteDeleteAsync(cancellationToken);
 
-        await _db.AiJobs.Where(x => x.UserId == userId).ExecuteDeleteAsync(cancellationToken);
         await _db.AiUsageLogs.Where(x => x.UserId == userId).ExecuteDeleteAsync(cancellationToken);
         await _db.Feedbacks.Where(x => x.UserId == userId).ExecuteDeleteAsync(cancellationToken);
         await _db.ShareTokens.Where(x => x.OwnerId == userId).ExecuteDeleteAsync(cancellationToken);

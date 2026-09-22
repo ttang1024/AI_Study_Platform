@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { parseDelimited, isTabular } from '../../utils/delimitedText';
+import { parseDelimited, isTabular } from '@core/viewers/delimitedText';
 import { CodeFileViewer } from './CodeFileViewer';
 
 interface Props {

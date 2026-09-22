@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseCues, isSubtitleFile } from '../subtitleCues';
+import { parseCues, isSubtitleFile } from '@core/viewers/subtitleCues';
 
 describe('parseCues', () => {
   it('reads srt cues with their timings', () => {

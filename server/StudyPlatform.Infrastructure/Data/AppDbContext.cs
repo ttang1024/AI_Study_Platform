@@ -44,7 +44,6 @@ public class AppDbContext : DbContext
     public DbSet<UserCalendarFeed> UserCalendarFeeds => Set<UserCalendarFeed>();
     public DbSet<AiUsageLog> AiUsageLogs => Set<AiUsageLog>();
     public DbSet<ContentEmbedding> ContentEmbeddings => Set<ContentEmbedding>();
-    public DbSet<AiJob> AiJobs => Set<AiJob>();
     public DbSet<DataExportRequest> DataExportRequests => Set<DataExportRequest>();
     public DbSet<LibraryTag> LibraryTags => Set<LibraryTag>();
     public DbSet<LibraryTagAssignment> LibraryTagAssignments => Set<LibraryTagAssignment>();

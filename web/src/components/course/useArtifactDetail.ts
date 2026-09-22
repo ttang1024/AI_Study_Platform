@@ -3,7 +3,7 @@ import { Course } from '../../types';
 import { videoService } from '../../services/videoService';
 import { documentService } from '../../services/documentService';
 import { aiService } from '../../services/aiService';
-import { getApiErrorCode } from '../../utils/apiError';
+import { getApiErrorCode } from '@core/utils/apiError';
 import { ArtifactDetail, ExternalMsg } from './artifactsWorkspaceModel';
 
 /**

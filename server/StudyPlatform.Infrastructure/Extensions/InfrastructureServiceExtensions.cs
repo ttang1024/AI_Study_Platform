@@ -76,7 +76,6 @@ public static class InfrastructureServiceExtensions
         // Token accounting for every AI call. Singleton: it opens its own scope per write so usage
         // rows never enlist in the caller's unit of work.
         services.AddSingleton<IAiUsageRecorder, AiUsageRecorder>();
-        services.AddSingleton<IInstanceIdentity, InstanceIdentity>();
 
         // External ICS calendars ("secret address" feeds) for planner busy-time import.
         // User-supplied URL → SSRF-guarded handler that refuses private/loopback/metadata addresses

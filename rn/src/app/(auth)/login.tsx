@@ -8,8 +8,8 @@ import { TextField } from '@/components/TextField';
 import { AuthScaffold, authFormStyles as styles } from '@/components/auth/AuthScaffold';
 import { Colors } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
-import { getApiErrorMessage } from '@/utils/apiError';
-import { validatePassword } from '@/utils/validatePassword';
+import { getApiErrorMessage } from '@core/utils/apiError';
+import { validatePassword } from '@core/utils/validatePassword';
 
 export default function LoginScreen() {
   const { login } = useAuth();

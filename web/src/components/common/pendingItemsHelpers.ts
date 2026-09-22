@@ -1,5 +1,5 @@
 import { CONTENT_TYPE_ICONS } from '../../constants/contentTypeIcons';
-import { getDocDisplayName } from '../../utils/docName';
+import { getDocDisplayName } from '@core/utils/documentDisplay';
 import { getDocumentKind, getDocumentRoute } from '../../utils/documentRoute';
 import { Course, OcclusionRect } from '../../types';
 import type { FlashcardCardType } from '../study/FlashcardFlipCard';

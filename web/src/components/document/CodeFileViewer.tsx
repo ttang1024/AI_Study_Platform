@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Check, Copy } from 'lucide-react';
-import { tokenizeLines, type Token } from '../../utils/syntaxHighlight';
+import { tokenizeLines, type Token } from '@core/viewers/syntaxHighlight';
 import { cn } from '../../utils/cn';
 
 const TOKEN_CLASS: Record<Token['kind'], string> = {

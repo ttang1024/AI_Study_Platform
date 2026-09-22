@@ -52,7 +52,6 @@ public interface IEmbeddingIndex
         string text,
         CancellationToken cancellationToken = default);
 
-    Task RemoveSourceAsync(string sourceType, Guid sourceId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Deletes chunks whose source row is gone, and returns how many.

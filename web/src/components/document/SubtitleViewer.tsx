@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { parseCues } from '../../utils/subtitleCues';
+import { parseCues } from '@core/viewers/subtitleCues';
 
 interface Props {
   text: string;

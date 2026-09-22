@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Loader2, BrainCircuit } from 'lucide-react';
 import { useStudy } from '../../context/StudyContext';
 import { documentService } from '../../services/documentService';
-import { getApiErrorCode } from '../../utils/apiError';
+import { getApiErrorCode } from '@core/utils/apiError';
 import { EmptyGenerationState, GenerationFailedState } from '../common/GenerationStates';
 import { FlashcardSrsState } from '../../types';
 import { FlashcardSessionDeck } from './FlashcardSessionCard';

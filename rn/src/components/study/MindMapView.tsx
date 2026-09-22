@@ -14,7 +14,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { Alpha, Colors, Layout, Overlay, Radius, Spacing, Typography } from '@/constants/theme';
 import { documentService } from '@/services/documentService';
 import { buildMindMapHtml } from '@/utils/mindMapHtml';
-import { xmindMarkToMarkdown } from '@/utils/xmindMarkdown';
+import { xmindMarkToMarkdown } from '@core/utils/xmindMarkdown';
 import type { Document } from '@/types';
 
 interface MindMapViewProps {

@@ -13,7 +13,7 @@ import { masteredService } from '../../services/masteredService';
 import { questionBankService, QuestionBankQuestion } from '../../services/questionBankService';
 import { documentService, quizSubmissionService, QuizSubmission } from '../../services/documentService';
 import { videoService } from '../../services/videoService';
-import { isQuizOptionCorrect } from '../../utils/quizAnswers';
+import { isQuizOptionCorrect } from '@core/utils/quizAnswers';
 import { toQuizQuestion } from '../../pages/quizManagement/types';
 import { TimedExamModal } from '../quiz/TimedExamModal';
 import { HardFlashcardReview } from '../study/HardFlashcardCard';

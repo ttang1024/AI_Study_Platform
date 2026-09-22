@@ -13,7 +13,7 @@ import {
   securityService,
   type DataExport,
 } from '@/services/securityService';
-import { getApiErrorMessage } from '@/utils/apiError';
+import { getApiErrorMessage } from '@core/utils/apiError';
 import { formatBytes } from '@core/utils/format';
 
 /** Exports are built by a worker, so the list polls while anything is in flight. */

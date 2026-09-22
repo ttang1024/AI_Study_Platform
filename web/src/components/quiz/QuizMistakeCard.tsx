@@ -3,7 +3,7 @@ import { Eye, EyeOff, XCircle, CheckCircle2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '../../utils/cn';
-import { isQuizOptionCorrect } from '../../utils/quizAnswers';
+import { isQuizOptionCorrect } from '@core/utils/quizAnswers';
 import { QuestionBankQuestion } from '../../services/questionBankService';
 import { useStudy } from '../../context/StudyContext';
 

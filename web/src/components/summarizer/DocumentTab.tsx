@@ -7,7 +7,7 @@ import { usePrompt } from '../common/PromptBox';
 import { useStudy } from '../../context/StudyContext';
 import { cn } from '../../utils/cn';
 import { container, item, RecentDocuments, StartLearningLabel, FileDropZone } from './summarizerShared';
-import { getApiErrorMessage } from '../../utils/apiError';
+import { getApiErrorMessage } from '@core/utils/apiError';
 import { calculateSha256 } from '../../utils/fileHash';
 import { DuplicateAlert } from './DuplicateAlert';
 import { getDuplicateDocRoute } from './duplicateDocRoute';

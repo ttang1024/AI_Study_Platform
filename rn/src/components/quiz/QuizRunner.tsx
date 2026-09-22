@@ -11,7 +11,7 @@ import { SegmentedTabs } from '@/components/SegmentedTabs';
 import { Colors, Layout, Motion, Spacing, Typography } from '@/constants/theme';
 import type { QuizQuestion } from '@/types';
 import { haptics } from '@/utils/haptics';
-import { isQuizOptionCorrect } from '@/utils/quizAnswers';
+import { isQuizOptionCorrect } from '@core/utils/quizAnswers';
 import { ConfidencePicker } from '@/components/quiz/ConfidencePicker';
 import { QuizOption } from '@/components/quiz/QuizOption';
 
