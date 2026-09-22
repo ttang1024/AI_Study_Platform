@@ -7,10 +7,9 @@
  */
 export const Colors = {
   primary: '#059669',
-  // Shades of the brand emerald used by gradients/pressed states — `primary`
-  // itself is the single source of truth for the brand hue.
+  // Darker shade of the brand emerald used by gradients/pressed states —
+  // `primary` itself is the single source of truth for the brand hue.
   primaryDeep: '#047857',
-  primaryBright: '#10b981',
   primaryForeground: '#ffffff',
   bgApp: '#f2f5f3',
   bgSidebar: '#ffffff',
@@ -35,9 +34,6 @@ export const Colors = {
 
   // Distinct from `red` — used for inline form/validation error text.
   errorText: '#dc2626',
-  // Leaderboard rank 2/3 accents (rank 1 uses `amber`).
-  silver: '#9ca3af',
-  bronze: '#b45309',
 } as const;
 
 // Gradient stop tuples for `expo-linear-gradient` (`colors` prop needs a
@@ -48,16 +44,6 @@ export const Gradients = {
   primary: ['#10b981', '#059669'],
   // Deeper emerald→teal sweep — hero cards, screen headers.
   hero: ['#047857', '#059669', '#0d9488'],
-  // Warm accent — XP / streak / celebration surfaces.
-  amber: ['#fbbf24', '#f59e0b'],
-  sunset: ['#fb923c', '#f43f5e'],
-  // Cool accents for feature tiles.
-  sky: ['#38bdf8', '#3b82f6'],
-  violet: ['#a78bfa', '#8b5cf6'],
-  // Soft mint page wash — full-screen backdrops (auth, hubs).
-  page: ['#d9f2e6', '#f2f5f3', '#f2f5f3'],
-  // Barely-there surface sheen for light cards.
-  mintSurface: ['#ecfdf5', '#ffffff'],
 } as const;
 
 // Modal/lightbox backdrop tints — kept separate from `Colors` since they're

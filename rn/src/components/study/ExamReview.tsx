@@ -20,17 +20,15 @@ interface ExamReviewProps {
   /** Optional line under the score (e.g. "80% correct"). */
   subtitle?: string;
   items: GradedExamItem[];
-  /** Extra sections between the review cards and the close button (e.g. battle standings). */
-  children?: React.ReactNode;
   closeTitle?: string;
   onClose: () => void;
 }
 
-// Post-exam review shared by the timed exam, group battles, and planner mock
-// exams: big score, one card per question with the user's answer graded, then
-// any extra sections and a close button. Grading happens before this renders —
-// client-side (timed exam) or server-side (battle/mock) both map to items.
-export const ExamReview: React.FC<ExamReviewProps> = ({ score, total, subtitle, items, children, closeTitle = 'Done', onClose }) => (
+// Post-exam review shared by the timed exam and planner mock exams: big score,
+// one card per question with the user's answer graded, then a close button.
+// Grading happens before this renders — client-side (timed exam) or server-side
+// (mock exam) both map to items.
+export const ExamReview: React.FC<ExamReviewProps> = ({ score, total, subtitle, items, closeTitle = 'Done', onClose }) => (
   <ScrollView contentContainerStyle={styles.root}>
     <Text style={styles.score}>{score} / {total}</Text>
     {!!subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
@@ -45,8 +43,6 @@ export const ExamReview: React.FC<ExamReviewProps> = ({ score, total, subtitle, 
         {!!item.explanation && <Text style={styles.reviewExplanation}>{item.explanation}</Text>}
       </Card>
     ))}
-
-    {children}
 
     <Button title={closeTitle} onPress={onClose} />
   </ScrollView>

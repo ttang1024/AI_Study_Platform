@@ -8,7 +8,7 @@ interface ExamRunningProps {
   current: { question: string; options?: string[] };
   index: number;
   total: number;
-  /** Countdown display; omit for untimed runs (battles, mock exams). */
+  /** Countdown display; omit for untimed runs (mock exams). */
   secondsLeft?: number;
   currentAnswer: string | undefined;
   onSelectOption: (option: string) => void;
@@ -20,8 +20,8 @@ interface ExamRunningProps {
   busyLabel?: string;
 }
 
-// One-question-at-a-time exam runner shared by the timed exam, group battles,
-// and planner mock exams. The parent owns index/answers state and decides what
+// One-question-at-a-time exam runner shared by the timed exam and planner mock
+// exams. The parent owns index/answers state and decides what
 // onNext does on the last question (client-side grade vs. server submit).
 export const ExamRunning: React.FC<ExamRunningProps> = ({
   current, index, total, secondsLeft, currentAnswer, onSelectOption, onNext,

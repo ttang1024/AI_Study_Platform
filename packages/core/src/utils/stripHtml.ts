@@ -1,7 +1,7 @@
 // Note bodies and some AI-generated titles are opaque HTML (web's tiptap editor
 // writes it; the backend does no transformation). Consumers that render plain
-// text — RN's note screens, the knowledge-graph node labels on both platforms —
-// need it flattened. Regex rather than a DOM: this has to run under RN too.
+// text — RN's note screens, note titles and previews on both platforms — need
+// it flattened. Regex rather than a DOM: this has to run under RN too.
 const ENTITIES: Record<string, string> = {
   amp: '&',
   lt: '<',

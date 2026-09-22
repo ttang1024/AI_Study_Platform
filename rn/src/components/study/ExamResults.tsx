@@ -12,8 +12,8 @@ interface ExamResultsProps {
 }
 
 // Client-graded results (timed exam): grade each answer locally, then render
-// the shared ExamReview. Server-graded flows (battle, mock exam) build their
-// GradedExamItems from the grading response and use ExamReview directly.
+// the shared ExamReview. The server-graded flow (mock exam) builds its
+// GradedExamItems from the grading response and uses ExamReview directly.
 export const ExamResults: React.FC<ExamResultsProps> = ({ questions, answers, correctCount, onClose }) => (
   <ExamReview
     score={correctCount}

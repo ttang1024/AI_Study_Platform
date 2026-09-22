@@ -22,7 +22,7 @@ const HUB_ITEMS = [
   { href: '/study/notes', icon: NotebookPen, color: Colors.orange, title: 'Notes', subtitle: 'Across your library' },
   { href: '/study/glossary', icon: SquareLibrary, color: Colors.teal, title: 'Glossary', subtitle: 'Terms and definitions' },
   { href: '/study/planner', icon: CalendarClock, color: Colors.blue, title: 'Planner', subtitle: 'Exams, cram sheets, mocks' },
-  { href: '/study/groups', icon: Users, color: Colors.purple, title: 'Study Groups', subtitle: 'Chat, boards, battles' },
+  { href: '/study/groups', icon: Users, color: Colors.purple, title: 'Study Groups', subtitle: 'Chat and shared courses' },
   { href: '/study/insights', icon: TrendingUp, color: Colors.primary, title: 'Insights', subtitle: 'Time, accuracy, mastery' },
 ] as const;
 
