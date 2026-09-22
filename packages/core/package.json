@@ -2,10 +2,8 @@
   "name": "@study/core",
   "version": "0.0.0",
   "private": true,
-  "description": "Platform-agnostic domain logic shared by web/ and rn/ (services over an injected HttpClient, pure utils, domain types). No runtime dependencies \u2014 consumers inject the HTTP client. React is a peer dependency used only by the opt-in @core/react/* modules, which the package root deliberately does not re-export.",
+  "description": "Platform-agnostic domain logic shared by web/ and rn/ (services over an injected HttpClient, pure utils, domain types). No runtime dependencies \u2014 consumers inject the HTTP client. There is no barrel entry point: consumers deep-import (e.g. '@core/services/practiceService'). React is a peer dependency used only by the opt-in @core/react/* modules.",
   "type": "module",
-  "main": "src/index.ts",
-  "types": "src/index.ts",
   "sideEffects": false,
   "scripts": {
     "test": "vitest run",

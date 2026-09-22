@@ -32,7 +32,6 @@
     "expo-speech-recognition": "^56.0.1",
     "expo-splash-screen": "~57.0.5",
     "expo-status-bar": "~57.0.1",
-    "expo-system-ui": "~57.0.2",
     "expo-video": "~57.0.2",
     "expo-web-browser": "~57.0.2",
     "lucide-react-native": "1.25.0",

@@ -36,7 +36,7 @@ export const LOCALES = [
 export type Locale = (typeof LOCALES)[number];
 export type LocaleCode = Locale['code'];
 
-export const DICTIONARIES: Record<LocaleCode, Partial<Record<TranslationKey, string>>> = {
+const DICTIONARIES: Record<LocaleCode, Partial<Record<TranslationKey, string>>> = {
   en,
   es,
   'pt-BR': ptBR,

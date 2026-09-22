@@ -74,14 +74,6 @@ const LegacyYouTubeRedirect: React.FC = () => {
   return <Navigate to={id ? `/videos/${id}` : '/library?type=videos'} replace />;
 };
 
-// Reinforcement Center was merged into the Insights page as a tab. Preserve the
-// old ?tab=quiz|glossary|flashcards deep links by mapping them onto ?module=.
-const ReinforcementRedirect: React.FC = () => {
-  const [params] = useSearchParams();
-  const module = params.get('tab');
-  const suffix = (module === 'quiz' || module === 'glossary' || module === 'flashcards') ? `&module=${module}` : '';
-  return <Navigate to={`/insights?tab=analytics${suffix}`} replace />;
-};
 
 /**
  * Browse and Add were two tabs of /library; Add is its own page now. `?view=add` links minted while
@@ -96,19 +88,6 @@ const LibraryRoute: React.FC = () => {
   return <Navigate to={`/library/add${query ? `?${query}` : ''}`} replace />;
 };
 
-/**
- * /materials was Notes and Glossary as two tabs of one page; they are two pages again. Links minted
- * while they were tabs (`?tab=glossary`, and the deep links that ride with it like
- * `&mastery=unmastered`) follow to the page that took the tab's place.
- */
-const MaterialsRedirect: React.FC = () => {
-  const [params] = useSearchParams();
-  const next = new URLSearchParams(params);
-  next.delete('tab');
-  const query = next.toString();
-  const to = params.get('tab') === 'glossary' ? '/glossary' : '/notes';
-  return <Navigate to={query ? `${to}?${query}` : to} replace />;
-};
 
 /**
  * A retired page's route, kept alive as a redirect into the tab that replaced it. Existing query
@@ -164,17 +143,15 @@ export default function App() {
                     <Route path="planner" element={<TabRedirect to="/quizzes" extra={{ tab: 'planner' }} />} />
                     <Route path="mistakes" element={<TabRedirect to="/quizzes" extra={{ tab: 'mistakes' }} />} />
 
-                    {/* Notes and Glossary — one page each; /materials was the merged pair. */}
+                    {/* Notes and Glossary — one page each. */}
                     <Route path="notes" element={<NotesPage />} />
                     <Route path="glossary" element={<GlossaryPage />} />
-                    <Route path="materials" element={<MaterialsRedirect />} />
 
                     <Route path="flashcards" element={<FlashcardsPage />} />
 
-                    {/* Insights — analytics (with reinforcement) and retention. */}
+                    {/* Insights — analytics and retention. */}
                     <Route path="insights" element={<InsightsPage />} />
                     <Route path="analytics" element={<Navigate to="/insights" replace />} />
-                    <Route path="reinforcement-center" element={<ReinforcementRedirect />} />
 
                     {/* Shared spaces — study groups. */}
                     <Route path="spaces" element={<SpacesPage />} />

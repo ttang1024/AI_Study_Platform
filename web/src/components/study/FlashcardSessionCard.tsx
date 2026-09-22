@@ -10,7 +10,7 @@ import SourceCitation from '../common/SourceCitation';
 
 export type SessionRating = 1 | 2 | 3 | 4;
 
-export const SESSION_RATINGS: { rating: SessionRating; label: string; color: string; border: string; bg: string }[] = [
+const SESSION_RATINGS: { rating: SessionRating; label: string; color: string; border: string; bg: string }[] = [
   { rating: 1, label: 'Again', color: 'text-red-600', border: 'border-red-300', bg: 'bg-red-50 dark:bg-red-950/30' },
   { rating: 2, label: 'Hard', color: 'text-orange-500', border: 'border-orange-300', bg: 'bg-orange-50 dark:bg-orange-950/30' },
   { rating: 3, label: 'Good', color: 'text-green-600', border: 'border-green-300', bg: 'bg-green-50 dark:bg-green-950/30' },

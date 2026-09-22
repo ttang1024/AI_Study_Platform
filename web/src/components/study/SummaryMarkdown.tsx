@@ -13,7 +13,7 @@ interface SummaryMarkdownProps {
 	onTimelineSeek?: (seconds: number) => void;
 }
 
-export const summaryMarkdownComponents = {
+const summaryMarkdownComponents = {
 	h1: ({ children }: any) => <h1 className="summary-h1">{children}</h1>,
 	h2: ({ children }: any) => <h2 className="summary-h2">{children}</h2>,
 	h3: ({ children }: any) => <h3 className="summary-h3">{children}</h3>,

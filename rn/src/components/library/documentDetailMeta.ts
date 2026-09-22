@@ -28,7 +28,7 @@ export const TABS: { id: Tab; label: string; icon: typeof FileText }[] = [
 ];
 
 // Highlighting needs a rendered PDF page — text-based docs don't get the tab.
-export const HIGHLIGHTS_TAB = { id: 'highlights' as Tab, label: 'Highlights', icon: Highlighter };
+const HIGHLIGHTS_TAB = { id: 'highlights' as Tab, label: 'Highlights', icon: Highlighter };
 
 export const TYPE_ICON: Record<Document['type'], typeof FileText> = {
   pdf: FileText,

@@ -11,14 +11,16 @@ test.describe('Landing page', () => {
   })
 
   // The format count is a public claim about what the uploader accepts; if the
-  // allowlist ever shrinks below it, this is the reminder to restate it.
-  test('leads the feature grid with the supported-format card', async ({ page }) => {
+  // allowlist ever shrinks below it, this is the reminder to restate it. The value
+  // counts up from 0 on scroll-in, so this asserts the settled figure — Playwright
+  // retries until the animation lands.
+  test('claims the supported-format count in the hero stats', async ({ page }) => {
     await page.goto('/')
 
-    const card = page.getByRole('heading', { name: /reads 230\+ formats/i })
-    await card.scrollIntoViewIfNeeded()
-    await expect(card).toBeVisible()
-    await expect(page.getByText('+220 more')).toBeVisible()
+    const label = page.getByText('file formats', { exact: true })
+    await label.scrollIntoViewIfNeeded()
+    await expect(label).toBeVisible()
+    await expect(label.locator('xpath=..')).toContainText('240+')
   })
 })
 
@@ -78,19 +80,15 @@ test.describe('Glossary page', () => {
   })
 })
 
-// ─── Reinforcement Center page ─────────────────────────────────────────────────
+// ─── Insights › analytics tab (the former Reinforcement Center) ────────────────
 
-test.describe('Reinforcement Center page', () => {
+test.describe('Insights analytics tab', () => {
   test.beforeEach(async ({ page }) => {
     await setupAuthenticatedStudyApp(page)
-    await page.goto('/reinforcement-center')
+    await page.goto('/insights?tab=analytics')
   })
 
-  // The standalone page was merged into Insights as a tab; /reinforcement-center is now
-  // a back-compat redirect (see ReinforcementRedirect in App.tsx). Assert that redirect
-  // still holds, rather than the retired page title.
-  test('redirects into the Insights analytics tab and shows its description', async ({ page }) => {
-    await expect(page).toHaveURL(/\/insights\?tab=analytics/)
+  test('shows the reinforcement description', async ({ page }) => {
     await expect(page.getByText(/weak spots worth reinforcing/i)).toBeVisible()
   })
 

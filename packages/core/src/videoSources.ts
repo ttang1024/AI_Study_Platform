@@ -10,7 +10,7 @@ export type ExternalVideoSource =
   | 'facebook' | 'instagram' | 'twitter' | 'reddit' | 'linkedin' | 'tiktok';
 export type VideoSourceType = 'youtube' | 'bilibili' | 'upload' | ExternalVideoSource;
 
-export const EXTERNAL_VIDEO_SOURCES: ExternalVideoSource[] = [
+const EXTERNAL_VIDEO_SOURCES: ExternalVideoSource[] = [
   'vimeo', 'ted', 'dailymotion', 'facebook', 'instagram', 'twitter', 'reddit', 'linkedin', 'tiktok',
 ];
 

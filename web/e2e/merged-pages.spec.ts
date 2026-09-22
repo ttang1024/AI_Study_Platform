@@ -27,11 +27,7 @@ for (const [path, url, tab] of routes) {
   })
 }
 
-/**
- * Notes and Glossary were the two tabs of /materials and are two pages again, so they are checked
- * by heading; /materials has to land on the page that took each tab's place, deep-link params and
- * all.
- */
+/** Notes and Glossary were two tabs of one page and are two pages again, so they are checked by heading. */
 test('probe /notes and /glossary are separate pages', async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', e => errors.push(e.message))
@@ -43,19 +39,6 @@ test('probe /notes and /glossary are separate pages', async ({ page }) => {
   await page.goto('/glossary')
   await expect(page.getByRole('heading', { name: /glossary of terms/i })).toBeVisible()
   expect(errors).toEqual([])
-})
-
-test('probe the retired /materials route lands on the page that replaced each tab', async ({ page }) => {
-  await setupAuthenticatedStudyApp(page)
-
-  await page.goto('/materials')
-  await expect(page).toHaveURL(/\/notes$/)
-
-  await page.goto('/materials?tab=notes')
-  await expect(page).toHaveURL(/\/notes$/)
-
-  await page.goto('/materials?tab=glossary&mastery=unmastered')
-  await expect(page).toHaveURL(/\/glossary\?mastery=unmastered$/)
 })
 
 /**

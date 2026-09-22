@@ -58,9 +58,8 @@ const resolveCoreFile = (target) => {
 
 const defaultResolveRequest = config.resolver.resolveRequest;
 config.resolver.resolveRequest = (context, moduleName, platform) => {
-  if (moduleName === '@core' || moduleName.startsWith('@core/')) {
-    const sub = moduleName === '@core' ? 'index' : moduleName.slice('@core/'.length);
-    const filePath = resolveCoreFile(path.join(coreSrc, sub));
+  if (moduleName.startsWith('@core/')) {
+    const filePath = resolveCoreFile(path.join(coreSrc, moduleName.slice('@core/'.length)));
     if (filePath) return { type: 'sourceFile', filePath };
   }
   return (defaultResolveRequest ?? context.resolveRequest)(context, moduleName, platform);

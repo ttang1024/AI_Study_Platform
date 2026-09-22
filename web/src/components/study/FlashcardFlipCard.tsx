@@ -11,7 +11,7 @@ export type FlashcardCardType = 'basic' | 'cloze' | 'chart' | 'occlusion';
 export type FlashcardCardStyle = 'flip' | 'compact' | 'review';
 
 /** Image with mask rectangles: opaque until flipped, then translucent outlines with labels. */
-export const OcclusionImage: React.FC<{
+const OcclusionImage: React.FC<{
   imageUrl: string;
   occlusions: OcclusionRect[];
   revealed: boolean;
