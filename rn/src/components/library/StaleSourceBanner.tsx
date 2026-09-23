@@ -116,5 +116,3 @@ const styles = StyleSheet.create({
   },
   buttonText: { ...Typography.captionBold, color: Colors.white },
 });
-
-export default StaleSourceBanner;

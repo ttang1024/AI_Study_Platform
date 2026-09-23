@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { FileText, Sparkles, ChevronLeft, Share2, Highlighter } from 'lucide-react';
 import { useStudy } from '../context/StudyContext';
+import { useDocumentNote } from '../hooks/useDocumentNote';
+import { useShareableQuizzes } from '../hooks/useShareableQuizzes';
 import { DocumentViewer } from '../components/document/DocumentViewer';
 import StaleSourceBanner from '../components/document/StaleSourceBanner';
 import { AnnotatedPdfViewer } from '../components/AnnotatedPdfViewer';
@@ -20,7 +22,7 @@ import { documentService, usesServerExtractedText, getDocumentViewerKind } from 
 import { apiClient } from '../services/apiClient';
 import { ShareModal } from '../components/common/ShareModal';
 import { DetailPageSkeleton } from '../components/common/DetailPageSkeleton';
-import { ShareableQuiz, ShareableCard } from '../services/shareContentService';
+import { ShareableCard } from '../services/shareContentService';
 import { StudyTabBar } from '../components/common/StudyTabBar';
 import { cn } from '../utils/cn';
 import { Document } from '../types';
@@ -46,13 +48,7 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [summaryStreamText, setSummaryStreamText] = useState('');
   const [summaryError, setSummaryError] = useState<string | null>(null);
-  const [noteContent, setNoteContent] = useState('');
-  const [noteId, setNoteId] = useState<string | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
-  const [shareQuizzesAvailable, setShareQuizzesAvailable] = useState(false);
-  // Cache the quizzes fetched for the availability check so sharing reuses them
-  // instead of refetching the same list.
-  const shareQuizzesRef = useRef<Awaited<ReturnType<typeof documentService.getQuiz>> | null>(null);
 
   // Tracks the document id we've already fetched fresh data for, so re-running
   // this effect (e.g. after updateDocumentInList changes the documents list)
@@ -65,6 +61,8 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
 
   // Chat threads (multiple conversations per document)
   const docChat = useDocumentChatThreads(currentDocument?.courseId, currentDocument?.id);
+  const { noteContent, saveNote } = useDocumentNote(currentDocument?.courseId, currentDocument?.id);
+  const fetchShareQuizzes = useShareableQuizzes(showShareModal, currentDocument?.courseId, currentDocument?.id);
 
   // Attribute reading/quizzing time on this document to its course in analytics.
   useStudyTimer({
@@ -118,31 +116,6 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
     }
   }, [activeTab]);
 
-  // Load saved note when document changes
-  useEffect(() => {
-    if (!currentDocument?.courseId || !currentDocument?.id) return;
-    setNoteId(null);
-    setNoteContent('');
-    setShareQuizzesAvailable(false);
-    documentService.getNotes(currentDocument.courseId, currentDocument.id)
-      .then(notes => {
-        if (notes.length > 0) {
-          setNoteId(notes[0].id);
-          setNoteContent(notes[0].content);
-        }
-      })
-      .catch(() => { });
-  }, [currentDocument?.id, currentDocument?.courseId]);
-
-  useEffect(() => {
-    if (!showShareModal || !currentDocument?.courseId || !currentDocument?.id) return;
-    let cancelled = false;
-    documentService.getQuiz(currentDocument.courseId, currentDocument.id)
-      .then(qs => { if (!cancelled) { shareQuizzesRef.current = qs; setShareQuizzesAvailable(qs.length > 0); } })
-      .catch(() => { if (!cancelled) { shareQuizzesRef.current = null; setShareQuizzesAvailable(false); } });
-    return () => { cancelled = true; };
-  }, [showShareModal, currentDocument?.courseId, currentDocument?.id]);
-
   // Initialize summary from saved document data (also re-runs when fresh API data arrives)
   useEffect(() => {
     if (!currentDocument) return;
@@ -151,19 +124,6 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
     setSummary(normalizeSummaryText(currentDocument.summary));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentDocument?.id, currentDocument?.summary]);
-
-  const handleNoteSave = useCallback(async (html: string) => {
-    if (!currentDocument?.courseId || !currentDocument?.id) return;
-    setNoteContent(html);
-    try {
-      if (noteId) {
-        await documentService.updateNote(currentDocument.courseId, currentDocument.id, noteId, html);
-      } else {
-        const note = await documentService.createNote(currentDocument.courseId, currentDocument.id, html);
-        setNoteId(note.id);
-      }
-    } catch { }
-  }, [currentDocument?.courseId, currentDocument?.id, noteId]);
 
   const generateSummary = async () => {
     if (!currentDocument) return;
@@ -408,7 +368,7 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
                     ref={noteEditorRef}
                     videoRecordId={`doc-note-${currentDocument.id}`}
                     initialContent={noteContent}
-                    onSave={handleNoteSave}
+                    onSave={saveNote}
                   />
                 </div>
 
@@ -510,16 +470,7 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
         sourceType="document"
         sourceUrl={currentDocument.courseId ? `${currentDocument.courseId}/${currentDocument.id}` : undefined}
         notesHtml={noteContent || null}
-        fetchQuizzes={currentDocument.courseId && shareQuizzesAvailable ? async () => {
-          const qs = shareQuizzesRef.current ?? await documentService.getQuiz(currentDocument.courseId!, currentDocument.id);
-          return qs.map((q) => ({
-            question: q.question,
-            options: q.options ?? [],
-            correctAnswer: q.correctAnswer,
-            explanation: q.explanation ?? '',
-            difficulty: q.difficulty ?? 'medium',
-          } satisfies ShareableQuiz));
-        } : undefined}
+        fetchQuizzes={fetchShareQuizzes}
         fetchFlashcards={currentDocument.courseId ? async () => {
           const res = await apiClient.get<{ data: ShareableCard[] }>(`/api/courses/${currentDocument.courseId}/documents/${currentDocument.id}/flashcards`);
           return res.data.data.map(f => ({ front: f.front, back: f.back, cardType: f.cardType }));

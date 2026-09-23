@@ -7,7 +7,6 @@ import {
   type TtsChunkCallbacks,
 } from '@core/react/ttsQueue';
 import {
-  formatSleepCountdown,
   SLEEP_OPTIONS,
   type TtsError,
   type TtsItem,
@@ -16,7 +15,7 @@ import {
 } from '@core/tts';
 import { synthesizeSpeech } from '@/services/ttsService';
 
-export { SLEEP_OPTIONS, formatSleepCountdown };
+export { SLEEP_OPTIONS };
 export type { TtsError, TtsItem, TtsState, UseTtsReturn };
 
 /**

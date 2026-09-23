@@ -36,7 +36,7 @@ public partial class VideoController
         if (transcript == null)
             return BadRequest(BaseResponse<string>.Fail("No subtitles available for this video.", "NO_TRANSCRIPT"));
 
-        var stream = _aiService.StreamSummaryFromYouTubeAsync(transcript, cancellationToken);
+        var stream = _aiService.StreamTimelineSummaryAsync(transcript, cancellationToken);
         return await this.StreamAiToSseAsync(stream, cancellationToken,
             onCompleted: (text, ct) => _cache.SetAsync(cacheKey, text, ttl, ct));
     }
@@ -53,7 +53,7 @@ public partial class VideoController
         if (transcript == null)
             return BadRequest(BaseResponse<string>.Fail("No subtitles available for this video.", "NO_TRANSCRIPT"));
 
-        var stream = _aiService.StreamSummaryFromYouTubeAsync(transcript, cancellationToken);
+        var stream = _aiService.StreamTimelineSummaryAsync(transcript, cancellationToken);
         return await this.StreamAiToSseAsync(stream, cancellationToken, onCompleted: async (text, ct) =>
         {
             video.Summary = text;

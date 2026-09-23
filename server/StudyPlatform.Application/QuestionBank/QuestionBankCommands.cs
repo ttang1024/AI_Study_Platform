@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using MediatR;
 using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Mistakes;

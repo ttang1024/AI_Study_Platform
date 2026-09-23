@@ -473,7 +473,6 @@ export async function mockStudyApi(page: Page) {
           { courseId: 'course-bio', documents: 1, articles: 1, audio: 0, videos: 1, total: 3 },
           { courseId: 'course-math', documents: 0, articles: 0, audio: 0, videos: 0, total: 0 },
         ],
-        achievements: { perfectQuizzes: 0, averageQuizScore: 80, flashcardsMastered: 0 },
       })
     }
     if (path === '/api/documents') {
@@ -567,30 +566,6 @@ export async function mockStudyApi(page: Page) {
         generatedAt: now,
       })
     }
-    if (path === '/api/stats/xp') {
-      return json(route, {
-        totalXp: 1250,
-        level: 4,
-        xpIntoLevel: 250,
-        xpForNextLevel: 500,
-        levelProgress: 0.5,
-        breakdown: [{ label: 'Flashcards', xp: 800 }],
-      })
-    }
-    if (path === '/api/notifications/weekly-digest') {
-      return json(route, {
-        from: now,
-        to: now,
-        headline: 'A steady week of study.',
-        studyMinutes: 120,
-        activeDays: 4,
-        dailyMinutes: [{ day: 'Mon', minutes: 30 }],
-        flashcardReviews: 12,
-        quizzesTaken: 2,
-        quizAccuracy: 80,
-        currentStreak: 3,
-      })
-    }
 
     // Insights tabs. Same reason as the block above: an unmocked endpoint falls through to the []
     // at the bottom of this handler, which several of these components dereference as an object
@@ -620,56 +595,9 @@ export async function mockStudyApi(page: Page) {
     }
     if (path === '/api/analytics/course-mastery') return json(route, [])
 
-    // Security tab. These need their real object shapes for the same reason as the block above:
-    // the [] fallback is truthy, so `data.items` comes back undefined and the pager crashes on it.
-    if (path === '/api/security/2fa') {
-      return json(route, { enabled: false, enabledAt: null, recoveryCodesRemaining: 0 })
-    }
-    if (path === '/api/security/sessions') {
-      return json(route, [
-        {
-          sessionId: 'session-current',
-          deviceName: 'Chrome on macOS',
-          ipAddress: '203.0.113.7',
-          startedAt: now,
-          lastUsedAt: now,
-          expiresAt: now,
-          isCurrent: true,
-        },
-      ])
-    }
-    if (path === '/api/security/audit-log') {
-      return json(route, {
-        items: [
-          {
-            auditLogEntryId: 'audit-1',
-            action: 'auth.login.succeeded',
-            actorUserId: 'user-1',
-            subjectUserId: 'user-1',
-            targetType: null,
-            targetId: null,
-            metadataJson: null,
-            ipAddress: '203.0.113.7',
-            userAgent: null,
-            createdAt: now,
-          },
-        ],
-        page: 1,
-        pageSize: 25,
-        totalCount: 1,
-        totalPages: 1,
-        hasNextPage: false,
-        hasPreviousPage: false,
-      })
-    }
+    // Settings → Security tab (data export).
     if (path === '/api/security/exports') return json(route, [])
     if (path === '/api/library/tags') return json(route, [])
-    if (path === '/api/library/views') return json(route, [])
-    if (path === '/api/certificates') return json(route, [])
-    if (path === '/api/certificates/eligibility') return json(route, [])
-    if (path === '/api/peer-reviews') return json(route, [])
-    if (path === '/api/integrations/api-keys') return json(route, [])
-    if (path === '/api/integrations/webhooks') return json(route, [])
 
     // Filtering/searching/paging are server-side for the real endpoint, so the mock
     // has to honour ?type= and ?search= or the Library filter tests cannot pass.

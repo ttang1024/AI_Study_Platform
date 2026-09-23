@@ -65,7 +65,7 @@ function parseSharedChatTranscript(value: string): SharedChatMessage[] | null {
   }
 }
 
-export const markdownComponents = {
+const markdownComponents = {
   p: ({ children }: { children?: React.ReactNode }) => <p className="mb-2 last:mb-0">{children}</p>,
   strong: ({ children }: { children?: React.ReactNode }) => <strong className="font-bold text-text-main">{children}</strong>,
   em: ({ children }: { children?: React.ReactNode }) => <em className="italic">{children}</em>,

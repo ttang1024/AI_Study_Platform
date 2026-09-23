@@ -1,7 +1,7 @@
 // URL parsing and the embed-URL builders live in the shared package
 // (@core/videoSources) — web builds the same URLs. Only the WebView shell below
 // is mobile-specific.
-export { buildEmbedUrl, parseBilibiliVideo } from '@core/videoSources';
+export { buildEmbedUrl } from '@core/videoSources';
 
 // A WebView navigated directly to an embed URL sends no Referer/Origin on the
 // initial load, which makes YouTube's player reject it with error 153

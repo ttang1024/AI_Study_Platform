@@ -128,28 +128,6 @@ public class SourceAnchorResolverTests
     }
 
     [Fact]
-    public void ResolveWithPages_AttributesTheMatchToItsPage()
-    {
-        var text = new string('a', 100) + " chemical energy is released by respiration " + new string('b', 100);
-        var pageStarts = new[] { 0, 90, 200 };
-
-        var anchor = SourceAnchorResolver.ResolveWithPages(
-            text, "chemical energy is released by respiration", pageStarts);
-
-        Assert.NotNull(anchor);
-        Assert.Equal(2, anchor!.Page);
-    }
-
-    [Fact]
-    public void ResolveWithPages_UnlocatedQuote_HasNoPage()
-    {
-        var anchor = SourceAnchorResolver.ResolveWithPages(
-            Source, "an entirely invented statement about ribosomal assembly lines", new[] { 0, 50 });
-
-        Assert.Null(anchor);
-    }
-
-    [Fact]
     public void ResolveWithTimestamps_AttributesTheMatchToItsSegment()
     {
         var transcript = "welcome back everyone. today we cover the krebs cycle in detail. any questions?";

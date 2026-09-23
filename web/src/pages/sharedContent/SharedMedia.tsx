@@ -16,8 +16,6 @@ import { SharedDocumentViewer } from './SharedDocumentViewer';
 
 const API_URL = getApiUrl();
 
-export { parseBilibiliVideo };
-
 export type NormalizedSourceType =
   | VideoSourceType | 'audio' | 'podcast' | 'article' | 'document' | 'chat';
 

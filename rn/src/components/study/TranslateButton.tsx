@@ -103,5 +103,3 @@ const styles = StyleSheet.create({
   caption: { ...Typography.caption, color: Colors.textSecondary },
   error: { ...Typography.caption, color: Colors.red },
 });
-
-export default TranslateButton;

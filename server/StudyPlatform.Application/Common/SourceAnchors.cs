@@ -89,27 +89,6 @@ public static class SourceAnchorResolver
     }
 
     /// <summary>
-    /// Resolves a quote and additionally attributes it to a page, using markers left by the text
-    /// extractor. Pages are 1-based; null when the source carries no page markers.
-    /// </summary>
-    public static SourceAnchor? ResolveWithPages(string? sourceText, string? quote, IReadOnlyList<int>? pageStartOffsets)
-    {
-        var anchor = Resolve(sourceText, quote);
-        if (anchor == null || !anchor.IsLocated || pageStartOffsets == null || pageStartOffsets.Count == 0)
-            return anchor;
-
-        // Last page whose start offset precedes the match.
-        var page = 0;
-        for (var i = 0; i < pageStartOffsets.Count; i++)
-        {
-            if (pageStartOffsets[i] <= anchor.StartOffset!.Value) page = i + 1;
-            else break;
-        }
-
-        return page > 0 ? anchor with { Page = page } : anchor;
-    }
-
-    /// <summary>
     /// Resolves a quote against a timed transcript and attributes it to the segment it falls in.
     /// Segments must be ordered by start time and their text concatenated in the same order that
     /// produced <paramref name="sourceText"/>.

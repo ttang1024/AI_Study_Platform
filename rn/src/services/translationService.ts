@@ -8,5 +8,3 @@ const core = createLanguageService(http);
 export const translationService = {
   translate: core.translate,
 };
-
-export default translationService;

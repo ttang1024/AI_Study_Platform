@@ -6,4 +6,3 @@ import { http } from '@/services/http';
 export * from '@core/services/onboardingService';
 
 export const onboardingService = createOnboardingService(http);
-export default onboardingService;

@@ -145,10 +145,7 @@ Return a JSON array only, no markdown, no code blocks: [{{""term"": ""..."", ""d
         public static readonly string StreamSummary =
             $"Write a Markdown study summary. Start with exactly one concise, professional, academic overview paragraph covering the main thesis and conclusions. {NoSourceMetaPhrases} Follow with a '## Key Concepts' section explaining the most important ideas in detail. Then add a '## Key Takeaways' bullet list of 3-6 specific, informative points using '- '.";
 
-        public static readonly string YouTubeStreamSummary =
-            $"Write a Markdown study summary. Start with exactly one concise, professional, academic overview paragraph covering the main topic and conclusions. {NoSourceMetaPhrases} Follow with a '## Key Concepts' section explaining the most important ideas in detail. Then add a '## Key Takeaways' bullet list of 3-6 specific, informative points using '- '.";
-
-        public static string TimelineStreamSummary(string mediaType) =>
+        public static readonly string TimelineStreamSummary =
             $@"Write a timeline-based study summary in Markdown.
 Start with exactly one concise, professional, academic overview paragraph covering the main topic and conclusions.
 {NoSourceMetaPhrases}

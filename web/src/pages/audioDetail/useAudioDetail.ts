@@ -6,20 +6,15 @@ import { useDocumentChatThreads } from '../../components/ai/useDocumentChatThrea
 import { audioService } from '../../services/audioService';
 import { VideoNoteEditorRef } from '../../components/youtube/VideoNoteEditor';
 import { ChatPanelRef } from '../../components/ai/ChatPanel';
-import { QuizQuestion } from '../../types';
 import { getApiErrorCode } from '@core/utils/apiError';
 import { useSelectionToolbar } from '../../hooks/useSelectionToolbar';
+import { useDocumentNote } from '../../hooks/useDocumentNote';
+import { useDifficultyQuiz, type QuizDifficulty } from '../../hooks/useDifficultyQuiz';
 import { buildSrt } from '@core/utils/format';
 import { parseTranscript, formatTime } from './transcript';
 
 export interface SimpleCard { id: string; front: string; back: string; cardType?: 'basic' | 'cloze' | 'chart' | 'occlusion'; }
 export type AudioStudyTab = 'summary' | 'mindmap' | 'notes' | 'flashcards' | 'quiz' | 'problems' | 'chat';
-export type QuizDifficulty = 'easy' | 'medium' | 'hard';
-
-const emptyQuizSets = (): Record<QuizDifficulty, QuizQuestion[]> => ({ easy: [], medium: [], hard: [] });
-const emptyAnswerSets = (): Record<QuizDifficulty, Record<string, string>> => ({ easy: {}, medium: {}, hard: {} });
-const emptySubmittedSets = (): Record<QuizDifficulty, boolean> => ({ easy: false, medium: false, hard: false });
-const emptyScoreSets = (): Record<QuizDifficulty, number> => ({ easy: 0, medium: 0, hard: 0 });
 
 /** All state, data loading and study-action handlers for the audio/podcast detail page. */
 export function useAudioDetail(propId?: string, propCourseId?: string) {
@@ -84,8 +79,6 @@ export function useAudioDetail(propId?: string, propCourseId?: string) {
   const [showShareModal, setShowShareModal] = useState(false);
 
   // Notes
-  const [noteContent, setNoteContent] = useState('');
-  const [noteId, setNoteId] = useState<string | null>(null);
   const noteEditorRef = useRef<VideoNoteEditorRef>(null);
 
   // Flashcards
@@ -93,21 +86,9 @@ export function useAudioDetail(propId?: string, propCourseId?: string) {
   const [isLoadingFlashcards, setIsLoadingFlashcards] = useState(false);
   const [flashcardsError, setFlashcardsError] = useState<string | null>(null);
 
-  // Quiz
-  const [activeQuizDifficulty, setActiveQuizDifficulty] = useState<QuizDifficulty>('medium');
-  const [quizQuestionSets, setQuizQuestionSets] = useState<Record<QuizDifficulty, QuizQuestion[]>>(emptyQuizSets);
-  const [quizAnswerSets, setQuizAnswerSets] = useState<Record<QuizDifficulty, Record<string, string>>>(emptyAnswerSets);
-  const [quizSubmittedSets, setQuizSubmittedSets] = useState<Record<QuizDifficulty, boolean>>(emptySubmittedSets);
-  const [quizScoreSets, setQuizScoreSets] = useState<Record<QuizDifficulty, number>>(emptyScoreSets);
-  const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
-  const [isLoadingQuiz, setIsLoadingQuiz] = useState(false);
-  const [userAnswers, setUserAnswers] = useState<Record<string, string>>({});
-  const [isQuizSubmitted, setIsQuizSubmitted] = useState(false);
-  const [quizScore, setQuizScore] = useState(0);
-  const [quizError, setQuizError] = useState<string | null>(null);
-
   // Chat — multiple conversations (threads), shared with document/article pages
   const docChat = useDocumentChatThreads(courseId || null, id || null);
+  const { noteContent, saveNote } = useDocumentNote(courseId || undefined, id);
   const chatPanelRef = useRef<ChatPanelRef>(null);
 
   useEffect(() => () => {
@@ -142,9 +123,8 @@ export function useAudioDetail(propId?: string, propCourseId?: string) {
       // Independent reads (audio URL resolution, notes, flashcards, quiz, quiz submission)
       // fire together instead of one-at-a-time.
       const isPodcastDoc = doc.contentType === 'audio/podcast';
-      const [resolvedAudioUrl, notes, cards, questions, sub] = await Promise.all([
+      const [resolvedAudioUrl, cards, questions, sub] = await Promise.all([
         isPodcastDoc ? audioService.getAudioUrl(cId, docId) : audioService.getAudioBlobUrl(cId, docId),
-        documentService.getNotes(cId, docId).catch(() => []),
         documentService.getFlashcards(cId, docId).catch(() => null),
         documentService.getQuiz(cId, docId).catch(() => null),
         documentService.getQuizSubmission(cId, docId).catch(() => null),
@@ -157,45 +137,11 @@ export function useAudioDetail(propId?: string, propCourseId?: string) {
         setAudioUrl(resolvedAudioUrl);
       }
 
-      if (notes.length > 0) { setNoteContent(notes[0].content); setNoteId(notes[0].id); }
-
       if (cards) {
         setFlashcards(cards.map(c => ({ id: c.id, front: c.front, back: c.back, cardType: c.cardType })));
       }
 
-      let loadedQuizDifficulty = activeQuizDifficulty;
-      let loadedQuizQuestionSets = emptyQuizSets();
-      if (questions) {
-        const grouped = emptyQuizSets();
-        questions.forEach(q => grouped[(q.difficulty ?? 'medium') as QuizDifficulty].push(q));
-        const targetDifficulty = targetQuizQuestionId
-          ? (['easy', 'medium', 'hard'] as QuizDifficulty[]).find(difficulty =>
-            grouped[difficulty].some(q => q.id === targetQuizQuestionId))
-          : undefined;
-        const loadedDifficulty = targetDifficulty
-          ?? (grouped[activeQuizDifficulty].length > 0
-            ? activeQuizDifficulty
-            : (['easy', 'medium', 'hard'] as QuizDifficulty[]).find(difficulty => grouped[difficulty].length > 0) ?? activeQuizDifficulty);
-        loadedQuizDifficulty = loadedDifficulty;
-        loadedQuizQuestionSets = grouped;
-        setQuizQuestionSets(grouped);
-        setActiveQuizDifficulty(loadedDifficulty);
-        setQuizQuestions(grouped[loadedDifficulty]);
-      }
-
-      if (sub) {
-        const submittedDifficulty = (['easy', 'medium', 'hard'] as QuizDifficulty[]).find(difficulty =>
-          Object.keys(sub.answers ?? {}).some(questionId => loadedQuizQuestionSets[difficulty].some(q => q.id === questionId)))
-          ?? loadedQuizDifficulty;
-        setActiveQuizDifficulty(submittedDifficulty);
-        setQuizQuestions(loadedQuizQuestionSets[submittedDifficulty]);
-        setUserAnswers(sub.answers);
-        setQuizAnswerSets(prev => ({ ...prev, [submittedDifficulty]: sub.answers }));
-        setQuizScore(sub.score);
-        setQuizScoreSets(prev => ({ ...prev, [submittedDifficulty]: sub.score }));
-        setIsQuizSubmitted(true);
-        setQuizSubmittedSets(prev => ({ ...prev, [submittedDifficulty]: true }));
-      }
+      quiz.applyLoadedQuiz(questions, sub);
 
     } catch {
       navigate(-1);
@@ -264,7 +210,21 @@ export function useAudioDetail(propId?: string, propCourseId?: string) {
   const generationDisabledReason = isPodcast
     ? 'Transcribe the podcast before generating study materials.'
     : 'Transcribe the audio before generating study materials.';
-  const hasGeneratedQuizzes = Object.values(quizQuestionSets).some(questions => questions.length > 0);
+
+  const generateQuizQuestions = useCallback(
+    (difficulty: QuizDifficulty) => documentService.generateQuiz(courseId, id!, difficulty),
+    [courseId, id],
+  );
+  const saveQuizSubmission = useCallback(async (answers: Record<string, string>, score: number, total: number) => {
+    if (id && courseId) await documentService.saveQuizSubmission(courseId, id, answers, score, total);
+  }, [id, courseId]);
+  const quiz = useDifficultyQuiz({
+    canGenerate: !!id && !!courseId,
+    generationDisabled,
+    targetQuizQuestionId,
+    generate: generateQuizQuestions,
+    saveSubmission: saveQuizSubmission,
+  });
 
   // ─── Transcript helpers ─────────────────────────────────────────────────────
 
@@ -373,79 +333,6 @@ export function useAudioDetail(propId?: string, propCourseId?: string) {
     }
   }, [id, courseId, isLoadingFlashcards, generationDisabled]);
 
-  const generateQuiz = useCallback(async (difficulty: QuizDifficulty = activeQuizDifficulty) => {
-    if (!id || !courseId || isLoadingQuiz || generationDisabled) return;
-    setActiveQuizDifficulty(difficulty);
-    setQuizError(null);
-    setIsLoadingQuiz(true);
-    setQuizQuestions([]);
-    setQuizQuestionSets(prev => ({ ...prev, [difficulty]: [] }));
-    setUserAnswers({});
-    setQuizAnswerSets(prev => ({ ...prev, [difficulty]: {} }));
-    setIsQuizSubmitted(false);
-    setQuizSubmittedSets(prev => ({ ...prev, [difficulty]: false }));
-    setQuizScore(0);
-    setQuizScoreSets(prev => ({ ...prev, [difficulty]: 0 }));
-    try {
-      const questions = await documentService.generateQuiz(courseId, id, difficulty);
-      setQuizQuestions(questions);
-      setQuizQuestionSets(prev => ({ ...prev, [difficulty]: questions }));
-    } catch (err: any) {
-      setQuizError(getApiErrorCode(err));
-    } finally {
-      setIsLoadingQuiz(false);
-    }
-  }, [id, courseId, isLoadingQuiz, generationDisabled, activeQuizDifficulty]);
-
-  const handleQuizDifficultyChange = useCallback((difficulty: QuizDifficulty) => {
-    setActiveQuizDifficulty(difficulty);
-    setQuizError(null);
-    setQuizQuestions(quizQuestionSets[difficulty]);
-    setUserAnswers(quizAnswerSets[difficulty]);
-    setIsQuizSubmitted(quizSubmittedSets[difficulty]);
-    setQuizScore(quizScoreSets[difficulty]);
-  }, [quizQuestionSets, quizAnswerSets, quizSubmittedSets, quizScoreSets]);
-
-  const submitQuiz = useCallback(async () => {
-    let score = 0;
-    quizQuestions.forEach(q => {
-      if (userAnswers[q.id]) {
-        const selected = userAnswers[q.id].charAt(0).toUpperCase();
-        const correct = q.correctAnswer.charAt(0).toUpperCase();
-        if (selected === correct) score++;
-      }
-    });
-    setQuizScore(score);
-    setQuizScoreSets(prev => ({ ...prev, [activeQuizDifficulty]: score }));
-    setIsQuizSubmitted(true);
-    setQuizSubmittedSets(prev => ({ ...prev, [activeQuizDifficulty]: true }));
-    if (id && courseId) {
-      try { await documentService.saveQuizSubmission(courseId, id, userAnswers, score, quizQuestions.length); } catch { }
-    }
-  }, [quizQuestions, userAnswers, id, courseId, activeQuizDifficulty]);
-
-  const handleNoteSave = useCallback(async (html: string) => {
-    setNoteContent(html);
-    if (!id || !courseId) return;
-    try {
-      if (noteId) {
-        await documentService.updateNote(courseId, id, noteId, html);
-      } else {
-        const note = await documentService.createNote(courseId, id, html);
-        setNoteId(note.id);
-      }
-    } catch { }
-  }, [id, courseId, noteId]);
-
-  const onAnswerQuiz = (qId: string, option: string) => {
-    if (isQuizSubmitted) return;
-    setUserAnswers(prev => ({ ...prev, [qId]: option }));
-    setQuizAnswerSets(prev => ({
-      ...prev,
-      [activeQuizDifficulty]: { ...prev[activeQuizDifficulty], [qId]: option },
-    }));
-  };
-
   return {
     id, courseId, navigate,
     fileName, isPodcast, podcastOriginalUrl, audioUrl, isLoadingPage,
@@ -457,14 +344,17 @@ export function useAudioDetail(propId?: string, propCourseId?: string) {
     summaryRef, summaryToolbar, setSummaryToolbar, handleSummaryMouseUp,
     mindMapText, isLoadingMindMap, mindMapStreamingText, mindMapError, generateMindMap, handleSaveMindMap,
     showShareModal, setShowShareModal,
-    noteContent, noteEditorRef, handleNoteSave,
+    noteContent, noteEditorRef, handleNoteSave: saveNote,
     flashcards, isLoadingFlashcards, flashcardsError, generateFlashcards,
-    activeQuizDifficulty, quizQuestionSets, quizQuestions, userAnswers, isQuizSubmitted,
-    quizScore, isLoadingQuiz, quizError, generateQuiz, handleQuizDifficultyChange, submitQuiz, onAnswerQuiz,
+    activeQuizDifficulty: quiz.activeQuizDifficulty, quizQuestionSets: quiz.quizQuestionSets,
+    quizQuestions: quiz.quizQuestions, userAnswers: quiz.userAnswers, isQuizSubmitted: quiz.isQuizSubmitted,
+    quizScore: quiz.quizScore, isLoadingQuiz: quiz.isLoadingQuiz, quizError: quiz.quizError,
+    generateQuiz: quiz.generateQuiz, handleQuizDifficultyChange: quiz.handleQuizDifficultyChange,
+    submitQuiz: quiz.submitQuiz, onAnswerQuiz: quiz.onAnswerQuiz,
     chatMessages: docChat.messages, chatPanelRef, streamChat: docChat.streamChat,
     chatConversations: docChat.conversations, activeConversationId: docChat.activeConversationId,
     selectConversation: docChat.selectConversation, newConversation: docChat.newConversation,
     deleteConversation: docChat.deleteConversation,
-    generationDisabled, generationDisabledReason, hasGeneratedQuizzes,
+    generationDisabled, generationDisabledReason, hasGeneratedQuizzes: quiz.hasGeneratedQuizzes,
   };
 }

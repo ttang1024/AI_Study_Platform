@@ -47,8 +47,7 @@ public interface IAiService
     // Streaming variants
     IAsyncEnumerable<string> StreamSummaryAsync(byte[] fileData, string mimeType, CancellationToken cancellationToken = default);
     IAsyncEnumerable<string> StreamSummaryAsync(string textContent, CancellationToken cancellationToken = default);
-    IAsyncEnumerable<string> StreamTimelineSummaryAsync(string timedTranscript, string mediaType, CancellationToken cancellationToken = default);
-    IAsyncEnumerable<string> StreamSummaryFromYouTubeAsync(string transcriptText, CancellationToken cancellationToken = default);
+    IAsyncEnumerable<string> StreamTimelineSummaryAsync(string timedTranscript, CancellationToken cancellationToken = default);
     IAsyncEnumerable<string> StreamMindMapAsync(byte[] fileData, string mimeType, CancellationToken cancellationToken = default);
     IAsyncEnumerable<string> StreamMindMapAsync(string textContent, CancellationToken cancellationToken = default);
     IAsyncEnumerable<string> StreamMindMapFromYouTubeAsync(string transcriptText, CancellationToken cancellationToken = default);

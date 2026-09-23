@@ -16,7 +16,6 @@ using StudyPlatform.API.Middleware;
 using StudyPlatform.API.Services;
 using StudyPlatform.Application;
 using StudyPlatform.Application.Settings;
-using StudyPlatform.Domain.Interfaces;
 using StudyPlatform.Infrastructure.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);

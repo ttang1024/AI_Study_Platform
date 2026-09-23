@@ -92,5 +92,3 @@ const styles = StyleSheet.create({
   jumpText: { ...Typography.caption, color: Colors.primary, fontWeight: '600' },
   unlocated: { ...Typography.caption, color: Colors.textSecondary },
 });
-
-export default SourceCitation;

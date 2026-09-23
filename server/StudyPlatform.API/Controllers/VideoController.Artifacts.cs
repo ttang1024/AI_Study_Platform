@@ -43,7 +43,7 @@ public partial class VideoController
     }
 
     [HttpPost("{id:guid}/flashcards/generate")]
-    public async Task<IActionResult> GenerateVideoFlashcards(Guid id, [FromBody] VideoUrlRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> GenerateVideoFlashcards(Guid id, CancellationToken cancellationToken)
     {
         var userId = User.GetUserId();
         var video = await GetVideoWithAccessCheckAsync(id, userId, cancellationToken);
@@ -126,7 +126,7 @@ public partial class VideoController
     }
 
     [HttpPost("{id:guid}/glossary/generate")]
-    public async Task<IActionResult> GenerateVideoGlossary(Guid id, [FromBody] VideoUrlRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> GenerateVideoGlossary(Guid id, CancellationToken cancellationToken)
     {
         var userId = User.GetUserId();
         var video = await GetVideoWithAccessCheckAsync(id, userId, cancellationToken);
@@ -219,7 +219,7 @@ public partial class VideoController
     }
 
     [HttpPost("{id:guid}/quiz/generate")]
-    public async Task<IActionResult> GenerateVideoQuiz(Guid id, [FromBody] VideoUrlRequest request, [FromQuery] string difficulty = "medium", CancellationToken cancellationToken = default)
+    public async Task<IActionResult> GenerateVideoQuiz(Guid id, [FromQuery] string difficulty = "medium", CancellationToken cancellationToken = default)
     {
         var userId = User.GetUserId();
         var normalizedDifficulty = QuizDifficulty.Normalize(difficulty);

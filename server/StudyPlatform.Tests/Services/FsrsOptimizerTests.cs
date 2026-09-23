@@ -1,5 +1,4 @@
 using StudyPlatform.Application.Services;
-using StudyPlatform.Domain.Entities;
 using StudyPlatform.Tests.TestSupport;
 using Xunit;
 

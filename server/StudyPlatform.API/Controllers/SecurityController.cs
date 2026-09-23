@@ -1,7 +1,6 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Security.Commands;
 using StudyPlatform.Application.Security.DTOs;
 using StudyPlatform.Application.Security.Queries;

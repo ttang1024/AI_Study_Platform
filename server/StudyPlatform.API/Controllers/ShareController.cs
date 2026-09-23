@@ -6,6 +6,7 @@ using StudyPlatform.Application.Services;
 using StudyPlatform.Application.Share.DTOs;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
+using StudyPlatform.Domain.Projections;
 using System.Text.Json;
 
 namespace StudyPlatform.API.Controllers;
@@ -122,20 +123,11 @@ public class ShareController : ControllerBase
     [AllowAnonymous]
     public async Task<IActionResult> StreamAudio(string token, CancellationToken cancellationToken = default)
     {
-        var share = await _unitOfWork.ShareTokens.GetByTokenAsync(token, cancellationToken);
-        if (share == null || (share.SourceType != "audio" && share.SourceType != "podcast") || share.SourceUrl == null)
-            return NotFound();
-        if (share.ExpiresAt.HasValue && share.ExpiresAt.Value < DateTime.UtcNow)
-            return StatusCode(410, "Share link has expired");
-
-        if (!TryParseDocPath(share.SourceUrl, out var docId))
-            return NotFound();
-
-        var doc = await _unitOfWork.Documents.GetSourceRefAsync(docId, cancellationToken);
-        if (doc == null) return NotFound();
+        var (doc, error) = await ResolveSharedDocumentAsync(token, t => t is "audio" or "podcast", cancellationToken);
+        if (error != null) return error;
 
         // Podcast episodes store a direct MP3 URL — no SAS generation needed
-        if (doc.ContentType == "audio/podcast")
+        if (doc!.ContentType == "audio/podcast")
             return Redirect(doc.BlobUrl);
 
         var sasUrl = await _blobStorage.GetSasUrlAsync(doc.BlobUrl, expiryMinutes: 60, cancellationToken);
@@ -147,19 +139,10 @@ public class ShareController : ControllerBase
     [AllowAnonymous]
     public async Task<IActionResult> GetArticle(string token, CancellationToken cancellationToken = default)
     {
-        var share = await _unitOfWork.ShareTokens.GetByTokenAsync(token, cancellationToken);
-        if (share == null || share.SourceType != "article" || share.SourceUrl == null)
-            return NotFound();
-        if (share.ExpiresAt.HasValue && share.ExpiresAt.Value < DateTime.UtcNow)
-            return StatusCode(410, "Share link has expired");
+        var (doc, error) = await ResolveSharedDocumentAsync(token, t => t == "article", cancellationToken);
+        if (error != null) return error;
 
-        if (!TryParseDocPath(share.SourceUrl, out var docId))
-            return NotFound();
-
-        var doc = await _unitOfWork.Documents.GetSourceRefAsync(docId, cancellationToken);
-        if (doc == null) return NotFound();
-
-        var stream = await _blobStorage.DownloadAsync(doc.BlobUrl, cancellationToken);
+        var stream = await _blobStorage.DownloadAsync(doc!.BlobUrl, cancellationToken);
         return File(stream, "text/plain; charset=utf-8");
     }
 
@@ -168,19 +151,10 @@ public class ShareController : ControllerBase
     [AllowAnonymous]
     public async Task<IActionResult> StreamFile(string token, CancellationToken cancellationToken = default)
     {
-        var share = await _unitOfWork.ShareTokens.GetByTokenAsync(token, cancellationToken);
-        if (share == null || share.SourceType != "document" || share.SourceUrl == null)
-            return NotFound();
-        if (share.ExpiresAt.HasValue && share.ExpiresAt.Value < DateTime.UtcNow)
-            return StatusCode(410, "Share link has expired");
+        var (doc, error) = await ResolveSharedDocumentAsync(token, t => t == "document", cancellationToken);
+        if (error != null) return error;
 
-        if (!TryParseDocPath(share.SourceUrl, out var docId))
-            return NotFound();
-
-        var doc = await _unitOfWork.Documents.GetSourceRefAsync(docId, cancellationToken);
-        if (doc == null) return NotFound();
-
-        var stream = await _blobStorage.DownloadAsync(doc.BlobUrl, cancellationToken);
+        var stream = await _blobStorage.DownloadAsync(doc!.BlobUrl, cancellationToken);
         var contentType = string.IsNullOrWhiteSpace(doc.ContentType) ? "application/octet-stream" : doc.ContentType;
         return File(stream, contentType);
     }
@@ -190,13 +164,10 @@ public class ShareController : ControllerBase
     [AllowAnonymous]
     public async Task<IActionResult> StreamVideo(string token, CancellationToken cancellationToken = default)
     {
-        var share = await _unitOfWork.ShareTokens.GetByTokenAsync(token, cancellationToken);
-        if (share == null || share.SourceType != "upload" || share.SourceUrl == null)
-            return NotFound();
-        if (share.ExpiresAt.HasValue && share.ExpiresAt.Value < DateTime.UtcNow)
-            return StatusCode(410, "Share link has expired");
+        var (share, error) = await ResolveActiveShareAsync(token, t => t == "upload", cancellationToken);
+        if (error != null) return error;
 
-        if (!TryParseVideoPath(share.SourceUrl, out var videoId))
+        if (!TryParseVideoPath(share!.SourceUrl!, out var videoId))
             return NotFound();
 
         var video = await _unitOfWork.Videos.GetByIdAsync(videoId, cancellationToken);
@@ -205,6 +176,34 @@ public class ShareController : ControllerBase
 
         var stream = await _blobStorage.DownloadAsync(video.VideoUrl, cancellationToken);
         return File(stream, MediaFormatting.GetVideoContentType(video.VideoUrl), enableRangeProcessing: true);
+    }
+
+    /// <summary>
+    /// Looks up a share for one of the anonymous media endpoints: 404 unless it exists, has a source
+    /// path and is of an accepted source type; 410 once expired.
+    /// </summary>
+    private async Task<(ShareToken? Share, IActionResult? Error)> ResolveActiveShareAsync(
+        string token, Func<string?, bool> isAcceptedSourceType, CancellationToken cancellationToken)
+    {
+        var share = await _unitOfWork.ShareTokens.GetByTokenAsync(token, cancellationToken);
+        if (share == null || !isAcceptedSourceType(share.SourceType) || share.SourceUrl == null)
+            return (null, NotFound());
+        if (share.ExpiresAt.HasValue && share.ExpiresAt.Value < DateTime.UtcNow)
+            return (null, StatusCode(410, "Share link has expired"));
+        return (share, null);
+    }
+
+    private async Task<(DocumentSourceRef? Doc, IActionResult? Error)> ResolveSharedDocumentAsync(
+        string token, Func<string?, bool> isAcceptedSourceType, CancellationToken cancellationToken)
+    {
+        var (share, error) = await ResolveActiveShareAsync(token, isAcceptedSourceType, cancellationToken);
+        if (error != null) return (null, error);
+
+        if (!TryParseDocPath(share!.SourceUrl!, out var docId))
+            return (null, NotFound());
+
+        var doc = await _unitOfWork.Documents.GetSourceRefAsync(docId, cancellationToken);
+        return doc == null ? (null, NotFound()) : (doc, null);
     }
 
     private static bool TryParseDocPath(string sourceUrl, out Guid docId)

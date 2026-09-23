@@ -148,5 +148,3 @@ const styles = StyleSheet.create({
   },
   sampleText: { ...Typography.caption, color: Colors.primary, fontWeight: '600' },
 });
-
-export default OnboardingChecklist;

@@ -78,7 +78,7 @@ public partial class DocumentsController
                 : null;
 
             stream = timelineText != null
-                ? _aiService.StreamTimelineSummaryAsync(timelineText, "audio", cancellationToken)
+                ? _aiService.StreamTimelineSummaryAsync(timelineText, cancellationToken)
                 : bytes != null
                 ? _aiService.StreamSummaryAsync(bytes, document.ContentType, cancellationToken)
                 : _aiService.StreamSummaryAsync(text!, cancellationToken);

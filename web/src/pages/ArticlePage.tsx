@@ -4,6 +4,8 @@ import {
   Globe, ChevronLeft, Sparkles, Share2,
 } from 'lucide-react';
 import { useStudy } from '../context/StudyContext';
+import { useDocumentNote } from '../hooks/useDocumentNote';
+import { useShareableQuizzes } from '../hooks/useShareableQuizzes';
 import { ChatPanelRef } from '../components/ai/ChatPanel';
 import { StudyChatTab } from '../components/ai/StudyChatTab';
 import { useDocumentChatThreads } from '../components/ai/useDocumentChatThreads';
@@ -22,9 +24,9 @@ import { getDocDisplayName } from '@core/utils/documentDisplay';
 import { ShareModal } from '../components/common/ShareModal';
 import { DetailPageSkeleton } from '../components/common/DetailPageSkeleton';
 import { ArticleReader } from '../components/article/ArticleReader';
-import { ShareableQuiz } from '../services/shareContentService';
 import { Document } from '../types';
 import { getApiErrorCode } from '@core/utils/apiError';
+import { normalizeSummaryText } from '@core/utils/summary';
 
 // ─── Article Page ─────────────────────────────────────────────────────────────
 
@@ -49,13 +51,7 @@ export const ArticlePage: React.FC<{ embedded?: boolean; id?: string; courseId?:
   const [summaryStreamText, setSummaryStreamText] = useState('');
   const [summaryError, setSummaryError] = useState<string | null>(null);
 
-  const [noteContent, setNoteContent] = useState('');
-  const [noteId, setNoteId] = useState<string | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
-  const [shareQuizzesAvailable, setShareQuizzesAvailable] = useState(false);
-  // Cache the quizzes fetched for the availability check so sharing reuses them
-  // instead of refetching the same list.
-  const shareQuizzesRef = useRef<Awaited<ReturnType<typeof documentService.getQuiz>> | null>(null);
 
   const [toolbar, setToolbar] = useState<{ x: number; y: number; text: string } | null>(null);
   const [summaryToolbar, setSummaryToolbar] = useState<{ x: number; y: number; text: string } | null>(null);
@@ -70,6 +66,8 @@ export const ArticlePage: React.FC<{ embedded?: boolean; id?: string; courseId?:
 
   // Chat threads (multiple conversations per article)
   const docChat = useDocumentChatThreads(currentDocument?.courseId, currentDocument?.id);
+  const { noteContent, saveNote } = useDocumentNote(currentDocument?.courseId, currentDocument?.id);
+  const fetchShareQuizzes = useShareableQuizzes(showShareModal, currentDocument?.courseId, currentDocument?.id);
   const [isDocumentLoading, setIsDocumentLoading] = useState(true);
 
   // ── Load document ──────────────────────────────────────────────────────────
@@ -107,63 +105,14 @@ export const ArticlePage: React.FC<{ embedded?: boolean; id?: string; courseId?:
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, isLoading, documents]); // re-run once the lazily-loaded list arrives so the doc resolves
 
-  // ── Load note ──────────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!currentDocument?.courseId || !currentDocument?.id) return;
-    setNoteId(null);
-    setNoteContent('');
-    setShareQuizzesAvailable(false);
-    documentService.getNotes(currentDocument.courseId, currentDocument.id)
-      .then(notes => {
-        if (notes.length > 0) {
-          setNoteId(notes[0].id);
-          setNoteContent(notes[0].content);
-        }
-      })
-      .catch(() => { });
-  }, [currentDocument?.id, currentDocument?.courseId]);
-
-  useEffect(() => {
-    if (!showShareModal || !currentDocument?.courseId || !currentDocument?.id) return;
-    let cancelled = false;
-    documentService.getQuiz(currentDocument.courseId, currentDocument.id)
-      .then(qs => { if (!cancelled) { shareQuizzesRef.current = qs; setShareQuizzesAvailable(qs.length > 0); } })
-      .catch(() => { if (!cancelled) { shareQuizzesRef.current = null; setShareQuizzesAvailable(false); } });
-    return () => { cancelled = true; };
-  }, [showShareModal, currentDocument?.courseId, currentDocument?.id]);
-
   // ── Seed summary from saved data ───────────────────────────────────────────
   useEffect(() => {
     if (!currentDocument) return;
     setSummaryError(null);
-    if (currentDocument.summary) {
-      try {
-        const parsed = JSON.parse(currentDocument.summary);
-        const text = (parsed.summary || '')
-          + (parsed.keyPoints?.length ? '\n\n**Key Points:**\n' + parsed.keyPoints.map((p: string) => `- ${p}`).join('\n') : '');
-        setSummary(text || currentDocument.summary);
-      } catch {
-        setSummary(currentDocument.summary);
-      }
-    } else {
-      setSummary(null);
-    }
+    setSummary(normalizeSummaryText(currentDocument.summary));
   }, [currentDocument?.id, currentDocument?.summary]);
 
   // ── Handlers ───────────────────────────────────────────────────────────────
-  const handleNoteSave = useCallback(async (html: string) => {
-    if (!currentDocument?.courseId || !currentDocument?.id) return;
-    setNoteContent(html);
-    try {
-      if (noteId) {
-        await documentService.updateNote(currentDocument.courseId, currentDocument.id, noteId, html);
-      } else {
-        const note = await documentService.createNote(currentDocument.courseId, currentDocument.id, html);
-        setNoteId(note.id);
-      }
-    } catch { }
-  }, [currentDocument?.courseId, currentDocument?.id, noteId]);
-
   const generateSummary = async () => {
     if (!currentDocument) return;
     setIsSummarizing(true);
@@ -321,7 +270,7 @@ export const ArticlePage: React.FC<{ embedded?: boolean; id?: string; courseId?:
                     ref={noteEditorRef}
                     videoRecordId={`article-note-${currentDocument.id}`}
                     initialContent={noteContent}
-                    onSave={handleNoteSave}
+                    onSave={saveNote}
                   />
                 </div>
                 <div className={cn('h-full', activeTab !== 'flashcards' && 'hidden')}>
@@ -383,19 +332,10 @@ export const ArticlePage: React.FC<{ embedded?: boolean; id?: string; courseId?:
         summary={summary}
         mindMapText={currentDocument.mindMapText}
         notesHtml={noteContent || null}
+        fetchQuizzes={fetchShareQuizzes}
         sourceType="article"
         sourceUrl={currentDocument.courseId && currentDocument.id ? `${currentDocument.courseId}/${currentDocument.id}` : null}
         originalArticleUrl={currentDocument.originalUrl || null}
-        fetchQuizzes={currentDocument.courseId && shareQuizzesAvailable ? async () => {
-          const qs = shareQuizzesRef.current ?? await documentService.getQuiz(currentDocument.courseId!, currentDocument.id);
-          return qs.map(q => ({
-            question: q.question,
-            options: q.options ?? [],
-            correctAnswer: q.correctAnswer,
-            explanation: q.explanation ?? '',
-            difficulty: q.difficulty ?? 'medium',
-          } satisfies ShareableQuiz));
-        } : undefined}
       />
 
       <QuizModal />
