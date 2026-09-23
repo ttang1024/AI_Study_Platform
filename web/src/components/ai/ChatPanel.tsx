@@ -102,8 +102,10 @@ export const ChatPanel = forwardRef<ChatPanelRef, ChatPanelProps>(({
     setTimeout(() => setCopiedId(null), 2000);
   }, []);
 
-  const handleAddToNotes = useCallback((content: string) => {
-    const formattedContent = `<p>${content.replace(/\n/g, '</p><p>')}</p>`;
+  const handleAddToNotes = useCallback(async (content: string) => {
+    // Loaded on first use so react-dom/server stays out of the chat chunk.
+    const { markdownToNoteHtml } = await import('./markdownToNoteHtml');
+    const formattedContent = markdownToNoteHtml(content);
     if (onExternalAddToNote) {
       onExternalAddToNote(formattedContent);
     } else {

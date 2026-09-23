@@ -28,8 +28,8 @@ I study with this platform myself and publish what it generates using the share 
 - **Transformers** (from a PDF) — summary, mind map, 14 flashcards, 4 quiz questions
   https://toto-study.com/share/Xlv92yWNx_6Q
 
-- **Skills vs MCP vs RAG vs Memory** (from a YouTube video) — summary, mind map
-  https://toto-study.com/share/oX9CnOx_QKxm
+- **Transformers, the tech behind LLMs** (from a YouTube video) — summary, mind map, 6 flashcards, 4 quiz questions
+  https://toto-study.com/share/RmnAj0xf25B8
 
 ---
 

@@ -38,16 +38,18 @@ const EXAMPLES: {
     ],
   },
   {
-    href: 'https://toto-study.com/share/oX9CnOx_QKxm',
+    href: 'https://toto-study.com/share/RmnAj0xf25B8',
     source: 'From a YouTube video',
     sourceIcon: Youtube,
     accent: '#34d399',
-    title: 'Skills vs MCP vs RAG vs Memory: What AI Agents Need to Know',
+    title: 'Transformers, the tech behind LLMs | Deep Learning Chapter 5',
     snippet:
-      'Four ways to get knowledge into an agent — procedural skills, MCP for live external calls, RAG over curated docs, and memory of past resolutions — and which one to reach for, walked through a 500-error troubleshooting case.',
+      'How a GPT turns text into high-dimensional vectors and refines them layer by layer — embeddings, attention blocks and MLPs — until the final vector becomes a probability distribution over the next token.',
     artifacts: [
-      { icon: ScrollText, label: 'Summary + timeline' },
+      { icon: ScrollText, label: 'Summary' },
       { icon: Network, label: 'Mind map' },
+      { icon: Layers, label: '6 flashcards' },
+      { icon: HelpCircle, label: '4 quiz questions' },
     ],
   },
 ];
