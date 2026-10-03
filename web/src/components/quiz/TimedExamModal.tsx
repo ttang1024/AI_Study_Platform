@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Clock, X, Trophy, CheckCircle2, XCircle, ChevronRight, RotateCcw, AlertTriangle } from 'lucide-react';
 import { QuizQuestion } from '../../types';
 import { cn } from '../../utils/cn';
-import { getCorrectQuizOptionText, isQuizOptionCorrect } from '../../utils/quizAnswers';
+import { getCorrectQuizOptionText, isQuizOptionCorrect } from '@core/utils/quizAnswers';
 
 interface TimedExamModalProps {
   isOpen: boolean;
@@ -53,16 +53,14 @@ export const TimedExamModal: React.FC<TimedExamModalProps> = ({
     if (!isOpen) { setPhase('setup'); setAnswers([]); setCurrentIndex(0); setSelected(null); }
   }, [isOpen]);
 
+  // The tick is a pure decrement — submitting from inside the updater would run
+  // against whatever `answers`/`timeRemaining` the closure captured when the exam
+  // started (i.e. an empty answer list), and would fire twice under StrictMode.
   useEffect(() => {
-    if (phase === 'exam') {
-      setTimeRemaining(timeLimit * 60);
-      intervalRef.current = setInterval(() => {
-        setTimeRemaining(t => {
-          if (t <= 1) { clearInterval(intervalRef.current!); handleAutoSubmit(); return 0; }
-          return t - 1;
-        });
-      }, 1000);
-    }
+    if (phase !== 'exam') return undefined;
+    intervalRef.current = setInterval(() => {
+      setTimeRemaining(t => (t <= 1 ? 0 : t - 1));
+    }, 1000);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [phase]);
 
@@ -72,6 +70,12 @@ export const TimedExamModal: React.FC<TimedExamModalProps> = ({
     onComplete?.(answers.filter(a => a.correct).map(a => a.questionId));
   }, [timeLimit, timeRemaining, answers, onComplete]);
 
+  // Hand off to the submit once the clock actually reaches zero, so it reads the
+  // live answers. Leaving 'exam' tears the interval down via the effect above.
+  useEffect(() => {
+    if (phase === 'exam' && timeRemaining <= 0) handleAutoSubmit();
+  }, [phase, timeRemaining, handleAutoSubmit]);
+
   const handleStart = () => {
     const q = shuffle(questions);
     setShuffled(q);
@@ -79,6 +83,9 @@ export const TimedExamModal: React.FC<TimedExamModalProps> = ({
     setAnswers([]);
     setSelected(null);
     setTimeTaken(0);
+    // Batched with the phase change so the exam header paints the full clock and
+    // the zero-check below never sees a previous run's exhausted timer.
+    setTimeRemaining(timeLimit * 60);
     setPhase('exam');
   };
 
@@ -87,12 +94,12 @@ export const TimedExamModal: React.FC<TimedExamModalProps> = ({
   };
 
   const handleNext = () => {
-    if (selected === null) return;
+    if (!selected?.trim()) return;
     const q = shuffled[currentIndex];
     const newAnswers = [...answers, {
       questionId: q.id,
       selected,
-      correct: isQuizOptionCorrect(selected, q.answer),
+      correct: isQuizOptionCorrect(selected, q.correctAnswer),
     }];
     setAnswers(newAnswers);
     setSelected(null);
@@ -119,10 +126,10 @@ export const TimedExamModal: React.FC<TimedExamModalProps> = ({
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
-        className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-[var(--border-color)] bg-[var(--bg-sidebar)] shadow-2xl"
+        className="flex w-full max-w-2xl max-h-[90vh] flex-col overflow-hidden rounded-2xl border border-[var(--border-color)] bg-[var(--bg-sidebar)] shadow-2xl"
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-[var(--border-color)]">
+        <div className="flex shrink-0 items-center justify-between p-5 border-b border-[var(--border-color)]">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
               <Clock size={16} />
@@ -137,7 +144,28 @@ export const TimedExamModal: React.FC<TimedExamModalProps> = ({
           </button>
         </div>
 
-        <div className="p-5">
+        {phase === 'exam' && shuffled.length > 0 && (
+          <div className="shrink-0 space-y-3 border-b border-[var(--border-color)] bg-[var(--bg-sidebar)] p-5">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-text-muted">{currentIndex + 1} / {shuffled.length}</div>
+              <div className={cn(
+                'flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-black text-lg tabular-nums',
+                isLowTime ? 'bg-red-100 text-red-600' : 'bg-primary/10 text-primary',
+              )}>
+                <Clock size={16} />
+                {formatTime(timeRemaining)}
+              </div>
+            </div>
+            <div className="h-2 w-full rounded-full bg-zinc-100 overflow-hidden">
+              <div
+                className={cn('h-full rounded-full transition-all', isLowTime ? 'bg-red-500' : 'bg-primary')}
+                style={{ width: `${(timeRemaining / (timeLimit * 60)) * 100}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        <div className="overflow-y-auto p-5">
           <AnimatePresence mode="wait">
 
             {/* Setup */}
@@ -159,7 +187,7 @@ export const TimedExamModal: React.FC<TimedExamModalProps> = ({
                       min={1}
                       max={60}
                       value={timeLimit}
-                      onChange={e => setTimeLimit(parseInt(e.target.value))}
+                      onChange={e => setTimeLimit(parseInt(e.target.value, 10))}
                       className="flex-1 accent-primary"
                     />
                     <span className="text-lg font-black text-primary w-12 text-center">{timeLimit}m</span>
@@ -177,24 +205,6 @@ export const TimedExamModal: React.FC<TimedExamModalProps> = ({
             {/* Exam */}
             {phase === 'exam' && shuffled.length > 0 && (
               <motion.div key="exam" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
-                {/* Timer + progress */}
-                <div className="flex items-center justify-between">
-                  <div className="text-sm text-text-muted">{currentIndex + 1} / {shuffled.length}</div>
-                  <div className={cn(
-                    'flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-black text-lg tabular-nums',
-                    isLowTime ? 'bg-red-100 text-red-600' : 'bg-primary/10 text-primary',
-                  )}>
-                    <Clock size={16} />
-                    {formatTime(timeRemaining)}
-                  </div>
-                </div>
-                <div className="h-2 w-full rounded-full bg-zinc-100 overflow-hidden">
-                  <div
-                    className={cn('h-full rounded-full transition-all', isLowTime ? 'bg-red-500' : 'bg-primary')}
-                    style={{ width: `${(timeRemaining / (timeLimit * 60)) * 100}%` }}
-                  />
-                </div>
-
                 {/* Question */}
                 <div className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-app)] p-5">
                   <p className="font-bold text-text-main leading-relaxed mb-4">{shuffled[currentIndex].question}</p>
@@ -222,6 +232,7 @@ export const TimedExamModal: React.FC<TimedExamModalProps> = ({
                     <input
                       type="text"
                       placeholder="Type your answer..."
+                      value={selected ?? ''}
                       onChange={e => setSelected(e.target.value)}
                       className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-sidebar)] px-4 py-3 text-sm outline-none focus:border-primary"
                     />
@@ -230,7 +241,7 @@ export const TimedExamModal: React.FC<TimedExamModalProps> = ({
 
                 <button
                   onClick={handleNext}
-                  disabled={selected === null}
+                  disabled={!selected?.trim()}
                   className="w-full rounded-xl bg-primary py-3 text-sm font-black text-white disabled:opacity-40 hover:opacity-90 transition-all flex items-center justify-center gap-2"
                 >
                   {currentIndex + 1 >= shuffled.length ? 'Submit Exam' : 'Next Question'}
@@ -252,7 +263,7 @@ export const TimedExamModal: React.FC<TimedExamModalProps> = ({
                 </div>
 
                 <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {shuffled.map((q, i) => {
+                  {shuffled.map((q) => {
                     const ans = answers.find(a => a.questionId === q.id);
                     return (
                       <div key={q.id} className={cn('rounded-xl border p-3', ans?.correct ? 'border-emerald-200 bg-emerald-50/50' : 'border-red-200 bg-red-50/50')}>
@@ -263,7 +274,7 @@ export const TimedExamModal: React.FC<TimedExamModalProps> = ({
                             {!ans?.correct && (
                               <>
                                 <p className="text-[10px] mt-0.5"><span className="text-text-muted">Your: </span><span className="text-red-600 font-bold">{ans?.selected || '—'}</span></p>
-                                <p className="text-[10px]"><span className="text-text-muted">Correct: </span><span className="text-emerald-600 font-bold">{getCorrectQuizOptionText(q.options, q.answer)}</span></p>
+                                <p className="text-[10px]"><span className="text-text-muted">Correct: </span><span className="text-emerald-600 font-bold">{getCorrectQuizOptionText(q.options, q.correctAnswer)}</span></p>
                               </>
                             )}
                             {q.explanation && <p className="text-[10px] text-text-muted mt-0.5 italic">{q.explanation}</p>}

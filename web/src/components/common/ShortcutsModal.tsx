@@ -21,6 +21,7 @@ const SHORTCUTS: { group: string; items: ShortcutEntry[] }[] = [
   {
     group: 'Actions',
     items: [
+      { keys: ['⌘', 'K'], description: 'Command palette (search + go to page)' },
       { keys: ['/'], description: 'Open global search' },
       { keys: ['?'], description: 'Show keyboard shortcuts' },
     ],

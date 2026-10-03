@@ -1,17 +1,28 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Document, Note, ChatMessage, Course, Flashcard, LearningProgress } from '../types';
+import { Document, Note, Course, Flashcard, LearningProgress } from '../types';
+import { StudySessionProvider, useStudySession, StudySessionContextType } from './StudySessionContext';
 import { courseService } from '../services/courseService';
-import { documentService, quizSubmissionService, QuizSubmission } from '../services/documentService';
-import { VideoListItem } from '../services/youtubeService';
-import { noteService } from '../services/noteService';
-import { flashcardService } from '../services/flashcardService';
-import { AchievementStats as ServerAchievementStats, CourseMaterialStats, statsService } from '../services/statsService';
+import { QuizSubmission, invalidateDocumentListCache } from '../services/documentService';
+import { VideoListItem, invalidateVideoListCache } from '../services/videoService';
+import { invalidateFlashcardListCache } from '../services/flashcardService';
+import { CourseMaterialStats, statsService } from '../services/statsService';
+import { invalidateDashboardSummaryCache } from '../services/analyticsService';
 import { useAuth } from './AuthContext';
+import { useStatsSlice, EMPTY_STATS } from './studyContext/useStatsSlice';
+import { useCoursesSlice } from './studyContext/useCoursesSlice';
+import { useDocumentsSlice } from './studyContext/useDocumentsSlice';
+import { useVideosSlice } from './studyContext/useVideosSlice';
+import { useFlashcardsSlice } from './studyContext/useFlashcardsSlice';
+import { useNotesSlice } from './studyContext/useNotesSlice';
+import { useQuizSubmissionsSlice } from './studyContext/useQuizSubmissionsSlice';
 
 interface StudyContextType {
   isLoading: boolean;
   documents: Document[];
+  /** True once the lazy document list has been fetched at least once for this session. */
+  documentsLoaded: boolean;
   videos: VideoListItem[];
+  videosLoading: boolean;
   totalDocuments: number;
   totalArticles: number;
   totalAudio: number;
@@ -23,23 +34,16 @@ interface StudyContextType {
   totalVideos: number;
   totalMaterials: number;
   courseMaterialCounts: CourseMaterialStats[];
-  achievementStats: ServerAchievementStats;
   currentDocument: Document | null;
   setCurrentDocument: (doc: Document | null | ((prev: Document | null) => Document | null)) => void;
   addDocument: (file: File, courseId: string) => Promise<string>;
   deleteDocument: (courseId: string, documentId: string) => Promise<void>;
+  deleteVideo: (videoId: string) => Promise<void>;
   updateDocumentInList: (doc: Document) => void;
-  notes: Note[];
   allNotes: Note[];
   addNote: (content: string) => Promise<void>;
   updateNote: (id: string, content: string) => Promise<void>;
   deleteNote: (id: string) => Promise<void>;
-  chatMessages: ChatMessage[];
-  addChatMessage: (role: 'user' | 'model', content: string) => Promise<void>;
-  aiInput: string;
-  setAiInput: React.Dispatch<React.SetStateAction<string>>;
-  noteInput: string;
-  setNoteInput: React.Dispatch<React.SetStateAction<string>>;
   courses: Course[];
   addCourse: (name: string, color: string) => Promise<void>;
   updateCourse: (id: string, name: string, color: string) => Promise<void>;
@@ -55,409 +59,120 @@ interface StudyContextType {
   refreshFlashcards: () => Promise<void>;
   refreshQuizSubmissions: () => Promise<void>;
   refreshDocuments: () => Promise<void>;
+  refreshVideos: () => Promise<void>;
+  ensureDocuments: () => Promise<void>;
+  ensureFlashcards: () => Promise<void>;
+  ensureVideos: () => Promise<void>;
+  ensureNotes: () => Promise<void>;
+  ensureQuizSubmissions: () => Promise<void>;
   resetData: () => void;
 }
 
 const StudyContext = createContext<StudyContextType | undefined>(undefined);
 
-const EMPTY_ACHIEVEMENT_STATS: ServerAchievementStats = {
-  perfectQuizzes: 0,
-  averageQuizScore: 0,
-  flashcardsMastered: 0,
-};
-
-const EMPTY_STATS = {
-  totalDocuments: 0,
-  totalArticles: 0,
-  totalAudio: 0,
-  totalMaterials: 0,
-  totalNotes: 0,
-  totalFlashcards: 0,
-  totalGlossaryTerms: 0,
-  totalQuizQuestions: 0,
-  totalQuizSubmissions: 0,
-  totalVideos: 0,
-  courseMaterialCounts: [] as CourseMaterialStats[],
-  achievements: EMPTY_ACHIEVEMENT_STATS,
-};
-
 export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated } = useAuth();
 
   const [isLoading, setIsLoading] = useState(true);
-  const [documents, setDocuments] = useState<Document[]>([]);
-  const [videos, setVideos] = useState<VideoListItem[]>([]);
-  const [totalDocuments, setTotalDocuments] = useState(0);
-  const [totalArticles, setTotalArticles] = useState(0);
-  const [totalAudio, setTotalAudio] = useState(0);
-  const [totalMaterials, setTotalMaterials] = useState(0);
-  const [totalNotes, setTotalNotes] = useState(0);
-  const [totalFlashcards, setTotalFlashcards] = useState(0);
-  const [totalGlossaryTerms, setTotalGlossaryTerms] = useState(0);
-  const [totalQuizQuestions, setTotalQuizQuestions] = useState(0);
-  const [totalQuizSubmissions, setTotalQuizSubmissions] = useState(0);
-  const [totalVideos, setTotalVideos] = useState(0);
-  const [courseMaterialCounts, setCourseMaterialCounts] = useState<CourseMaterialStats[]>([]);
-  const [achievementStats, setAchievementStats] = useState<ServerAchievementStats>(EMPTY_ACHIEVEMENT_STATS);
   const [currentDocument, setCurrentDocument] = useState<Document | null>(null);
-  const [notes, setNotes] = useState<Note[]>([]);
-  const [allNotes, setAllNotes] = useState<Note[]>([]);
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [aiInput, setAiInput] = useState('');
-  const [noteInput, setNoteInput] = useState('');
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
-  const [progress, setProgress] = useState<LearningProgress[]>([]);
-  const [quizSubmissions, setQuizSubmissions] = useState<QuizSubmission[]>([]);
+
+  const stats = useStatsSlice();
+  const courses = useCoursesSlice();
+  const quizSubmissions = useQuizSubmissionsSlice({ isAuthenticated, isLoading });
+  const documentsSlice = useDocumentsSlice({
+    isAuthenticated, isLoading, documentCount: stats.documentCount, currentDocument, setCurrentDocument,
+    onDocumentCountDelta: (delta) => stats.setTotalDocuments(prev => Math.max(0, prev + delta)),
+  });
+  const notes = useNotesSlice({
+    isAuthenticated, isLoading, currentDocument,
+    documents: documentsSlice.documents,
+    onNoteCountDelta: (delta) => stats.setTotalNotes(prev => Math.max(0, prev + delta)),
+  });
+  const videos = useVideosSlice({
+    isAuthenticated, isLoading, totalVideos: stats.totalVideos,
+    setTotalVideos: stats.setTotalVideos, setTotalMaterials: stats.setTotalMaterials, refreshStats: stats.refreshStats,
+  });
+  const flashcards = useFlashcardsSlice({ isAuthenticated, isLoading, totalFlashcards: stats.totalFlashcards, currentDocument });
 
   // Load courses and flashcards on mount when authenticated
   useEffect(() => {
     if (!isAuthenticated) {
-      setDocuments([]);
-      setTotalDocuments(0);
-      setTotalArticles(0);
-      setTotalAudio(0);
-      setTotalMaterials(0);
-      setTotalNotes(0);
-      setTotalFlashcards(0);
-      setTotalGlossaryTerms(0);
-      setTotalQuizQuestions(0);
-      setTotalQuizSubmissions(0);
-      setTotalVideos(0);
-      setCourseMaterialCounts([]);
-      setAchievementStats(EMPTY_ACHIEVEMENT_STATS);
+      invalidateVideoListCache();
+      invalidateDocumentListCache();
+      invalidateFlashcardListCache();
+      invalidateDashboardSummaryCache();
+      flashcards.markIdle();
+      videos.markIdle();
+      notes.markIdle();
+      documentsSlice.markIdle();
+      quizSubmissions.markIdle();
+      documentsSlice.setDocuments([]);
+      videos.setVideos([]);
+      videos.setVideosLoading(false);
+      stats.resetStats();
       setCurrentDocument(null);
-      setNotes([]);
-      setAllNotes([]);
-      setChatMessages([]);
-      setCourses([]);
-      setFlashcards([]);
-      setProgress([]);
-      setQuizSubmissions([]);
+      notes.setAllNotes([]);
+      courses.setCourses([]);
+      flashcards.setFlashcards([]);
+      quizSubmissions.setQuizSubmissions([]);
       setIsLoading(false);
       return;
     }
 
+    let cancelled = false;
+    // New session — let the lazy lists be (re)fetched on next use.
+    flashcards.markIdle();
+    videos.markIdle();
+    notes.markIdle();
+    documentsSlice.markIdle();
+    quizSubmissions.markIdle();
+
+    // Critical: counts (stats) + courses power the dashboard — the post-login
+    // landing page — and give other pages the totals they use to decide their
+    // own fetches. Both are small, so the first paint stays fast.
     const loadInitialData = async () => {
       setIsLoading(true);
       try {
-        const [fetchedCourses, fetchedFlashcards, fetchedSubmissions, stats, docsResult, fetchedNotes] = await Promise.all([
+        const [fetchedCourses, fetchedStats] = await Promise.all([
           courseService.getCourses().catch(() => [] as Course[]),
-          flashcardService.getAllFlashcards(1, 500).catch(() => ({ items: [] as Flashcard[], totalCount: 0, page: 1, pageSize: 500, totalPages: 0 })),
-          quizSubmissionService.getAllSubmissions(1, 10).catch(() => ({ items: [] as QuizSubmission[], totalCount: 0, page: 1, pageSize: 10, totalPages: 0 })),
           statsService.getUserStats().catch(() => EMPTY_STATS),
-          documentService.getAllDocuments(1, 500).catch(() => ({ items: [] as Document[], totalCount: 0, page: 1, pageSize: 500, totalPages: 0 })),
-          noteService.getAllNotes(1, 10).catch(() => ({ items: [] as Note[], totalCount: 0, page: 1, pageSize: 10, totalPages: 0 })),
         ]);
-        setCourses(fetchedCourses);
-        setFlashcards(fetchedFlashcards.items);
-        setQuizSubmissions(fetchedSubmissions.items);
-        setTotalDocuments(stats.totalDocuments);
-        setTotalArticles(stats.totalArticles);
-        setTotalAudio(stats.totalAudio);
-        setTotalMaterials(stats.totalMaterials);
-        setTotalNotes(stats.totalNotes);
-        setTotalFlashcards(stats.totalFlashcards);
-        setTotalGlossaryTerms(stats.totalGlossaryTerms);
-        setTotalQuizQuestions(stats.totalQuizQuestions);
-        setTotalQuizSubmissions(stats.totalQuizSubmissions);
-        setTotalVideos(stats.totalVideos);
-        setCourseMaterialCounts(stats.courseMaterialCounts);
-        setAchievementStats(stats.achievements);
-        setDocuments(docsResult.items);
-        setAllNotes(fetchedNotes.items);
-        setVideos([]);
+        if (cancelled) return;
+        courses.setCourses(fetchedCourses);
+        stats.applyStats(fetchedStats);
       } catch (error) {
-        console.error('Failed to load initial data:', error);
+        if (!cancelled) console.error('Failed to load initial data:', error);
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
+      // The document list, quiz submissions, flashcards, the video list and notes
+      // are NOT loaded here — they're pulled lazily by the pages that actually read
+      // them (see ensureDocuments / ensureQuizSubmissions / ensureFlashcards /
+      // ensureVideos / ensureNotes), keeping the post-login first paint fast.
     };
 
     loadInitialData();
+
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
 
-  // Load notes when currentDocument changes
-  useEffect(() => {
-    if (!currentDocument || !isAuthenticated) {
-      setNotes([]);
-      return;
-    }
-
-    const loadNotes = async () => {
-      try {
-        const fetchedNotes = await documentService.getNotes(
-          currentDocument.courseId || '',
-          currentDocument.id
-        );
-        setNotes(fetchedNotes);
-      } catch (error) {
-        console.error('Failed to load notes:', error);
-        setNotes([]);
-      }
-    };
-
-    loadNotes();
-  }, [currentDocument, isAuthenticated]);
-
-  // Load chat history when currentDocument changes
-  useEffect(() => {
-    if (!currentDocument || !isAuthenticated) {
-      setChatMessages([]);
-      return;
-    }
-
-    const loadChatHistory = async () => {
-      try {
-        const history = await documentService.getChatHistory(
-          currentDocument.courseId || '',
-          currentDocument.id
-        );
-        setChatMessages(history);
-      } catch (error) {
-        console.error('Failed to load chat history:', error);
-        setChatMessages([]);
-      }
-    };
-
-    loadChatHistory();
-  }, [currentDocument, isAuthenticated]);
-
-  const refreshNotes = React.useCallback(async (): Promise<void> => {
-    try {
-      const result = await noteService.getAllNotes(1, 10);
-      setAllNotes(result.items);
-    } catch (error) {
-      console.error('Failed to refresh notes:', error);
-    }
-  }, []);
-
-  const refreshFlashcards = React.useCallback(async (): Promise<void> => {
-    try {
-      const result = await flashcardService.getAllFlashcards(1, 500);
-      setFlashcards(result.items);
-    } catch (error) {
-      console.error('Failed to refresh flashcards:', error);
-    }
-  }, []);
-
-  const refreshQuizSubmissions = React.useCallback(async (): Promise<void> => {
-    try {
-      const result = await quizSubmissionService.getAllSubmissions(1, 10);
-      setQuizSubmissions(result.items);
-    } catch (error) {
-      console.error('Failed to refresh quiz submissions:', error);
-    }
-  }, []);
-
-  const refreshDocuments = React.useCallback(async (): Promise<void> => {
-    try {
-      const result = await documentService.getAllDocuments(1, 500);
-      setDocuments(result.items);
-    } catch (error) {
-      console.error('Failed to refresh documents:', error);
-    }
-  }, []);
-
-  const refreshStats = React.useCallback(async (): Promise<void> => {
-    try {
-      const stats = await statsService.getUserStats();
-      setTotalDocuments(stats.totalDocuments);
-      setTotalArticles(stats.totalArticles);
-      setTotalAudio(stats.totalAudio);
-      setTotalMaterials(stats.totalMaterials);
-      setTotalNotes(stats.totalNotes);
-      setTotalFlashcards(stats.totalFlashcards);
-      setTotalGlossaryTerms(stats.totalGlossaryTerms);
-      setTotalQuizQuestions(stats.totalQuizQuestions);
-      setTotalQuizSubmissions(stats.totalQuizSubmissions);
-      setTotalVideos(stats.totalVideos);
-      setCourseMaterialCounts(stats.courseMaterialCounts);
-      setAchievementStats(stats.achievements);
-    } catch (error) {
-      console.error('Failed to refresh stats:', error);
-    }
-  }, []);
-
-  const deleteDocument = async (courseId: string, documentId: string): Promise<void> => {
-    await documentService.deleteDocument(courseId, documentId);
-    setDocuments(prev => prev.filter(d => d.id !== documentId));
-    setTotalDocuments(prev => Math.max(0, prev - 1));
-    if (currentDocument?.id === documentId) setCurrentDocument(null);
-  };
-
-  const addDocument = async (file: File, courseId: string): Promise<string> => {
-    const newDoc = await documentService.uploadDocument(courseId, file);
-    setDocuments((prev) => [newDoc, ...prev]);
-    setTotalDocuments(prev => prev + 1);
-
-    const newProgress: LearningProgress = {
-      documentId: newDoc.id,
-      completionPercentage: 0,
-      quizScores: [],
-      timeSpent: 0,
-      lastAccessed: new Date().toISOString(),
-    };
-    setProgress((prev) => [...prev, newProgress]);
-
-    return newDoc.id;
-  };
-
-  const updateDocumentInList = (doc: Document) => {
-    setDocuments(prev => prev.map(d => d.id === doc.id ? doc : d));
-  };
-
-  const addFlashcard = async (front: string, back: string): Promise<void> => {
-    if (!currentDocument) return;
-    const newCard = await flashcardService.createFlashcard({
-      front,
-      back,
-      documentId: currentDocument.id,
-    });
-    setFlashcards((prev) => [...prev, { ...newCard, documentId: currentDocument.id }]);
-  };
-
-  const updateProgress = (docId: string, updates: Partial<LearningProgress>) => {
-    setProgress((prev) => {
-      const existing = prev.find((p) => p.documentId === docId);
-      if (existing) {
-        return prev.map((p) =>
-          p.documentId === docId ? { ...p, ...updates, lastAccessed: new Date().toISOString() } : p
-        );
-      } else {
-        return [
-          ...prev,
-          {
-            documentId: docId,
-            completionPercentage: 0,
-            quizScores: [],
-            timeSpent: 0,
-            lastAccessed: new Date().toISOString(),
-            ...updates,
-          },
-        ];
-      }
-    });
-  };
-
-  const addCourse = async (name: string, color: string): Promise<void> => {
-    const newCourse = await courseService.createCourse({ courseName: name, courseColor: color });
-    setCourses((prev) => [...prev, newCourse]);
-  };
-
-  const updateCourse = async (id: string, name: string, color: string): Promise<void> => {
-    const updated = await courseService.updateCourse(id, { courseName: name, courseColor: color });
-    setCourses((prev) => prev.map((c) => (c.id === id ? updated : c)));
-  };
-
-  const deleteCourse = async (id: string): Promise<void> => {
-    await courseService.deleteCourse(id);
-    setCourses((prev) => prev.filter((c) => c.id !== id));
-  };
-
-  const addNote = async (content: string): Promise<void> => {
-    if (!currentDocument) return;
-    const newNote = await documentService.createNote(
-      currentDocument.courseId || '',
-      currentDocument.id,
-      content
-    );
-    setNotes((prev) => [newNote, ...prev]);
-    setAllNotes((prev) => [newNote, ...prev]);
-    setTotalNotes(prev => prev + 1);
-  };
-
-  const deleteNote = async (id: string): Promise<void> => {
-    const note = notes.find((n) => n.id === id) || allNotes.find((n) => n.id === id);
-    if (!note) return;
-    const doc = documents.find((d) => d.id === note.documentId);
-    if (!doc) return;
-    await documentService.deleteNote(doc.courseId || '', doc.id, id);
-    setNotes((prev) => prev.filter((n) => n.id !== id));
-    setAllNotes((prev) => prev.filter((n) => n.id !== id));
-    setTotalNotes(prev => Math.max(0, prev - 1));
-  };
-
-  const updateNote = async (id: string, content: string): Promise<void> => {
-    const note = notes.find((n) => n.id === id) || allNotes.find((n) => n.id === id);
-    if (!note) return;
-    const doc = documents.find((d) => d.id === note.documentId);
-    if (!doc) return;
-    const updated = await documentService.updateNote(doc.courseId || '', doc.id, id, content);
-    setNotes((prev) => prev.map((n) => (n.id === id ? updated : n)));
-    setAllNotes((prev) => prev.map((n) => (n.id === id ? updated : n)));
-  };
-
-  const addChatMessage = async (role: 'user' | 'model', content: string): Promise<void> => {
-    if (role === 'user') {
-      // Optimistically add user message to state
-      const tempMessage: ChatMessage = {
-        id: `temp-${Date.now()}`,
-        role: 'user',
-        content,
-        timestamp: new Date().toISOString(),
-      };
-      setChatMessages((prev) => [...prev, tempMessage]);
-
-      // Call API and add model response
-      if (currentDocument) {
-        try {
-          const reply = await documentService.chat(
-            currentDocument.courseId || '',
-            currentDocument.id,
-            content
-          );
-          const modelMessage: ChatMessage = {
-            id: `model-${Date.now()}`,
-            role: 'model',
-            content: reply,
-            timestamp: new Date().toISOString(),
-          };
-          setChatMessages((prev) => [...prev, modelMessage]);
-        } catch (error) {
-          console.error('Chat error:', error);
-          const errorMessage: ChatMessage = {
-            id: `error-${Date.now()}`,
-            role: 'model',
-            content: error instanceof Error ? error.message : 'An unknown error occurred.',
-            timestamp: new Date().toISOString(),
-          };
-          setChatMessages((prev) => [...prev, errorMessage]);
-        }
-      }
-    } else {
-      // For model messages added directly (e.g. error messages), just add to state
-      const newMessage: ChatMessage = {
-        id: `msg-${Date.now()}`,
-        role,
-        content,
-        timestamp: new Date().toISOString(),
-      };
-      setChatMessages((prev) => [...prev, newMessage]);
-    }
-  };
-
   const resetData = () => {
-    setDocuments([]);
-    setVideos([]);
-    setTotalDocuments(0);
-    setTotalArticles(0);
-    setTotalAudio(0);
-    setTotalMaterials(0);
-    setTotalNotes(0);
-    setTotalFlashcards(0);
-    setTotalGlossaryTerms(0);
-    setTotalQuizQuestions(0);
-    setTotalQuizSubmissions(0);
-    setTotalVideos(0);
-    setCourseMaterialCounts([]);
-    setAchievementStats(EMPTY_ACHIEVEMENT_STATS);
-    setNotes([]);
-    setAllNotes([]);
-    setCourses([]);
-    setFlashcards([]);
-    setProgress([]);
-    setChatMessages([]);
+    invalidateVideoListCache();
+    invalidateDocumentListCache();
+    invalidateFlashcardListCache();
+    invalidateDashboardSummaryCache();
+    flashcards.markIdle();
+    videos.markIdle();
+    notes.markIdle();
+    documentsSlice.setDocuments([]);
+    videos.setVideos([]);
+    stats.resetStats();
+    notes.setAllNotes([]);
+    courses.setCourses([]);
+    flashcards.setFlashcards([]);
+    // Chat scrollback lives in StudySessionContext and clears itself when
+    // currentDocument resets to null below.
     setCurrentDocument(null);
   };
 
@@ -465,61 +180,74 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     <StudyContext.Provider
       value={{
         isLoading,
-        documents,
-        videos,
-        totalDocuments,
-        totalArticles,
-        totalAudio,
-        totalNotes,
-        totalFlashcards,
-        totalGlossaryTerms,
-        totalQuizQuestions,
-        totalQuizSubmissions,
-        totalVideos,
-        totalMaterials,
-        courseMaterialCounts,
-        achievementStats,
+        documents: documentsSlice.documents,
+        documentsLoaded: documentsSlice.documentsLoaded,
+        videos: videos.videos,
+        videosLoading: videos.videosLoading,
+        totalDocuments: stats.totalDocuments,
+        totalArticles: stats.totalArticles,
+        totalAudio: stats.totalAudio,
+        totalNotes: stats.totalNotes,
+        totalFlashcards: stats.totalFlashcards,
+        totalGlossaryTerms: stats.totalGlossaryTerms,
+        totalQuizQuestions: stats.totalQuizQuestions,
+        totalQuizSubmissions: stats.totalQuizSubmissions,
+        totalVideos: stats.totalVideos,
+        totalMaterials: stats.totalMaterials,
+        courseMaterialCounts: stats.courseMaterialCounts,
         currentDocument,
         setCurrentDocument,
-        addDocument,
-        deleteDocument,
-        updateDocumentInList,
-        notes,
-        allNotes,
-        addNote,
-        updateNote,
-        deleteNote,
-        chatMessages,
-        addChatMessage,
-        aiInput,
-        setAiInput,
-        noteInput,
-        setNoteInput,
-        courses,
-        addCourse,
-        updateCourse,
-        deleteCourse,
-        flashcards,
-        setFlashcards,
-        addFlashcard,
-        progress,
-        updateProgress,
-        quizSubmissions,
-        refreshStats,
-        refreshNotes,
-        refreshFlashcards,
-        refreshDocuments,
-        refreshQuizSubmissions,
+        addDocument: documentsSlice.addDocument,
+        deleteDocument: documentsSlice.deleteDocument,
+        deleteVideo: videos.deleteVideo,
+        updateDocumentInList: documentsSlice.updateDocumentInList,
+        allNotes: notes.allNotes,
+        addNote: notes.addNote,
+        updateNote: notes.updateNote,
+        deleteNote: notes.deleteNote,
+        courses: courses.courses,
+        addCourse: courses.addCourse,
+        updateCourse: courses.updateCourse,
+        deleteCourse: courses.deleteCourse,
+        flashcards: flashcards.flashcards,
+        setFlashcards: flashcards.setFlashcards,
+        addFlashcard: flashcards.addFlashcard,
+        progress: documentsSlice.progress,
+        updateProgress: documentsSlice.updateProgress,
+        quizSubmissions: quizSubmissions.quizSubmissions,
+        refreshStats: stats.refreshStats,
+        refreshNotes: notes.refreshNotes,
+        refreshFlashcards: flashcards.refreshFlashcards,
+        refreshDocuments: documentsSlice.refreshDocuments,
+        refreshVideos: videos.refreshVideos,
+        ensureDocuments: documentsSlice.ensureDocuments,
+        ensureFlashcards: flashcards.ensureFlashcards,
+        ensureVideos: videos.ensureVideos,
+        ensureNotes: notes.ensureNotes,
+        ensureQuizSubmissions: quizSubmissions.ensureQuizSubmissions,
+        refreshQuizSubmissions: quizSubmissions.refreshQuizSubmissions,
         resetData,
       }}
     >
-      {children}
+      <StudySessionProvider currentDocument={currentDocument}>
+        {children}
+      </StudySessionProvider>
     </StudyContext.Provider>
   );
 };
 
-export const useStudy = () => {
+/**
+ * Backward-compatible hook exposing the core study state merged with the
+ * session slice. Components that only touch chat/composer state should use
+ * useStudySession() instead so unrelated updates don't re-render them —
+ * and vice versa, hot paths that write session state every keystroke no
+ * longer re-render consumers of the core context.
+ */
+export const useStudy = (): StudyContextType & StudySessionContextType => {
   const context = useContext(StudyContext);
+  const session = useStudySession();
   if (!context) throw new Error('useStudy must be used within StudyProvider');
-  return context;
+  return { ...context, ...session };
 };
+
+export { useStudySession };

@@ -22,6 +22,7 @@ public class CoursesController : ControllerBase
         _mediator = mediator;
     }
 
+
     /// <summary>
     /// Get all courses for the authenticated user
     /// </summary>

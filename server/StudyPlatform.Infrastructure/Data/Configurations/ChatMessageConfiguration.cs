@@ -11,6 +11,7 @@ public class ChatMessageConfiguration : IEntityTypeConfiguration<ChatMessage>
         builder.HasKey(c => c.MessageId);
         builder.Property(c => c.Role).IsRequired().HasMaxLength(20);
         builder.Property(c => c.Content).IsRequired().HasColumnType("text");
+        builder.Property(c => c.AttachmentsJson).HasColumnType("jsonb");
         builder.Property(c => c.SourceType).IsRequired().HasMaxLength(20).HasDefaultValue("document");
         builder.Property(c => c.CreatedAt).IsRequired();
 
@@ -20,9 +21,9 @@ public class ChatMessageConfiguration : IEntityTypeConfiguration<ChatMessage>
             .IsRequired(false)
             .OnDelete(DeleteBehavior.Cascade);
 
-        builder.HasOne(c => c.YouTubeVideo)
+        builder.HasOne(c => c.Video)
             .WithMany(v => v.ChatMessages)
-            .HasForeignKey(c => c.YouTubeVideoId)
+            .HasForeignKey(c => c.VideoId)
             .IsRequired(false)
             .OnDelete(DeleteBehavior.Cascade);
 
@@ -32,9 +33,11 @@ public class ChatMessageConfiguration : IEntityTypeConfiguration<ChatMessage>
             .IsRequired(false)
             .OnDelete(DeleteBehavior.Cascade);
 
+        // Video/document messages may carry a ChatConversationId (per-source
+        // threads); messages predating threads have none.
         builder.ToTable(t => t.HasCheckConstraint("chk_chat_messages_source",
-            "(\"DocumentId\" IS NOT NULL AND \"YouTubeVideoId\" IS NULL AND \"ChatConversationId\" IS NULL AND \"SourceType\" = 'document') OR " +
-            "(\"YouTubeVideoId\" IS NOT NULL AND \"DocumentId\" IS NULL AND \"ChatConversationId\" IS NULL AND \"SourceType\" = 'video') OR " +
-            "(\"ChatConversationId\" IS NOT NULL AND \"DocumentId\" IS NULL AND \"YouTubeVideoId\" IS NULL AND \"SourceType\" = 'general')"));
+            "(\"DocumentId\" IS NOT NULL AND \"VideoId\" IS NULL AND \"SourceType\" = 'document') OR " +
+            "(\"VideoId\" IS NOT NULL AND \"DocumentId\" IS NULL AND \"SourceType\" = 'video') OR " +
+            "(\"ChatConversationId\" IS NOT NULL AND \"DocumentId\" IS NULL AND \"VideoId\" IS NULL AND \"SourceType\" = 'general')"));
     }
 }

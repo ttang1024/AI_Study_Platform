@@ -1,18 +1,12 @@
-import { apiClient } from './apiClient';
+// Service logic moved to the shared package (packages/core). This file wires the
+// web HTTP adapter into the shared factory and re-exports the types, so existing
+// `@/services/analyticsService` imports across web/ keep working unchanged.
+import { createAnalyticsService } from '@core/services/analyticsService';
+import { http } from './http';
 
-interface QuizAccuracyData {
-  date: string;
-  totalAttempts: number;
-  correctAttempts: number;
-  accuracyPercentage: number;
-}
+export * from '@core/services/analyticsService';
 
-export const analyticsService = {
-  async getQuizAccuracy(from?: string, to?: string): Promise<QuizAccuracyData[]> {
-    const params = new URLSearchParams();
-    if (from) params.append('from', from);
-    if (to) params.append('to', to);
-    const response = await apiClient.get(`/api/analytics/quiz-accuracy?${params.toString()}`);
-    return response.data.data;
-  },
-};
+export const analyticsService = createAnalyticsService(http);
+
+/** Standalone export kept for existing call sites (StudyContext, dashboard widgets). */
+export const invalidateDashboardSummaryCache = (): void => analyticsService.invalidateDashboardSummaryCache();

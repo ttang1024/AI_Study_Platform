@@ -1,26 +1,32 @@
-using System.Text.Json;
 using MediatR;
 using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Documents.DTOs;
-using StudyPlatform.Domain.Entities;
+using StudyPlatform.Application.Services;
 using StudyPlatform.Domain.Interfaces;
 
 namespace StudyPlatform.Application.Documents.Commands;
 
+/// <param name="Confidence">
+/// Optional {quizId: 1|2|3} self-rating per answer. Absent when the learner skipped the rating or the
+/// client does not collect it, which is why it is stored separately rather than folded into Answers.
+/// </param>
 public record SaveQuizSubmissionCommand(
     Guid DocumentId,
     Guid UserId,
     Dictionary<string, string> Answers,
     int Score,
-    int Total) : IRequest<Result<QuizSubmissionDto>>;
+    int Total,
+    Dictionary<string, int>? Confidence = null) : IRequest<Result<QuizSubmissionDto>>;
 
 public class SaveQuizSubmissionCommandHandler : IRequestHandler<SaveQuizSubmissionCommand, Result<QuizSubmissionDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IQuizSubmissionWriter _submissions;
 
-    public SaveQuizSubmissionCommandHandler(IUnitOfWork unitOfWork)
+    public SaveQuizSubmissionCommandHandler(IUnitOfWork unitOfWork, IQuizSubmissionWriter submissions)
     {
         _unitOfWork = unitOfWork;
+        _submissions = submissions;
     }
 
     public async Task<Result<QuizSubmissionDto>> Handle(SaveQuizSubmissionCommand request, CancellationToken cancellationToken)
@@ -29,45 +35,9 @@ public class SaveQuizSubmissionCommandHandler : IRequestHandler<SaveQuizSubmissi
         if (document == null || document.UserId != request.UserId)
             return Result<QuizSubmissionDto>.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
 
-        var existing = await _unitOfWork.QuizSubmissions.GetByDocumentAndUserAsync(request.DocumentId, request.UserId, cancellationToken);
-
-        var answersJson = JsonSerializer.Serialize(request.Answers);
-
-        if (existing != null)
-        {
-            existing.AnswersJson = answersJson;
-            existing.Score = request.Score;
-            existing.Total = request.Total;
-            existing.SubmittedAt = DateTime.UtcNow;
-            _unitOfWork.QuizSubmissions.Update(existing);
-        }
-        else
-        {
-            existing = new QuizSubmission
-            {
-                SubmissionId = Guid.NewGuid(),
-                DocumentId = request.DocumentId,
-                SourceType = "document",
-                UserId = request.UserId,
-                AnswersJson = answersJson,
-                Score = request.Score,
-                Total = request.Total,
-                SubmittedAt = DateTime.UtcNow,
-            };
-            await _unitOfWork.QuizSubmissions.AddAsync(existing, cancellationToken);
-        }
-
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-        var dto = new QuizSubmissionDto(
-            existing.SubmissionId,
-            existing.DocumentId,
-            existing.YouTubeVideoId,
-            existing.SourceType,
-            request.Answers,
-            existing.Score,
-            existing.Total,
-            existing.SubmittedAt);
+        var dto = await _submissions.UpsertAsync(
+            request.UserId, QuizSource.Document(request.DocumentId),
+            request.Answers, request.Score, request.Total, request.Confidence, cancellationToken);
 
         return Result<QuizSubmissionDto>.Success(dto, "Quiz submission saved.");
     }

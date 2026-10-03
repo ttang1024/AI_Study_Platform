@@ -12,12 +12,12 @@ public class TranscribePodcastCommandHandler : IRequestHandler<TranscribePodcast
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly ITranscriptionService _transcriptionService;
-    private readonly IApplePodcastService _podcastService;
+    private readonly IPodcastEpisodeService _podcastService;
 
     public TranscribePodcastCommandHandler(
         IUnitOfWork unitOfWork,
         ITranscriptionService transcriptionService,
-        IApplePodcastService podcastService)
+        IPodcastEpisodeService podcastService)
     {
         _unitOfWork = unitOfWork;
         _transcriptionService = transcriptionService;
@@ -48,12 +48,7 @@ public class TranscribePodcastCommandHandler : IRequestHandler<TranscribePodcast
             await _unitOfWork.SaveChangesAsync(cancellationToken);
         }
 
-        return Result<DocumentDto>.Success(new DocumentDto(
-            document.DocumentId, document.CourseId, document.UserId,
-            document.FileName, document.BlobUrl, document.ContentType,
-            document.FileSize, document.Summary, document.MindMapText,
-            document.CreatedAt, document.UpdatedAt,
-            document.Transcript, document.OriginalUrl),
+        return Result<DocumentDto>.Success(document.ToDocumentDto(),
             "Podcast transcribed successfully.");
     }
 }

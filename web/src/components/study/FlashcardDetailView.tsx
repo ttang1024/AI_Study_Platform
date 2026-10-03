@@ -2,18 +2,18 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { ArrowLeft, BrainCircuit, Download, Share2, Youtube } from 'lucide-react';
 import { Flashcard, Document } from '../../types';
-import { VideoListItem } from '../../services/youtubeService';
+import { VideoListItem } from '../../services/videoService';
 import { Flashcards } from './Flashcards';
 import { ShareModal } from '../common/ShareModal';
 import { downloadAnkiDeck, downloadCsvDeck } from '../../services/ankiExportService';
 
-type SimpleCard = { id: string; front: string; back: string; cardType?: 'basic' | 'cloze' | 'chart' };
+type SimpleCard = { id: string; front: string; back: string; cardType?: 'basic' | 'cloze' | 'chart' | 'occlusion' };
 
 type VideoRecord = Pick<VideoListItem, 'id' | 'title' | 'thumbnailUrl' | 'courseId' | 'courseName' | 'courseColor'>;
 
 type ShareTarget = {
   title: string;
-  cards: { front: string; back: string }[];
+  cards: { front: string; back: string; cardType?: 'basic' | 'cloze' | 'chart' | 'occlusion' }[];
   sourceType?: 'youtube' | 'article' | 'audio' | 'podcast' | 'document';
   sourceUrl?: string | null;
   originalArticleUrl?: string | null;
@@ -91,7 +91,7 @@ export const FlashcardDetailView: React.FC<FlashcardDetailViewProps> = (props) =
                   <button
                     onClick={() => setShareTarget({
                       title: doc?.name ?? 'Flashcards',
-                      cards: docCards.map(f => ({ front: f.front, back: f.back })),
+                      cards: docCards.map(f => ({ front: f.front, back: f.back, cardType: f.cardType })),
                       sourceType: srcType,
                       sourceUrl: srcUrl,
                       originalArticleUrl: isArticle ? (doc?.originalUrl ?? null) : null,
@@ -136,14 +136,14 @@ export const FlashcardDetailView: React.FC<FlashcardDetailViewProps> = (props) =
             <div className="space-y-2">
               <div className="inline-flex items-center gap-2 rounded-full bg-red-50 px-4 py-1.5 text-[10px] font-black text-red-500 uppercase tracking-widest border border-red-100">
                 <Youtube size={12} />
-                YouTube · Active Recall Mode
+                Video · Active Recall Mode
               </div>
               <h2 className="text-4xl font-black text-text-main">{video.title}</h2>
               <p className="text-zinc-400 font-medium">Master this video using spaced repetition and active recall.</p>
               <button
                 onClick={() => setShareTarget({
                   title: video.title,
-                  cards: videoCards.map(c => ({ front: c.front, back: c.back })),
+                  cards: videoCards.map(c => ({ front: c.front, back: c.back, cardType: c.cardType })),
                   sourceType: 'youtube',
                   sourceUrl: videoMeta?.videoUrl ?? null,
                 })}

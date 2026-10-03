@@ -292,14 +292,3 @@ export const CardChart: React.FC<CardChartProps> = ({ data, className }) => {
     </div>
   );
 };
-
-/** Try parsing a string as chart JSON; returns null if invalid. */
-export function tryParseChart(s: string): ChartDefinition | null {
-  try {
-    const p = JSON.parse(s);
-    if (p?.labels && p?.datasets) return p as ChartDefinition;
-    return null;
-  } catch {
-    return null;
-  }
-}

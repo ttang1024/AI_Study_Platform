@@ -1,11 +1,14 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { Search, ChevronLeft, ChevronRight, ChevronDown, ShieldCheck, UserCheck, UserX } from 'lucide-react';
+import { useSearchParams, Link } from 'react-router-dom';
+import { Search, ChevronDown, ShieldCheck, UserCheck, UserX } from 'lucide-react';
 import { adminApi } from '../services/api';
 import type { UserItem } from '../types';
 import { Button } from '../components/common/Button';
 import { formatDate, formatRelative } from '../utils/format';
 import { cn } from '../utils/cn';
+import { ErrorBanner } from '../components/common/ErrorBanner';
+import { Pagination } from '../components/common/Pagination';
+import { useSearchParamSetter } from '../hooks/useSearchParamSetter';
 
 const PAGE_SIZE = 20;
 
@@ -22,7 +25,7 @@ const SORT_OPTIONS = [
 ];
 
 const selectClass =
-  'appearance-none rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] px-3 py-2 pr-8 text-sm text-[var(--text-primary)] outline-none focus:border-indigo-500 transition-all cursor-pointer';
+  'w-full appearance-none rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] px-3 py-2 pr-8 text-base text-[var(--text-primary)] outline-none focus:border-emerald-500 transition-all cursor-pointer sm:text-sm';
 
 export const UserManagementPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -55,15 +58,7 @@ export const UserManagementPage: React.FC = () => {
 
   useEffect(() => { load(); }, [load]);
 
-  const setParam = (key: string, value: string) => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      if (value) next.set(key, value);
-      else next.delete(key);
-      if (key !== 'page') next.delete('page');
-      return next;
-    });
-  };
+  const setParam = useSearchParamSetter(setSearchParams);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,31 +81,31 @@ export const UserManagementPage: React.FC = () => {
 
   return (
     <div>
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-[var(--text-primary)]">Users</h1>
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-2xl font-bold text-[var(--text-primary)] sm:text-3xl">Users</h1>
         <p className="mt-2 text-sm text-[var(--text-secondary)]">{total} user{total !== 1 ? 's' : ''} total</p>
       </div>
 
       {/* Filters */}
-      <div className="mb-5 flex flex-wrap items-center gap-3">
-        <form onSubmit={handleSearch} className="relative flex-1 min-w-48 max-w-xs">
+      <div className="mb-5 flex flex-wrap items-center gap-2 sm:gap-3">
+        <form onSubmit={handleSearch} className="relative w-full sm:min-w-48 sm:max-w-xs sm:flex-1">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" />
           <input
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             placeholder="Search by name or email…"
-            className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] py-2 pl-9 pr-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none focus:border-indigo-500 transition-all"
+            className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] py-2 pl-9 pr-3 text-base text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none focus:border-emerald-500 transition-all sm:text-sm"
           />
         </form>
 
-        <div className="relative">
+        <div className="relative min-w-32 flex-1 sm:flex-none">
           <select value={status} onChange={(e) => setParam('status', e.target.value)} className={selectClass}>
             {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
           <ChevronDown size={13} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" />
         </div>
 
-        <div className="relative">
+        <div className="relative min-w-32 flex-1 sm:flex-none">
           <select value={sort} onChange={(e) => setParam('sort', e.target.value)} className={selectClass}>
             {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
@@ -128,25 +123,21 @@ export const UserManagementPage: React.FC = () => {
         )}
       </div>
 
-      {error && (
-        <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
-          {error}
-        </div>
-      )}
+      <ErrorBanner error={error} />
 
       {/* Table */}
       <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] overflow-hidden">
         {isLoading ? (
           <div className="divide-y divide-[var(--border-color)]">
             {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="flex items-center gap-4 px-5 py-4">
-                <div className="h-8 w-8 rounded-full bg-white/5 animate-pulse" />
+              <div key={i} className="flex items-center gap-4 px-4 py-4 sm:px-5">
+                <div className="h-8 w-8 rounded-full bg-black/5 animate-pulse" />
                 <div className="flex-1 space-y-1.5">
-                  <div className="h-3.5 w-32 rounded bg-white/5 animate-pulse" />
-                  <div className="h-3 w-48 rounded bg-white/5 animate-pulse" />
+                  <div className="h-3.5 w-32 rounded bg-black/5 animate-pulse" />
+                  <div className="h-3 w-48 rounded bg-black/5 animate-pulse" />
                 </div>
-                <div className="h-4 w-16 rounded bg-white/5 animate-pulse" />
-                <div className="h-7 w-24 rounded-lg bg-white/5 animate-pulse" />
+                <div className="hidden h-4 w-16 rounded bg-black/5 animate-pulse sm:block" />
+                <div className="h-7 w-24 rounded-lg bg-black/5 animate-pulse" />
               </div>
             ))}
           </div>
@@ -157,7 +148,7 @@ export const UserManagementPage: React.FC = () => {
         ) : (
           <div className="divide-y divide-[var(--border-color)]">
             {/* Header */}
-            <div className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-4 px-6 py-4 text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
+            <div className="hidden grid-cols-[1fr_auto_auto_auto] items-center gap-4 px-6 py-4 text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider md:grid">
               <span>User</span>
               <span>Joined</span>
               <span>Status</span>
@@ -168,36 +159,37 @@ export const UserManagementPage: React.FC = () => {
             {items.map((user) => (
               <div
                 key={user.userId}
-                className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-4 px-6 py-4 text-sm"
+                className="px-4 py-4 text-sm md:grid md:grid-cols-[1fr_auto_auto_auto] md:items-center md:gap-4 md:px-6"
               >
                 {/* User info */}
-                <div className="flex items-center gap-3 min-w-0">
+                <Link to={`/users/${user.userId}`} className="flex items-center gap-3 min-w-0 group">
                   <div className={cn(
                     'flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold',
                     user.isAdmin
-                      ? 'bg-indigo-600/20 text-indigo-400'
+                      ? 'bg-emerald-600/10 text-emerald-700'
                       : user.isActive
-                        ? 'bg-white/8 text-[var(--text-primary)]'
-                        : 'bg-white/4 text-[var(--text-secondary)]',
+                        ? 'bg-black/5 text-[var(--text-primary)]'
+                        : 'bg-black/[0.04] text-[var(--text-secondary)]',
                   )}>
                     {user.fullName.charAt(0).toUpperCase()}
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
                       <p className={cn(
-                        'truncate font-medium',
+                        'truncate font-medium group-hover:text-emerald-700 transition-colors',
                         user.isActive ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]',
                       )}>
                         {user.fullName}
                       </p>
                       {user.isAdmin && (
-                        <ShieldCheck size={13} className="shrink-0 text-indigo-400" />
+                        <ShieldCheck size={13} className="shrink-0 text-emerald-700" />
                       )}
                     </div>
                     <p className="truncate text-xs text-[var(--text-secondary)]">{user.email}</p>
                   </div>
-                </div>
+                </Link>
 
+                <div className="mt-3 flex items-center justify-between gap-3 md:contents">
                 {/* Joined */}
                 <span className="whitespace-nowrap text-xs text-[var(--text-secondary)]" title={formatDate(user.createdAt)}>
                   {formatRelative(user.createdAt)}
@@ -207,10 +199,10 @@ export const UserManagementPage: React.FC = () => {
                 <span className={cn(
                   'rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap',
                   user.isAdmin
-                    ? 'bg-indigo-500/15 text-indigo-400'
+                    ? 'bg-emerald-600/10 text-emerald-700'
                     : user.isActive
-                      ? 'bg-emerald-500/15 text-emerald-400'
-                      : 'bg-red-500/15 text-red-400',
+                      ? 'bg-emerald-500/15 text-emerald-700'
+                      : 'bg-red-500/15 text-red-700',
                 )}>
                   {user.isAdmin ? 'Admin' : user.isActive ? 'Active' : 'Inactive'}
                 </span>
@@ -234,38 +226,14 @@ export const UserManagementPage: React.FC = () => {
                     {user.isActive ? 'Deactivate' : 'Activate'}
                   </Button>
                 )}
+                </div>
               </div>
             ))}
           </div>
         )}
       </div>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="mt-4 flex items-center justify-between">
-          <p className="text-xs text-[var(--text-secondary)]">
-            Page {page} of {totalPages}
-          </p>
-          <div className="flex items-center gap-1">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page <= 1}
-              onClick={() => setParam('page', String(page - 1))}
-            >
-              <ChevronLeft size={14} />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page >= totalPages}
-              onClick={() => setParam('page', String(page + 1))}
-            >
-              <ChevronRight size={14} />
-            </Button>
-          </div>
-        </div>
-      )}
+      <Pagination page={page} totalPages={totalPages} onPageChange={p => setParam('page', String(p))} />
     </div>
   );
 };

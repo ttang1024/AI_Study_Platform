@@ -18,26 +18,20 @@ public class GetCourseByIdQueryHandler : IRequestHandler<GetCourseByIdQuery, Res
 
     public async Task<Result<CourseDto>> Handle(GetCourseByIdQuery request, CancellationToken cancellationToken)
     {
-        var course = await _unitOfWork.Courses.GetByIdWithDocumentsAsync(request.CourseId, cancellationToken);
+        var course = await _unitOfWork.Courses.GetListItemByIdAsync(request.CourseId, cancellationToken);
         if (course == null)
             return Result<CourseDto>.Failure("Course not found.", "COURSE_NOT_FOUND");
 
-        if (course.UserId != request.UserId)
-        {
-            var shared = await _unitOfWork.StudyGroupSharedCourses.FindAsync(sc => sc.CourseId == request.CourseId, cancellationToken);
-            var groupIds = shared.Select(sc => sc.GroupId).ToList();
-            var hasGroupAccess = groupIds.Count > 0 && await _unitOfWork.StudyGroupMembers.ExistsAsync(
-                m => groupIds.Contains(m.GroupId) && m.UserId == request.UserId, cancellationToken);
-            if (!hasGroupAccess)
-                return Result<CourseDto>.Failure("Course not found.", "COURSE_NOT_FOUND");
-        }
+        if (course.UserId != request.UserId
+            && !await _unitOfWork.HasSharedCourseAccessAsync(request.UserId, request.CourseId, cancellationToken))
+            return Result<CourseDto>.Failure("Course not found.", "COURSE_NOT_FOUND");
 
         var dto = new CourseDto(
             course.CourseId,
             course.UserId,
             course.CourseName,
             course.CourseColor,
-            course.Documents?.Count ?? 0,
+            course.DocumentCount,
             course.CreatedAt,
             course.UpdatedAt);
 

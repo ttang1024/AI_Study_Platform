@@ -4,13 +4,15 @@ import { motion } from 'motion/react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Library, Settings, LogOut, BrainCircuit,
-  Award, NotebookPen, X, Sparkles, ChevronLeft, ChevronRight,
-  User, BookMarked, MessageSquarePlus,
-  Search, Trophy, Users, Bot, Network,
+  Award, NotebookPen, BookMarked, X, ChevronLeft, ChevronRight,
+  User, MessageSquarePlus, Search, Users, Bot,
+  LineChart, Wand2,
 } from 'lucide-react';
-import { AchievementsPanel } from '../dashboard/AchievementsPanel';
+import { FeedbackTab } from '../settings/FeedbackTab';
 import { cn } from '../../utils/cn';
 import { useAuth } from '../../context/AuthContext';
+import { useTranslation } from '../../i18n';
+import type { TranslationKey } from '../../i18n';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -20,26 +22,35 @@ interface SidebarProps {
   onSearchOpen?: () => void;
 }
 
-const navItems = [
-  { icon: Sparkles, label: 'AI Summarizer', path: '/summarizer' },
-  { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
-  { icon: Library, label: 'Library', path: '/library' },
-  { icon: BrainCircuit, label: 'Flashcards', path: '/flashcards' },
-  { icon: Award, label: 'Quizzes', path: '/quizzes' },
-  { icon: BookMarked, label: 'Glossary', path: '/glossary' },
-  { icon: NotebookPen, label: 'Notes', path: '/notes' },
-  { icon: Bot, label: 'AI Chat', path: '/chat' },
-  // { icon: Network, label: 'Knowledge Graph', path: '/knowledge-graph' },
-  { icon: Users, label: 'Study Groups', path: '/groups' },
+// `labelKey` rather than a literal: the label is resolved at render time so switching language
+// re-renders the nav without rebuilding this list.
+// Pages that answered the same question were merged into one page with tabs, and the nav follows:
+// Practice/Planner → Practice Center, Concept map → Insights, Groups → Spaces. Notes and Glossary
+// are the exception — they were merged and split apart again, because a note you wrote and a term
+// the AI pulled out are not the same thing to look for. One entry per page — browsing the library
+// and feeding it (the Summarizer, at /library/add) are two pages, so they are two entries.
+const navItems: { icon: typeof LayoutDashboard; labelKey: TranslationKey; path: string }[] = [
+  { icon: LayoutDashboard, labelKey: 'nav.dashboard', path: '/dashboard' },
+  { icon: Library, labelKey: 'nav.library', path: '/library' },
+  { icon: Wand2, labelKey: 'nav.summarizer', path: '/library/add' },
+  { icon: BrainCircuit, labelKey: 'nav.flashcards', path: '/flashcards' },
+  { icon: Award, labelKey: 'nav.practiceCenter', path: '/quizzes' },
+  { icon: NotebookPen, labelKey: 'nav.notes', path: '/notes' },
+  { icon: BookMarked, labelKey: 'nav.glossary', path: '/glossary' },
+  { icon: LineChart, labelKey: 'nav.insights', path: '/insights' },
+  { icon: Bot, labelKey: 'nav.chat', path: '/chat' },
+  { icon: Users, labelKey: 'nav.spaces', path: '/spaces' },
+  // Offline moved out of the sidebar — it lives in Settings → Export as a utility.
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isCollapsed, onToggle, onSearchOpen }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { t } = useTranslation();
 
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [isAchievementsOpen, setIsAchievementsOpen] = useState(false);
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
   const [tooltip, setTooltip] = useState<{ label: string; y: number } | null>(null);
 
@@ -105,7 +116,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isCollapsed, 
               )}
               title={isCollapsed ? 'Expand sidebar' : undefined}
             >
-              <img src="/app.png" alt="toto.ai logo" className="w-full h-full object-cover" />
+              <img src="/app.png" alt="Toto Study logo" className="w-full h-full object-cover" />
             </motion.div>
 
             {!isCollapsed && (
@@ -155,7 +166,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isCollapsed, 
           {onSearchOpen && (
             <button
               onClick={onSearchOpen}
-              onMouseEnter={(e) => isCollapsed && showTooltip(e, 'Search')}
+              onMouseEnter={(e) => isCollapsed && showTooltip(e, t('nav.search'))}
               onMouseLeave={() => setTooltip(null)}
               className={cn(
                 'group w-full flex items-center rounded-xl text-sm font-medium transition-all duration-200 text-text-muted hover:bg-zinc-100 hover:text-text-main mb-1',
@@ -164,7 +175,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isCollapsed, 
             >
               <Search size={20} className="shrink-0 text-zinc-400 group-hover:text-primary transition-colors" />
               {!isCollapsed && (
-                <span className="flex-1 text-left">Search</span>
+                <span className="flex-1 text-left">{t('nav.search')}</span>
               )}
               {!isCollapsed && (
                 <kbd className="rounded border border-zinc-200 px-1.5 py-0.5 text-[10px] font-mono text-zinc-400">/</kbd>
@@ -179,7 +190,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isCollapsed, 
                 key={item.path}
                 to={item.path}
                 onClick={() => { if (window.innerWidth < 1024) onClose(); }}
-                onMouseEnter={(e) => isCollapsed && showTooltip(e, item.label)}
+                onMouseEnter={(e) => isCollapsed && showTooltip(e, t(item.labelKey))}
                 onMouseLeave={() => setTooltip(null)}
                 className={cn(
                   'group relative flex items-center rounded-xl text-sm font-medium transition-all duration-200',
@@ -193,7 +204,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isCollapsed, 
                   'shrink-0 transition-transform group-hover:scale-110',
                   isActive ? 'text-white' : 'text-zinc-400 group-hover:text-primary',
                 )} />
-                {!isCollapsed && item.label}
+                {!isCollapsed && t(item.labelKey)}
                 {isActive && !isCollapsed && (
                   <div className="absolute right-2 h-1.5 w-1.5 rounded-full bg-white/50" />
                 )}
@@ -248,13 +259,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isCollapsed, 
                   <p className="text-xs text-text-muted truncate">{user?.email}</p>
                 </div>
                 <button
-                  onClick={() => { setIsAchievementsOpen(true); setIsProfileOpen(false); }}
-                  className="flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-sm text-text-main hover:bg-amber-50 hover:text-amber-600 transition-all"
-                >
-                  <Trophy size={16} />
-                  Achievements
-                </button>
-                <button
                   onClick={() => { navigate('/settings'); setIsProfileOpen(false); }}
                   className="flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-sm text-text-main hover:bg-[var(--primary)]/10 hover:text-[var(--primary)] transition-all"
                 >
@@ -262,7 +266,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isCollapsed, 
                   Settings
                 </button>
                 <button
-                  onClick={() => { navigate('/feedback'); setIsProfileOpen(false); }}
+                  onClick={() => { setIsFeedbackOpen(true); setIsProfileOpen(false); }}
                   className="flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-sm text-text-main hover:bg-[var(--primary)]/10 hover:text-[var(--primary)] transition-all"
                 >
                   <MessageSquarePlus size={16} />
@@ -282,28 +286,28 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isCollapsed, 
         </div>
       </aside>
 
-      {/* Achievements modal */}
-      {isAchievementsOpen && ReactDOM.createPortal(
+      {/* Feedback drawer — reached from the profile menu, so it needs no Settings tab. */}
+      {isFeedbackOpen && ReactDOM.createPortal(
         <>
           <div
             className="fixed inset-0 z-[9998] bg-black/40 backdrop-blur-sm"
-            onClick={() => setIsAchievementsOpen(false)}
+            onClick={() => setIsFeedbackOpen(false)}
           />
           <div className="fixed inset-y-0 right-0 z-[9999] w-full max-w-lg flex flex-col bg-[var(--bg-sidebar)] shadow-2xl">
             <div className="flex items-center justify-between border-b border-[var(--border-color)] px-6 py-4 shrink-0">
               <div className="flex items-center gap-2">
-                <Trophy size={18} className="text-amber-500" />
-                <h2 className="text-base font-bold text-text-main">Achievements</h2>
+                <MessageSquarePlus size={18} className="text-[var(--primary)]" />
+                <h2 className="text-base font-bold text-text-main">Feedback</h2>
               </div>
               <button
-                onClick={() => setIsAchievementsOpen(false)}
+                onClick={() => setIsFeedbackOpen(false)}
                 className="flex h-8 w-8 items-center justify-center rounded-xl text-text-muted hover:bg-zinc-100 hover:text-text-main transition-colors"
               >
                 <X size={16} />
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-6">
-              <AchievementsPanel />
+              <FeedbackTab />
             </div>
           </div>
         </>,

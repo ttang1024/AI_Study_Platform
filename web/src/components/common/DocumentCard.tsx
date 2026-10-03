@@ -1,16 +1,16 @@
 import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { FileText, FileType, FileCode, Clock, Trash2, Sparkles, FolderInput, Pencil, Loader2 } from 'lucide-react';
+import { FileText, FileType, FileCode, Clock, Trash2, Sparkles, FolderInput, Pencil, Image, Presentation, BookOpen } from 'lucide-react';
 import { CONTENT_TYPE_ICONS } from '../../constants/contentTypeIcons';
 import { Document, Course } from '../../types';
 import { cn } from '../../utils/cn';
-import { getDocDisplayName } from '../../utils/docName';
+import { getDocDisplayName } from '@core/utils/documentDisplay';
 import { documentService } from '../../services/documentService';
 import { useStudy } from '../../context/StudyContext';
 import { MoveToCourseModal } from './MoveToCourseModal';
 import { DeleteModal } from './DeleteModal';
-import { Modal } from './Modal';
+import { RenameModal } from './RenameModal';
 
 interface DocumentCardProps {
   doc: Document;
@@ -18,6 +18,7 @@ interface DocumentCardProps {
   to?: string;
   compact?: boolean;
   onDelete?: () => void;
+  onDeleted?: () => void;
   onUpdated?: (doc: Document) => void;
 }
 
@@ -33,16 +34,19 @@ function hashCode(str: string) {
 }
 
 const FILE_META: Record<string, { icon: React.ElementType; label: string; emoji: string }> = {
-  pdf:     { icon: FileText,                          label: 'PDF',     emoji: '📄' },
-  docx:    { icon: FileText,                          label: 'DOCX',    emoji: '📝' },
-  txt:     { icon: FileType,                          label: 'TXT',     emoji: '📃' },
-  md:      { icon: FileCode,                          label: 'MD',      emoji: '✍️' },
-  web:     { icon: CONTENT_TYPE_ICONS.article.icon,  label: 'Web',     emoji: CONTENT_TYPE_ICONS.article.emoji },
-  audio:   { icon: CONTENT_TYPE_ICONS.audio.icon,    label: 'Audio',   emoji: CONTENT_TYPE_ICONS.audio.emoji },
-  podcast: { icon: CONTENT_TYPE_ICONS.podcast.icon,  label: 'Podcast', emoji: CONTENT_TYPE_ICONS.podcast.emoji },
+  pdf: { icon: FileText, label: 'PDF', emoji: '📄' },
+  docx: { icon: FileText, label: 'DOCX', emoji: '📝' },
+  txt: { icon: FileType, label: 'TXT', emoji: '📃' },
+  md: { icon: FileCode, label: 'MD', emoji: '✍️' },
+  image: { icon: Image, label: 'Image', emoji: '🖼️' },
+  ppt: { icon: Presentation, label: 'PPT', emoji: '📊' },
+  epub: { icon: BookOpen, label: 'eBook', emoji: '📚' },
+  web: { icon: CONTENT_TYPE_ICONS.article.icon, label: 'Web', emoji: CONTENT_TYPE_ICONS.article.emoji },
+  audio: { icon: CONTENT_TYPE_ICONS.audio.icon, label: 'Audio', emoji: CONTENT_TYPE_ICONS.audio.emoji },
+  podcast: { icon: CONTENT_TYPE_ICONS.podcast.icon, label: 'Podcast', emoji: CONTENT_TYPE_ICONS.podcast.emoji },
 };
 
-export const DocumentCard: React.FC<DocumentCardProps> = ({ doc, course, to, compact = false, onDelete, onUpdated }) => {
+export const DocumentCard: React.FC<DocumentCardProps> = ({ doc, course, to, compact = false, onDelete, onDeleted, onUpdated }) => {
   const { courses, deleteDocument, updateDocumentInList } = useStudy();
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -96,7 +100,7 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({ doc, course, to, com
 
   const handleDelete = async () => {
     setIsDeleting(true);
-    try { await deleteDocument(doc.courseId || '', doc.id); }
+    try { await deleteDocument(doc.courseId || '', doc.id); onDeleted?.(); }
     finally { setIsDeleting(false); setShowDeleteModal(false); }
   };
 
@@ -145,15 +149,16 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({ doc, course, to, com
         exit={{ opacity: 0, scale: 0.88, y: -12 }}
         whileHover={{ y: -1, rotate: tiltDir * 0.1 }}
         transition={{ type: 'spring', stiffness: 320, damping: 22 }}
-        className={cn('group relative', compact ? 'h-[190px]' : 'h-[260px]')}
+        className={cn('group relative', compact ? 'h-[210px]' : 'h-[260px]')}
       >
         <Link
           to={to ?? (doc.type === 'audio' || doc.type === 'podcast' ? `/audio/${doc.id}` : `/documents/${doc.id}`)}
+          state={{ courseId: doc.courseId }}
           className="flex flex-col h-full overflow-hidden rounded-2xl border border-[var(--border-color)] bg-[var(--bg-sidebar)] shadow-sm transition-all duration-300 group-hover:border-transparent group-hover:shadow-xl"
         >
           {/* ── Summary cover ── */}
           <div
-            className={cn('relative overflow-hidden shrink-0', compact ? 'h-[90px]' : 'h-[165px]')}
+            className={cn('relative overflow-hidden shrink-0', compact ? 'h-[110px]' : 'h-[165px]')}
             style={{ backgroundColor: `${accent}12` }}
           >
             <div className="absolute inset-x-0 top-0 h-[3px] z-10" style={{ background: `linear-gradient(90deg, ${accent}, ${accent}66)` }} />
@@ -176,7 +181,7 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({ doc, course, to, com
 
             <div className="absolute inset-0 flex items-center px-4 pt-8 pb-1">
               {summaryText ? (
-                <p className={cn('text-[11px] leading-relaxed relative z-10', compact ? 'line-clamp-2' : 'line-clamp-6')} style={{ color: `color-mix(in srgb, ${accent} 80%, #000)` }}>
+                <p className={cn('text-[11px] leading-relaxed relative z-10', compact ? 'line-clamp-3' : 'line-clamp-6')} style={{ color: `color-mix(in srgb, ${accent} 80%, #000)` }}>
                   {summaryText}
                 </p>
               ) : transcriptText ? (
@@ -253,45 +258,17 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({ doc, course, to, com
         onConfirm={handleDelete}
       />
 
-      <Modal
+      <RenameModal
         isOpen={showRenameModal}
-        onClose={() => !isRenaming && setShowRenameModal(false)}
         title="Edit file name"
-        className="max-w-md"
-      >
-        <form onSubmit={handleRename} className="space-y-4">
-          <div>
-            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-text-muted">
-              File name
-            </label>
-            <input
-              autoFocus
-              value={renameDraft}
-              onChange={e => setRenameDraft(e.target.value)}
-              className="w-full rounded-xl border border-[var(--border-color)] px-3 py-2 text-sm font-medium text-text-main outline-none transition-colors focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15"
-            />
-            {renameError && <p className="mt-2 text-xs font-medium text-red-500">{renameError}</p>}
-          </div>
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => setShowRenameModal(false)}
-              disabled={isRenaming}
-              className="rounded-lg border border-[var(--border-color)] px-3 py-2 text-xs font-semibold text-text-main hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isRenaming}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--primary)] px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isRenaming && <Loader2 size={13} className="animate-spin" />}
-              Save
-            </button>
-          </div>
-        </form>
-      </Modal>
+        label="File name"
+        value={renameDraft}
+        onChange={setRenameDraft}
+        error={renameError}
+        isSaving={isRenaming}
+        onClose={() => setShowRenameModal(false)}
+        onSubmit={handleRename}
+      />
 
       {/* Move modal */}
       {showMoveModal && (

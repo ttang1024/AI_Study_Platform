@@ -1,0 +1,80 @@
+import type { SourceCitation } from '@core/types';
+
+/** A file selected via expo-document-picker, ready to append to a multipart FormData part. */
+export interface PickedFile {
+  uri: string;
+  name: string;
+  mimeType: string;
+  /** Byte size when the picker reports one — used to spot a file that's already in the library. */
+  size?: number;
+}
+
+// Shared with web/ via packages/core.
+export type { Course } from '@core/types';
+
+// Shared with web/ via packages/core.
+export type { Document } from '@core/types';
+
+// Shared with web/ via packages/core.
+export type { VideoListItem } from '@core/services/videoService';
+
+// Shared with web/ via packages/core.
+export type { StudyStreak } from '@core/services/analyticsService';
+
+// Shared with web/ via packages/core.
+export type { FlashcardSrsState, FsrsRating } from '@core/types';
+
+// Shared with web/ via packages/core.
+export type { Flashcard } from '@core/types';
+
+/** A flashcard reduced to just what the per-source Cards tab renders. */
+export interface SimpleCard {
+  id: string;
+  front: string;
+  back: string;
+  cardType: 'basic' | 'cloze' | 'chart';
+  /** Where in the source this card came from, when the supporting quote could be located. */
+  citation?: SourceCitation;
+}
+
+// Shared with web/ via packages/core.
+export type { SourceCitation } from '@core/types';
+
+// Shared with web/ via packages/core.
+export type { Note } from '@core/types';
+
+// Shared with web/ via packages/core.
+export type { GlossaryTerm } from '@core/types';
+
+// Shared with web/ via packages/core.
+export type { QuizQuestion } from '@core/types';
+
+export interface QuizSubmission {
+  id: string;
+  documentId?: string;
+  videoId?: string;
+  courseId?: string;
+  sourceType: string;
+  answers: Record<string, string>;
+  score: number;
+  total: number;
+  submittedAt: string;
+  title?: string;
+}
+
+// Shared with web/ via packages/core.
+export type { Mistake, VariantQuestion } from '@core/services/mistakesService';
+
+// Shared with web/ via packages/core.
+export type { PendingMaterial } from '@core/types';
+
+// Shared with web/ via packages/core. Note `url` and `count` are nullable there, matching the
+// server — this app maps plan items to its own routes by `type` and never reads `url`.
+export type { TodayPlan, TodayPlanItem, TodayPlanItemType } from '@core/services/todayService';
+
+// Shared with web/ via packages/core.
+export type { DashboardSummary, ReinforcementCounts } from '@core/services/analyticsService';
+
+// Shared with web/ via packages/core.
+export type { UserStats } from '@core/services/statsService';
+

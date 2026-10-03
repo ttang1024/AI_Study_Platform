@@ -15,6 +15,8 @@ public class GenerateFlashcardsCommandHandlerTests
     private readonly Mock<IFlashcardRepository> _flashcards = new();
     private readonly Mock<IAiService> _ai = new();
     private readonly Mock<IDocumentContentService> _content = new();
+    private readonly Mock<IDocumentTextProvider> _textProvider = new();
+    private readonly Mock<IFlashcardDeduplicator> _deduplicator = new();
     private readonly GenerateFlashcardsCommandHandler _handler;
 
     private readonly Guid _userId = Guid.NewGuid();
@@ -28,6 +30,14 @@ public class GenerateFlashcardsCommandHandlerTests
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
         _flashcards.Setup(r => r.AddRangeAsync(It.IsAny<IEnumerable<Flashcard>>(), default)).Returns(Task.CompletedTask);
 
+        // Default: deduplication is off (the shape when no embeddings key is configured), so these
+        // tests keep asserting on the generation behaviour they were written for. The dedup-specific
+        // behaviour is covered in FlashcardDeduplicatorTests and the tests at the bottom of this file.
+        _deduplicator
+            .Setup(d => d.FilterAsync(It.IsAny<Guid>(), It.IsAny<IReadOnlyList<FlashcardCandidate>>(), default))
+            .ReturnsAsync((Guid _, IReadOnlyList<FlashcardCandidate> c, CancellationToken _) =>
+                FlashcardDedupResult.KeepAll(c));
+
         _doc = new Document
         {
             DocumentId = _docId,
@@ -36,7 +46,8 @@ public class GenerateFlashcardsCommandHandlerTests
             BlobUrl = "blob://test"
         };
 
-        _handler = new GenerateFlashcardsCommandHandler(_uow.Object, _ai.Object, _content.Object);
+        _handler = new GenerateFlashcardsCommandHandler(
+            _uow.Object, _ai.Object, _content.Object, _deduplicator.Object, _textProvider.Object);
     }
 
     [Fact]
@@ -242,6 +253,7 @@ public class GenerateGlossaryCommandHandlerTests
     private readonly Mock<IGlossaryTermRepository> _glossary = new();
     private readonly Mock<IAiService> _ai = new();
     private readonly Mock<IDocumentContentService> _content = new();
+    private readonly Mock<IDocumentTextProvider> _textProvider = new();
     private readonly GenerateGlossaryCommandHandler _handler;
 
     private readonly Guid _userId = Guid.NewGuid();
@@ -257,7 +269,8 @@ public class GenerateGlossaryCommandHandlerTests
         _glossary.Setup(r => r.AddRangeAsync(It.IsAny<IEnumerable<GlossaryTerm>>(), default)).Returns(Task.CompletedTask);
 
         _doc = new Document { DocumentId = _docId, UserId = _userId, ContentType = "text/plain", BlobUrl = "blob://g" };
-        _handler = new GenerateGlossaryCommandHandler(_uow.Object, _ai.Object, _content.Object);
+        _handler = new GenerateGlossaryCommandHandler(
+            _uow.Object, _ai.Object, _content.Object, _textProvider.Object);
     }
 
     [Fact]
@@ -331,6 +344,8 @@ public class GenerateQuizCommandHandlerTests
     private readonly Mock<IQuizRepository> _quizzes = new();
     private readonly Mock<IAiService> _ai = new();
     private readonly Mock<IDocumentContentService> _content = new();
+    private readonly Mock<IDocumentTextProvider> _textProvider = new();
+    private readonly Mock<IAdaptiveQuizPlanner> _planner = new();
     private readonly GenerateQuizCommandHandler _handler;
 
     private readonly Guid _userId = Guid.NewGuid();
@@ -345,7 +360,8 @@ public class GenerateQuizCommandHandlerTests
         _quizzes.Setup(r => r.AddRangeAsync(It.IsAny<IEnumerable<Quiz>>(), default)).Returns(Task.CompletedTask);
 
         _doc = new Document { DocumentId = _docId, UserId = _userId, ContentType = "text/plain", BlobUrl = "blob://q" };
-        _handler = new GenerateQuizCommandHandler(_uow.Object, _ai.Object, _content.Object);
+        _handler = new GenerateQuizCommandHandler(
+            _uow.Object, _ai.Object, _content.Object, _planner.Object, _textProvider.Object);
     }
 
     private static string QuizJson(string answer = "A") => JsonSerializer.Serialize(new[]

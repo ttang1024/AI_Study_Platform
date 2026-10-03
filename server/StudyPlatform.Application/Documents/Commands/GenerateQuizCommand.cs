@@ -16,15 +16,21 @@ public class GenerateQuizCommandHandler : IRequestHandler<GenerateQuizCommand, R
     private readonly IUnitOfWork _unitOfWork;
     private readonly IAiService _aiService;
     private readonly IDocumentContentService _contentService;
+    private readonly IAdaptiveQuizPlanner _planner;
+    private readonly IDocumentTextProvider _textProvider;
 
     public GenerateQuizCommandHandler(
         IUnitOfWork unitOfWork,
         IAiService aiService,
-        IDocumentContentService contentService)
+        IDocumentContentService contentService,
+        IAdaptiveQuizPlanner planner,
+        IDocumentTextProvider textProvider)
     {
         _unitOfWork = unitOfWork;
         _aiService = aiService;
         _contentService = contentService;
+        _planner = planner;
+        _textProvider = textProvider;
     }
 
     public async Task<Result<IEnumerable<QuizDto>>> Handle(GenerateQuizCommand request, CancellationToken cancellationToken)
@@ -33,29 +39,40 @@ public class GenerateQuizCommandHandler : IRequestHandler<GenerateQuizCommand, R
         if (document == null || document.UserId != request.UserId)
             return Result<IEnumerable<QuizDto>>.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
 
-        var difficulty = NormalizeDifficulty(request.Difficulty);
-        var existing = await _unitOfWork.Quizzes.GetByDocumentIdAndDifficultyAsync(request.DocumentId, difficulty, cancellationToken);
-        if (existing.Any())
-        {
-            var cachedDtos = existing.Select(q => new QuizDto(
-                q.QuizId,
-                q.DocumentId,
-                q.YouTubeVideoId,
-                q.SourceType,
-                q.Question,
-                JsonSerializer.Deserialize<string[]>(q.OptionsJson) ?? Array.Empty<string>(),
-                q.CorrectAnswer,
-                q.Explanation,
-                q.CreatedAt,
-                q.Difficulty));
+        var isAdaptive = QuizDifficulty.IsAdaptive(request.Difficulty);
 
-            return Result<IEnumerable<QuizDto>>.Success(cachedDtos, "Quiz retrieved successfully.");
+        // An adaptive quiz is aimed at the learner's *current* weak spots, so it is regenerated each
+        // time rather than served from the stored set — that set was targeted at who they were last
+        // week. Only the adaptive quizzes for this document are cleared; a half-finished easy/medium/
+        // hard quiz is left alone.
+        QuizPlan? plan = null;
+        if (isAdaptive)
+        {
+            plan = await _planner.PlanAsync(request.UserId, request.DocumentId, cancellationToken);
+            await ClearPreviousAdaptiveQuizzesAsync(request.DocumentId, cancellationToken);
+        }
+
+        var difficulty = isAdaptive ? plan!.Difficulty : QuizDifficulty.Normalize(request.Difficulty);
+
+        if (!isAdaptive)
+        {
+            var existing = await _unitOfWork.Quizzes.GetByDocumentIdAndDifficultyAsync(request.DocumentId, difficulty, cancellationToken);
+            if (existing.Any())
+            {
+                var cachedDtos = existing.Select(q => q.ToQuizDto());
+
+                return Result<IEnumerable<QuizDto>>.Success(cachedDtos, "Quiz retrieved successfully.");
+            }
         }
 
         var (bytes, text) = await _contentService.GetContentAsync(document, cancellationToken);
-        var quizJson = bytes != null
-            ? await _aiService.GenerateQuizAsync(bytes, document.ContentType, difficulty, cancellationToken)
-            : await _aiService.GenerateQuizAsync(text!, difficulty, cancellationToken);
+        var quizJson = isAdaptive
+            ? bytes != null
+                ? await _aiService.GenerateAdaptiveQuizAsync(bytes, document.ContentType, plan!, cancellationToken)
+                : await _aiService.GenerateAdaptiveQuizAsync(text!, plan!, cancellationToken)
+            : bytes != null
+                ? await _aiService.GenerateQuizAsync(bytes, document.ContentType, difficulty, cancellationToken)
+                : await _aiService.GenerateQuizAsync(text!, difficulty, cancellationToken);
 
         List<AiQuizItem> quizItems;
         try
@@ -68,36 +85,53 @@ public class GenerateQuizCommandHandler : IRequestHandler<GenerateQuizCommand, R
             return Result<IEnumerable<QuizDto>>.Failure("AI returned an unexpected response format. Please try again.", "PARSE_ERROR");
         }
 
-        var quizzes = quizItems.Select(q => new Quiz
+        // See GenerateFlashcardsCommand: anchored against the stored canonical text so PDFs, which
+        // reach the model as bytes, are citable too.
+        var anchorSource = await _textProvider.GetTextAsync(document, cancellationToken);
+
+        var quizzes = quizItems.Select(q =>
         {
-            QuizId = Guid.NewGuid(),
-            DocumentId = request.DocumentId,
-            SourceType = "document",
-            UserId = request.UserId,
-            Question = q.Question,
-            OptionsJson = JsonSerializer.Serialize(q.Options),
-            CorrectAnswer = NormalizeCorrectAnswer(q.Options, q.CorrectAnswer),
-            Explanation = q.Explanation,
-            Difficulty = difficulty,
-            CreatedAt = DateTime.UtcNow
+            var anchor = SourceAnchorResolver.Resolve(anchorSource, q.Quote);
+            return new Quiz
+            {
+                QuizId = Guid.NewGuid(),
+                DocumentId = request.DocumentId,
+                SourceType = "document",
+                UserId = request.UserId,
+                Question = q.Question,
+                OptionsJson = JsonSerializer.Serialize(q.Options),
+                CorrectAnswer = NormalizeCorrectAnswer(q.Options, q.CorrectAnswer),
+                Explanation = q.Explanation,
+                SourceAnchorJson = anchor == null ? null : SourceAnchorResolver.Serialize(anchor),
+                SourceVersion = document.ContentVersion,
+                // Adaptive quizzes are stored under their own key rather than the difficulty they resolved
+                // to, so that clearing them can't take a regular easy/medium/hard quiz down with it, and so
+                // that asking for "hard" never silently serves a quiz built for someone else's weak spots.
+                Difficulty = isAdaptive ? QuizDifficulty.Adaptive : difficulty,
+                CreatedAt = DateTime.UtcNow
+            };
         }).ToList();
 
         await _unitOfWork.Quizzes.AddRangeAsync(quizzes, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        var dtos = quizzes.Select(q => new QuizDto(
-            q.QuizId,
-            q.DocumentId,
-            q.YouTubeVideoId,
-            q.SourceType,
-            q.Question,
-            JsonSerializer.Deserialize<string[]>(q.OptionsJson) ?? Array.Empty<string>(),
-            q.CorrectAnswer,
-            q.Explanation,
-            q.CreatedAt,
-            q.Difficulty));
+        var dtos = quizzes.Select(q => q.ToQuizDto());
 
-        return Result<IEnumerable<QuizDto>>.Success(dtos, "Quiz generated successfully.");
+        return Result<IEnumerable<QuizDto>>.Success(dtos, isAdaptive ? plan!.Rationale : "Quiz generated successfully.");
+    }
+
+    /// <summary>Drops the previous adaptive quiz for this document. Regular quizzes are untouched.</summary>
+    private async Task ClearPreviousAdaptiveQuizzesAsync(Guid documentId, CancellationToken cancellationToken)
+    {
+        var previous = await _unitOfWork.Quizzes.GetByDocumentIdAndDifficultyAsync(
+            documentId, QuizDifficulty.Adaptive, cancellationToken);
+
+        var stale = previous.ToList();
+        if (stale.Count == 0)
+            return;
+
+        _unitOfWork.Quizzes.RemoveRange(stale);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
     private static string NormalizeCorrectAnswer(string[] options, string correctAnswer)
@@ -114,13 +148,6 @@ public class GenerateQuizCommandHandler : IRequestHandler<GenerateQuizCommand, R
 
         return trimmed;
     }
-
-    private static string NormalizeDifficulty(string difficulty) => difficulty.ToLowerInvariant() switch
-    {
-        "easy" => "easy",
-        "hard" => "hard",
-        _ => "medium"
-    };
 
     private static bool AnswersMatch(string option, string answer)
     {
@@ -144,5 +171,4 @@ public class GenerateQuizCommandHandler : IRequestHandler<GenerateQuizCommand, R
         return Regex.Replace(alphanumeric, "\\s+", " ").Trim();
     }
 
-    private record AiQuizItem(string Question, string[] Options, string CorrectAnswer, string Explanation);
 }

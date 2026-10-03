@@ -1,6 +1,7 @@
 using MediatR;
 using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Notes.DTOs;
+using StudyPlatform.Application.Services;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
 
@@ -11,7 +12,7 @@ public record CreateNoteCommand(
     string Content,
     string? Title = null,
     Guid? DocumentId = null,
-    Guid? YouTubeVideoId = null) : IRequest<Result<NoteDto>>;
+    Guid? VideoId = null) : IRequest<Result<NoteDto>>;
 
 public class CreateNoteCommandHandler : IRequestHandler<CreateNoteCommand, Result<NoteDto>>
 {
@@ -25,8 +26,8 @@ public class CreateNoteCommandHandler : IRequestHandler<CreateNoteCommand, Resul
             NoteId = Guid.NewGuid(),
             UserId = request.UserId,
             DocumentId = request.DocumentId,
-            YouTubeVideoId = request.YouTubeVideoId,
-            SourceType = request.YouTubeVideoId.HasValue ? "video" : "document",
+            VideoId = request.VideoId,
+            SourceType = request.VideoId.HasValue ? "video" : "document",
             Content = request.Content,
             Title = request.Title,
             CreatedAt = DateTime.UtcNow,
@@ -36,15 +37,9 @@ public class CreateNoteCommandHandler : IRequestHandler<CreateNoteCommand, Resul
         await _unitOfWork.Notes.AddAsync(note, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return Result<NoteDto>.Success(ToDto(note), "Note created successfully.");
+        return Result<NoteDto>.Success(note.ToNoteDto(), "Note created successfully.");
     }
-
-    internal static NoteDto ToDto(Note n) => new(n.NoteId, n.UserId, n.DocumentId, n.YouTubeVideoId, n.SourceType, n.Content, n.Title, n.CreatedAt, n.UpdatedAt,
-        Document: n.Document?.FileName,
-        Video: n.YouTubeVideo?.Title);
 }
-
-public record GetAllNotesQuery(Guid UserId) : IRequest<Result<IEnumerable<NoteDto>>>;
 
 public record GetAllNotesPagedQuery(Guid UserId, int Page, int PageSize) : IRequest<Result<PaginatedList<NoteDto>>>;
 
@@ -56,20 +51,8 @@ public class GetAllNotesPagedQueryHandler : IRequestHandler<GetAllNotesPagedQuer
     public async Task<Result<PaginatedList<NoteDto>>> Handle(GetAllNotesPagedQuery request, CancellationToken cancellationToken)
     {
         var (notes, totalCount) = await _unitOfWork.Notes.GetPagedByUserIdAsync(request.UserId, request.Page, request.PageSize, cancellationToken);
-        var dtos = notes.Select(CreateNoteCommandHandler.ToDto);
+        var dtos = notes.Select(n => n.ToNoteDto());
         return Result<PaginatedList<NoteDto>>.Success(new PaginatedList<NoteDto>(dtos, totalCount, request.Page, request.PageSize));
-    }
-}
-
-public class GetAllNotesQueryHandler : IRequestHandler<GetAllNotesQuery, Result<IEnumerable<NoteDto>>>
-{
-    private readonly IUnitOfWork _unitOfWork;
-    public GetAllNotesQueryHandler(IUnitOfWork unitOfWork) { _unitOfWork = unitOfWork; }
-
-    public async Task<Result<IEnumerable<NoteDto>>> Handle(GetAllNotesQuery request, CancellationToken cancellationToken)
-    {
-        var notes = await _unitOfWork.Notes.GetByUserIdAsync(request.UserId, cancellationToken);
-        return Result<IEnumerable<NoteDto>>.Success(notes.Select(CreateNoteCommandHandler.ToDto));
     }
 }
 
@@ -91,7 +74,7 @@ public class UpdateNoteCommandHandler : IRequestHandler<UpdateNoteCommand, Resul
         _unitOfWork.Notes.Update(note);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return Result<NoteDto>.Success(CreateNoteCommandHandler.ToDto(note), "Note updated successfully.");
+        return Result<NoteDto>.Success(note.ToNoteDto(), "Note updated successfully.");
     }
 }
 
@@ -100,7 +83,13 @@ public record DeleteNoteCommand(Guid NoteId, Guid UserId) : IRequest<Result>;
 public class DeleteNoteCommandHandler : IRequestHandler<DeleteNoteCommand, Result>
 {
     private readonly IUnitOfWork _unitOfWork;
-    public DeleteNoteCommandHandler(IUnitOfWork unitOfWork) { _unitOfWork = unitOfWork; }
+    private readonly IEmbeddingIndex _embeddingIndex;
+
+    public DeleteNoteCommandHandler(IUnitOfWork unitOfWork, IEmbeddingIndex embeddingIndex)
+    {
+        _unitOfWork = unitOfWork;
+        _embeddingIndex = embeddingIndex;
+    }
 
     public async Task<Result> Handle(DeleteNoteCommand request, CancellationToken cancellationToken)
     {
@@ -109,6 +98,7 @@ public class DeleteNoteCommandHandler : IRequestHandler<DeleteNoteCommand, Resul
 
         _unitOfWork.Notes.Remove(note);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await _embeddingIndex.PruneOrphansAsync(request.UserId, cancellationToken);
         return Result.Success("Note deleted successfully.");
     }
 }
@@ -118,12 +108,19 @@ public record BulkDeleteNotesCommand(IEnumerable<Guid> NoteIds, Guid UserId) : I
 public class BulkDeleteNotesCommandHandler : IRequestHandler<BulkDeleteNotesCommand, Result>
 {
     private readonly IUnitOfWork _unitOfWork;
-    public BulkDeleteNotesCommandHandler(IUnitOfWork unitOfWork) { _unitOfWork = unitOfWork; }
+    private readonly IEmbeddingIndex _embeddingIndex;
+
+    public BulkDeleteNotesCommandHandler(IUnitOfWork unitOfWork, IEmbeddingIndex embeddingIndex)
+    {
+        _unitOfWork = unitOfWork;
+        _embeddingIndex = embeddingIndex;
+    }
 
     public async Task<Result> Handle(BulkDeleteNotesCommand request, CancellationToken cancellationToken)
     {
         await _unitOfWork.Notes.DeleteByIdsAsync(request.NoteIds, request.UserId, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await _embeddingIndex.PruneOrphansAsync(request.UserId, cancellationToken);
         return Result.Success("Notes deleted successfully.");
     }
 }

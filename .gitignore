@@ -9,6 +9,8 @@ publish/
 # Temporary files
 *.tmp
 *.temp
+AGENTS.md
+CLAUDE.md
 # Visual Studio related files
 .vs/
 *.suo
@@ -47,6 +49,7 @@ out/
 .env.development.local
 .env.test.local
 .env.production.local
+.env_variables
 # npm logs
 npm-debug.log*
 yarn-debug.log*
@@ -84,18 +87,22 @@ appsettings.json
 appsettings.Development.json
 cookies.txt
 
+# Kubernetes Helm secrets overrides (never commit real secret values)
+secrets.values.yaml
+
 __azurite_db_blob__.json
 __azurite_db_blob_extent__.json
 __blobstorage__
 AzuriteConfig
-.azure_env_variables
+.env_variables
+# deploy.sh and the migration scripts snapshot .env_variables before editing it; those
+# backups hold the same live credentials and must never be committed.
+.env_variables.bak-*
 report
 cookies.txt
 cookies1.txt
 cookies2.txt
 cookies3.txt
-tech
-skills.md
 demos/StudyPlatform1.png
 demos/StudyPlatform2.png
 demos/StudyPlatform3.png
@@ -103,7 +110,14 @@ demos/StudyPlatform4.png
 demos/StudyPlatform5.png
 demos/StudyPlatform6.png
 demos/StudyPlatform7.png
-
+tech_doc
 .next
 out
 Webshare_residential_proxies.txt
+playwright-report
+test-results
+*.lscache
+dump.rdb
+
+# Local database dumps produced by scripts/migrate-db.sh — never commit these.
+.migration/

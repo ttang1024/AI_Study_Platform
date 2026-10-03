@@ -16,9 +16,14 @@
     </PackageReference>
     <PackageReference Include="Moq" Version="4.20.72" />
     <PackageReference Include="FluentValidation" Version="11.11.0" />
+    <PackageReference Include="coverlet.collector" Version="6.0.4">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\StudyPlatform.API\StudyPlatform.API.csproj" />
     <ProjectReference Include="..\StudyPlatform.Application\StudyPlatform.Application.csproj" />
     <ProjectReference Include="..\StudyPlatform.Domain\StudyPlatform.Domain.csproj" />
     <ProjectReference Include="..\StudyPlatform.Infrastructure\StudyPlatform.Infrastructure.csproj" />

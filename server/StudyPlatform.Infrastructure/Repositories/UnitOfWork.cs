@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore.Storage;
 using StudyPlatform.Domain.Interfaces;
 using StudyPlatform.Infrastructure.Data;
 
@@ -7,7 +6,6 @@ namespace StudyPlatform.Infrastructure.Repositories;
 public class UnitOfWork : IUnitOfWork
 {
     private readonly AppDbContext _context;
-    private IDbContextTransaction? _transaction;
     private bool _disposed;
 
     private IUserRepository? _users;
@@ -21,7 +19,7 @@ public class UnitOfWork : IUnitOfWork
     private IChatMessageRepository? _chatMessages;
     private IAnalyticsRepository? _analytics;
     private IQuizSubmissionRepository? _quizSubmissions;
-    private IYouTubeVideoRepository? _youTubeVideos;
+    private IVideoRepository? _youTubeVideos;
     private IGlossaryTermRepository? _glossaryTerms;
     private IFeedbackRepository? _feedbacks;
     private IShareTokenRepository? _shareTokens;
@@ -34,8 +32,18 @@ public class UnitOfWork : IUnitOfWork
     private IStudyGroupMemberRepository? _studyGroupMembers;
     private IStudyGroupSharedCourseRepository? _studyGroupSharedCourses;
     private IGroupChatMessageRepository? _groupChatMessages;
-    private IConceptLinkRepository? _conceptLinks;
     private IFlashcardSrsDataRepository? _flashcardSrs;
+    private IStudySessionRepository? _studySessions;
+    private IMistakeEntryRepository? _mistakeEntries;
+    private IExamPlanRepository? _examPlans;
+    private IFlashcardReviewLogRepository? _flashcardReviewLogs;
+    private IStreakCoverDayRepository? _streakCoverDays;
+    private IUserCalendarFeedRepository? _userCalendarFeeds;
+    private IAiUsageRepository? _aiUsage;
+    private IDataExportRequestRepository? _dataExportRequests;
+    private ILibraryTagRepository? _libraryTags;
+    private IUserFsrsSettingsRepository? _userFsrsSettings;
+    private IPageVisitRepository? _pageVisits;
 
     public UnitOfWork(AppDbContext context)
     {
@@ -53,7 +61,7 @@ public class UnitOfWork : IUnitOfWork
     public IChatMessageRepository ChatMessages => _chatMessages ??= new ChatMessageRepository(_context);
     public IAnalyticsRepository Analytics => _analytics ??= new AnalyticsRepository(_context);
     public IQuizSubmissionRepository QuizSubmissions => _quizSubmissions ??= new QuizSubmissionRepository(_context);
-    public IYouTubeVideoRepository YouTubeVideos => _youTubeVideos ??= new YouTubeVideoRepository(_context);
+    public IVideoRepository Videos => _youTubeVideos ??= new VideoRepository(_context);
     public IGlossaryTermRepository GlossaryTerms => _glossaryTerms ??= new GlossaryTermRepository(_context);
     public IFeedbackRepository Feedbacks => _feedbacks ??= new FeedbackRepository(_context);
     public IShareTokenRepository ShareTokens => _shareTokens ??= new ShareTokenRepository(_context);
@@ -66,32 +74,26 @@ public class UnitOfWork : IUnitOfWork
     public IStudyGroupMemberRepository StudyGroupMembers => _studyGroupMembers ??= new StudyGroupMemberRepository(_context);
     public IStudyGroupSharedCourseRepository StudyGroupSharedCourses => _studyGroupSharedCourses ??= new StudyGroupSharedCourseRepository(_context);
     public IGroupChatMessageRepository GroupChatMessages => _groupChatMessages ??= new GroupChatMessageRepository(_context);
-    public IConceptLinkRepository ConceptLinks => _conceptLinks ??= new ConceptLinkRepository(_context);
     public IFlashcardSrsDataRepository FlashcardSrs => _flashcardSrs ??= new FlashcardSrsDataRepository(_context);
+    public IStudySessionRepository StudySessions => _studySessions ??= new StudySessionRepository(_context);
+    public IMistakeEntryRepository MistakeEntries => _mistakeEntries ??= new MistakeEntryRepository(_context);
+    public IExamPlanRepository ExamPlans => _examPlans ??= new ExamPlanRepository(_context);
+    public IFlashcardReviewLogRepository FlashcardReviewLogs => _flashcardReviewLogs ??= new FlashcardReviewLogRepository(_context);
+    public IStreakCoverDayRepository StreakCoverDays => _streakCoverDays ??= new StreakCoverDayRepository(_context);
+    public IUserCalendarFeedRepository UserCalendarFeeds => _userCalendarFeeds ??= new UserCalendarFeedRepository(_context);
+    public IAiUsageRepository AiUsage => _aiUsage ??= new AiUsageRepository(_context);
+    public IDataExportRequestRepository DataExportRequests => _dataExportRequests ??= new DataExportRequestRepository(_context);
+    public ILibraryTagRepository LibraryTags => _libraryTags ??= new LibraryTagRepository(_context);
+    public IUserFsrsSettingsRepository UserFsrsSettings => _userFsrsSettings ??= new UserFsrsSettingsRepository(_context);
+    public IPageVisitRepository PageVisits => _pageVisits ??= new PageVisitRepository(_context);
 
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         => await _context.SaveChangesAsync(cancellationToken);
-
-    public async Task BeginTransactionAsync(CancellationToken cancellationToken = default)
-        => _transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
-
-    public async Task CommitTransactionAsync(CancellationToken cancellationToken = default)
-    {
-        if (_transaction != null)
-            await _transaction.CommitAsync(cancellationToken);
-    }
-
-    public async Task RollbackTransactionAsync(CancellationToken cancellationToken = default)
-    {
-        if (_transaction != null)
-            await _transaction.RollbackAsync(cancellationToken);
-    }
 
     public void Dispose()
     {
         if (!_disposed)
         {
-            _transaction?.Dispose();
             _context.Dispose();
             _disposed = true;
         }

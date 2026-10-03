@@ -4,8 +4,10 @@ import { Calendar, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { CONTENT_TYPE_ICONS } from '../../constants/contentTypeIcons';
 import { motion, AnimatePresence } from 'motion/react';
 import { useStudy } from '../../context/StudyContext';
-import { youtubeService } from '../../services/youtubeService';
+import { videoService } from '../../services/videoService';
 import { cn } from '../../utils/cn';
+import { documentSourceKind } from '@core/utils/documentDisplay';
+import { toLocalDateKey as toLocalDateStr } from '@core/utils/format';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -25,22 +27,19 @@ interface CalendarEntry {
 }
 
 const entryPath = (entry: { type: string; id: string }) => {
-  if (entry.type === 'video') return `/youtube/${entry.id}`;
+  if (entry.type === 'video') return `/videos/${entry.id}`;
   if (entry.type === 'article') return `/articles/${entry.id}`;
   if (entry.type === 'audio') return `/audio/${entry.id}`;
   return `/documents/${entry.id}`;
-};
-
-const toLocalDateStr = (iso: string) => {
-  const d = new Date(iso);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const StudyCalendar: React.FC = () => {
   const navigate = useNavigate();
-  const { documents, courses, quizSubmissions } = useStudy();
+  const { documents, courses, ensureDocuments } = useStudy();
+
+  useEffect(() => { void ensureDocuments(); }, [ensureDocuments]);
 
   const today = useMemo(() => new Date(), []);
   const todayStr = useMemo(() =>
@@ -55,7 +54,7 @@ export const StudyCalendar: React.FC = () => {
   const [popupDate, setPopupDate] = useState<string | null>(null);
   const popupRef = useRef<HTMLDivElement>(null);
 
-  // Build studyDayMap from documents + videos + quiz submissions
+  // Build studyDayMap from documents + videos
   useEffect(() => {
     let active = true;
     const build = async () => {
@@ -68,19 +67,13 @@ export const StudyCalendar: React.FC = () => {
       // Documents (split by subtype)
       documents.forEach(doc => {
         if (!doc.uploadDate) return;
-        const type = doc.type === 'audio' || doc.type === 'podcast' ? 'audio' : doc.originalUrl ? 'article' : 'doc';
+        const type = documentSourceKind(doc);
         addEntry(toLocalDateStr(doc.uploadDate), { id: doc.id, name: doc.name, type, courseId: doc.courseId });
-      });
-
-      // Quiz activity
-      quizSubmissions.forEach(s => {
-        const doc = documents.find(d => d.id === s.documentId);
-        if (doc) addEntry(toLocalDateStr(s.submittedAt), { id: doc.id, name: doc.name, type: 'doc', courseId: doc.courseId });
       });
 
       // Videos
       try {
-        const res = await youtubeService.getVideos({ page: 1, pageSize: 100 });
+        const res = await videoService.getVideos({ page: 1, pageSize: 100 });
         (res?.items ?? []).forEach(v => {
           if (v.createdAt)
             addEntry(toLocalDateStr(v.createdAt), { id: v.id, name: v.title, type: 'video', courseId: v.courseId, courseColor: v.courseColor });
@@ -94,7 +87,7 @@ export const StudyCalendar: React.FC = () => {
     };
     build();
     return () => { active = false; };
-  }, [documents, quizSubmissions]);
+  }, [documents]);
 
   // Close popup on outside click
   useEffect(() => {
@@ -261,10 +254,10 @@ export const StudyCalendar: React.FC = () => {
                     const course = courses.find(c => c.id === entry.courseId);
                     const courseColor = course?.color ?? (entry.type === 'video' ? '#ef4444' : undefined);
                     const courseName = course?.name;
-                    const Icon = entry.type === 'video'   ? CONTENT_TYPE_ICONS.video.icon
-                               : entry.type === 'article' ? CONTENT_TYPE_ICONS.article.icon
-                               : entry.type === 'audio'   ? CONTENT_TYPE_ICONS.audio.icon
-                               : CONTENT_TYPE_ICONS.document.icon;
+                    const Icon = entry.type === 'video' ? CONTENT_TYPE_ICONS.video.icon
+                      : entry.type === 'article' ? CONTENT_TYPE_ICONS.article.icon
+                        : entry.type === 'audio' ? CONTENT_TYPE_ICONS.audio.icon
+                          : CONTENT_TYPE_ICONS.document.icon;
                     return (
                       <button
                         key={entry.id}

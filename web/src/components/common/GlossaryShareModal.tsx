@@ -1,9 +1,10 @@
 import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Share2, Copy, Check, Loader2, ExternalLink, Search } from 'lucide-react';
+import { X, Share2, Check, Loader2, Search } from 'lucide-react';
 import { createShare, CreateSharePayload } from '../../services/shareContentService';
 import { GlossaryTerm } from '../../types';
 import { cn } from '../../utils/cn';
+import { ShareLinkResult } from './ShareLinkResult';
 
 interface GlossaryShareModalProps {
   open: boolean;
@@ -117,36 +118,12 @@ export const GlossaryShareModal: React.FC<GlossaryShareModalProps> = ({ open, on
             <div className="p-6 space-y-4 flex flex-col flex-1 min-h-0">
               {step === 'done' ? (
                 <div className="space-y-4">
-                  <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-4 text-center">
-                    <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-2">
-                      <Check size={20} className="text-emerald-600" />
-                    </div>
-                    <p className="text-sm font-semibold text-emerald-800">Share link created!</p>
-                    <p className="text-xs text-emerald-600 mt-0.5">{selectedTerms.length} term{selectedTerms.length !== 1 ? 's' : ''} shared.</p>
-                  </div>
-
-                  <div className="flex items-center gap-2 rounded-xl border border-[var(--border-color)] bg-zinc-50 px-3 py-2.5">
-                    <span className="flex-1 text-xs text-text-main truncate font-mono">{shareUrl}</span>
-                    <button
-                      onClick={handleCopy}
-                      className={cn(
-                        'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all shrink-0',
-                        copied ? 'bg-emerald-100 text-emerald-700' : 'bg-primary text-white hover:opacity-90'
-                      )}
-                    >
-                      {copied ? <><Check size={12} /> Copied!</> : <><Copy size={12} /> Copy</>}
-                    </button>
-                  </div>
-
-                  <a
-                    href={shareUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 w-full rounded-xl border border-[var(--border-color)] py-2.5 text-sm font-medium text-text-muted hover:text-primary hover:border-primary/30 transition-all"
-                  >
-                    <ExternalLink size={14} />
-                    Open shared page
-                  </a>
+                  <ShareLinkResult
+                    shareUrl={shareUrl}
+                    subtitle={`${selectedTerms.length} term${selectedTerms.length !== 1 ? 's' : ''} shared.`}
+                    copied={copied}
+                    onCopy={handleCopy}
+                  />
                 </div>
               ) : (
                 <>

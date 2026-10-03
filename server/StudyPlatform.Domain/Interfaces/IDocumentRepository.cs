@@ -1,14 +1,66 @@
 using StudyPlatform.Domain.Entities;
+using StudyPlatform.Domain.Projections;
 
 namespace StudyPlatform.Domain.Interfaces;
 
+/// <summary>
+/// A Document row is one of three things to the user depending on its content type and whether it was
+/// clipped from a URL: a plain document, a web article, or an audio/podcast episode. Counting them means
+/// applying the same three-way split in several places, so it lives here once.
+/// </summary>
+public record MaterialCounts(int Documents, int Articles, int Audio)
+{
+    public static readonly MaterialCounts Empty = new(0, 0, 0);
+
+    public int Total => Documents + Articles + Audio;
+}
+
 public interface IDocumentRepository : IRepository<Document>
 {
+    /// <summary>Whole-library material counts for a user, split by kind, in one grouped query.</summary>
+    Task<MaterialCounts> GetMaterialCountsAsync(Guid userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Per-course material counts for a user, split by kind. One grouped query for the whole library —
+    /// the alternative is a COUNT per course per kind, which is where the stats endpoint used to spend
+    /// all of its time.
+    /// </summary>
+    Task<IReadOnlyDictionary<Guid, MaterialCounts>> GetMaterialCountsByCourseAsync(Guid userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Maps every one of a user's documents to the course it belongs to, without materialising the rows.
+    /// Documents carry their full extracted text; a caller that only needs to attribute an artifact to a
+    /// course should not drag that across the wire.
+    /// </summary>
+    Task<IReadOnlyDictionary<Guid, Guid>> GetDocumentCourseMapAsync(Guid userId, CancellationToken cancellationToken = default);
+
     Task<IEnumerable<Document>> GetByCourseIdAsync(Guid courseId, Guid userId, CancellationToken cancellationToken = default);
     Task<IEnumerable<Document>> GetByCourseIdAsync(Guid courseId, CancellationToken cancellationToken = default);
-    Task<Document?> GetByIdWithDetailsAsync(Guid documentId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Content type and blob location for one document, and nothing else — what the anonymous share
+    /// endpoints need in order to redirect or stream. They never read the document's own text.
+    /// </summary>
+    Task<DocumentSourceRef?> GetSourceRefAsync(Guid documentId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Blob locations of every document in a course, for deleting the underlying files when the course
+    /// goes. Loading the rows themselves would pull each document's full text along with the URL.
+    /// </summary>
+    Task<IReadOnlyList<string>> GetBlobUrlsByCourseAsync(Guid courseId, CancellationToken cancellationToken = default);
+
     Task<bool> BelongsToUserAsync(Guid documentId, Guid userId, CancellationToken cancellationToken = default);
     Task<IEnumerable<Document>> GetByUserIdAsync(Guid userId, DateTime date, CancellationToken cancellationToken = default);
     Task<(IEnumerable<Document> Items, int TotalCount)> GetAllByUserIdAsync(Guid userId, int page, int pageSize, Guid? courseId, CancellationToken cancellationToken = default);
+    Task<Document?> GetByUserIdAndFileHashAsync(Guid userId, string fileHash, CancellationToken cancellationToken = default);
     Task<int> CountByUserIdAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<IEnumerable<Document>> SearchByUserAsync(Guid userId, string query, int limit, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Most recent documents not in <paramref name="excludeDocumentIds"/>, projected to lightweight rows
+    /// (no heavy text columns). Used by the recommendations engine's "materials you haven't been quizzed
+    /// on yet" section, which only needs a handful of candidates rather than the whole library.
+    /// </summary>
+    Task<IReadOnlyList<DocumentListItem>> GetRecentUntestedAsync(
+        Guid userId, IReadOnlyCollection<Guid> excludeDocumentIds, int limit, CancellationToken cancellationToken = default);
 }

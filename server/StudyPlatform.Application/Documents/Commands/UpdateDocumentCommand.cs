@@ -31,19 +31,6 @@ public class UpdateDocumentCommandHandler : IRequestHandler<UpdateDocumentComman
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return Result<DocumentDto>.Success(new DocumentDto(
-            document.DocumentId,
-            document.CourseId,
-            document.UserId,
-            document.FileName,
-            document.BlobUrl,
-            document.ContentType,
-            document.FileSize,
-            document.Summary,
-            document.MindMapText,
-            document.CreatedAt,
-            document.UpdatedAt,
-            document.Transcript,
-            document.OriginalUrl));
+        return Result<DocumentDto>.Success(document.ToDocumentDto());
     }
 }

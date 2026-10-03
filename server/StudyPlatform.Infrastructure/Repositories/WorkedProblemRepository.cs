@@ -20,7 +20,7 @@ public class WorkedProblemRepository : IWorkedProblemRepository
         if (documentId.HasValue)
             query = query.Where(p => p.DocumentId == documentId);
         else if (videoId.HasValue)
-            query = query.Where(p => p.YouTubeVideoId == videoId);
+            query = query.Where(p => p.VideoId == videoId);
         return await query.OrderByDescending(p => p.CreatedAt).ToListAsync(cancellationToken);
     }
 

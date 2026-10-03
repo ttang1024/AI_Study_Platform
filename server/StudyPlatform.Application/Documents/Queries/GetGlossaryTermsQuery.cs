@@ -23,7 +23,7 @@ public class GetGlossaryTermsQueryHandler : IRequestHandler<GetGlossaryTermsQuer
             return Result<IEnumerable<GlossaryTermDto>>.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
 
         var terms = await _unitOfWork.GlossaryTerms.GetByDocumentIdAsync(request.DocumentId, cancellationToken);
-        var dtos = terms.Select(t => new GlossaryTermDto(t.GlossaryTermId, t.DocumentId, t.Term, t.Definition, t.CreatedAt));
+        var dtos = terms.Select(t => t.ToGlossaryTermDto());
         return Result<IEnumerable<GlossaryTermDto>>.Success(dtos);
     }
 }

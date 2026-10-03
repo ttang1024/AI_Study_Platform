@@ -1,8 +1,9 @@
-import React, { useState, useCallback } from 'react';
+import React, { Suspense, useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Menu, Search, Keyboard } from 'lucide-react';
+import { Menu, Search } from 'lucide-react';
 import { Sidebar } from './Sidebar';
+import { NotificationBell } from './NotificationBell';
 import { cn } from '../../utils/cn';
 import { OfflineBanner } from '../common/OfflineBanner';
 import { AIProviderBanner } from '../common/AIProviderBanner';
@@ -18,13 +19,16 @@ export const MainLayout: React.FC = () => {
   const navigate = useNavigate();
 
   useKeyboardShortcuts([
+    { key: 'k', meta: true, description: 'Command palette', action: () => setIsSearchOpen(v => !v) },
     { key: '/', description: 'Open search', action: () => setIsSearchOpen(true) },
     { key: '?', description: 'Show shortcuts', action: () => setIsShortcutsOpen(true) },
     { key: 'd', description: 'Dashboard', action: () => navigate('/dashboard') },
     { key: 'l', description: 'Library', action: () => navigate('/library') },
     { key: 'f', description: 'Flashcards', action: () => navigate('/flashcards') },
-    { key: 'q', description: 'Quizzes', action: () => navigate('/quizzes') },
+    { key: 'q', description: 'Practice Center', action: () => navigate('/quizzes') },
+    { key: 'p', description: 'Practice', action: () => navigate('/quizzes?tab=practice') },
     { key: 'n', description: 'Notes', action: () => navigate('/notes') },
+    { key: 'g', description: 'Glossary', action: () => navigate('/glossary') },
   ]);
 
   return (
@@ -82,6 +86,7 @@ export const MainLayout: React.FC = () => {
               Easy Study
             </span>
           </div>
+          <NotificationBell />
           <button
             onClick={() => setIsSearchOpen(true)}
             className="rounded-lg p-2 text-text-muted hover:bg-[var(--primary)]/10"
@@ -90,9 +95,21 @@ export const MainLayout: React.FC = () => {
           </button>
         </div>
 
-        <main className="flex-1 overflow-hidden flex flex-col p-4 sm:p-6 lg:p-8 min-w-0">
-          <div className="mx-auto w-full max-w-7xl flex-1 min-h-0 overflow-y-auto">
-            <Outlet />
+        {/* Desktop floating notification bell */}
+        <div className="hidden lg:block absolute top-2 right-4 z-30">
+          <NotificationBell className="bg-[var(--bg-sidebar)]/80 backdrop-blur shadow-sm border border-[var(--border-color)]" />
+        </div>
+
+        <main className="flex-1 overflow-hidden flex flex-col min-w-0">
+          {/* Full-width scroll container so the scrollbar sits at the page's right
+              edge; content stays centered via the inner max-width wrapper. */}
+          <div id="main-scroll" className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 lg:p-8">
+            <div className="mx-auto w-full max-w-7xl h-full">
+              {/* Pages are lazy-loaded; keep the shell visible while a chunk loads. */}
+              <Suspense fallback={null}>
+                <Outlet />
+              </Suspense>
+            </div>
           </div>
         </main>
       </div>

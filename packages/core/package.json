@@ -1,0 +1,23 @@
+{
+  "name": "@study/core",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Platform-agnostic domain logic shared by web/ and rn/ (services over an injected HttpClient, pure utils, domain types). No runtime dependencies \u2014 consumers inject the HTTP client. There is no barrel entry point: consumers deep-import (e.g. '@core/services/practiceService'). React is a peer dependency used only by the opt-in @core/react/* modules.",
+  "type": "module",
+  "sideEffects": false,
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@vitest/coverage-v8": "^2.1.9",
+    "typescript": "~5.8.2",
+    "vitest": "^2.0.0"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  }
+}

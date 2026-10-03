@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrainCircuit, Play, Smartphone } from 'lucide-react';
+import { BrainCircuit, Play } from 'lucide-react';
 import { motion } from 'motion/react';
 import { CONTENT_TYPE_ICONS } from '../../constants/contentTypeIcons';
 
@@ -14,6 +14,7 @@ export interface UnifiedSet {
   clozeCount: number;
   previewText?: string;
   thumbnailUrl?: string;
+  videoPreviewUrl?: string;
 }
 
 const cardVariants = {
@@ -27,7 +28,7 @@ interface FlashcardSetCardProps {
   onMobileReview: () => void;
 }
 
-export const FlashcardSetCard: React.FC<FlashcardSetCardProps> = ({ set, onSelect, onMobileReview }) => {
+export const FlashcardSetCard: React.FC<FlashcardSetCardProps> = ({ set, onMobileReview }) => {
   const cardColor = set.courseColor;
 
   return (
@@ -37,7 +38,7 @@ export const FlashcardSetCard: React.FC<FlashcardSetCardProps> = ({ set, onSelec
       initial="hidden"
       animate="show"
       exit={{ opacity: 0, scale: 0.9 }}
-      onClick={onSelect}
+      onClick={onMobileReview}
       className="group relative flex flex-col text-left rounded-2xl border border-zinc-100 bg-white p-4 shadow-sm transition-all card-hover"
     >
       {/* Stacked Cards Preview */}
@@ -54,16 +55,37 @@ export const FlashcardSetCard: React.FC<FlashcardSetCardProps> = ({ set, onSelec
           className="absolute inset-x-0 top-0 bottom-0 rounded-xl flex flex-col items-start justify-between p-3.5 group-hover:scale-[1.02] transition-transform duration-300"
           style={{ backgroundColor: cardColor, boxShadow: `0 6px 20px ${cardColor}40` }}
         >
+          {set.type === 'video' && set.thumbnailUrl && (
+            <>
+              {set.videoPreviewUrl && (
+                <video
+                  src={`${set.videoPreviewUrl}#t=0.1`}
+                  className="absolute inset-0 h-full w-full rounded-xl object-cover"
+                  muted
+                  playsInline
+                  preload="metadata"
+                />
+              )}
+              <img
+                src={set.thumbnailUrl}
+                alt={set.name}
+                className="absolute inset-0 h-full w-full rounded-xl object-cover"
+                referrerPolicy="no-referrer"
+                onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+              />
+              <div className="absolute inset-0 rounded-xl bg-black/30" />
+            </>
+          )}
           <div className="flex-1 flex items-center justify-center w-full py-1">
             {set.previewText ? (
-              <p className="text-[11px] font-semibold text-white text-center line-clamp-3 leading-snug px-1">
+              <p className="relative z-10 text-[11px] font-semibold text-white text-center line-clamp-3 leading-snug px-1 drop-shadow-sm">
                 {set.previewText}
               </p>
             ) : (
-              <BrainCircuit size={22} className="text-white opacity-40" />
+              <BrainCircuit size={22} className="relative z-10 text-white opacity-40" />
             )}
           </div>
-          <div className="self-end flex items-center gap-1">
+          <div className="relative z-10 self-end flex items-center gap-1">
             <div className="rounded-full bg-white/20 px-2 py-1">
               <span className="text-[9px] font-bold text-white">{set.cardCount} cards</span>
             </div>
@@ -97,12 +119,6 @@ export const FlashcardSetCard: React.FC<FlashcardSetCardProps> = ({ set, onSelec
         <div className="flex items-center gap-1.5">
           <div
             onClick={(e) => { e.stopPropagation(); onMobileReview(); }}
-            className="rounded-xl border border-zinc-200 p-2 text-text-muted hover:border-primary/50 hover:text-primary transition-all"
-            title="Mobile review"
-          >
-            <Smartphone size={13} />
-          </div>
-          <div
             className="rounded-xl p-2 text-white shrink-0 opacity-75 group-hover:opacity-100 transition-opacity"
             style={{ backgroundColor: cardColor }}
           >

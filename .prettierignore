@@ -1,0 +1,10 @@
+node_modules/
+dist/
+build/
+coverage/
+.expo/
+bin/
+obj/
+publish/
+package-lock.json
+web/src/generated/

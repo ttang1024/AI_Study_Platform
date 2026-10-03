@@ -1,28 +1,28 @@
-import React, { useState, useRef } from 'react';
-import { useNavigate, Link as RouterLink } from 'react-router-dom';
+import React, { useEffect, useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Upload, File, X, Loader2, ShieldCheck, Zap, FileText, FileCode, BookOpen, ArrowRight } from 'lucide-react';
+import { Upload, File, X, Loader2, ShieldCheck, FileText, BookOpen, Image, Presentation } from 'lucide-react';
 import { Button } from '../common/Button';
-import { DocumentCard } from '../common/DocumentCard';
 import { usePrompt } from '../common/PromptBox';
 import { useStudy } from '../../context/StudyContext';
 import { cn } from '../../utils/cn';
-import { getApiErrorMessage } from '../../utils/apiError';
-
-const container = {
-  hidden: { opacity: 0, y: 24 },
-  show: { opacity: 1, y: 0, transition: { staggerChildren: 0.09 } },
-};
-const item = {
-  hidden: { opacity: 0, y: 16, scale: 0.97 },
-  show: { opacity: 1, y: 0, scale: 1 },
-};
+import { container, item, RecentDocuments, StartLearningLabel, FileDropZone } from './summarizerShared';
+import { getApiErrorMessage } from '@core/utils/apiError';
+import { calculateSha256 } from '../../utils/fileHash';
+import { DuplicateAlert } from './DuplicateAlert';
+import { getDuplicateDocRoute } from './duplicateDocRoute';
+import { DOCUMENT_ACCEPT_ATTR, isAcceptedDocumentFile } from '../../constants/documentUpload';
 
 const FILE_TYPES = [
   { icon: BookOpen, label: 'PDF', color: 'text-red-400 bg-red-50' },
-  { icon: FileText, label: 'DOCX', color: 'text-teal-500 bg-teal-50' },
-  { icon: FileCode, label: 'MD', color: 'text-teal-400 bg-teal-50' },
+  { icon: Image, label: 'Image', color: 'text-violet-500 bg-violet-50' },
+  { icon: Presentation, label: 'PPT', color: 'text-orange-500 bg-orange-50' },
+  { icon: FileText, label: 'Word', color: 'text-blue-500 bg-blue-50' },
+  { icon: FileText, label: 'Excel', color: 'text-green-600 bg-green-50' },
   { icon: FileText, label: 'TXT', color: 'text-zinc-400 bg-zinc-50' },
+  { icon: BookOpen, label: 'eBook', color: 'text-emerald-500 bg-emerald-50' },
+  { icon: FileText, label: 'Code', color: 'text-sky-500 bg-sky-50' },
+  { icon: FileText, label: 'Subtitles', color: 'text-amber-500 bg-amber-50' },
 ];
 
 export interface DocumentTabProps {
@@ -32,22 +32,40 @@ export interface DocumentTabProps {
 
 export const DocumentTab: React.FC<DocumentTabProps> = ({ selectedCourseId, onCourseError }) => {
   const navigate = useNavigate();
-  const { addDocument, documents, courses } = useStudy();
+  const { addDocument, documents, courses, ensureDocuments } = useStudy();
   const { showPrompt } = usePrompt();
+  // documents is loaded lazily by StudyContext; pull it for the recent list and
+  // duplicate detection.
+  useEffect(() => { void ensureDocuments(); }, [ensureDocuments]);
   const recentDocs = documents.filter(d => d.type !== 'audio' && d.type !== 'podcast' && !d.originalUrl).slice(0, 3);
   const getCourse = (id?: string) => courses.find(c => c.id === id);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [file, setFile] = useState<File | null>(null);
+  const [fileHash, setFileHash] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
 
+  useEffect(() => {
+    let cancelled = false;
+    setFileHash(null);
+    if (!file) return;
+
+    calculateSha256(file)
+      .then(hash => { if (!cancelled) setFileHash(hash); })
+      .catch(() => { if (!cancelled) setFileHash(null); });
+
+    return () => { cancelled = true; };
+  }, [file]);
+
+  const duplicateDoc = !uploading && fileHash
+    ? documents.find(doc => doc.fileHash === fileHash) ?? null
+    : null;
+  const duplicateDocCourse = duplicateDoc?.courseId ? courses.find(c => c.id === duplicateDoc.courseId) : undefined;
+
   const validateAndSetFile = (f: File) => {
-    const exts = ['.pdf', '.docx', '.txt', '.md'];
-    const types = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain', 'text/markdown'];
-    const ext = f.name.substring(f.name.lastIndexOf('.')).toLowerCase();
-    if (!types.includes(f.type) && !exts.includes(ext)) {
-      showPrompt('Unsupported file format. Please upload a PDF, DOCX, TXT, or Markdown file.');
+    if (!isAcceptedDocumentFile(f)) {
+      showPrompt('Unsupported file format. Please upload a PDF, Image, Office, OpenDocument/StarOffice, iWork, text/Markdown/HTML/RTF/LaTeX, CSV/JSON/XML/YAML/TOML, notebook, subtitle or caption, source code, or eBook file.');
       return;
     }
     if (f.size > 50 * 1024 * 1024) {
@@ -59,6 +77,9 @@ export const DocumentTab: React.FC<DocumentTabProps> = ({ selectedCourseId, onCo
 
   const handleUpload = async () => {
     if (!file) return;
+    // Already uploaded — the server rejects it with DUPLICATE_DOCUMENT anyway; the
+    // DuplicateAlert offers the "View" path instead.
+    if (duplicateDoc) return;
     if (!selectedCourseId) { onCourseError(true); return; }
     onCourseError(false);
     setUploading(true);
@@ -83,29 +104,14 @@ export const DocumentTab: React.FC<DocumentTabProps> = ({ selectedCourseId, onCo
 
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="flex flex-col gap-5">
-      <motion.div
-        variants={item}
-        onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-        onDragLeave={() => setIsDragging(false)}
-        onDrop={(e) => { e.preventDefault(); setIsDragging(false); validateAndSetFile(e.dataTransfer.files[0]); }}
-        className={cn(
-          'group relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed transition-all duration-500 overflow-hidden cursor-pointer h-60',
-          isDragging
-            ? 'border-primary bg-primary/5 scale-[1.02]'
-            : file
-              ? 'border-emerald-400 bg-emerald-50/50'
-              : 'border-zinc-200 bg-white hover:border-primary/40 hover:bg-primary/[0.02]',
-        )}
+      <FileDropZone
+        hasFile={!!file}
+        isDragging={isDragging}
+        onDraggingChange={setIsDragging}
+        onFile={validateAndSetFile}
+        accept={DOCUMENT_ACCEPT_ATTR}
+        inputRef={fileInputRef}
       >
-        <div className="absolute inset-0 opacity-30 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, #d4d4d8 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
-        <input
-          ref={fileInputRef}
-          type="file"
-          className="absolute inset-0 cursor-pointer opacity-0 z-10"
-          onClick={(e) => { (e.target as HTMLInputElement).value = ''; }}
-          onChange={(e) => { const f = e.target.files?.[0]; if (f) validateAndSetFile(f); }}
-          accept=".pdf,.docx,.txt,.md"
-        />
         <AnimatePresence mode="wait">
           {!file ? (
             <motion.div key="empty" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.05 }}
@@ -139,7 +145,7 @@ export const DocumentTab: React.FC<DocumentTabProps> = ({ selectedCourseId, onCo
                   <File size={28} />
                 </div>
                 <button
-                  onClick={(e) => { e.stopPropagation(); setFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
+                  onClick={(e) => { e.stopPropagation(); setFile(null); setFileHash(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
                   className="absolute -right-2 -top-2 rounded-full bg-white p-1.5 text-zinc-400 shadow-lg hover:text-red-500 hover:scale-110 transition-all"
                 >
                   <X size={14} />
@@ -155,7 +161,17 @@ export const DocumentTab: React.FC<DocumentTabProps> = ({ selectedCourseId, onCo
             </motion.div>
           )}
         </AnimatePresence>
-      </motion.div>
+      </FileDropZone>
+
+      <AnimatePresence>
+        {duplicateDoc && (
+          <DuplicateAlert
+            label="file"
+            courseName={duplicateDocCourse?.name}
+            to={getDuplicateDocRoute(duplicateDoc)}
+          />
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {uploading && (
@@ -176,36 +192,20 @@ export const DocumentTab: React.FC<DocumentTabProps> = ({ selectedCourseId, onCo
 
       <motion.div variants={item}>
         <Button
-          disabled={!file || uploading}
+          disabled={!file || uploading || !!duplicateDoc}
           onClick={handleUpload}
           className={cn(
             'h-12 w-full rounded-xl text-base font-black shadow-md transition-all duration-300',
-            file && !uploading && selectedCourseId
+            file && !uploading && selectedCourseId && !duplicateDoc
               ? 'bg-primary text-white shadow-primary/20 hover:shadow-primary/40 hover:scale-[1.02] active:scale-95'
               : 'bg-zinc-100 text-zinc-400',
           )}
         >
-          {uploading
-            ? <span className="flex items-center gap-2"><Loader2 size={18} className="animate-spin" /> Processing...</span>
-            : <span className="flex items-center gap-2"><Zap size={18} fill="currentColor" /> Start Learning</span>}
+          <StartLearningLabel busy={uploading} duplicate={duplicateDoc} />
         </Button>
       </motion.div>
 
-      {recentDocs.length > 0 && (
-        <motion.div variants={item} className="space-y-3 pt-2">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-text-main">Recent Documents</h3>
-            <RouterLink to="/library" className="flex items-center gap-1 text-xs font-medium text-[var(--primary)] hover:underline">
-              View All <ArrowRight size={12} />
-            </RouterLink>
-          </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {recentDocs.map(doc => (
-              <DocumentCard key={doc.id} doc={doc} course={getCourse(doc.courseId)} compact />
-            ))}
-          </div>
-        </motion.div>
-      )}
+      <RecentDocuments docs={recentDocs} getCourse={getCourse} />
     </motion.div>
   );
 };

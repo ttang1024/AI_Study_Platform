@@ -11,11 +11,16 @@ public class DeleteDocumentCommandHandler : IRequestHandler<DeleteDocumentComman
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly IBlobStorageService _blobStorageService;
+    private readonly IEmbeddingIndex _embeddingIndex;
 
-    public DeleteDocumentCommandHandler(IUnitOfWork unitOfWork, IBlobStorageService blobStorageService)
+    public DeleteDocumentCommandHandler(
+        IUnitOfWork unitOfWork,
+        IBlobStorageService blobStorageService,
+        IEmbeddingIndex embeddingIndex)
     {
         _unitOfWork = unitOfWork;
         _blobStorageService = blobStorageService;
+        _embeddingIndex = embeddingIndex;
     }
 
     public async Task<Result> Handle(DeleteDocumentCommand request, CancellationToken cancellationToken)
@@ -34,7 +39,17 @@ public class DeleteDocumentCommandHandler : IRequestHandler<DeleteDocumentComman
         }
 
         _unitOfWork.Documents.Remove(document);
+
+        // The tag join is polymorphic, so no foreign key reaches it and no cascade fires. Pruned
+        // here or the assignment outlives the document and inflates every collection's item count.
+        await _unitOfWork.LibraryTags.RemoveAssignmentsForItemAsync(
+            "document", document.DocumentId, cancellationToken);
+
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // After the save, so the cascade has taken the document's flashcards and glossary terms with it
+        // and their chunks look orphaned too.
+        await _embeddingIndex.PruneOrphansAsync(request.UserId, cancellationToken);
 
         return Result.Success("Document deleted successfully.");
     }

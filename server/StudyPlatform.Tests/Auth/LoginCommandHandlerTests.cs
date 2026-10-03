@@ -1,4 +1,5 @@
 using Moq;
+using StudyPlatform.Application.Auth;
 using StudyPlatform.Application.Auth.Commands;
 using StudyPlatform.Application.Services;
 using StudyPlatform.Domain.Entities;
@@ -14,13 +15,16 @@ public class LoginCommandHandlerTests
     private readonly Mock<IRefreshTokenRepository> _tokens = new();
     private readonly Mock<ITokenService> _tokenService = new();
     private readonly Mock<IPasswordHasher> _hasher = new();
+    private readonly Mock<IRequestContext> _requestContext = new();
     private readonly LoginCommandHandler _handler;
 
     public LoginCommandHandlerTests()
     {
         _uow.Setup(u => u.Users).Returns(_users.Object);
         _uow.Setup(u => u.RefreshTokens).Returns(_tokens.Object);
-        _handler = new LoginCommandHandler(_uow.Object, _tokenService.Object, _hasher.Object);
+        _handler = new LoginCommandHandler(
+            _uow.Object, _hasher.Object,
+            new AuthSessionIssuer(_uow.Object, _tokenService.Object, _requestContext.Object));
     }
 
     private User MakeUser(bool verified = true, bool active = true) => new()

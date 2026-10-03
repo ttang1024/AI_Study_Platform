@@ -17,10 +17,10 @@ export const Button: React.FC<ButtonProps> = ({
   ...props
 }) => {
   const variants = {
-    primary: 'bg-indigo-600 text-white hover:bg-indigo-500 shadow-sm',
-    outline: 'border border-[var(--border-color)] bg-transparent hover:bg-[var(--bg-card)] text-[var(--text-primary)]',
-    ghost: 'bg-transparent hover:bg-[var(--bg-card)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
-    danger: 'bg-red-600 text-white hover:bg-red-500 shadow-sm',
+    primary: 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm',
+    outline: 'border border-[var(--border-color)] bg-transparent hover:bg-black/5 text-[var(--text-primary)]',
+    ghost: 'bg-transparent hover:bg-black/5 text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
+    danger: 'bg-red-600 text-white hover:bg-red-700 shadow-sm',
   };
 
   const sizes = {
@@ -34,7 +34,7 @@ export const Button: React.FC<ButtonProps> = ({
       disabled={disabled || isLoading}
       className={cn(
         'inline-flex items-center justify-center gap-2 font-medium transition-all',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40',
         'disabled:pointer-events-none disabled:opacity-50',
         variants[variant],
         sizes[size],

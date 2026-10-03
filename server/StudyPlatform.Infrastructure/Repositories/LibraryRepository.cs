@@ -1,0 +1,159 @@
+using Microsoft.EntityFrameworkCore;
+using StudyPlatform.Domain.Interfaces;
+using StudyPlatform.Domain.Projections;
+using StudyPlatform.Infrastructure.Data;
+
+namespace StudyPlatform.Infrastructure.Repositories;
+
+/// <summary>
+/// Merges the Documents and Videos tables into one paginated, date-sorted
+/// list at the database level (UNION ALL + ORDER BY + OFFSET/LIMIT), so a request
+/// reads and returns only the page asked for rather than every row.
+/// </summary>
+public class LibraryRepository : ILibraryRepository
+{
+    private readonly AppDbContext _db;
+
+    public LibraryRepository(AppDbContext db) => _db = db;
+
+    public async Task<(IReadOnlyList<LibraryItem> Items, int TotalCount)> GetPagedAsync(
+        Guid userId,
+        string type,
+        Guid? courseId,
+        string? search,
+        int page,
+        int pageSize,
+        IReadOnlyCollection<Guid>? tagIds = null,
+        CancellationToken cancellationToken = default)
+    {
+        // Resolved once, up front, rather than joined into both operands. The UNION requires the two
+        // sides to project identical property sets, and a join would either have to be duplicated
+        // exactly on both or would multiply rows when an item carries several of the selected tags.
+        // Assignments are per-user and few, so narrowing to a set of ids first is both simpler and
+        // cheaper than making the union carry the join.
+        HashSet<Guid>? taggedDocumentIds = null;
+        HashSet<Guid>? taggedVideoIds = null;
+        if (tagIds is { Count: > 0 })
+        {
+            var assignments = await _db.LibraryTagAssignments
+                .AsNoTracking()
+                .Where(a => tagIds.Contains(a.LibraryTagId) && a.Tag.UserId == userId)
+                .Select(a => new { a.ItemKind, a.ItemId })
+                .Distinct()
+                .ToListAsync(cancellationToken);
+
+            taggedDocumentIds = assignments.Where(a => a.ItemKind == "document").Select(a => a.ItemId).ToHashSet();
+            taggedVideoIds = assignments.Where(a => a.ItemKind == "video").Select(a => a.ItemId).ToHashSet();
+        }
+
+        // Type semantics mirror GetUserStatsQuery so the badge counts and the list agree:
+        //   article = OriginalUrl set AND text/* content type
+        //   audio   = audio/podcast OR audio/* content type
+        //   plain document = neither of the above
+        var includeDocuments = type != "videos";
+        var includeVideos = type is "all" or "videos";
+
+        IQueryable<LibraryItem>? docItems = null;
+        if (includeDocuments)
+        {
+            var docs = _db.Documents.AsNoTracking().Where(d => d.UserId == userId);
+            if (courseId.HasValue)
+                docs = docs.Where(d => d.CourseId == courseId.Value);
+            if (!string.IsNullOrWhiteSpace(search))
+                docs = docs.Where(d => EF.Functions.ILike(d.FileName, $"%{search}%"));
+            if (taggedDocumentIds != null)
+                docs = docs.Where(d => taggedDocumentIds.Contains(d.DocumentId));
+
+            docs = type switch
+            {
+                "documents" => docs.Where(d =>
+                    !(d.OriginalUrl != null && d.ContentType.StartsWith("text/")) &&
+                    !(d.ContentType == "audio/podcast" || d.ContentType.StartsWith("audio/"))),
+                "articles" => docs.Where(d => d.OriginalUrl != null && d.ContentType.StartsWith("text/")),
+                "audio" => docs.Where(d => d.ContentType == "audio/podcast" || d.ContentType.StartsWith("audio/")),
+                _ => docs,
+            };
+
+            // Both set operands must assign the exact same properties (EF Core
+            // requirement for UNION), so video-only fields are set to null here.
+            docItems = docs.Select(d => new LibraryItem
+            {
+                Kind = "document",
+                Id = d.DocumentId,
+                CourseId = d.CourseId,
+                CourseName = d.Course.CourseName,
+                CourseColor = d.Course.CourseColor,
+                CreatedAt = d.CreatedAt,
+                FileName = d.FileName,
+                BlobUrl = d.BlobUrl,
+                ContentType = d.ContentType,
+                FileSize = d.FileSize,
+                FileHash = d.FileHash,
+                OriginalUrl = d.OriginalUrl,
+                Summary = d.Summary,
+                Title = null,
+                VideoId = null,
+                VideoUrl = null,
+                ThumbnailUrl = null,
+                SourceType = null,
+            });
+        }
+
+        IQueryable<LibraryItem>? videoItems = null;
+        if (includeVideos)
+        {
+            var videos = _db.Videos.AsNoTracking().Where(v => v.UserId == userId);
+            if (courseId.HasValue)
+                videos = videos.Where(v => v.CourseId == courseId.Value);
+            if (!string.IsNullOrWhiteSpace(search))
+                videos = videos.Where(v => EF.Functions.ILike(v.Title, $"%{search}%"));
+            if (taggedVideoIds != null)
+                videos = videos.Where(v => taggedVideoIds.Contains(v.VideoId));
+
+            // Property set must match the document operand exactly (EF Core UNION
+            // requirement), so document-only fields are set to null/default here.
+            videoItems = videos.Select(v => new LibraryItem
+            {
+                Kind = "video",
+                Id = v.VideoId,
+                CourseId = v.CourseId,
+                CourseName = v.Course.CourseName,
+                CourseColor = v.Course.CourseColor,
+                CreatedAt = v.CreatedAt,
+                FileName = null,
+                BlobUrl = null,
+                ContentType = null,
+                FileSize = 0,
+                FileHash = null,
+                OriginalUrl = null,
+                Summary = null,
+                Title = v.Title,
+                VideoId = v.ExternalVideoId,
+                VideoUrl = v.VideoUrl,
+                ThumbnailUrl = v.ThumbnailUrl,
+                SourceType = string.IsNullOrWhiteSpace(v.SourceType) ? "youtube" : v.SourceType,
+            });
+        }
+
+        // Exactly one branch may be null depending on the type filter; when both are
+        // present they're UNION ALL'd so ORDER BY / OFFSET / LIMIT span both tables.
+        var merged = (docItems, videoItems) switch
+        {
+            (not null, not null) => docItems.Concat(videoItems),
+            (not null, null) => docItems,
+            (null, not null) => videoItems,
+            _ => throw new InvalidOperationException($"Unknown library type filter: {type}"),
+        };
+
+        var totalCount = await merged.CountAsync(cancellationToken);
+
+        var items = await merged
+            .OrderByDescending(i => i.CreatedAt)
+            .ThenByDescending(i => i.Id)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return (items, totalCount);
+    }
+}

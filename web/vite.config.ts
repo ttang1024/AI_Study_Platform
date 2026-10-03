@@ -2,18 +2,67 @@ import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 import { defineConfig, loadEnv } from 'vite'
+import { seoPlugin } from './vite-plugin-seo'
 
 export default defineConfig(({ mode }) => {
 	const env = loadEnv(mode, '.', '')
 	return {
-		plugins: [react(), tailwindcss()],
+		plugins: [
+			react(),
+			tailwindcss(),
+			// Emits robots.txt + sitemap.xml and injects the Search Console tag. Build-only, so it
+			// never runs in dev. See vite-plugin-seo.ts for why the sitemap lists so few routes.
+			seoPlugin({
+				origin: env.VITE_SHARE_BASE_URL,
+				googleSiteVerification: env.VITE_GOOGLE_SITE_VERIFICATION,
+			}),
+		],
 		resolve: {
-			alias: {
-				'@': path.resolve(__dirname, '.'),
-			},
+			// Array form: one entry needs a regex (exact-match 'react'), which the
+			// object form can't express.
+			alias: [
+				// Shared platform-agnostic package (packages/core). Listed before '@' —
+				// harmless either way since '@' only matches '@/'-prefixed ids, but explicit.
+				{ find: '@core', replacement: path.resolve(__dirname, '../packages/core/src') },
+				{ find: '@', replacement: path.resolve(__dirname, '.') },
+				// packages/core's @core/react/* modules import React as a peer dependency,
+				// but they live outside this app's tree and each app installs its own
+				// node_modules, so node resolution from packages/core/src finds nothing.
+				// Point bare 'react' at this app's copy — exact match only, so subpaths
+				// like react/jsx-runtime still resolve normally. `dedupe` below cannot do
+				// this job: it only picks between copies that already resolved.
+				{ find: /^react$/, replacement: path.resolve(__dirname, 'node_modules/react') },
+			],
+			// Force a single instance of React and the router. Without this, Vite can
+			// end up serving a lazy route chunk a second, separately-optimized copy of
+			// react-router, whose <Router> context the entry chunk's hooks can't read —
+			// surfacing as "useLocation() may be used only in the context of a <Router>"
+			// white screens on client-side navigation to a lazy route.
+			dedupe: ['react', 'react-dom', 'react-router', 'react-router-dom'],
 		},
 		optimizeDeps: {
-			include: ['xmindmark'],
+			// Pre-bundle the router up front so navigating to a lazy route never triggers
+			// a mid-session re-optimization that splits it into a second module instance.
+			include: ['xmindmark', 'mdast-util-to-string', 'react-router', 'react-router-dom'],
+		},
+		build: {
+			// React/router load eagerly on every page; isolating them into their own chunk keeps the
+			// framework (which changes rarely) cached across deploys, separate from the app code that
+			// changes on every release. The markdown/KaTeX stack is deliberately NOT grouped here:
+			// it's reached transitively from the eager shell, so naming it forces the whole ~700KB
+			// stack into the initial modulepreload. Leaving it to Vite keeps it in lazy route chunks.
+			// jspdf/html2canvas/jszip are dynamically imported, so Vite already emits them on demand.
+			chunkSizeWarningLimit: 800,
+			rollupOptions: {
+				output: {
+					manualChunks(id) {
+						if (!id.includes('node_modules')) return undefined
+						if (/[\\/]node_modules[\\/](react|react-dom|react-router|react-router-dom|scheduler)[\\/]/.test(id))
+							return 'react-vendor'
+						return undefined
+					},
+				},
+			},
 		},
 		server: {
 			hmr: process.env.DISABLE_HMR !== 'true',

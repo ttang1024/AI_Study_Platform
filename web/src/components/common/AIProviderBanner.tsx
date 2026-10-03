@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { KeyRound, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
-import { aiSettingsService } from '../../services/aiSettingsService';
+import { aiSettingsService, AI_SETTINGS_CHANGED_EVENT } from '../../services/aiSettingsService';
 
 export const AIProviderBanner: React.FC = () => {
   const [missingKey, setMissingKey] = useState(false);
@@ -15,9 +15,13 @@ export const AIProviderBanner: React.FC = () => {
       setMissingKey(!key);
     };
     check();
-    // Re-check when localStorage changes (e.g. user saves settings in another tab)
+    // Re-check when settings are saved in this tab, or localStorage changes in another tab
+    window.addEventListener(AI_SETTINGS_CHANGED_EVENT, check);
     window.addEventListener('storage', check);
-    return () => window.removeEventListener('storage', check);
+    return () => {
+      window.removeEventListener(AI_SETTINGS_CHANGED_EVENT, check);
+      window.removeEventListener('storage', check);
+    };
   }, []);
 
   if (!missingKey || dismissed) return null;

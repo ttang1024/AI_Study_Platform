@@ -9,6 +9,7 @@ public class QuizConfiguration : IEntityTypeConfiguration<Quiz>
     public void Configure(EntityTypeBuilder<Quiz> builder)
     {
         builder.HasKey(q => q.QuizId);
+        builder.HasIndex(q => q.UserId);
         builder.Property(q => q.Question).IsRequired().HasColumnType("text");
         builder.Property(q => q.OptionsJson).IsRequired().HasColumnType("jsonb");
         builder.Property(q => q.CorrectAnswer).IsRequired().HasMaxLength(10);
@@ -23,14 +24,14 @@ public class QuizConfiguration : IEntityTypeConfiguration<Quiz>
             .IsRequired(false)
             .OnDelete(DeleteBehavior.Cascade);
 
-        builder.HasOne(q => q.YouTubeVideo)
+        builder.HasOne(q => q.Video)
             .WithMany()
-            .HasForeignKey(q => q.YouTubeVideoId)
+            .HasForeignKey(q => q.VideoId)
             .IsRequired(false)
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.ToTable(t => t.HasCheckConstraint("chk_quizzes_source",
-            "(\"DocumentId\" IS NOT NULL AND \"YouTubeVideoId\" IS NULL AND \"SourceType\" = 'document') OR " +
-            "(\"YouTubeVideoId\" IS NOT NULL AND \"DocumentId\" IS NULL AND \"SourceType\" = 'video')"));
+            "(\"DocumentId\" IS NOT NULL AND \"VideoId\" IS NULL AND \"SourceType\" = 'document') OR " +
+            "(\"VideoId\" IS NOT NULL AND \"DocumentId\" IS NULL AND \"SourceType\" = 'video')"));
     }
 }

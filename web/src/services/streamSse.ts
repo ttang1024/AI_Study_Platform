@@ -1,10 +1,17 @@
+// SSE parsing lives in the shared package (packages/core); this file keeps the
+// web-only transport: browser fetch plus auth + X-AI-* headers from localStorage.
+import {
+	STREAM_ERROR_MESSAGE,
+	extractStreamErrorCode,
+	makeStreamError,
+	readSseTextStream,
+} from '@core/sse'
 import { aiSettingsService } from './aiSettingsService'
 import { getApiUrl } from '../utils/env'
 
 const API_URL = getApiUrl()
-export const STREAM_ERROR_MESSAGE = "I'm sorry, I encountered an error. Please try again."
-
-type StreamError = Error & { errorCode?: string }
+export { STREAM_ERROR_MESSAGE }
+export type { StreamError } from '@core/sse'
 
 function getAuthHeaders(): Record<string, string> {
 	const token = localStorage.getItem('sp_access_token')
@@ -42,52 +49,9 @@ export async function streamSse(
 	})
 
 	if (!response.ok) {
-		let errorCode: string | undefined
-		try {
-			const errorBody = await response.json()
-			if (typeof errorBody?.errorCode === 'string' && errorBody.errorCode.trim()) {
-				errorCode = errorBody.errorCode
-			} else if (typeof errorBody?.ErrorCode === 'string' && errorBody.ErrorCode.trim()) {
-				errorCode = errorBody.ErrorCode
-			}
-		} catch {
-			// Fall back to the status text if the server did not return JSON.
-		}
-		console.log('errorCode:', errorCode)
-		const error = new Error(errorCode || STREAM_ERROR_MESSAGE) as StreamError
-		error.errorCode = errorCode
-		throw error
+		throw makeStreamError(await extractStreamErrorCode(response))
 	}
 
-	const reader = response.body!.getReader()
-	const decoder = new TextDecoder()
-	let buffer = ''
-
-	while (true) {
-		const { done, value } = await reader.read()
-		if (done) break
-		buffer += decoder.decode(value, { stream: true })
-		const lines = buffer.split('\n')
-		buffer = lines.pop() ?? ''
-		for (const line of lines) {
-			if (!line.startsWith('data: ')) continue
-			const data = line.slice(6).trim()
-			if (data === '[DONE]') return
-			if (!data) continue
-			try {
-				const text: string = JSON.parse(data)
-				if (text.startsWith('[ERROR]')) {
-					const error = new Error(STREAM_ERROR_MESSAGE) as StreamError
-					error.errorCode = text.slice(8).trim() || undefined
-					throw error
-				}
-				onChunk(text)
-			} catch (e) {
-				if (e instanceof SyntaxError) continue
-				throw e
-			}
-			// Yield to the event loop so React renders each chunk incrementally
-			await new Promise<void>(resolve => setTimeout(resolve, 0))
-		}
-	}
+	// Yield between chunks so React renders each one incrementally.
+	await readSseTextStream(response.body!, onChunk, { yieldBetweenChunks: true })
 }

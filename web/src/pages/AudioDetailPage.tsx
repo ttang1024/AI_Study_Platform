@@ -1,526 +1,51 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import React from 'react';
 import { motion } from 'motion/react';
 import {
-  Mic, Rss, Sparkles, Loader2, ChevronLeft, AlertCircle, FileText, Copy, Download, RotateCcw, Share2,
+  Mic, Rss, Sparkles, Loader2, ChevronLeft, AlertCircle, FileText, RotateCcw, Share2,
 } from 'lucide-react';
 import { ShareModal } from '../components/common/ShareModal';
+import { DetailPageSkeleton } from '../components/common/DetailPageSkeleton';
 import { ShareableQuiz, ShareableCard } from '../services/shareContentService';
 import { documentService } from '../services/documentService';
-import { audioService } from '../services/audioService';
-import { VideoNoteEditor, VideoNoteEditorRef } from '../components/youtube/VideoNoteEditor';
+import { VideoNoteEditor } from '../components/youtube/VideoNoteEditor';
 import { MindMapViewer } from '../components/mindmap/MindMapViewer';
 import { Flashcards } from '../components/study/Flashcards';
 import { DocumentQuiz } from '../components/quiz/DocumentQuiz';
-import { ChatPanel, ChatPanelRef } from '../components/ai/ChatPanel';
+import { StudyChatTab } from '../components/ai/StudyChatTab';
 import { SummaryPanel } from '../components/study/SummaryPanel';
 import { WorkedProblemsPanel } from '../components/WorkedProblemsPanel';
+import { TextSelectionToolbar } from '../components/document/TextSelectionToolbar';
 import { cn } from '../utils/cn';
-import { TABS } from '../constants/tab';
-import { QuizQuestion } from '../types';
-import { useStudy } from '../context/StudyContext';
-import { getApiErrorCode } from '../utils/apiError';
+import { StudyTabBar } from '../components/common/StudyTabBar';
+import { TranscriptActions, TranscriptRefreshButton } from '../components/common/TranscriptActions';
+import { SegmentedTranscript } from './audioDetail/SegmentedTranscript';
+import { useAudioDetail } from './audioDetail/useAudioDetail';
 
-interface SimpleCard { id: string; front: string; back: string; }
-interface ChatMsg { id: string; role: 'user' | 'model'; content: string; isError?: boolean; }
-interface TranscriptSegment { start: number; end: number; text: string; }
-type AudioStudyTab = 'summary' | 'mindmap' | 'notes' | 'flashcards' | 'quiz' | 'problems' | 'chat';
-type QuizDifficulty = 'easy' | 'medium' | 'hard';
-
-const emptyQuizSets = (): Record<QuizDifficulty, QuizQuestion[]> => ({ easy: [], medium: [], hard: [] });
-const emptyAnswerSets = (): Record<QuizDifficulty, Record<string, string>> => ({ easy: {}, medium: {}, hard: {} });
-const emptySubmittedSets = (): Record<QuizDifficulty, boolean> => ({ easy: false, medium: false, hard: false });
-const emptyScoreSets = (): Record<QuizDifficulty, number> => ({ easy: 0, medium: 0, hard: 0 });
-
-function parseTranscript(raw: string | null): TranscriptSegment[] | null {
-  if (!raw) return null;
-  try {
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.length > 0 && 'start' in parsed[0]) return parsed;
-  } catch { }
-  return null; // plain text — caller handles it
-}
-
-function formatTime(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${m}:${s.toString().padStart(2, '0')}`;
-}
-
-// ─── Segmented transcript component ──────────────────────────────────────────
-
-interface SegmentedTranscriptProps {
-  transcript: string;
-  currentTime: number;
-  activeSegmentRef: React.RefObject<HTMLDivElement | null>;
-  onSeek: (time: number) => void;
-}
-
-const SegmentedTranscript: React.FC<SegmentedTranscriptProps> = ({
-  transcript, currentTime, activeSegmentRef, onSeek,
-}) => {
-  const segments = parseTranscript(transcript);
-
-  // Plain text fallback (old transcripts stored without timestamps)
-  if (!segments) {
-    return (
-      <div className="px-6 py-5">
-        <p className="text-sm text-text-main leading-relaxed whitespace-pre-wrap select-text">{transcript}</p>
-      </div>
-    );
-  }
-
-  let activeIdx = -1;
-  for (let i = segments.length - 1; i >= 0; i--) {
-    if (currentTime >= segments[i].start) {
-      activeIdx = i;
-      break;
-    }
-  }
-
-  return (
-    <div className="flex flex-col divide-y divide-[var(--border-color)]">
-      {segments.map((seg, i) => {
-        const isActive = i === activeIdx;
-        return (
-          <div
-            key={i}
-            ref={isActive ? activeSegmentRef : undefined}
-            onClick={() => onSeek(seg.start)}
-            className={cn(
-              'flex gap-3 px-5 py-3.5 cursor-pointer transition-colors duration-150 group',
-              isActive
-                ? 'bg-[var(--primary)]/8'
-                : 'hover:bg-zinc-50',
-            )}
-          >
-            <span className={cn(
-              'shrink-0 mt-0.5 text-[11px] font-mono font-bold tabular-nums pt-px',
-              isActive ? 'text-[var(--primary)]' : 'text-text-muted group-hover:text-text-main',
-            )}>
-              {formatTime(seg.start)}
-            </span>
-            <p className={cn(
-              'text-sm leading-relaxed select-text',
-              isActive ? 'text-text-main font-medium' : 'text-text-muted group-hover:text-text-main',
-            )}>
-              {seg.text}
-            </p>
-          </div>
-        );
-      })}
-    </div>
-  );
-};
-
-// ─── Page ─────────────────────────────────────────────────────────────────────
-
-export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({ embedded, id: propId }) => {
-  const { id: paramId } = useParams<{ id: string }>();
-  const id = propId ?? paramId;
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { documents } = useStudy();
-
-  // courseId from nav state OR documents context
-  const navCourseId = (location.state as any)?.courseId as string | undefined;
-  const [courseId, setCourseId] = useState<string>(navCourseId ?? '');
-
-  const [fileName, setFileName] = useState<string | null>(null);
-  const [isPodcast, setIsPodcast] = useState(false);
-  const [podcastOriginalUrl, setPodcastOriginalUrl] = useState<string | null>(null);
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
-  const [isLoadingPage, setIsLoadingPage] = useState(true);
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const [currentTime, setCurrentTime] = useState(0);
-  const activeSegmentRef = useRef<HTMLDivElement>(null);
-
-  // Auto-scroll transcript to active segment
-  useEffect(() => {
-    activeSegmentRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  }, [Math.floor(currentTime / 30)]);
-
-  // Transcript
-  const [transcript, setTranscript] = useState<string | null>(null);
-  const [isTranscribing, setIsTranscribing] = useState(false);
-  const [transcriptError, setTranscriptError] = useState<string | null>(null);
-
-  // Transcript copy/download menus
-  const [openMenu, setOpenMenu] = useState<'copy' | 'download' | null>(null);
-  const copyMenuRef = useRef<HTMLDivElement>(null);
-  const downloadMenuRef = useRef<HTMLDivElement>(null);
-
-  // Layout
-  const initialTab = (location.state as any)?.activeTab ?? 'summary';
-  const [activeTab, setActiveTab] = useState<AudioStudyTab>(initialTab);
-  const [activeView, setActiveView] = useState<'study' | 'audio'>('audio');
-
-  // Summary
-  const [summary, setSummary] = useState<string | null>(null);
-  const [isLoadingSummary, setIsLoadingSummary] = useState(false);
-  const [summaryStreamText, setSummaryStreamText] = useState('');
-  const [summaryError, setSummaryError] = useState<string | null>(null);
-
-  // MindMap
-  const [mindMapText, setMindMapText] = useState<string | null>(null);
-  const [isLoadingMindMap, setIsLoadingMindMap] = useState(false);
-  const [mindMapStreamingText, setMindMapStreamingText] = useState<string | null>(null);
-  const [mindMapError, setMindMapError] = useState<string | null>(null);
-
-  // Share
-  const [showShareModal, setShowShareModal] = useState(false);
-
-  // Notes
-  const [noteContent, setNoteContent] = useState('');
-  const [noteId, setNoteId] = useState<string | null>(null);
-  const noteEditorRef = useRef<VideoNoteEditorRef>(null);
-
-  // Flashcards
-  const [flashcards, setFlashcards] = useState<SimpleCard[]>([]);
-  const [isLoadingFlashcards, setIsLoadingFlashcards] = useState(false);
-  const [flashcardsError, setFlashcardsError] = useState<string | null>(null);
-
-  // Quiz
-  const [activeQuizDifficulty, setActiveQuizDifficulty] = useState<QuizDifficulty>('medium');
-  const [quizQuestionSets, setQuizQuestionSets] = useState<Record<QuizDifficulty, QuizQuestion[]>>(emptyQuizSets);
-  const [quizAnswerSets, setQuizAnswerSets] = useState<Record<QuizDifficulty, Record<string, string>>>(emptyAnswerSets);
-  const [quizSubmittedSets, setQuizSubmittedSets] = useState<Record<QuizDifficulty, boolean>>(emptySubmittedSets);
-  const [quizScoreSets, setQuizScoreSets] = useState<Record<QuizDifficulty, number>>(emptyScoreSets);
-  const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
-  const [isLoadingQuiz, setIsLoadingQuiz] = useState(false);
-  const [userAnswers, setUserAnswers] = useState<Record<string, string>>({});
-  const [isQuizSubmitted, setIsQuizSubmitted] = useState(false);
-  const [quizScore, setQuizScore] = useState(0);
-  const [quizError, setQuizError] = useState<string | null>(null);
-
-  // Chat
-  const [chatMessages, setChatMessages] = useState<ChatMsg[]>([]);
-  const chatPanelRef = useRef<ChatPanelRef>(null);
-
-  // Click-outside to close transcript menus
-  useEffect(() => {
-    if (!openMenu) return;
-    const handleClick = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (copyMenuRef.current?.contains(target) || downloadMenuRef.current?.contains(target)) return;
-      setOpenMenu(null);
-    };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [openMenu]);
-
-  // ─── Load audio on mount ───────────────────────────────────────────────────
-
-  useEffect(() => {
-    if (!id) return;
-    // Try to resolve courseId from documents context if not in nav state
-    const ctxDoc = documents.find(d => d.id === id);
-    const resolvedCourseId = navCourseId ?? ctxDoc?.courseId ?? '';
-    if (resolvedCourseId) setCourseId(resolvedCourseId);
-    loadAudio(resolvedCourseId, id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
-
-  const loadAudio = async (cId: string, docId: string) => {
-    setIsLoadingPage(true);
-    try {
-      const doc = await audioService.getAudio(cId, docId);
-      setFileName(doc.fileName);
-      setIsPodcast(doc.contentType === 'audio/podcast');
-      setPodcastOriginalUrl(doc.originalUrl ?? null);
-      setSummary(doc.summary ?? null);
-      setMindMapText(doc.mindMapText ?? null);
-      setTranscript(doc.transcript ?? null);
-
-      // Auto-transcribe if no transcript yet
-      if (!doc.transcript) {
-        doTranscribe(cId, docId);
-      }
-
-      const sasUrl = await audioService.getAudioUrl(cId, docId);
-      setAudioUrl(sasUrl);
-
-      // Load saved notes
-      try {
-        const notes = await documentService.getNotes(cId, docId);
-        if (notes.length > 0) { setNoteContent(notes[0].content); setNoteId(notes[0].id); }
-      } catch { }
-
-      // Load flashcards
-      try {
-        const cards = await documentService.getFlashcards(cId, docId);
-        setFlashcards(cards.map((c, i) => ({ id: `fc-${i}`, front: c.front, back: c.back })));
-      } catch { }
-
-      // Load quiz
-      try {
-        const questions = await documentService.getQuiz(cId, docId);
-        const grouped = emptyQuizSets();
-        questions.forEach(q => grouped[(q.difficulty ?? 'medium') as QuizDifficulty].push(q));
-        setQuizQuestionSets(grouped);
-        setQuizQuestions(grouped[activeQuizDifficulty]);
-      } catch { }
-
-      // Load quiz submission
-      try {
-        const sub = await documentService.getQuizSubmission(cId, docId);
-        if (sub) {
-          setUserAnswers(sub.answers);
-          setQuizAnswerSets(prev => ({ ...prev, [activeQuizDifficulty]: sub.answers }));
-          setQuizScore(sub.score);
-          setQuizScoreSets(prev => ({ ...prev, [activeQuizDifficulty]: sub.score }));
-          setIsQuizSubmitted(true);
-          setQuizSubmittedSets(prev => ({ ...prev, [activeQuizDifficulty]: true }));
-        }
-      } catch { }
-
-      // Load chat
-      try {
-        const history = await documentService.getChatHistory(cId, docId);
-        setChatMessages(history.map(m => ({ id: m.id, role: m.role as 'user' | 'model', content: m.content })));
-      } catch { }
-    } catch {
-      navigate(-1);
-    } finally {
-      setIsLoadingPage(false);
-    }
-  };
-
-  // ─── Transcribe ────────────────────────────────────────────────────────────
-
-  const doTranscribe = async (cId: string, docId: string) => {
-    setIsTranscribing(true);
-    setTranscriptError(null);
-    try {
-      const doc = await audioService.transcribe(cId, docId);
-      setTranscript(doc.transcript ?? null);
-    } catch (err: any) {
-      setTranscriptError(err?.response?.data?.message ?? 'Transcription failed. Please try again.');
-    } finally {
-      setIsTranscribing(false);
-    }
-  };
-
-  const handleTranscribe = () => {
-    if (!id || !courseId || isTranscribing) return;
-    doTranscribe(courseId, id);
-  };
-
-  const seekAudioTo = useCallback((seconds: number) => {
-    if (!audioRef.current) return;
-    audioRef.current.currentTime = seconds;
-    audioRef.current.play();
-  }, []);
-
-  const generationDisabled = !transcript && !transcriptError;
-  const generationDisabledReason = isPodcast
-    ? 'Waiting for podcast transcription to finish.'
-    : 'Waiting for audio transcription to finish.';
-
-  // ─── Transcript helpers ─────────────────────────────────────────────────────
-
-  const fmtSrtTime = (sec: number) => {
-    const h = Math.floor(sec / 3600);
-    const m = Math.floor((sec % 3600) / 60);
-    const s = Math.floor(sec % 60);
-    const ms = Math.round((sec % 1) * 1000);
-    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')},${String(ms).padStart(3, '0')}`;
-  };
-
-  const getTranscriptPlainText = (withTimestamp: boolean): string => {
-    if (!transcript) return '';
-    const segs = parseTranscript(transcript);
-    if (!segs) return transcript;
-    return withTimestamp
-      ? segs.map(s => `[${formatTime(s.start)}] ${s.text}`).join('\n')
-      : segs.map(s => s.text).join(' ');
-  };
-
-  const getTranscriptSrt = (withTimestamp: boolean): string => {
-    if (!transcript) return '';
-    const segs = parseTranscript(transcript);
-    if (!segs) return transcript;
-    return segs.map((seg, i) => {
-      const end = segs[i + 1]?.start ?? seg.end ?? seg.start + 5;
-      return withTimestamp
-        ? `${i + 1}\n${fmtSrtTime(seg.start)} --> ${fmtSrtTime(end)}\n${seg.text}`
-        : `${i + 1}\n${seg.text}`;
-    }).join('\n\n');
-  };
-
-  const copyTranscript = (withTimestamp: boolean) => {
-    navigator.clipboard.writeText(getTranscriptPlainText(withTimestamp));
-    setOpenMenu(null);
-  };
-
-  const downloadTranscript = (format: 'txt' | 'srt', withTimestamp: boolean) => {
-    const content = format === 'srt' ? getTranscriptSrt(withTimestamp) : getTranscriptPlainText(withTimestamp);
-    const suffix = withTimestamp ? '_timestamps' : '';
-    const base = (fileName ?? 'transcript').replace(/[^a-z0-9_\-]/gi, '_');
-    const filename = `${base}${suffix}.${format}`;
-    const blob = new Blob([content], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
-    setOpenMenu(null);
-  };
-
-  // ─── Summary ───────────────────────────────────────────────────────────────
-
-  const generateSummary = useCallback(async () => {
-    if (!id || !courseId || isLoadingSummary || generationDisabled) return;
-    setSummaryError(null);
-    setIsLoadingSummary(true);
-    setSummaryStreamText('');
-    try {
-      let accumulated = '';
-      await documentService.streamSummary(courseId, id, (chunk) => {
-        accumulated += chunk;
-        setSummaryStreamText(accumulated);
-      });
-      setSummary(accumulated || null);
-      setSummaryStreamText('');
-    } catch (err: any) {
-      setSummaryStreamText('');
-      setSummary(null);
-      setSummaryError(getApiErrorCode(err));
-    } finally {
-      setIsLoadingSummary(false);
-    }
-  }, [id, courseId, isLoadingSummary, generationDisabled]);
-
-  // ─── Mind Map ──────────────────────────────────────────────────────────────
-
-  const generateMindMap = useCallback(async () => {
-    if (!id || !courseId || isLoadingMindMap || generationDisabled) return;
-    setMindMapError(null);
-    setIsLoadingMindMap(true);
-    setMindMapStreamingText('');
-    const accum = { current: '' };
-    try {
-      await documentService.streamMindMap(courseId, id, (chunk) => {
-        accum.current += chunk;
-        setMindMapStreamingText(accum.current);
-      });
-      setMindMapText(accum.current || null);
-      setMindMapStreamingText(null);
-    } catch (err: any) {
-      setMindMapStreamingText(null);
-      setMindMapError(getApiErrorCode(err));
-    } finally {
-      setIsLoadingMindMap(false);
-    }
-  }, [id, courseId, isLoadingMindMap, generationDisabled]);
-
-  // ─── Flashcards ────────────────────────────────────────────────────────────
-
-  const generateFlashcards = useCallback(async () => {
-    if (!id || !courseId || isLoadingFlashcards || generationDisabled) return;
-    setFlashcardsError(null);
-    setIsLoadingFlashcards(true);
-    try {
-      const cards = await documentService.generateFlashcards(courseId, id);
-      setFlashcards(cards.map((c, i) => ({ id: `fc-${i}`, front: c.front, back: c.back })));
-    } catch (err: any) {
-      setFlashcardsError(getApiErrorCode(err));
-    } finally {
-      setIsLoadingFlashcards(false);
-    }
-  }, [id, courseId, isLoadingFlashcards, generationDisabled]);
-
-  // ─── Quiz ──────────────────────────────────────────────────────────────────
-
-  const generateQuiz = useCallback(async (difficulty: QuizDifficulty = activeQuizDifficulty) => {
-    if (!id || !courseId || isLoadingQuiz || generationDisabled) return;
-    setActiveQuizDifficulty(difficulty);
-    setQuizError(null);
-    setIsLoadingQuiz(true);
-    setQuizQuestions([]);
-    setQuizQuestionSets(prev => ({ ...prev, [difficulty]: [] }));
-    setUserAnswers({});
-    setQuizAnswerSets(prev => ({ ...prev, [difficulty]: {} }));
-    setIsQuizSubmitted(false);
-    setQuizSubmittedSets(prev => ({ ...prev, [difficulty]: false }));
-    setQuizScore(0);
-    setQuizScoreSets(prev => ({ ...prev, [difficulty]: 0 }));
-    try {
-      const questions = await documentService.generateQuiz(courseId, id, difficulty);
-      setQuizQuestions(questions);
-      setQuizQuestionSets(prev => ({ ...prev, [difficulty]: questions }));
-    } catch (err: any) {
-      setQuizError(getApiErrorCode(err));
-    } finally {
-      setIsLoadingQuiz(false);
-    }
-  }, [id, courseId, isLoadingQuiz, generationDisabled, activeQuizDifficulty]);
-
-  const handleQuizDifficultyChange = useCallback((difficulty: QuizDifficulty) => {
-    setActiveQuizDifficulty(difficulty);
-    setQuizError(null);
-    setQuizQuestions(quizQuestionSets[difficulty]);
-    setUserAnswers(quizAnswerSets[difficulty]);
-    setIsQuizSubmitted(quizSubmittedSets[difficulty]);
-    setQuizScore(quizScoreSets[difficulty]);
-  }, [quizQuestionSets, quizAnswerSets, quizSubmittedSets, quizScoreSets]);
-
-  const submitQuiz = useCallback(async () => {
-    let score = 0;
-    quizQuestions.forEach(q => {
-      if (userAnswers[q.id]) {
-        const selected = userAnswers[q.id].charAt(0).toUpperCase();
-        const correct = q.answer.charAt(0).toUpperCase();
-        if (selected === correct) score++;
-      }
-    });
-    setQuizScore(score);
-    setQuizScoreSets(prev => ({ ...prev, [activeQuizDifficulty]: score }));
-    setIsQuizSubmitted(true);
-    setQuizSubmittedSets(prev => ({ ...prev, [activeQuizDifficulty]: true }));
-    if (id && courseId) {
-      try { await documentService.saveQuizSubmission(courseId, id, userAnswers, score, quizQuestions.length); } catch { }
-    }
-  }, [quizQuestions, userAnswers, id, courseId, activeQuizDifficulty]);
-
-  // ─── Notes ─────────────────────────────────────────────────────────────────
-
-  const handleNoteSave = useCallback(async (html: string) => {
-    setNoteContent(html);
-    if (!id || !courseId) return;
-    try {
-      if (noteId) {
-        await documentService.updateNote(courseId, id, noteId, html);
-      } else {
-        const note = await documentService.createNote(courseId, id, html);
-        setNoteId(note.id);
-      }
-    } catch { }
-  }, [id, courseId, noteId]);
+export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string; courseId?: string }> = ({ embedded, id: propId, courseId: propCourseId }) => {
+  const a = useAudioDetail(propId, propCourseId);
+  const {
+    id, courseId, navigate, fileName, isPodcast, podcastOriginalUrl, audioUrl, isLoadingPage,
+    audioRef, activeSegmentRef, currentTime, setCurrentTime,
+    transcript, isTranscribing, transcriptError, handleTranscribe, seekAudioTo,
+    copyTranscript, downloadTranscript,
+    activeTab, setActiveTab, activeView, setActiveView, targetQuizQuestionId,
+    summary, isLoadingSummary, summaryStreamText, summaryError, generateSummary, handleSaveSummary,
+    summaryRef, summaryToolbar, setSummaryToolbar, handleSummaryMouseUp,
+    mindMapText, isLoadingMindMap, mindMapStreamingText, mindMapError, generateMindMap, handleSaveMindMap,
+    showShareModal, setShowShareModal, noteContent, noteEditorRef, handleNoteSave,
+    flashcards, isLoadingFlashcards, flashcardsError, generateFlashcards,
+    activeQuizDifficulty, quizQuestionSets, quizQuestions, userAnswers, isQuizSubmitted,
+    quizScore, isLoadingQuiz, quizError, generateQuiz, handleQuizDifficultyChange, submitQuiz, onAnswerQuiz,
+    chatMessages, chatPanelRef, streamChat,
+    chatConversations, activeConversationId, selectConversation, newConversation, deleteConversation,
+    generationDisabled, generationDisabledReason, hasGeneratedQuizzes,
+  } = a;
 
   // ─── Study Panel ───────────────────────────────────────────────────────────
 
   const studyPanel =
     <div className="flex flex-col h-full w-full">
-      {/* Horizontal Tab Bar */}
-      <div className="flex items-center border-b border-[var(--border-color)] bg-[var(--bg-sidebar)] shrink-0 overflow-x-auto no-scrollbar">
-        {TABS.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={cn(
-              'flex flex-1 flex-col items-center gap-1 px-2 py-2.5 text-[9px] font-bold uppercase tracking-wider transition-colors border-b-2 shrink-0',
-              activeTab === tab.id
-                ? 'border-[var(--primary)] text-[var(--primary)]'
-                : 'border-transparent text-text-muted hover:text-text-main',
-            )}
-          >
-            <tab.icon size={15} />
-            <span>{tab.label}</span>
-          </button>
-        ))}
-      </div>
+      <StudyTabBar activeTab={activeTab} onSelect={setActiveTab} />
 
       {/* Tab Content */}
       <div className="flex-1 flex flex-col overflow-hidden bg-[var(--bg-sidebar)]">
@@ -536,9 +61,12 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
               error={summaryError}
               onRetry={generateSummary}
               streamingText={summaryStreamText}
+              summaryRef={summaryRef}
+              onMouseUp={handleSummaryMouseUp}
               onTimelineSeek={seekAudioTo}
               generateDisabled={generationDisabled}
               generateDisabledReason={generationDisabledReason}
+              onSaveSummary={handleSaveSummary}
             />
           </div>
 
@@ -552,6 +80,7 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
               title={fileName ?? 'mindmap'}
               generateDisabled={generationDisabled}
               generateDisabledReason={generationDisabledReason}
+              onSaveEdit={handleSaveMindMap}
             />
           </div>
 
@@ -583,6 +112,8 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
 
           <div className={cn('h-full overflow-y-auto', activeTab !== 'quiz' && 'hidden')}>
             <DocumentQuiz
+              activeDifficulty={activeQuizDifficulty}
+              targetQuestionId={targetQuizQuestionId}
               externalQuestions={quizQuestions}
               externalQuestionCounts={{
                 easy: quizQuestionSets.easy.length,
@@ -598,15 +129,7 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
               onExternalDifficultyChange={handleQuizDifficultyChange}
               generateDisabled={generationDisabled}
               generateDisabledReason={generationDisabledReason}
-              onExternalAnswer={(qId, option) => {
-                if (!isQuizSubmitted) {
-                  setUserAnswers(prev => ({ ...prev, [qId]: option }));
-                  setQuizAnswerSets(prev => ({
-                    ...prev,
-                    [activeQuizDifficulty]: { ...prev[activeQuizDifficulty], [qId]: option },
-                  }));
-                }
-              }}
+              onExternalAnswer={onAnswerQuiz}
               onExternalSubmit={submitQuiz}
             />
           </div>
@@ -618,43 +141,28 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
           </div>
         </div>
 
-        <div className={cn('flex-1 overflow-hidden', activeTab !== 'chat' && 'hidden')}>
-          <ChatPanel
-            ref={chatPanelRef}
-            externalMessages={chatMessages}
-            onExternalStreamSend={async (message, onChunk) => {
-              if (!id || !courseId) return;
-              const userMsg: ChatMsg = { id: Date.now().toString(), role: 'user', content: message };
-              setChatMessages(prev => [...prev, userMsg]);
-              let accumulated = '';
-              try {
-                await documentService.streamChat(courseId, id, message, (chunk) => {
-                  accumulated += chunk;
-                  onChunk(chunk);
-                });
-                setChatMessages(prev => [...prev, { id: String(Date.now() + 1), role: 'model', content: accumulated }]);
-              } catch (err) {
-                setChatMessages(prev => [...prev, { id: String(Date.now() + 1), role: 'model', content: getApiErrorCode(err), isError: true }]);
-                throw err;
-              }
-            }}
-            onExternalAddToNote={(html) => {
-              noteEditorRef.current?.appendContent(html);
-              setActiveTab('notes');
-            }}
-            placeholder="Ask anything about the lecture…"
-          />
-        </div>
+        <StudyChatTab
+          ref={chatPanelRef}
+          hidden={activeTab !== 'chat'}
+          conversations={chatConversations}
+          activeConversationId={activeConversationId}
+          onSelectConversation={selectConversation}
+          onNewConversation={newConversation}
+          onDeleteConversation={deleteConversation}
+          messages={chatMessages}
+          onStreamSend={streamChat}
+          onAddToNote={(html) => {
+            noteEditorRef.current?.appendContent(html);
+            setActiveTab('notes');
+          }}
+          placeholder="Ask anything about the lecture…"
+        />
       </div>
     </div>
 
 
   if (isLoadingPage) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-[var(--primary)]" />
-      </div>
-    );
+    return <DetailPageSkeleton variant="audio" embedded={embedded} />;
   }
 
   return (
@@ -736,61 +244,15 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
                 </div>
                 <div className="flex items-center gap-1">
                   {transcript && (
-                    <>
-                      {/* Copy dropdown */}
-                      <div className="relative" ref={copyMenuRef}>
-                        <button
-                          onClick={() => setOpenMenu(openMenu === 'copy' ? null : 'copy')}
-                          className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-[10px] font-medium text-text-muted hover:bg-zinc-100 transition-colors"
-                        >
-                          <Copy size={11} /> Copy
-                        </button>
-                        {openMenu === 'copy' && (
-                          <div className="absolute right-0 top-full mt-1 z-50 min-w-[170px] rounded-lg border border-[var(--border-color)] bg-white shadow-lg overflow-hidden">
-                            <button onClick={() => copyTranscript(true)} className="w-full px-3 py-2 text-left text-[11px] text-text-main hover:bg-zinc-50 transition-colors">
-                              Copy with timestamp
-                            </button>
-                            <button onClick={() => copyTranscript(false)} className="w-full px-3 py-2 text-left text-[11px] text-text-main hover:bg-zinc-50 transition-colors">
-                              Copy without timestamp
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                      {/* Download dropdown */}
-                      <div className="relative" ref={downloadMenuRef}>
-                        <button
-                          onClick={() => setOpenMenu(openMenu === 'download' ? null : 'download')}
-                          className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-[10px] font-medium text-text-muted hover:bg-zinc-100 transition-colors"
-                        >
-                          <Download size={11} /> Download
-                        </button>
-                        {openMenu === 'download' && (
-                          <div className="absolute right-0 top-full mt-1 z-50 min-w-[190px] rounded-lg border border-[var(--border-color)] bg-white shadow-lg overflow-hidden">
-                            <button onClick={() => downloadTranscript('txt', true)} className="w-full px-3 py-2 text-left text-[11px] text-text-main hover:bg-zinc-50 transition-colors">
-                              TXT with timestamps
-                            </button>
-                            <button onClick={() => downloadTranscript('txt', false)} className="w-full px-3 py-2 text-left text-[11px] text-text-main hover:bg-zinc-50 transition-colors">
-                              TXT without timestamps
-                            </button>
-                            <button onClick={() => downloadTranscript('srt', true)} className="w-full px-3 py-2 text-left text-[11px] text-text-main hover:bg-zinc-50 transition-colors">
-                              SRT with timestamps
-                            </button>
-                            <button onClick={() => downloadTranscript('srt', false)} className="w-full px-3 py-2 text-left text-[11px] text-text-main hover:bg-zinc-50 transition-colors">
-                              SRT without timestamps
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                      {/* Refresh */}
-                      <button onClick={handleTranscribe} disabled={isTranscribing} className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-[10px] font-medium text-text-muted hover:bg-zinc-100 transition-colors disabled:opacity-50">
-                        <RotateCcw size={11} className={isTranscribing ? 'animate-spin' : ''} /> Refresh
-                      </button>
-                    </>
+                    <TranscriptActions
+                      onCopy={copyTranscript}
+                      onDownload={downloadTranscript}
+                      onRefresh={handleTranscribe}
+                      isRefreshing={isTranscribing}
+                    />
                   )}
                   {!transcript && transcriptError && (
-                    <button onClick={handleTranscribe} disabled={isTranscribing} className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-[10px] font-medium text-text-muted hover:bg-zinc-100 transition-colors disabled:opacity-50">
-                      <RotateCcw size={11} className={isTranscribing ? 'animate-spin' : ''} /> Retry
-                    </button>
+                    <TranscriptRefreshButton onClick={handleTranscribe} isRefreshing={isTranscribing} label="Retry" />
                   )}
                 </div>
               </div>
@@ -827,9 +289,21 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
                     </button>
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center justify-center h-full gap-3 text-center">
-                    <Loader2 className="h-6 w-6 animate-spin text-[var(--primary)]" />
-                    <p className="text-xs text-zinc-400">Preparing transcription…</p>
+                  <div className="flex flex-col items-center justify-center h-full gap-4 text-center px-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-100 text-zinc-400">
+                      <FileText size={20} />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-text-main">No transcript yet</p>
+                      <p className="mt-1 text-[11px] text-zinc-400">Start transcription when you are ready.</p>
+                    </div>
+                    <button
+                      onClick={handleTranscribe}
+                      disabled={isTranscribing}
+                      className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-bold bg-[var(--primary)] text-white hover:opacity-90 transition-opacity disabled:opacity-50"
+                    >
+                      <FileText size={11} /> Transcribe
+                    </button>
                   </div>
                 )}
               </div>
@@ -847,18 +321,38 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
         </div>
 
         {/* Mobile Bottom Nav */}
-        {!embedded && (
-          <div className="flex h-16 border-t border-[var(--border-color)] bg-[var(--bg-sidebar)] lg:hidden shrink-0">
-            <button onClick={() => setActiveView('study')} className={cn('flex flex-1 flex-col items-center justify-center gap-1 transition-colors', activeView === 'study' ? 'text-[var(--primary)]' : 'text-text-muted')}>
-              <Sparkles size={20} /><span className="text-[10px] font-bold uppercase tracking-wider">Study</span>
-            </button>
-            <button onClick={() => setActiveView('audio')} className={cn('flex flex-1 flex-col items-center justify-center gap-1 transition-colors', activeView === 'audio' ? 'text-[var(--primary)]' : 'text-text-muted')}>
-              {isPodcast ? <Rss size={20} /> : <Mic size={20} />}
-              <span className="text-[10px] font-bold uppercase tracking-wider">{isPodcast ? 'Podcast' : 'Audio'}</span>
-            </button>
-          </div>
-        )}
+        <div className="flex h-16 border-t border-[var(--border-color)] bg-[var(--bg-sidebar)] lg:hidden shrink-0">
+          <button onClick={() => setActiveView('study')} className={cn('flex flex-1 flex-col items-center justify-center gap-1 transition-colors', activeView === 'study' ? 'text-[var(--primary)]' : 'text-text-muted')}>
+            <Sparkles size={20} /><span className="text-[10px] font-bold uppercase tracking-wider">Study</span>
+          </button>
+          <button onClick={() => setActiveView('audio')} className={cn('flex flex-1 flex-col items-center justify-center gap-1 transition-colors', activeView === 'audio' ? 'text-[var(--primary)]' : 'text-text-muted')}>
+            {isPodcast ? <Rss size={20} /> : <Mic size={20} />}
+            <span className="text-[10px] font-bold uppercase tracking-wider">{isPodcast ? 'Podcast' : 'Audio'}</span>
+          </button>
+        </div>
       </motion.div>
+
+      {/* Summary text selection toolbar */}
+      {summaryToolbar && (
+        <TextSelectionToolbar
+          x={summaryToolbar.x}
+          y={summaryToolbar.y}
+          selectedText={summaryToolbar.text}
+          onClose={() => setSummaryToolbar(null)}
+          onAddNoteText={(text) => {
+            noteEditorRef.current?.appendContent(`<p>${text}</p>`);
+            setActiveTab('notes');
+            setActiveView('study');
+            setSummaryToolbar(null);
+          }}
+          onAskAI={(text) => {
+            chatPanelRef.current?.setInput(text);
+            setActiveTab('chat');
+            setActiveView('study');
+            setSummaryToolbar(null);
+          }}
+        />
+      )}
 
       <ShareModal
         open={showShareModal}
@@ -870,18 +364,18 @@ export const AudioDetailPage: React.FC<{ embedded?: boolean; id?: string }> = ({
         sourceType={isPodcast ? 'podcast' : 'audio'}
         sourceUrl={courseId && id ? `${courseId}/${id}` : null}
         originalArticleUrl={isPodcast ? podcastOriginalUrl : null}
-        fetchQuizzes={courseId && id ? async () => {
+        fetchQuizzes={courseId && id && hasGeneratedQuizzes ? async () => {
           const qs = await documentService.getQuiz(courseId, id);
           return qs.map(q => ({
             question: q.question,
             options: q.options ?? [],
-            correctAnswer: q.answer,
+            correctAnswer: q.correctAnswer,
             explanation: q.explanation ?? '',
             difficulty: q.difficulty ?? 'medium',
           } satisfies ShareableQuiz));
         } : undefined}
         fetchFlashcards={flashcards.length > 0 ? async () =>
-          flashcards.map(c => ({ front: c.front, back: c.back } satisfies ShareableCard))
+          flashcards.map(c => ({ front: c.front, back: c.back, cardType: c.cardType } satisfies ShareableCard))
           : undefined}
       />
     </div>

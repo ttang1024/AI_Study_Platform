@@ -1,14 +1,13 @@
 import React from 'react';
 import { cn } from '../../utils/cn';
 import { MathText } from './MathText';
+import { CLOZE_PATTERN } from '@core/utils/cloze';
 
 interface ClozeTextProps {
   text: string;
   revealed: boolean;
   className?: string;
 }
-
-const CLOZE_REGEX = /\{\{([^}]+)\}\}/g;
 
 /**
  * Renders a cloze deletion sentence with optional inline math.
@@ -22,7 +21,7 @@ export const ClozeText: React.FC<ClozeTextProps> = ({ text, revealed, className 
   let match: RegExpExecArray | null;
   let key = 0;
 
-  const regex = new RegExp(CLOZE_REGEX.source, 'g');
+  const regex = new RegExp(CLOZE_PATTERN.source, 'g');
   while ((match = regex.exec(text)) !== null) {
     if (match.index > lastIndex) {
       const segment = text.slice(lastIndex, match.index);
@@ -65,15 +64,3 @@ export const ClozeText: React.FC<ClozeTextProps> = ({ text, revealed, className 
     </span>
   );
 };
-
-/** Extract all cloze answers from a cloze text */
-export const extractClozeAnswers = (text: string): string[] => {
-  const matches: string[] = [];
-  let m: RegExpExecArray | null;
-  const r = new RegExp(CLOZE_REGEX.source, 'g');
-  while ((m = r.exec(text)) !== null) matches.push(m[1]);
-  return matches;
-};
-
-/** True if the text contains at least one {{...}} */
-export const hasCloze = (text: string): boolean => CLOZE_REGEX.test(text);

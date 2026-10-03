@@ -13,7 +13,7 @@ public interface IUnitOfWork : IDisposable
     IChatMessageRepository ChatMessages { get; }
     IAnalyticsRepository Analytics { get; }
     IQuizSubmissionRepository QuizSubmissions { get; }
-    IYouTubeVideoRepository YouTubeVideos { get; }
+    IVideoRepository Videos { get; }
     IGlossaryTermRepository GlossaryTerms { get; }
     IFeedbackRepository Feedbacks { get; }
     IShareTokenRepository ShareTokens { get; }
@@ -26,10 +26,17 @@ public interface IUnitOfWork : IDisposable
     IStudyGroupMemberRepository StudyGroupMembers { get; }
     IStudyGroupSharedCourseRepository StudyGroupSharedCourses { get; }
     IGroupChatMessageRepository GroupChatMessages { get; }
-    IConceptLinkRepository ConceptLinks { get; }
     IFlashcardSrsDataRepository FlashcardSrs { get; }
+    IStudySessionRepository StudySessions { get; }
+    IMistakeEntryRepository MistakeEntries { get; }
+    IExamPlanRepository ExamPlans { get; }
+    IFlashcardReviewLogRepository FlashcardReviewLogs { get; }
+    IStreakCoverDayRepository StreakCoverDays { get; }
+    IUserCalendarFeedRepository UserCalendarFeeds { get; }
+    IAiUsageRepository AiUsage { get; }
+    IDataExportRequestRepository DataExportRequests { get; }
+    ILibraryTagRepository LibraryTags { get; }
+    IUserFsrsSettingsRepository UserFsrsSettings { get; }
+    IPageVisitRepository PageVisits { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
-    Task BeginTransactionAsync(CancellationToken cancellationToken = default);
-    Task CommitTransactionAsync(CancellationToken cancellationToken = default);
-    Task RollbackTransactionAsync(CancellationToken cancellationToken = default);
 }

@@ -21,14 +21,21 @@ public class NoteConfiguration : IEntityTypeConfiguration<Note>
             .IsRequired(false)
             .OnDelete(DeleteBehavior.Cascade);
 
-        builder.HasOne(n => n.YouTubeVideo)
+        builder.HasOne(n => n.Video)
             .WithMany()
-            .HasForeignKey(n => n.YouTubeVideoId)
+            .HasForeignKey(n => n.VideoId)
             .IsRequired(false)
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.ToTable(t => t.HasCheckConstraint("chk_notes_source",
-            "(\"DocumentId\" IS NOT NULL AND \"YouTubeVideoId\" IS NULL AND \"SourceType\" = 'document') OR " +
-            "(\"YouTubeVideoId\" IS NOT NULL AND \"DocumentId\" IS NULL AND \"SourceType\" = 'video')"));
+            "(\"DocumentId\" IS NOT NULL AND \"VideoId\" IS NULL AND \"SourceType\" = 'document') OR " +
+            "(\"VideoId\" IS NOT NULL AND \"DocumentId\" IS NULL AND \"SourceType\" = 'video')"));
+
+        // Serves the notes list / search: WHERE UserId = @u ORDER BY UpdatedAt DESC.
+        builder.HasIndex(n => new { n.UserId, n.UpdatedAt });
+
+        // Trigram indexes for the ILIKE '%term%' searches in NoteRepository.
+        builder.HasIndex(n => n.Title).HasMethod("gin").HasOperators("gin_trgm_ops");
+        builder.HasIndex(n => n.Content).HasMethod("gin").HasOperators("gin_trgm_ops");
     }
 }

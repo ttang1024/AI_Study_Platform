@@ -1,39 +1,156 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { HelpCircle, BarChart2 } from 'lucide-react';
+import { HelpCircle, BarChart2, ImageOff } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { ClozeText } from './ClozeText';
 import { MathText } from './MathText';
 import { CardChart } from './CardChart';
+import type { OcclusionRect } from '../../types';
+
+export type FlashcardCardType = 'basic' | 'cloze' | 'chart' | 'occlusion';
+export type FlashcardCardStyle = 'flip' | 'compact' | 'review';
+
+/** Image with mask rectangles: opaque until flipped, then translucent outlines with labels. */
+const OcclusionImage: React.FC<{
+  imageUrl: string;
+  occlusions: OcclusionRect[];
+  revealed: boolean;
+  className?: string;
+}> = ({ imageUrl, occlusions, revealed, className }) => (
+  <div className={cn('relative inline-block max-w-full', className)}>
+    <img src={imageUrl} alt="Occlusion card" className="max-w-full max-h-[320px] rounded-xl select-none" draggable={false} />
+    {occlusions.map((r, i) => (
+      <div
+        key={i}
+        className={cn(
+          'absolute rounded-[3px] border-2 transition-all duration-300 flex items-center justify-center overflow-hidden',
+          revealed
+            ? 'border-[var(--primary)] bg-[var(--primary)]/10'
+            : 'border-amber-400 bg-amber-300',
+        )}
+        style={{
+          left: `${r.x * 100}%`,
+          top: `${r.y * 100}%`,
+          width: `${r.w * 100}%`,
+          height: `${r.h * 100}%`,
+        }}
+      >
+        {revealed && r.label && (
+          <span className="text-[10px] font-bold text-[var(--primary)] bg-white/85 rounded px-1 truncate">
+            {r.label}
+          </span>
+        )}
+      </div>
+    ))}
+  </div>
+);
 
 interface FlashcardFlipCardProps {
   front: string;
   back: string;
-  cardType?: 'basic' | 'cloze' | 'chart';
+  cardType?: FlashcardCardType;
+  imageUrl?: string;
+  occlusions?: OcclusionRect[];
   isFlipped: boolean;
   onFlip: () => void;
+  variant?: FlashcardCardStyle;
   /** Compact crossfade variant for dense grid layouts (e.g. Hard Flashcards in Daily Review) */
   compact?: boolean;
   /** Source label shown at the bottom of the compact variant */
   sourceName?: string;
   /** Optional badge text shown in the top-right corner of the compact variant */
   badgeLabel?: string;
+  className?: string;
+  style?: React.CSSProperties;
+  hint?: string;
+  onPointerDown?: React.PointerEventHandler<HTMLDivElement>;
+  onPointerMove?: React.PointerEventHandler<HTMLDivElement>;
+  onPointerUp?: React.PointerEventHandler<HTMLDivElement>;
+  children?: React.ReactNode;
 }
+
+export const getFlashcardCardType = (
+  card: { front?: string; cardType?: FlashcardCardType } | undefined,
+): FlashcardCardType => {
+  if (!card) return 'basic';
+  if (card.cardType) return card.cardType;
+  return /\{\{[^}]+\}\}/.test(card.front ?? '') ? 'cloze' : 'basic';
+};
 
 export const FlashcardFlipCard: React.FC<FlashcardFlipCardProps> = ({
   front,
   back,
-  cardType = 'basic',
+  cardType,
+  imageUrl,
+  occlusions,
   isFlipped,
   onFlip,
+  variant = 'flip',
   compact = false,
   sourceName,
   badgeLabel,
+  className,
+  style,
+  hint,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
+  children,
 }) => {
-  const isCloze = cardType === 'cloze';
-  const isChart = cardType === 'chart';
+  const effectiveVariant = compact ? 'compact' : variant;
+  const effectiveCardType = getFlashcardCardType({ front, cardType });
+  const isCloze = effectiveCardType === 'cloze';
+  const isChart = effectiveCardType === 'chart';
+  const isOcclusion = effectiveCardType === 'occlusion';
 
-  if (compact) {
+  if (isOcclusion) {
+    return (
+      <div
+        className="relative w-full cursor-pointer"
+        style={{ minHeight: 300 }}
+        onClick={onFlip}
+      >
+        <div
+          className={cn(
+            'flex flex-col items-center justify-center rounded-3xl border-2 p-6 sm:p-8 text-center shadow-xl transition-all duration-300',
+            isFlipped
+              ? 'border-[var(--primary)] bg-[var(--bg-app)]'
+              : 'border-[var(--border-color)] bg-[var(--bg-sidebar)]',
+          )}
+          style={{ minHeight: 300 }}
+        >
+          <div className="flex items-center gap-2 mb-4">
+            <span className="text-xs font-bold uppercase tracking-widest text-[var(--primary)]">
+              {isFlipped ? 'Revealed' : 'What’s hidden?'}
+            </span>
+            <span className="rounded-full bg-[var(--primary)]/10 px-2 py-0.5 text-[10px] font-black text-[var(--primary)] uppercase tracking-widest">Occlusion</span>
+          </div>
+          {imageUrl && occlusions ? (
+            <OcclusionImage imageUrl={imageUrl} occlusions={occlusions} revealed={isFlipped} />
+          ) : (
+            <div className="flex flex-col items-center gap-2 text-text-muted">
+              <ImageOff size={28} />
+              <p className="text-sm">Image unavailable</p>
+            </div>
+          )}
+          {front && <p className="mt-4 text-sm font-semibold text-text-main">{front}</p>}
+          {back && isFlipped && (
+            <p className="mt-2 text-sm text-text-muted border-t border-[var(--border-color)] pt-3 w-full max-w-md">
+              <MathText text={back} />
+            </p>
+          )}
+          {!isFlipped && (
+            <p className="mt-4 text-[10px] sm:text-sm text-text-muted flex items-center gap-2">
+              <HelpCircle size={14} />
+              Recall each hidden region, then click to reveal
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (effectiveVariant === 'compact') {
     return (
       <div
         onClick={onFlip}
@@ -82,6 +199,62 @@ export const FlashcardFlipCard: React.FC<FlashcardFlipCardProps> = ({
           <span className="absolute top-3 right-3 rounded-full bg-red-100 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-red-600">
             {badgeLabel}
           </span>
+        )}
+      </div>
+    );
+  }
+
+  if (effectiveVariant === 'review') {
+    return (
+      <div
+        onClick={onFlip}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        className={cn(
+          'rounded-2xl border-2 border-[var(--border-color)] bg-[var(--bg-app)] hover:border-[var(--primary)]/30 p-8 cursor-pointer select-none min-h-48 flex flex-col items-center justify-center text-center transition-colors',
+          className,
+        )}
+        style={style}
+      >
+        {children}
+
+        <p className="text-[10px] font-black uppercase tracking-widest text-text-muted mb-4">
+          {isCloze ? 'Fill in the blank' :
+           isChart ? (isFlipped ? 'Chart' : 'Chart Question') :
+           isFlipped ? 'Answer' : 'Question'}
+        </p>
+
+        {isCloze ? (
+          <p className="text-lg font-semibold text-text-main leading-loose">
+            <ClozeText text={front} revealed={isFlipped} />
+          </p>
+        ) : isChart ? (
+          isFlipped ? (
+            <div className="w-full">
+              <CardChart data={back} />
+              <p className="text-sm text-text-muted mt-2 pt-2 border-t border-[var(--border-color)]">
+                <MathText text={front} />
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-3">
+              <BarChart2 size={32} className="text-[var(--primary)]/50" />
+              <p className="text-lg font-semibold text-text-main leading-relaxed">
+                <MathText text={front} />
+              </p>
+            </div>
+          )
+        ) : (
+          <p className="text-lg font-semibold text-text-main leading-relaxed">
+            {isFlipped
+              ? <MathText text={back} inline={false} />
+              : <MathText text={front} />}
+          </p>
+        )}
+
+        {!isFlipped && (
+          <p className="text-xs text-text-muted mt-6">{hint ?? 'Click to reveal answer'}</p>
         )}
       </div>
     );

@@ -32,7 +32,7 @@ export const OAuthCallbackPage: React.FC = () => {
     const redirectUri = `${window.location.origin}/auth/callback`;
 
     loginWithOAuth(state, code, redirectUri)
-      .then(() => navigate('/summarizer', { replace: true }))
+      .then(() => navigate('/library/add', { replace: true }))
       .catch((err: any) => {
         setError(err?.response?.data?.message || 'Authentication failed. Please try again.');
       });
@@ -74,7 +74,7 @@ export const OAuthCallbackPage: React.FC = () => {
           transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
           className="relative h-16 w-16 overflow-hidden rounded-2xl"
         >
-          <img src="/app.png" alt="toto.ai logo" className="h-full w-full object-cover" />
+          <img src="/app.png" alt="Toto Study logo" className="h-full w-full object-cover" />
         </motion.div>
         <div className="space-y-2 text-center">
           <div className="flex items-center justify-center gap-2">

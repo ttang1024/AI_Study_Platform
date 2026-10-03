@@ -1,0 +1,29 @@
+import type { en } from './en';
+
+/** Partial by design: any key left out falls back to English. */
+export const de: Partial<Record<keyof typeof en, string>> = {
+  'nav.summarizer': 'KI-Zusammenfassung',
+  'nav.dashboard': 'Übersicht',
+  'nav.insights': 'Statistiken',
+  'nav.library': 'Bibliothek',
+  'nav.practiceCenter': 'Übungszentrum',
+  'nav.spaces': 'Räume',
+  'nav.flashcards': 'Karteikarten',
+  'nav.planner': 'Planer',
+  'nav.glossary': 'Glossar',
+  'nav.notes': 'Notizen',
+  'nav.chat': 'KI-Chat',
+  'nav.search': 'Suche',
+  'nav.settings': 'Einstellungen',
+
+  'settings.language': 'Sprache',
+  'settings.languageHelp':
+    'Ändert die Sprache der Oberfläche. Deine Lernmaterialien werden nicht übersetzt.',
+
+  'translate.action': 'Das übersetzen',
+  'translate.into': 'Übersetzen nach',
+  'translate.working': 'Wird übersetzt…',
+  'translate.failed': 'Übersetzung fehlgeschlagen. Bitte versuche es erneut.',
+  'translate.disclaimer': 'Maschinelle Übersetzung – prüfe, worauf du dich verlässt.',
+  'translate.showOriginal': 'Original anzeigen',
+};

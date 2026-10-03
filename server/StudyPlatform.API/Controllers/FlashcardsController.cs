@@ -9,11 +9,13 @@ using StudyPlatform.Application.Flashcards.DTOs;
 
 namespace StudyPlatform.API.Controllers;
 
+public record ImportFlashcardsRequest(List<ImportFlashcardRow> Rows);
+
 [ApiController]
 [Route("api/flashcards")]
 [Authorize]
 [Produces("application/json")]
-public class FlashcardsController : ControllerBase
+public partial class FlashcardsController : ControllerBase
 {
     private readonly IMediator _mediator;
 
@@ -47,6 +49,47 @@ public class FlashcardsController : ControllerBase
     }
 
     /// <summary>
+    /// Export flashcards (optionally one course) as an Anki .apkg with scheduling state carried over
+    /// </summary>
+    [HttpGet("export/apkg")]
+    [ProducesResponseType(typeof(FileContentResult), 200)]
+    [ProducesResponseType(typeof(BaseResponse), 400)]
+    public async Task<IActionResult> ExportToAnki([FromQuery] Guid? courseId = null)
+    {
+        var userId = User.GetUserId();
+        var result = await _mediator.Send(new ExportFlashcardsToAnkiQuery(userId, courseId));
+        if (!result.IsSuccess)
+            return BadRequest(BaseResponse<object>.Fail(result.Message, result.ErrorCode));
+        return File(result.Data!.Bytes, "application/apkg", result.Data.FileName);
+    }
+
+    /// <summary>
+    /// Create an image-occlusion flashcard: multipart image + JSON mask rectangles
+    /// </summary>
+    [HttpPost("occlusion")]
+    [RequestSizeLimit(10 * 1024 * 1024)]
+    [ProducesResponseType(typeof(BaseResponse<FlashcardDto>), 201)]
+    [ProducesResponseType(typeof(BaseResponse), 400)]
+    public async Task<IActionResult> CreateOcclusionFlashcard(
+        IFormFile image,
+        [FromForm] string occlusions,
+        [FromForm] string? front = null,
+        [FromForm] string? back = null,
+        [FromForm] Guid? documentId = null)
+    {
+        if (image == null || image.Length == 0)
+            return BadRequest(BaseResponse<FlashcardDto>.Fail("Image file is required.", "IMAGE_REQUIRED"));
+
+        var userId = User.GetUserId();
+        await using var stream = image.OpenReadStream();
+        var result = await _mediator.Send(new CreateOcclusionFlashcardCommand(
+            userId, stream, image.FileName, image.ContentType, front ?? "", back ?? "", occlusions, documentId));
+        if (!result.IsSuccess)
+            return BadRequest(BaseResponse<FlashcardDto>.Fail(result.Message, result.ErrorCode));
+        return CreatedAtAction(nameof(GetAllFlashcards), BaseResponse<FlashcardDto>.Ok(result.Data!, result.Message));
+    }
+
+    /// <summary>
     /// Get materials that do not yet have generated flashcards for the authenticated user
     /// </summary>
     [HttpGet("pending-materials")]
@@ -72,6 +115,21 @@ public class FlashcardsController : ControllerBase
             return BadRequest(BaseResponse<FlashcardDto>.Fail(result.Message, result.ErrorCode));
 
         return CreatedAtAction(nameof(GetAllFlashcards), BaseResponse<FlashcardDto>.Ok(result.Data!, result.Message));
+    }
+
+    /// <summary>
+    /// Bulk-import flashcards (e.g. parsed from an Anki TSV/CSV export)
+    /// </summary>
+    [HttpPost("import")]
+    [ProducesResponseType(typeof(BaseResponse<ImportFlashcardsResultDto>), 200)]
+    [ProducesResponseType(typeof(BaseResponse), 400)]
+    public async Task<IActionResult> ImportFlashcards([FromBody] ImportFlashcardsRequest request)
+    {
+        var userId = User.GetUserId();
+        var result = await _mediator.Send(new ImportFlashcardsCommand(userId, request.Rows));
+        if (!result.IsSuccess)
+            return BadRequest(BaseResponse<ImportFlashcardsResultDto>.Fail(result.Message, result.ErrorCode));
+        return Ok(BaseResponse<ImportFlashcardsResultDto>.Ok(result.Data!, result.Message));
     }
 
     /// <summary>
@@ -127,6 +185,48 @@ public class FlashcardsController : ControllerBase
         var userId = User.GetUserId();
         var result = await _mediator.Send(new GetFlashcardSrsQuery(userId));
         return Ok(BaseResponse<IEnumerable<FlashcardSrsDto>>.Ok(result.Data!));
+    }
+
+    /// <summary>
+    /// Get leech cards: repeatedly forgotten flashcards (FSRS lapses at or above the threshold)
+    /// </summary>
+    [HttpGet("leeches")]
+    [ProducesResponseType(typeof(BaseResponse<IEnumerable<FlashcardDto>>), 200)]
+    public async Task<IActionResult> GetLeeches([FromQuery] int threshold = 4)
+    {
+        var userId = User.GetUserId();
+        var result = await _mediator.Send(new GetLeechFlashcardsQuery(userId, threshold));
+        return Ok(BaseResponse<IEnumerable<FlashcardDto>>.Ok(result.Data!));
+    }
+
+    /// <summary>
+    /// Suspend or resume a flashcard — suspended cards keep their FSRS state but never come up for review
+    /// </summary>
+    [HttpPatch("{flashcardId:guid}/suspend")]
+    [ProducesResponseType(typeof(BaseResponse<FlashcardSrsDto>), 200)]
+    [ProducesResponseType(typeof(BaseResponse), 404)]
+    public async Task<IActionResult> SetSuspended(Guid flashcardId, [FromBody] SetFlashcardSuspendedRequest request)
+    {
+        var userId = User.GetUserId();
+        var result = await _mediator.Send(new SetFlashcardSuspendedCommand(flashcardId, userId, request.Suspended));
+        if (!result.IsSuccess)
+            return NotFound(BaseResponse<FlashcardSrsDto>.Fail(result.Message, result.ErrorCode));
+        return Ok(BaseResponse<FlashcardSrsDto>.Ok(result.Data!));
+    }
+
+    /// <summary>
+    /// Reset a flashcard's FSRS scheduling so it starts over as a new card
+    /// </summary>
+    [HttpPost("{flashcardId:guid}/srs/reset")]
+    [ProducesResponseType(typeof(BaseResponse), 200)]
+    [ProducesResponseType(typeof(BaseResponse), 404)]
+    public async Task<IActionResult> ResetSrs(Guid flashcardId)
+    {
+        var userId = User.GetUserId();
+        var result = await _mediator.Send(new ResetFlashcardSrsCommand(flashcardId, userId));
+        if (!result.IsSuccess)
+            return NotFound(new BaseResponse { Success = false, Message = result.Message, ErrorCode = result.ErrorCode });
+        return Ok(new BaseResponse { Success = true, Message = result.Message });
     }
 
     /// <summary>

@@ -32,39 +32,24 @@ public class QuestionBankController : ControllerBase
         return Ok(BaseResponse<IEnumerable<QuestionBankQuestionDto>>.Ok(result.Data!));
     }
 
-    [HttpPatch("{quizId:guid}")]
-    [ProducesResponseType(typeof(BaseResponse<QuestionBankQuestionDto>), 200)]
+    /// <summary>
+    /// Record a single answer attempt on a question-bank question. Wrong answers land in the
+    /// mistake notebook (or bump an existing entry); correct answers resolve an open entry.
+    /// </summary>
+    [HttpPost("{quizId:guid}/attempt")]
+    [ProducesResponseType(typeof(BaseResponse<QuestionBankAttemptResultDto>), 200)]
     [ProducesResponseType(typeof(BaseResponse), 404)]
-    public async Task<IActionResult> UpdateQuestion(Guid quizId, [FromBody] UpdateQuestionBankQuestionRequest request)
+    public async Task<IActionResult> RecordAttempt(Guid quizId, [FromBody] RecordQuestionBankAttemptRequest request)
     {
         var userId = User.GetUserId();
-        var result = await _mediator.Send(new UpdateQuestionBankQuestionCommand(
-            userId,
-            quizId,
-            request.Question,
-            request.Options,
-            request.CorrectAnswer,
-            request.Explanation,
-            request.Difficulty));
+        var result = await _mediator.Send(new RecordQuestionBankAttemptCommand(userId, quizId, request.SelectedAnswer));
 
         if (!result.IsSuccess)
             return result.ErrorCode == "QUESTION_NOT_FOUND"
-                ? NotFound(BaseResponse<QuestionBankQuestionDto>.Fail(result.Message, result.ErrorCode))
-                : BadRequest(BaseResponse<QuestionBankQuestionDto>.Fail(result.Message, result.ErrorCode));
+                ? NotFound(BaseResponse<QuestionBankAttemptResultDto>.Fail(result.Message, result.ErrorCode))
+                : BadRequest(BaseResponse<QuestionBankAttemptResultDto>.Fail(result.Message, result.ErrorCode));
 
-        return Ok(BaseResponse<QuestionBankQuestionDto>.Ok(result.Data!, result.Message));
+        return Ok(BaseResponse<QuestionBankAttemptResultDto>.Ok(result.Data!));
     }
 
-    [HttpDelete("{quizId:guid}")]
-    [ProducesResponseType(typeof(BaseResponse), 200)]
-    [ProducesResponseType(typeof(BaseResponse), 404)]
-    public async Task<IActionResult> DeleteQuestion(Guid quizId)
-    {
-        var userId = User.GetUserId();
-        var result = await _mediator.Send(new DeleteQuestionBankQuestionCommand(userId, quizId));
-        if (!result.IsSuccess)
-            return NotFound(new BaseResponse { Success = false, Message = result.Message, ErrorCode = result.ErrorCode });
-
-        return Ok(new BaseResponse { Success = true, Message = result.Message });
-    }
 }

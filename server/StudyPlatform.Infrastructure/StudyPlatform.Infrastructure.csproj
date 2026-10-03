@@ -9,6 +9,11 @@
 
   <ItemGroup>
     <PackageReference Include="DocumentFormat.OpenXml" Version="3.4.1" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.1" />
+    <!-- Pinned ahead of what Microsoft.Data.Sqlite asks for (2.1.10/2.1.11): those bundle a SQLite
+         older than 3.50.2 and carry CVE-2025-6965. 2.1.12 is the same 2.1.x line, so it stays
+         compatible with Microsoft.Data.Sqlite.Core. Drop the pin once that package catches up. -->
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="2.1.12" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.1" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.1">
@@ -17,19 +22,27 @@
     </PackageReference>
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.1" />
     <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="8.9.0" />
+    <PackageReference Include="OpenMcdf" Version="3.1.4" />
+    <PackageReference Include="Pgvector.EntityFrameworkCore" Version="0.3.0" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.9.0" />
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
     <PackageReference Include="MailKit" Version="4.16.0" />
     <PackageReference Include="MimeKit" Version="4.16.0" />
-    <PackageReference Include="Azure.Storage.Blobs" Version="12.23.0" />
+    <PackageReference Include="AWSSDK.S3" Version="3.7.415.3" />
+    <PackageReference Include="AWSSDK.SimpleEmailV2" Version="3.7.500" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="9.0.1" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.1" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.1" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.1" />
     <PackageReference Include="UglyToad.PdfPig" Version="1.7.0-custom-5" />
+    <PackageReference Include="WebPush" Version="1.0.13" />
     <PackageReference Include="Whisper.net" Version="1.7.3" />
     <PackageReference Include="Whisper.net.Runtime" Version="1.7.3" />
     <PackageReference Include="HtmlAgilityPack" Version="1.11.67" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="StudyPlatform.Tests" />
   </ItemGroup>
 
   <ItemGroup>

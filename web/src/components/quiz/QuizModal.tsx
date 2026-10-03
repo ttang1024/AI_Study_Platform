@@ -5,7 +5,8 @@ import { QuizQuestion } from '../../types';
 import { documentService } from '../../services/documentService';
 import { useStudy } from '../../context/StudyContext';
 import { CheckCircle2, XCircle, ChevronRight, Loader2 } from 'lucide-react';
-import { isQuizOptionCorrect } from '../../utils/quizAnswers';
+import { isQuizOptionCorrect } from '@core/utils/quizAnswers';
+import SourceCitation from '../common/SourceCitation';
 
 export const QuizModal: React.FC = () => {
   const { currentDocument, updateProgress } = useStudy();
@@ -51,7 +52,7 @@ export const QuizModal: React.FC = () => {
   const handleSubmit = () => {
     if (!selectedAnswer) return;
     setIsSubmitted(true);
-    if (isQuizOptionCorrect(selectedAnswer, questions[currentIndex].answer)) {
+    if (isQuizOptionCorrect(selectedAnswer, questions[currentIndex].correctAnswer)) {
       setScore(prev => prev + 1);
     }
   };
@@ -118,19 +119,19 @@ export const QuizModal: React.FC = () => {
                     className={`w-full flex items-center justify-between rounded-xl border p-4 text-left transition-all ${selectedAnswer === option
                       ? 'border-primary bg-primary/10 text-primary'
                       : 'border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50'
-                      } ${isSubmitted && isQuizOptionCorrect(option, currentQuestion.answer)
+                      } ${isSubmitted && isQuizOptionCorrect(option, currentQuestion.correctAnswer)
                         ? 'border-emerald-500 bg-emerald-50 text-emerald-900'
                         : ''
-                      } ${isSubmitted && selectedAnswer === option && !isQuizOptionCorrect(option, currentQuestion.answer)
+                      } ${isSubmitted && selectedAnswer === option && !isQuizOptionCorrect(option, currentQuestion.correctAnswer)
                         ? 'border-red-500 bg-red-50 text-red-900'
                         : ''
                       }`}
                   >
                     <span>{option}</span>
-                    {isSubmitted && isQuizOptionCorrect(option, currentQuestion.answer) && (
+                    {isSubmitted && isQuizOptionCorrect(option, currentQuestion.correctAnswer) && (
                       <CheckCircle2 size={20} className="text-emerald-500" />
                     )}
-                    {isSubmitted && selectedAnswer === option && !isQuizOptionCorrect(option, currentQuestion.answer) && (
+                    {isSubmitted && selectedAnswer === option && !isQuizOptionCorrect(option, currentQuestion.correctAnswer) && (
                       <XCircle size={20} className="text-red-500" />
                     )}
                   </button>
@@ -152,6 +153,11 @@ export const QuizModal: React.FC = () => {
             <div className="rounded-xl bg-zinc-50 p-4">
               <p className="text-sm font-medium text-zinc-900">Explanation:</p>
               <p className="mt-1 text-sm text-zinc-600">{currentQuestion.explanation}</p>
+              <SourceCitation
+                citation={currentQuestion.citation}
+                videoId={currentQuestion.videoId}
+                className="mt-3"
+              />
             </div>
           )}
 

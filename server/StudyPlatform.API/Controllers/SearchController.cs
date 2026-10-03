@@ -38,4 +38,21 @@ public class SearchController : ControllerBase
             cancellationToken);
         return Ok(BaseResponse<SearchResultsDto>.Ok(result.Data!));
     }
+
+    /// <summary>
+    /// Ask a question across the whole library; the AI answers with [n] citations to sources.
+    /// </summary>
+    [HttpPost("ask")]
+    [ProducesResponseType(typeof(BaseResponse<AskLibraryDto>), 200)]
+    [ProducesResponseType(typeof(BaseResponse), 400)]
+    public async Task<IActionResult> Ask([FromBody] AskLibraryRequest request, CancellationToken cancellationToken)
+    {
+        var userId = User.GetUserId();
+        var result = await _mediator.Send(new AskLibraryQuery(userId, request.Question), cancellationToken);
+        if (!result.IsSuccess)
+            return BadRequest(BaseResponse<AskLibraryDto>.Fail(result.Message, result.ErrorCode));
+        return Ok(BaseResponse<AskLibraryDto>.Ok(result.Data!));
+    }
 }
+
+public record AskLibraryRequest(string Question);

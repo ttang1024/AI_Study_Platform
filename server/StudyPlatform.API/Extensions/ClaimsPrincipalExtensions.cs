@@ -12,14 +12,14 @@ public static class ClaimsPrincipalExtensions
         return userId;
     }
 
-    public static string GetEmail(this ClaimsPrincipal principal)
+    /// <summary>
+    /// The caller's id when there is one, null when there is not. For the few endpoints that
+    /// serve anonymous visitors but attribute the request when a valid token happens to ride
+    /// along — everything else should keep using <see cref="GetUserId"/> and its exception.
+    /// </summary>
+    public static Guid? GetUserIdOrNull(this ClaimsPrincipal principal)
     {
-        return principal.FindFirst(ClaimTypes.Email)?.Value
-            ?? throw new UnauthorizedAccessException("Email not found in token.");
-    }
-
-    public static string GetFullName(this ClaimsPrincipal principal)
-    {
-        return principal.FindFirst(ClaimTypes.Name)?.Value ?? string.Empty;
+        var userIdClaim = principal.FindFirst(ClaimTypes.NameIdentifier);
+        return userIdClaim != null && Guid.TryParse(userIdClaim.Value, out var userId) ? userId : null;
     }
 }

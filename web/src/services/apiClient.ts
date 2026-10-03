@@ -1,11 +1,13 @@
 /// <reference types="vite/client" />
 import axios, { AxiosRequestConfig } from 'axios';
+import { buildAiHeaders } from '@core/ai';
 import { aiSettingsService } from './aiSettingsService';
 import { getApiUrl } from '../utils/env';
 
 const API_URL = getApiUrl();
 
-export const apiClient = axios.create({ baseURL: API_URL });
+// withCredentials lets the browser send/receive the HttpOnly refresh-token cookie.
+export const apiClient = axios.create({ baseURL: API_URL, withCredentials: true });
 
 const inflightGetRequests = new Map<string, Promise<any>>();
 
@@ -55,14 +57,11 @@ apiClient.interceptors.request.use((config) => {
 
   // Only inject AI headers from settings if not already explicitly set on this request
   if (!config.headers['X-AI-Provider']) {
-    const provider = aiSettingsService.getActiveProvider();
-    const key = aiSettingsService.getActiveKey();
-    const model = aiSettingsService.getActiveModel();
-    config.headers['X-AI-Provider'] = provider;
-    config.headers['X-AI-Model'] = model;
-    if (key) {
-      config.headers['X-AI-Key'] = key;
-    }
+    Object.assign(config.headers, buildAiHeaders({
+      provider: aiSettingsService.getActiveProvider(),
+      model: aiSettingsService.getActiveModel(),
+      key: aiSettingsService.getActiveKey() ?? '',
+    }));
   }
 
   return config;
@@ -106,25 +105,17 @@ apiClient.interceptors.response.use(
       originalRequest._retry = true;
       isRefreshing = true;
 
-      const refreshToken = localStorage.getItem('sp_refresh_token');
-
-      if (!refreshToken) {
-        isRefreshing = false;
-        localStorage.removeItem('sp_access_token');
-        localStorage.removeItem('sp_refresh_token');
-        localStorage.removeItem('sp_user');
-        window.location.href = '/login';
-        return Promise.reject(error);
-      }
-
       try {
-        const response = await axios.post(`${API_URL}/api/auth/refresh-token`, { refreshToken });
-        const { accessToken, refreshToken: newRefreshToken } = response.data.data;
+        // The refresh token lives in an HttpOnly cookie, so it is sent automatically
+        // with withCredentials — never read from JavaScript.
+        const response = await axios.post(
+          `${API_URL}/api/auth/refresh-token`,
+          {},
+          { withCredentials: true },
+        );
+        const { accessToken } = response.data.data;
 
         localStorage.setItem('sp_access_token', accessToken);
-        if (newRefreshToken) {
-          localStorage.setItem('sp_refresh_token', newRefreshToken);
-        }
 
         apiClient.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
         originalRequest.headers.Authorization = `Bearer ${accessToken}`;
@@ -134,7 +125,6 @@ apiClient.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError, null);
         localStorage.removeItem('sp_access_token');
-        localStorage.removeItem('sp_refresh_token');
         localStorage.removeItem('sp_user');
         window.location.href = '/login';
         return Promise.reject(refreshError);

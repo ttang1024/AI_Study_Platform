@@ -15,6 +15,7 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.IsEmailVerified).HasDefaultValue(false);
         builder.Property(u => u.IsAdmin).HasDefaultValue(false);
         builder.Property(u => u.IsActive).HasDefaultValue(true);
+        builder.Property(u => u.DailyStudyGoalMinutes).HasDefaultValue(30);
         builder.Property(u => u.CreatedAt).IsRequired();
         builder.Property(u => u.UpdatedAt).IsRequired();
         builder.HasIndex(u => u.Email).IsUnique();

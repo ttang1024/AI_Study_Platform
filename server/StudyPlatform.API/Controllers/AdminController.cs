@@ -114,6 +114,31 @@ public class AdminController : ControllerBase
         return NoContent();
     }
 
+    // ── Platform Analytics ───────────────────────────────────────────────────
+
+    [HttpGet("analytics")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> GetPlatformAnalytics()
+    {
+        var result = await _mediator.Send(new GetPlatformAnalyticsQuery());
+        if (!result.IsSuccess)
+            return BadRequest(BaseResponse<object>.Fail(result.Message));
+
+        return Ok(result.Data);
+    }
+
+    /// <summary>Page-view analytics over a trailing window (defaults to 30 days).</summary>
+    [HttpGet("analytics/page-visits")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> GetPageVisitAnalytics([FromQuery] int days = 30)
+    {
+        var result = await _mediator.Send(new GetPageVisitAnalyticsQuery(days));
+        if (!result.IsSuccess)
+            return BadRequest(BaseResponse<object>.Fail(result.Message));
+
+        return Ok(result.Data);
+    }
+
     // ── User Management ──────────────────────────────────────────────────────
 
     [HttpGet("users")]
@@ -131,6 +156,17 @@ public class AdminController : ControllerBase
 
         var p = result.Data!;
         return Ok(new { items = p.Items, total = p.TotalCount, page = p.Page, pageSize = p.PageSize });
+    }
+
+    [HttpGet("users/{id:guid}/detail")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> GetUserDetail(Guid id)
+    {
+        var result = await _mediator.Send(new GetUserDetailQuery(id));
+        if (!result.IsSuccess)
+            return NotFound(BaseResponse<object>.Fail(result.Message, result.ErrorCode));
+
+        return Ok(result.Data);
     }
 
     [HttpPatch("users/{id:guid}/active")]

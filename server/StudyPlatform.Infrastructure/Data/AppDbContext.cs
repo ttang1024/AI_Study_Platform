@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using StudyPlatform.Domain.Entities;
-using StudyPlatform.Infrastructure.Data.Configurations;
 
 namespace StudyPlatform.Infrastructure.Data;
 
@@ -20,7 +19,7 @@ public class AppDbContext : DbContext
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
     public DbSet<QuizAttempt> QuizAttempts => Set<QuizAttempt>();
     public DbSet<QuizSubmission> QuizSubmissions => Set<QuizSubmission>();
-    public DbSet<YouTubeVideo> YouTubeVideos => Set<YouTubeVideo>();
+    public DbSet<Video> Videos => Set<Video>();
     public DbSet<GlossaryTerm> GlossaryTerms => Set<GlossaryTerm>();
     public DbSet<Feedback> Feedbacks => Set<Feedback>();
     public DbSet<ShareToken> ShareTokens => Set<ShareToken>();
@@ -33,12 +32,35 @@ public class AppDbContext : DbContext
     public DbSet<StudyGroupMember> StudyGroupMembers => Set<StudyGroupMember>();
     public DbSet<StudyGroupSharedCourse> StudyGroupSharedCourses => Set<StudyGroupSharedCourse>();
     public DbSet<GroupChatMessage> GroupChatMessages => Set<GroupChatMessage>();
-    public DbSet<ConceptLink> ConceptLinks => Set<ConceptLink>();
     public DbSet<FlashcardSrsData> FlashcardSrs => Set<FlashcardSrsData>();
+    public DbSet<CacheEntry> CacheEntries => Set<CacheEntry>();
+    public DbSet<VideoTranscriptEntry> VideoTranscriptEntries => Set<VideoTranscriptEntry>();
+    public DbSet<StudySession> StudySessions => Set<StudySession>();
+    public DbSet<MistakeEntry> MistakeEntries => Set<MistakeEntry>();
+    public DbSet<ExamPlan> ExamPlans => Set<ExamPlan>();
+    public DbSet<UserPushSubscription> UserPushSubscriptions => Set<UserPushSubscription>();
+    public DbSet<FlashcardReviewLog> FlashcardReviewLogs => Set<FlashcardReviewLog>();
+    public DbSet<StreakCoverDay> StreakCoverDays => Set<StreakCoverDay>();
+    public DbSet<UserCalendarFeed> UserCalendarFeeds => Set<UserCalendarFeed>();
+    public DbSet<AiUsageLog> AiUsageLogs => Set<AiUsageLog>();
+    public DbSet<ContentEmbedding> ContentEmbeddings => Set<ContentEmbedding>();
+    public DbSet<DataExportRequest> DataExportRequests => Set<DataExportRequest>();
+    public DbSet<LibraryTag> LibraryTags => Set<LibraryTag>();
+    public DbSet<LibraryTagAssignment> LibraryTagAssignments => Set<LibraryTagAssignment>();
+    public DbSet<UserFsrsSettings> UserFsrsSettings => Set<UserFsrsSettings>();
+    public DbSet<PageVisit> PageVisits => Set<PageVisit>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        // vector  — the embedding column and its HNSW index (semantic search).
+        // pg_trgm — GIN trigram indexes for the ILIKE '%term%' searches. A leading wildcard makes a
+        //           B-tree useless, so without this every keyword search is a sequential scan whose
+        //           cost grows with the size of the user's library.
+        modelBuilder.HasPostgresExtension("vector");
+        modelBuilder.HasPostgresExtension("pg_trgm");
+
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
     }
 }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'motion/react';
-import { Globe, Loader2 } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { AnimatePresence } from 'motion/react';
+import { Globe, Loader2, CheckCircle2 } from 'lucide-react';
 import { DocumentCard } from '../common/DocumentCard';
 import { useStudy } from '../../context/StudyContext';
 import { apiClient } from '../../services/apiClient';
@@ -14,12 +14,21 @@ export interface WebTabProps {
 
 export const WebTab: React.FC<WebTabProps> = ({ selectedCourseId, onCourseError }) => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { documents, courses, refreshDocuments, refreshStats } = useStudy();
-  const [webUrl, setWebUrl] = useState('');
+  // The web-clipper bookmarklet/extension deep-links here with ?clip=<url>.
+  const [webUrl, setWebUrl] = useState(() => searchParams.get('clip') ?? '');
   const [clippingUrl, setClippingUrl] = useState(false);
   const [clipError, setClipError] = useState('');
 
   useEffect(() => { refreshDocuments(); }, []);
+
+  useEffect(() => {
+    if (searchParams.has('clip')) {
+      setSearchParams((p) => { p.delete('clip'); return p; }, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const recentArticles = documents.filter(d => d.originalUrl && d.type !== 'audio' && d.type !== 'podcast').slice(0, 3);
   const getCourse = (id?: string) => courses.find(c => c.id === id);
@@ -31,6 +40,8 @@ export const WebTab: React.FC<WebTabProps> = ({ selectedCourseId, onCourseError 
 
   const handleClipUrl = async () => {
     if (!webUrl) return;
+    // Already in the library — the DuplicateAlert offers the "View" path instead.
+    if (dupArticle) return;
     if (!selectedCourseId) { onCourseError(true); return; }
     onCourseError(false);
     setClippingUrl(true);
@@ -53,25 +64,25 @@ export const WebTab: React.FC<WebTabProps> = ({ selectedCourseId, onCourseError 
       <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
         <input
           type="url"
-          placeholder="https://example.com/article"
+          placeholder="Article URL (https://example.com/article)"
           value={webUrl}
           onChange={e => setWebUrl(e.target.value)}
           className="flex-1 rounded-xl border border-[var(--border-color)] bg-[var(--bg-app)] px-4 py-3 text-sm outline-none focus:border-primary"
         />
         <button
           onClick={handleClipUrl}
-          disabled={!webUrl || clippingUrl}
-          className="flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-white hover:opacity-90 disabled:opacity-50 transition-opacity sm:w-auto"
+          disabled={!webUrl || clippingUrl || !!dupArticle}
+          className="flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:opacity-50 transition-opacity sm:w-auto"
         >
-          {clippingUrl ? <Loader2 size={16} className="animate-spin" /> : <Globe size={16} />}
-          {clippingUrl ? 'Clipping...' : 'Clip Article'}
+          {clippingUrl ? <Loader2 size={16} className="animate-spin" /> : dupArticle ? <CheckCircle2 size={16} /> : <Globe size={16} />}
+          {clippingUrl ? 'Clipping...' : dupArticle ? 'Already in Library' : 'Clip Article'}
         </button>
       </div>
       <AnimatePresence>
-        {dupArticle && dupArticleCourse && (
+        {dupArticle && (
           <DuplicateAlert
             label="article"
-            courseName={dupArticleCourse.name}
+            courseName={dupArticleCourse?.name}
             to={`/articles/${dupArticle.id}`}
           />
         )}

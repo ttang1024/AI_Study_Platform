@@ -1,0 +1,10 @@
+# Declares the monorepo layout for tooling that auto-detects a workspace root.
+# The apps are still installed independently with npm (each keeps its own
+# package-lock.json / node_modules); npm ignores this file. Its purpose is to let
+# Expo/Metro resolve the workspace root so rn/ can bundle the shared packages/core
+# package that lives outside the app root. See rn/metro.config.js.
+packages:
+  - 'rn'
+  - 'web'
+  - 'admin'
+  - 'packages/*'

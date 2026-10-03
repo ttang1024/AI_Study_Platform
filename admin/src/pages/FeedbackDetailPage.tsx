@@ -7,6 +7,7 @@ import { TypeBadge, StatusBadge } from '../components/common/Badge';
 import { Button } from '../components/common/Button';
 import { formatDate } from '../utils/format';
 import { cn } from '../utils/cn';
+import { ErrorBanner } from '../components/common/ErrorBanner';
 
 const STATUS_OPTIONS: { value: FeedbackStatus; label: string }[] = [
   { value: 'new', label: 'New' },
@@ -86,7 +87,7 @@ export const FeedbackDetailPage: React.FC = () => {
     return (
       <div className="flex flex-col items-center justify-center py-32 text-center">
         <p className="text-sm text-[var(--text-secondary)]">{error}</p>
-        <Link to="/feedback" className="mt-4 text-sm text-indigo-400 hover:underline">Back to feedback</Link>
+        <Link to="/feedback" className="mt-4 text-sm text-emerald-700 hover:underline">Back to feedback</Link>
       </div>
     );
   }
@@ -94,8 +95,8 @@ export const FeedbackDetailPage: React.FC = () => {
   if (!item) {
     return (
       <div className="space-y-4">
-        <div className="h-8 w-48 rounded-xl bg-white/5 animate-pulse" />
-        <div className="h-48 rounded-2xl bg-white/5 animate-pulse" />
+        <div className="h-8 w-48 rounded-xl bg-black/5 animate-pulse" />
+        <div className="h-48 rounded-2xl bg-black/5 animate-pulse" />
       </div>
     );
   }
@@ -103,35 +104,31 @@ export const FeedbackDetailPage: React.FC = () => {
   return (
     <div className="max-w-3xl">
       {/* Back + title */}
-      <div className="mb-8 flex items-center gap-3">
+      <div className="mb-6 flex min-w-0 items-center gap-3 sm:mb-8">
         <Link
           to="/feedback"
-          className="flex items-center gap-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+          className="flex shrink-0 items-center gap-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
         >
           <ArrowLeft size={15} />
           Feedback
         </Link>
         <span className="text-[var(--border-color)]">/</span>
-        <span className="text-sm text-[var(--text-secondary)] truncate max-w-[200px]">{item.subject}</span>
+        <span className="min-w-0 truncate text-sm text-[var(--text-secondary)] sm:max-w-[200px]">{item.subject}</span>
       </div>
 
-      {error && (
-        <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
-          {error}
-        </div>
-      )}
+      <ErrorBanner error={error} />
 
       <div className="space-y-5">
         {/* Main card */}
-        <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-7">
+        <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-5 sm:p-7">
           {/* Header */}
           <div className="mb-5 flex items-start justify-between gap-4">
             <div className="flex flex-wrap items-center gap-2">
               <TypeBadge type={item.type} />
               <StatusBadge status={item.status} />
               {item.rating != null && (
-                <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-400">
-                  <Star size={10} className="fill-amber-400" />
+                <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-700">
+                  <Star size={10} className="fill-amber-500 text-amber-500" />
                   {item.rating}/5
                 </span>
               )}
@@ -140,14 +137,14 @@ export const FeedbackDetailPage: React.FC = () => {
 
           <h2 className="text-lg font-bold text-[var(--text-primary)] mb-4">{item.subject}</h2>
 
-          <p className="text-sm text-[var(--text-secondary)] whitespace-pre-wrap leading-relaxed">{item.message}</p>
+          <p className="text-sm text-[var(--text-secondary)] whitespace-pre-wrap break-words leading-relaxed">{item.message}</p>
 
           {/* Meta */}
           <div className="mt-6 flex flex-wrap gap-4 border-t border-[var(--border-color)] pt-4 text-xs text-[var(--text-secondary)]">
             {item.userEmail && (
-              <span className="flex items-center gap-1.5">
-                <User size={12} />
-                {item.userEmail}
+              <span className="flex min-w-0 items-center gap-1.5">
+                <User size={12} className="shrink-0" />
+                <span className="truncate">{item.userEmail}</span>
               </span>
             )}
             <span className="flex items-center gap-1.5">
@@ -155,7 +152,7 @@ export const FeedbackDetailPage: React.FC = () => {
               {formatDate(item.submittedAt)}
             </span>
             {item.resolvedAt && (
-              <span className="flex items-center gap-1.5 text-emerald-400">
+              <span className="flex items-center gap-1.5 text-emerald-700">
                 <Calendar size={12} />
                 Resolved {formatDate(item.resolvedAt)}
               </span>
@@ -164,7 +161,7 @@ export const FeedbackDetailPage: React.FC = () => {
         </div>
 
         {/* Actions card */}
-        <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-7">
+        <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-5 sm:p-7">
           <h3 className="mb-4 text-sm font-semibold text-[var(--text-primary)]">Update Status</h3>
           <div className="flex flex-wrap gap-2">
             {STATUS_OPTIONS.map(({ value, label }) => (
@@ -173,10 +170,10 @@ export const FeedbackDetailPage: React.FC = () => {
                 disabled={isUpdatingStatus}
                 onClick={() => handleStatusChange(value)}
                 className={cn(
-                  'rounded-xl border px-3 py-1.5 text-xs font-medium transition-all disabled:opacity-50',
+                  'min-h-10 rounded-xl border px-3 py-1.5 text-xs font-medium transition-all disabled:opacity-50',
                   item.status === value
-                    ? 'border-indigo-500 bg-indigo-600/20 text-indigo-300'
-                    : 'border-[var(--border-color)] bg-transparent text-[var(--text-secondary)] hover:border-indigo-500/40 hover:text-[var(--text-primary)]',
+                    ? 'border-emerald-500 bg-emerald-600/10 text-emerald-700'
+                    : 'border-[var(--border-color)] bg-transparent text-[var(--text-secondary)] hover:border-emerald-500/40 hover:text-[var(--text-primary)]',
                 )}
               >
                 {label}
@@ -186,14 +183,14 @@ export const FeedbackDetailPage: React.FC = () => {
         </div>
 
         {/* Admin note */}
-        <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-7">
+        <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-5 sm:p-7">
           <h3 className="mb-3 text-sm font-semibold text-[var(--text-primary)]">Internal Note</h3>
           <textarea
             value={adminNote}
             onChange={(e) => setAdminNote(e.target.value)}
             rows={4}
             placeholder="Add a private note visible only to admins…"
-            className="w-full resize-y rounded-xl border border-[var(--border-color)] bg-[var(--bg-app)] px-4 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
+            className="w-full resize-y rounded-xl border border-[var(--border-color)] bg-[var(--bg-app)] px-4 py-2.5 text-base text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all sm:text-sm"
           />
           <div className="mt-3 flex justify-end">
             <Button
@@ -209,9 +206,9 @@ export const FeedbackDetailPage: React.FC = () => {
         </div>
 
         {/* Danger zone */}
-        <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-7">
-          <h3 className="mb-3 text-sm font-semibold text-red-400">Danger Zone</h3>
-          <div className="flex items-center justify-between">
+        <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-5 sm:p-7">
+          <h3 className="mb-3 text-sm font-semibold text-red-600">Danger Zone</h3>
+          <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs text-[var(--text-secondary)]">
               {deleteConfirm ? 'This action cannot be undone. Click again to confirm.' : 'Permanently delete this feedback entry.'}
             </p>

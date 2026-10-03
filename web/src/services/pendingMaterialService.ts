@@ -1,21 +1,10 @@
 import { Document } from '../types';
-import { VideoListItem } from './youtubeService';
+import { VideoListItem } from './videoService';
+import type { PendingMaterial } from '@core/types';
 
-export interface PendingMaterial {
-	kind: 'document' | 'video';
-	id: string;
-	courseId: string;
-	courseName: string;
-	courseColor: string;
-	name: string;
-	contentType?: string | null;
-	blobUrl?: string | null;
-	originalUrl?: string | null;
-	videoId?: string | null;
-	videoUrl?: string | null;
-	thumbnailUrl?: string | null;
-	createdAt: string;
-}
+// The DTO moved to the shared package (packages/core) — re-exported so existing
+// `./pendingMaterialService` imports keep working unchanged.
+export type { PendingMaterial } from '@core/types';
 
 const AUDIO_EXTENSIONS = ['.mp3', '.m4a', '.wav', '.ogg', '.aac', '.flac', '.webm'];
 
@@ -43,6 +32,7 @@ export const pendingMaterialToItem = (material: PendingMaterial) => {
 				courseColor: material.courseColor,
 				videoId: material.videoId ?? '',
 				videoUrl: material.videoUrl ?? '',
+				sourceType: material.sourceType ?? 'youtube',
 				title: material.name,
 				thumbnailUrl: material.thumbnailUrl ?? '',
 				summary: null,

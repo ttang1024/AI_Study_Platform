@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Encodes cookies files to base64 and upserts YouTube__CookiesList__N entries
-# into .azure_env_variables.
+# into .env_variables.
 # Usage: ./generate-cookies-env.sh [cookies1.txt cookies2.txt ...]
 # Defaults to cookies1.txt cookies2.txt cookies3.txt
 
-ENV_FILE=".azure_env_variables"
+ENV_FILE=".env_variables"
 COOKIE_FILES=("${@:-cookies1.txt cookies2.txt cookies3.txt}")
 
 # When no args given, bash keeps the default as one word — fix that

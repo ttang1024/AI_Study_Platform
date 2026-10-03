@@ -18,7 +18,7 @@ public record StudyGroupDto(
     int MemberCount,
     int SharedCourseCount);
 
-public record SharedCourseDto(Guid CourseId, string CourseName, DateTime SharedAt);
+public record SharedCourseDto(Guid CourseId, string CourseName, DateTime SharedAt, Guid SharedByUserId);
 
 public record StudyGroupDetailDto(
     Guid StudyGroupId,
@@ -35,6 +35,8 @@ public record GroupChatMessageDto(
     string UserName,
     string Content,
     DateTime SentAt);
+
+public record JoinStudyGroupResultDto(StudyGroupDto Group, GroupMemberDto Member);
 
 // ── Queries ─────────────────────────────────────────────────────────────────
 
@@ -75,7 +77,7 @@ public class GetGroupDetailQueryHandler : IRequestHandler<GetGroupDetailQuery, R
         var dto = new StudyGroupDetailDto(
             group.StudyGroupId, group.Name, group.Description, group.InviteCode, group.CreatedAt,
             group.Members.Select(m => new GroupMemberDto(m.UserId, m.User.FullName, m.Role, m.JoinedAt)),
-            group.SharedCourses.Select(sc => new SharedCourseDto(sc.CourseId, sc.Course.CourseName, sc.SharedAt)));
+            group.SharedCourses.Select(sc => new SharedCourseDto(sc.CourseId, sc.Course.CourseName, sc.SharedAt, sc.SharedByUserId)));
         return Result<StudyGroupDetailDto>.Success(dto);
     }
 }
@@ -152,22 +154,25 @@ public class CreateStudyGroupCommandHandler : IRequestHandler<CreateStudyGroupCo
     }
 }
 
-public record JoinStudyGroupCommand(Guid UserId, string InviteCode) : IRequest<Result<StudyGroupDto>>;
+public record JoinStudyGroupCommand(Guid UserId, string InviteCode) : IRequest<Result<JoinStudyGroupResultDto>>;
 
-public class JoinStudyGroupCommandHandler : IRequestHandler<JoinStudyGroupCommand, Result<StudyGroupDto>>
+public class JoinStudyGroupCommandHandler : IRequestHandler<JoinStudyGroupCommand, Result<JoinStudyGroupResultDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
     public JoinStudyGroupCommandHandler(IUnitOfWork unitOfWork) { _unitOfWork = unitOfWork; }
 
-    public async Task<Result<StudyGroupDto>> Handle(JoinStudyGroupCommand request, CancellationToken cancellationToken)
+    public async Task<Result<JoinStudyGroupResultDto>> Handle(JoinStudyGroupCommand request, CancellationToken cancellationToken)
     {
         var group = await _unitOfWork.StudyGroups.GetByInviteCodeAsync(request.InviteCode, cancellationToken);
         if (group == null)
-            return Result<StudyGroupDto>.Failure("Invalid invite code.", "INVALID_INVITE_CODE");
+            return Result<JoinStudyGroupResultDto>.Failure("Invalid invite code.", "INVALID_INVITE_CODE");
 
         var alreadyMember = group.Members.Any(m => m.UserId == request.UserId);
         if (alreadyMember)
-            return Result<StudyGroupDto>.Failure("Already a member.", "ALREADY_MEMBER");
+            return Result<JoinStudyGroupResultDto>.Failure("Already a member.", "ALREADY_MEMBER");
+
+        var user = await _unitOfWork.Users.GetByIdAsync(request.UserId, cancellationToken);
+        var joinedAt = DateTime.UtcNow;
 
         var member = new StudyGroupMember
         {
@@ -175,15 +180,19 @@ public class JoinStudyGroupCommandHandler : IRequestHandler<JoinStudyGroupComman
             GroupId = group.StudyGroupId,
             UserId = request.UserId,
             Role = "member",
-            JoinedAt = DateTime.UtcNow
+            JoinedAt = joinedAt
         };
 
         await _unitOfWork.StudyGroupMembers.AddAsync(member, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return Result<StudyGroupDto>.Success(new StudyGroupDto(
+        var groupDto = new StudyGroupDto(
             group.StudyGroupId, group.Name, group.Description, group.InviteCode, group.CreatedAt,
-            group.Members.Count + 1, group.SharedCourses.Count), "Joined group.");
+            group.Members.Count, group.SharedCourses.Count);
+
+        var memberDto = new GroupMemberDto(request.UserId, user?.FullName ?? "Unknown", "member", joinedAt);
+
+        return Result<JoinStudyGroupResultDto>.Success(new JoinStudyGroupResultDto(groupDto, memberDto), "Joined group.");
     }
 }
 
@@ -211,41 +220,94 @@ public class LeaveStudyGroupCommandHandler : IRequestHandler<LeaveStudyGroupComm
     }
 }
 
-public record ShareCourseWithGroupCommand(Guid UserId, Guid GroupId, Guid CourseId) : IRequest<Result>;
+public record RemoveGroupMemberCommand(Guid OwnerId, Guid GroupId, Guid TargetUserId) : IRequest<Result>;
 
-public class ShareCourseWithGroupCommandHandler : IRequestHandler<ShareCourseWithGroupCommand, Result>
+public class RemoveGroupMemberCommandHandler : IRequestHandler<RemoveGroupMemberCommand, Result>
+{
+    private readonly IUnitOfWork _unitOfWork;
+    public RemoveGroupMemberCommandHandler(IUnitOfWork unitOfWork) { _unitOfWork = unitOfWork; }
+
+    public async Task<Result> Handle(RemoveGroupMemberCommand request, CancellationToken cancellationToken)
+    {
+        var ownerMember = await _unitOfWork.StudyGroupMembers.FirstOrDefaultAsync(
+            m => m.GroupId == request.GroupId && m.UserId == request.OwnerId, cancellationToken);
+
+        if (ownerMember == null || ownerMember.Role != "owner")
+            return Result.Failure("Only the owner can remove members.", "FORBIDDEN");
+
+        if (request.OwnerId == request.TargetUserId)
+            return Result.Failure("Owner cannot remove themselves.", "INVALID_OPERATION");
+
+        var target = await _unitOfWork.StudyGroupMembers.FirstOrDefaultAsync(
+            m => m.GroupId == request.GroupId && m.UserId == request.TargetUserId, cancellationToken);
+
+        if (target == null)
+            return Result.Failure("Member not found.", "NOT_FOUND");
+
+        _unitOfWork.StudyGroupMembers.Remove(target);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return Result.Success("Member removed.");
+    }
+}
+
+public record DeleteStudyGroupCommand(Guid UserId, Guid GroupId) : IRequest<Result>;
+
+public class DeleteStudyGroupCommandHandler : IRequestHandler<DeleteStudyGroupCommand, Result>
+{
+    private readonly IUnitOfWork _unitOfWork;
+    public DeleteStudyGroupCommandHandler(IUnitOfWork unitOfWork) { _unitOfWork = unitOfWork; }
+
+    public async Task<Result> Handle(DeleteStudyGroupCommand request, CancellationToken cancellationToken)
+    {
+        var group = await _unitOfWork.StudyGroups.GetByIdAsync(request.GroupId, cancellationToken);
+        if (group == null)
+            return Result.Failure("Group not found.", "NOT_FOUND");
+
+        if (group.OwnerId != request.UserId)
+            return Result.Failure("Only the owner can delete this group.", "FORBIDDEN");
+
+        _unitOfWork.StudyGroups.Remove(group);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return Result.Success("Group deleted.");
+    }
+}
+
+public record ShareCourseWithGroupCommand(Guid UserId, Guid GroupId, Guid CourseId) : IRequest<Result<SharedCourseDto>>;
+
+public class ShareCourseWithGroupCommandHandler : IRequestHandler<ShareCourseWithGroupCommand, Result<SharedCourseDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
     public ShareCourseWithGroupCommandHandler(IUnitOfWork unitOfWork) { _unitOfWork = unitOfWork; }
 
-    public async Task<Result> Handle(ShareCourseWithGroupCommand request, CancellationToken cancellationToken)
+    public async Task<Result<SharedCourseDto>> Handle(ShareCourseWithGroupCommand request, CancellationToken cancellationToken)
     {
         var isMember = await _unitOfWork.StudyGroupMembers.ExistsAsync(
             m => m.GroupId == request.GroupId && m.UserId == request.UserId, cancellationToken);
         if (!isMember)
-            return Result.Failure("Not a member of this group.", "NOT_MEMBER");
+            return Result<SharedCourseDto>.Failure("Not a member of this group.", "NOT_MEMBER");
 
-        var groupExists = await _unitOfWork.StudyGroups.ExistsAsync(
-            g => g.StudyGroupId == request.GroupId, cancellationToken);
-        if (!groupExists)
-            return Result.Failure("Group not found.", "NOT_FOUND");
+        var course = await _unitOfWork.Courses.GetByIdAsync(request.CourseId, cancellationToken);
+        if (course == null)
+            return Result<SharedCourseDto>.Failure("Course not found.", "NOT_FOUND");
 
         var alreadyShared = await _unitOfWork.StudyGroupSharedCourses.ExistsAsync(
             sc => sc.GroupId == request.GroupId && sc.CourseId == request.CourseId, cancellationToken);
         if (alreadyShared)
-            return Result.Failure("Course already shared.", "ALREADY_SHARED");
+            return Result<SharedCourseDto>.Failure("Course already shared.", "ALREADY_SHARED");
 
+        var sharedAt = DateTime.UtcNow;
         var shared = new StudyGroupSharedCourse
         {
             StudyGroupSharedCourseId = Guid.NewGuid(),
             GroupId = request.GroupId,
             CourseId = request.CourseId,
-            SharedAt = DateTime.UtcNow
+            SharedByUserId = request.UserId,
+            SharedAt = sharedAt
         };
 
         await _unitOfWork.StudyGroupSharedCourses.AddAsync(shared, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
-        return Result.Success("Course shared.");
+        return Result<SharedCourseDto>.Success(new SharedCourseDto(course.CourseId, course.CourseName, sharedAt, request.UserId), "Course shared.");
     }
 }
 
@@ -258,15 +320,13 @@ public class RemoveSharedCourseCommandHandler : IRequestHandler<RemoveSharedCour
 
     public async Task<Result> Handle(RemoveSharedCourseCommand request, CancellationToken cancellationToken)
     {
-        var isMember = await _unitOfWork.StudyGroupMembers.ExistsAsync(
-            m => m.GroupId == request.GroupId && m.UserId == request.UserId, cancellationToken);
-        if (!isMember)
-            return Result.Failure("Not a member of this group.", "NOT_MEMBER");
-
         var shared = await _unitOfWork.StudyGroupSharedCourses.FirstOrDefaultAsync(
             sc => sc.GroupId == request.GroupId && sc.CourseId == request.CourseId, cancellationToken);
         if (shared == null)
             return Result.Failure("Shared course not found.", "NOT_FOUND");
+
+        if (shared.SharedByUserId != request.UserId)
+            return Result.Failure("Only the member who shared this course can remove it.", "FORBIDDEN");
 
         _unitOfWork.StudyGroupSharedCourses.Remove(shared);
         await _unitOfWork.SaveChangesAsync(cancellationToken);

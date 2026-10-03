@@ -5,14 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Study Platform — Admin</title>
     <style>
+      /* Pre-paint only: these must mirror the :root block in src/index.css so the
+         first frame matches the loaded stylesheet instead of flashing another theme. */
       :root {
-        --bg-app: #0f0f13;
-        --bg-sidebar: #17171d;
-        --bg-card: #1e1e26;
-        --border-color: #2a2a35;
-        --text-primary: #f4f4f5;
-        --text-secondary: #a1a1aa;
-        --primary: #4f46e5;
+        color-scheme: light;
+        --bg-app: #f4f6f5;
+        --bg-sidebar: #ffffff;
+        --bg-card: #ffffff;
+        --border-color: #e5e7eb;
+        --text-primary: #111827;
+        --text-secondary: #6b7280;
+        --primary: #059669;
       }
       body {
         background: var(--bg-app);

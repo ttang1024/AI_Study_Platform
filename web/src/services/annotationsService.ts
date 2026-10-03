@@ -1,46 +1,10 @@
-import { apiClient } from './apiClient';
+// Service logic moved to the shared package (packages/core). This file wires the
+// web HTTP adapter into the shared factory, so existing imports keep working.
+import { createAnnotationsService } from '@core/services/annotationsService';
+import { http } from './http';
 
-export interface DocumentAnnotation {
-  documentAnnotationId: string;
-  documentId: string;
-  userId: string;
-  highlightedText: string;
-  note?: string;
-  color: string;
-  pageNumber: number;
-  rectJson: string;
-  createdAt: string;
-  updatedAt: string;
-}
+export * from '@core/services/annotationsService';
 
-export interface CreateAnnotationRequest {
-  highlightedText: string;
-  note?: string;
-  color: string;
-  pageNumber: number;
-  rectJson: string;
-}
-
-export interface UpdateAnnotationRequest {
-  note?: string;
-  color: string;
-}
-
-const annotationsService = {
-  getByDocument: (documentId: string) =>
-    apiClient.get<{ data: DocumentAnnotation[] }>(`/api/documents/${documentId}/annotations`),
-
-  create: (documentId: string, data: CreateAnnotationRequest) =>
-    apiClient.post<{ data: DocumentAnnotation }>(`/api/documents/${documentId}/annotations`, data),
-
-  update: (id: string, data: UpdateAnnotationRequest) =>
-    apiClient.put<{ data: DocumentAnnotation }>(`/api/annotations/${id}`, data),
-
-  delete: (id: string) =>
-    apiClient.delete(`/api/annotations/${id}`),
-
-  createFlashcard: (id: string) =>
-    apiClient.post(`/api/annotations/${id}/create-flashcard`),
-};
+const annotationsService = createAnnotationsService(http);
 
 export default annotationsService;

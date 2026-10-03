@@ -45,10 +45,9 @@ describe('AuthContext', () => {
     expect(result.current.user?.email).toBe('test@example.com')
   })
 
-  it('login stores tokens and sets user', async () => {
+  it('login stores access token and sets user', async () => {
     mockAuthService.login.mockResolvedValueOnce({
       accessToken: 'at',
-      refreshToken: 'rt',
       user: testUser,
     })
 
@@ -62,13 +61,13 @@ describe('AuthContext', () => {
     expect(result.current.isAuthenticated).toBe(true)
     expect(result.current.user).toEqual(testUser)
     expect(localStorage.getItem('sp_access_token')).toBe('at')
-    expect(localStorage.getItem('sp_refresh_token')).toBe('rt')
+    // Refresh token must never be stored in localStorage — it lives in an HttpOnly cookie.
+    expect(localStorage.getItem('sp_refresh_token')).toBeNull()
   })
 
   it('logout clears tokens and user', async () => {
     localStorage.setItem('sp_user', JSON.stringify(testUser))
     localStorage.setItem('sp_access_token', 'at')
-    localStorage.setItem('sp_refresh_token', 'rt')
     mockAuthService.logout.mockResolvedValueOnce({})
 
     const { result } = renderHook(() => useAuth(), { wrapper })
@@ -85,7 +84,7 @@ describe('AuthContext', () => {
 
   it('logout clears local state even if the API call fails', async () => {
     localStorage.setItem('sp_user', JSON.stringify(testUser))
-    localStorage.setItem('sp_refresh_token', 'rt')
+    localStorage.setItem('sp_access_token', 'at')
     mockAuthService.logout.mockRejectedValueOnce(new Error('network'))
 
     const { result } = renderHook(() => useAuth(), { wrapper })
@@ -121,7 +120,6 @@ describe('AuthContext', () => {
   it('renders children and passes context through JSX', async () => {
     mockAuthService.login.mockResolvedValueOnce({
       accessToken: 'at',
-      refreshToken: 'rt',
       user: testUser,
     })
 

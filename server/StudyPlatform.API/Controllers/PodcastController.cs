@@ -6,10 +6,18 @@ using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Documents.DTOs;
 using StudyPlatform.Application.Documents.Queries;
 using StudyPlatform.Application.Podcasts.Commands;
+using StudyPlatform.Application.Podcasts.Queries;
+using StudyPlatform.Application.Services;
 
 namespace StudyPlatform.API.Controllers;
 
-public record CreatePodcastRequest(string ApplePodcastsUrl, Guid CourseId);
+public record CreatePodcastRequest(string? Url, Guid CourseId, string? ApplePodcastsUrl = null)
+{
+    /// <summary>Episode URL; falls back to the legacy Apple-only field name for older clients.</summary>
+    public string? EpisodeUrl => Url ?? ApplePodcastsUrl;
+}
+
+public record CreatePodcastFromFeedRequest(string FeedUrl, string EpisodeId, Guid CourseId);
 
 [ApiController]
 [Route("api/podcasts")]
@@ -25,18 +33,56 @@ public class PodcastController : ControllerBase
     }
 
     /// <summary>
-    /// Create a podcast episode from an Apple Podcasts URL
+    /// Create a podcast episode from an episode page URL (Apple Podcasts, Overcast,
+    /// Castro, Podbean, …) or a direct audio file URL
     /// </summary>
     [HttpPost]
     [ProducesResponseType(typeof(BaseResponse<DocumentDto>), 201)]
     [ProducesResponseType(typeof(BaseResponse), 400)]
     public async Task<IActionResult> CreatePodcast([FromBody] CreatePodcastRequest request)
     {
-        if (string.IsNullOrWhiteSpace(request.ApplePodcastsUrl))
-            return BadRequest(BaseResponse<DocumentDto>.Fail("Apple Podcasts URL is required.", "MISSING_URL"));
+        if (string.IsNullOrWhiteSpace(request.EpisodeUrl))
+            return BadRequest(BaseResponse<DocumentDto>.Fail("Podcast episode URL is required.", "MISSING_URL"));
 
         var userId = User.GetUserId();
-        var result = await _mediator.Send(new CreatePodcastEpisodeCommand(userId, request.CourseId, request.ApplePodcastsUrl));
+        var result = await _mediator.Send(new CreatePodcastEpisodeCommand(userId, request.CourseId, request.EpisodeUrl));
+        if (!result.IsSuccess)
+            return BadRequest(BaseResponse<DocumentDto>.Fail(result.Message, result.ErrorCode));
+
+        return StatusCode(201, BaseResponse<DocumentDto>.Ok(result.Data!, result.Message));
+    }
+
+    /// <summary>
+    /// List the episodes of a podcast RSS feed so the user can pick one
+    /// </summary>
+    [HttpGet("feed")]
+    [ProducesResponseType(typeof(BaseResponse<PodcastFeedInfo>), 200)]
+    [ProducesResponseType(typeof(BaseResponse), 400)]
+    public async Task<IActionResult> GetFeed([FromQuery] string url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            return BadRequest(BaseResponse<PodcastFeedInfo>.Fail("Feed URL is required.", "MISSING_URL"));
+
+        var result = await _mediator.Send(new GetPodcastFeedQuery(url));
+        if (!result.IsSuccess)
+            return BadRequest(BaseResponse<PodcastFeedInfo>.Fail(result.Message, result.ErrorCode));
+
+        return Ok(BaseResponse<PodcastFeedInfo>.Ok(result.Data!));
+    }
+
+    /// <summary>
+    /// Create a podcast episode picked from an RSS feed
+    /// </summary>
+    [HttpPost("from-feed")]
+    [ProducesResponseType(typeof(BaseResponse<DocumentDto>), 201)]
+    [ProducesResponseType(typeof(BaseResponse), 400)]
+    public async Task<IActionResult> CreateFromFeed([FromBody] CreatePodcastFromFeedRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.FeedUrl) || string.IsNullOrWhiteSpace(request.EpisodeId))
+            return BadRequest(BaseResponse<DocumentDto>.Fail("Feed URL and episode ID are required.", "MISSING_URL"));
+
+        var userId = User.GetUserId();
+        var result = await _mediator.Send(new CreatePodcastFromFeedCommand(userId, request.CourseId, request.FeedUrl, request.EpisodeId));
         if (!result.IsSuccess)
             return BadRequest(BaseResponse<DocumentDto>.Fail(result.Message, result.ErrorCode));
 

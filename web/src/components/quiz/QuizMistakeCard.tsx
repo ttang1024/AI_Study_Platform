@@ -1,13 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Eye, EyeOff, XCircle, CheckCircle2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '../../utils/cn';
-import { isQuizOptionCorrect } from '../../utils/quizAnswers';
+import { isQuizOptionCorrect } from '@core/utils/quizAnswers';
 import { QuestionBankQuestion } from '../../services/questionBankService';
 import { useStudy } from '../../context/StudyContext';
-
-const OPTION_LETTERS = ['A', 'B', 'C', 'D', 'E'];
 
 interface QuizMistakeCardProps {
   question: QuestionBankQuestion;
@@ -22,12 +20,16 @@ export const QuizMistakeCard: React.FC<QuizMistakeCardProps> = ({
 }) => {
   const [showAnswer, setShowAnswer] = useState(false);
   const navigate = useNavigate();
-  const { documents } = useStudy();
+  const { documents, ensureDocuments } = useStudy();
+
+  // documents is loaded lazily by StudyContext; pull it so the source link can
+  // route to the correct detail page (audio / article / document) by doc type.
+  useEffect(() => { void ensureDocuments(); }, [ensureDocuments]);
 
   const handleSourceClick = () => {
     const state = { activeTab: 'quiz' };
-    if (question.youTubeVideoId) {
-      navigate(`/youtube/${question.youTubeVideoId}`, { state });
+    if (question.videoId) {
+      navigate(`/videos/${question.videoId}`, { state });
     } else if (question.documentId) {
       const doc = documents.find(d => d.id === question.documentId);
       if (doc?.type === 'audio' || doc?.type === 'podcast') {
@@ -78,12 +80,6 @@ export const QuizMistakeCard: React.FC<QuizMistakeCardProps> = ({
             if (revealCorrect)
               return 'border-emerald-300 bg-emerald-50 text-emerald-700';
             return 'border-[var(--border-color)] bg-[var(--bg-sidebar)] text-text-muted';
-          })();
-
-          const letterStyle = (() => {
-            if (isSelected && !isCorrect) return 'bg-red-100 text-red-600';
-            if (revealCorrect) return 'bg-emerald-100 text-emerald-600';
-            return 'bg-zinc-100 text-zinc-500';
           })();
 
           return (

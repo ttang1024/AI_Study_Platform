@@ -1,0 +1,209 @@
+// Shared domain types used by shared services and consumers. Only types that are
+// genuinely identical (or a safe superset) across apps live here — several DTOs
+// (Document, Flashcard, Note, QuizQuestion) have diverged in shape between web/
+// and rn/ and must be reconciled per-entity before they can be single-sourced.
+
+import type { VideoSourceType } from './videoSources';
+
+export interface Course {
+  id: string;
+  name: string;
+  color: string;
+  description?: string;
+}
+
+/** A library item that has no generated study artifacts yet (flashcards "pending materials" list). */
+export interface PendingMaterial {
+  kind: 'document' | 'video';
+  id: string;
+  courseId: string;
+  courseName: string;
+  courseColor: string;
+  name: string;
+  contentType?: string | null;
+  blobUrl?: string | null;
+  originalUrl?: string | null;
+  videoId?: string | null;
+  videoUrl?: string | null;
+  thumbnailUrl?: string | null;
+  sourceType?: VideoSourceType | null;
+  createdAt: string;
+}
+
+// FSRS-4.5 card state. Identical across web/ and rn/.
+// state: 0=New, 1=Learning, 2=Review, 3=Relearning.
+export interface FlashcardSrsState {
+  state: 0 | 1 | 2 | 3;
+  stability: number; // days of memory stability
+  difficulty: number; // card difficulty 1–10
+  reps: number;
+  lapses: number;
+  due: string; // ISO datetime
+  lastReview?: string; // ISO datetime
+  retrievability: number; // recall probability 0–1
+  /** Suspended cards keep their state but are excluded from every review queue. */
+  isSuspended?: boolean;
+}
+
+/** Rating sent to the FSRS review endpoint: 1=Again, 2=Hard, 3=Good, 4=Easy. */
+export type FsrsRating = 1 | 2 | 3 | 4;
+
+export type DocumentType = 'pdf' | 'docx' | 'txt' | 'md' | 'audio' | 'podcast' | 'image' | 'ppt' | 'epub';
+
+// Reconciled web/rn union. `title` is optional — web sets it (= fileName) but
+// reads it nowhere; rn omits it. `mindMapText` is `string | null` (rn's shape;
+// web already treats it with `?? null`). fileSize/fileHash/transcript are
+// web-only; courseName/courseColor are rn-only.
+export interface Document {
+  id: string;
+  name: string;
+  title?: string;
+  type: DocumentType;
+  url: string;
+  uploadDate: string;
+  courseId?: string;
+  courseName?: string;
+  courseColor?: string;
+  summary?: string;
+  mindMapText?: string | null;
+  transcript?: string;
+  originalUrl?: string;
+  fileSize?: number;
+  fileHash?: string;
+}
+
+/** Normalized (0–1) mask rectangle on an image-occlusion card (web feature). */
+export interface OcclusionRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  label?: string | null;
+}
+
+// Reconciled web/rn union. web carries occlusion cards (cardType 'occlusion' +
+// imageUrl/occlusions) and lastReviewed/nextReview; rn carries course metadata +
+// createdAt. documentId is optional (video cards have none; web's readers all
+// accept an optional id). rn never emits 'occlusion' (its mappers collapse to
+// the narrower set), so widening cardType is safe.
+/**
+ * Where a generated artifact came from in its source material.
+ *
+ * `startOffset`/`endOffset` are character positions in the source's extracted text and are absent
+ * when the supporting quote could not be located — render the quote as plain attribution with no
+ * jump target in that case, rather than guessing a position.
+ */
+export interface SourceCitation {
+  quote: string;
+  startOffset?: number;
+  endOffset?: number;
+  /** 1-based, paginated documents only. */
+  page?: number;
+  /** Timed media only. */
+  startSeconds?: number;
+}
+
+/** Wire shape: the API serializes absent citation fields as explicit nulls, not by omitting them. */
+type WireCitation = {
+  quote: string;
+  startOffset?: number | null;
+  endOffset?: number | null;
+  page?: number | null;
+  startSeconds?: number | null;
+};
+
+/**
+ * Converts the wire's nulls to `undefined` so `field !== undefined` means what it reads like.
+ *
+ * Without this the API's `"startSeconds": null` is truthy against an `undefined` check, and every
+ * unlocatable citation renders a confident "Jump to 0:00" link to a position nobody resolved. Every
+ * mapper that surfaces a citation must go through here.
+ */
+export const normalizeCitation = (c?: WireCitation | null): SourceCitation | undefined =>
+  c == null
+    ? undefined
+    : {
+        quote: c.quote,
+        startOffset: c.startOffset ?? undefined,
+        endOffset: c.endOffset ?? undefined,
+        page: c.page ?? undefined,
+        startSeconds: c.startSeconds ?? undefined,
+      };
+
+export interface Flashcard {
+  id: string;
+  documentId?: string;
+  videoId?: string;
+  documentName?: string;
+  videoName?: string;
+  courseId?: string;
+  courseName?: string;
+  courseColor?: string;
+  front: string;
+  back: string;
+  cardType: 'basic' | 'cloze' | 'chart' | 'occlusion';
+  difficulty: 'easy' | 'medium' | 'hard';
+  chapter?: string;
+  tags: string[];
+  lastReviewed?: string;
+  nextReview?: string;
+  createdAt?: string;
+  srs?: FlashcardSrsState;
+  imageUrl?: string;
+  occlusions?: OcclusionRect[];
+  citation?: SourceCitation;
+}
+
+// Reconciled web/rn union. Canonical field is `correctAnswer` (the backend name,
+// Quiz.CorrectAnswer) — web previously called it `answer`. `type` drives web's
+// multiple-choice vs short-answer rendering (backend questions are MC); rn omits
+// it. The remaining fields are rn's question-bank metadata (web omits them).
+export interface QuizQuestion {
+  id: string;
+  question: string;
+  options?: string[]; // undefined for web short-answer questions; always set by rn
+  correctAnswer: string;
+  explanation: string;
+  citation?: SourceCitation;
+  difficulty?: 'easy' | 'medium' | 'hard';
+  type?: 'multiple-choice' | 'short-answer';
+  documentId?: string;
+  videoId?: string;
+  sourceType?: string;
+  courseId?: string;
+  courseName?: string;
+  courseColor?: string;
+  sourceName?: string;
+  createdAt?: string;
+}
+
+// Reconciled web/rn union. web only carries id/documentId/videoId/names/content/
+// createdAt; rn adds sourceType/title/updatedAt. documentId is optional (video
+// notes have none; web's helpers already accept an optional id).
+export interface Note {
+  id: string;
+  documentId?: string;
+  videoId?: string;
+  documentName?: string;
+  videoName?: string;
+  content: string;
+  createdAt: string;
+  sourceType?: 'document' | 'video';
+  title?: string;
+  updatedAt?: string;
+}
+
+// Reconciled web/rn union. `createdAt` is optional: rn casts it straight from the
+// backend response, web's mapper omits it, and neither app reads it.
+export interface GlossaryTerm {
+  id: string;
+  term: string;
+  definition: string;
+  documentId?: string;
+  videoId?: string;
+  courseId?: string;
+  sourceName?: string; // doc name or video title
+  sourceKind?: 'document' | 'video' | 'article' | 'audio';
+  citation?: SourceCitation;
+  createdAt?: string;
+}

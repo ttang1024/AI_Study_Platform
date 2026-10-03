@@ -10,7 +10,7 @@ public record RegisterRequest(
 
 public record LoginRequest(string Email, string Password);
 
-public record RefreshTokenRequest(string RefreshToken);
+public record RefreshTokenRequest(string? RefreshToken = null);
 
 public record ResetPasswordRequest(
     string Email,
@@ -23,6 +23,9 @@ public record ChangePasswordRequest(
 
 public record UpdateProfileRequest(string FullName);
 
+/// <summary>
+/// The result of any sign-in attempt.
+/// </summary>
 public record AuthResponse(
     Guid UserId,
     string Email,

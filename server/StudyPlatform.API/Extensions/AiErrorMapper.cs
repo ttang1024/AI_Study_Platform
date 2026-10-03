@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using StudyPlatform.Application.Common;
 
@@ -35,6 +34,35 @@ public static class AiErrorMapper
 
     public static ObjectResult ToObjectResult(ControllerBase controller, string message)
         => ToObjectResult<string>(controller, message);
+
+    /// <summary>
+    /// Maps an exception thrown while probing an AI stream to an error <see cref="ObjectResult"/>.
+    /// Shared by SSE streaming endpoints across controllers.
+    /// </summary>
+    /// <remarks>
+    /// SSE endpoints probe the first chunk inside a try/catch, so quota / credential / provider
+    /// failures never bubble up to <c>GlobalExceptionHandlerMiddleware</c>. This mirrors that
+    /// middleware's mapping so a streamed call fails with the same status a non-streamed one would —
+    /// a missing provider/key is a 400, an exhausted budget is a 429, not a blanket 502.
+    /// </remarks>
+    public static ObjectResult AiStreamError(this ControllerBase controller, Exception ex)
+    {
+        var (statusCode, errorCode) = MapException(ex);
+        return controller.StatusCode(statusCode, BaseResponse<string>.Fail(ex.Message, errorCode));
+    }
+
+    private static (int statusCode, string errorCode) MapException(Exception ex)
+    {
+        if (TryGetAiError(ex.Message, out var statusCode, out var errorCode))
+            return (statusCode, errorCode);
+
+        // Unmatched InvalidOperationExceptions are client-side problems (no provider/model/key
+        // configured, unreadable provider response) rather than an upstream gateway failure.
+        if (ex is InvalidOperationException)
+            return (StatusCodes.Status400BadRequest, "INVALID_OPERATION");
+
+        return (StatusCodes.Status502BadGateway, "AI_PROVIDER_ERROR");
+    }
 
     public static ObjectResult ToObjectResult<T>(ControllerBase controller, string message)
     {

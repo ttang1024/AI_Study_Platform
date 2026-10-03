@@ -1,131 +1,37 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Search, Calendar, Trash2, Edit3, X, Check, Loader2, Sparkles, Play, Share2, Download } from 'lucide-react';
+import { Search, X, Loader2, Play, Download } from 'lucide-react';
 import { STUDY_TYPE_ICONS } from '../constants/contentTypeIcons';
 import { CONTENT_TYPE_ICONS } from '../constants/contentTypeIcons';
 import { useStudy } from '../context/StudyContext';
-import { cn } from '../utils/cn';
-import { getDocDisplayName } from '../utils/docName';
 import { Button } from '../components/common/Button';
-import { RichTextEditor } from '../components/common/RichTextEditor';
-import { youtubeService, VideoListItem } from '../services/youtubeService';
+import { videoService } from '../services/videoService';
 import { noteService } from '../services/noteService';
-import { Note } from '../types';
 import { SourceFilterBar, SourceType } from '../components/common/SourceFilterBar';
-import { usePersistentTts } from '../context/TtsContext';
 import { ShareModal } from '../components/common/ShareModal';
 import { Pagination } from '../components/common/Pagination';
 import { downloadNotesMarkdown, ExportNoteRecord } from '../services/exportInteropService';
+import { NoteCard } from '../components/notes/NoteCard';
+import { useNotesData } from '../hooks/useNotesData';
+import { useNotesAudio } from '../hooks/useNotesAudio';
 
 const PAGE_SIZE = 5;
 
-const stripHtml = (html: string): string => {
-  const div = document.createElement('div');
-  div.innerHTML = html;
-  return div.textContent || div.innerText || '';
-};
-
-interface VideoNoteEntry {
-  noteId: string;
-  videoRecordId: string;
-  title: string;
-  courseId: string;
-  courseColor: string;
-  courseName: string;
-  content: string;
-  createdAt: string;
-}
-
-type UnifiedNoteItem =
-  | { type: 'doc' | 'article' | 'audio'; note: Note; docName: string; courseId: string; courseName: string; courseColor: string; docId?: string }
-  | { type: 'video'; entry: VideoNoteEntry };
-
-interface NoteCardProps {
-  title: string;
-  courseName: string;
-  courseColor: string;
-  createdAt: string;
-  content: string;
-  icon: React.ReactNode;
-  viewLabel: string;
-  onView?: () => void;
-  onShare?: () => void;
-  isEditing: boolean;
-  editContent: string;
-  onEditContentChange: (v: string) => void;
-  onStartEdit: () => void;
-  onSave: () => void;
-  onCancel: () => void;
-  onDelete: () => void;
-}
-
-const NoteCard: React.FC<NoteCardProps> = ({
-  title, courseName, courseColor, createdAt, content, icon, viewLabel, onView, onShare,
-  isEditing, editContent, onEditContentChange, onStartEdit, onSave, onCancel, onDelete,
-}) => (
-  <div className="bg-[var(--bg-sidebar)] rounded-2xl border border-[var(--border-color)] overflow-hidden shadow-sm">
-    <div className="px-6 py-4 border-b border-[var(--border-color)] flex items-center justify-between bg-zinc-50/50">
-      <div className="flex items-center gap-3 min-w-0">
-        {icon}
-        <h3 className="font-bold text-text-main truncate">{title}</h3>
-        {courseName && (
-          <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold text-white" style={{ backgroundColor: courseColor }}>{courseName}</span>
-        )}
-      </div>
-      <div className="flex items-center gap-2 shrink-0 ml-4">
-        {onShare && (
-          <button onClick={onShare} className="p-1.5 text-text-muted hover:text-[var(--primary)] hover:bg-[var(--primary)]/10 rounded-lg transition-all" title="Share note">
-            <Share2 size={14} />
-          </button>
-        )}
-        {onView && (
-          <button onClick={onView} className="text-xs font-medium text-[var(--primary)] hover:underline flex items-center gap-1">
-            {viewLabel} <ChevronRight size={14} />
-          </button>
-        )}
-      </div>
-    </div>
-    <div className={cn('p-6 group relative', isEditing ? 'bg-[var(--primary)]/5' : 'hover:bg-zinc-50/30')}>
-      {isEditing ? (
-        <div className="space-y-4">
-          <RichTextEditor content={editContent} onChange={onEditContentChange} placeholder="Edit your note..." />
-          <div className="flex gap-2 justify-end">
-            <Button onClick={onCancel} variant="outline" size="sm"><X size={14} className="mr-1" />Cancel</Button>
-            <Button onClick={onSave} size="sm"><Check size={14} className="mr-1" />Save</Button>
-          </div>
-        </div>
-      ) : (
-        <>
-          <div className="flex justify-between items-start mb-2">
-            <span className="flex items-center gap-1 text-[10px] text-text-muted uppercase tracking-wider font-bold">
-              <Calendar size={12} />{new Date(createdAt).toLocaleDateString()}
-            </span>
-            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
-              <button onClick={onStartEdit} className="p-1.5 text-text-muted hover:text-[var(--primary)] hover:bg-[var(--primary)]/10 rounded-lg transition-all"><Edit3 size={14} /></button>
-              <button onClick={onDelete} className="p-1.5 text-text-muted hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"><Trash2 size={14} /></button>
-            </div>
-          </div>
-          <div className="text-sm text-text-main leading-relaxed prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: content }} />
-        </>
-      )}
-    </div>
-  </div>
-);
-
+/** Everything you wrote while studying, filtered by source, paged, playable. */
 export const NotesPage: React.FC = () => {
   const navigate = useNavigate();
-  const { documents, courses, allNotes, isLoading: contextLoading, deleteNote, updateNote, refreshNotes } = useStudy();
+  const { documents, courses, allNotes, isLoading: contextLoading, deleteNote, updateNote, refreshNotes, videos: videoList, ensureDocuments, ensureVideos } = useStudy();
 
   useEffect(() => { refreshNotes(); }, []);
+  // The document and video lists (used to label note sources) load lazily.
+  useEffect(() => { void ensureDocuments(); void ensureVideos(); }, [ensureDocuments, ensureVideos]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
 
-  const [videoNotes, setVideoNotes] = useState<VideoNoteEntry[]>([]);
   const [editingVideoId, setEditingVideoId] = useState<string | null>(null);
   const [editVideoContent, setEditVideoContent] = useState('');
-  const [videoList, setVideoList] = useState<VideoListItem[]>([]);
 
   const [sourceType, setSourceType] = useState<SourceType>('all');
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
@@ -138,76 +44,13 @@ export const NotesPage: React.FC = () => {
     originalArticleUrl?: string | null;
   } | null>(null);
 
-  useEffect(() => {
-    youtubeService.getVideos({ page: 1 })
-      .then(data => setVideoList(data.items))
-      .catch(() => { });
-  }, []);
-
-  useEffect(() => {
-    const entries: VideoNoteEntry[] = allNotes
-      .filter(n => n.youTubeVideoId)
-      .map(n => {
-        const video = videoList.find(v => v.id === n.youTubeVideoId);
-        return {
-          noteId: n.id,
-          videoRecordId: n.youTubeVideoId!,
-          title: video?.title ?? n.videoName ?? 'Unknown Video',
-          courseId: video?.courseId ?? '',
-          courseColor: video?.courseColor ?? '#a1a1aa',
-          courseName: video?.courseName ?? '',
-          content: n.content,
-          createdAt: n.createdAt,
-        };
-      });
-    setVideoNotes(entries);
-  }, [allNotes, videoList]);
-
-  const filteredDocNotes = useMemo(() => {
-    const docOnly = allNotes.filter(n => !n.youTubeVideoId);
-    if (!searchQuery.trim()) return docOnly;
-    const q = searchQuery.toLowerCase();
-    return docOnly.filter(n => n.content.toLowerCase().includes(q));
-  }, [allNotes, searchQuery]);
-
-  const allItems = useMemo<UnifiedNoteItem[]>(() => {
-    const docItems: UnifiedNoteItem[] = filteredDocNotes.map(note => {
-      const doc = documents.find(d => d.id === note.documentId);
-      const course = courses.find(c => c.id === doc?.courseId);
-      // Use documentName from API response first, fall back to context lookup
-      const docName = doc ? getDocDisplayName(doc) : (note.documentName ?? 'Unknown Document');
-      const type: 'doc' | 'article' | 'audio' = (doc?.type === 'audio' || doc?.type === 'podcast') ? 'audio' : doc?.originalUrl ? 'article' : 'doc';
-      return {
-        type,
-        note,
-        docName,
-        courseId: doc?.courseId ?? '',
-        courseName: course?.name ?? '',
-        courseColor: course?.color ?? '#a1a1aa',
-        docId: doc?.id,
-      };
-    });
-    const q = searchQuery.toLowerCase().trim();
-    const filteredVideoNotes = q
-      ? videoNotes.filter(v => v.content.toLowerCase().includes(q) || v.title.toLowerCase().includes(q))
-      : videoNotes;
-    const videoItems: UnifiedNoteItem[] = filteredVideoNotes.map(entry => ({ type: 'video', entry }));
-    return [...docItems, ...videoItems];
-  }, [filteredDocNotes, videoNotes, documents, courses, searchQuery]);
-
-  const filteredItems = useMemo(() => {
-    let items = allItems;
-    if (sourceType === 'document') items = items.filter(i => i.type === 'doc');
-    else if (sourceType === 'video') items = items.filter(i => i.type === 'video');
-    else if (sourceType === 'article') items = items.filter(i => i.type === 'article');
-    else if (sourceType === 'audio') items = items.filter(i => i.type === 'audio');
-    if (selectedCourseId) {
-      items = items.filter(i =>
-        i.type !== 'video' ? i.courseId === selectedCourseId : i.entry.courseId === selectedCourseId
-      );
-    }
-    return items;
-  }, [allItems, sourceType, selectedCourseId]);
+  // `videoList` (used to resolve each video-sourced note's title/course) comes
+  // from StudyContext, which loads the lightweight list once and shares it.
+  const {
+    setVideoNotes,
+    allItems, filteredItems, counts, courseCounts,
+    selectedIds, setSelectedIds, toggleSelect, toggleSelectAll, allVisibleSelected,
+  } = useNotesData({ allNotes, videoList, documents, courses, searchQuery, sourceType, selectedCourseId });
 
   useEffect(() => { setPage(1); }, [sourceType, selectedCourseId, searchQuery]);
 
@@ -215,41 +58,8 @@ export const NotesPage: React.FC = () => {
   const safePage = Math.min(page, totalPages);
   const pagedItems = filteredItems.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
-  const ttsItems = useMemo(
-    () => filteredItems.map((item, i) => {
-      const title = item.type !== 'video' ? item.docName : item.entry.title;
-      const content = item.type !== 'video' ? item.note.content : item.entry.content;
-      return { text: `Note ${i + 1}: ${title}. ${stripHtml(content)}`, title };
-    }),
-    [filteredItems],
-  );
-
-  const getTtsSubtitle = useCallback(
-    (index: number, itemCount: number) => `Note ${index + 1} / ${itemCount}`,
-    [],
-  );
-
-  const { playerState, play } = usePersistentTts('notes', ttsItems, {
-    getSubtitle: getTtsSubtitle,
-  });
-
-  const counts = useMemo(() => ({
-    all: allItems.length,
-    document: allItems.filter(i => i.type === 'doc').length,
-    video: allItems.filter(i => i.type === 'video').length,
-    article: allItems.filter(i => i.type === 'article').length,
-    audio: allItems.filter(i => i.type === 'audio').length,
-  }), [allItems]);
-
-  const courseCounts = useMemo(() => {
-    const next: Record<string, number> = {};
-    for (const item of allItems) {
-      const courseId = item.type === 'video' ? item.entry.courseId : item.courseId;
-      if (!courseId) continue;
-      next[courseId] = (next[courseId] ?? 0) + 1;
-    }
-    return next;
-  }, [allItems]);
+  const { playItems, playerState, play, downloadingMp3, handleDownloadMp3 } =
+    useNotesAudio({ filteredItems, selectedIds });
 
   const handleSaveEdit = async () => {
     if (!editingId) return;
@@ -292,12 +102,12 @@ export const NotesPage: React.FC = () => {
     };
   }), [filteredItems]);
 
-  const resolveVideoUrl = React.useCallback(async (videoRecordId: string): Promise<string | null> => {
+  const resolveVideoUrl = useCallback(async (videoRecordId: string): Promise<string | null> => {
     const cachedVideo = videoList.find(v => v.id === videoRecordId);
     if (cachedVideo?.videoUrl) return cachedVideo.videoUrl;
 
     try {
-      const video = await youtubeService.getVideo(videoRecordId);
+      const video = await videoService.getVideo(videoRecordId);
       return video.videoUrl ?? null;
     } catch {
       return null;
@@ -308,17 +118,16 @@ export const NotesPage: React.FC = () => {
 
   return (
     <div className="space-y-8">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-        <div className="flex flex-col gap-3">
-          <h1 className="text-4xl font-black tracking-tight text-text-main">
-            Study <span className="text-primary">Notes</span>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-4xl font-semibold tracking-tight text-text-main leading-tight">
+            Study <span className="text-[var(--primary)]">notes</span>
           </h1>
-          <p className="text-lg text-zinc-500 font-medium max-w-2xl">
+          <p className="text-sm text-text-muted mt-1 max-w-2xl">
             Capture your thoughts across every document &amp; lecture.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {filteredItems.length > 0 && playerState === 'idle' && (
             <Button
               onClick={() => play(0)}
@@ -326,7 +135,20 @@ export const NotesPage: React.FC = () => {
               className="flex items-center gap-1.5 shrink-0"
             >
               <Play size={14} className="fill-current" />
-              Play Notes
+              {selectedIds.size > 0 ? `Play Selected (${playItems.length})` : 'Play Notes'}
+            </Button>
+          )}
+          {filteredItems.length > 0 && (
+            <Button
+              onClick={handleDownloadMp3}
+              disabled={downloadingMp3}
+              size="sm"
+              variant="outline"
+              className="flex items-center gap-1.5 shrink-0"
+              title="Download as MP3"
+            >
+              {downloadingMp3 ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+              {downloadingMp3 ? 'Generating…' : `MP3${selectedIds.size > 0 ? ` (${playItems.length})` : ''}`}
             </Button>
           )}
           {exportableNotes.length > 0 && (
@@ -376,7 +198,7 @@ export const NotesPage: React.FC = () => {
           <p className="text-sm text-text-muted max-w-xs mt-2">Start taking notes while studying your documents to see them here.</p>
           {allItems.length === 0 && (
             <button
-              onClick={() => navigate(documents.length > 0 ? '/library' : '/summarizer')}
+              onClick={() => navigate(documents.length > 0 ? '/library' : '/library/add')}
               className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[var(--primary)] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-opacity"
             >
               {documents.length > 0 ? 'Go to Library' : 'Add Content'}
@@ -385,6 +207,25 @@ export const NotesPage: React.FC = () => {
         </div>
       ) : (
         <>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={toggleSelectAll}
+              className="text-xs font-bold text-[var(--primary)] hover:underline"
+            >
+              {allVisibleSelected ? 'Deselect all' : 'Select all'}
+            </button>
+            {selectedIds.size > 0 && (
+              <span className="flex items-center gap-2 text-xs text-text-muted">
+                {selectedIds.size} selected
+                <button
+                  onClick={() => setSelectedIds(new Set())}
+                  className="flex items-center gap-1 rounded-lg border border-[var(--border-color)] px-2 py-0.5 font-bold text-text-muted hover:border-zinc-400"
+                >
+                  <X size={11} /> Clear
+                </button>
+              </span>
+            )}
+          </div>
           <div className="grid grid-cols-1 gap-4">
             {pagedItems.map(item => {
               if (item.type !== 'video') {
@@ -428,6 +269,8 @@ export const NotesPage: React.FC = () => {
                     onSave={handleSaveEdit}
                     onCancel={() => setEditingId(null)}
                     onDelete={() => handleDelete(note.id)}
+                    isSelected={selectedIds.has(note.id)}
+                    onToggleSelect={() => toggleSelect(note.id)}
                   />
                 );
               } else {
@@ -442,7 +285,7 @@ export const NotesPage: React.FC = () => {
                     content={entry.content}
                     icon={<CONTENT_TYPE_ICONS.video.icon size={18} className="text-red-500 shrink-0" />}
                     viewLabel="View Video"
-                    onView={() => navigate(`/youtube/${entry.videoRecordId}`)}
+                    onView={() => navigate(`/videos/${entry.videoRecordId}`)}
                     onShare={async () => {
                       const video = videoList.find(v => v.id === entry.videoRecordId);
                       const sourceUrl = video?.videoUrl ?? await resolveVideoUrl(entry.videoRecordId);
@@ -460,6 +303,8 @@ export const NotesPage: React.FC = () => {
                     onSave={() => handleSaveEditVideo(entry.noteId)}
                     onCancel={() => setEditingVideoId(null)}
                     onDelete={() => handleDeleteVideo(entry.noteId)}
+                    isSelected={selectedIds.has(entry.noteId)}
+                    onToggleSelect={() => toggleSelect(entry.noteId)}
                   />
                 );
               }
@@ -489,3 +334,5 @@ export const NotesPage: React.FC = () => {
     </div>
   );
 };
+
+export default NotesPage;

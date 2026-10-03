@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useSearchParams, useNavigate, Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Search, FileText, BrainCircuit, Loader2 } from 'lucide-react';
-import { STUDY_TYPE_ICONS } from '../constants/contentTypeIcons';
-import { searchService, SearchResultItem } from '../services/searchService';
+import { Search, FileText, Loader2, Sparkles } from 'lucide-react';
+import { CONTENT_TYPE_ICONS, STUDY_TYPE_ICONS } from '../constants/contentTypeIcons';
+import { searchService, SearchResultItem, AskLibraryAnswer } from '../services/searchService';
 import { cn } from '../utils/cn';
 import { Pagination } from '../components/common/Pagination';
+import { ChatBubbleMarkdown } from '../components/ai/ChatBubbleMarkdown';
 
 const ENTITY_TYPES = [
   { id: 'all',       label: 'All' },
@@ -15,8 +16,11 @@ const ENTITY_TYPES = [
   { id: 'glossary',  label: 'Glossary',  icon: STUDY_TYPE_ICONS.glossary.icon  },
 ];
 
+// Videos have no filter tab of their own but do come back under the Documents scope, so results have
+// to be able to render one.
 const TYPE_ICONS: Record<string, React.ElementType> = {
   document: FileText,
+  video:    CONTENT_TYPE_ICONS.video.icon,
   note:     STUDY_TYPE_ICONS.notes.icon,
   flashcard:STUDY_TYPE_ICONS.flashcard.icon,
   glossary: STUDY_TYPE_ICONS.glossary.icon,
@@ -24,6 +28,7 @@ const TYPE_ICONS: Record<string, React.ElementType> = {
 
 const TYPE_COLORS: Record<string, string> = {
   document: 'text-teal-600 bg-teal-50',
+  video: 'text-red-500 bg-red-50',
   note: 'text-amber-500 bg-amber-50',
   flashcard: 'text-teal-500 bg-teal-50',
   glossary: 'text-emerald-500 bg-emerald-50',
@@ -42,6 +47,29 @@ export const SearchResultsPage: React.FC = () => {
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [inputValue, setInputValue] = useState(query);
+  const [aiAnswer, setAiAnswer] = useState<AskLibraryAnswer | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState('');
+
+  // A fresh query invalidates the previous AI answer.
+  useEffect(() => {
+    setAiAnswer(null);
+    setAiError('');
+  }, [query]);
+
+  const handleAskAi = async () => {
+    if (!query.trim() || aiLoading) return;
+    setAiLoading(true);
+    setAiError('');
+    try {
+      setAiAnswer(await searchService.askLibrary(query));
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { message?: string } } };
+      setAiError(err?.response?.data?.message ?? 'Could not answer from your library.');
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   const selectedTypes = typeParam === 'all' ? undefined : [typeParam];
 
@@ -127,6 +155,52 @@ export const SearchResultsPage: React.FC = () => {
               {t.label}
             </button>
           ))}
+        </div>
+      )}
+
+      {/* Ask-my-library AI answer */}
+      {query && (
+        <div className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-sidebar)] p-4">
+          {!aiAnswer && !aiLoading && (
+            <button
+              onClick={handleAskAi}
+              className="flex items-center gap-2 text-sm font-semibold text-primary hover:opacity-80 transition-opacity"
+            >
+              <Sparkles size={15} />
+              Ask AI: answer "{query}" from my library
+            </button>
+          )}
+          {aiLoading && (
+            <div className="flex items-center gap-2 text-sm text-text-muted">
+              <Loader2 size={15} className="animate-spin text-primary" />
+              Reading your library…
+            </div>
+          )}
+          {aiError && <p className="text-xs text-red-500 mt-2">{aiError}</p>}
+          {aiAnswer && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-xs font-bold text-primary uppercase tracking-wider">
+                <Sparkles size={13} /> Answer from your library
+              </div>
+              <div className="text-sm text-text-main leading-relaxed">
+                <ChatBubbleMarkdown>{aiAnswer.answer}</ChatBubbleMarkdown>
+              </div>
+              {aiAnswer.citations.length > 0 && (
+                <div className="flex flex-wrap gap-2 pt-1 border-t border-[var(--border-color)]">
+                  {aiAnswer.citations.map((c) => (
+                    <button
+                      key={c.index}
+                      onClick={() => c.url && navigate(c.url)}
+                      className="text-[11px] rounded-full border border-[var(--border-color)] px-2.5 py-1 text-text-muted hover:text-primary hover:border-primary/40 transition-colors"
+                      title={c.type}
+                    >
+                      [{c.index}] {c.title}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 

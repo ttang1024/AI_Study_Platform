@@ -1,23 +1,18 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Mic, X, Loader2, ShieldCheck, Zap, ArrowRight } from 'lucide-react';
+import { Mic, X, Loader2, ShieldCheck, ArrowRight } from 'lucide-react';
 import { Button } from '../common/Button';
 import { DocumentCard } from '../common/DocumentCard';
 import { usePrompt } from '../common/PromptBox';
 import { useStudy } from '../../context/StudyContext';
 import { apiClient } from '../../services/apiClient';
 import { cn } from '../../utils/cn';
-import { getApiErrorMessage } from '../../utils/apiError';
-
-const container = {
-  hidden: { opacity: 0, y: 24 },
-  show: { opacity: 1, y: 0, transition: { staggerChildren: 0.09 } },
-};
-const item = {
-  hidden: { opacity: 0, y: 16, scale: 0.97 },
-  show: { opacity: 1, y: 0, scale: 1 },
-};
+import { container, item, StartLearningLabel, FileDropZone } from './summarizerShared';
+import { getApiErrorMessage } from '@core/utils/apiError';
+import { calculateSha256 } from '../../utils/fileHash';
+import { DuplicateAlert } from './DuplicateAlert';
+import { getDuplicateDocRoute } from './duplicateDocRoute';
 
 const AUDIO_TYPES = [
   { label: 'MP3', color: 'text-amber-500 bg-amber-50' },
@@ -33,21 +28,42 @@ export interface AudioTabProps {
 
 export const AudioTab: React.FC<AudioTabProps> = ({ selectedCourseId, onCourseError }) => {
   const navigate = useNavigate();
-  const { refreshStats, documents, courses } = useStudy();
+  const { refreshStats, documents, courses, ensureDocuments } = useStudy();
   const { showPrompt } = usePrompt();
+  // documents is loaded lazily by StudyContext; pull it for the recent list and
+  // duplicate detection.
+  useEffect(() => { void ensureDocuments(); }, [ensureDocuments]);
   const recentAudios = documents.filter(d => d.type === 'audio').slice(0, 3);
   const getCourse = (id?: string) => courses.find(c => c.id === id);
   const audioInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [audioFile, setAudioFile] = useState<File | null>(null);
+  const [audioFileHash, setAudioFileHash] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
 
+  useEffect(() => {
+    let cancelled = false;
+    setAudioFileHash(null);
+    if (!audioFile) return;
+
+    calculateSha256(audioFile)
+      .then(hash => { if (!cancelled) setAudioFileHash(hash); })
+      .catch(() => { if (!cancelled) setAudioFileHash(null); });
+
+    return () => { cancelled = true; };
+  }, [audioFile]);
+
+  const duplicateAudio = !uploading && audioFileHash
+    ? documents.find(doc => doc.fileHash === audioFileHash) ?? null
+    : null;
+  const duplicateAudioCourse = duplicateAudio?.courseId ? courses.find(c => c.id === duplicateAudio.courseId) : undefined;
+
   const validateAndSetFile = (f: File) => {
-    const exts = ['.mp3', '.m4a', '.wav', '.ogg', '.aac', '.flac'];
+    const exts = ['.mp3', '.m4a', '.m4b', '.wav', '.ogg', '.aac', '.flac', '.opus', '.aiff', '.aif', '.wma', '.amr', '.mka'];
     const ext = f.name.substring(f.name.lastIndexOf('.')).toLowerCase();
     if (!f.type.startsWith('audio/') && !exts.includes(ext)) {
-      showPrompt('Unsupported format. Please upload an audio file (MP3, M4A, WAV, OGG).');
+      showPrompt('Unsupported format. Please upload an audio file (MP3, M4A/M4B, WAV, OGG, AAC, FLAC, OPUS, AIFF, WMA, AMR, MKA).');
       return;
     }
     if (f.size > 100 * 1024 * 1024) {
@@ -59,6 +75,9 @@ export const AudioTab: React.FC<AudioTabProps> = ({ selectedCourseId, onCourseEr
 
   const handleUpload = async () => {
     if (!audioFile) return;
+    // Already uploaded — the server rejects it with DUPLICATE_DOCUMENT anyway; the
+    // DuplicateAlert offers the "View" path instead.
+    if (duplicateAudio) return;
     if (!selectedCourseId) { onCourseError(true); return; }
     onCourseError(false);
     setUploading(true);
@@ -91,29 +110,14 @@ export const AudioTab: React.FC<AudioTabProps> = ({ selectedCourseId, onCourseEr
 
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="flex flex-col gap-5">
-      <motion.div
-        variants={item}
-        onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-        onDragLeave={() => setIsDragging(false)}
-        onDrop={(e) => { e.preventDefault(); setIsDragging(false); validateAndSetFile(e.dataTransfer.files[0]); }}
-        className={cn(
-          'group relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed transition-all duration-500 overflow-hidden cursor-pointer h-60',
-          isDragging
-            ? 'border-primary bg-primary/5 scale-[1.02]'
-            : audioFile
-              ? 'border-emerald-400 bg-emerald-50/50'
-              : 'border-zinc-200 bg-white hover:border-primary/40 hover:bg-primary/[0.02]',
-        )}
+      <FileDropZone
+        hasFile={!!audioFile}
+        isDragging={isDragging}
+        onDraggingChange={setIsDragging}
+        onFile={validateAndSetFile}
+        accept={"audio/*,.mp3,.m4a,.m4b,.wav,.ogg,.aac,.flac,.opus,.aiff,.aif,.wma,.amr,.mka"}
+        inputRef={audioInputRef}
       >
-        <div className="absolute inset-0 opacity-30 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, #d4d4d8 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
-        <input
-          ref={audioInputRef}
-          type="file"
-          className="absolute inset-0 cursor-pointer opacity-0 z-10"
-          onClick={(e) => { (e.target as HTMLInputElement).value = ''; }}
-          onChange={(e) => { const f = e.target.files?.[0]; if (f) validateAndSetFile(f); }}
-          accept="audio/*,.mp3,.m4a,.wav,.ogg,.aac,.flac"
-        />
         <AnimatePresence mode="wait">
           {!audioFile ? (
             <motion.div key="empty" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.05 }}
@@ -147,7 +151,7 @@ export const AudioTab: React.FC<AudioTabProps> = ({ selectedCourseId, onCourseEr
                   <Mic size={28} />
                 </div>
                 <button
-                  onClick={(e) => { e.stopPropagation(); setAudioFile(null); if (audioInputRef.current) audioInputRef.current.value = ''; }}
+                  onClick={(e) => { e.stopPropagation(); setAudioFile(null); setAudioFileHash(null); if (audioInputRef.current) audioInputRef.current.value = ''; }}
                   className="absolute -right-2 -top-2 rounded-full bg-white p-1.5 text-zinc-400 shadow-lg hover:text-red-500 hover:scale-110 transition-all"
                 >
                   <X size={14} />
@@ -163,7 +167,17 @@ export const AudioTab: React.FC<AudioTabProps> = ({ selectedCourseId, onCourseEr
             </motion.div>
           )}
         </AnimatePresence>
-      </motion.div>
+      </FileDropZone>
+
+      <AnimatePresence>
+        {duplicateAudio && (
+          <DuplicateAlert
+            label="file"
+            courseName={duplicateAudioCourse?.name}
+            to={getDuplicateDocRoute(duplicateAudio)}
+          />
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {uploading && (
@@ -184,18 +198,16 @@ export const AudioTab: React.FC<AudioTabProps> = ({ selectedCourseId, onCourseEr
 
       <motion.div variants={item}>
         <Button
-          disabled={!audioFile || uploading}
+          disabled={!audioFile || uploading || !!duplicateAudio}
           onClick={handleUpload}
           className={cn(
             'h-12 w-full rounded-xl text-base font-black shadow-md transition-all duration-300',
-            audioFile && !uploading && selectedCourseId
+            audioFile && !uploading && selectedCourseId && !duplicateAudio
               ? 'bg-primary text-white shadow-primary/20 hover:shadow-primary/40 hover:scale-[1.02] active:scale-95'
               : 'bg-zinc-100 text-zinc-400',
           )}
         >
-          {uploading
-            ? <span className="flex items-center gap-2"><Loader2 size={18} className="animate-spin" /> Processing...</span>
-            : <span className="flex items-center gap-2"><Zap size={18} fill="currentColor" /> Start Learning</span>}
+          <StartLearningLabel busy={uploading} duplicate={duplicateAudio} />
         </Button>
       </motion.div>
 

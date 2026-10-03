@@ -13,15 +13,15 @@ interface FlashcardClassifyModalProps {
 }
 
 const DIFFICULTIES = [
-  { value: 'easy' as const,   label: 'Easy',   color: 'bg-emerald-100 text-emerald-700 border-emerald-300 hover:bg-emerald-200' },
+  { value: 'easy' as const, label: 'Easy', color: 'bg-emerald-100 text-emerald-700 border-emerald-300 hover:bg-emerald-200' },
   { value: 'medium' as const, label: 'Medium', color: 'bg-amber-100 text-amber-700 border-amber-300 hover:bg-amber-200' },
-  { value: 'hard' as const,   label: 'Hard',   color: 'bg-red-100 text-red-700 border-red-300 hover:bg-red-200' },
+  { value: 'hard' as const, label: 'Hard', color: 'bg-red-100 text-red-700 border-red-300 hover:bg-red-200' },
 ] as const;
 
 export const DIFFICULTY_COLORS: Record<string, string> = {
-  easy:   'bg-emerald-100 text-emerald-700 border-emerald-200',
+  easy: 'bg-emerald-100 text-emerald-700 border-emerald-200',
   medium: 'bg-amber-100 text-amber-700 border-amber-200',
-  hard:   'bg-red-100 text-red-700 border-red-200',
+  hard: 'bg-red-100 text-red-700 border-red-200',
 };
 
 export const FlashcardClassifyModal: React.FC<FlashcardClassifyModalProps> = ({
@@ -233,7 +233,7 @@ export const FlashcardClassifyModal: React.FC<FlashcardClassifyModalProps> = ({
             </div>
             {tagInput && filteredTags.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-2">
-                {filteredTags.slice(0, 8).map(t => (
+                {filteredTags.map(t => (
                   <button
                     key={t}
                     onClick={() => addTag(t)}

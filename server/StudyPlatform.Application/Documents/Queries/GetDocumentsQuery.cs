@@ -1,4 +1,3 @@
-using System.Text.Json;
 using MediatR;
 using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Documents.DTOs;
@@ -26,9 +25,7 @@ public class GetAllDocumentsQueryHandler : IRequestHandler<GetAllDocumentsQuery,
         var (documents, totalCount) = await _unitOfWork.Documents.GetAllByUserIdAsync(
             request.UserId, request.Page, request.PageSize, request.CourseId, cancellationToken);
 
-        var dtos = documents.Select(d => new DocumentDto(
-            d.DocumentId, d.CourseId, d.UserId, d.FileName, d.BlobUrl,
-            d.ContentType, d.FileSize, d.Summary, d.MindMapText, d.CreatedAt, d.UpdatedAt, d.Transcript, d.OriginalUrl));
+        var dtos = documents.Select(d => d.ToDocumentDto());
 
         return Result<PaginatedList<DocumentDto>>.Success(
             new PaginatedList<DocumentDto>(dtos, totalCount, request.Page, request.PageSize));
@@ -59,25 +56,15 @@ public class GetDocumentsByCourseQueryHandler : IRequestHandler<GetDocumentsByCo
         }
         else
         {
-            var hasGroupAccess = await HasGroupAccessAsync(request.UserId, request.CourseId, cancellationToken);
+            var hasGroupAccess = await _unitOfWork.HasSharedCourseAccessAsync(request.UserId, request.CourseId, cancellationToken);
             if (!hasGroupAccess)
                 return Result<IEnumerable<DocumentDto>>.Failure("Course not found.", "COURSE_NOT_FOUND");
             documents = await _unitOfWork.Documents.GetByCourseIdAsync(request.CourseId, cancellationToken);
         }
 
-        var dtos = documents.Select(d => new DocumentDto(
-            d.DocumentId, d.CourseId, d.UserId, d.FileName, d.BlobUrl,
-            d.ContentType, d.FileSize, d.Summary, d.MindMapText, d.CreatedAt, d.UpdatedAt, d.Transcript, d.OriginalUrl));
+        var dtos = documents.Select(d => d.ToDocumentDto());
 
         return Result<IEnumerable<DocumentDto>>.Success(dtos);
-    }
-
-    private async Task<bool> HasGroupAccessAsync(Guid userId, Guid courseId, CancellationToken ct)
-    {
-        var shared = await _unitOfWork.StudyGroupSharedCourses.FindAsync(sc => sc.CourseId == courseId, ct);
-        var groupIds = shared.Select(sc => sc.GroupId).ToList();
-        return groupIds.Count > 0 && await _unitOfWork.StudyGroupMembers.ExistsAsync(
-            m => groupIds.Contains(m.GroupId) && m.UserId == userId, ct);
     }
 }
 
@@ -98,21 +85,11 @@ public class GetDocumentByIdQueryHandler : IRequestHandler<GetDocumentByIdQuery,
         if (document == null)
             return Result<DocumentDto>.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
 
-        if (document.UserId != request.UserId)
-        {
-            var shared = await _unitOfWork.StudyGroupSharedCourses.FindAsync(sc => sc.CourseId == document.CourseId, cancellationToken);
-            var groupIds = shared.Select(sc => sc.GroupId).ToList();
-            var hasGroupAccess = groupIds.Count > 0 && await _unitOfWork.StudyGroupMembers.ExistsAsync(
-                m => groupIds.Contains(m.GroupId) && m.UserId == request.UserId, cancellationToken);
-            if (!hasGroupAccess)
-                return Result<DocumentDto>.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
-        }
+        if (document.UserId != request.UserId
+            && !await _unitOfWork.HasSharedCourseAccessAsync(request.UserId, document.CourseId, cancellationToken))
+            return Result<DocumentDto>.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
 
-        return Result<DocumentDto>.Success(new DocumentDto(
-            document.DocumentId, document.CourseId, document.UserId,
-            document.FileName, document.BlobUrl, document.ContentType,
-            document.FileSize, document.Summary, document.MindMapText,
-            document.CreatedAt, document.UpdatedAt, document.Transcript, document.OriginalUrl));
+        return Result<DocumentDto>.Success(document.ToDocumentDto());
     }
 }
 
@@ -130,11 +107,14 @@ public class GetDocumentNotesQueryHandler : IRequestHandler<GetDocumentNotesQuer
     public async Task<Result<IEnumerable<NoteDto>>> Handle(GetDocumentNotesQuery request, CancellationToken cancellationToken)
     {
         var document = await _unitOfWork.Documents.GetByIdAsync(request.DocumentId, cancellationToken);
-        if (document == null || document.UserId != request.UserId)
+        if (document == null)
+            return Result<IEnumerable<NoteDto>>.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
+
+        if (document.UserId != request.UserId && !await _unitOfWork.HasSharedCourseAccessAsync(request.UserId, document.CourseId, cancellationToken))
             return Result<IEnumerable<NoteDto>>.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
 
         var notes = await _unitOfWork.Notes.GetByDocumentIdAsync(request.DocumentId, cancellationToken);
-        var dtos = notes.Select(n => new NoteDto(n.NoteId, n.UserId, n.DocumentId, n.YouTubeVideoId, n.SourceType, n.Content, n.Title, n.CreatedAt, n.UpdatedAt));
+        var dtos = notes.Select(n => n.ToNoteDto());
 
         return Result<IEnumerable<NoteDto>>.Success(dtos);
     }
@@ -145,20 +125,28 @@ public record GetAIChatHistoryQuery(Guid DocumentId, Guid UserId) : IRequest<Res
 public class GetAIChatHistoryQueryHandler : IRequestHandler<GetAIChatHistoryQuery, Result<IEnumerable<ChatMessageDto>>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IBlobStorageService _blobStorageService;
 
-    public GetAIChatHistoryQueryHandler(IUnitOfWork unitOfWork)
+    public GetAIChatHistoryQueryHandler(IUnitOfWork unitOfWork, IBlobStorageService blobStorageService)
     {
         _unitOfWork = unitOfWork;
+        _blobStorageService = blobStorageService;
     }
 
     public async Task<Result<IEnumerable<ChatMessageDto>>> Handle(GetAIChatHistoryQuery request, CancellationToken cancellationToken)
     {
         var document = await _unitOfWork.Documents.GetByIdAsync(request.DocumentId, cancellationToken);
-        if (document == null || document.UserId != request.UserId)
+        if (document == null)
             return Result<IEnumerable<ChatMessageDto>>.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
 
-        var messages = await _unitOfWork.ChatMessages.GetByDocumentIdAsync(request.DocumentId, request.UserId, cancellationToken);
-        var dtos = messages.Select(m => new ChatMessageDto(m.MessageId, m.DocumentId, m.YouTubeVideoId, m.SourceType, m.Role, m.Content, m.CreatedAt));
+        if (document.UserId != request.UserId && !await _unitOfWork.HasSharedCourseAccessAsync(request.UserId, document.CourseId, cancellationToken))
+            return Result<IEnumerable<ChatMessageDto>>.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
+
+        var chatUserId = document.UserId == request.UserId ? request.UserId : document.UserId;
+        var messages = await _unitOfWork.ChatMessages.GetByDocumentIdAsync(request.DocumentId, chatUserId, cancellationToken);
+        var dtos = new List<ChatMessageDto>();
+        foreach (var m in messages)
+            dtos.Add(await m.ToDtoAsync(_blobStorageService, cancellationToken));
 
         return Result<IEnumerable<ChatMessageDto>>.Success(dtos);
     }
@@ -178,26 +166,19 @@ public class GetDocumentQuizzesQueryHandler : IRequestHandler<GetDocumentQuizzes
     public async Task<Result<IEnumerable<QuizDto>>> Handle(GetDocumentQuizzesQuery request, CancellationToken cancellationToken)
     {
         var document = await _unitOfWork.Documents.GetByIdAsync(request.DocumentId, cancellationToken);
-        if (document == null || document.UserId != request.UserId)
+        if (document == null)
+            return Result<IEnumerable<QuizDto>>.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
+
+        if (document.UserId != request.UserId && !await _unitOfWork.HasSharedCourseAccessAsync(request.UserId, document.CourseId, cancellationToken))
             return Result<IEnumerable<QuizDto>>.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
 
         var quizzes = string.IsNullOrWhiteSpace(request.Difficulty)
             ? await _unitOfWork.Quizzes.GetByDocumentIdAsync(request.DocumentId, cancellationToken)
-            : await _unitOfWork.Quizzes.GetByDocumentIdAndDifficultyAsync(request.DocumentId, NormalizeDifficulty(request.Difficulty), cancellationToken);
-        var dtos = quizzes.Select(q => new QuizDto(
-            q.QuizId, q.DocumentId, q.YouTubeVideoId, q.SourceType, q.Question,
-            JsonSerializer.Deserialize<string[]>(q.OptionsJson) ?? Array.Empty<string>(),
-            q.CorrectAnswer, q.Explanation, q.CreatedAt, q.Difficulty));
+            : await _unitOfWork.Quizzes.GetByDocumentIdAndDifficultyAsync(request.DocumentId, QuizDifficulty.Normalize(request.Difficulty), cancellationToken);
+        var dtos = quizzes.Select(q => q.ToQuizDto());
 
         return Result<IEnumerable<QuizDto>>.Success(dtos);
     }
-
-    private static string NormalizeDifficulty(string difficulty) => difficulty.ToLowerInvariant() switch
-    {
-        "easy" => "easy",
-        "hard" => "hard",
-        _ => "medium"
-    };
 }
 
 public record GetDocumentDownloadUrlQuery(Guid DocumentId, Guid UserId) : IRequest<Result<string>>;
@@ -252,11 +233,14 @@ public class GetDocumentFlashcardsQueryHandler : IRequestHandler<GetDocumentFlas
     public async Task<Result<IEnumerable<FlashcardDto>>> Handle(GetDocumentFlashcardsQuery request, CancellationToken cancellationToken)
     {
         var document = await _unitOfWork.Documents.GetByIdAsync(request.DocumentId, cancellationToken);
-        if (document == null || document.UserId != request.UserId)
+        if (document == null)
+            return Result<IEnumerable<FlashcardDto>>.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
+
+        if (document.UserId != request.UserId && !await _unitOfWork.HasSharedCourseAccessAsync(request.UserId, document.CourseId, cancellationToken))
             return Result<IEnumerable<FlashcardDto>>.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
 
         var flashcards = await _unitOfWork.Flashcards.GetByDocumentIdAsync(request.DocumentId, cancellationToken);
-        var dtos = flashcards.Select(f => new FlashcardDto(f.FlashcardId, f.DocumentId, f.YouTubeVideoId, f.SourceType, f.UserId, f.Front, f.Back, f.CreatedAt, f.UpdatedAt));
+        var dtos = flashcards.Select(f => f.ToFlashcardDto());
 
         return Result<IEnumerable<FlashcardDto>>.Success(dtos);
     }

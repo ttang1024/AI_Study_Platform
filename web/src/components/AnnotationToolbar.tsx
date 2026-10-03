@@ -12,6 +12,7 @@ const COLORS = [
   { hex: '#FFFF00', label: 'Yellow' },
   { hex: '#90EE90', label: 'Green' },
   { hex: '#87CEEB', label: 'Blue' },
+  { hex: '#FF6B6B', label: 'Red' },
 ];
 
 export const AnnotationToolbar: React.FC<Props> = ({

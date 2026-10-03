@@ -31,4 +31,5 @@ public class StatsController : ControllerBase
         var result = await _mediator.Send(new GetUserStatsQuery(userId));
         return Ok(BaseResponse<UserStatsDto>.Ok(result.Data!));
     }
+
 }

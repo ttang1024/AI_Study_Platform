@@ -1,6 +1,7 @@
 using MediatR;
 using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Documents.DTOs;
+using StudyPlatform.Application.Services;
 using StudyPlatform.Domain.Interfaces;
 
 namespace StudyPlatform.Application.Glossary.Commands;
@@ -17,9 +18,9 @@ public class GetAllGlossaryTermsQueryHandler : IRequestHandler<GetAllGlossaryTer
         var terms = await _unitOfWork.GlossaryTerms.GetByUserWithSourcesAsync(request.UserId, cancellationToken);
         var dtos = terms.Select(t =>
         {
-            var isVideo = t.YouTubeVideoId.HasValue;
+            var isVideo = t.VideoId.HasValue;
             var document = t.Document;
-            var video = t.YouTubeVideo;
+            var video = t.Video;
             var sourceKind = isVideo
                 ? "video"
                 : document?.OriginalUrl != null
@@ -34,7 +35,7 @@ public class GetAllGlossaryTermsQueryHandler : IRequestHandler<GetAllGlossaryTer
                 t.Term,
                 t.Definition,
                 t.CreatedAt,
-                t.YouTubeVideoId,
+                t.VideoId,
                 video?.CourseId ?? document?.CourseId,
                 video?.Title ?? document?.FileName,
                 sourceKind);
@@ -81,7 +82,7 @@ public class UpdateGlossaryTermCommandHandler : IRequestHandler<UpdateGlossaryTe
         _unitOfWork.GlossaryTerms.Update(term);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        var dto = new GlossaryTermDto(term.GlossaryTermId, term.DocumentId, term.Term, term.Definition, term.CreatedAt, term.YouTubeVideoId);
+        var dto = term.ToGlossaryTermDto();
         return Result<GlossaryTermDto>.Success(dto, "Term updated.");
     }
 }
@@ -91,7 +92,13 @@ public record DeleteGlossaryTermCommand(Guid UserId, Guid TermId) : IRequest<Res
 public class DeleteGlossaryTermCommandHandler : IRequestHandler<DeleteGlossaryTermCommand, Result<bool>>
 {
     private readonly IUnitOfWork _unitOfWork;
-    public DeleteGlossaryTermCommandHandler(IUnitOfWork unitOfWork) { _unitOfWork = unitOfWork; }
+    private readonly IEmbeddingIndex _embeddingIndex;
+
+    public DeleteGlossaryTermCommandHandler(IUnitOfWork unitOfWork, IEmbeddingIndex embeddingIndex)
+    {
+        _unitOfWork = unitOfWork;
+        _embeddingIndex = embeddingIndex;
+    }
 
     public async Task<Result<bool>> Handle(DeleteGlossaryTermCommand request, CancellationToken cancellationToken)
     {
@@ -101,6 +108,7 @@ public class DeleteGlossaryTermCommandHandler : IRequestHandler<DeleteGlossaryTe
 
         _unitOfWork.GlossaryTerms.Remove(term);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await _embeddingIndex.PruneOrphansAsync(request.UserId, cancellationToken);
         return Result<bool>.Success(true, "Term deleted.");
     }
 }

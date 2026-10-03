@@ -1,27 +1,23 @@
-const STORAGE_KEY = 'sp_tts_settings';
-
-export interface TtsSettings {
-  voice: string;
-}
-
-const DEFAULTS: TtsSettings = {
-  voice: 'en-US-AriaNeural',
-};
+// Shape, storage key, default voice, and voice resolution are shared with rn/ via
+// packages/core; only the storage is per-platform (localStorage vs expo-secure-store).
+import { TTS_SETTINGS_STORAGE_KEY, parseTtsSettings, resolveVoice } from '@core/settings';
+export type { TtsSettings } from '@core/settings';
+import type { TtsSettings } from '@core/settings';
 
 export const ttsSettingsService = {
   load(): TtsSettings {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) return { ...DEFAULTS, ...JSON.parse(raw) };
-    } catch {}
-    return { ...DEFAULTS };
+      return parseTtsSettings(localStorage.getItem(TTS_SETTINGS_STORAGE_KEY));
+    } catch {
+      return parseTtsSettings(null);
+    }
   },
 
   save(settings: TtsSettings): void {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    localStorage.setItem(TTS_SETTINGS_STORAGE_KEY, JSON.stringify(settings));
   },
 
   getVoice(): string {
-    return ttsSettingsService.load().voice.trim() || DEFAULTS.voice;
+    return resolveVoice(ttsSettingsService.load());
   },
 };

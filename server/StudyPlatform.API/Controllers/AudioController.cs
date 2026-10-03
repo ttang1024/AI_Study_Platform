@@ -2,11 +2,11 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using StudyPlatform.API.Extensions;
+using StudyPlatform.API.Services;
 using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Documents.Commands;
 using StudyPlatform.Application.Documents.DTOs;
 using StudyPlatform.Application.Documents.Queries;
-using StudyPlatform.Application.Podcasts.Commands;
 using StudyPlatform.Application.Services;
 
 namespace StudyPlatform.API.Controllers;
@@ -19,22 +19,56 @@ public class AudioController : ControllerBase
 {
     private readonly IMediator _mediator;
     private readonly IBlobStorageService _blobStorage;
+    private readonly AudioTranscriptionQueue _transcriptionQueue;
 
-    public AudioController(IMediator mediator, IBlobStorageService blobStorage)
+    public AudioController(
+        IMediator mediator,
+        IBlobStorageService blobStorage,
+        AudioTranscriptionQueue transcriptionQueue)
     {
         _mediator = mediator;
         _blobStorage = blobStorage;
+        _transcriptionQueue = transcriptionQueue;
     }
 
     private static readonly string[] AllowedMimeTypes =
     [
         "audio/mpeg", "audio/mp3", "audio/mp4", "audio/x-m4a",
         "audio/wav", "audio/x-wav", "audio/ogg", "audio/aac",
-        "audio/flac", "audio/webm"
+        "audio/flac", "audio/webm", "audio/opus",
+        "audio/aiff", "audio/x-aiff", "audio/x-ms-wma", "audio/amr", "audio/3gpp",
+        "audio/x-m4b", "audio/x-matroska"
     ];
 
     private static readonly string[] AllowedExtensions =
-        [".mp3", ".m4a", ".wav", ".ogg", ".aac", ".flac"];
+        [".mp3", ".m4a", ".m4b", ".wav", ".ogg", ".aac", ".flac", ".opus", ".aiff", ".aif", ".wma", ".amr", ".mka"];
+
+    // Browsers often report an empty or generic content type for the less
+    // common audio formats; downstream logic (transcription, content service)
+    // keys off an audio/* type, so normalise from the extension when needed.
+    private static string NormalizeAudioContentType(string contentType, string ext)
+    {
+        if (!string.IsNullOrWhiteSpace(contentType) &&
+            contentType.StartsWith("audio/", StringComparison.OrdinalIgnoreCase))
+            return contentType;
+
+        return ext switch
+        {
+            ".mp3" => "audio/mpeg",
+            ".m4a" => "audio/x-m4a",
+            ".m4b" => "audio/mp4",
+            ".mka" => "audio/x-matroska",
+            ".wav" => "audio/wav",
+            ".ogg" => "audio/ogg",
+            ".aac" => "audio/aac",
+            ".flac" => "audio/flac",
+            ".opus" => "audio/opus",
+            ".aiff" or ".aif" => "audio/aiff",
+            ".wma" => "audio/x-ms-wma",
+            ".amr" => "audio/amr",
+            _ => "audio/mpeg",
+        };
+    }
 
     /// <summary>
     /// Upload an audio lecture to a course
@@ -52,16 +86,23 @@ public class AudioController : ControllerBase
 
         if (!AllowedMimeTypes.Contains(file.ContentType) && !AllowedExtensions.Contains(ext))
             return BadRequest(BaseResponse<DocumentDto>.Fail(
-                "File type not supported. Allowed: MP3, M4A, WAV, OGG, AAC, FLAC.",
+                "File type not supported. Allowed: MP3, M4A/M4B, WAV, OGG, AAC, FLAC, OPUS, AIFF, WMA, AMR, MKA.",
                 "INVALID_FILE_TYPE"));
 
         var userId = User.GetUserId();
         using var stream = file.OpenReadStream();
         var result = await _mediator.Send(new UploadDocumentCommand(
-            courseId, userId, file.FileName, file.ContentType, file.Length, stream));
+            courseId, userId, file.FileName, NormalizeAudioContentType(file.ContentType, ext), file.Length, stream));
 
         if (!result.IsSuccess)
+        {
+            if (result.ErrorCode == "STORAGE_ERROR")
+                return StatusCode(StatusCodes.Status503ServiceUnavailable, BaseResponse<DocumentDto>.Fail(result.Message, result.ErrorCode));
+            if (result.ErrorCode == "DUPLICATE_DOCUMENT")
+                return Conflict(BaseResponse<DocumentDto>.Fail(result.Message, result.ErrorCode));
+
             return BadRequest(BaseResponse<DocumentDto>.Fail(result.Message, result.ErrorCode));
+        }
 
         return StatusCode(201, BaseResponse<DocumentDto>.Ok(result.Data!, result.Message));
     }
@@ -119,13 +160,12 @@ public class AudioController : ControllerBase
         if (!docResult.IsSuccess)
             return NotFound(BaseResponse<DocumentDto>.Fail(docResult.Message, docResult.ErrorCode));
 
-        Result<DocumentDto> result = docResult.Data!.ContentType == "audio/podcast"
-            ? await _mediator.Send(new TranscribePodcastCommand(documentId, userId))
-            : await _mediator.Send(new TranscribeAudioCommand(documentId, userId));
+        if (!string.IsNullOrWhiteSpace(docResult.Data!.Transcript))
+            return Ok(BaseResponse<DocumentDto>.Ok(docResult.Data, "Audio already transcribed."));
 
-        if (!result.IsSuccess)
-            return NotFound(BaseResponse<DocumentDto>.Fail(result.Message, result.ErrorCode));
+        var isPodcast = docResult.Data.ContentType == "audio/podcast";
+        _transcriptionQueue.TryEnqueue(documentId, userId, isPodcast);
 
-        return Ok(BaseResponse<DocumentDto>.Ok(result.Data!, result.Message));
+        return Accepted(BaseResponse<DocumentDto>.Ok(docResult.Data, "Audio transcription started."));
     }
 }

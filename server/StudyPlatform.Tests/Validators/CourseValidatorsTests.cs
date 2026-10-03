@@ -1,6 +1,7 @@
 using FluentValidation.TestHelper;
 using StudyPlatform.Application.Courses.Commands;
 using StudyPlatform.Application.Courses.Validators;
+using StudyPlatform.Tests.TestSupport;
 using Xunit;
 
 namespace StudyPlatform.Tests.Validators;
@@ -34,11 +35,7 @@ public class CreateCourseValidatorTests
     }
 
     [Theory]
-    [InlineData("")]
-    [InlineData("red")]           // not hex
-    [InlineData("#GGGGGG")]       // invalid hex chars
-    [InlineData("#12345")]        // 5 digits
-    [InlineData("3B82F6")]        // missing #
+    [MemberData(nameof(ValidationCases.InvalidHexColors), MemberType = typeof(ValidationCases))]
     public void Invalid_HexColor_FailsValidation(string color)
     {
         _validator.TestValidate(Valid() with { CourseColor = color })
@@ -46,10 +43,7 @@ public class CreateCourseValidatorTests
     }
 
     [Theory]
-    [InlineData("#3B82F6")]   // 6-digit hex
-    [InlineData("#fff")]      // 3-digit hex lowercase
-    [InlineData("#ABC")]      // 3-digit hex uppercase
-    [InlineData("#aabbcc")]   // 6-digit hex lowercase
+    [MemberData(nameof(ValidationCases.ValidHexColors), MemberType = typeof(ValidationCases))]
     public void Valid_HexColor_PassesValidation(string color)
     {
         _validator.TestValidate(Valid() with { CourseColor = color })
@@ -86,9 +80,7 @@ public class UpdateCourseValidatorTests
     }
 
     [Theory]
-    [InlineData("")]
-    [InlineData("notahex")]
-    [InlineData("#ZZZZZZ")]
+    [MemberData(nameof(ValidationCases.InvalidHexColors), MemberType = typeof(ValidationCases))]
     public void Invalid_HexColor_FailsValidation(string color)
     {
         _validator.TestValidate(Valid() with { CourseColor = color })

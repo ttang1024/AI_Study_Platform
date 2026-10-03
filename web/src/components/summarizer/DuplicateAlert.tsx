@@ -5,7 +5,8 @@ import { AlertTriangle, ArrowRight } from 'lucide-react';
 
 interface DuplicateAlertProps {
   label: string;
-  courseName: string;
+  /** Omitted when the existing item's course can't be resolved — the alert still shows. */
+  courseName?: string;
   to: string;
 }
 
@@ -21,7 +22,9 @@ export const DuplicateAlert: React.FC<DuplicateAlertProps> = ({ label, courseNam
     <div className="min-w-0 flex-1">
       <p className="text-sm font-bold text-amber-800">This {label} already exists</p>
       <p className="text-xs text-amber-600 mt-0.5">
-        Found in course: <span className="font-semibold">{courseName}</span>
+        {courseName
+          ? <>Found in course: <span className="font-semibold">{courseName}</span></>
+          : 'Already in your library'}
       </p>
     </div>
     <RouterLink

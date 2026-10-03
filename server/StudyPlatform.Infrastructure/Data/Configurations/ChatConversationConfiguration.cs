@@ -13,6 +13,20 @@ public class ChatConversationConfiguration : IEntityTypeConfiguration<ChatConver
         builder.Property(c => c.CreatedAt).IsRequired();
         builder.Property(c => c.UpdatedAt).IsRequired();
 
+        builder.HasOne(c => c.Video)
+            .WithMany()
+            .HasForeignKey(c => c.VideoId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne(c => c.Document)
+            .WithMany()
+            .HasForeignKey(c => c.DocumentId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.Cascade);
+
         builder.HasIndex(c => new { c.UserId, c.UpdatedAt });
+        builder.HasIndex(c => new { c.VideoId, c.UserId });
+        builder.HasIndex(c => new { c.DocumentId, c.UserId });
     }
 }

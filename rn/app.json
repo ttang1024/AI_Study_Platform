@@ -1,0 +1,95 @@
+{
+  "expo": {
+    "name": "Toto Study",
+    "slug": "rn",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "rn",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "bundleIdentifier": "com.totoai.app",
+      "entitlements": {
+        "com.apple.security.application-groups": [
+          "group.com.totoai.app.widget"
+        ]
+      }
+    },
+    "android": {
+      "package": "com.totoai.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#059669",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#f5f5f7",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 76
+        }
+      ],
+      "expo-secure-store",
+      "expo-video",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Allow Toto Study to use the microphone to check your pronunciation."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Toto Study to access your photos to attach them to a chat message.",
+          "cameraPermission": "Allow Toto Study to use your camera to scan study material and attach photos to chat messages.",
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow Toto Study to use Face ID to unlock the app."
+        }
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Allow Toto Study to use the microphone for voice input in chat.",
+          "speechRecognitionPermission": "Allow Toto Study to use speech recognition to transcribe your voice input in chat."
+        }
+      ],
+      "expo-web-browser",
+      [
+        "expo-share-intent",
+        {
+          "iosActivationRules": {
+            "NSExtensionActivationSupportsText": true,
+            "NSExtensionActivationSupportsWebURLWithMaxCount": 1,
+            "NSExtensionActivationSupportsWebPageWithMaxCount": 1
+          },
+          "androidIntentFilters": [
+            "text/*"
+          ]
+        }
+      ],
+      "@bacons/apple-targets",
+      "expo-image",
+      "expo-localization",
+      "expo-asset"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}

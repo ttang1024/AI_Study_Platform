@@ -17,6 +17,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Matches Infrastructure: lets tests exercise internal helpers (rubric scoring, mappings)
+         without widening the public surface for production callers. -->
+    <InternalsVisibleTo Include="StudyPlatform.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\StudyPlatform.Domain\StudyPlatform.Domain.csproj" />
   </ItemGroup>
 

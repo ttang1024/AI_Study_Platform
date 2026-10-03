@@ -15,32 +15,36 @@ public class QuizSubmissionRepository : Repository<QuizSubmission>, IQuizSubmiss
 
     public async Task<QuizSubmission?> GetByVideoAndUserAsync(Guid videoId, Guid userId, CancellationToken cancellationToken = default)
         => await _dbSet
-            .FirstOrDefaultAsync(s => s.YouTubeVideoId == videoId && s.UserId == userId, cancellationToken);
+            .FirstOrDefaultAsync(s => s.VideoId == videoId && s.UserId == userId, cancellationToken);
 
     public async Task<IEnumerable<QuizSubmission>> GetAllByUserAsync(Guid userId, CancellationToken cancellationToken = default)
         => await _dbSet
-            .Include(s => s.Document)
-            .Include(s => s.YouTubeVideo)
+            .AsNoTracking()
             .Where(s => s.UserId == userId)
             .OrderByDescending(s => s.SubmittedAt)
+            .ToListWithSourcesAsync(cancellationToken);
+
+    public async Task<IEnumerable<QuizSubmission>> GetByDateRangeAsync(Guid userId, DateTime from, DateTime to, CancellationToken cancellationToken = default)
+        => await _dbSet
+            .Where(s => s.UserId == userId && s.SubmittedAt >= from.Date && s.SubmittedAt < to.Date.AddDays(1))
             .ToListAsync(cancellationToken);
 
     public async Task<(IEnumerable<QuizSubmission> Items, int TotalCount)> GetPagedByUserAsync(Guid userId, int page, int pageSize, CancellationToken cancellationToken = default)
     {
         var query = _dbSet
-            .Include(s => s.Document)
-            .Include(s => s.YouTubeVideo)
+            .AsNoTracking()
             .Where(s => s.UserId == userId);
         var totalCount = await query.CountAsync(cancellationToken);
         var items = await query
             .OrderByDescending(s => s.SubmittedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .ToListAsync(cancellationToken);
+            .ToListWithSourcesAsync(cancellationToken);
         return (items, totalCount);
     }
 
-    public async Task<(IEnumerable<Guid> DocumentIds, IEnumerable<Guid> YouTubeVideoIds)> GetCoverageByUserAsync(Guid userId, CancellationToken cancellationToken = default)
+
+    public async Task<(IEnumerable<Guid> DocumentIds, IEnumerable<Guid> VideoIds)> GetCoverageByUserAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         var documentIds = await _dbSet
             .Where(s => s.UserId == userId && s.DocumentId != null && s.SourceType != "video")
@@ -48,12 +52,12 @@ public class QuizSubmissionRepository : Repository<QuizSubmission>, IQuizSubmiss
             .Distinct()
             .ToListAsync(cancellationToken);
 
-        var youTubeVideoIds = await _dbSet
-            .Where(s => s.UserId == userId && s.YouTubeVideoId != null)
-            .Select(s => s.YouTubeVideoId!.Value)
+        var videoIds = await _dbSet
+            .Where(s => s.UserId == userId && s.VideoId != null)
+            .Select(s => s.VideoId!.Value)
             .Distinct()
             .ToListAsync(cancellationToken);
 
-        return (documentIds, youTubeVideoIds);
+        return (documentIds, videoIds);
     }
 }

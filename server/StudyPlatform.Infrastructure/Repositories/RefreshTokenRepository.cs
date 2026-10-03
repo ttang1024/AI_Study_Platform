@@ -22,7 +22,12 @@ public class RefreshTokenRepository : Repository<RefreshToken>, IRefreshTokenRep
             .Where(t => t.UserId == userId && !t.IsRevoked)
             .ToListAsync(cancellationToken);
 
+        var now = DateTime.UtcNow;
         foreach (var token in tokens)
+        {
             token.IsRevoked = true;
+            token.RevokedAt = now;
+        }
     }
+
 }

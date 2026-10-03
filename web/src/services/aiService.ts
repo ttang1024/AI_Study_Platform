@@ -35,11 +35,29 @@ async function post<T>(url: string, body: unknown): Promise<T> {
 	}
 }
 
+// The attachment DTOs moved to the shared package (packages/core/src/chat.ts) —
+// re-exported so existing `./aiService` imports keep working unchanged.
+import type { ChatAttachment, ChatMessageAttachment } from '@core/chat'
+export type { ChatAttachment, ChatMessageAttachment } from '@core/chat'
+
+/** Builds inline data: URLs from staged attachments so an optimistic user message can show thumbnails immediately. */
+export function attachmentsToDisplay(attachments?: ChatAttachment[]): ChatMessageAttachment[] | undefined {
+	if (!attachments || attachments.length === 0) return undefined
+	return attachments.map(a => ({
+		url: `data:${a.mimeType};base64,${a.data}`,
+		mimeType: a.mimeType,
+		fileName: a.fileName,
+	}))
+}
+
 export interface ChatSessionSummary {
 	sourceType: 'document' | 'video' | 'general';
 	sourceId: string;
 	sourceName: string;
 	courseId: string | null;
+	/** The thread this summary describes; for general chats this equals sourceId. */
+	conversationId: string;
+	conversationTitle: string;
 	lastMessage: string;
 	lastMessageRole: string;
 	updatedAt: string;
@@ -56,11 +74,12 @@ export interface GeneralChatConversation {
 export interface ChatMessageDto {
 	messageId: string;
 	documentId?: string | null;
-	youTubeVideoId?: string | null;
+	videoId?: string | null;
 	sourceType: string;
 	role: 'user' | 'assistant' | 'model';
 	content: string;
 	createdAt: string;
+	attachments?: ChatMessageAttachment[] | null;
 }
 
 export const aiService = {
@@ -98,31 +117,14 @@ export const aiService = {
 		message: string,
 		onChunk: (chunk: string) => void,
 		signal?: AbortSignal,
+		attachments?: ChatAttachment[],
 	): Promise<void> {
 		return streamSse(
 			`/api/ai/chat/conversations/${conversationId}/stream`,
-			{ message },
+			attachments && attachments.length > 0 ? { message, attachments } : { message },
 			onChunk,
 			signal,
 		)
-	},
-
-	// --- Document-based (these are already handled by the Documents API; kept for compatibility) ---
-
-	async generateSummary(_text: string): Promise<string> {
-		throw new Error('Use the Documents API to generate summaries from documents.')
-	},
-
-	async generateMindMap(_text: string): Promise<unknown> {
-		throw new Error('Use the Documents API to generate mind maps from documents.')
-	},
-
-	async generateQuiz(_text: string): Promise<unknown> {
-		throw new Error('Use the Documents API to generate quizzes from documents.')
-	},
-
-	async generateFlashcards(_text: string): Promise<unknown> {
-		throw new Error('Use the Documents API to generate flashcards from documents.')
 	},
 
 	async chat(history: ChatHistoryEntry[], message: string): Promise<string> {
@@ -149,11 +151,11 @@ export const aiService = {
 	// --- YouTube-based ---
 
 	async generateSummaryFromYouTube(videoUrl: string): Promise<string> {
-		return post<string>('/api/youtube/summary', { videoUrl })
+		return post<string>('/api/videos/summary', { videoUrl })
 	},
 
 	async generateMindMapFromYouTube(videoUrl: string): Promise<string> {
-		return post<string>('/api/youtube/mindmap', { videoUrl })
+		return post<string>('/api/videos/mindmap', { videoUrl })
 	},
 
 	async streamMindMapFromYouTube(
@@ -161,16 +163,16 @@ export const aiService = {
 		onChunk: (chunk: string) => void,
 		signal?: AbortSignal,
 	): Promise<void> {
-		return streamSse('/api/youtube/mindmap/stream', { videoUrl }, onChunk, signal)
+		return streamSse('/api/videos/mindmap/stream', { videoUrl }, onChunk, signal)
 	},
 
 	async generateQuizFromYouTube(videoUrl: string): Promise<unknown> {
-		const json = await post<string>('/api/youtube/quiz', { videoUrl })
+		const json = await post<string>('/api/videos/quiz', { videoUrl })
 		return JSON.parse(json)
 	},
 
 	async generateFlashcardsFromYouTube(videoUrl: string): Promise<unknown> {
-		const json = await post<string>('/api/youtube/flashcards', { videoUrl })
+		const json = await post<string>('/api/videos/flashcards', { videoUrl })
 		return JSON.parse(json)
 	},
 
@@ -179,7 +181,7 @@ export const aiService = {
 		history: ChatHistoryEntry[],
 		message: string,
 	): Promise<string> {
-		return post<string>('/api/youtube/chat', {
+		return post<string>('/api/videos/chat', {
 			videoUrl,
 			message,
 			history: toHistoryEntries(history),
@@ -188,6 +190,6 @@ export const aiService = {
 
 	// kept for any code that still references this method
 	async generateTranscriptFromYouTube(_videoUrl: string): Promise<string> {
-		throw new Error('Use GET /api/youtube/transcript instead.')
+		throw new Error('Use GET /api/videos/transcript instead.')
 	},
 }

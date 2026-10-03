@@ -3,18 +3,22 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import { toString as mdastToString } from 'mdast-util-to-string';
+import type { Paragraph, Parent, Root } from 'mdast';
+import type { Plugin } from 'unified';
+import { formatTimecode } from '@core/utils/format';
 
 interface SummaryMarkdownProps {
 	value: string;
 	onTimelineSeek?: (seconds: number) => void;
 }
 
-export const summaryMarkdownComponents = {
+const summaryMarkdownComponents = {
 	h1: ({ children }: any) => <h1 className="summary-h1">{children}</h1>,
 	h2: ({ children }: any) => <h2 className="summary-h2">{children}</h2>,
 	h3: ({ children }: any) => <h3 className="summary-h3">{children}</h3>,
 	p: ({ children }: any) => <p className="summary-p">{children}</p>,
-	ul: ({ children }: any) => <ul className="summary-ul">{children}</ul>,
+	ul: ({ children }: any) => <ul className="summary-ul list-disc">{children}</ul>,
 	ol: ({ children }: any) => <ol className="summary-ul list-decimal">{children}</ol>,
 	li: ({ children }: any) => <li className="summary-li">{children}</li>,
 	strong: ({ children }: any) => <strong className="summary-strong">{children}</strong>,
@@ -28,7 +32,30 @@ export const summaryMarkdownComponents = {
 	td: ({ children }: any) => <td className="border border-zinc-200 px-3 py-2 align-top">{children}</td>,
 };
 
-const timelineRangePattern = /^\s*(?:[-*]\s*)?(\d{1,2}:\d{2}(?::\d{2})?)\s*[–-]\s*(\d{1,2}:\d{2}(?::\d{2})?)\s*(.*)$/;
+const timelineRangePattern = /^\s*(?:[-*]\s*)?(\d{1,2}:\d{2}(?::\d{2})?)\s*[–—-]\s*(\d{1,2}:\d{2}(?::\d{2})?)\s*(.*)$/;
+const timelineOnlyPattern = /^\s*(?:[-*]\s*)?\d{1,2}:\d{2}(?::\d{2})?\s*[–—-]\s*\d{1,2}:\d{2}(?::\d{2})?\s*$/;
+
+/**
+ * The AI timeline prompt puts each "HH:MM - HH:MM" range on its own paragraph, with the
+ * description as the *next* paragraph — but TimelineParagraph expects both on one line.
+ * Fold the description into the timestamp paragraph before render so the regex below sees it.
+ */
+const remarkMergeTimelineParagraphs: Plugin<[], Root> = () => (tree) => {
+	const merge = (node: Parent) => {
+		for (let i = 0; i < node.children.length; i++) {
+			const child = node.children[i] as Paragraph;
+			const next = node.children[i + 1] as Paragraph | undefined;
+			if (child.type === 'paragraph' && next?.type === 'paragraph' && timelineOnlyPattern.test(mdastToString(child))) {
+				child.children.push({ type: 'text', value: ' ' }, ...next.children);
+				node.children.splice(i + 1, 1);
+			}
+			if ('children' in child && Array.isArray((child as unknown as Parent).children)) {
+				merge(child as unknown as Parent);
+			}
+		}
+	};
+	merge(tree);
+};
 
 const getTextFromChildren = (children: React.ReactNode): string => {
 	if (typeof children === 'string' || typeof children === 'number') return String(children);
@@ -43,15 +70,7 @@ const parseTimestamp = (value: string): number => {
 	return parts[0] * 60 + parts[1];
 };
 
-const formatTimestamp = (seconds: number): string => {
-	const safe = Math.max(0, Math.floor(seconds));
-	const h = Math.floor(safe / 3600);
-	const m = Math.floor((safe % 3600) / 60);
-	const s = safe % 60;
-	return h > 0
-		? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-		: `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-};
+const formatTimestamp = (seconds: number): string => formatTimecode(seconds, { padMinutes: true });
 
 const cleanTimelineBody = (body: string): string => body.replace(/^\s*[:\-–]\s*/, '').trim();
 
@@ -73,9 +92,17 @@ const TimelineParagraph: React.FC<{
 		? ((value - startSeconds) / (endSeconds - startSeconds)) * 100
 		: 0;
 
-	const handleSeek = (nextValue: number) => {
+	const handleClickSeek = (nextValue: number) => {
 		setValue(nextValue);
 		onSeek?.(nextValue);
+	};
+
+	const handleDragChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+		setValue(Number(event.target.value));
+	};
+
+	const handleDragCommit = (event: React.MouseEvent<HTMLInputElement> | React.TouchEvent<HTMLInputElement>) => {
+		onSeek?.(Number(event.currentTarget.value));
 	};
 
 	return (
@@ -83,7 +110,7 @@ const TimelineParagraph: React.FC<{
 			<div className="summary-timeline-head">
 				<button
 					type="button"
-					onClick={() => handleSeek(startSeconds)}
+					onClick={() => handleClickSeek(startSeconds)}
 					disabled={!onSeek}
 					className="summary-timeline-range"
 					title={onSeek ? 'Jump to this timeline segment' : undefined}
@@ -99,7 +126,9 @@ const TimelineParagraph: React.FC<{
 				step={1}
 				value={value}
 				disabled={!onSeek}
-				onChange={(event) => handleSeek(Number(event.target.value))}
+				onChange={handleDragChange}
+				onMouseUp={handleDragCommit}
+				onTouchEnd={handleDragCommit}
 				className="summary-timeline-slider"
 				style={{ ['--timeline-progress' as string]: `${progress}%` }}
 				aria-label={`Seek within ${startLabel} to ${endLabel}`}
@@ -133,7 +162,7 @@ export const SummaryMarkdown: React.FC<SummaryMarkdownProps> = ({ value, onTimel
 	}), [renderTimelineText]);
 
 	return (
-		<ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]} components={components}>
+		<ReactMarkdown remarkPlugins={[remarkGfm, remarkMath, remarkMergeTimelineParagraphs]} rehypePlugins={[rehypeKatex]} components={components}>
 			{value}
 		</ReactMarkdown>
 	);

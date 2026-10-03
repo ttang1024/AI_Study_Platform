@@ -14,7 +14,8 @@ export const Select: React.FC<SelectProps> = ({ size = 'sm', className, selectCl
       <select
         className={cn(
           'w-full appearance-none cursor-pointer rounded-xl border border-[var(--border-color)] bg-[var(--bg-app)] text-text-main outline-none transition-colors',
-          'pr-8 focus:border-primary focus:ring-2 focus:ring-primary/10',
+          // `pr-8!` wins over any `px-*` in selectClassName, so the chevron always has room.
+          'pr-8! focus:border-primary focus:ring-2 focus:ring-primary/10',
           size === 'xs' ? 'px-3 py-1.5 text-xs' : 'px-3 py-2 text-sm',
           selectClassName
         )}

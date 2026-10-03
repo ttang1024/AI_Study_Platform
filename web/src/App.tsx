@@ -1,43 +1,66 @@
 import React, { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { I18nProvider } from './i18n';
 import { StudyProvider } from './context/StudyContext';
 import { TtsProvider } from './context/TtsContext';
 import { MainLayout } from './components/layout/MainLayout';
 import { PromptProvider } from './components/common/PromptBox';
-import { DashboardPage } from './pages/DashboardPage';
-import { LibraryPage } from './pages/LibraryPage';
-import { QuizManagementPage } from './pages/QuizManagementPage';
-import { FlashcardsPage } from './pages/FlashcardsPage';
-import { NotesPage } from './pages/NotesPage';
-import { SettingsPage } from './pages/SettingsPage';
-import { YouTubeDetailPage } from './pages/YouTubeDetailPage';
-import { AISummarizerPage } from './pages/AISummarizerPage';
+import { PomodoroTimer } from './components/common/PomodoroTimer';
+import { usePageVisitTracking } from './hooks/usePageVisitTracking';
+// Public/auth pages stay eager so first paint never waits on a second request.
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { EmailVerificationPage } from './pages/EmailVerificationPage';
-import { LandingPage } from './pages/LandingPage';
-import { GlossaryPage } from './pages/GlossaryPage';
-import { FeedbackPage } from './pages/FeedbackPage';
-import { ArticlePage } from './pages/ArticlePage';
-import { AudioDetailPage } from './pages/AudioDetailPage';
 import { OAuthCallbackPage } from './pages/OAuthCallbackPage';
-import { SearchResultsPage } from './pages/SearchResultsPage';
-import { StudyGroupsPage } from './pages/StudyGroupsPage';
-import { StudyGroupDetailPage } from './pages/StudyGroupDetailPage';
-import { ChatListPage } from './pages/ChatListPage';
-import { KnowledgeGraphPage } from './pages/KnowledgeGraphPage';
-import { ReinforcementCenterPage } from './pages/ReinforcementCenterPage';
 
-const DocumentDetailsPage = lazy(() =>
-  import('./pages/DocumentDetailsPage').then((mod) => ({ default: mod.DocumentDetailsPage })),
-);
-const CourseStudyPage = lazy(() =>
-  import('./pages/CourseStudyPage').then((mod) => ({ default: mod.CourseStudyPage })),
-);
-const SharedContentPage = lazy(() =>
-  import('./pages/SharedContentPage').then((mod) => ({ default: mod.SharedContentPage })),
-);
+// All authenticated pages are lazy so heavy dependencies (d3/markmap, katex,
+// tiptap, pdf/docx viewers, export libs) load with the page that uses them
+// instead of in the entry chunk.
+const lazyPage = <T extends Record<string, React.ComponentType<any>>, K extends keyof T>(
+  loader: () => Promise<T>,
+  name: K,
+) => lazy(() => loader().then((mod) => ({ default: mod[name] })));
+
+// The landing page is lazy too — it drags the whole motion/react animation stack
+// (~100 KB gzip) plus the bento cards into whatever chunk holds it, and signed-in
+// loads never render it. Anonymous visitors start fetching it immediately (in
+// parallel with app bootstrap) so their first paint still waits on ~one request.
+const landingLoader = () => import('./pages/LandingPage');
+if (!localStorage.getItem('sp_access_token')) void landingLoader();
+const LandingPage = lazyPage(landingLoader, 'LandingPage');
+
+const DashboardPage = lazyPage(() => import('./pages/DashboardPage'), 'DashboardPage');
+const LibraryPage = lazyPage(() => import('./pages/LibraryPage'), 'LibraryPage');
+// Adding content (the old AI Summarizer) is its own page, not a Library tab.
+const AddContentPage = lazyPage(() => import('./pages/AddContentPage'), 'AddContentPage');
+// Practice Center = practice + planner + quiz history + mistakes + question bank.
+const QuizManagementPage = lazyPage(() => import('./pages/QuizManagementPage'), 'QuizManagementPage');
+const FlashcardsPage = lazyPage(() => import('./pages/FlashcardsPage'), 'FlashcardsPage');
+// Notes and Glossary are two pages again — they answer different questions and the nav says so.
+const NotesPage = lazyPage(() => import('./pages/NotesPage'), 'NotesPage');
+const GlossaryPage = lazyPage(() => import('./pages/GlossaryPage'), 'GlossaryPage');
+// Settings gained the Feedback tab.
+const SettingsPage = lazyPage(() => import('./pages/SettingsPage'), 'SettingsPage');
+const VideoDetailPage = lazyPage(() => import('./pages/VideoDetailPage'), 'VideoDetailPage');
+const ArticlePage = lazyPage(() => import('./pages/ArticlePage'), 'ArticlePage');
+const AudioDetailPage = lazyPage(() => import('./pages/AudioDetailPage'), 'AudioDetailPage');
+const SearchResultsPage = lazyPage(() => import('./pages/SearchResultsPage'), 'SearchResultsPage');
+// Spaces = study groups.
+const SpacesPage = lazyPage(() => import('./pages/SpacesPage'), 'SpacesPage');
+const StudyGroupDetailPage = lazyPage(() => import('./pages/StudyGroupDetailPage'), 'StudyGroupDetailPage');
+const ChatListPage = lazyPage(() => import('./pages/ChatListPage'), 'ChatListPage');
+const InsightsPage = lazyPage(() => import('./pages/InsightsPage'), 'InsightsPage');
+const OfflinePage = lazyPage(() => import('./pages/OfflinePage'), 'OfflinePage');
+const DocumentDetailsPage = lazyPage(() => import('./pages/DocumentDetailsPage'), 'DocumentDetailsPage');
+const CourseStudyPage = lazyPage(() => import('./pages/CourseStudyPage'), 'CourseStudyPage');
+const SharedContentPage = lazyPage(() => import('./pages/SharedContentPage'), 'SharedContentPage');
+
+/** Posts a page-view beacon on every route change. Renders nothing; must sit inside the router. */
+const PageVisitTracker: React.FC = () => {
+  usePageVisitTracking();
+  return null;
+};
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -46,14 +69,50 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   return <>{children}</>;
 };
 
+const LegacyYouTubeRedirect: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
+  return <Navigate to={id ? `/videos/${id}` : '/library?type=videos'} replace />;
+};
+
+
+/**
+ * Browse and Add were two tabs of /library; Add is its own page now. `?view=add` links minted while
+ * they were tabs (and anything still bookmarked) follow it, keeping the params the form reads.
+ */
+const LibraryRoute: React.FC = () => {
+  const [params] = useSearchParams();
+  if (params.get('view') !== 'add') return <LibraryPage />;
+  const next = new URLSearchParams(params);
+  next.delete('view');
+  const query = next.toString();
+  return <Navigate to={`/library/add${query ? `?${query}` : ''}`} replace />;
+};
+
+
+/**
+ * A retired page's route, kept alive as a redirect into the tab that replaced it. Existing query
+ * params ride along, so /practice?smart=1 and /summarizer?tab=web&courseId=… still do what they did.
+ * `extra` sets the params that select the tab; anything already in the URL wins over it only when
+ * the retired page owned that param itself (the summarizer's `tab`), which is why `extra` is applied
+ * first and the incoming params are merged on top.
+ */
+const TabRedirect: React.FC<{ to: string; extra?: Record<string, string> }> = ({ to, extra }) => {
+  const [params] = useSearchParams();
+  const next = new URLSearchParams(extra);
+  params.forEach((value, key) => next.set(key, value));
+  const query = next.toString();
+  return <Navigate to={query ? `${to}?${query}` : to} replace />;
+};
 
 export default function App() {
   return (
-    <AuthProvider>
+    <I18nProvider>
+      <AuthProvider>
       <StudyProvider>
         <PromptProvider>
           <TtsProvider>
             <BrowserRouter>
+              <PageVisitTracker />
               <Suspense fallback={null}>
                 <Routes>
                   <Route path="/" element={<LandingPage />} />
@@ -67,21 +126,44 @@ export default function App() {
                     </ProtectedRoute>
                   }>
                     <Route path="dashboard" element={<DashboardPage />} />
-                    <Route path="library" element={<LibraryPage />} />
+                    {/* The Today plan now lives as the dashboard hero + the Insights → Analytics tab. */}
+                    <Route path="today" element={<Navigate to="/dashboard" replace />} />
+
+                    {/* Library — browse what you have; adding content is the page next door. */}
+                    <Route path="library" element={<LibraryRoute />} />
+                    <Route path="library/add" element={<AddContentPage />} />
                     <Route path="documents" element={<Navigate to="/library" replace />} />
-                    <Route path="youtube" element={<Navigate to="/library?type=videos" replace />} />
-                    <Route path="summarizer" element={<AISummarizerPage />} />
-                    <Route path="flashcards" element={<FlashcardsPage />} />
-                    <Route path="notes" element={<NotesPage />} />
+                    <Route path="videos" element={<Navigate to="/library?type=videos" replace />} />
+                    <Route path="youtube" element={<Navigate to="/videos" replace />} />
+                    <Route path="summarizer" element={<TabRedirect to="/library/add" />} />
+
+                    {/* Practice Center — practice, planner, quiz history, mistakes, bank. */}
                     <Route path="quizzes" element={<QuizManagementPage />} />
-                    <Route path="settings" element={<SettingsPage />} />
+                    <Route path="practice" element={<TabRedirect to="/quizzes" extra={{ tab: 'practice' }} />} />
+                    <Route path="planner" element={<TabRedirect to="/quizzes" extra={{ tab: 'planner' }} />} />
+                    <Route path="mistakes" element={<TabRedirect to="/quizzes" extra={{ tab: 'mistakes' }} />} />
+
+                    {/* Notes and Glossary — one page each. */}
+                    <Route path="notes" element={<NotesPage />} />
                     <Route path="glossary" element={<GlossaryPage />} />
-                    <Route path="knowledge-graph" element={<KnowledgeGraphPage />} />
-                    <Route path="reinforcement-center" element={<ReinforcementCenterPage />} />
-                    <Route path="feedback" element={<FeedbackPage />} />
+
+                    <Route path="flashcards" element={<FlashcardsPage />} />
+
+                    {/* Insights — analytics and retention. */}
+                    <Route path="insights" element={<InsightsPage />} />
+                    <Route path="analytics" element={<Navigate to="/insights" replace />} />
+
+                    {/* Shared spaces — study groups. */}
+                    <Route path="spaces" element={<SpacesPage />} />
+                    <Route path="groups" element={<TabRedirect to="/spaces" extra={{ tab: 'groups' }} />} />
+
+                    <Route path="settings" element={<SettingsPage />} />
+                    {/* Feedback was its own page; it is a Settings tab now. */}
+                    <Route path="offline" element={<OfflinePage />} />
                     <Route path="search" element={<SearchResultsPage />} />
-                    <Route path="groups" element={<StudyGroupsPage />} />
                     <Route path="chat" element={<ChatListPage />} />
+                    {/* The tutor lives in AI Chat. */}
+                    <Route path="tutor" element={<Navigate to="/chat?tab=teach-back" replace />} />
                   </Route>
 
                   <Route path="/documents/:id" element={
@@ -89,11 +171,12 @@ export default function App() {
                       <DocumentDetailsPage />
                     </ProtectedRoute>
                   } />
-                  <Route path="/youtube/:id" element={
+                  <Route path="/videos/:id" element={
                     <ProtectedRoute>
-                      <YouTubeDetailPage />
+                      <VideoDetailPage />
                     </ProtectedRoute>
                   } />
+                  <Route path="/youtube/:id" element={<LegacyYouTubeRedirect />} />
                   <Route path="/articles/:id" element={
                     <ProtectedRoute>
                       <ArticlePage />
@@ -119,10 +202,12 @@ export default function App() {
                   <Route path="/share/:token" element={<SharedContentPage />} />
                 </Routes>
               </Suspense>
+              <PomodoroTimer />
             </BrowserRouter>
           </TtsProvider>
         </PromptProvider>
       </StudyProvider>
-    </AuthProvider>
+      </AuthProvider>
+    </I18nProvider>
   );
 }

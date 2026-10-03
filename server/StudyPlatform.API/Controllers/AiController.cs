@@ -1,4 +1,4 @@
-using System.Text;
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using StudyPlatform.API.Extensions;
@@ -16,6 +16,14 @@ public record GeneralChatRequest(
 
 public record CreateGeneralChatConversationRequest(string? Title);
 
+public record EvaluateExplanationRequest(string Topic, string Reference, string Explanation);
+
+public record ExplanationEvaluationDto(
+    int Score,
+    IReadOnlyList<string> Strengths,
+    IReadOnlyList<string> Gaps,
+    string Suggestion);
+
 public record GeneralChatConversationDto(
     Guid ConversationId,
     string Title,
@@ -26,15 +34,19 @@ public record GeneralChatConversationDto(
 [Route("api/ai")]
 [Authorize]
 [Produces("application/json")]
-public class AiController : ControllerBase
+public partial class AiController : ControllerBase
 {
     private readonly IAiService _aiService;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IBlobStorageService _blobStorageService;
+    private readonly IChatTurnRecorder _chatTurns;
 
-    public AiController(IAiService aiService, IUnitOfWork unitOfWork)
+    public AiController(IAiService aiService, IUnitOfWork unitOfWork, IBlobStorageService blobStorageService, IChatTurnRecorder chatTurns)
     {
         _aiService = aiService;
         _unitOfWork = unitOfWork;
+        _blobStorageService = blobStorageService;
+        _chatTurns = chatTurns;
     }
 
     /// <summary>Get all chat conversation summaries (documents + videos) for the current user.</summary>
@@ -43,6 +55,14 @@ public class AiController : ControllerBase
     public async Task<IActionResult> GetChatSessions(CancellationToken cancellationToken)
     {
         var userId = User.GetUserId();
+
+        // Summaries are one entry per thread, so messages saved before threads
+        // existed must be folded into a conversation first.
+        foreach (var videoId in await _unitOfWork.ChatMessages.GetVideoIdsWithLegacyChatAsync(userId, cancellationToken))
+            await ChatThreads.AdoptLegacyVideoChatAsync(_unitOfWork, videoId, userId, cancellationToken);
+        foreach (var documentId in await _unitOfWork.ChatMessages.GetDocumentIdsWithLegacyChatAsync(userId, cancellationToken))
+            await ChatThreads.AdoptLegacyDocumentChatAsync(_unitOfWork, documentId, userId, cancellationToken);
+
         var summaries = await _unitOfWork.ChatMessages.GetConversationSummariesAsync(userId, cancellationToken);
         return Ok(BaseResponse<IEnumerable<ChatConversationSummary>>.Ok(summaries));
     }
@@ -74,7 +94,10 @@ public class AiController : ControllerBase
             return NotFound(BaseResponse<string>.Fail("Conversation not found.", "CONVERSATION_NOT_FOUND"));
 
         var messages = await _unitOfWork.ChatMessages.GetByConversationIdAsync(conversationId, userId, cancellationToken);
-        return Ok(BaseResponse<IEnumerable<ChatMessageDto>>.Ok(messages.Select(ToChatMessageDto)));
+        var dtos = new List<ChatMessageDto>();
+        foreach (var m in messages)
+            dtos.Add(await m.ToDtoAsync(_blobStorageService, cancellationToken));
+        return Ok(BaseResponse<IEnumerable<ChatMessageDto>>.Ok(dtos));
     }
 
     /// <summary>Delete a standalone AI chat conversation.</summary>
@@ -104,6 +127,55 @@ public class AiController : ControllerBase
         var history = (request.History ?? []).Select(h => (h.Role, h.Content));
         var reply = await _aiService.GeneralChatAsync(history, request.Message, cancellationToken);
         return Ok(BaseResponse<string>.Ok(reply));
+    }
+
+    /// <summary>
+    /// Grade a learner's own-words explanation of a concept against reference content
+    /// (Feynman-technique teach-back). Stateless: nothing is persisted.
+    /// </summary>
+    [HttpPost("evaluate-explanation")]
+    [ProducesResponseType(typeof(BaseResponse<ExplanationEvaluationDto>), 200)]
+    public async Task<IActionResult> EvaluateExplanation([FromBody] EvaluateExplanationRequest request, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.Topic) ||
+            string.IsNullOrWhiteSpace(request.Reference) ||
+            string.IsNullOrWhiteSpace(request.Explanation))
+        {
+            return BadRequest(BaseResponse<ExplanationEvaluationDto>.Fail(
+                "topic, reference and explanation are required.", "MISSING_FIELDS"));
+        }
+
+        try
+        {
+            var json = await _aiService.EvaluateExplanationAsync(
+                request.Topic, request.Reference, request.Explanation, cancellationToken);
+            var dto = JsonSerializer.Deserialize<ExplanationEvaluationDto>(json,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            if (dto is null)
+                return StatusCode(502, BaseResponse<ExplanationEvaluationDto>.Fail(
+                    "The AI returned an unreadable evaluation.", "AI_BAD_RESPONSE"));
+
+            var safe = dto with
+            {
+                Score = Math.Clamp(dto.Score, 0, 100),
+                Strengths = dto.Strengths ?? [],
+                Gaps = dto.Gaps ?? [],
+                Suggestion = dto.Suggestion ?? string.Empty,
+            };
+            return Ok(BaseResponse<ExplanationEvaluationDto>.Ok(safe));
+        }
+        catch (JsonException)
+        {
+            return StatusCode(502, BaseResponse<ExplanationEvaluationDto>.Fail(
+                "The AI returned an unreadable evaluation.", "AI_BAD_RESPONSE"));
+        }
+        catch (Exception ex)
+        {
+            if (AiErrorMapper.TryGetAiError(ex.Message, out var statusCode, out var errorCode))
+                return StatusCode(statusCode, BaseResponse<ExplanationEvaluationDto>.Fail(ex.Message, errorCode));
+
+            return BadRequest(BaseResponse<ExplanationEvaluationDto>.Fail(ex.Message));
+        }
     }
 
     /// <summary>Test connection to the configured AI provider.</summary>
@@ -138,44 +210,7 @@ public class AiController : ControllerBase
 
         var history = (request.History ?? []).Select(h => (h.Role, h.Content));
         var stream = _aiService.StreamGeneralChatAsync(history, request.Message, cancellationToken);
-        await using var enumerator = stream.GetAsyncEnumerator(cancellationToken);
-
-        string? firstChunk;
-        try
-        {
-            if (!await enumerator.MoveNextAsync())
-                return NoContent();
-
-            firstChunk = enumerator.Current;
-        }
-        catch (OperationCanceledException)
-        {
-            return new EmptyResult();
-        }
-        catch (Exception ex)
-        {
-            return AiErrorMapper.ToObjectResult(this, ex.Message);
-        }
-
-        Response.SetSseHeaders();
-
-        try
-        {
-            await Response.WriteSseDataAsync(firstChunk, cancellationToken);
-
-            while (await enumerator.MoveNextAsync())
-            {
-                await Response.WriteSseDataAsync(enumerator.Current, cancellationToken);
-            }
-        }
-        catch (OperationCanceledException) { return new EmptyResult(); }
-        catch (Exception ex)
-        {
-            await Response.WriteSseDataAsync("[ERROR] " + ex.Message, cancellationToken);
-        }
-
-        await Response.WriteSseDoneAsync(cancellationToken);
-        return new EmptyResult();
+        return await this.StreamAiToSseAsync(stream, cancellationToken);
     }
 
     /// <summary>Streaming standalone AI chat, saving messages to DB on completion.</summary>
@@ -187,109 +222,38 @@ public class AiController : ControllerBase
     [ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status502BadGateway)]
     public async Task<IActionResult> StreamChatConversation(Guid conversationId, [FromBody] AIChatRequest request, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.Message))
-            return BadRequest(BaseResponse<string>.Fail("message is required.", "MISSING_MESSAGE"));
+        if (ChatAttachments.TryDecodeTurn(request.Attachments, request.Message, out var attachmentList, out var attachments) is { } invalid)
+            return invalid;
 
         var userId = User.GetUserId();
         var conversation = await _unitOfWork.ChatMessages.GetConversationAsync(conversationId, userId, cancellationToken);
         if (conversation is null)
             return NotFound(BaseResponse<string>.Fail("Conversation not found.", "CONVERSATION_NOT_FOUND"));
 
+        // An attachment-only turn still needs a textual prompt so the model has an instruction.
+        var promptMessage = ChatAttachments.PromptOrDefault(request.Message);
+        // Attachments are uploaded to blob storage; the JSON of stored references is saved on the user message.
+        var attachmentsJson = await ChatAttachmentStore.SaveAsync(_blobStorageService, attachments, userId, cancellationToken);
+        var savedMessage = request.Message ?? string.Empty;
+        var titleSource = !string.IsNullOrWhiteSpace(request.Message)
+            ? request.Message
+            : attachmentList.FirstOrDefault()?.FileName ?? "Attachment";
+
         var history = await _unitOfWork.ChatMessages.GetByConversationIdAsync(conversationId, userId, cancellationToken);
-        var stream = _aiService.StreamGeneralChatAsync(history.Select(m => (m.Role, m.Content)), request.Message, cancellationToken);
-        await using var enumerator = stream.GetAsyncEnumerator(cancellationToken);
-
-        string? firstChunk;
-        try
-        {
-            if (!await enumerator.MoveNextAsync())
-                return NoContent();
-
-            firstChunk = enumerator.Current;
-        }
-        catch (OperationCanceledException)
-        {
-            return new EmptyResult();
-        }
-        catch (Exception ex)
-        {
-            return AiErrorMapper.ToObjectResult(this, ex.Message);
-        }
-
-        var now = DateTime.UtcNow;
-        await _unitOfWork.ChatMessages.AddAsync(new ChatMessage
-        {
-            MessageId = Guid.NewGuid(),
-            ChatConversationId = conversationId,
-            SourceType = "general",
-            UserId = userId,
-            Role = "user",
-            Content = request.Message,
-            CreatedAt = now
-        }, cancellationToken);
-
-        if (!history.Any())
-            conversation.Title = CreateTitle(request.Message);
-        conversation.UpdatedAt = now;
-        _unitOfWork.ChatMessages.UpdateConversation(conversation);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-        Response.SetSseHeaders();
-
-        var fullResponse = new StringBuilder();
-        try
-        {
-            fullResponse.Append(firstChunk);
-            await Response.WriteSseDataAsync(firstChunk, cancellationToken);
-
-            while (await enumerator.MoveNextAsync())
-            {
-                var chunk = enumerator.Current;
-                fullResponse.Append(chunk);
-                await Response.WriteSseDataAsync(chunk, cancellationToken);
-            }
-
-            if (fullResponse.Length > 0)
-            {
-                var completedAt = DateTime.UtcNow;
-                await _unitOfWork.ChatMessages.AddAsync(new ChatMessage
-                {
-                    MessageId = Guid.NewGuid(),
-                    ChatConversationId = conversationId,
-                    SourceType = "general",
-                    UserId = userId,
-                    Role = "assistant",
-                    Content = fullResponse.ToString(),
-                    CreatedAt = completedAt
-                }, cancellationToken);
-
-                conversation.UpdatedAt = completedAt;
-                _unitOfWork.ChatMessages.UpdateConversation(conversation);
-                await _unitOfWork.SaveChangesAsync(cancellationToken);
-            }
-        }
-        catch (OperationCanceledException) { return new EmptyResult(); }
-        catch (Exception ex)
-        {
-            await Response.WriteSseDataAsync("[ERROR] " + ex.Message, cancellationToken);
-        }
-
-        await Response.WriteSseDoneAsync(cancellationToken);
-        return new EmptyResult();
+        var stream = _aiService.StreamGeneralChatAsync(history.Select(m => (m.Role, m.Content)), promptMessage, ChatAttachments.ToModelInputs(attachments), cancellationToken);
+        var thread = new ChatThread(userId, conversation, "general");
+        return await this.StreamAiToSseAsync(stream, cancellationToken,
+            beforeStream: ct => _chatTurns.RecordUserAsync(
+                thread,
+                savedMessage,
+                attachmentsJson,
+                history.Any() ? null : CreateTitle(titleSource),
+                ct),
+            onCompleted: (text, ct) => _chatTurns.RecordAssistantAsync(thread, text, ct));
     }
 
     private static GeneralChatConversationDto ToConversationDto(ChatConversation conversation)
         => new(conversation.ConversationId, conversation.Title, conversation.CreatedAt, conversation.UpdatedAt);
-
-    private static ChatMessageDto ToChatMessageDto(ChatMessage message)
-        => new(
-            message.MessageId,
-            message.DocumentId,
-            message.YouTubeVideoId,
-            message.SourceType,
-            message.Role,
-            message.Content,
-            message.CreatedAt);
 
     private static string CreateTitle(string message)
     {

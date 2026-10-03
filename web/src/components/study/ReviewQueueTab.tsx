@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Calendar, Brain, CheckCircle2, RotateCcw,
@@ -17,7 +17,13 @@ interface Props {
 
 type Rating = SessionRating;
 
-const MAX_NEW_PER_SESSION = 20;
+// Used until the server's own limits arrive (and if that request fails). Matches the value both
+// clients hard-coded before the limits were configurable.
+const FALLBACK_NEW_PER_DAY = 20;
+
+/** A missing or malformed limit must fall back, not turn the queue length into NaN. */
+const limitOr = (value: unknown, fallback: number): number =>
+  typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : fallback;
 
 // ── Weak-section sub-component ────────────────────────────────────────────────
 interface WeakSectionProps {
@@ -95,14 +101,38 @@ export const ReviewQueueTab: React.FC<Props> = ({ flashcards }) => {
     [flashcards],
   );
 
-  // Pre-session candidate list (live, used for the "start" panel counts)
+  // The user's own daily limits; failing soft to the old constant keeps the queue working when
+  // the request doesn't land.
+  const [limits, setLimits] = useState({ newCardsPerDay: FALLBACK_NEW_PER_DAY, maxReviewsPerDay: 0 });
+
+  useEffect(() => {
+    let cancelled = false;
+    flashcardService
+      .getFsrsSettings()
+      .then(s => {
+        if (!cancelled) {
+          setLimits({
+            newCardsPerDay: limitOr(s.newCardsPerDay, FALLBACK_NEW_PER_DAY),
+            maxReviewsPerDay: limitOr(s.maxReviewsPerDay, 0),
+          });
+        }
+      })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, []);
+
+  // Pre-session candidate list (live, used for the "start" panel counts).
+  //
+  // New cards get their own budget rather than only filling space left over by due ones: topping
+  // up to a fixed session size meant that once you had more due cards than the cap, you could
+  // never be introduced to a new card again.
   const candidateCards = useMemo(() => {
     const due = [...dueCards].sort(
       (a, b) => new Date(a.srs!.due).getTime() - new Date(b.srs!.due).getTime(),
     );
-    const fill = Math.max(0, MAX_NEW_PER_SESSION - due.length);
-    return [...due, ...newCards.slice(0, fill)];
-  }, [dueCards, newCards]);
+    const queue = [...due, ...newCards.slice(0, limits.newCardsPerDay)];
+    return limits.maxReviewsPerDay > 0 ? queue.slice(0, limits.maxReviewsPerDay) : queue;
+  }, [dueCards, newCards, limits]);
 
   // ── Session state ─────────────────────────────────────────────────
   const [sessionStarted, setSessionStarted] = useState(false);

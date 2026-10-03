@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
+using Pgvector;
 using StudyPlatform.Infrastructure.Data;
 
 #nullable disable
@@ -21,7 +22,88 @@ namespace StudyPlatform.Infrastructure.Migrations
                 .HasAnnotation("ProductVersion", "9.0.1")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
+            NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "pg_trgm");
+            NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "vector");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.AiUsageLog", b =>
+                {
+                    b.Property<Guid>("AiUsageLogId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("CachedPromptTokens")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("CompletionTokens")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("EstimatedCostUsd")
+                        .HasPrecision(12, 6)
+                        .HasColumnType("numeric(12,6)");
+
+                    b.Property<string>("Model")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<string>("Operation")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<int>("PromptTokens")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<bool>("Streamed")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("TotalTokens")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("AiUsageLogId");
+
+                    b.HasIndex("UserId", "CreatedAt");
+
+                    b.ToTable("AiUsageLogs");
+                });
+
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.CacheEntry", b =>
+                {
+                    b.Property<string>("Key")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<byte[]>("Value")
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.HasKey("Key");
+
+                    b.HasIndex("ExpiresAt");
+
+                    b.ToTable("CacheEntries");
+                });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.ChatConversation", b =>
                 {
@@ -31,6 +113,9 @@ namespace StudyPlatform.Infrastructure.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("DocumentId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -43,9 +128,16 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("VideoId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("ConversationId");
 
+                    b.HasIndex("DocumentId", "UserId");
+
                     b.HasIndex("UserId", "UpdatedAt");
+
+                    b.HasIndex("VideoId", "UserId");
 
                     b.ToTable("ChatConversations");
                 });
@@ -55,6 +147,9 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Property<Guid>("MessageId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
+
+                    b.Property<string>("AttachmentsJson")
+                        .HasColumnType("jsonb");
 
                     b.Property<Guid?>("ChatConversationId")
                         .HasColumnType("uuid");
@@ -84,7 +179,7 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("YouTubeVideoId")
+                    b.Property<Guid?>("VideoId")
                         .HasColumnType("uuid");
 
                     b.HasKey("MessageId");
@@ -93,51 +188,70 @@ namespace StudyPlatform.Infrastructure.Migrations
 
                     b.HasIndex("DocumentId");
 
-                    b.HasIndex("YouTubeVideoId");
+                    b.HasIndex("VideoId");
 
                     b.ToTable("ChatMessages", t =>
                         {
-                            t.HasCheckConstraint("chk_chat_messages_source", "(\"DocumentId\" IS NOT NULL AND \"YouTubeVideoId\" IS NULL AND \"ChatConversationId\" IS NULL AND \"SourceType\" = 'document') OR (\"YouTubeVideoId\" IS NOT NULL AND \"DocumentId\" IS NULL AND \"ChatConversationId\" IS NULL AND \"SourceType\" = 'video') OR (\"ChatConversationId\" IS NOT NULL AND \"DocumentId\" IS NULL AND \"YouTubeVideoId\" IS NULL AND \"SourceType\" = 'general')");
+                            t.HasCheckConstraint("chk_chat_messages_source", "(\"DocumentId\" IS NOT NULL AND \"VideoId\" IS NULL AND \"SourceType\" = 'document') OR (\"VideoId\" IS NOT NULL AND \"DocumentId\" IS NULL AND \"SourceType\" = 'video') OR (\"ChatConversationId\" IS NOT NULL AND \"DocumentId\" IS NULL AND \"VideoId\" IS NULL AND \"SourceType\" = 'general')");
                         });
                 });
 
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.ConceptLink", b =>
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.ContentEmbedding", b =>
                 {
-                    b.Property<Guid>("ConceptLinkId")
+                    b.Property<Guid>("ContentEmbeddingId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
+
+                    b.Property<int>("ChunkIndex")
+                        .HasColumnType("integer");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("LinkLabel")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                    b.Property<Vector>("Embedding")
+                        .IsRequired()
+                        .HasColumnType("vector(1536)");
 
-                    b.Property<Guid>("SourceEntityId")
+                    b.Property<string>("Model")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<string>("SourceHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<Guid>("SourceId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("SourceEntityType")
+                    b.Property<string>("SourceType")
                         .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
 
-                    b.Property<Guid>("TargetEntityId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("TargetEntityType")
+                    b.Property<string>("Text")
                         .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
+                        .HasColumnType("text");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
 
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
-                    b.HasKey("ConceptLinkId");
+                    b.HasKey("ContentEmbeddingId");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("Embedding");
 
-                    b.ToTable("ConceptLinks");
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Embedding"), "hnsw");
+                    NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("Embedding"), new[] { "vector_cosine_ops" });
+
+                    b.HasIndex("UserId", "SourceType", "SourceId");
+
+                    b.ToTable("ContentEmbeddings");
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.Course", b =>
@@ -172,6 +286,52 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.ToTable("Courses");
                 });
 
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.DataExportRequest", b =>
+                {
+                    b.Property<Guid>("DataExportRequestId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("BlobUrl")
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
+
+                    b.Property<DateTime?>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long?>("SizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("StartedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("DataExportRequestId");
+
+                    b.HasIndex("Status", "CreatedAt");
+
+                    b.HasIndex("UserId", "CreatedAt");
+
+                    b.ToTable("DataExportRequests");
+                });
+
             modelBuilder.Entity("StudyPlatform.Domain.Entities.Document", b =>
                 {
                     b.Property<Guid>("DocumentId")
@@ -188,11 +348,21 @@ namespace StudyPlatform.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<int>("ContentVersion")
+                        .HasColumnType("integer");
+
                     b.Property<Guid>("CourseId")
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ExtractedText")
+                        .HasColumnType("text");
+
+                    b.Property<string>("FileHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
 
                     b.Property<string>("FileName")
                         .IsRequired()
@@ -205,12 +375,21 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Property<string>("MindMapText")
                         .HasColumnType("text");
 
+                    b.Property<int>("MindMapVersion")
+                        .HasColumnType("integer");
+
                     b.Property<string>("OriginalUrl")
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
 
+                    b.Property<DateTime?>("SourceChangedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("Summary")
                         .HasColumnType("text");
+
+                    b.Property<int>("SummaryVersion")
+                        .HasColumnType("integer");
 
                     b.Property<string>("Transcript")
                         .HasColumnType("text");
@@ -225,7 +404,21 @@ namespace StudyPlatform.Infrastructure.Migrations
 
                     b.HasIndex("CourseId");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("FileName");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("FileName"), "gin");
+                    NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("FileName"), new[] { "gin_trgm_ops" });
+
+                    b.HasIndex("Summary");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Summary"), "gin");
+                    NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("Summary"), new[] { "gin_trgm_ops" });
+
+                    b.HasIndex("UserId", "CreatedAt");
+
+                    b.HasIndex("UserId", "FileHash")
+                        .IsUnique()
+                        .HasFilter("\"FileHash\" IS NOT NULL");
 
                     b.ToTable("Documents");
                 });
@@ -274,6 +467,41 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("DocumentAnnotations");
+                });
+
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.ExamPlan", b =>
+                {
+                    b.Property<Guid>("ExamPlanId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("CourseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("DailyMinutes")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("ExamDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("ExamPlanId");
+
+                    b.HasIndex("CourseId");
+
+                    b.HasIndex("UserId", "ExamDate");
+
+                    b.ToTable("ExamPlans");
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.Feedback", b =>
@@ -368,12 +596,24 @@ namespace StudyPlatform.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("ImageUrl")
+                        .HasColumnType("text");
+
+                    b.Property<string>("OcclusionsJson")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SourceAnchorJson")
+                        .HasColumnType("text");
+
                     b.Property<string>("SourceType")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
                         .HasDefaultValue("document");
+
+                    b.Property<int>("SourceVersion")
+                        .HasColumnType("integer");
 
                     b.PrimitiveCollection<List<string>>("Tags")
                         .IsRequired()
@@ -387,19 +627,82 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("YouTubeVideoId")
+                    b.Property<Guid?>("VideoId")
                         .HasColumnType("uuid");
 
                     b.HasKey("FlashcardId");
 
+                    b.HasIndex("Back");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Back"), "gin");
+                    NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("Back"), new[] { "gin_trgm_ops" });
+
                     b.HasIndex("DocumentId");
 
-                    b.HasIndex("YouTubeVideoId");
+                    b.HasIndex("Front");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Front"), "gin");
+                    NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("Front"), new[] { "gin_trgm_ops" });
+
+                    b.HasIndex("VideoId");
+
+                    b.HasIndex("UserId", "CreatedAt");
 
                     b.ToTable("Flashcards", t =>
                         {
-                            t.HasCheckConstraint("chk_flashcards_source", "(\"DocumentId\" IS NOT NULL AND \"YouTubeVideoId\" IS NULL AND \"SourceType\" = 'document') OR (\"YouTubeVideoId\" IS NOT NULL AND \"DocumentId\" IS NULL AND \"SourceType\" = 'video')");
+                            t.HasCheckConstraint("chk_flashcards_source", "(\"DocumentId\" IS NOT NULL AND \"VideoId\" IS NULL AND \"SourceType\" = 'document') OR (\"VideoId\" IS NOT NULL AND \"DocumentId\" IS NULL AND \"SourceType\" = 'video')");
                         });
+                });
+
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.FlashcardReviewLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<double>("DifficultyAfter")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("DifficultyBefore")
+                        .HasColumnType("double precision");
+
+                    b.Property<int>("ElapsedDays")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("FlashcardId")
+                        .HasColumnType("uuid");
+
+                    b.Property<double>("PredictedRetrievability")
+                        .HasColumnType("double precision");
+
+                    b.Property<int>("Rating")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("ReviewedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("ScheduledDays")
+                        .HasColumnType("integer");
+
+                    b.Property<double>("StabilityAfter")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("StabilityBefore")
+                        .HasColumnType("double precision");
+
+                    b.Property<int>("StateBefore")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "FlashcardId");
+
+                    b.HasIndex("UserId", "ReviewedAt");
+
+                    b.ToTable("FlashcardReviewLogs");
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.FlashcardSrsData", b =>
@@ -419,6 +722,9 @@ namespace StudyPlatform.Infrastructure.Migrations
 
                     b.Property<Guid>("FlashcardId")
                         .HasColumnType("uuid");
+
+                    b.Property<bool>("IsSuspended")
+                        .HasColumnType("boolean");
 
                     b.Property<int>("Lapses")
                         .HasColumnType("integer");
@@ -494,6 +800,12 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Property<Guid?>("DocumentId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("SourceAnchorJson")
+                        .HasColumnType("text");
+
+                    b.Property<int>("SourceVersion")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Term")
                         .IsRequired()
                         .HasMaxLength(500)
@@ -502,14 +814,26 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("YouTubeVideoId")
+                    b.Property<Guid?>("VideoId")
                         .HasColumnType("uuid");
 
                     b.HasKey("GlossaryTermId");
 
+                    b.HasIndex("Definition");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Definition"), "gin");
+                    NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("Definition"), new[] { "gin_trgm_ops" });
+
                     b.HasIndex("DocumentId");
 
-                    b.HasIndex("YouTubeVideoId");
+                    b.HasIndex("Term");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Term"), "gin");
+                    NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("Term"), new[] { "gin_trgm_ops" });
+
+                    b.HasIndex("VideoId");
+
+                    b.HasIndex("UserId", "Term");
 
                     b.ToTable("GlossaryTerms", (string)null);
                 });
@@ -540,6 +864,144 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("GroupChatMessages");
+                });
+
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.LibraryTag", b =>
+                {
+                    b.Property<Guid>("LibraryTagId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Color")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("LibraryTagId");
+
+                    b.HasIndex("UserId", "Kind", "Name")
+                        .IsUnique()
+                        .HasDatabaseName("IX_LibraryTags_User_Kind_Name");
+
+                    b.ToTable("LibraryTags");
+                });
+
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.LibraryTagAssignment", b =>
+                {
+                    b.Property<Guid>("LibraryTagId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ItemKind")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("AssignedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("LibraryTagId", "ItemKind", "ItemId");
+
+                    b.HasIndex("ItemKind", "ItemId");
+
+                    b.ToTable("LibraryTagAssignments");
+                });
+
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.MistakeEntry", b =>
+                {
+                    b.Property<Guid>("MistakeEntryId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CorrectAnswer")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("DocumentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Explanation")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("FirstMissedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("FlashcardId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("LastMissedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("OptionsJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Question")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("QuizId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ResolvedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("SourceType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<int>("TimesMissed")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("UserAnswer")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("VideoId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("MistakeEntryId");
+
+                    b.HasIndex("FlashcardId");
+
+                    b.HasIndex("UserId", "QuizId");
+
+                    b.HasIndex("UserId", "Status");
+
+                    b.ToTable("MistakeEntries");
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.Note", b =>
@@ -575,18 +1037,30 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("YouTubeVideoId")
+                    b.Property<Guid?>("VideoId")
                         .HasColumnType("uuid");
 
                     b.HasKey("NoteId");
 
+                    b.HasIndex("Content");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Content"), "gin");
+                    NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("Content"), new[] { "gin_trgm_ops" });
+
                     b.HasIndex("DocumentId");
 
-                    b.HasIndex("YouTubeVideoId");
+                    b.HasIndex("Title");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Title"), "gin");
+                    NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("Title"), new[] { "gin_trgm_ops" });
+
+                    b.HasIndex("VideoId");
+
+                    b.HasIndex("UserId", "UpdatedAt");
 
                     b.ToTable("Notes", t =>
                         {
-                            t.HasCheckConstraint("chk_notes_source", "(\"DocumentId\" IS NOT NULL AND \"YouTubeVideoId\" IS NULL AND \"SourceType\" = 'document') OR (\"YouTubeVideoId\" IS NOT NULL AND \"DocumentId\" IS NULL AND \"SourceType\" = 'video')");
+                            t.HasCheckConstraint("chk_notes_source", "(\"DocumentId\" IS NOT NULL AND \"VideoId\" IS NULL AND \"SourceType\" = 'document') OR (\"VideoId\" IS NOT NULL AND \"DocumentId\" IS NULL AND \"SourceType\" = 'video')");
                         });
                 });
 
@@ -634,6 +1108,53 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.ToTable("OtpCodes");
                 });
 
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.PageVisit", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Device")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<DateTime>("OccurredAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Path")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Referrer")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("SessionId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("VisitorId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OccurredAt");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("OccurredAt", "Path");
+
+                    b.ToTable("PageVisits");
+                });
+
             modelBuilder.Entity("StudyPlatform.Domain.Entities.Quiz", b =>
                 {
                     b.Property<Guid>("QuizId")
@@ -670,6 +1191,9 @@ namespace StudyPlatform.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("SourceAnchorJson")
+                        .HasColumnType("text");
+
                     b.Property<string>("SourceType")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -677,21 +1201,26 @@ namespace StudyPlatform.Infrastructure.Migrations
                         .HasColumnType("character varying(20)")
                         .HasDefaultValue("document");
 
+                    b.Property<int>("SourceVersion")
+                        .HasColumnType("integer");
+
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("YouTubeVideoId")
+                    b.Property<Guid?>("VideoId")
                         .HasColumnType("uuid");
 
                     b.HasKey("QuizId");
 
                     b.HasIndex("DocumentId");
 
-                    b.HasIndex("YouTubeVideoId");
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("VideoId");
 
                     b.ToTable("Quizzes", t =>
                         {
-                            t.HasCheckConstraint("chk_quizzes_source", "(\"DocumentId\" IS NOT NULL AND \"YouTubeVideoId\" IS NULL AND \"SourceType\" = 'document') OR (\"YouTubeVideoId\" IS NOT NULL AND \"DocumentId\" IS NULL AND \"SourceType\" = 'video')");
+                            t.HasCheckConstraint("chk_quizzes_source", "(\"DocumentId\" IS NOT NULL AND \"VideoId\" IS NULL AND \"SourceType\" = 'document') OR (\"VideoId\" IS NOT NULL AND \"DocumentId\" IS NULL AND \"SourceType\" = 'video')");
                         });
                 });
 
@@ -730,6 +1259,9 @@ namespace StudyPlatform.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("jsonb");
 
+                    b.Property<string>("ConfidenceJson")
+                        .HasColumnType("text");
+
                     b.Property<Guid?>("DocumentId")
                         .HasColumnType("uuid");
 
@@ -752,18 +1284,20 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("YouTubeVideoId")
+                    b.Property<Guid?>("VideoId")
                         .HasColumnType("uuid");
 
                     b.HasKey("SubmissionId");
 
                     b.HasIndex("DocumentId", "UserId");
 
-                    b.HasIndex("YouTubeVideoId", "UserId");
+                    b.HasIndex("UserId", "SubmittedAt");
+
+                    b.HasIndex("VideoId", "UserId");
 
                     b.ToTable("QuizSubmissions", t =>
                         {
-                            t.HasCheckConstraint("chk_quiz_submissions_source", "(\"DocumentId\" IS NOT NULL AND \"YouTubeVideoId\" IS NULL AND \"SourceType\" = 'document') OR (\"YouTubeVideoId\" IS NOT NULL AND \"DocumentId\" IS NULL AND \"SourceType\" = 'video')");
+                            t.HasCheckConstraint("chk_quiz_submissions_source", "(\"DocumentId\" IS NOT NULL AND \"VideoId\" IS NULL AND \"SourceType\" = 'document') OR (\"VideoId\" IS NOT NULL AND \"DocumentId\" IS NULL AND \"SourceType\" = 'video')");
                         });
                 });
 
@@ -776,18 +1310,39 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("DeviceName")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
                     b.Property<DateTime>("ExpiresAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
 
                     b.Property<bool>("IsRevoked")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
                         .HasDefaultValue(false);
 
+                    b.Property<DateTime?>("LastUsedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("SessionId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Token")
                         .IsRequired()
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
 
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
@@ -796,6 +1351,8 @@ namespace StudyPlatform.Infrastructure.Migrations
 
                     b.HasIndex("Token")
                         .IsUnique();
+
+                    b.HasIndex("UserId", "SessionId");
 
                     b.HasIndex("UserId", "IsRevoked", "ExpiresAt");
 
@@ -865,6 +1422,34 @@ namespace StudyPlatform.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("ShareTokens");
+                });
+
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.StreakCoverDay", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "Date")
+                        .IsUnique();
+
+                    b.ToTable("StreakCoverDays");
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.StudyGroup", b =>
@@ -947,13 +1532,51 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Property<DateTime>("SharedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid>("SharedByUserId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("StudyGroupSharedCourseId");
 
                     b.HasIndex("CourseId");
 
                     b.HasIndex("GroupId");
 
+                    b.HasIndex("SharedByUserId");
+
                     b.ToTable("StudyGroupSharedCourses");
+                });
+
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.StudySession", b =>
+                {
+                    b.Property<Guid>("StudySessionId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ContextId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ContextType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<Guid?>("CourseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("DurationSeconds")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("OccurredAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("StudySessionId");
+
+                    b.HasIndex("UserId", "OccurredAt");
+
+                    b.ToTable("StudySessions");
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.User", b =>
@@ -963,6 +1586,17 @@ namespace StudyPlatform.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("DailyStudyGoalMinutes")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(30);
+
+                    b.Property<DateTime?>("DeletionRequestedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DemoContentSeededAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Email")
@@ -990,6 +1624,12 @@ namespace StudyPlatform.Infrastructure.Migrations
                         .HasColumnType("boolean")
                         .HasDefaultValue(false);
 
+                    b.Property<DateTime?>("MistakesBackfilledAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("OnboardingDismissedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasColumnType("text");
@@ -1003,6 +1643,233 @@ namespace StudyPlatform.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.UserCalendarFeed", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastError")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("LastSyncedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Url")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("UserCalendarFeeds");
+                });
+
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.UserFsrsSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<double>("DesiredRetention")
+                        .HasColumnType("double precision");
+
+                    b.Property<bool>("EnableFuzz")
+                        .HasColumnType("boolean");
+
+                    b.Property<double?>("LogLossAfter")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("LogLossBefore")
+                        .HasColumnType("double precision");
+
+                    b.Property<int>("MaxReviewsPerDay")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("MaximumIntervalDays")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("NewCardsPerDay")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ReviewsAtOptimization")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("WeightsJson")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<DateTime?>("WeightsOptimizedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.ToTable("UserFsrsSettings");
+                });
+
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.UserPushSubscription", b =>
+                {
+                    b.Property<Guid>("UserPushSubscriptionId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Auth")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Endpoint")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)");
+
+                    b.Property<DateTime?>("LastNotifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("P256dh")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("UserPushSubscriptionId");
+
+                    b.HasIndex("Endpoint")
+                        .IsUnique();
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("UserPushSubscriptions");
+                });
+
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.Video", b =>
+                {
+                    b.Property<Guid>("VideoId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CourseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ExternalVideoId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("MindMapText")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SourceType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("youtube");
+
+                    b.Property<string>("Summary")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ThumbnailUrl")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("Transcript")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("VideoUrl")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.HasKey("VideoId");
+
+                    b.HasIndex("CourseId");
+
+                    b.HasIndex("Title");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Title"), "gin");
+                    NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("Title"), new[] { "gin_trgm_ops" });
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Videos");
+                });
+
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.VideoTranscriptEntry", b =>
+                {
+                    b.Property<string>("VideoId")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("Kind")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("SegmentsJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("VideoId", "Kind");
+
+                    b.HasIndex("ExpiresAt");
+
+                    b.ToTable("VideoTranscriptEntries");
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.WorkedProblem", b =>
@@ -1041,7 +1908,7 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("YouTubeVideoId")
+                    b.Property<Guid?>("VideoId")
                         .HasColumnType("uuid");
 
                     b.HasKey("WorkedProblemId");
@@ -1110,60 +1977,32 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.ToTable("WorkedProblemMastered");
                 });
 
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.YouTubeVideo", b =>
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.AiUsageLog", b =>
                 {
-                    b.Property<Guid>("YouTubeVideoId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
+                    b.HasOne("StudyPlatform.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
-                    b.Property<Guid>("CourseId")
-                        .HasColumnType("uuid");
+                    b.Navigation("User");
+                });
 
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.ChatConversation", b =>
+                {
+                    b.HasOne("StudyPlatform.Domain.Entities.Document", "Document")
+                        .WithMany()
+                        .HasForeignKey("DocumentId")
+                        .OnDelete(DeleteBehavior.Cascade);
 
-                    b.Property<string>("MindMapText")
-                        .HasColumnType("text");
+                    b.HasOne("StudyPlatform.Domain.Entities.Video", "Video")
+                        .WithMany()
+                        .HasForeignKey("VideoId")
+                        .OnDelete(DeleteBehavior.Cascade);
 
-                    b.Property<string>("Summary")
-                        .HasColumnType("text");
+                    b.Navigation("Document");
 
-                    b.Property<string>("ThumbnailUrl")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<string>("Transcript")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("VideoId")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("VideoUrl")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.HasKey("YouTubeVideoId");
-
-                    b.HasIndex("CourseId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("YouTubeVideos");
+                    b.Navigation("Video");
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.ChatMessage", b =>
@@ -1178,19 +2017,19 @@ namespace StudyPlatform.Infrastructure.Migrations
                         .HasForeignKey("DocumentId")
                         .OnDelete(DeleteBehavior.Cascade);
 
-                    b.HasOne("StudyPlatform.Domain.Entities.YouTubeVideo", "YouTubeVideo")
+                    b.HasOne("StudyPlatform.Domain.Entities.Video", "Video")
                         .WithMany("ChatMessages")
-                        .HasForeignKey("YouTubeVideoId")
+                        .HasForeignKey("VideoId")
                         .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("ChatConversation");
 
                     b.Navigation("Document");
 
-                    b.Navigation("YouTubeVideo");
+                    b.Navigation("Video");
                 });
 
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.ConceptLink", b =>
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.ContentEmbedding", b =>
                 {
                     b.HasOne("StudyPlatform.Domain.Entities.User", "User")
                         .WithMany()
@@ -1205,6 +2044,17 @@ namespace StudyPlatform.Infrastructure.Migrations
                 {
                     b.HasOne("StudyPlatform.Domain.Entities.User", "User")
                         .WithMany("Courses")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.DataExportRequest", b =>
+                {
+                    b.HasOne("StudyPlatform.Domain.Entities.User", "User")
+                        .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -1250,6 +2100,24 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.ExamPlan", b =>
+                {
+                    b.HasOne("StudyPlatform.Domain.Entities.Course", "Course")
+                        .WithMany()
+                        .HasForeignKey("CourseId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("StudyPlatform.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Course");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("StudyPlatform.Domain.Entities.Flashcard", b =>
                 {
                     b.HasOne("StudyPlatform.Domain.Entities.Document", "Document")
@@ -1257,14 +2125,14 @@ namespace StudyPlatform.Infrastructure.Migrations
                         .HasForeignKey("DocumentId")
                         .OnDelete(DeleteBehavior.Cascade);
 
-                    b.HasOne("StudyPlatform.Domain.Entities.YouTubeVideo", "YouTubeVideo")
+                    b.HasOne("StudyPlatform.Domain.Entities.Video", "Video")
                         .WithMany()
-                        .HasForeignKey("YouTubeVideoId")
+                        .HasForeignKey("VideoId")
                         .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("Document");
 
-                    b.Navigation("YouTubeVideo");
+                    b.Navigation("Video");
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.FlashcardSrsData", b =>
@@ -1296,14 +2164,14 @@ namespace StudyPlatform.Infrastructure.Migrations
                         .HasForeignKey("DocumentId")
                         .OnDelete(DeleteBehavior.Cascade);
 
-                    b.HasOne("StudyPlatform.Domain.Entities.YouTubeVideo", "YouTubeVideo")
+                    b.HasOne("StudyPlatform.Domain.Entities.Video", "Video")
                         .WithMany()
-                        .HasForeignKey("YouTubeVideoId")
+                        .HasForeignKey("VideoId")
                         .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("Document");
 
-                    b.Navigation("YouTubeVideo");
+                    b.Navigation("Video");
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.GroupChatMessage", b =>
@@ -1325,6 +2193,44 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.LibraryTag", b =>
+                {
+                    b.HasOne("StudyPlatform.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.LibraryTagAssignment", b =>
+                {
+                    b.HasOne("StudyPlatform.Domain.Entities.LibraryTag", "Tag")
+                        .WithMany("Assignments")
+                        .HasForeignKey("LibraryTagId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Tag");
+                });
+
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.MistakeEntry", b =>
+                {
+                    b.HasOne("StudyPlatform.Domain.Entities.Flashcard", null)
+                        .WithMany()
+                        .HasForeignKey("FlashcardId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("StudyPlatform.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("StudyPlatform.Domain.Entities.Note", b =>
                 {
                     b.HasOne("StudyPlatform.Domain.Entities.Document", "Document")
@@ -1332,14 +2238,14 @@ namespace StudyPlatform.Infrastructure.Migrations
                         .HasForeignKey("DocumentId")
                         .OnDelete(DeleteBehavior.Cascade);
 
-                    b.HasOne("StudyPlatform.Domain.Entities.YouTubeVideo", "YouTubeVideo")
+                    b.HasOne("StudyPlatform.Domain.Entities.Video", "Video")
                         .WithMany()
-                        .HasForeignKey("YouTubeVideoId")
+                        .HasForeignKey("VideoId")
                         .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("Document");
 
-                    b.Navigation("YouTubeVideo");
+                    b.Navigation("Video");
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.OtpCode", b =>
@@ -1352,6 +2258,16 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.PageVisit", b =>
+                {
+                    b.HasOne("StudyPlatform.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("StudyPlatform.Domain.Entities.Quiz", b =>
                 {
                     b.HasOne("StudyPlatform.Domain.Entities.Document", "Document")
@@ -1359,14 +2275,14 @@ namespace StudyPlatform.Infrastructure.Migrations
                         .HasForeignKey("DocumentId")
                         .OnDelete(DeleteBehavior.Cascade);
 
-                    b.HasOne("StudyPlatform.Domain.Entities.YouTubeVideo", "YouTubeVideo")
+                    b.HasOne("StudyPlatform.Domain.Entities.Video", "Video")
                         .WithMany()
-                        .HasForeignKey("YouTubeVideoId")
+                        .HasForeignKey("VideoId")
                         .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("Document");
 
-                    b.Navigation("YouTubeVideo");
+                    b.Navigation("Video");
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.QuizSubmission", b =>
@@ -1376,14 +2292,14 @@ namespace StudyPlatform.Infrastructure.Migrations
                         .HasForeignKey("DocumentId")
                         .OnDelete(DeleteBehavior.Cascade);
 
-                    b.HasOne("StudyPlatform.Domain.Entities.YouTubeVideo", "YouTubeVideo")
+                    b.HasOne("StudyPlatform.Domain.Entities.Video", "Video")
                         .WithMany()
-                        .HasForeignKey("YouTubeVideoId")
+                        .HasForeignKey("VideoId")
                         .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("Document");
 
-                    b.Navigation("YouTubeVideo");
+                    b.Navigation("Video");
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.RefreshToken", b =>
@@ -1452,9 +2368,58 @@ namespace StudyPlatform.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("StudyPlatform.Domain.Entities.User", "SharedBy")
+                        .WithMany()
+                        .HasForeignKey("SharedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.Navigation("Course");
 
                     b.Navigation("Group");
+
+                    b.Navigation("SharedBy");
+                });
+
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.StudySession", b =>
+                {
+                    b.HasOne("StudyPlatform.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.UserPushSubscription", b =>
+                {
+                    b.HasOne("StudyPlatform.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.Video", b =>
+                {
+                    b.HasOne("StudyPlatform.Domain.Entities.Course", "Course")
+                        .WithMany()
+                        .HasForeignKey("CourseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("StudyPlatform.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Course");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("StudyPlatform.Domain.Entities.WorkedProblem", b =>
@@ -1498,25 +2463,6 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Navigation("WorkedProblem");
                 });
 
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.YouTubeVideo", b =>
-                {
-                    b.HasOne("StudyPlatform.Domain.Entities.Course", "Course")
-                        .WithMany()
-                        .HasForeignKey("CourseId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("StudyPlatform.Domain.Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.Navigation("Course");
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("StudyPlatform.Domain.Entities.ChatConversation", b =>
                 {
                     b.Navigation("Messages");
@@ -1538,6 +2484,11 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Navigation("Quizzes");
                 });
 
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.LibraryTag", b =>
+                {
+                    b.Navigation("Assignments");
+                });
+
             modelBuilder.Entity("StudyPlatform.Domain.Entities.StudyGroup", b =>
                 {
                     b.Navigation("Members");
@@ -1556,14 +2507,14 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Navigation("RefreshTokens");
                 });
 
+            modelBuilder.Entity("StudyPlatform.Domain.Entities.Video", b =>
+                {
+                    b.Navigation("ChatMessages");
+                });
+
             modelBuilder.Entity("StudyPlatform.Domain.Entities.WorkedProblem", b =>
                 {
                     b.Navigation("Attempts");
-                });
-
-            modelBuilder.Entity("StudyPlatform.Domain.Entities.YouTubeVideo", b =>
-                {
-                    b.Navigation("ChatMessages");
                 });
 #pragma warning restore 612, 618
         }

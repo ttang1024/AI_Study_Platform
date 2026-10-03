@@ -1,162 +1,19 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { Transformer } from 'markmap-lib';
 import { Markmap } from 'markmap-view';
 import {
   Maximize2, Minimize2, RotateCcw, Loader2,
   Download, Image, FileDown, FileText,
   ZoomIn, ZoomOut,
-  Brain,
+  Brain, Pencil, Check, X,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { toPng } from 'html-to-image';
-import jsPDF from 'jspdf';
 import { cn } from '../../utils/cn';
 import { useStudy } from '../../context/StudyContext';
 import { documentService } from '../../services/documentService';
-import { getApiErrorCode } from '../../utils/apiError';
+import { getApiErrorCode } from '@core/utils/apiError';
 import { EmptyGenerationState, GenerationFailedState } from '../common/GenerationStates';
-
-// ─── Conversion: XMindMark text → Markdown ───────────────────────────────────
-
-interface TreeNode {
-  title: string;
-  children?: TreeNode[];
-}
-
-function legacyJsonToTree(text: string): TreeNode | null {
-  try {
-    return JSON.parse(text) as TreeNode;
-  } catch {
-    return null;
-  }
-}
-
-function treeNodeToMarkdown(node: TreeNode, depth = 0): string {
-  if (depth === 0) {
-    const childLines = (node.children ?? []).map(c => treeNodeToMarkdown(c, 1)).join('\n');
-    return `# ${node.title}${childLines ? '\n' + childLines : ''}`;
-  }
-  const indent = '  '.repeat(depth - 1);
-  const line = `${indent}- ${node.title}`;
-  const childLines = (node.children ?? []).map(c => treeNodeToMarkdown(c, depth + 1)).join('\n');
-  return childLines ? `${line}\n${childLines}` : line;
-}
-
-function xmindMarkToMarkdown(text: string): string {
-  const trimmed = text.trim();
-  if (!trimmed) return '';
-
-  if (trimmed.startsWith('{')) {
-    const tree = legacyJsonToTree(trimmed);
-    if (tree) return treeNodeToMarkdown(tree);
-  }
-
-  const lines = trimmed.split('\n').map(l => l.replace(/\t/g, '    '));
-  const out: string[] = [];
-  let rootFound = false;
-
-  for (const line of lines) {
-    if (!line.trim()) continue;
-    const bulletMatch = line.match(/^(\s*)[-*]\s+(.+)/);
-    if (!rootFound && !bulletMatch) {
-      out.push(`# ${line.trim()}`);
-      rootFound = true;
-    } else if (bulletMatch) {
-      rootFound = true;
-      const depth = Math.floor(bulletMatch[1].length / 4);
-      const title = bulletMatch[2].replace(/\s*\[[^\]]+\]/g, '').trim();
-      out.push('  '.repeat(depth) + `- ${title}`);
-    }
-  }
-
-  return out.join('\n');
-}
-
-// ─── Markmap renderer ─────────────────────────────────────────────────────────
-
-const transformer = new Transformer();
-
-function MarkmapRenderer({
-  text,
-  mmRef,
-}: {
-  text: string;
-  mmRef: React.MutableRefObject<Markmap | null>;
-}) {
-  const svgRef = useRef<SVGSVGElement>(null);
-  // Keep the latest transformed data so we can (re)create markmap when the tab becomes visible
-  const dataRef = useRef<any>(null);
-  const isHiddenRef = useRef(true);
-
-  // Transform text → data; if already visible, push update + refit
-  useEffect(() => {
-    const markdown = xmindMarkToMarkdown(text);
-    const { root } = transformer.transform(markdown);
-    dataRef.current = root;
-
-    if (mmRef.current && !isHiddenRef.current) {
-      mmRef.current.setData(root);
-      requestAnimationFrame(() => mmRef.current?.fit());
-    }
-  }, [text]);
-
-  // Create / destroy markmap based on SVG visibility.
-  // We MUST recreate (not just fit) each time the SVG goes from 0×0 → real dimensions,
-  // because Markmap.create() bakes the D3 zoom extent from the SVG size at creation time.
-  // A stale 0×0 extent causes fit() to use the wrong viewport centre and rescale() to
-  // zoom around (0,0) instead of the midpoint.
-  useEffect(() => {
-    const svg = svgRef.current;
-    if (!svg) return;
-
-    const ro = new ResizeObserver((entries) => {
-      const { width, height } = entries[0].contentRect;
-
-      if (width > 0 && height > 0 && isHiddenRef.current) {
-        // Hidden → visible: (re)create with correct dimensions
-        isHiddenRef.current = false;
-        if (mmRef.current) { mmRef.current.destroy(); mmRef.current = null; }
-        if (dataRef.current) {
-          mmRef.current = Markmap.create(svg, {}, dataRef.current);
-        }
-        // Double-rAF: first frame commits the creation paint, second reads final layout
-        requestAnimationFrame(() =>
-          requestAnimationFrame(() => {
-            mmRef.current?.fit();
-            svg.style.opacity = '1';
-          })
-        );
-      } else if ((width === 0 || height === 0) && !isHiddenRef.current) {
-        // Visible → hidden: tear down so next show starts with a fresh instance
-        isHiddenRef.current = true;
-        svg.style.opacity = '0';
-        if (mmRef.current) { mmRef.current.destroy(); mmRef.current = null; }
-      } else if (width > 0 && height > 0 && !isHiddenRef.current) {
-        // Already visible but dimensions changed (fullscreen toggle, window resize) → refit.
-        // markmap's own ResizeObserver only calls renderData(), never fit(), so we must do it.
-        // fit() is idempotent and cancels any in-progress transition, so rapid fires are safe.
-        requestAnimationFrame(() => mmRef.current?.fit());
-      }
-    });
-
-    ro.observe(svg);
-    return () => ro.disconnect();
-  }, []);
-
-  // Final cleanup on unmount
-  useEffect(() => () => {
-    if (mmRef.current) { mmRef.current.destroy(); mmRef.current = null; }
-  }, []);
-
-  // Start invisible; revealed only after fit() confirms correct centering
-  return (
-    <svg
-      ref={svgRef}
-      className="w-full h-full"
-      style={{ opacity: 0, transition: 'opacity 0.15s ease' }}
-    />
-  );
-}
+import { MarkmapRenderer } from './MarkmapRenderer';
+import { useMindMapDownloads } from './useMindMapDownloads';
 
 // ─── Shared control button ────────────────────────────────────────────────────
 
@@ -190,6 +47,8 @@ interface MindMapViewerProps {
   externalError?: string | null;
   generateDisabled?: boolean;
   generateDisabledReason?: string;
+  /** When provided, an Edit button lets the user revise the mind map source in place. */
+  onSaveEdit?: (text: string) => Promise<void>;
 }
 
 export const MindMapViewer: React.FC<MindMapViewerProps> = ({
@@ -201,6 +60,7 @@ export const MindMapViewer: React.FC<MindMapViewerProps> = ({
   externalError,
   generateDisabled = false,
   generateDisabledReason,
+  onSaveEdit,
 }) => {
   const { currentDocument, setCurrentDocument, updateDocumentInList } = useStudy();
   const isExternal = propOnGenerate !== undefined;
@@ -211,6 +71,9 @@ export const MindMapViewer: React.FC<MindMapViewerProps> = ({
   const [localStreamingText, setLocalStreamingText] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
   const [showDownloadMenu, setShowDownloadMenu] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editDraft, setEditDraft] = useState('');
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const mmRef = useRef<Markmap | null>(null);
   const streamingAccumRef = useRef('');
@@ -274,6 +137,28 @@ export const MindMapViewer: React.FC<MindMapViewerProps> = ({
     }
   };
 
+  const startEditing = () => {
+    setEditDraft(activeMindMarkText ?? '');
+    setShowDownloadMenu(false);
+    setIsEditing(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!onSaveEdit || isSavingEdit) return;
+    setIsSavingEdit(true);
+    try {
+      await onSaveEdit(editDraft);
+      // Reflect the edit immediately in internal (document) mode; in external mode the
+      // parent updates its own source of truth.
+      if (!isExternal) setLocalMindMarkText(editDraft);
+      setIsEditing(false);
+    } catch {
+      // Keep edit mode open so the user doesn't lose their changes on failure.
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
   const handleFit = useCallback(() => mmRef.current?.fit(), []);
 
   // markmap's rescale() has a math bug — the formula only keeps the viewport center
@@ -313,61 +198,9 @@ export const MindMapViewer: React.FC<MindMapViewerProps> = ({
     return () => document.removeEventListener('mousedown', handler);
   }, [showDownloadMenu]);
 
-  const downloadAsImage = useCallback(async () => {
-    setShowDownloadMenu(false);
-    const el = containerRef.current;
-    if (!el) return;
-    const dataUrl = await toPng(el, { backgroundColor: '#ffffff', pixelRatio: 2 });
-    const a = document.createElement('a');
-    a.href = dataUrl;
-    a.download = `${downloadName}.png`;
-    a.click();
-  }, [downloadName]);
-
-  const downloadAsPdf = useCallback(async () => {
-    setShowDownloadMenu(false);
-    const el = containerRef.current;
-    if (!el) return;
-    const dataUrl = await toPng(el, { backgroundColor: '#ffffff', pixelRatio: 2 });
-    const img = new window.Image();
-    img.src = dataUrl;
-    await new Promise(r => { img.onload = r; });
-    const pdf = new jsPDF({
-      orientation: img.width > img.height ? 'landscape' : 'portrait',
-      unit: 'px',
-      format: [img.width, img.height],
-    });
-    pdf.addImage(dataUrl, 'PNG', 0, 0, img.width, img.height);
-    pdf.save(`${downloadName}.pdf`);
-  }, [downloadName]);
-
-  const downloadAsXMind = useCallback(async () => {
-    setShowDownloadMenu(false);
-    if (!activeMindMarkText) return;
-    try {
-      const { parseXMindMarkToXMindFile } = await import('xmindmark');
-      const buffer = await parseXMindMarkToXMindFile(activeMindMarkText);
-      const blob = new Blob([buffer], { type: 'application/vnd.xmind.workbook' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `${downloadName}.xmind`;
-      a.click();
-      URL.revokeObjectURL(a.href);
-    } catch (err) {
-      console.error('xmind download failed', err);
-    }
-  }, [activeMindMarkText, downloadName]);
-
-  const downloadAsXMindMark = useCallback(() => {
-    setShowDownloadMenu(false);
-    if (!activeMindMarkText) return;
-    const blob = new Blob([activeMindMarkText], { type: 'text/plain' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `${downloadName}.xmindmark`;
-    a.click();
-    URL.revokeObjectURL(a.href);
-  }, [activeMindMarkText, downloadName]);
+  const closeDownloadMenu = useCallback(() => setShowDownloadMenu(false), []);
+  const { downloadAsImage, downloadAsPdf, downloadAsXMind, downloadAsXMindMark } =
+    useMindMapDownloads({ mmRef, activeMindMarkText, downloadName, closeMenu: closeDownloadMenu });
 
   // ─── States ──────────────────────────────────────────────────────────────────
 
@@ -410,6 +243,37 @@ export const MindMapViewer: React.FC<MindMapViewerProps> = ({
     >
       <MarkmapRenderer text={activeMindMarkText} mmRef={mmRef} />
 
+      {isEditing && (
+        <div className="absolute inset-0 z-40 flex flex-col gap-3 bg-white/95 backdrop-blur-sm p-4">
+          <p className="text-xs font-bold uppercase tracking-wider text-text-muted">
+            Edit mind map — one root line, then indented <span className="font-mono normal-case">-</span> bullets
+          </p>
+          <textarea
+            autoFocus
+            value={editDraft}
+            onChange={e => setEditDraft(e.target.value)}
+            className="flex-1 w-full resize-none rounded-xl border border-[var(--primary)]/40 bg-[var(--bg-app)] p-3 text-sm text-text-main outline-none focus:border-[var(--primary)] font-mono leading-relaxed"
+            placeholder={'Root topic\n  - Branch\n    - Sub-branch'}
+          />
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={() => setIsEditing(false)}
+              disabled={isSavingEdit}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-text-muted hover:bg-zinc-100 transition-all border border-[var(--border-color)] disabled:opacity-50"
+            >
+              <X size={13} /> Cancel
+            </button>
+            <button
+              onClick={handleSaveEdit}
+              disabled={isSavingEdit || !editDraft.trim()}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-[var(--primary)] hover:opacity-90 transition-all disabled:opacity-50"
+            >
+              {isSavingEdit ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />} Save
+            </button>
+          </div>
+        </div>
+      )}
+
       {isGenerating && (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-white/90 backdrop-blur-sm rounded-full px-4 py-2 shadow-md border border-zinc-100">
           <Loader2 className="h-3.5 w-3.5 animate-spin text-[var(--primary)]" />
@@ -444,6 +308,16 @@ export const MindMapViewer: React.FC<MindMapViewerProps> = ({
         <CtrlBtn onClick={toggleFullscreen} title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}>
           {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
         </CtrlBtn>
+
+        {onSaveEdit && (
+          <>
+            <Divider />
+            {/* Edit */}
+            <CtrlBtn onClick={startEditing} title="Edit mind map">
+              <Pencil size={16} />
+            </CtrlBtn>
+          </>
+        )}
 
         <Divider />
 
@@ -483,7 +357,7 @@ export const MindMapViewer: React.FC<MindMapViewerProps> = ({
                   onClick={downloadAsXMindMark}
                   className="flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 rounded-xl transition-colors"
                 >
-                  <FileText size={15} className="text-zinc-400" /> XMindMark Text
+                  <FileText size={15} className="text-zinc-400" /> XMindMark
                 </button>
               </motion.div>
             )}

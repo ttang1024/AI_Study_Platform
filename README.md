@@ -4,162 +4,140 @@
 
 ### AI-powered learning — from any content, in any subject
 
+**[toto-study.com](https://toto-study.com)**
+
 [![.NET](https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com)
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14+-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org)
-[![Redis](https://img.shields.io/badge/Redis-7-DC382D?logo=redis&logoColor=white)](https://redis.io)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17_+_pgvector-4169E1?logo=postgresql&logoColor=white)](https://github.com/pgvector/pgvector)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 </div>
 
-Upload documents, YouTube videos, podcasts, and web articles — let AI generate summaries, flashcards, quizzes, glossaries, and mind maps. Master any topic with spaced repetition and an AI tutor.
-
----
+Upload a document, paste a video or podcast link, clip a web article — AI turns it into summaries,
+flashcards, quizzes, glossaries and mind maps, and an FSRS-4.5 scheduler drives it into memory.
 
 ![Study Platform demo](demos/StudyPlatformDemo.gif)
 
 ---
 
+## Examples
+
+I study with this platform myself and publish what it generates using the share button, real output from my own material, open to anyone, no account needed.
+
+- **Transformers** (from a PDF) — summary, mind map, 14 flashcards, 4 quiz questions
+  https://toto-study.com/share/Xlv92yWNx_6Q
+
+- **Transformers, the tech behind LLMs** (from a YouTube video) — summary, mind map, 6 flashcards, 4 quiz questions
+  https://toto-study.com/share/RmnAj0xf25B8
+
+---
+
 ## Features
 
-|     | Category             | What you get                                                                                                        |
-| --- | -------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| 📄  | **Content Sources**  | PDF / DOCX upload, YouTube videos, web article clipping, audio files, Apple Podcasts                                |
-| 🤖  | **AI Generation**    | Summaries, flashcards (basic / cloze / chart), quizzes, glossaries, mind maps, worked problems, concept links       |
-| 🎯  | **Study Tools**      | Rich-text notes, AI tutor chat, scored quizzes, FSRS-4.5 spaced repetition, reinforcement center, knowledge graph   |
-| 📚  | **Question Bank**    | Course-wide question bank with difficulty filter, mistake tracking, and answer-reveal per question                  |
-| 🔊  | **Extra Features**   | PDF annotations, text-to-speech, Anki export, full-text search, shareable content links                            |
-| 👥  | **Study Groups**     | Create / join groups, share courses & documents, real-time group chat                                               |
-| 🔐  | **Auth**             | Email + OTP, Google OAuth, GitHub OAuth, JWT sessions                                                               |
+|     | Category          | What you get                                                                                       |
+| --- | ----------------- | -------------------------------------------------------------------------------------------------- |
+| 📄  | **Content**       | 234 document types (PDF, Office, eBooks, notebooks, code; OCR for scans), video from 11 sites or upload, audio, podcasts, web articles — duplicates caught by hash |
+| 🤖  | **AI Generation** | Summaries, flashcards, adaptive quizzes, glossaries, mind maps, worked problems — each cites its source passage and goes stale when that source changes |
+| 🎯  | **Study**         | FSRS-4.5 spaced repetition, per-user scheduler tuning, rich-text notes, chat with dictation and read-aloud, graded teach-back, photo problem capture |
+| 🗓️  | **Today & Exams** | Daily plan, one-button **smart session** (due reviews + mistake redos + weak concepts), practice/exam mode, exam planner with AI mock exams and cram sheets, mistakes notebook |
+| 📊  | **Insights**      | Time-on-task, accuracy trends, per-course mastery, knowledge gaps, AI recommendations, AI usage and cost |
+| 🔎  | **Search**        | Semantic search that matches concepts, not words, plus ask-your-library answers with clickable citations |
+| 🔊  | **Extras**        | Tags and collections, PDF annotations, text-to-speech, share links, offline PWA, push reminders, study groups with live chat |
+| 🔄  | **Import/Export** | Anki, Markdown notes, quiz CSV / GIFT / QTI, ICS calendar feed, web-clipper bookmarklet |
+| 📱  | **Mobile**        | [`rn/`](rn/README.md) Expo app at full web parity — biometric lock, camera scan-to-summarize, offline review |
 
-**AI Providers** — Gemini · OpenAI · Claude · Grok · DeepSeek · Qwen · Wenxin Yiyan (multi-provider routing, switchable from settings)
+**AI providers** — Gemini · OpenAI · Claude · Grok · DeepSeek · Kimi · Doubao · Qwen · Wenxin Yiyan.
+Switchable from settings; keys stay client-side and travel per request.
 
 ---
 
 ## Tech Stack
 
-**Backend** — .NET 10 · ASP.NET Core · EF Core 9 · MediatR · FluentValidation · PostgreSQL · Redis · Azure Blob Storage · Whisper.net · MailKit · JWT
-
-**Frontend** — React 19 · TypeScript 5.8 · Vite 6 · TailwindCSS 4 · React Router 7 · Tiptap · D3.js + Markmap · Axios
-
+**Backend** — .NET 10 · ASP.NET Core · EF Core 9 · MediatR · FluentValidation · SignalR · PostgreSQL + pgvector · S3 · yt-dlp · ffmpeg · Whisper.net · JWT
+**Frontend** — React 19 · TypeScript 5.8 · Vite 6 · TailwindCSS 4 · React Router 7 · Tiptap · Markmap · Service Worker + idb-keyval
+**Mobile** — React Native 0.86 · Expo SDK 57 · expo-router ([`rn/README.md`](rn/README.md))
+**Shared** — `packages/core` (`@study/core`): API services, SSE reader and DTOs used by `web/` and `rn/`
 **Architecture** — Clean Architecture · CQRS · Repository + Unit of Work · SSE streaming
-
----
-
-## Prerequisites
-
-| Software   | Version | Install                                                                                                      |
-| ---------- | ------- | ------------------------------------------------------------------------------------------------------------ |
-| .NET SDK   | 10.0    | [dotnet.microsoft.com](https://dotnet.microsoft.com/download)                                                |
-| Node.js    | 18+     | [nodejs.org](https://nodejs.org)                                                                             |
-| PostgreSQL | 14+     | [postgresql.org](https://www.postgresql.org/download)                                                        |
-| Redis      | 7+      | [redis.io](https://redis.io/docs/latest/operate/oss_and_stack/install/install-redis/) / `brew install redis` |
-| ffmpeg     | any     | `brew install ffmpeg` / `apt install ffmpeg`                                                                 |
-| Azurite    | latest  | `npm install -g azurite`                                                                                     |
-
-**Required API keys:** Google Gemini, Google OAuth 2.0, GitHub OAuth App, Gmail SMTP, Azure Storage (prod)
-
-**Optional AI providers:** OpenAI, Anthropic Claude, DeepSeek, xAI Grok, Alibaba Qwen, Baidu Wenxin Yiyan
 
 ---
 
 ## Local Setup
 
-```bash
-# 1. Clone
-git clone https://github.com/your-username/Study_Platform.git
-cd Study_Platform
+Needs .NET SDK 10 · Node 18+ · PostgreSQL 17 with
+[pgvector](https://github.com/pgvector/pgvector) (stock Postgres will not migrate) · ffmpeg · AWS CLI,
+plus a Gemini key, Google + GitHub OAuth apps, SMTP/SES email, and S3 or MinIO. Redis is optional and
+off by default.
 
-# 2. Create database
+```bash
+git clone https://github.com/ttang1024/AI_Study_Platform.git && cd AI_Study_Platform
+
 psql postgres -c "CREATE USER studyplatform WITH PASSWORD 'yourpassword';"
 psql postgres -c "CREATE DATABASE studyplatform OWNER studyplatform;"
+docker compose up -d minio minio-init          # MinIO console :9001, minioadmin / minioadmin123
 
-# 3. Start local services (keep running)
-redis-server
-azurite-blob --blobHost 127.0.0.1 --blobPort 10000
-
-# 4. Configure backend — edit server/StudyPlatform.API/appsettings.Development.json
-
-# 5. Run migrations
-cd server
+cd server                                      # configure appsettings.Development.json first (below)
 dotnet ef database update --project StudyPlatform.Infrastructure --startup-project StudyPlatform.API
+dotnet run --project StudyPlatform.API         # → http://localhost:5001
 
-# 6. Start backend
-dotnet run --project StudyPlatform.API     # → http://localhost:5000
-
-# 7. Start frontend
-cd web && cp .env.example .env.local && npm install && npm run dev   # → http://localhost:3000
-cd admin && npm install && npm run dev                                # → http://localhost:3001
+cd web && npm install && npm run dev           # → http://localhost:3000
+cd rn  && npm install && npx expo start        # mobile; env setup in rn/README.md
 ```
 
 ---
 
-## Environment Variables
+## Configuration
 
 **`server/StudyPlatform.API/appsettings.Development.json`**
 
 ```jsonc
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Host=localhost;Port=5432;Database=studyplatform;Username=studyplatform;Password=yourpassword"
-  },
-  "Redis": {
-    "ConnectionString": "localhost:6379",
-    "InstanceName": "StudyPlatform:"
+    "DefaultConnection": "Host=localhost;Port=5432;Database=studyplatform;Username=studyplatform;Password=yourpassword",
   },
   "JwtSettings": {
     "SecretKey": "your-32-char-secret",
-    "Issuer": "Study Platform",
-    "Audience": "Study Platform Users",
     "AccessTokenExpiryMinutes": 15,
-    "RefreshTokenExpiryDays": 7
+    "RefreshTokenExpiryDays": 7,
   },
   "EmailSettings": {
+    "Provider": "Ses",
     "FromEmail": "you@gmail.com",
-    "SmtpHost": "smtp.gmail.com",
-    "SmtpPort": 587,
-    "SmtpUser": "you@gmail.com",
-    "SmtpPassword": "xxxx xxxx xxxx xxxx" // Gmail App Password
+    "SesRegion": "ap-southeast-2",
   },
-  "AzureStorage": {
-    "ConnectionString": "UseDevelopmentStorage=true",
-    "ContainerName": "documents-dev"
+  // local MinIO
+  "S3": {
+    "BucketName": "documents-dev",
+    "ServiceUrl": "http://localhost:9000",
+    "PublicServiceUrl": "http://localhost:9000",
+    "ForcePathStyle": true,
+    "AccessKey": "minioadmin",
+    "SecretKey": "minioadmin123",
   },
   "GoogleOAuth": { "ClientId": "xxxx.apps.googleusercontent.com", "ClientSecret": "GOCSPX-..." },
   "GitHubOAuth": { "ClientId": "Ov23lic...", "ClientSecret": "..." },
   "Cors": { "AllowedOrigins": ["http://localhost:3000", "http://localhost:3001"] },
-  "AppLimits": { "DocumentUploadLimit": -1 } // -1 = unlimited for local dev
+  "Redis": { "Enabled": false }, // off → cache falls through to the Postgres CacheEntries tier
+  "AppLimits": { "DocumentUploadLimit": -1 }, // -1 = unlimited
+  "Vapid": { "PublicKey": "", "PrivateKey": "" }, // optional browser push: npx web-push generate-vapid-keys
+  "AiUsage": { "DailyTokenLimit": 0 }, // optional metering; pricing in appsettings.Production.json
 }
 ```
 
-**`web/.env.local`**
+**`web/.env.local`** (and `admin/.env.local` with just `VITE_API_URL`)
 
 ```bash
-VITE_API_URL=http://localhost:5000
+VITE_API_URL=http://localhost:5001
 VITE_GOOGLE_CLIENT_ID=xxxx.apps.googleusercontent.com
 VITE_GITHUB_CLIENT_ID=Ov23lic...
 ```
-
-**`admin/.env.local`**
-
-```bash
-VITE_API_URL=http://localhost:5000
-```
-
----
-
-## Upload Limits
-
-The hosted deployment enforces a **10-document upload limit per account** to control storage costs. Set `AppLimits__DocumentUploadLimit=-1` to disable the limit in a self-hosted environment.
 
 ---
 
 ## Deployment
 
-### Docker (self-hosted)
-
-Includes PostgreSQL and Redis — no external database or cache needed.
+**Docker (self-hosted)** — bundles PostgreSQL and MinIO, so no external database or storage account is
+needed.
 
 ```bash
 cp .env.example .env          # fill in all values
@@ -168,45 +146,15 @@ docker compose exec api dotnet ef database update \
   --project StudyPlatform.Infrastructure --startup-project StudyPlatform.API
 ```
 
-| Service  | URL                           |
-| -------- | ----------------------------- |
-| Web      | http://localhost:3000         |
-| Admin    | http://localhost:4200         |
-| API      | http://localhost:5000         |
-| Swagger  | http://localhost:5000/swagger |
+Web `:3000` · Admin `:4200` · API + Swagger `:5001` · MinIO console `:9001`. `VITE_*` values are baked
+in at build time — rebuild the frontend images after changing them.
 
-> `VITE_*` variables are baked in at build time — rebuild frontend images after changing them.
-
-### Azure Deployment
-
-Use `deploy.sh` for the first Azure deployment. It provisions the API, PostgreSQL, storage, and static `web`/`admin` frontends.
-
-```bash
-export DB_PASS=...
-export JWT_SECRET=...
-export GOOGLE_CLIENT_ID=...
-export GOOGLE_CLIENT_SECRET=...
-export GITHUB_CLIENT_ID=...
-export GITHUB_CLIENT_SECRET=...
-export SMTP_USER=...
-export SMTP_PASSWORD=...
-
-bash deploy.sh
-```
-
-### YouTube Subtitle Fetching (Production)
-
-YouTube may block subtitle requests from cloud IPs. Route yt-dlp traffic through a proxy:
-
-```bash
-# SOCKS / HTTP proxy
-export YOUTUBE_PROXY_URL="socks5://USERNAME:PASSWORD@proxy.example.com:PORT"
-
-# Cookie authentication (for videos requiring sign-in)
-export YOUTUBE_COOKIES_B64="$(base64 < cookies.txt | tr -d '\n')"
-
-./deploy-backend.sh
-```
+**AWS** — the API runs as one Docker container on a Lightsail instance behind CloudFront, the `web`
+and `admin` builds are served from S3 + CloudFront, and the database is Supabase. No RDS, no
+ElastiCache, no load balancer. `./deploy.sh` builds and ships everything but does not create the
+Lightsail instance: set that up once with `scripts/lightsail-provision.sh` (DEPLOYMENT.md §4c).
+One box means a deploy is a short outage and there is no second availability zone.
+[DEPLOYMENT.md](DEPLOYMENT.md) is the full runbook.
 
 ---
 
