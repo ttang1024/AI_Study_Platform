@@ -172,4 +172,18 @@ public class S3BlobStorageService : IBlobStorageService
     {
         return Task.FromResult(GetSasUrl(blobUrl, expiryMinutes));
     }
+
+    public Task<string> GetMediaUrlAsync(string blobUrl, string contentType, int expiryMinutes = 60, CancellationToken cancellationToken = default)
+    {
+        var request = new GetPreSignedUrlRequest
+        {
+            BucketName = _bucketName,
+            Key = GetObjectKey(blobUrl),
+            Verb = HttpVerb.GET,
+            Protocol = _presignProtocol,
+            Expires = DateTime.UtcNow.AddMinutes(expiryMinutes),
+        };
+        request.ResponseHeaderOverrides.ContentType = contentType;
+        return Task.FromResult(_presignClient.GetPreSignedURL(request));
+    }
 }

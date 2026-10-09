@@ -28,8 +28,8 @@ public class ExportFlashcardsToAnkiQueryHandler : IRequestHandler<ExportFlashcar
 
         if (request.CourseId.HasValue)
         {
-            var course = await _unitOfWork.Courses.GetByIdAsync(request.CourseId.Value, ct);
-            if (course == null || course.UserId != request.UserId)
+            var course = await _unitOfWork.Courses.GetOwnedAsync(request.CourseId.Value, request.UserId, ct);
+            if (course == null)
                 return Result<AnkiPackageDto>.Failure("Course not found.", "COURSE_NOT_FOUND");
             deckName = course.CourseName;
 

@@ -39,8 +39,8 @@ public class GenerateWorkedProblemsCommandHandler : IRequestHandler<GenerateWork
 
         if (request.DocumentId.HasValue)
         {
-            var doc = await _unitOfWork.Documents.GetByIdAsync(request.DocumentId.Value, cancellationToken);
-            if (doc == null || doc.UserId != request.UserId)
+            var doc = await _unitOfWork.Documents.GetOwnedAsync(request.DocumentId.Value, request.UserId, cancellationToken);
+            if (doc == null)
                 return Result<IEnumerable<WorkedProblemDto>>.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
             content = await _textExtractor.ExtractTextAsync(doc.BlobUrl, doc.ContentType, cancellationToken);
         }

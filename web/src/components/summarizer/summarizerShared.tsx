@@ -90,7 +90,7 @@ export function RecentDocuments({ docs, getCourse }: {
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {docs.map(doc => (
-          <DocumentCard key={doc.id} doc={doc} course={getCourse(doc.courseId)} compact />
+          <DocumentCard key={doc.id} doc={doc} course={doc.courseId ? getCourse(doc.courseId) : undefined} compact />
         ))}
       </div>
     </motion.div>

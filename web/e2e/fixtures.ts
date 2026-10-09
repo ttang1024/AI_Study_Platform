@@ -347,7 +347,6 @@ const json = (route: Route, data: unknown) =>
 
 export async function signInForE2E(page: Page) {
   await page.addInitScript(() => {
-    window.localStorage.setItem('sp_access_token', 'e2e-access-token')
     window.localStorage.setItem(
       'sp_user',
       JSON.stringify({ id: 'user-e2e', email: 'student@example.com', name: 'Test Student' }),
@@ -379,6 +378,11 @@ export async function mockStudyApi(page: Page) {
     const url = new URL(route.request().url())
     const path = url.pathname
     const method = route.request().method()
+
+    // The access token is memory-only, so every page load re-mints it from the refresh cookie.
+    if (path === '/api/auth/refresh-token' && method === 'POST') {
+      return json(route, { accessToken: 'e2e-access-token' })
+    }
 
     const deleteDocMatch = path.match(/^\/api\/courses\/[^/]+\/documents\/([^/]+)$/)
     if (method === 'DELETE' && deleteDocMatch) {

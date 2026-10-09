@@ -24,7 +24,7 @@ public static class RefreshTokenFactory
             TokenId = Guid.NewGuid(),
             SessionId = sessionId ?? Guid.NewGuid(),
             UserId = userId,
-            Token = tokenValue,
+            Token = RefreshTokenHash.Compute(tokenValue),
             ExpiresAt = now.Add(AuthTokenLifetimes.RefreshToken),
             IsRevoked = false,
             CreatedAt = now,

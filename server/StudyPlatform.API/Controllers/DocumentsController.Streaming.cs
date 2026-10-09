@@ -1,3 +1,4 @@
+using StudyPlatform.Domain.Interfaces;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using StudyPlatform.API.Extensions;
@@ -22,8 +23,8 @@ public partial class DocumentsController
     public async Task<IActionResult> StreamMindMap(Guid courseId, Guid documentId, CancellationToken cancellationToken)
     {
         var userId = User.GetUserId();
-        var document = await _unitOfWork.Documents.GetByIdAsync(documentId, cancellationToken);
-        if (document == null || document.UserId != userId)
+        var document = await _unitOfWork.Documents.GetOwnedAsync(documentId, userId, cancellationToken);
+        if (document == null)
             return NotFound(BaseResponse<string>.Fail("Document not found.", "DOCUMENT_NOT_FOUND"));
 
         IAsyncEnumerable<string> stream;
@@ -46,8 +47,6 @@ public partial class DocumentsController
         return await this.StreamAiToSseAsync(stream, cancellationToken, onCompleted: async (text, ct) =>
         {
             document.MindMapText = text;
-            // Built from the file as it stands now, so it is current by definition.
-            document.MindMapVersion = document.ContentVersion;
             document.UpdatedAt = DateTime.UtcNow;
             _unitOfWork.Documents.Update(document);
             await _unitOfWork.SaveChangesAsync(ct);
@@ -65,8 +64,8 @@ public partial class DocumentsController
     public async Task<IActionResult> StreamSummary(Guid courseId, Guid documentId, CancellationToken cancellationToken)
     {
         var userId = User.GetUserId();
-        var document = await _unitOfWork.Documents.GetByIdAsync(documentId, cancellationToken);
-        if (document == null || document.UserId != userId)
+        var document = await _unitOfWork.Documents.GetOwnedAsync(documentId, userId, cancellationToken);
+        if (document == null)
             return NotFound(BaseResponse<string>.Fail("Document not found.", "DOCUMENT_NOT_FOUND"));
 
         IAsyncEnumerable<string> stream;
@@ -95,8 +94,6 @@ public partial class DocumentsController
         return await this.StreamAiToSseAsync(stream, cancellationToken, onCompleted: async (text, ct) =>
         {
             document.Summary = text;
-            // Built from the file as it stands now, so it is current by definition.
-            document.SummaryVersion = document.ContentVersion;
             document.UpdatedAt = DateTime.UtcNow;
             _unitOfWork.Documents.Update(document);
             await _unitOfWork.SaveChangesAsync(ct);
@@ -162,8 +159,8 @@ public partial class DocumentsController
             return invalid;
 
         var userId = User.GetUserId();
-        var document = await _unitOfWork.Documents.GetByIdAsync(documentId, cancellationToken);
-        if (document == null || document.UserId != userId)
+        var document = await _unitOfWork.Documents.GetOwnedAsync(documentId, userId, cancellationToken);
+        if (document == null)
             return NotFound(BaseResponse<string>.Fail("Document not found.", "DOCUMENT_NOT_FOUND"));
 
         // Resolve the thread this turn belongs to. Old clients send no

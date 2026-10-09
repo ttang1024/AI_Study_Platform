@@ -1,6 +1,8 @@
+using StudyPlatform.Domain.Interfaces;
+
 namespace StudyPlatform.Domain.Entities;
 
-public class Video
+public class Video : IUserOwned
 {
     public Guid VideoId { get; set; }
     public Guid UserId { get; set; }
@@ -13,6 +15,12 @@ public class Video
     public string? Summary { get; set; }
     public string? MindMapText { get; set; }
     public string? Transcript { get; set; }
+
+    /// <summary>
+    /// Set while an uploaded video waits for (or is in) background transcription; cleared when it
+    /// finishes or fails. Lets a restarted API resume the job and lets readers say "still transcribing".
+    /// </summary>
+    public DateTime? TranscriptionRequestedAt { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 

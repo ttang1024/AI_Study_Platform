@@ -23,21 +23,34 @@ public partial class YouTubeTranscriptService
         if (_cache.TryGetValue(cacheKey, out IReadOnlyList<(TimeSpan, TimeSpan, string)>? cached))
             return cached;
 
-        try
+        // The web video page asks for /subtitles and /transcript at once; both land here, so share
+        // one yt-dlp run per video instead of racing two through the proxy pool.
+        return await CaptionFetches.RunAsync(videoId, async () =>
         {
-            var raw = await FetchCaptionsAsync(videoId, ct);
-            if (raw is null || raw.Count == 0)
-                return null;
+            using var timeout = new CancellationTokenSource(SharedCaptionFetchTimeout);
+            try
+            {
+                var raw = await FetchCaptionsAsync(videoId, timeout.Token);
+                if (raw is null || raw.Count == 0)
+                    return null;
 
-            _cache.Set(cacheKey, (IReadOnlyList<(TimeSpan, TimeSpan, string)>)raw, TimeSpan.FromMinutes(10));
-            return raw;
-        }
-        catch (YouTubeTranscriptUnavailableException)
-        {
-            _cache.Set(failureCacheKey, true, TimeSpan.FromMinutes(2));
-            throw;
-        }
+                _cache.Set(cacheKey, raw, TimeSpan.FromMinutes(10));
+                return raw;
+            }
+            catch (YouTubeTranscriptUnavailableException)
+            {
+                _cache.Set(failureCacheKey, true, TimeSpan.FromMinutes(2));
+                throw;
+            }
+        }, ct);
     }
+
+    // Static because the service is a transient typed HttpClient: the two requests get different instances.
+    private static readonly SingleFlight<string, IReadOnlyList<(TimeSpan Offset, TimeSpan Duration, string Text)>?> CaptionFetches = new();
+
+    // The shared fetch outlives any one caller's request, so it carries its own bound
+    // (5 yt-dlp attempts plus the track download).
+    private static readonly TimeSpan SharedCaptionFetchTimeout = TimeSpan.FromMinutes(3);
 
     private async Task<IReadOnlyList<(TimeSpan Offset, TimeSpan Duration, string Text)>?> GetRawCaptionsFromUrlAsync(
         string videoUrl, CancellationToken ct)
@@ -107,9 +120,11 @@ public partial class YouTubeTranscriptService
                 $"https://www.youtube.com/watch?v={videoId}"
             ], ct);
         }
-        catch (Exception ex) when (IsConnectivityFailure(ex, ct))
+        // ct is the shared fetch's own timeout (see GetRawCaptionsAsync), so a cancellation here is a
+        // timeout, never a caller giving up.
+        catch (Exception ex) when (ex is OperationCanceledException or YtDlpBlockedException || IsConnectivityFailure(ex, ct))
         {
-            _logger.LogWarning(ex, "yt-dlp timed out fetching captions for video {VideoId}", videoId);
+            _logger.LogWarning(ex, "yt-dlp could not reach YouTube fetching captions for video {VideoId}", videoId);
             throw new YouTubeTranscriptUnavailableException(videoId, ex);
         }
         catch (Exception ex)

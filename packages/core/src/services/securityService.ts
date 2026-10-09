@@ -32,12 +32,6 @@ export function createSecurityService(http: HttpClient) {
         confirmation,
       }),
 
-    /** Reachable without a session, because requesting deletion revoked them all. */
-    cancelAccountDeletion: (email: string, password: string) =>
-      http.post<{ success: boolean; message: string }>('/api/auth/cancel-deletion', {
-        email,
-        password,
-      }),
   };
 }
 

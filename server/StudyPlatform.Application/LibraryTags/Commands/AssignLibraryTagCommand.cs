@@ -30,8 +30,8 @@ public class AssignLibraryTagCommandHandler
     public async Task<Result<BulkTagResultDto>> Handle(
         AssignLibraryTagCommand request, CancellationToken cancellationToken)
     {
-        var tag = await _unitOfWork.LibraryTags.GetByIdAsync(request.LibraryTagId, cancellationToken);
-        if (tag == null || tag.UserId != request.UserId)
+        var tag = await _unitOfWork.LibraryTags.GetOwnedAsync(request.LibraryTagId, request.UserId, cancellationToken);
+        if (tag == null)
             return Result<BulkTagResultDto>.Failure("Not found.", "TAG_NOT_FOUND");
 
         if (request.Items.Count == 0)

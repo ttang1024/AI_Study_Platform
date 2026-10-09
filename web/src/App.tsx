@@ -13,6 +13,7 @@ import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { EmailVerificationPage } from './pages/EmailVerificationPage';
 import { OAuthCallbackPage } from './pages/OAuthCallbackPage';
+import { FEATURE_PAGE_SLUGS } from './seo/featurePageSlugs';
 
 // All authenticated pages are lazy so heavy dependencies (d3/markmap, katex,
 // tiptap, pdf/docx viewers, export libs) load with the page that uses them
@@ -27,7 +28,7 @@ const lazyPage = <T extends Record<string, React.ComponentType<any>>, K extends 
 // loads never render it. Anonymous visitors start fetching it immediately (in
 // parallel with app bootstrap) so their first paint still waits on ~one request.
 const landingLoader = () => import('./pages/LandingPage');
-if (!localStorage.getItem('sp_access_token')) void landingLoader();
+if (!localStorage.getItem('sp_user')) void landingLoader();
 const LandingPage = lazyPage(landingLoader, 'LandingPage');
 
 const DashboardPage = lazyPage(() => import('./pages/DashboardPage'), 'DashboardPage');
@@ -55,6 +56,8 @@ const OfflinePage = lazyPage(() => import('./pages/OfflinePage'), 'OfflinePage')
 const DocumentDetailsPage = lazyPage(() => import('./pages/DocumentDetailsPage'), 'DocumentDetailsPage');
 const CourseStudyPage = lazyPage(() => import('./pages/CourseStudyPage'), 'CourseStudyPage');
 const SharedContentPage = lazyPage(() => import('./pages/SharedContentPage'), 'SharedContentPage');
+// Public SEO landing pages, one per search intent. Only the slugs are in the entry chunk.
+const FeaturePage = lazyPage(() => import('./pages/FeaturePage'), 'FeaturePage');
 
 /** Posts a page-view beacon on every route change. Renders nothing; must sit inside the router. */
 const PageVisitTracker: React.FC = () => {
@@ -119,6 +122,9 @@ export default function App() {
                   <Route path="/login" element={<LoginPage />} />
                   <Route path="/register" element={<RegisterPage />} />
                   <Route path="/verify-email" element={<EmailVerificationPage />} />
+                  {FEATURE_PAGE_SLUGS.map((slug) => (
+                    <Route key={slug} path={`/${slug}`} element={<FeaturePage slug={slug} />} />
+                  ))}
 
                   <Route path="/" element={
                     <ProtectedRoute>

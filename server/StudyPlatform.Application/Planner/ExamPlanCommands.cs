@@ -31,8 +31,8 @@ public class CreateExamPlanCommandHandler : IRequestHandler<CreateExamPlanComman
         string? courseName = null;
         if (request.CourseId.HasValue)
         {
-            var course = await _unitOfWork.Courses.GetByIdAsync(request.CourseId.Value, cancellationToken);
-            if (course == null || course.UserId != request.UserId)
+            var course = await _unitOfWork.Courses.GetOwnedAsync(request.CourseId.Value, request.UserId, cancellationToken);
+            if (course == null)
                 return Result<ExamPlanDto>.Failure("Course not found.", "COURSE_NOT_FOUND");
             courseName = course.CourseName;
         }

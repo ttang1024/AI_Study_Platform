@@ -101,12 +101,14 @@ public class EmbeddingService : IEmbeddingService
             outputDimensionality = ContentEmbeddingConfiguration.Dimensions,
         });
 
+        // Key in a header, not the query string, so it never appears in a logged URL.
         using var request = new HttpRequestMessage(
             HttpMethod.Post,
-            $"{baseUrl}/{model}:batchEmbedContents?key={_options.ApiKey}")
+            $"{baseUrl}/{model}:batchEmbedContents")
         {
             Content = JsonBody(new { requests }),
         };
+        request.Headers.Add("x-goog-api-key", _options.ApiKey);
 
         using var response = await SendAsync(request, cancellationToken);
         using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));

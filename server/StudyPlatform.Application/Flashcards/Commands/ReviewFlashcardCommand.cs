@@ -28,8 +28,8 @@ public class ReviewFlashcardCommandHandler : IRequestHandler<ReviewFlashcardComm
         if (request.Rating is < 1 or > 4)
             return Result<ReviewFlashcardResponse>.Failure("Rating must be 1–4.", "INVALID_RATING");
 
-        var flashcard = await _unitOfWork.Flashcards.GetByIdAsync(request.FlashcardId, cancellationToken);
-        if (flashcard == null || flashcard.UserId != request.UserId)
+        var flashcard = await _unitOfWork.Flashcards.GetOwnedAsync(request.FlashcardId, request.UserId, cancellationToken);
+        if (flashcard == null)
             return Result<ReviewFlashcardResponse>.Failure("Flashcard not found.", "FLASHCARD_NOT_FOUND");
 
         var srs = await _unitOfWork.FlashcardSrs.GetByUserAndFlashcardAsync(

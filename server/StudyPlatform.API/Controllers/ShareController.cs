@@ -18,11 +18,13 @@ public class ShareController : ControllerBase
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly IBlobStorageService _blobStorage;
+    private readonly IRichTextSanitizer _sanitizer;
 
-    public ShareController(IUnitOfWork unitOfWork, IBlobStorageService blobStorage)
+    public ShareController(IUnitOfWork unitOfWork, IBlobStorageService blobStorage, IRichTextSanitizer sanitizer)
     {
         _unitOfWork = unitOfWork;
         _blobStorage = blobStorage;
+        _sanitizer = sanitizer;
     }
 
     [HttpPost]
@@ -32,6 +34,13 @@ public class ShareController : ControllerBase
         CancellationToken cancellationToken = default)
     {
         var userId = User.GetUserId();
+
+        // The anonymous media endpoints serve whatever the source path names, so a share may only name
+        // a document or upload its creator owns.
+        if (!await IsOwnedSourceAsync(request.SourceUrl, userId, cancellationToken))
+            return BadRequest(BaseResponse<CreateShareResponse>.Fail(
+                "You can only share content you own.", "SOURCE_NOT_OWNED"));
+
         var token = GenerateToken();
 
         var share = new ShareToken
@@ -42,7 +51,7 @@ public class ShareController : ControllerBase
             Title = request.Title,
             Summary = request.Summary,
             MindMapText = request.MindMapText,
-            NotesHtml = request.NotesHtml,
+            NotesHtml = SanitizeNotes(request.NotesHtml, request.SourceType),
             QuizzesJson = request.QuizzesJson,
             FlashcardsJson = request.FlashcardsJson,
             GlossaryJson = request.GlossaryJson,
@@ -92,7 +101,7 @@ public class ShareController : ControllerBase
         string? fileType = null;
         if (share.SourceType == "document" && share.SourceUrl != null && TryParseDocPath(share.SourceUrl, out var fileDocId))
         {
-            var fileDoc = await _unitOfWork.Documents.GetSourceRefAsync(fileDocId, cancellationToken);
+            var fileDoc = await _unitOfWork.Documents.GetSourceRefAsync(fileDocId, share.OwnerId, cancellationToken);
             if (fileDoc != null)
                 fileType = fileDoc.ContentType;
         }
@@ -103,7 +112,8 @@ public class ShareController : ControllerBase
             share.Owner?.FullName ?? "Anonymous",
             share.Summary,
             share.MindMapText,
-            share.NotesHtml,
+            // Sanitized again on the way out: shares written before sanitization existed are still stored raw.
+            SanitizeNotes(share.NotesHtml, share.SourceType),
             quizzes,
             flashcards,
             glossary,
@@ -143,7 +153,7 @@ public class ShareController : ControllerBase
         if (error != null) return error;
 
         var stream = await _blobStorage.DownloadAsync(doc!.BlobUrl, cancellationToken);
-        return File(stream, "text/plain; charset=utf-8");
+        return this.UntrustedFile(stream, "text/plain; charset=utf-8");
     }
 
     // GET /api/share/{token}/file  — anonymous, streams document file through the server (avoids CORS)
@@ -155,8 +165,7 @@ public class ShareController : ControllerBase
         if (error != null) return error;
 
         var stream = await _blobStorage.DownloadAsync(doc!.BlobUrl, cancellationToken);
-        var contentType = string.IsNullOrWhiteSpace(doc.ContentType) ? "application/octet-stream" : doc.ContentType;
-        return File(stream, contentType);
+        return this.UntrustedFile(stream, doc.ContentType);
     }
 
     // GET /api/share/{token}/video — anonymous, streams an uploaded video shared by its owner
@@ -174,8 +183,9 @@ public class ShareController : ControllerBase
         if (video == null || video.UserId != share.OwnerId || video.SourceType != "upload")
             return NotFound();
 
-        var stream = await _blobStorage.DownloadAsync(video.VideoUrl, cancellationToken);
-        return File(stream, MediaFormatting.GetVideoContentType(video.VideoUrl), enableRangeProcessing: true);
+        // Redirect rather than proxy, as for the owner's own playback (VideoController.GetUploadedVideoFile).
+        return Redirect(await _blobStorage.GetMediaUrlAsync(
+            video.VideoUrl, MediaFormatting.GetVideoContentType(video.VideoUrl), cancellationToken: cancellationToken));
     }
 
     /// <summary>
@@ -202,8 +212,61 @@ public class ShareController : ControllerBase
         if (!TryParseDocPath(share!.SourceUrl!, out var docId))
             return (null, NotFound());
 
-        var doc = await _unitOfWork.Documents.GetSourceRefAsync(docId, cancellationToken);
+        var doc = await _unitOfWork.Documents.GetSourceRefAsync(docId, share.OwnerId, cancellationToken);
         return doc == null ? (null, NotFound()) : (doc, null);
+    }
+
+    /// <summary>
+    /// True when <paramref name="sourceUrl"/> is not an internal reference (empty, or an external URL
+    /// such as a YouTube link), or names a document or uploaded video owned by <paramref name="userId"/>.
+    /// </summary>
+    private async Task<bool> IsOwnedSourceAsync(string? sourceUrl, Guid userId, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(sourceUrl))
+            return true;
+
+        // Video first: "video/{id}" also has the two-segment shape of a document path.
+        if (TryParseVideoPath(sourceUrl, out var videoId))
+        {
+            var video = await _unitOfWork.Videos.GetByIdAsync(videoId, cancellationToken);
+            return video != null && video.UserId == userId;
+        }
+
+        if (TryParseDocPath(sourceUrl, out var docId))
+            return await _unitOfWork.Documents.GetSourceRefAsync(docId, userId, cancellationToken) != null;
+
+        return true;
+    }
+
+    /// <summary>
+    /// Notes are rendered as HTML by every client, so they are sanitized — except a chat share's JSON
+    /// transcript, which clients render as plain text / Markdown and which HTML-encoding would corrupt.
+    /// The exemption matches exactly the shape clients route to their transcript renderer (source type
+    /// "chat" and a <c>chat-transcript</c> payload); anything else is treated as HTML.
+    /// </summary>
+    private string? SanitizeNotes(string? notes, string? sourceType)
+    {
+        if (string.IsNullOrWhiteSpace(notes) || (sourceType == "chat" && IsChatTranscriptJson(notes)))
+            return notes;
+        return _sanitizer.Sanitize(notes);
+    }
+
+    private static bool IsChatTranscriptJson(string value)
+    {
+        if (!value.TrimStart().StartsWith('{'))
+            return false;
+        try
+        {
+            using var doc = JsonDocument.Parse(value);
+            return doc.RootElement.ValueKind == JsonValueKind.Object
+                && doc.RootElement.TryGetProperty("type", out var type)
+                && type.ValueKind == JsonValueKind.String
+                && type.GetString() == "chat-transcript";
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
     }
 
     private static bool TryParseDocPath(string sourceUrl, out Guid docId)

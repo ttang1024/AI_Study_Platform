@@ -92,6 +92,24 @@ public class ExternalSignInTests
     }
 
     [Fact]
+    public async Task CompleteAsync_PendingDeletion_CancelsItAndSignsIn()
+    {
+        // Provider accounts have no password, so signing in is their only way to call deletion off.
+        var user = new User
+        {
+            UserId = Guid.NewGuid(), Email = "existing@example.com", FullName = "Existing", IsActive = false,
+            DeletionRequestedAt = DateTime.UtcNow.AddDays(-1),
+        };
+        ExistingUser(user);
+
+        var result = await _signIn.CompleteAsync(new OAuthUserInfo("existing@example.com", "Existing"));
+
+        Assert.True(result.IsSuccess);
+        Assert.True(user.IsActive);
+        Assert.Null(user.DeletionRequestedAt);
+    }
+
+    [Fact]
     public async Task CompleteAsync_IssuesTheSessionForTheResolvedUser()
     {
         var existing = new User

@@ -8,6 +8,7 @@ import { http } from './http'
 import { streamSse } from './streamSse'
 import { apiClient } from './apiClient'
 import { getApiUrl } from '../utils/env'
+import { getAccessToken } from './accessToken'
 
 export * from '@core/services/videoService'
 
@@ -38,7 +39,7 @@ export const videoService = {
 	},
 
 	getUploadedVideoStreamUrl(videoRecordId: string): string {
-		const token = typeof window !== 'undefined' ? localStorage.getItem('sp_access_token') : null
+		const token = getAccessToken()
 		const baseUrl = getApiUrl()
 		const path = `${VIDEO_API}/${videoRecordId}/file`
 		return token
@@ -47,7 +48,7 @@ export const videoService = {
 	},
 
 	getUploadedVideoThumbnailUrl(videoRecordId: string): string {
-		const token = typeof window !== 'undefined' ? localStorage.getItem('sp_access_token') : null
+		const token = getAccessToken()
 		const baseUrl = getApiUrl()
 		const path = `${VIDEO_API}/${videoRecordId}/thumbnail`
 		return token

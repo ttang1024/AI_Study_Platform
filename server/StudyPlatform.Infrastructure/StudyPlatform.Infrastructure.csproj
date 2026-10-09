@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <PackageReference Include="DocumentFormat.OpenXml" Version="3.4.1" />
+    <PackageReference Include="HtmlSanitizer" Version="9.2.1039" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.1" />
     <!-- Pinned ahead of what Microsoft.Data.Sqlite asks for (2.1.10/2.1.11): those bundle a SQLite
          older than 3.50.2 and carry CVE-2025-6965. 2.1.12 is the same 2.1.x line, so it stays

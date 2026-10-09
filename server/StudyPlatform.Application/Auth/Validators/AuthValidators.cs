@@ -109,3 +109,12 @@ public class ChangePasswordValidator : AbstractValidator<ChangePasswordCommand>
             .Must(PasswordPolicy.IsValid).WithMessage(PasswordPolicy.Message);
     }
 }
+
+// FullName mirrors UserConfiguration; it is also rendered in emails (HTML-encoded there).
+public class UpdateProfileValidator : AbstractValidator<UpdateProfileCommand>
+{
+    public UpdateProfileValidator()
+    {
+        RuleFor(x => x.FullName).NotEmpty().MaximumLength(200);
+    }
+}

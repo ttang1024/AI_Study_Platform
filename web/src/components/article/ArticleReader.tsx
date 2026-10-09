@@ -9,6 +9,7 @@ import { Document } from '../../types';
 import { getApiUrl } from '../../utils/env';
 import { ArticleReaderSkeleton } from '../common/DetailPageSkeleton';
 import { remarkProseDollars } from './remarkProseDollars';
+import { getAccessToken } from '../../services/accessToken';
 
 // Stable module-scope references. react-markdown remounts the whole markdown subtree when a
 // plugin array's identity changes, which wipes the reader's text selection mid-highlight.
@@ -23,22 +24,22 @@ const REHYPE_PLUGINS: React.ComponentProps<typeof ReactMarkdown>['rehypePlugins'
   [[rehypeKatex, { strict: false }]];
 
 const MARKDOWN_COMPONENTS = {
-  h1: ({ children }: { children: React.ReactNode }) => <h1 className="text-2xl font-black mt-8 mb-3 text-text-main">{children}</h1>,
-  h2: ({ children }: { children: React.ReactNode }) => <h2 className="text-xl font-bold mt-6 mb-2 text-text-main">{children}</h2>,
-  h3: ({ children }: { children: React.ReactNode }) => <h3 className="text-lg font-semibold mt-5 mb-2 text-text-main">{children}</h3>,
-  h4: ({ children }: { children: React.ReactNode }) => <h4 className="text-base font-semibold mt-4 mb-1 text-text-main">{children}</h4>,
-  h5: ({ children }: { children: React.ReactNode }) => <h5 className="text-sm font-semibold mt-3 mb-1 text-text-main">{children}</h5>,
-  h6: ({ children }: { children: React.ReactNode }) => <h6 className="text-xs font-semibold mt-3 mb-1 text-text-muted">{children}</h6>,
-  p: ({ children }: { children: React.ReactNode }) => <p className="mb-4">{children}</p>,
-  ul: ({ children }: { children: React.ReactNode }) => <ul className="mb-4 ml-5 list-disc space-y-1">{children}</ul>,
-  ol: ({ children }: { children: React.ReactNode }) => <ol className="mb-4 ml-5 list-decimal space-y-1">{children}</ol>,
-  li: ({ children }: { children: React.ReactNode }) => <li className="leading-relaxed">{children}</li>,
-  blockquote: ({ children }: { children: React.ReactNode }) => (
+  h1: ({ children }: { children?: React.ReactNode }) => <h1 className="text-2xl font-black mt-8 mb-3 text-text-main">{children}</h1>,
+  h2: ({ children }: { children?: React.ReactNode }) => <h2 className="text-xl font-bold mt-6 mb-2 text-text-main">{children}</h2>,
+  h3: ({ children }: { children?: React.ReactNode }) => <h3 className="text-lg font-semibold mt-5 mb-2 text-text-main">{children}</h3>,
+  h4: ({ children }: { children?: React.ReactNode }) => <h4 className="text-base font-semibold mt-4 mb-1 text-text-main">{children}</h4>,
+  h5: ({ children }: { children?: React.ReactNode }) => <h5 className="text-sm font-semibold mt-3 mb-1 text-text-main">{children}</h5>,
+  h6: ({ children }: { children?: React.ReactNode }) => <h6 className="text-xs font-semibold mt-3 mb-1 text-text-muted">{children}</h6>,
+  p: ({ children }: { children?: React.ReactNode }) => <p className="mb-4">{children}</p>,
+  ul: ({ children }: { children?: React.ReactNode }) => <ul className="mb-4 ml-5 list-disc space-y-1">{children}</ul>,
+  ol: ({ children }: { children?: React.ReactNode }) => <ol className="mb-4 ml-5 list-decimal space-y-1">{children}</ol>,
+  li: ({ children }: { children?: React.ReactNode }) => <li className="leading-relaxed">{children}</li>,
+  blockquote: ({ children }: { children?: React.ReactNode }) => (
     <blockquote className="my-4 border-l-4 border-[var(--primary)] pl-4 text-text-muted italic">{children}</blockquote>
   ),
-  strong: ({ children }: { children: React.ReactNode }) => <strong className="font-bold">{children}</strong>,
-  em: ({ children }: { children: React.ReactNode }) => <em className="italic">{children}</em>,
-  a: ({ href, children }: { href?: string; children: React.ReactNode }) => (
+  strong: ({ children }: { children?: React.ReactNode }) => <strong className="font-bold">{children}</strong>,
+  em: ({ children }: { children?: React.ReactNode }) => <em className="italic">{children}</em>,
+  a: ({ href, children }: { href?: string; children?: React.ReactNode }) => (
     <a href={href} target="_blank" rel="noopener noreferrer" className="text-[var(--primary)] underline underline-offset-2 hover:opacity-80">{children}</a>
   ),
   hr: () => <hr className="my-6 border-[var(--border-color)]" />,
@@ -54,7 +55,7 @@ const MARKDOWN_COMPONENTS = {
       {alt && <span className="mt-1 block text-center text-xs text-text-muted italic">{alt}</span>}
     </span>
   ),
-  code: ({ children, className }: { children: React.ReactNode; className?: string }) =>
+  code: ({ children, className }: { children?: React.ReactNode; className?: string }) =>
     className
       ? <code className={`${className} text-sm font-mono`}>{children}</code>
       : <code className="rounded bg-zinc-100 px-1 py-0.5 text-sm font-mono">{children}</code>,
@@ -64,7 +65,7 @@ const MARKDOWN_COMPONENTS = {
   // that carried no language) arrives looking exactly like inline code, and paints its
   // near-white chip background under text this <pre> has already coloured white. Deciding it
   // here, where being inside a block is a fact rather than a guess, is what prevents that.
-  pre: ({ children }: { children: React.ReactNode }) => (
+  pre: ({ children }: { children?: React.ReactNode }) => (
     <pre className="mb-4 overflow-x-auto rounded-lg bg-zinc-900 text-zinc-100 p-4 text-sm font-mono [&_code]:bg-transparent [&_code]:p-0 [&_code]:text-inherit">
       {children}
     </pre>
@@ -89,7 +90,7 @@ export const ArticleReader: React.FC<ArticleReaderProps> = React.memo(({ documen
     setIsLoading(true);
     setError(null);
 
-    const token = localStorage.getItem('sp_access_token');
+    const token = getAccessToken();
     fetch(`${API_URL}/api/courses/${document.courseId}/documents/${document.id}/file`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     })

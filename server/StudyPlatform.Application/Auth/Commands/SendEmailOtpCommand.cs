@@ -22,31 +22,31 @@ public class SendEmailOtpCommandHandler : IRequestHandler<SendEmailOtpCommand, R
 
     public async Task<Result> Handle(SendEmailOtpCommand request, CancellationToken cancellationToken)
     {
+        var email = OtpVerifier.NormalizeEmail(request.Email);
         var purpose = request.Purpose.ToLowerInvariant() == "registration"
             ? OtpPurpose.Registration
             : OtpPurpose.PasswordReset;
 
-        if (purpose == OtpPurpose.Registration)
+        // Answers the same whether or not the address has an account — otherwise this endpoint tells
+        // anyone which emails are registered here. The account holder still learns what happened.
+        var user = await _unitOfWork.Users.GetByEmailAsync(email, cancellationToken);
+        if (purpose == OtpPurpose.Registration && user != null)
         {
-            var userExists = await _unitOfWork.Users.EmailExistsAsync(request.Email, cancellationToken);
-            if (userExists)
-                return Result.Failure("Email is already registered.", "EMAIL_ALREADY_EXISTS");
+            try { await _emailService.SendAccountExistsEmailAsync(email, cancellationToken); }
+            catch { /* a send failure must not answer differently from the success path */ }
+            return Result.Success(SentMessage);
         }
-        else
-        {
-            var user = await _unitOfWork.Users.GetByEmailAsync(request.Email, cancellationToken);
-            if (user == null)
-                return Result.Failure("No account found with this email.", "USER_NOT_FOUND");
-        }
+        if (purpose == OtpPurpose.PasswordReset && user == null)
+            return Result.Success(SentMessage);
 
-        await _unitOfWork.Otps.InvalidateExistingOtpsAsync(request.Email, purpose, cancellationToken);
+        await _unitOfWork.Otps.InvalidateExistingOtpsAsync(email, purpose, cancellationToken);
 
-        var code = GenerateOtpCode();
+        var code = OtpVerifier.GenerateCode();
         var otp = new OtpCode
         {
             OtpId = Guid.NewGuid(),
             UserId = null,
-            Email = request.Email,
+            Email = email,
             Code = code,
             Purpose = purpose,
             IsUsed = false,
@@ -55,10 +55,7 @@ public class SendEmailOtpCommandHandler : IRequestHandler<SendEmailOtpCommand, R
         };
 
         if (purpose == OtpPurpose.PasswordReset)
-        {
-            var user = await _unitOfWork.Users.GetByEmailAsync(request.Email, cancellationToken);
             otp.UserId = user!.UserId;
-        }
 
         await _unitOfWork.Otps.AddAsync(otp, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -66,19 +63,15 @@ public class SendEmailOtpCommandHandler : IRequestHandler<SendEmailOtpCommand, R
         var purposeText = purpose == OtpPurpose.Registration ? "Registration" : "Password Reset";
         try
         {
-            await _emailService.SendOtpEmailAsync(request.Email, request.Email, code, purposeText, cancellationToken);
+            await _emailService.SendOtpEmailAsync(email, email, code, purposeText, cancellationToken);
         }
         catch
         {
             return Result.Failure("Failed to send verification email. Please try again later.", "EMAIL_SEND_FAILED");
         }
 
-        return Result.Success("OTP sent successfully.");
+        return Result.Success(SentMessage);
     }
 
-    private static string GenerateOtpCode()
-    {
-        var random = new Random();
-        return random.Next(100000, 999999).ToString();
-    }
+    private const string SentMessage = "If this email can be used, a verification code has been sent to it.";
 }

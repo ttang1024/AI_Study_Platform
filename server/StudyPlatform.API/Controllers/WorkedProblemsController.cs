@@ -75,18 +75,6 @@ public class WorkedProblemsController : ControllerBase
     }
 
     /// <summary>
-    /// Get attempts for a worked problem
-    /// </summary>
-    [HttpGet("api/worked-problems/{id:guid}/attempts")]
-    [ProducesResponseType(typeof(BaseResponse<IEnumerable<WorkedProblemAttemptDto>>), 200)]
-    public async Task<IActionResult> GetAttempts(Guid id, CancellationToken cancellationToken)
-    {
-        var userId = User.GetUserId();
-        var result = await _mediator.Send(new GetProblemAttemptsQuery(userId, id), cancellationToken);
-        return Ok(BaseResponse<IEnumerable<WorkedProblemAttemptDto>>.Ok(result.Data!));
-    }
-
-    /// <summary>
     /// Get all mastered worked problem IDs for the authenticated user
     /// </summary>
     [HttpGet("api/worked-problems/mastered")]

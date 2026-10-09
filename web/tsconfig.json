@@ -26,11 +26,10 @@
     },
     "allowImportingTsExtensions": true,
     "noEmit": true,
-    "strict": false,
+    "strict": true,
     "incremental": true,
     "esModuleInterop": true,
-    "resolveJsonModule": true,
-    "strictNullChecks": false
+    "resolveJsonModule": true
   },
   "include": [
     "**/*.mts",

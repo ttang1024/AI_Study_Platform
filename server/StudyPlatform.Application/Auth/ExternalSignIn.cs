@@ -1,5 +1,6 @@
 using StudyPlatform.Application.Auth.DTOs;
 using StudyPlatform.Application.Common;
+using StudyPlatform.Application.Security;
 using StudyPlatform.Application.Services;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
@@ -40,6 +41,8 @@ public class ExternalSignIn : IExternalSignIn
             };
             await _unitOfWork.Users.AddAsync(user, cancellationToken);
         }
+
+        PendingDeletion.CancelOnSignIn(user);
 
         if (!user.IsActive)
             return Result<AuthResponse>.Failure("Your account has been deactivated. Please contact support.", "ACCOUNT_DEACTIVATED");

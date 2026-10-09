@@ -1,3 +1,4 @@
+using StudyPlatform.Application.Common;
 using System.Net.Http.Headers;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -12,6 +13,14 @@ namespace StudyPlatform.Infrastructure.Services;
 public partial class AiService
 {
     // ── Send & stream cores ───────────────────────────────────────────────
+
+    private UserFacingException TimedOut() => new(
+        $"The AI provider ({Provider}) took longer than {(int)_requestTimeout.TotalSeconds} seconds to answer. "
+            + "Try again, or try a shorter document or a faster model.",
+        "AI_TIMEOUT",
+        StatusCodesGatewayTimeout);
+
+    private const int StatusCodesGatewayTimeout = 504;
 
     /// <summary>
     /// The one non-streaming round trip: send, fail loudly on a non-2xx, record the usage the body
@@ -28,16 +37,26 @@ public partial class AiService
         CancellationToken cancellationToken)
     {
         using var request = buildRequest();
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        deadline.CancelAfter(_requestTimeout);
 
-        using var response = await _httpClient.SendAsync(request, cancellationToken);
-        if (!response.IsSuccessStatusCode)
+        string json;
+        try
         {
-            var err = await response.Content.ReadAsStringAsync(cancellationToken);
-            _logger.LogError("{Provider} API error: {Status} - {Content}", Provider, response.StatusCode, err);
-            throw new InvalidOperationException($"{Provider} API returned {response.StatusCode}: {err}");
-        }
+            using var response = await _httpClient.SendAsync(request, deadline.Token);
+            if (!response.IsSuccessStatusCode)
+            {
+                var err = await response.Content.ReadAsStringAsync(deadline.Token);
+                _logger.LogError("{Provider} API error: {Status} - {Content}", Provider, response.StatusCode, err);
+                throw new AiProviderException($"{Provider} API returned {response.StatusCode}: {err}");
+            }
 
-        var json = await response.Content.ReadAsStringAsync(cancellationToken);
+            json = await response.Content.ReadAsStringAsync(deadline.Token);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw TimedOut();
+        }
         await RecordUsageAsync(ExtractUsage(json), operation, streamed: false);
 
         var text = ExtractTextFromResponse(json);
@@ -55,11 +74,27 @@ public partial class AiService
     {
         using var request = buildRequest();
 
-        using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        // The deadline covers only the wait for the provider to start answering; once tokens flow, a
+        // long answer is fine (each chunk keeps the CDN connection alive).
+        HttpResponseMessage response;
+        using (var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
+        {
+            deadline.CancelAfter(_requestTimeout);
+            try
+            {
+                response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, deadline.Token);
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                throw TimedOut();
+            }
+        }
+
+        using var _ = response;
         if (!response.IsSuccessStatusCode)
         {
             var err = await response.Content.ReadAsStringAsync(cancellationToken);
-            throw new InvalidOperationException($"{Provider} streaming API returned {response.StatusCode}: {err}");
+            throw new AiProviderException($"{Provider} streaming API returned {response.StatusCode}: {err}");
         }
 
         var usage = new StreamUsageAccumulator();
@@ -151,7 +186,7 @@ public partial class AiService
     {
         if (usage.IsEmpty) return;
 
-        var credentials = Credentials;
+        var credentials = ReadCredentials();
         if (credentials.UserId == Guid.Empty) return;
 
         try
@@ -338,7 +373,11 @@ public partial class AiService
             request.Headers.Add("x-api-key", ApiKey);
             request.Headers.Add("anthropic-version", "2023-06-01");
         }
-        else if (Provider != "gemini")
+        else if (IsGemini)
+        {
+            request.Headers.Add("x-goog-api-key", ApiKey);
+        }
+        else
         {
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", ApiKey);
         }
@@ -356,19 +395,19 @@ public partial class AiService
                 .GetProperty("candidates")[0]
                 .GetProperty("content").GetProperty("parts")[0]
                 .GetProperty("text").GetString()
-                ?? throw new InvalidOperationException("No response from Gemini.");
+                ?? throw new AiProviderException("No response from Gemini.");
 
         if (Provider == "claude")
             return doc.RootElement
                 .GetProperty("content")[0]
                 .GetProperty("text").GetString()
-                ?? throw new InvalidOperationException("No response from Claude.");
+                ?? throw new AiProviderException("No response from Claude.");
 
         // OpenAI-compatible
         return doc.RootElement
             .GetProperty("choices")[0]
             .GetProperty("message").GetProperty("content").GetString()
-            ?? throw new InvalidOperationException($"No response from {Provider}.");
+            ?? throw new AiProviderException($"No response from {Provider}.");
     }
 
     private string? ExtractChunkText(string data)

@@ -17,13 +17,14 @@ public class LogoutCommandHandler : IRequestHandler<LogoutCommand, Result>
 
     public async Task<Result> Handle(LogoutCommand request, CancellationToken cancellationToken)
     {
-        var token = await _unitOfWork.RefreshTokens.GetValidTokenAsync(request.RefreshToken, cancellationToken);
+        if (string.IsNullOrEmpty(request.RefreshToken))
+            return Result.Success("Logged out successfully.");
+
+        // Ends the sign-in, not just the current rotation: older rotations of it are already revoked,
+        // but this also covers a token that was rotated by a refresh still in flight.
+        var token = await _unitOfWork.RefreshTokens.FindByHashAsync(RefreshTokenHash.Compute(request.RefreshToken), cancellationToken);
         if (token != null)
-        {
-            token.IsRevoked = true;
-            _unitOfWork.RefreshTokens.Update(token);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-        }
+            await _unitOfWork.RefreshTokens.RevokeSessionAsync(token.UserId, token.SessionId, cancellationToken);
 
         return Result.Success("Logged out successfully.");
     }

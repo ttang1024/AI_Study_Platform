@@ -1,3 +1,4 @@
+using StudyPlatform.Application.Videos.Transcripts;
 using Microsoft.AspNetCore.Mvc;
 using StudyPlatform.Application.Common;
 
@@ -14,18 +15,18 @@ public partial class VideoController
         if (string.IsNullOrWhiteSpace(videoId))
             return BadRequest(BaseResponse<string>.Fail("videoId is required.", "MISSING_VIDEO_ID"));
 
-        var cacheKey = TranscriptSegmentsCacheKey(videoId);
+        var cacheKey = VideoCacheKeys.TranscriptSegments(videoId);
         var ttl = TimeSpan.FromSeconds(_cacheOptions.TranscriptSeconds);
 
         var cached = await _cache.GetAsync<List<TranscriptSegmentDto>>(cacheKey, cancellationToken);
         if (cached != null)
-            return Ok(BaseResponse<IReadOnlyList<TranscriptSegmentDto>>.Ok(PrepareTranscriptSegments(cached), "Transcript retrieved successfully."));
+            return Ok(BaseResponse<IReadOnlyList<TranscriptSegmentDto>>.Ok(TranscriptSegmentation.Prepare(cached), "Transcript retrieved successfully."));
 
-        var stored = await GetStoredTranscriptSegmentsAsync(videoId, TranscriptKind, cancellationToken)
-                     ?? await GetStoredTranscriptSegmentsAsync(videoId, SubtitlesKind, cancellationToken);
+        var stored = await _transcripts.GetStoredSegmentsAsync(videoId, TranscriptKinds.Transcript, cancellationToken)
+                     ?? await _transcripts.GetStoredSegmentsAsync(videoId, TranscriptKinds.Subtitles, cancellationToken);
         if (stored is { Count: > 0 })
         {
-            var prepared = PrepareTranscriptSegments(stored);
+            var prepared = TranscriptSegmentation.Prepare(stored);
             await _cache.SetAsync(cacheKey, prepared, ttl, cancellationToken);
             return Ok(BaseResponse<IReadOnlyList<TranscriptSegmentDto>>.Ok(prepared, "Transcript retrieved successfully."));
         }
@@ -36,8 +37,8 @@ public partial class VideoController
                 "No captions found for this video.", "TRANSCRIPT_NOT_FOUND"));
 
         var dtos = segments.Select(s => new TranscriptSegmentDto(s.Start.TotalSeconds, s.Text)).ToList();
-        dtos = PrepareTranscriptSegments(dtos);
-        await StoreTranscriptSegmentsAsync(videoId, TranscriptKind, dtos, ttl, cancellationToken);
+        dtos = TranscriptSegmentation.Prepare(dtos);
+        await _transcripts.StoreSegmentsAsync(videoId, TranscriptKinds.Transcript, dtos, ttl, cancellationToken);
         await _cache.SetAsync(cacheKey, dtos, ttl, cancellationToken);
         return Ok(BaseResponse<IReadOnlyList<TranscriptSegmentDto>>.Ok(dtos, "Transcript retrieved successfully."));
     }
@@ -48,14 +49,14 @@ public partial class VideoController
         if (string.IsNullOrWhiteSpace(videoId))
             return BadRequest(BaseResponse<string>.Fail("videoId is required.", "MISSING_VIDEO_ID"));
 
-        var cacheKey = SubtitlesCacheKey(videoId);
+        var cacheKey = VideoCacheKeys.Subtitles(videoId);
         var ttl = TimeSpan.FromSeconds(_cacheOptions.TranscriptSeconds);
 
         var cached = await _cache.GetAsync<List<TranscriptSegmentDto>>(cacheKey, cancellationToken);
         if (cached != null)
             return Ok(BaseResponse<IReadOnlyList<TranscriptSegmentDto>>.Ok(cached, "Subtitles retrieved successfully."));
 
-        var stored = await GetStoredTranscriptSegmentsAsync(videoId, SubtitlesKind, cancellationToken);
+        var stored = await _transcripts.GetStoredSegmentsAsync(videoId, TranscriptKinds.Subtitles, cancellationToken);
         if (stored is { Count: > 0 })
         {
             await _cache.SetAsync(cacheKey, stored, ttl, cancellationToken);
@@ -68,7 +69,7 @@ public partial class VideoController
                 "No captions found for this video.", "SUBTITLES_NOT_FOUND"));
 
         var dtos = segments.Select(s => new TranscriptSegmentDto(s.Start.TotalSeconds, s.Text)).ToList();
-        await StoreTranscriptSegmentsAsync(videoId, SubtitlesKind, dtos, ttl, cancellationToken);
+        await _transcripts.StoreSegmentsAsync(videoId, TranscriptKinds.Subtitles, dtos, ttl, cancellationToken);
         await _cache.SetAsync(cacheKey, dtos, ttl, cancellationToken);
         return Ok(BaseResponse<IReadOnlyList<TranscriptSegmentDto>>.Ok(dtos, "Subtitles retrieved successfully."));
     }
@@ -100,7 +101,7 @@ public partial class VideoController
         }
         catch (Exception ex)
         {
-            return BadRequest(BaseResponse<string>.Fail($"Failed to fetch playlist: {ex.Message}", "PLAYLIST_FETCH_ERROR"));
+            return BadRequest(BaseResponse<string>.Fail("Failed to fetch the playlist. Check the link and try again.", "PLAYLIST_FETCH_ERROR"));
         }
     }
 
@@ -118,7 +119,7 @@ public partial class VideoController
         }
         catch (Exception ex)
         {
-            return BadRequest(BaseResponse<string>.Fail($"Failed to fetch Bilibili videos: {ex.Message}", "BILIBILI_FETCH_ERROR"));
+            return BadRequest(BaseResponse<string>.Fail("Failed to fetch Bilibili videos. Check the link and try again.", "BILIBILI_FETCH_ERROR"));
         }
     }
 

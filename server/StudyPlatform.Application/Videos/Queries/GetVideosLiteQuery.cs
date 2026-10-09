@@ -8,7 +8,7 @@ namespace StudyPlatform.Application.Videos.Queries;
 public record GetVideosLiteQuery(
     Guid UserId,
     int Page,
-    int PageSize) : IRequest<Result<VideoLitePagedResult>>;
+    int PageSize) : IRequest<Result<VideoLitePagedResult>>, IPagedRequest;
 
 public class GetVideosLiteQueryHandler : IRequestHandler<GetVideosLiteQuery, Result<VideoLitePagedResult>>
 {

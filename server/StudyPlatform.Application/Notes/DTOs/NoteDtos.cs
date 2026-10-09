@@ -16,5 +16,3 @@ public record NoteDto(
     DateTime UpdatedAt,
     string? Document = null,
     string? Video = null);
-
-public record BulkDeleteNotesRequest(IEnumerable<Guid> NoteIds);

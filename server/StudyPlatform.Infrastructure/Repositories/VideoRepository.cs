@@ -103,6 +103,13 @@ public class VideoRepository : Repository<Video>, IVideoRepository
             .Include(v => v.Course)
             .FirstOrDefaultAsync(v => v.VideoId == id, cancellationToken);
 
+    public async Task<IReadOnlyList<PendingVideoTranscription>> GetPendingTranscriptionsAsync(CancellationToken cancellationToken = default)
+        => await _dbSet
+            .AsNoTracking()
+            .Where(v => v.TranscriptionRequestedAt != null && (v.Transcript == null || v.Transcript == ""))
+            .Select(v => new PendingVideoTranscription(v.VideoId, v.UserId))
+            .ToListAsync(cancellationToken);
+
     public async Task<Video?> GetByExternalVideoIdAsync(string externalVideoId, CancellationToken cancellationToken = default)
         => await _dbSet
             .FirstOrDefaultAsync(v => v.ExternalVideoId == externalVideoId, cancellationToken);

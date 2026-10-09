@@ -212,13 +212,6 @@ describe('videoService', () => {
       expect(result[0].lastMessage).toBeNull()
     })
 
-    it('sendChat always returns role: model', async () => {
-      const service = createVideoService(fakeHttp, streamSse)
-      vi.mocked(fakeHttp.post).mockResolvedValueOnce({ data: { data: { messageId: 'm-1', content: 'reply' } } })
-      const result = await service.sendChat('v-1', 'hello')
-      expect(fakeHttp.post).toHaveBeenCalledWith('/api/videos/v-1/chat', { message: 'hello' })
-      expect(result).toEqual({ id: 'm-1', role: 'model', content: 'reply' })
-    })
   })
 
   describe('streaming', () => {

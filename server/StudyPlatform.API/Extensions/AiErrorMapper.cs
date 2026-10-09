@@ -48,18 +48,19 @@ public static class AiErrorMapper
     public static ObjectResult AiStreamError(this ControllerBase controller, Exception ex)
     {
         var (statusCode, errorCode) = MapException(ex);
-        return controller.StatusCode(statusCode, BaseResponse<string>.Fail(ex.Message, errorCode));
+        var message = ClientErrors.MessageFor(ex, "The AI request could not be completed. Please try again.");
+        return controller.StatusCode(statusCode, BaseResponse<string>.Fail(message, errorCode));
     }
 
     private static (int statusCode, string errorCode) MapException(Exception ex)
     {
-        if (TryGetAiError(ex.Message, out var statusCode, out var errorCode))
-            return (statusCode, errorCode);
-
-        // Unmatched InvalidOperationExceptions are client-side problems (no provider/model/key
-        // configured, unreadable provider response) rather than an upstream gateway failure.
-        if (ex is InvalidOperationException)
-            return (StatusCodes.Status400BadRequest, "INVALID_OPERATION");
+        if (ex is UserFacingException userFacing)
+        {
+            if (TryGetAiError(ex.Message, out var statusCode, out var errorCode))
+                return (statusCode, errorCode);
+            // No provider/model/key configured, a provider limit — the user's to fix.
+            return (userFacing.StatusCode, userFacing.ErrorCode);
+        }
 
         return (StatusCodes.Status502BadGateway, "AI_PROVIDER_ERROR");
     }

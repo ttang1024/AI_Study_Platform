@@ -16,7 +16,7 @@ import type { Document } from '@/types';
 
 export type Tab = 'summary' | 'chat' | 'mindmap' | 'highlights' | 'notes' | 'glossary' | 'cards' | 'quiz' | 'practice';
 
-export const TABS: { id: Tab; label: string; icon: typeof FileText }[] = [
+const TABS: { id: Tab; label: string; icon: typeof FileText }[] = [
   { id: 'summary', label: 'Summary', icon: FileText },
   { id: 'chat', label: 'Chat', icon: Bot },
   { id: 'mindmap', label: 'Mind Map', icon: Brain },

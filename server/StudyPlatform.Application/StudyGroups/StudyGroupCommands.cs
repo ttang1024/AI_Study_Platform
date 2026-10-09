@@ -286,7 +286,9 @@ public class ShareCourseWithGroupCommandHandler : IRequestHandler<ShareCourseWit
         if (!isMember)
             return Result<SharedCourseDto>.Failure("Not a member of this group.", "NOT_MEMBER");
 
-        var course = await _unitOfWork.Courses.GetByIdAsync(request.CourseId, cancellationToken);
+        // Sharing grants every group member read access to the course's documents, so only the
+        // course's owner may do it. Someone else's course reads as not found rather than forbidden.
+        var course = await _unitOfWork.Courses.GetOwnedAsync(request.CourseId, request.UserId, cancellationToken);
         if (course == null)
             return Result<SharedCourseDto>.Failure("Course not found.", "NOT_FOUND");
 

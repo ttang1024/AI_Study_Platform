@@ -26,8 +26,8 @@ public class TranscribePodcastCommandHandler : IRequestHandler<TranscribePodcast
 
     public async Task<Result<DocumentDto>> Handle(TranscribePodcastCommand request, CancellationToken cancellationToken)
     {
-        var document = await _unitOfWork.Documents.GetByIdAsync(request.DocumentId, cancellationToken);
-        if (document == null || document.UserId != request.UserId)
+        var document = await _unitOfWork.Documents.GetOwnedAsync(request.DocumentId, request.UserId, cancellationToken);
+        if (document == null)
             return Result<DocumentDto>.Failure("Podcast episode not found.", "DOCUMENT_NOT_FOUND");
 
         if (document.ContentType != "audio/podcast")
@@ -43,6 +43,7 @@ public class TranscribePodcastCommandHandler : IRequestHandler<TranscribePodcast
                 download.Value.AudioData, download.Value.MimeType, cancellationToken);
 
             document.Transcript = transcript;
+            document.TranscriptionRequestedAt = null;
             document.UpdatedAt = DateTime.UtcNow;
             _unitOfWork.Documents.Update(document);
             await _unitOfWork.SaveChangesAsync(cancellationToken);

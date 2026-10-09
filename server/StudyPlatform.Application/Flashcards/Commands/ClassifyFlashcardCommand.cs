@@ -21,8 +21,8 @@ public class ClassifyFlashcardCommandHandler : IRequestHandler<ClassifyFlashcard
 
     public async Task<Result<FlashcardDto>> Handle(ClassifyFlashcardCommand request, CancellationToken cancellationToken)
     {
-        var flashcard = await _unitOfWork.Flashcards.GetByIdAsync(request.FlashcardId, cancellationToken);
-        if (flashcard == null || flashcard.UserId != request.UserId)
+        var flashcard = await _unitOfWork.Flashcards.GetOwnedAsync(request.FlashcardId, request.UserId, cancellationToken);
+        if (flashcard == null)
             return Result<FlashcardDto>.Failure("Flashcard not found.", "FLASHCARD_NOT_FOUND");
 
         if (!string.IsNullOrWhiteSpace(request.Front))

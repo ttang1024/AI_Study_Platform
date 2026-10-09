@@ -25,8 +25,8 @@ public class CreatePodcastEpisodeCommandHandler : IRequestHandler<CreatePodcastE
 
     public async Task<Result<DocumentDto>> Handle(CreatePodcastEpisodeCommand request, CancellationToken cancellationToken)
     {
-        var course = await _unitOfWork.Courses.GetByIdAsync(request.CourseId, cancellationToken);
-        if (course == null || course.UserId != request.UserId)
+        var course = await _unitOfWork.Courses.GetOwnedAsync(request.CourseId, request.UserId, cancellationToken);
+        if (course == null)
             return Result<DocumentDto>.Failure("Course not found.", "COURSE_NOT_FOUND");
 
         var info = await _podcastService.GetEpisodeInfoAsync(request.EpisodeUrl, cancellationToken);

@@ -1,3 +1,4 @@
+using StudyPlatform.Application.Videos.Transcripts;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using StudyPlatform.API.Extensions;
@@ -56,11 +57,11 @@ public partial class VideoController
             return Ok(BaseResponse<IEnumerable<FlashcardDto>>.Ok(existing.Select(f => f.ToFlashcardDto())));
 
         // No cached data — fetch transcript and generate
-        var transcript = await GetOrFetchTranscriptAsync(video, cancellationToken);
+        var transcript = await _transcripts.GetOrFetchTranscriptAsync(video, cancellationToken);
         if (transcript == null)
             return BadRequest(BaseResponse<IEnumerable<FlashcardDto>>.Fail("No subtitles available for this video.", "NO_TRANSCRIPT"));
 
-        var segmentOffsets = await GetTranscriptSegmentOffsetsAsync(video, cancellationToken);
+        var segmentOffsets = await _transcripts.GetSegmentOffsetsAsync(video, cancellationToken);
         var resultJson = await _aiService.GenerateFlashcardsFromYouTubeAsync(transcript, cancellationToken);
 
         List<AiFlashcardItem> cards;
@@ -110,7 +111,7 @@ public partial class VideoController
     {
         var userId = User.GetUserId();
         var ttl = TimeSpan.FromSeconds(_cacheOptions.GeneratedResultSeconds);
-        var cacheKey = VideoGlossaryCacheKey(id, userId);
+        var cacheKey = VideoCacheKeys.Glossary(id, userId);
 
         var cached = await _cache.GetAsync<List<GlossaryTermDto>>(cacheKey, cancellationToken);
         if (cached != null)
@@ -137,13 +138,13 @@ public partial class VideoController
         {
             // Delete existing terms and invalidate cache to allow regeneration
             await _unitOfWork.GlossaryTerms.DeleteByVideoIdAsync(id, cancellationToken);
-            await _cache.RemoveAsync(VideoGlossaryCacheKey(id, userId), cancellationToken);
+            await _cache.RemoveAsync(VideoCacheKeys.Glossary(id, userId), cancellationToken);
 
-            var transcript = await GetOrFetchTranscriptAsync(video, cancellationToken);
+            var transcript = await _transcripts.GetOrFetchTranscriptAsync(video, cancellationToken);
             if (transcript == null)
                 return BadRequest(BaseResponse<IEnumerable<GlossaryTermDto>>.Fail("No subtitles available for this video.", "NO_TRANSCRIPT"));
 
-            var segmentOffsets = await GetTranscriptSegmentOffsetsAsync(video, cancellationToken);
+            var segmentOffsets = await _transcripts.GetSegmentOffsetsAsync(video, cancellationToken);
             var resultJson = await _aiService.GenerateGlossaryAsync(transcript, cancellationToken);
 
             List<AiGlossaryItem> items;
@@ -177,16 +178,16 @@ public partial class VideoController
             var dtos = saved.Where(t => t.UserId == userId)
                 .Select(t => t.ToGlossaryTermDto())
                 .ToList();
-            await _cache.SetAsync(VideoGlossaryCacheKey(id, userId), dtos, TimeSpan.FromSeconds(_cacheOptions.GeneratedResultSeconds), cancellationToken);
+            await _cache.SetAsync(VideoCacheKeys.Glossary(id, userId), dtos, TimeSpan.FromSeconds(_cacheOptions.GeneratedResultSeconds), cancellationToken);
             return Ok(BaseResponse<IEnumerable<GlossaryTermDto>>.Ok(dtos, "Glossary generated successfully."));
         }
         catch (Exception ex)
         {
             if (AiErrorMapper.TryGetAiError(ex.Message, out _, out _))
-                return AiErrorMapper.ToObjectResult<IEnumerable<GlossaryTermDto>>(this, ex.Message);
+                return AiErrorMapper.ToObjectResult<IEnumerable<GlossaryTermDto>>(this, ClientErrors.MessageFor(ex, "The AI request failed."));
 
             return BadRequest(BaseResponse<IEnumerable<GlossaryTermDto>>.Fail(
-                $"Failed to generate glossary: {ex.Message}", "GENERATION_FAILED"));
+                $"Failed to generate glossary: {ClientErrors.MessageFor(ex, "please try again.")}", "GENERATION_FAILED"));
         }
     }
 
@@ -203,7 +204,7 @@ public partial class VideoController
 
         var normalizedDifficulty = string.IsNullOrWhiteSpace(difficulty) ? null : QuizDifficulty.Normalize(difficulty);
         var ttl = TimeSpan.FromSeconds(_cacheOptions.GeneratedResultSeconds);
-        var cacheKey = VideoQuizCacheKey(id, video.UserId, normalizedDifficulty ?? "all");
+        var cacheKey = VideoCacheKeys.Quiz(id, video.UserId, normalizedDifficulty ?? "all");
 
         var cached = await _cache.GetAsync<List<QuizDto>>(cacheKey, cancellationToken);
         if (cached != null)
@@ -233,11 +234,11 @@ public partial class VideoController
             return Ok(BaseResponse<IEnumerable<QuizDto>>.Ok(existingQuizzes.Select(q => q.ToQuizDto())));
 
         // No cached data — fetch transcript and generate
-        var transcript = await GetOrFetchTranscriptAsync(video, cancellationToken);
+        var transcript = await _transcripts.GetOrFetchTranscriptAsync(video, cancellationToken);
         if (transcript == null)
             return BadRequest(BaseResponse<IEnumerable<QuizDto>>.Fail("No subtitles available for this video.", "NO_TRANSCRIPT"));
 
-        var segmentOffsets = await GetTranscriptSegmentOffsetsAsync(video, cancellationToken);
+        var segmentOffsets = await _transcripts.GetSegmentOffsetsAsync(video, cancellationToken);
         var resultJson = await _aiService.GenerateQuizFromYouTubeAsync(transcript, normalizedDifficulty, cancellationToken);
 
         List<AiQuizItem> quizItems;
@@ -273,7 +274,7 @@ public partial class VideoController
 
         var saved = await _unitOfWork.Quizzes.FindAsync(q => q.VideoId == id && q.UserId == userId && q.Difficulty == normalizedDifficulty, cancellationToken);
         var savedDtos = saved.Select(q => q.ToQuizDto()).ToList();
-        await _cache.SetAsync(VideoQuizCacheKey(id, userId, normalizedDifficulty), savedDtos, TimeSpan.FromSeconds(_cacheOptions.GeneratedResultSeconds), cancellationToken);
+        await _cache.SetAsync(VideoCacheKeys.Quiz(id, userId, normalizedDifficulty), savedDtos, TimeSpan.FromSeconds(_cacheOptions.GeneratedResultSeconds), cancellationToken);
         return Ok(BaseResponse<IEnumerable<QuizDto>>.Ok(savedDtos));
     }
 

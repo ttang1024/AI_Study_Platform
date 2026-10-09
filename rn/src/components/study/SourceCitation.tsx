@@ -46,12 +46,7 @@ export const SourceCitation: React.FC<Props> = ({ citation, videoId }) => {
 
   const canJump = videoId && hasTimestamp;
 
-  const label =
-    hasTimestamp
-      ? formatTimestamp(citation.startSeconds!)
-      : citation.page != null
-        ? `page ${citation.page}`
-        : 'the source';
+  const label = hasTimestamp ? formatTimestamp(citation.startSeconds!) : 'the source';
 
   return (
     <View style={styles.container}>

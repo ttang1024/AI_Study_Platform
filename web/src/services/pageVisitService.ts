@@ -1,4 +1,5 @@
 import { getApiUrl } from '../utils/env';
+import { getAccessToken } from './accessToken';
 
 /**
  * Page-view beacons.
@@ -93,7 +94,7 @@ export const trackPageVisit = (path: string): void => {
 
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   try {
-    const token = window.localStorage.getItem('sp_access_token');
+    const token = getAccessToken();
     if (token) headers.Authorization = `Bearer ${token}`;
   } catch {
     // No token available; the visit is recorded as anonymous.

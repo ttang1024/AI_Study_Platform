@@ -14,6 +14,8 @@ import { ConfidencePicker } from './ConfidencePicker';
 import { usePrompt } from '../common/PromptBox';
 
 type QuizDifficulty = 'easy' | 'medium' | 'hard' | 'adaptive';
+/** Adaptive quizzes are planned from the learner's document history; external (video/audio) quizzes have only the fixed levels. */
+type FixedQuizDifficulty = Exclude<QuizDifficulty, 'adaptive'>;
 
 const QUIZ_DIFFICULTIES: Array<{ value: QuizDifficulty; label: string; detail: string }> = [
   { value: 'easy', label: 'Beginner', detail: 'Recall + Understanding' },
@@ -44,9 +46,9 @@ interface DocumentQuizProps {
   /** External error message */
   externalError?: string | null;
   /** External generate handler */
-  onExternalGenerate?: (difficulty: QuizDifficulty) => void;
+  onExternalGenerate?: (difficulty: FixedQuizDifficulty) => void;
   /** External difficulty switch handler */
-  onExternalDifficultyChange?: (difficulty: QuizDifficulty) => void;
+  onExternalDifficultyChange?: (difficulty: FixedQuizDifficulty) => void;
   /** External answer handler */
   onExternalAnswer?: (questionId: string, option: string) => void;
   /** External submit handler */
@@ -144,7 +146,7 @@ export const DocumentQuiz: React.FC<DocumentQuizProps> = ({
     if (generateDisabled) return;
     setActiveDifficulty(difficulty);
     if (isExternal) {
-      onExternalGenerate!(difficulty);
+      if (difficulty !== 'adaptive') onExternalGenerate!(difficulty);
       return;
     }
     if (!currentDocument) return;
@@ -192,7 +194,7 @@ export const DocumentQuiz: React.FC<DocumentQuizProps> = ({
   const handleDifficultyChange = (difficulty: QuizDifficulty) => {
     setActiveDifficulty(difficulty);
     if (isExternal) {
-      onExternalDifficultyChange?.(difficulty);
+      if (difficulty !== 'adaptive') onExternalDifficultyChange?.(difficulty);
       return;
     }
     setQuestions(questionSets[difficulty]);
@@ -267,7 +269,7 @@ export const DocumentQuiz: React.FC<DocumentQuizProps> = ({
   const difficultyTabs = (
     <div className="p-6 pb-0">
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
-        {QUIZ_DIFFICULTIES.map(difficulty => {
+        {QUIZ_DIFFICULTIES.filter(d => !isExternal || d.value !== 'adaptive').map(difficulty => {
           const isActive = difficulty.value === selectedDifficulty;
           const count = isExternal
             ? externalQuestionCounts?.[difficulty.value] ?? (difficulty.value === selectedDifficulty ? externalQuestions?.length ?? 0 : 0)

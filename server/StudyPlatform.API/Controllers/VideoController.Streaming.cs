@@ -1,3 +1,4 @@
+using StudyPlatform.Application.Videos.Transcripts;
 using Microsoft.AspNetCore.Mvc;
 using StudyPlatform.API.Extensions;
 using StudyPlatform.Application.Common;
@@ -27,12 +28,12 @@ public partial class VideoController
             return BadRequest(BaseResponse<string>.Fail("Invalid YouTube URL.", "INVALID_VIDEO_URL"));
 
         var ttl = TimeSpan.FromSeconds(_cacheOptions.GeneratedResultSeconds);
-        var cacheKey = SummaryCacheKey(videoId);
+        var cacheKey = VideoCacheKeys.Summary(videoId);
         var cached = await _cache.GetAsync<string>(cacheKey, cancellationToken);
         if (!string.IsNullOrEmpty(cached))
             return await this.WriteSseCachedAsync(cached, cancellationToken);
 
-        var transcript = await GetTranscriptTimelineTextAsync(videoId, cancellationToken);
+        var transcript = await _transcripts.GetTranscriptTimelineTextAsync(videoId, cancellationToken);
         if (transcript == null)
             return BadRequest(BaseResponse<string>.Fail("No subtitles available for this video.", "NO_TRANSCRIPT"));
 
@@ -49,7 +50,7 @@ public partial class VideoController
         if (video is null)
             return NotFound(BaseResponse<string>.Fail("Video not found.", "VIDEO_NOT_FOUND"));
 
-        var transcript = await GetOrFetchTimelineTranscriptAsync(video, cancellationToken);
+        var transcript = await _transcripts.GetOrFetchTimelineTranscriptAsync(video, cancellationToken);
         if (transcript == null)
             return BadRequest(BaseResponse<string>.Fail("No subtitles available for this video.", "NO_TRANSCRIPT"));
 
@@ -102,7 +103,7 @@ public partial class VideoController
 
         var history = await _unitOfWork.ChatMessages.GetByConversationIdAsync(conversation.ConversationId, userId, cancellationToken);
         var historyTuples = history.Select(m => (m.Role, m.Content)).ToList();
-        var videoTranscript = await GetOrFetchTranscriptAsync(video, cancellationToken) ?? string.Empty;
+        var videoTranscript = await _transcripts.GetOrFetchTranscriptAsync(video, cancellationToken) ?? string.Empty;
 
         var stream = _aiService.StreamChatWithYouTubeAsync(videoTranscript, historyTuples, promptMessage, ChatAttachments.ToModelInputs(attachments), cancellationToken);
         var thread = new ChatThread(userId, conversation, "video", VideoId: id);

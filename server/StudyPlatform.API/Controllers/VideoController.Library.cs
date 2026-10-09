@@ -1,7 +1,9 @@
+using StudyPlatform.Application.Videos.Transcripts;
+using StudyPlatform.Domain.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using StudyPlatform.API.Extensions;
+using StudyPlatform.API.Services;
 using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Videos;
 using StudyPlatform.Application.Videos.Commands;
@@ -36,6 +38,7 @@ public partial class VideoController
         [FromForm] Guid courseId,
         IFormFile file,
         IFormFile? thumbnail,
+        [FromServices] TranscriptionQueue transcriptionQueue,
         CancellationToken cancellationToken)
     {
         if (file == null || file.Length == 0)
@@ -52,8 +55,8 @@ public partial class VideoController
             return BadRequest(BaseResponse<VideoDto>.Fail("File type not supported. Allowed: MP4, MOV, WEBM, MKV, AVI, WMV, FLV, 3GP, TS, MPG, OGV, VOB, ASF.", "INVALID_FILE_TYPE"));
 
         var userId = User.GetUserId();
-        var course = await _unitOfWork.Courses.GetByIdAsync(courseId, cancellationToken);
-        if (course == null || course.UserId != userId)
+        var course = await _unitOfWork.Courses.GetOwnedAsync(courseId, userId, cancellationToken);
+        if (course == null)
             return BadRequest(BaseResponse<VideoDto>.Fail("Course not found.", "COURSE_NOT_FOUND"));
 
         if (_limits.VideoUploadLimit >= 0)
@@ -67,17 +70,21 @@ public partial class VideoController
                     "VIDEO_LIMIT_REACHED"));
         }
 
-        await using var ms = new MemoryStream();
-        await file.CopyToAsync(ms, cancellationToken);
-        var bytes = ms.ToArray();
-        await using var uploadStream = new MemoryStream(bytes);
-        var blobName = $"{userId}/{courseId}/videos/{Guid.NewGuid()}_{file.FileName}";
-        var blobUrl = await _blobStorageService.UploadAsync(uploadStream, blobName, file.ContentType, cancellationToken);
+        // Streamed straight to storage: ASP.NET has already spooled the multipart body to disk, so the
+        // file is never held in memory here. The client's file name is display-only; the blob key uses a
+        // sanitised copy of it.
+        var blobUrl = string.Empty;
+        await using (var fileStream = file.OpenReadStream())
+        {
+            var blobName = $"{userId}/{courseId}/videos/{Guid.NewGuid()}_{SafeBlobFileName(file.FileName)}";
+            blobUrl = await _blobStorageService.UploadAsync(fileStream, blobName, file.ContentType, cancellationToken);
+        }
+
         var thumbnailUrl = string.Empty;
         if (thumbnail is { Length: > 0 } && thumbnail.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
         {
-            var thumbnailExt = Path.GetExtension(thumbnail.FileName);
-            if (string.IsNullOrWhiteSpace(thumbnailExt))
+            var thumbnailExt = Path.GetExtension(thumbnail.FileName).ToLowerInvariant();
+            if (thumbnailExt is not (".png" or ".jpg" or ".jpeg" or ".webp"))
                 thumbnailExt = ".jpg";
 
             await using var thumbnailStream = thumbnail.OpenReadStream();
@@ -85,47 +92,29 @@ public partial class VideoController
             thumbnailUrl = await _blobStorageService.UploadAsync(thumbnailStream, thumbnailBlobName, thumbnail.ContentType, cancellationToken);
         }
 
-        var transcriptJson = await _transcriptionService.TranscribeAsync(bytes, file.ContentType, cancellationToken);
-        var segments = ParseWhisperTranscriptDtos(transcriptJson);
-        var transcript = string.Join(" ", segments.Select(s => s.Text));
-        var videoId = $"upload-{Guid.NewGuid():N}";
-
         var video = new Video
         {
             VideoId = Guid.NewGuid(),
             UserId = userId,
             CourseId = courseId,
-            ExternalVideoId = videoId,
+            ExternalVideoId = $"upload-{Guid.NewGuid():N}",
             VideoUrl = blobUrl,
             SourceType = "upload",
             Title = Path.GetFileNameWithoutExtension(file.FileName),
             ThumbnailUrl = thumbnailUrl,
-            Transcript = transcript,
+            // Transcribed in the background (Whisper on a long video takes minutes — far past the
+            // CDN's request timeout); the marker is what the transcript endpoint reports as pending.
+            TranscriptionRequestedAt = DateTime.UtcNow,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
         };
 
         await _unitOfWork.Videos.AddAsync(video, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
-        await StoreTranscriptSegmentsAsync($"upload:{videoId}", TranscriptKind, segments, TimeSpan.FromSeconds(_cacheOptions.TranscriptSeconds), cancellationToken);
+        transcriptionQueue.TryEnqueue(video.VideoId, userId, TranscriptionJobKind.UploadedVideo);
 
         var saved = await _unitOfWork.Videos.GetByIdForUserAsync(video.VideoId, userId, cancellationToken);
         return StatusCode(StatusCodes.Status201Created, BaseResponse<VideoDto>.Ok(SaveVideoCommandHandler.ToDto(saved!)));
-    }
-
-    [HttpGet("{id:guid}/playback-url")]
-    public async Task<IActionResult> GetPlaybackUrl(Guid id, CancellationToken cancellationToken)
-    {
-        var userId = User.GetUserId();
-        var video = await GetVideoWithAccessCheckAsync(id, userId, cancellationToken);
-        if (video is null)
-            return NotFound(BaseResponse<string>.Fail("Video not found.", "VIDEO_NOT_FOUND"));
-
-        if (!string.Equals(video.SourceType, "upload", StringComparison.OrdinalIgnoreCase))
-            return Ok(BaseResponse<string>.Ok(video.VideoUrl));
-
-        var url = await _blobStorageService.GetSasUrlAsync(video.VideoUrl, expiryMinutes: 60);
-        return Ok(BaseResponse<string>.Ok(url));
     }
 
     [AllowAnonymous]
@@ -145,8 +134,10 @@ public partial class VideoController
         if (video is null || !string.Equals(video.SourceType, "upload", StringComparison.OrdinalIgnoreCase))
             return NotFound();
 
-        var stream = await _blobStorageService.DownloadAsync(video.VideoUrl, cancellationToken);
-        return File(stream, MediaFormatting.GetVideoContentType(video.VideoUrl), enableRangeProcessing: true);
+        // Redirect rather than proxy: a video is hundreds of MB and seeking issues many range requests,
+        // all of which used to stream through the single API instance.
+        return Redirect(await _blobStorageService.GetMediaUrlAsync(
+            video.VideoUrl, MediaFormatting.GetVideoContentType(video.VideoUrl), cancellationToken: cancellationToken));
     }
 
     [AllowAnonymous]
@@ -166,10 +157,9 @@ public partial class VideoController
         if (video is null || string.IsNullOrEmpty(video.ThumbnailUrl))
             return NotFound();
 
-        var stream = await _blobStorageService.DownloadAsync(video.ThumbnailUrl, cancellationToken);
         var ext = Path.GetExtension(video.ThumbnailUrl).ToLowerInvariant();
         var contentType = ext == ".png" ? "image/png" : ext == ".webp" ? "image/webp" : "image/jpeg";
-        return File(stream, contentType);
+        return Redirect(await _blobStorageService.GetMediaUrlAsync(video.ThumbnailUrl, contentType, cancellationToken: cancellationToken));
     }
 
     [HttpGet]
@@ -220,23 +210,26 @@ public partial class VideoController
 
         var transcriptKey = $"{VideoSourceTypes.Normalize(video.SourceType)}:{video.ExternalVideoId}";
         var ttl = TimeSpan.FromSeconds(_cacheOptions.TranscriptSeconds);
-        var stored = await GetStoredTranscriptSegmentsAsync(transcriptKey, TranscriptKind, cancellationToken)
-                     ?? await GetStoredTranscriptSegmentsAsync(transcriptKey, SubtitlesKind, cancellationToken);
+        var stored = await _transcripts.GetStoredSegmentsAsync(transcriptKey, TranscriptKinds.Transcript, cancellationToken)
+                     ?? await _transcripts.GetStoredSegmentsAsync(transcriptKey, TranscriptKinds.Subtitles, cancellationToken);
         if (stored is { Count: > 0 })
-            return Ok(BaseResponse<IReadOnlyList<TranscriptSegmentDto>>.Ok(PrepareTranscriptSegments(stored)));
+            return Ok(BaseResponse<IReadOnlyList<TranscriptSegmentDto>>.Ok(TranscriptSegmentation.Prepare(stored)));
 
-        var text = await GetOrFetchTranscriptAsync(video, cancellationToken);
+        if (video.TranscriptionRequestedAt != null && string.IsNullOrEmpty(video.Transcript))
+            return TranscriptPending<IReadOnlyList<TranscriptSegmentDto>>();
+
+        var text = await _transcripts.GetOrFetchTranscriptAsync(video, cancellationToken);
         if (string.IsNullOrWhiteSpace(text))
             return NotFound(BaseResponse<IReadOnlyList<TranscriptSegmentDto>>.Fail("No captions found for this video.", "TRANSCRIPT_NOT_FOUND"));
 
         // GetOrFetchTranscriptAsync stores properly segmented data — re-read it instead of
         // collapsing everything into a single segment at t=0.
-        var freshStored = await GetStoredTranscriptSegmentsAsync(transcriptKey, TranscriptKind, cancellationToken)
-                          ?? await GetStoredTranscriptSegmentsAsync(transcriptKey, SubtitlesKind, cancellationToken);
+        var freshStored = await _transcripts.GetStoredSegmentsAsync(transcriptKey, TranscriptKinds.Transcript, cancellationToken)
+                          ?? await _transcripts.GetStoredSegmentsAsync(transcriptKey, TranscriptKinds.Subtitles, cancellationToken);
         if (freshStored is { Count: > 0 })
-            return Ok(BaseResponse<IReadOnlyList<TranscriptSegmentDto>>.Ok(PrepareTranscriptSegments(freshStored)));
+            return Ok(BaseResponse<IReadOnlyList<TranscriptSegmentDto>>.Ok(TranscriptSegmentation.Prepare(freshStored)));
 
-        var dto = PrepareTranscriptSegments([new TranscriptSegmentDto(0, text)]);
+        var dto = TranscriptSegmentation.Prepare([new TranscriptSegmentDto(0, text)]);
         return Ok(BaseResponse<IReadOnlyList<TranscriptSegmentDto>>.Ok(dto));
     }
 
@@ -250,30 +243,30 @@ public partial class VideoController
 
         var transcriptKey = $"{VideoSourceTypes.Normalize(video.SourceType)}:{video.ExternalVideoId}";
         var ttl = TimeSpan.FromSeconds(_cacheOptions.TranscriptSeconds);
-        var stored = await GetStoredTranscriptSegmentsAsync(transcriptKey, SubtitlesKind, cancellationToken)
-                     ?? await GetStoredTranscriptSegmentsAsync(transcriptKey, TranscriptKind, cancellationToken);
+        var stored = await _transcripts.GetStoredSegmentsAsync(transcriptKey, TranscriptKinds.Subtitles, cancellationToken)
+                     ?? await _transcripts.GetStoredSegmentsAsync(transcriptKey, TranscriptKinds.Transcript, cancellationToken);
         if (stored is { Count: > 0 })
         {
-            var prepared = IsBilibiliVideo(video) ? PrepareTranscriptSegments(stored) : stored;
+            var prepared = IsBilibiliVideo(video) ? TranscriptSegmentation.Prepare(stored) : stored;
             return Ok(BaseResponse<IReadOnlyList<TranscriptSegmentDto>>.Ok(prepared));
         }
 
-        var text = await GetOrFetchTranscriptAsync(video, cancellationToken);
+        var text = await _transcripts.GetOrFetchTranscriptAsync(video, cancellationToken);
         if (string.IsNullOrWhiteSpace(text))
             return NotFound(BaseResponse<IReadOnlyList<TranscriptSegmentDto>>.Fail("No captions found for this video.", "SUBTITLES_NOT_FOUND"));
 
         // GetOrFetchTranscriptAsync stores properly segmented data — re-read it instead of
         // collapsing everything into a single segment at t=0.
-        var freshStored = await GetStoredTranscriptSegmentsAsync(transcriptKey, SubtitlesKind, cancellationToken)
-                          ?? await GetStoredTranscriptSegmentsAsync(transcriptKey, TranscriptKind, cancellationToken);
+        var freshStored = await _transcripts.GetStoredSegmentsAsync(transcriptKey, TranscriptKinds.Subtitles, cancellationToken)
+                          ?? await _transcripts.GetStoredSegmentsAsync(transcriptKey, TranscriptKinds.Transcript, cancellationToken);
         if (freshStored is { Count: > 0 })
         {
-            var prepared = IsBilibiliVideo(video) ? PrepareTranscriptSegments(freshStored) : freshStored;
+            var prepared = IsBilibiliVideo(video) ? TranscriptSegmentation.Prepare(freshStored) : freshStored;
             return Ok(BaseResponse<IReadOnlyList<TranscriptSegmentDto>>.Ok(prepared));
         }
 
         var dto = IsBilibiliVideo(video)
-            ? PrepareTranscriptSegments([new TranscriptSegmentDto(0, text)])
+            ? TranscriptSegmentation.Prepare([new TranscriptSegmentDto(0, text)])
             : [new TranscriptSegmentDto(0, text)];
         return Ok(BaseResponse<IReadOnlyList<TranscriptSegmentDto>>.Ok(dto));
     }

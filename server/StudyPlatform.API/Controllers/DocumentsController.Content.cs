@@ -130,8 +130,8 @@ public partial class DocumentsController
     public async Task<IActionResult> DeleteChatHistory(Guid courseId, Guid documentId, CancellationToken cancellationToken)
     {
         var userId = User.GetUserId();
-        var document = await _unitOfWork.Documents.GetByIdAsync(documentId, cancellationToken);
-        if (document == null || document.UserId != userId)
+        var document = await _unitOfWork.Documents.GetOwnedAsync(documentId, userId, cancellationToken);
+        if (document == null)
             return NotFound(BaseResponse<string>.Fail("Document not found.", "DOCUMENT_NOT_FOUND"));
 
         await _unitOfWork.ChatMessages.DeleteByDocumentIdAsync(documentId, userId, cancellationToken);
@@ -149,8 +149,8 @@ public partial class DocumentsController
     public async Task<IActionResult> GetChatConversations(Guid courseId, Guid documentId, CancellationToken cancellationToken)
     {
         var userId = User.GetUserId();
-        var document = await _unitOfWork.Documents.GetByIdAsync(documentId, cancellationToken);
-        if (document == null || document.UserId != userId)
+        var document = await _unitOfWork.Documents.GetOwnedAsync(documentId, userId, cancellationToken);
+        if (document == null)
             return NotFound(BaseResponse<string>.Fail("Document not found.", "DOCUMENT_NOT_FOUND"));
 
         await ChatThreads.AdoptLegacyDocumentChatAsync(_unitOfWork, documentId, userId, cancellationToken);
@@ -165,8 +165,8 @@ public partial class DocumentsController
     public async Task<IActionResult> CreateChatConversation(Guid courseId, Guid documentId, [FromBody] CreateChatThreadRequest? request, CancellationToken cancellationToken)
     {
         var userId = User.GetUserId();
-        var document = await _unitOfWork.Documents.GetByIdAsync(documentId, cancellationToken);
-        if (document == null || document.UserId != userId)
+        var document = await _unitOfWork.Documents.GetOwnedAsync(documentId, userId, cancellationToken);
+        if (document == null)
             return NotFound(BaseResponse<string>.Fail("Document not found.", "DOCUMENT_NOT_FOUND"));
 
         var conversation = await _unitOfWork.ChatMessages.CreateDocumentConversationAsync(
@@ -287,21 +287,6 @@ public partial class DocumentsController
             return NotFound(BaseResponse<QuizSubmissionDto>.Fail(result.Message, result.ErrorCode));
 
         return Ok(BaseResponse<QuizSubmissionDto>.Ok(result.Data!, result.Message));
-    }
-
-    /// <summary>
-    /// Get glossary terms for a document
-    /// </summary>
-    [HttpGet("{documentId:guid}/glossary")]
-    [ProducesResponseType(typeof(BaseResponse<IEnumerable<GlossaryTermDto>>), 200)]
-    public async Task<IActionResult> GetGlossaryTerms(Guid courseId, Guid documentId)
-    {
-        var userId = User.GetUserId();
-        var result = await _mediator.Send(new GetGlossaryTermsQuery(documentId, userId));
-        if (!result.IsSuccess)
-            return NotFound(BaseResponse<IEnumerable<GlossaryTermDto>>.Fail(result.Message, result.ErrorCode));
-
-        return Ok(BaseResponse<IEnumerable<GlossaryTermDto>>.Ok(result.Data!));
     }
 
     /// <summary>

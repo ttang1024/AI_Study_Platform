@@ -49,22 +49,6 @@ export function createGlossaryService(http: HttpClient, offlineCache?: GlossaryO
       }
     },
 
-    async getGlossary(courseId: string, documentId: string): Promise<GlossaryTerm[]> {
-      try {
-        const res = await http.get<{ data: BackendTerm[] }>(
-          `/api/courses/${courseId}/documents/${documentId}/glossary`,
-        );
-        return (res.data.data ?? []).map((t): GlossaryTerm => ({
-          id: t.id,
-          term: t.term,
-          definition: t.definition,
-          documentId: t.documentId,
-        }));
-      } catch {
-        return [];
-      }
-    },
-
     async generateGlossary(courseId: string, documentId: string): Promise<GlossaryTerm[]> {
       try {
         const res = await http.post<{ data: BackendTerm[] }>(

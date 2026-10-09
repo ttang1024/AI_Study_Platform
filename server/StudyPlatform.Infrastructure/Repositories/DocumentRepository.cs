@@ -75,10 +75,17 @@ public class DocumentRepository : Repository<Document>, IDocumentRepository
             .OrderByDescending(d => d.CreatedAt)
             .ToListAsync(cancellationToken);
 
-    public async Task<DocumentSourceRef?> GetSourceRefAsync(Guid documentId, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<PendingTranscription>> GetPendingTranscriptionsAsync(CancellationToken cancellationToken = default)
         => await _dbSet
             .AsNoTracking()
-            .Where(d => d.DocumentId == documentId)
+            .Where(d => d.TranscriptionRequestedAt != null && (d.Transcript == null || d.Transcript == ""))
+            .Select(d => new PendingTranscription(d.DocumentId, d.UserId, d.ContentType))
+            .ToListAsync(cancellationToken);
+
+    public async Task<DocumentSourceRef?> GetSourceRefAsync(Guid documentId, Guid ownerId, CancellationToken cancellationToken = default)
+        => await _dbSet
+            .AsNoTracking()
+            .Where(d => d.DocumentId == documentId && d.UserId == ownerId)
             .Select(d => new DocumentSourceRef(d.ContentType, d.BlobUrl))
             .FirstOrDefaultAsync(cancellationToken);
 

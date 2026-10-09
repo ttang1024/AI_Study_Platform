@@ -90,22 +90,6 @@ public class PodcastController : ControllerBase
     }
 
     /// <summary>
-    /// Get podcast episode metadata by document ID
-    /// </summary>
-    [HttpGet("{documentId:guid}")]
-    [ProducesResponseType(typeof(BaseResponse<DocumentDto>), 200)]
-    [ProducesResponseType(typeof(BaseResponse), 404)]
-    public async Task<IActionResult> GetPodcast(Guid documentId)
-    {
-        var userId = User.GetUserId();
-        var result = await _mediator.Send(new GetDocumentByIdQuery(documentId, userId));
-        if (!result.IsSuccess)
-            return NotFound(BaseResponse<DocumentDto>.Fail(result.Message, result.ErrorCode));
-
-        return Ok(BaseResponse<DocumentDto>.Ok(result.Data!));
-    }
-
-    /// <summary>
     /// Get the direct audio URL for a podcast episode
     /// </summary>
     [HttpGet("{documentId:guid}/url")]

@@ -41,7 +41,7 @@ public class CreateNoteCommandHandler : IRequestHandler<CreateNoteCommand, Resul
     }
 }
 
-public record GetAllNotesPagedQuery(Guid UserId, int Page, int PageSize) : IRequest<Result<PaginatedList<NoteDto>>>;
+public record GetAllNotesPagedQuery(Guid UserId, int Page, int PageSize) : IRequest<Result<PaginatedList<NoteDto>>>, IPagedRequest;
 
 public class GetAllNotesPagedQueryHandler : IRequestHandler<GetAllNotesPagedQuery, Result<PaginatedList<NoteDto>>>
 {
@@ -100,27 +100,5 @@ public class DeleteNoteCommandHandler : IRequestHandler<DeleteNoteCommand, Resul
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         await _embeddingIndex.PruneOrphansAsync(request.UserId, cancellationToken);
         return Result.Success("Note deleted successfully.");
-    }
-}
-
-public record BulkDeleteNotesCommand(IEnumerable<Guid> NoteIds, Guid UserId) : IRequest<Result>;
-
-public class BulkDeleteNotesCommandHandler : IRequestHandler<BulkDeleteNotesCommand, Result>
-{
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IEmbeddingIndex _embeddingIndex;
-
-    public BulkDeleteNotesCommandHandler(IUnitOfWork unitOfWork, IEmbeddingIndex embeddingIndex)
-    {
-        _unitOfWork = unitOfWork;
-        _embeddingIndex = embeddingIndex;
-    }
-
-    public async Task<Result> Handle(BulkDeleteNotesCommand request, CancellationToken cancellationToken)
-    {
-        await _unitOfWork.Notes.DeleteByIdsAsync(request.NoteIds, request.UserId, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-        await _embeddingIndex.PruneOrphansAsync(request.UserId, cancellationToken);
-        return Result.Success("Notes deleted successfully.");
     }
 }

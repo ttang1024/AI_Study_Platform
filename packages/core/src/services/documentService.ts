@@ -222,18 +222,6 @@ const mapChatMessage = (bm: BackendChatMessage): ChatMessage => ({
   attachments: bm.attachments ?? undefined,
 });
 
-export interface DocumentStaleness {
-  documentId: string;
-  contentVersion: number;
-  sourceChangedAt?: string;
-  staleFlashcards: number;
-  staleQuizzes: number;
-  staleGlossaryTerms: number;
-  summaryStale: boolean;
-  mindMapStale: boolean;
-  hasStaleArtifacts: boolean;
-}
-
 const mapQuiz = (bq: BackendQuiz): QuizQuestion => ({
   id: bq.quizId,
   question: bq.question,
@@ -287,30 +275,6 @@ export function createDocumentService(http: HttpClient, streamSse: SseStreamFn) 
 
   return {
     invalidateDocumentListCache,
-
-    /** How much of this document's generated material predates its current source version. */
-    getStaleness: (documentId: string) =>
-      http.get<{ data: DocumentStaleness }>(`/api/documents/${documentId}/staleness`),
-
-    /**
-     * Replaces the document's file. Existing artifacts are kept but marked out of date —
-     * regenerating is a separate, explicit step so a re-upload never discards review history.
-     */
-    replaceSource: (documentId: string, file: File | Blob, fileName: string) => {
-      const form = new FormData();
-      form.append('file', file, fileName);
-      return http.put<{ data: DocumentStaleness }>(`/api/documents/${documentId}/source`, form);
-    },
-
-    regenerateStale: (
-      documentId: string,
-      kinds: { flashcards?: boolean; quizzes?: boolean; glossary?: boolean } = {},
-    ) =>
-      http.post<{ data: DocumentStaleness }>(`/api/documents/${documentId}/regenerate`, {
-        flashcards: kinds.flashcards ?? true,
-        quizzes: kinds.quizzes ?? true,
-        glossary: kinds.glossary ?? true,
-      }),
 
 
     async getAllDocuments(page = 1, pageSize = 3, courseId?: string): Promise<PagedDocuments> {

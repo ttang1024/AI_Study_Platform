@@ -57,8 +57,8 @@ public class CreateAnnotationCommandHandler : IRequestHandler<CreateAnnotationCo
 
     public async Task<Result<DocumentAnnotationDto>> Handle(CreateAnnotationCommand request, CancellationToken cancellationToken)
     {
-        var doc = await _unitOfWork.Documents.GetByIdAsync(request.DocumentId, cancellationToken);
-        if (doc == null || doc.UserId != request.UserId)
+        var doc = await _unitOfWork.Documents.GetOwnedAsync(request.DocumentId, request.UserId, cancellationToken);
+        if (doc == null)
             return Result<DocumentAnnotationDto>.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
 
         var annotation = new DocumentAnnotation
@@ -91,8 +91,8 @@ public class UpdateAnnotationCommandHandler : IRequestHandler<UpdateAnnotationCo
 
     public async Task<Result<DocumentAnnotationDto>> Handle(UpdateAnnotationCommand request, CancellationToken cancellationToken)
     {
-        var annotation = await _unitOfWork.DocumentAnnotations.GetByIdAsync(request.AnnotationId, cancellationToken);
-        if (annotation == null || annotation.UserId != request.UserId)
+        var annotation = await _unitOfWork.DocumentAnnotations.GetOwnedAsync(request.AnnotationId, request.UserId, cancellationToken);
+        if (annotation == null)
             return Result<DocumentAnnotationDto>.Failure("Annotation not found.", "ANNOTATION_NOT_FOUND");
 
         annotation.Note = request.Note;
@@ -115,8 +115,8 @@ public class DeleteAnnotationCommandHandler : IRequestHandler<DeleteAnnotationCo
 
     public async Task<Result<bool>> Handle(DeleteAnnotationCommand request, CancellationToken cancellationToken)
     {
-        var annotation = await _unitOfWork.DocumentAnnotations.GetByIdAsync(request.AnnotationId, cancellationToken);
-        if (annotation == null || annotation.UserId != request.UserId)
+        var annotation = await _unitOfWork.DocumentAnnotations.GetOwnedAsync(request.AnnotationId, request.UserId, cancellationToken);
+        if (annotation == null)
             return Result<bool>.Failure("Annotation not found.", "ANNOTATION_NOT_FOUND");
 
         _unitOfWork.DocumentAnnotations.Remove(annotation);
@@ -140,8 +140,8 @@ public class CreateFlashcardFromAnnotationCommandHandler : IRequestHandler<Creat
 
     public async Task<Result<bool>> Handle(CreateFlashcardFromAnnotationCommand request, CancellationToken cancellationToken)
     {
-        var annotation = await _unitOfWork.DocumentAnnotations.GetByIdAsync(request.AnnotationId, cancellationToken);
-        if (annotation == null || annotation.UserId != request.UserId)
+        var annotation = await _unitOfWork.DocumentAnnotations.GetOwnedAsync(request.AnnotationId, request.UserId, cancellationToken);
+        if (annotation == null)
             return Result<bool>.Failure("Annotation not found.", "ANNOTATION_NOT_FOUND");
 
         var back = await _aiService.GenerateFlashcardBackAsync(annotation.HighlightedText, cancellationToken);

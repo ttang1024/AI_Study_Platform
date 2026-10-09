@@ -101,15 +101,4 @@ describe('noteService', () => {
     })
   })
 
-  describe('deleteNotesBulk', () => {
-    it('calls DELETE /bulk with the ids list', async () => {
-      mockApiClient.delete.mockResolvedValueOnce({})
-
-      await noteService.deleteNotesBulk(['n-1', 'n-2', 'n-3'])
-
-      expect(mockApiClient.delete).toHaveBeenCalledWith('/api/notes/bulk', {
-        data: { noteIds: ['n-1', 'n-2', 'n-3'] },
-      })
-    })
-  })
 })

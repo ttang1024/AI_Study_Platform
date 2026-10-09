@@ -10,6 +10,7 @@ public class OtpCode
     public string Code { get; set; } = string.Empty;
     public OtpPurpose Purpose { get; set; }
     public bool IsUsed { get; set; }
+    public int FailedAttempts { get; set; }
     public DateTime ExpiresAt { get; set; }
     public DateTime CreatedAt { get; set; }
     public User? User { get; set; }

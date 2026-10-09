@@ -15,8 +15,8 @@ public class MoveDocumentCommandHandler : IRequestHandler<MoveDocumentCommand, R
 
     public async Task<Result<DocumentDto>> Handle(MoveDocumentCommand request, CancellationToken cancellationToken)
     {
-        var document = await _unitOfWork.Documents.GetByIdAsync(request.DocumentId, cancellationToken);
-        if (document == null || document.UserId != request.UserId)
+        var document = await _unitOfWork.Documents.GetOwnedAsync(request.DocumentId, request.UserId, cancellationToken);
+        if (document == null)
             return Result<DocumentDto>.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
 
         var courseExists = await _unitOfWork.Courses.BelongsToUserAsync(request.TargetCourseId, request.UserId, cancellationToken);

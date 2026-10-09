@@ -25,6 +25,7 @@
 		"axios": "^1.13.6",
 		"clsx": "^2.1.1",
 		"docx-preview": "^0.3.7",
+		"dompurify": "3.3.3",
 		"html-to-image": "^1.11.13",
 		"idb-keyval": "^6.2.2",
 		"jspdf": "^4.2.1",

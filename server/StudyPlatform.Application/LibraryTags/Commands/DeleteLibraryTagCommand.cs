@@ -21,8 +21,8 @@ public class DeleteLibraryTagCommandHandler : IRequestHandler<DeleteLibraryTagCo
 
     public async Task<Result> Handle(DeleteLibraryTagCommand request, CancellationToken cancellationToken)
     {
-        var tag = await _unitOfWork.LibraryTags.GetByIdAsync(request.LibraryTagId, cancellationToken);
-        if (tag == null || tag.UserId != request.UserId)
+        var tag = await _unitOfWork.LibraryTags.GetOwnedAsync(request.LibraryTagId, request.UserId, cancellationToken);
+        if (tag == null)
             return Result.Failure("Not found.", "TAG_NOT_FOUND");
 
         _unitOfWork.LibraryTags.Remove(tag);

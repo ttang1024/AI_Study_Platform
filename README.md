@@ -1,10 +1,10 @@
 <div align="center">
 
-# Study Platform
+# Toto Study
 
 ### AI-powered learning — from any content, in any subject
 
-**[toto-study.com](https://toto-study.com)**
+**[Toto Study, the AI study platform: toto-study.com](https://toto-study.com)**
 
 [![.NET](https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com)
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev)
@@ -96,9 +96,7 @@ cd rn  && npm install && npx expo start        # mobile; env setup in rn/README.
     "DefaultConnection": "Host=localhost;Port=5432;Database=studyplatform;Username=studyplatform;Password=yourpassword",
   },
   "JwtSettings": {
-    "SecretKey": "your-32-char-secret",
-    "AccessTokenExpiryMinutes": 15,
-    "RefreshTokenExpiryDays": 7,
+    "SecretKey": "your-32-char-secret"
   },
   "EmailSettings": {
     "Provider": "Ses",

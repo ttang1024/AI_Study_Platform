@@ -1,6 +1,8 @@
+using StudyPlatform.Domain.Interfaces;
+
 namespace StudyPlatform.Domain.Entities;
 
-public class DocumentAnnotation
+public class DocumentAnnotation : IUserOwned
 {
     public Guid DocumentAnnotationId { get; set; }
     public Guid UserId { get; set; }

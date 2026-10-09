@@ -106,8 +106,6 @@ services:
       JwtSettings__SecretKey: ${JWT_SECRET_KEY}
       JwtSettings__Issuer: ${JWT_ISSUER:-Study Platform}
       JwtSettings__Audience: ${JWT_AUDIENCE:-Study Platform Users}
-      JwtSettings__AccessTokenExpiryMinutes: ${JWT_ACCESS_EXPIRY_MINUTES:-15}
-      JwtSettings__RefreshTokenExpiryDays: ${JWT_REFRESH_EXPIRY_DAYS:-7}
       EmailSettings__FromEmail: ${EMAIL_FROM}
       EmailSettings__FromName: ${EMAIL_FROM_NAME:-Study Platform}
       EmailSettings__SmtpHost: ${SMTP_HOST:-smtp.gmail.com}

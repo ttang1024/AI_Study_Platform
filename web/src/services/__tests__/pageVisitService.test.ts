@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { trackPageVisit, resetPageVisitTracking, getVisitorId, getSessionId } from '../pageVisitService'
+import { setAccessToken } from '../accessToken'
 
 const fetchMock = vi.fn((_input: RequestInfo | URL, _init?: RequestInit) => Promise.resolve({ ok: true } as Response))
 
@@ -8,6 +9,7 @@ const lastBody = () => JSON.parse(lastInit().body as string)
 
 describe('pageVisitService', () => {
   beforeEach(() => {
+    setAccessToken(null)
     vi.stubGlobal('fetch', fetchMock)
     fetchMock.mockClear()
     localStorage.clear()
@@ -61,7 +63,7 @@ describe('pageVisitService', () => {
   })
 
   it('attaches the bearer token when the visitor is signed in', () => {
-    localStorage.setItem('sp_access_token', 'jwt-123')
+    setAccessToken('jwt-123')
 
     trackPageVisit('/dashboard')
 

@@ -6,7 +6,9 @@ import {
   Zap, ChevronRight, GraduationCap,
   Github, ExternalLink,
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useOptionalAuth } from '../context/AuthContext';
+import { FEATURE_PAGES, featurePagePath } from '../seo/featurePages';
 import { Typewriter, Counter, Particles, FadeIn } from '../components/landing/LandingAnimations';
 import { Logo, LOGO_STYLES } from '../components/landing/Logo';
 import { Badge } from '../components/landing/Badge';
@@ -26,12 +28,9 @@ import {
   BentoSummaryCard,
   BentoMindMapCard,
   BentoQuizCard,
-  BentoPlannerCard,
   BentoTutorCard,
-  BentoInsightsCard,
   BentoSearchCard,
   BentoShareCard,
-  BentoPracticeCard,
   BentoEverywhereCard,
   BentoSecurityCard,
   BentoFormatsCard,
@@ -54,10 +53,7 @@ const BENTO_CARDS: { Card: React.FC; span?: string }[] = [
   { Card: BentoNoteCard },
   { Card: BentoGlossaryCard },
   { Card: BentoTutorCard },
-  { Card: BentoPlannerCard },
-  { Card: BentoInsightsCard },
   { Card: BentoProblemCard },
-  { Card: BentoPracticeCard },
   { Card: BentoEverywhereCard, span: 'sm:col-span-2' },
   { Card: BentoSearchCard },
   { Card: BentoStudyGroupCard },
@@ -294,6 +290,19 @@ export const LandingPage: React.FC = () => {
           <Logo sm />
         </div>
         <p className="text-xs text-white mt-2">easy study platform · built to help you learn faster with AI.</p>
+        {/* Crawlable links to the public feature pages. Search engines weigh a page partly by the
+            links pointing at it, and the homepage is the strongest page on the site. */}
+        <nav aria-label="Study tools" className="mt-5">
+          <ul className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-xs">
+            {FEATURE_PAGES.map((p) => (
+              <li key={p.slug}>
+                <Link to={featurePagePath(p.slug)} className="text-white/50 hover:text-cyan-300 transition-colors">
+                  {p.navLabel}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
         {/* The header's GitHub link is hidden below sm; this one is the only one a phone gets. */}
         <motion.a
           href="https://github.com/ttang1024/AI_Study_Platform"

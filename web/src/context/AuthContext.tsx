@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '../types';
 import { authService } from '../services/authService';
 import { clearRecentItems } from '../services/recentItemsService';
+import { clearAccessToken, refreshAccessToken, SessionRejectedError, setAccessToken } from '../services/accessToken';
 
 interface AuthContextType {
   user: User | null;
@@ -25,15 +26,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const savedUser = localStorage.getItem('sp_user');
-    if (savedUser) {
+    let cancelled = false;
+    const restore = async () => {
+      const savedUser = localStorage.getItem('sp_user');
+      if (!savedUser) return;
+      let parsed: User;
       try {
-        setUser(JSON.parse(savedUser));
+        parsed = JSON.parse(savedUser);
       } catch {
         localStorage.removeItem('sp_user');
+        return;
       }
-    }
-    setIsLoading(false);
+      // The access token is memory-only, so a fresh page load re-mints it from the refresh cookie
+      // before anything renders that needs it. Only an explicit rejection ends the session — offline,
+      // the user stays signed in and the cached (PWA) data stays usable.
+      try {
+        await refreshAccessToken();
+      } catch (error) {
+        if (error instanceof SessionRejectedError) {
+          localStorage.removeItem('sp_user');
+          return;
+        }
+      }
+      if (!cancelled) setUser(parsed);
+    };
+    void restore().finally(() => {
+      if (!cancelled) setIsLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   /**
@@ -41,7 +63,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
    * up in exactly the same state.
    */
   const establishSession = (result: { accessToken: string; user: User }) => {
-    localStorage.setItem('sp_access_token', result.accessToken);
+    setAccessToken(result.accessToken);
     localStorage.setItem('sp_user', JSON.stringify(result.user));
     setUser(result.user);
   };
@@ -57,7 +79,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch {
       // Ignore errors on logout — clear local state regardless
     } finally {
-      localStorage.removeItem('sp_access_token');
+      clearAccessToken();
       localStorage.removeItem('sp_user');
       clearRecentItems();
       setUser(null);
@@ -87,14 +109,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const loginWithOAuth = async (provider: string, code: string, redirectUri: string): Promise<void> => {
     const { accessToken, user: apiUser } = await authService.loginWithOAuth(provider, code, redirectUri);
-    localStorage.setItem('sp_access_token', accessToken);
+    setAccessToken(accessToken);
     localStorage.setItem('sp_user', JSON.stringify(apiUser));
     setUser(apiUser);
   };
 
   const loginWithGoogleCredential = async (credential: string): Promise<void> => {
     const { accessToken, user: apiUser } = await authService.loginWithGoogleCredential(credential);
-    localStorage.setItem('sp_access_token', accessToken);
+    setAccessToken(accessToken);
     localStorage.setItem('sp_user', JSON.stringify(apiUser));
     setUser(apiUser);
   };

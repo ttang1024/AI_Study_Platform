@@ -8,6 +8,7 @@ import { STUDY_TYPE_ICONS, StudyTypeIconConfig } from '../constants/contentTypeI
 import { getShare, SharedContent } from '../services/shareContentService';
 import { cn } from '../utils/cn';
 import { getApiUrl } from '../utils/env';
+import { sanitizeHtml } from '../utils/sanitizeHtml';
 import { SummaryMarkdown } from '../components/study/SummaryMarkdown';
 import { FlashcardSessionDeck } from '../components/study/FlashcardSessionCard';
 import { MarkmapView } from './sharedContent/MarkmapView';
@@ -260,7 +261,7 @@ export const SharedContentPage: React.FC<{ token?: string }> = ({ token: tokenPr
                 ) : (
                   <div
                     className="prose prose-sm max-w-none text-text-main"
-                    dangerouslySetInnerHTML={{ __html: content.notesHtml }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(content.notesHtml) }}
                   />
                 )}
               </div>

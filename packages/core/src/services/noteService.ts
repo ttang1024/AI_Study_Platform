@@ -78,9 +78,6 @@ export function createNoteService(http: HttpClient) {
       await http.delete(`/api/notes/${noteId}`);
     },
 
-    async deleteNotesBulk(noteIds: string[]): Promise<void> {
-      await http.delete('/api/notes/bulk', { data: { noteIds } });
-    },
   };
 }
 

@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { ShareableQuiz, ShareableCard } from '../../services/shareContentService';
 import { MindMapDiagram, mindMapRenderWidth } from './MindMapDiagram';
+import { sanitizeHtml } from '../../utils/sanitizeHtml';
 
 // Horizontal padding applied inside the header/body/footer (40px each side).
 const SIDE_PAD = 40;
@@ -123,7 +124,7 @@ export const ShareImageCard = forwardRef<HTMLDivElement, ShareImageCardProps>(
               <div
                 style={{ fontSize: 15, lineHeight: 1.7, color: '#3f3f46' }}
                 className="share-md"
-                dangerouslySetInnerHTML={{ __html: notesHtml }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(notesHtml) }}
               />
             </Section>
           )}

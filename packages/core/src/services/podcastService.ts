@@ -71,11 +71,6 @@ export function createPodcastService(http: HttpClient) {
       return mapEpisode(res.data.data);
     },
 
-    async getEpisode(documentId: string): Promise<PodcastEpisode> {
-      const res = await http.get<{ data: unknown }>(`/api/podcasts/${documentId}`);
-      return mapEpisode(res.data.data);
-    },
-
     async getAudioUrl(documentId: string): Promise<string> {
       const res = await http.get<{ data: string }>(`/api/podcasts/${documentId}/url`);
       return res.data.data;

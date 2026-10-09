@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
+using StudyPlatform.Application.Common;
 
 namespace StudyPlatform.API.Extensions;
 
@@ -92,7 +93,11 @@ public static class SseExtensions
         }
         catch (Exception ex)
         {
-            await response.WriteSseDataAsync("[ERROR] " + ex.Message, cancellationToken);
+            controller.HttpContext.RequestServices.GetService<ILoggerFactory>()
+                ?.CreateLogger("SseStreaming").LogError(ex, "AI stream failed mid-response");
+            await response.WriteSseDataAsync(
+                "[ERROR] " + ClientErrors.MessageFor(ex, "The AI response was interrupted. Please try again."),
+                cancellationToken);
         }
 
         await response.WriteSseDoneAsync(cancellationToken);

@@ -13,8 +13,8 @@ set -euo pipefail
 # - Cache: none. Redis is optional and off by default; set REDIS_ENABLED/REDIS_CONNECTION_STRING to
 #   point the API at one you already run.
 #
-# DEPLOY_WEB_ONLY=1      rebuild and resync the frontends only (see deploy-web.sh)
-# DEPLOY_BACKEND_ONLY=1  build, push and roll the API only (see deploy-backend.sh)
+# DEPLOY_WEB_ONLY=1 ./deploy.sh      rebuild and resync the frontends only
+# DEPLOY_BACKEND_ONLY=1 ./deploy.sh  build, push and roll the API only
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 if [[ -f "$SCRIPT_DIR/.env_variables" ]]; then
@@ -232,6 +232,114 @@ ensure_share_preview_behavior() {
   rm -f "$config_file"
 }
 
+# ensure_www_redirect. Installs cloudfront/www-redirect.js as a CloudFront Function and attaches it
+# (viewer-request) to every behavior of the web distribution, so www.<domain> 301s to <domain>.
+# Only with PUBLIC_DOMAIN set: without a custom domain there is no www alias to redirect.
+#
+# Why: both hostnames are aliases of the one distribution, so both answered 200 with the same pages
+# and search engines saw two copies of the site. Re-publishes only when the code differs from LIVE,
+# and leaves the distribution alone once every behavior already carries the function.
+ensure_www_redirect() {
+  [[ -n "$PUBLIC_DOMAIN" ]] || return 0
+  local name="${APP_NAME}-www-redirect" code="$SCRIPT_DIR/cloudfront/www-redirect.js"
+  local dist_id etag fn_etag fn_arn config updated config_file live_code
+  dist_id="$(cloudfront_field_by_comment "$WEB_CLOUDFRONT_COMMENT" Id)"
+  if [[ -z "$dist_id" || "$dist_id" == "None" ]]; then
+    echo "    Web distribution not found; skipping the www redirect." >&2
+    return 0
+  fi
+
+  live_code="$(mktemp -t www-redirect)"
+  if ! aws cloudfront get-function --name "$name" --stage LIVE "$live_code" >/dev/null 2>&1 \
+      || ! cmp -s "$live_code" "$code"; then
+    fn_etag="$(aws_opt cloudfront describe-function --name "$name" --stage DEVELOPMENT --query ETag --output text)"
+    if [[ -z "$fn_etag" ]]; then
+      fn_etag="$(aws cloudfront create-function --name "$name" \
+        --function-config '{"Comment":"Redirect www to the bare domain","Runtime":"cloudfront-js-2.0"}' \
+        --function-code "fileb://$code" --query ETag --output text)"
+    else
+      fn_etag="$(aws cloudfront update-function --name "$name" --if-match "$fn_etag" \
+        --function-config '{"Comment":"Redirect www to the bare domain","Runtime":"cloudfront-js-2.0"}' \
+        --function-code "fileb://$code" --query ETag --output text)"
+    fi
+    aws cloudfront publish-function --name "$name" --if-match "$fn_etag" >/dev/null
+    echo "    Published CloudFront function $name"
+  fi
+  rm -f "$live_code"
+  fn_arn="$(aws cloudfront describe-function --name "$name" --stage LIVE \
+    --query 'FunctionSummary.FunctionMetadata.FunctionARN' --output text)"
+
+  config_file="$(mktemp -t www-redirect-dist)"
+  aws cloudfront get-distribution-config --id "$dist_id" > "$config_file"
+  etag="$(jq -r '.ETag' "$config_file")"
+  config="$(jq '.DistributionConfig' "$config_file")"
+
+  if jq -e --arg arn "$fn_arn" '
+      [.DefaultCacheBehavior] + (.CacheBehaviors.Items // [])
+      | all((.FunctionAssociations.Items // []) | any(.EventType == "viewer-request" and .FunctionARN == $arn))
+    ' <<<"$config" >/dev/null; then
+    echo "    www already redirects to $PUBLIC_DOMAIN"
+    rm -f "$config_file"
+    return 0
+  fi
+
+  # A behavior holds one function per event type, so any other viewer-request function is replaced.
+  updated="$(jq --arg arn "$fn_arn" '
+    def attach: .FunctionAssociations.Items = (((.FunctionAssociations.Items // [])
+        | map(select(.EventType != "viewer-request"))) + [{FunctionARN: $arn, EventType: "viewer-request"}])
+      | .FunctionAssociations.Quantity = (.FunctionAssociations.Items | length);
+    .DefaultCacheBehavior |= attach
+    | if (.CacheBehaviors.Items // []) | length > 0 then .CacheBehaviors.Items |= map(attach) else . end
+  ' <<<"$config")"
+  printf '%s' "$updated" > "$config_file"
+  if aws cloudfront update-distribution --id "$dist_id" --if-match "$etag" \
+      --distribution-config "file://$config_file" >/dev/null; then
+    echo "    www.$PUBLIC_DOMAIN now 301s to $PUBLIC_DOMAIN"
+  else
+    echo "    Failed to attach the www redirect; www keeps serving the site directly." >&2
+  fi
+  rm -f "$config_file"
+}
+
+# update_api_origins <https-only|http-only|keep> <secret>. On the API and web distributions, sets every
+# origin pointing at $API_ORIGIN_HOST to that protocol ("keep" leaves it as is) and to send
+# X-Origin-Verify: <secret> (none when empty), then waits until any changed distribution is deployed —
+# the API only starts requiring the header, or CloudFront only starts speaking HTTPS, once the other
+# side is ready, and an edge still on the old config would otherwise fail requests in between.
+update_api_origins() {
+  local protocol="$1" secret="$2" comment dist_id file etag config updated changed=()
+  for comment in "$API_CLOUDFRONT_COMMENT" "$WEB_CLOUDFRONT_COMMENT"; do
+    dist_id="$(cloudfront_field_by_comment "$comment" Id)"
+    [[ -z "$dist_id" || "$dist_id" == "None" ]] && continue
+    file="$(mktemp -t api-origin)"
+    if ! aws cloudfront get-distribution-config --id "$dist_id" > "$file" 2>/dev/null; then
+      echo "    Could not read distribution '$comment'; its API origin is unchanged." >&2
+      rm -f "$file"
+      continue
+    fi
+    etag="$(jq -r '.ETag' "$file")"
+    config="$(jq '.DistributionConfig' "$file")"
+    updated="$(jq --arg host "$API_ORIGIN_HOST" --arg proto "$protocol" --arg secret "$secret" '
+      .Origins.Items |= map(if .DomainName == $host then
+          (if $proto == "keep" then . else .CustomOriginConfig.OriginProtocolPolicy = $proto end)
+          | .CustomHeaders = (if $secret == "" then {Quantity: 0}
+              else {Quantity: 1, Items: [{HeaderName: "X-Origin-Verify", HeaderValue: $secret}]} end)
+        else . end)' <<<"$config")"
+    if [[ "$(jq -S . <<<"$updated")" != "$(jq -S . <<<"$config")" ]]; then
+      printf '%s' "$updated" > "$file"
+      aws cloudfront update-distribution --id "$dist_id" --if-match "$etag" \
+        --distribution-config "file://$file" >/dev/null
+      changed+=("$dist_id")
+      echo "    Updated the API origin on '$comment' (protocol: $protocol, verify header: $([[ -n "$secret" ]] && echo on || echo off))"
+    fi
+    rm -f "$file"
+  done
+  for dist_id in ${changed[@]+"${changed[@]}"}; do
+    echo "    Waiting for CloudFront distribution $dist_id to deploy (usually a few minutes)"
+    aws cloudfront wait distribution-deployed --id "$dist_id"
+  done
+}
+
 invalidate_cloudfront_by_comment() {
   local id
   id="$(cloudfront_field_by_comment "$1" Id)"
@@ -426,6 +534,16 @@ LIGHTSAIL_APP_DIR="${LIGHTSAIL_APP_DIR:-/opt/study-platform}"
 # is published as this A record and the distributions point at it. Changing the instance means
 # repointing this record, not touching CloudFront.
 API_ORIGIN_HOST="${API_ORIGIN_HOST:-origin.${PUBLIC_DOMAIN:-toto-study.com}}"
+# Origin hardening, both opt-in until the first supervised rollout (see DEPLOYMENT.md):
+#  API_ORIGIN_SECRET  shared secret CloudFront sends as X-Origin-Verify; the API then refuses anything
+#                     that did not come through CloudFront (and with it a forged X-Forwarded-For).
+#  API_ORIGIN_TLS=1   CloudFront -> origin over HTTPS: a Caddy container terminates TLS for
+#                     $API_ORIGIN_HOST with a Let's Encrypt certificate. Without it, the hop from
+#                     CloudFront to the instance — JWTs, passwords, users' AI keys — is plain HTTP.
+API_ORIGIN_SECRET="${API_ORIGIN_SECRET:-}"
+API_ORIGIN_TLS="${API_ORIGIN_TLS:-0}"
+CADDY_IMAGE="${CADDY_IMAGE:-caddy:2.8.4}"
+API_DOCKER_NETWORK="${API_DOCKER_NETWORK:-study-platform}"
 # Lightsail has no IAM roles, so the S3 (documents bucket) and SES permissions that used to come
 # from the ECS task role now come from an IAM user's access key, read by the SDK's default
 # credential chain inside the container.
@@ -445,6 +563,8 @@ if [[ "$DEPLOY_WEB_ONLY" == "1" ]]; then
   echo "==> Resolving public origins"
   resolve_public_origins "$API_ORIGIN_HOST"
   ensure_share_preview_behavior "$API_ORIGIN_HOST"
+  ensure_www_redirect
+  [[ -n "$API_ORIGIN_SECRET" ]] && update_api_origins keep "$API_ORIGIN_SECRET"
   deploy_frontends
   summary "Frontend deployment complete"
   exit 0
@@ -557,6 +677,11 @@ fi
 echo "==> Resolving public origins"
 resolve_public_origins "$API_ORIGIN_HOST"
 ensure_share_preview_behavior "$API_ORIGIN_HOST"
+ensure_www_redirect
+if [[ -n "$API_ORIGIN_SECRET" ]]; then
+  # CloudFront must already be sending the header when the new container starts requiring it.
+  update_api_origins keep "$API_ORIGIN_SECRET"
+fi
 echo "    Web:   $WEB_ORIGIN"
 echo "    Admin: $ADMIN_ORIGIN"
 echo "    API:   $API_URL"
@@ -570,6 +695,9 @@ API_ENVIRONMENT=(
   "JwtSettings__SecretKey=$JWT_SECRET"
   "JwtSettings__Issuer=Study Platform"
   "JwtSettings__Audience=Study Platform Users"
+  "Api__OriginVerifySecret=$API_ORIGIN_SECRET"
+  # Caddy adds one X-Forwarded-For hop after CloudFront's; the API trusts exactly that many.
+  "Api__ForwardedHops=$([[ "$API_ORIGIN_TLS" == "1" ]] && echo 2 || echo 1)"
   "Redis__Enabled=$REDIS_ENABLED"
   "Redis__ConnectionString=$REDIS_CONNECTION_STRING"
   "Redis__InstanceName=$REDIS_INSTANCE_NAME"
@@ -635,23 +763,66 @@ echo "    Image on the instance: $IMAGE_TAG"
 # One box means one container: the old one stops before the new one starts, so a deploy is a short
 # outage (container start plus any pending migration) rather than a rolling replacement. The
 # DataProtection volume is what keeps that restart from invalidating every issued antiforgery token.
+if [[ "$API_ORIGIN_TLS" == "1" ]]; then
+  # Caddy owns ports 80/443 and reaches the API over a private docker network; the API itself is only
+  # published on loopback, for the health check below.
+  API_PORT_ARGS="--network $API_DOCKER_NETWORK -p 127.0.0.1:8080:$API_CONTAINER_PORT"
+  API_HEALTH_URL="http://127.0.0.1:8080/health"
+  aws lightsail open-instance-public-ports --instance-name "$LIGHTSAIL_INSTANCE_NAME" \
+    --port-info fromPort=443,toPort=443,protocol=TCP >/dev/null
+else
+  API_PORT_ARGS="-p 80:$API_CONTAINER_PORT"
+  API_HEALTH_URL="http://localhost/health"
+fi
+
 "${SSH[@]}" "set -e
   sudo mkdir -p $LIGHTSAIL_APP_DIR/dp-keys
+  sudo docker network create $API_DOCKER_NETWORK >/dev/null 2>&1 || true
   sudo docker rm -f $API_CONTAINER_NAME >/dev/null 2>&1 || true
   sudo docker run -d --name $API_CONTAINER_NAME --restart unless-stopped \
-    -p 80:$API_CONTAINER_PORT \
+    $API_PORT_ARGS \
     --env-file $LIGHTSAIL_APP_DIR/api.env \
     -v $LIGHTSAIL_APP_DIR/dp-keys:/root/.aspnet/DataProtection-Keys \
     --log-driver=awslogs \
     --log-opt awslogs-region=$AWS_REGION \
     --log-opt awslogs-group=$LOG_GROUP_NAME \
     --log-opt awslogs-stream=lightsail/$API_CONTAINER_NAME \
-    $ECR_URI:$IMAGE_TAG >/dev/null" 
+    $ECR_URI:$IMAGE_TAG >/dev/null"
+
+if [[ "$API_ORIGIN_TLS" == "1" ]]; then
+  # Both an http:// and an https:// site for the origin host: the explicit http site stops Caddy's
+  # automatic HTTP->HTTPS redirect, so CloudFront keeps working over HTTP until it is switched to
+  # HTTPS below. trusted_proxies keeps CloudFront's X-Forwarded-For chain (Caddy appends the edge
+  # address after it) instead of replacing it — hence Api__ForwardedHops=2.
+  CADDYFILE="$(mktemp)"
+  cat > "$CADDYFILE" <<CADDY
+{
+	servers {
+		trusted_proxies static 0.0.0.0/0 ::/0
+	}
+}
+
+http://$API_ORIGIN_HOST, https://$API_ORIGIN_HOST {
+	reverse_proxy $API_CONTAINER_NAME:$API_CONTAINER_PORT
+}
+CADDY
+  scp -o StrictHostKeyChecking=accept-new -q -i "$LIGHTSAIL_SSH_KEY" "$CADDYFILE" \
+    "$LIGHTSAIL_SSH_USER@$LIGHTSAIL_IP:/tmp/Caddyfile.new"
+  rm -f "$CADDYFILE"
+  "${SSH[@]}" "set -e
+    sudo install -o root -g root -m 644 /tmp/Caddyfile.new $LIGHTSAIL_APP_DIR/Caddyfile && rm -f /tmp/Caddyfile.new
+    sudo docker rm -f caddy >/dev/null 2>&1 || true
+    sudo docker run -d --name caddy --restart unless-stopped --network $API_DOCKER_NETWORK \
+      -p 80:80 -p 443:443 \
+      -v $LIGHTSAIL_APP_DIR/Caddyfile:/etc/caddy/Caddyfile:ro \
+      -v caddy_data:/data -v caddy_config:/config \
+      $CADDY_IMAGE >/dev/null"
+fi
 echo "    Container started; waiting for /health"
 
 API_HEALTHY=0
 for _ in $(seq 1 30); do
-  if "${SSH[@]}" "curl -sf -m 5 http://localhost/health >/dev/null"; then API_HEALTHY=1; break; fi
+  if "${SSH[@]}" "curl -sf -m 5 $API_HEALTH_URL >/dev/null"; then API_HEALTHY=1; break; fi
   sleep 5
 done
 if [[ "$API_HEALTHY" != "1" ]]; then
@@ -660,6 +831,26 @@ if [[ "$API_HEALTHY" != "1" ]]; then
   exit 1
 fi
 echo "    API healthy on $LIGHTSAIL_IP"
+
+if [[ "$API_ORIGIN_TLS" == "1" ]]; then
+  # Only once Caddy answers HTTPS with a certificate curl accepts does CloudFront switch to HTTPS;
+  # until then it keeps using HTTP, which still works, rather than failing every request.
+  echo "==> Verifying origin TLS for $API_ORIGIN_HOST"
+  ORIGIN_TLS_OK=0
+  for _ in $(seq 1 24); do
+    if "${SSH[@]}" "curl -sf -m 10 --resolve $API_ORIGIN_HOST:443:127.0.0.1 https://$API_ORIGIN_HOST/health >/dev/null"; then
+      ORIGIN_TLS_OK=1; break
+    fi
+    sleep 5
+  done
+  if [[ "$ORIGIN_TLS_OK" == "1" ]]; then
+    update_api_origins https-only "$API_ORIGIN_SECRET"
+    echo "    CloudFront now reaches the API over HTTPS"
+  else
+    echo "Caddy has no valid certificate for $API_ORIGIN_HOST yet, so CloudFront stays on HTTP." >&2
+    echo "Check 'sudo docker logs caddy' on the instance (port 80 must be reachable for ACME), then re-run." >&2
+  fi
+fi
 
 # Images are ~1.2 GB each; without this the 60 GB disk fills after roughly forty deploys.
 "${SSH[@]}" "sudo docker image prune -af --filter 'until=168h'" >/dev/null 2>&1 || true

@@ -54,7 +54,7 @@ public partial class UserDocumentsController : ControllerBase
         }
         catch (Exception ex)
         {
-            return BadRequest(BaseResponse<DocumentDto>.Fail($"Failed to fetch URL: {ex.Message}", "URL_FETCH_FAILED"));
+            return BadRequest(BaseResponse<DocumentDto>.Fail("Failed to fetch that URL. Check that it is public and reachable.", "URL_FETCH_FAILED"));
         }
 
         _logger.LogDebug("HTML fetched: length={Length}, preview={Preview}",

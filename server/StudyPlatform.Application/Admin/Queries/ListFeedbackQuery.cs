@@ -11,7 +11,7 @@ public record ListFeedbackQuery(
     string? Status,
     string? Type,
     string? Search,
-    string? Sort) : IRequest<Result<PaginatedList<FeedbackItemDto>>>;
+    string? Sort) : IRequest<Result<PaginatedList<FeedbackItemDto>>>, IPagedRequest;
 
 public class ListFeedbackQueryHandler : IRequestHandler<ListFeedbackQuery, Result<PaginatedList<FeedbackItemDto>>>
 {

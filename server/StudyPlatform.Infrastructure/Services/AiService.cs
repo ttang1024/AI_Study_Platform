@@ -3,6 +3,7 @@ using System.Text;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Services;
 using StudyPlatform.Application.Settings;
 
@@ -16,6 +17,7 @@ public partial class AiService : IAiService
     private readonly IAppCache _cache;
     private readonly CacheOptions _cacheOptions;
     private readonly IAiUsageRecorder _usageRecorder;
+    private readonly TimeSpan _requestTimeout;
 
     public AiService(
         HttpClient httpClient,
@@ -23,8 +25,10 @@ public partial class AiService : IAiService
         IHttpContextAccessor httpContextAccessor,
         IAppCache cache,
         IOptions<CacheOptions> cacheOptions,
-        IAiUsageRecorder usageRecorder)
+        IAiUsageRecorder usageRecorder,
+        IOptions<AiRequestOptions> requestOptions)
     {
+        _requestTimeout = TimeSpan.FromSeconds(Math.Max(1, requestOptions.Value.NonStreamingTimeoutSeconds));
         _httpClient = httpClient;
         _logger = logger;
         _httpContextAccessor = httpContextAccessor;
@@ -34,13 +38,8 @@ public partial class AiService : IAiService
     }
 
     // ── Credentials ───────────────────────────────────────────────────────
-    // Background jobs have no HttpContext, so they push the caller's captured credentials into
-    // AmbientAiCredentials before running. That takes precedence over the request headers.
 
-    private AiCredentials Credentials =>
-        AmbientAiCredentials.Value ?? CredentialsFromHeaders();
-
-    private AiCredentials CredentialsFromHeaders()
+    private AiCredentials ReadCredentials()
     {
         var headers = _httpContextAccessor.HttpContext?.Request.Headers;
 
@@ -57,12 +56,12 @@ public partial class AiService : IAiService
             return new AiCredentials(provider!.ToLowerInvariant(), model!, key!, CurrentUserId());
 
         if (string.IsNullOrWhiteSpace(provider))
-            throw new InvalidOperationException("No AI provider specified. Please configure a provider in Settings → AI Services.");
+            throw new UserFacingException("No AI provider specified. Please configure a provider in Settings → AI Services.");
 
         if (string.IsNullOrWhiteSpace(model))
-            throw new InvalidOperationException("No AI model specified. Please configure a model in Settings → AI Services.");
+            throw new UserFacingException("No AI model specified. Please configure a model in Settings → AI Services.");
 
-        throw new InvalidOperationException(
+        throw new UserFacingException(
             $"No API key configured for provider '{provider.ToLowerInvariant()}'. Please add your API key in Settings → AI Services.");
     }
 
@@ -74,42 +73,43 @@ public partial class AiService : IAiService
         return Guid.TryParse(claim, out var id) ? id : Guid.Empty;
     }
 
-    private string ApiKey => Credentials.ApiKey;
-    private string Model => Credentials.Model;
-    private string Provider => Credentials.Provider;
+    private string ApiKey => ReadCredentials().ApiKey;
+    private string Model => ReadCredentials().Model;
+    private string Provider => ReadCredentials().Provider;
 
-    // ── Gemini-only URLs (used for file/inline-data methods) ─────────────
+    // ── Provider endpoints ───────────────────────────────────────────────
 
-    private string AiBaseUrl => $"https://generativelanguage.googleapis.com/v1beta/models/{Model}:generateContent";
-    private string AiStreamUrl => $"https://generativelanguage.googleapis.com/v1beta/models/{Model}:streamGenerateContent";
-
-    // ── Provider-aware URL builders ───────────────────────────────────────
-
-    private string GetNonStreamUrl() => Provider switch
+    /// <summary>
+    /// The chat endpoint per provider (OpenAI-compatible, plus Anthropic's messages API). The same URL
+    /// serves streaming and non-streaming calls; the request body's <c>stream</c> flag picks. Any other
+    /// provider value is Gemini, whose URL names the model and the method instead.
+    /// </summary>
+    private static readonly IReadOnlyDictionary<string, string> ChatEndpoints = new Dictionary<string, string>
     {
-        "openai" => "https://api.openai.com/v1/chat/completions",
-        "deepseek" => "https://api.deepseek.com/v1/chat/completions",
-        "kimi" => "https://api.moonshot.cn/v1/chat/completions",
-        "doubao" => "https://ark.volcengine.com/api/v3/chat/completions",
-        "claude" => "https://api.anthropic.com/v1/messages",
-        "grok" => "https://api.x.ai/v1/chat/completions",
-        "qwen" => "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
-        "wenxin" => "https://qianfan.baidubce.com/v2/chat/completions",
-        _ => $"{AiBaseUrl}?key={ApiKey}",
+        ["openai"] = "https://api.openai.com/v1/chat/completions",
+        ["deepseek"] = "https://api.deepseek.com/v1/chat/completions",
+        ["kimi"] = "https://api.moonshot.cn/v1/chat/completions",
+        ["doubao"] = "https://ark.volcengine.com/api/v3/chat/completions",
+        ["claude"] = "https://api.anthropic.com/v1/messages",
+        ["grok"] = "https://api.x.ai/v1/chat/completions",
+        ["qwen"] = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
+        ["wenxin"] = "https://qianfan.baidubce.com/v2/chat/completions",
     };
 
-    private string GetStreamUrl() => Provider switch
-    {
-        "openai" => "https://api.openai.com/v1/chat/completions",
-        "deepseek" => "https://api.deepseek.com/v1/chat/completions",
-        "kimi" => "https://api.moonshot.cn/v1/chat/completions",
-        "doubao" => "https://ark.volcengine.com/api/v3/chat/completions",
-        "claude" => "https://api.anthropic.com/v1/messages",
-        "grok" => "https://api.x.ai/v1/chat/completions",
-        "qwen" => "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
-        "wenxin" => "https://qianfan.baidubce.com/v2/chat/completions",
-        _ => $"{AiStreamUrl}?alt=sse&key={ApiKey}",
-    };
+    private const string GeminiModelsUrl = "https://generativelanguage.googleapis.com/v1beta/models/";
+
+    private bool IsGemini => !ChatEndpoints.ContainsKey(Provider);
+
+    // The model name comes from a client header, so it is escaped before it becomes part of a path.
+    // The Gemini key travels in the x-goog-api-key header (BuildHttpRequest), never in the URL, where
+    // it would land in proxy and HTTP-client logs.
+    private string GetNonStreamUrl() => ChatEndpoints.TryGetValue(Provider, out var url)
+        ? url
+        : $"{GeminiModelsUrl}{Uri.EscapeDataString(Model)}:generateContent";
+
+    private string GetStreamUrl() => ChatEndpoints.TryGetValue(Provider, out var url)
+        ? url
+        : $"{GeminiModelsUrl}{Uri.EscapeDataString(Model)}:streamGenerateContent?alt=sse";
 
     // ── File-based methods — always use Gemini (inline base64 data) ───────
 

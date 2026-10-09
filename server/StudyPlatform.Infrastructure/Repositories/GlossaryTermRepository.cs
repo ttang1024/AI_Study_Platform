@@ -22,12 +22,6 @@ public class GlossaryTermRepository : Repository<GlossaryTerm>, IGlossaryTermRep
                 && !_context.GlossaryMastered.Any(m => m.UserId == userId && m.GlossaryTermId == t.GlossaryTermId))
             .CountAsync(cancellationToken);
 
-    public async Task<IEnumerable<GlossaryTerm>> GetByDocumentIdAsync(Guid documentId, CancellationToken cancellationToken = default)
-        => await _dbSet
-            .Where(t => t.DocumentId == documentId)
-            .OrderBy(t => t.Term)
-            .ToListAsync(cancellationToken);
-
     public async Task<IEnumerable<GlossaryTerm>> SearchByUserAsync(Guid userId, string query, int limit, CancellationToken cancellationToken = default)
     {
         var pattern = $"%{query}%";

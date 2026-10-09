@@ -25,11 +25,10 @@ public class AdminLoginCommandHandler : IRequestHandler<AdminLoginCommand, Resul
     {
         var user = await _unitOfWork.Users.GetByEmailAsync(request.Email.ToLowerInvariant(), cancellationToken);
 
-        if (user == null || !_passwordHasher.Verify(request.Password, user.PasswordHash))
+        // One answer for every failure. A distinct "correct password, but not an admin" reply turned this
+        // endpoint into a password checker for every account on the platform.
+        if (user == null || !_passwordHasher.Verify(request.Password, user.PasswordHash) || !user.IsAdmin || !user.IsActive)
             return Result<AdminTokenResponse>.Failure("Invalid credentials.", "INVALID_CREDENTIALS");
-
-        if (!user.IsAdmin)
-            return Result<AdminTokenResponse>.Failure("Access denied.", "FORBIDDEN");
 
         var token = _tokenService.GenerateAccessToken(user);
         return Result<AdminTokenResponse>.Success(new AdminTokenResponse(token), "Login successful.");

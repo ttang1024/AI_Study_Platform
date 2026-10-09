@@ -1,6 +1,8 @@
+using StudyPlatform.Domain.Interfaces;
+
 namespace StudyPlatform.Domain.Entities;
 
-public class Course
+public class Course : IUserOwned
 {
     public Guid CourseId { get; set; }
     public Guid UserId { get; set; }

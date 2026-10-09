@@ -1,4 +1,5 @@
 using Moq;
+using StudyPlatform.Application.Auth;
 using StudyPlatform.Application.Auth.Commands;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
@@ -20,28 +21,25 @@ public class LogoutCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_ValidToken_RevokesAndReturnsSuccess()
+    public async Task Handle_KnownToken_RevokesItsWholeSession()
     {
-        var token = new RefreshToken { TokenId = Guid.NewGuid(), IsRevoked = false };
-        _tokens.Setup(r => r.GetValidTokenAsync("valid-token", default)).ReturnsAsync(token);
+        var token = new RefreshToken { TokenId = Guid.NewGuid(), UserId = Guid.NewGuid(), SessionId = Guid.NewGuid() };
+        _tokens.Setup(r => r.FindByHashAsync(RefreshTokenHash.Compute("valid-token"), default)).ReturnsAsync(token);
 
         var result = await _handler.Handle(new LogoutCommand("valid-token"), default);
 
         Assert.True(result.IsSuccess);
-        Assert.True(token.IsRevoked);
-        _tokens.Verify(r => r.Update(token), Times.Once);
-        _uow.Verify(u => u.SaveChangesAsync(default), Times.Once);
+        _tokens.Verify(r => r.RevokeSessionAsync(token.UserId, token.SessionId, default), Times.Once);
     }
 
     [Fact]
     public async Task Handle_TokenNotFound_StillReturnsSuccess()
     {
-        _tokens.Setup(r => r.GetValidTokenAsync(It.IsAny<string>(), default)).ReturnsAsync((RefreshToken?)null);
+        _tokens.Setup(r => r.FindByHashAsync(It.IsAny<string>(), default)).ReturnsAsync((RefreshToken?)null);
 
         var result = await _handler.Handle(new LogoutCommand("nonexistent"), default);
 
         Assert.True(result.IsSuccess);
-        _tokens.Verify(r => r.Update(It.IsAny<RefreshToken>()), Times.Never);
-        _uow.Verify(u => u.SaveChangesAsync(default), Times.Never);
+        _tokens.Verify(r => r.RevokeSessionAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 }

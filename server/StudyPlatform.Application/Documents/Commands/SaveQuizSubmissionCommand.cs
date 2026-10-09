@@ -31,8 +31,8 @@ public class SaveQuizSubmissionCommandHandler : IRequestHandler<SaveQuizSubmissi
 
     public async Task<Result<QuizSubmissionDto>> Handle(SaveQuizSubmissionCommand request, CancellationToken cancellationToken)
     {
-        var document = await _unitOfWork.Documents.GetByIdAsync(request.DocumentId, cancellationToken);
-        if (document == null || document.UserId != request.UserId)
+        var document = await _unitOfWork.Documents.GetOwnedAsync(request.DocumentId, request.UserId, cancellationToken);
+        if (document == null)
             return Result<QuizSubmissionDto>.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
 
         var dto = await _submissions.UpsertAsync(

@@ -73,8 +73,8 @@ public class UpdateGlossaryTermCommandHandler : IRequestHandler<UpdateGlossaryTe
 
     public async Task<Result<GlossaryTermDto>> Handle(UpdateGlossaryTermCommand request, CancellationToken cancellationToken)
     {
-        var term = await _unitOfWork.GlossaryTerms.GetByIdAsync(request.TermId, cancellationToken);
-        if (term == null || term.UserId != request.UserId)
+        var term = await _unitOfWork.GlossaryTerms.GetOwnedAsync(request.TermId, request.UserId, cancellationToken);
+        if (term == null)
             return Result<GlossaryTermDto>.Failure("Glossary term not found.", "NOT_FOUND");
 
         term.Term = request.Term.Trim();
@@ -102,8 +102,8 @@ public class DeleteGlossaryTermCommandHandler : IRequestHandler<DeleteGlossaryTe
 
     public async Task<Result<bool>> Handle(DeleteGlossaryTermCommand request, CancellationToken cancellationToken)
     {
-        var term = await _unitOfWork.GlossaryTerms.GetByIdAsync(request.TermId, cancellationToken);
-        if (term == null || term.UserId != request.UserId)
+        var term = await _unitOfWork.GlossaryTerms.GetOwnedAsync(request.TermId, request.UserId, cancellationToken);
+        if (term == null)
             return Result<bool>.Failure("Glossary term not found.", "NOT_FOUND");
 
         _unitOfWork.GlossaryTerms.Remove(term);

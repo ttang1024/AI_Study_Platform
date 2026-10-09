@@ -1,6 +1,8 @@
 // jszip is loaded on demand inside the export functions so the
 // heavyweight library stays out of the page chunks until an export is run.
 
+import { parseInertHtml } from '../utils/sanitizeHtml'
+
 export interface ExportNoteRecord {
   title: string
   courseName?: string
@@ -37,15 +39,12 @@ const escapeXml = (value: string): string =>
 
 const stripHtml = (html: string): string => {
   if (typeof document === 'undefined') return html.replace(/<[^>]+>/g, ' ')
-  const div = document.createElement('div')
-  div.innerHTML = html
-  return div.textContent || div.innerText || ''
+  return parseInertHtml(html).body.textContent || ''
 }
 
 const htmlToMarkdown = (html: string): string => {
   if (typeof document === 'undefined') return stripHtml(html)
-  const div = document.createElement('div')
-  div.innerHTML = html
+  const div = parseInertHtml(html).body
   div.querySelectorAll('br').forEach(br => br.replaceWith('\n'))
   div.querySelectorAll('li').forEach(li => { li.textContent = `- ${li.textContent ?? ''}` })
   div.querySelectorAll('p,div,h1,h2,h3,li').forEach(el => el.append('\n'))

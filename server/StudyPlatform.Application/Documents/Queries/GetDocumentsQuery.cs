@@ -9,7 +9,7 @@ using Microsoft.Extensions.Options;
 
 namespace StudyPlatform.Application.Documents.Queries;
 
-public record GetAllDocumentsQuery(Guid UserId, int Page, int PageSize, Guid? CourseId) : IRequest<Result<PaginatedList<DocumentDto>>>;
+public record GetAllDocumentsQuery(Guid UserId, int Page, int PageSize, Guid? CourseId) : IRequest<Result<PaginatedList<DocumentDto>>>, IPagedRequest;
 
 public class GetAllDocumentsQueryHandler : IRequestHandler<GetAllDocumentsQuery, Result<PaginatedList<DocumentDto>>>
 {
@@ -204,8 +204,8 @@ public class GetDocumentDownloadUrlQueryHandler : IRequestHandler<GetDocumentDow
 
     public async Task<Result<string>> Handle(GetDocumentDownloadUrlQuery request, CancellationToken cancellationToken)
     {
-        var document = await _unitOfWork.Documents.GetByIdAsync(request.DocumentId, cancellationToken);
-        if (document == null || document.UserId != request.UserId)
+        var document = await _unitOfWork.Documents.GetOwnedAsync(request.DocumentId, request.UserId, cancellationToken);
+        if (document == null)
             return Result<string>.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
 
         var cacheKey = $"documents:sas:{request.DocumentId}";

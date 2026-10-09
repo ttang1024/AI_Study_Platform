@@ -52,11 +52,6 @@ export function createWorkedProblemsService(http: HttpClient) {
       return res.data.data;
     },
 
-    async getAttempts(problemId: string): Promise<ProblemAttempt[]> {
-      const res = await http.get<{ data: ProblemAttempt[] }>(`/api/worked-problems/${problemId}/attempts`);
-      return res.data.data ?? [];
-    },
-
     async getVideoProblems(videoId: string): Promise<WorkedProblem[]> {
       const res = await http.get<{ data: WorkedProblem[] }>(`/api/videos/${videoId}/worked-problems`);
       return res.data.data ?? [];

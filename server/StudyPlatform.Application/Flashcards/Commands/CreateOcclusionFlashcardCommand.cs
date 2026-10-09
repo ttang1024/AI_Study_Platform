@@ -64,8 +64,8 @@ public class CreateOcclusionFlashcardCommandHandler : IRequestHandler<CreateOccl
 
         if (request.DocumentId.HasValue)
         {
-            var doc = await _unitOfWork.Documents.GetByIdAsync(request.DocumentId.Value, ct);
-            if (doc == null || doc.UserId != request.UserId)
+            var doc = await _unitOfWork.Documents.GetOwnedAsync(request.DocumentId.Value, request.UserId, ct);
+            if (doc == null)
                 return Result<FlashcardDto>.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
         }
 

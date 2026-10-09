@@ -149,18 +149,6 @@ public partial class FlashcardsController : ControllerBase
     }
 
     /// <summary>
-    /// Bulk delete flashcards
-    /// </summary>
-    [HttpDelete("bulk")]
-    [ProducesResponseType(typeof(BaseResponse), 200)]
-    public async Task<IActionResult> BulkDeleteFlashcards([FromBody] BulkDeleteFlashcardsRequest request)
-    {
-        var userId = User.GetUserId();
-        var result = await _mediator.Send(new BulkDeleteFlashcardsCommand(request.FlashcardIds, userId));
-        return Ok(new BaseResponse { Success = true, Message = result.Message });
-    }
-
-    /// <summary>
     /// Submit an FSRS review for a flashcard (1=Again, 2=Hard, 3=Good, 4=Easy)
     /// </summary>
     [HttpPost("{flashcardId:guid}/review")]

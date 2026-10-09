@@ -5,8 +5,9 @@ import { FadeIn } from './LandingAnimations';
 import { Badge } from './Badge';
 import { TerminalCard } from './TerminalCard';
 import { PROVIDER_ICON_SRC } from '../settings/ProviderIcon';
+import type { AIProvider } from '../../services/aiSettingsService';
 
-const PROVIDERS = [
+const PROVIDERS: { name: string; id: AIProvider; color: string; keyHint: string; url: string; model: string }[] = [
   { name: 'Google Gemini', id: 'gemini', color: '#22d3ee', keyHint: 'AIza...', url: 'aistudio.google.com', model: 'gemini-2.0-flash' },
   { name: 'OpenAI', id: 'openai', color: '#4ade80', keyHint: 'sk-...', url: 'platform.openai.com', model: 'gpt-4o-mini' },
   { name: 'Claude', id: 'claude', color: '#fb923c', keyHint: 'sk-ant-...', url: 'console.anthropic.com', model: 'claude-haiku' },

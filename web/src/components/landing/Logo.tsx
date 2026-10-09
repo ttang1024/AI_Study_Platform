@@ -8,7 +8,8 @@ export const LOGO_STYLES = `
   }
 `;
 
-export const Logo: React.FC<{ sm?: boolean }> = ({ sm }) => (
+/** `studyColor` lets a light page darken the cyan "Study", which is too faint on white. */
+export const Logo: React.FC<{ sm?: boolean; studyColor?: string }> = ({ sm, studyColor = '#22d3ee' }) => (
   <div className="flex items-center gap-2.5">
     <motion.div
       whileHover={{ scale: 1.1, rotate: 6 }}
@@ -22,7 +23,7 @@ export const Logo: React.FC<{ sm?: boolean }> = ({ sm }) => (
       className={`${sm ? 'text-sm' : 'text-lg'} font-extrabold tracking-tight`}
       style={{ fontFamily: 'Orbitron, sans-serif' }}
     >
-      Toto <span style={{ color: '#22d3ee' }}>Study</span>
+      Toto <span style={{ color: studyColor }}>Study</span>
     </span>
   </div>
 );

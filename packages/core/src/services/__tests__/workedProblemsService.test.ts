@@ -27,11 +27,6 @@ describe('workedProblemsService', () => {
     expect(fakeHttp.post).toHaveBeenCalledWith('/api/worked-problems/p-1/attempt', { userAnswer: '42' })
   })
 
-  it('getAttempts defaults to [] when data is absent', async () => {
-    vi.mocked(fakeHttp.get).mockResolvedValueOnce({ data: { data: undefined } })
-    expect(await service.getAttempts('p-1')).toEqual([])
-  })
-
   it('getVideoProblems / generateVideoProblems use the video-scoped endpoints', async () => {
     vi.mocked(fakeHttp.get).mockResolvedValueOnce({ data: { data: [] } })
     await service.getVideoProblems('v-1')

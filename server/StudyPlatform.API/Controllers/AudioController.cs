@@ -19,12 +19,12 @@ public class AudioController : ControllerBase
 {
     private readonly IMediator _mediator;
     private readonly IBlobStorageService _blobStorage;
-    private readonly AudioTranscriptionQueue _transcriptionQueue;
+    private readonly TranscriptionQueue _transcriptionQueue;
 
     public AudioController(
         IMediator mediator,
         IBlobStorageService blobStorage,
-        AudioTranscriptionQueue transcriptionQueue)
+        TranscriptionQueue transcriptionQueue)
     {
         _mediator = mediator;
         _blobStorage = blobStorage;
@@ -164,7 +164,9 @@ public class AudioController : ControllerBase
             return Ok(BaseResponse<DocumentDto>.Ok(docResult.Data, "Audio already transcribed."));
 
         var isPodcast = docResult.Data.ContentType == "audio/podcast";
-        _transcriptionQueue.TryEnqueue(documentId, userId, isPodcast);
+        // Persisted before queueing, so a restart while the job waits or runs picks it back up.
+        await _mediator.Send(new RequestTranscriptionCommand(documentId, userId));
+        _transcriptionQueue.TryEnqueue(documentId, userId, isPodcast ? TranscriptionJobKind.Podcast : TranscriptionJobKind.Audio);
 
         return Accepted(BaseResponse<DocumentDto>.Ok(docResult.Data, "Audio transcription started."));
     }

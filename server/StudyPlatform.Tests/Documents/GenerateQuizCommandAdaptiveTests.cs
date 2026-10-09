@@ -34,7 +34,7 @@ public class GenerateQuizCommandAdaptiveTests
         _quizzes.Setup(r => r.AddRangeAsync(It.IsAny<IEnumerable<Quiz>>(), default)).Returns(Task.CompletedTask);
         _quizzes.Setup(r => r.RemoveRange(It.IsAny<IEnumerable<Quiz>>()));
 
-        _doc = new Document { DocumentId = _docId, UserId = _userId, ContentType = "text/plain", BlobUrl = "blob://q", ContentVersion = 1 };
+        _doc = new Document { DocumentId = _docId, UserId = _userId, ContentType = "text/plain", BlobUrl = "blob://q" };
         _documents.Setup(r => r.GetByIdAsync(_docId, default)).ReturnsAsync(_doc);
         _handler = new GenerateQuizCommandHandler(
             _uow.Object, _ai.Object, _content.Object, _planner.Object, _textProvider.Object);

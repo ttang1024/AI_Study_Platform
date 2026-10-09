@@ -191,11 +191,6 @@ export function createVideoService(http: HttpClient, streamSse: SseStreamFn) {
       return res.data.data;
     },
 
-    async getPlaybackUrl(videoRecordId: string): Promise<string> {
-      const res = await http.get<{ data: string }>(`${VIDEO_API}/${videoRecordId}/playback-url`);
-      return res.data.data;
-    },
-
     async getVideoMetadata(videoUrl: string): Promise<{ title: string; thumbnailUrl: string } | null> {
       try {
         const res = await http.get<{ data: { title: string; thumbnailUrl: string } }>(
@@ -409,17 +404,6 @@ export function createVideoService(http: HttpClient, streamSse: SseStreamFn) {
 
     async deleteChatConversation(videoId: string, conversationId: string): Promise<void> {
       await http.delete(`${VIDEO_API}/${videoId}/chat/conversations/${conversationId}`);
-    },
-
-    async sendChat(
-      videoId: string,
-      message: string,
-    ): Promise<{ id: string; role: 'user' | 'model'; content: string }> {
-      const res = await http.post<{ data: any }>(`${VIDEO_API}/${videoId}/chat`, {
-        message,
-      });
-      const m = res.data.data;
-      return { id: m.messageId, role: 'model', content: m.content };
     },
 
     /** Summarize by URL (unsaved video — the summarizer's live preview). */

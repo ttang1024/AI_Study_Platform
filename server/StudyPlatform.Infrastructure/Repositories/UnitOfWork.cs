@@ -1,3 +1,6 @@
+using Microsoft.EntityFrameworkCore;
+using Npgsql;
+using StudyPlatform.Domain.Exceptions;
 using StudyPlatform.Domain.Interfaces;
 using StudyPlatform.Infrastructure.Data;
 
@@ -88,7 +91,22 @@ public class UnitOfWork : IUnitOfWork
     public IPageVisitRepository PageVisits => _pageVisits ??= new PageVisitRepository(_context);
 
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
-        => await _context.SaveChangesAsync(cancellationToken);
+    {
+        try
+        {
+            return await _context.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            // A row-version (xmin) check failed: someone else saved this row after we read it.
+            throw new ConcurrencyConflictException(ex);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            // Two requests creating the same thing at once (e.g. a card's first review twice).
+            throw new ConcurrencyConflictException(ex);
+        }
+    }
 
     public void Dispose()
     {

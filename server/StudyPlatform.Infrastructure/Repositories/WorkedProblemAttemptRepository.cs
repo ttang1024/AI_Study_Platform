@@ -14,12 +14,6 @@ public class WorkedProblemAttemptRepository : IWorkedProblemAttemptRepository
         _context = context;
     }
 
-    public async Task<IEnumerable<WorkedProblemAttempt>> GetByProblemAsync(Guid problemId, Guid userId, CancellationToken cancellationToken = default)
-        => await _context.WorkedProblemAttempts
-            .Where(a => a.WorkedProblemId == problemId && a.UserId == userId)
-            .OrderByDescending(a => a.AttemptedAt)
-            .ToListAsync(cancellationToken);
-
     public async Task AddAsync(WorkedProblemAttempt attempt, CancellationToken cancellationToken = default)
         => await _context.WorkedProblemAttempts.AddAsync(attempt, cancellationToken);
 }

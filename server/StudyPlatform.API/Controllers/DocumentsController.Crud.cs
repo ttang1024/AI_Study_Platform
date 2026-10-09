@@ -1,3 +1,4 @@
+using StudyPlatform.Domain.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using StudyPlatform.API.Extensions;
 using StudyPlatform.Application.Common;
@@ -276,7 +277,8 @@ public partial class DocumentsController
             return NotFound();
 
         var stream = await _blobStorageService.DownloadAsync(result.Data!.BlobUrl);
-        return File(stream, result.Data!.ContentType, enableRangeProcessing: true);
+        // Group members can open documents from courses shared with them, so this is not owner-only.
+        return this.UntrustedFile(stream, result.Data!.ContentType, enableRangeProcessing: true);
     }
 
     /// <summary>
@@ -292,8 +294,8 @@ public partial class DocumentsController
         CancellationToken cancellationToken)
     {
         var userId = User.GetUserId();
-        var document = await _unitOfWork.Documents.GetByIdAsync(documentId, cancellationToken);
-        if (document == null || document.UserId != userId)
+        var document = await _unitOfWork.Documents.GetOwnedAsync(documentId, userId, cancellationToken);
+        if (document == null)
             return NotFound();
 
         // Goes through the text provider rather than re-extracting: it returns the one stored copy,

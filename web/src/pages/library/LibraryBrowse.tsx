@@ -283,13 +283,17 @@ export const LibraryBrowse: React.FC = () => {
 
       {/* ── Grid ── */}
       {loading ? (
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-sidebar)] overflow-hidden animate-pulse">
-              <div className="aspect-video bg-zinc-200" />
-              <div className="p-4 space-y-2">
-                <div className="h-3 bg-zinc-200 rounded w-3/4" />
-                <div className="h-3 bg-zinc-200 rounded w-1/2" />
+        // Mirrors the real grid and DocumentCard/VideoCard geometry (260px card, 165px header).
+        <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: PAGE_SIZE }).map((_, i) => (
+            <div key={i} className="flex h-[260px] flex-col rounded-2xl border border-[var(--border-color)] bg-[var(--bg-sidebar)] overflow-hidden animate-pulse">
+              <div className="h-[165px] shrink-0 bg-zinc-200" />
+              <div className="flex flex-1 flex-col gap-2 p-4 pt-2">
+                <div className="h-4 w-16 rounded-full bg-zinc-200" />
+                <div className="h-3.5 w-3/4 rounded bg-zinc-200" />
+                <div className="mt-auto flex items-center pt-1 border-t border-[var(--border-color)]">
+                  <div className="h-2.5 w-1/3 rounded bg-zinc-200" />
+                </div>
               </div>
             </div>
           ))}

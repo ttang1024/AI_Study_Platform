@@ -99,10 +99,5 @@ describe('noteService', () => {
       expect(fakeHttp.delete).toHaveBeenCalledWith('/api/notes/n-1')
     })
 
-    it('deleteNotesBulk sends ids in the request body', async () => {
-      const service = createNoteService(fakeHttp)
-      await service.deleteNotesBulk(['n-1', 'n-2'])
-      expect(fakeHttp.delete).toHaveBeenCalledWith('/api/notes/bulk', { data: { noteIds: ['n-1', 'n-2'] } })
-    })
   })
 })

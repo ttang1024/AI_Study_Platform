@@ -150,12 +150,10 @@ public record GlossaryTermDto(
 ///
 /// <para><c>StartOffset</c>/<c>EndOffset</c> are character positions in the source's extracted text
 /// and are null when the supporting quote could not be located — the client then shows the quote as
-/// plain attribution with no jump target. <c>Page</c> and <c>StartSeconds</c> are set only for
-/// paginated documents and timed media respectively.</para>
+/// plain attribution with no jump target. <c>StartSeconds</c> is set only for timed media.</para>
 /// </summary>
 public record SourceCitationDto(
     string Quote,
     int? StartOffset = null,
     int? EndOffset = null,
-    int? Page = null,
     double? StartSeconds = null);

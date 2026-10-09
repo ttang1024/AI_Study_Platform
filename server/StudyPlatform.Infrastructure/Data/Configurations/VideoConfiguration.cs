@@ -31,6 +31,8 @@ public class VideoConfiguration : IEntityTypeConfiguration<Video>
             .OnDelete(DeleteBehavior.NoAction);
 
         // Trigram index for the ILIKE '%term%' title search in VideoRepository/LibraryRepository.
+        // Worker startup recovery reads only uploads with a transcription in flight.
+        builder.HasIndex(v => v.TranscriptionRequestedAt).HasFilter("\"TranscriptionRequestedAt\" IS NOT NULL");
         builder.HasIndex(v => v.Title).HasMethod("gin").HasOperators("gin_trgm_ops");
     }
 }

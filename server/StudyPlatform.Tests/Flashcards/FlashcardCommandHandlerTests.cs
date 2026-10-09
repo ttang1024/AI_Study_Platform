@@ -428,45 +428,6 @@ public class ClassifyFlashcardCommandHandlerTests
     }
 }
 
-public class BulkDeleteFlashcardsCommandHandlerTests
-{
-    private readonly Mock<IUnitOfWork> _uow = new();
-    private readonly Mock<IFlashcardRepository> _flashcards = new();
-    private readonly Mock<IEmbeddingIndex> _embeddingIndex = new();
-    private readonly BulkDeleteFlashcardsCommandHandler _handler;
-    private readonly Guid _userId = Guid.NewGuid();
-
-    public BulkDeleteFlashcardsCommandHandlerTests()
-    {
-        _uow.Setup(u => u.Flashcards).Returns(_flashcards.Object);
-        _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _flashcards.Setup(r => r.DeleteByIdsAsync(It.IsAny<IEnumerable<Guid>>(), _userId, default))
-            .Returns(Task.CompletedTask);
-        _handler = new BulkDeleteFlashcardsCommandHandler(_uow.Object, _embeddingIndex.Object);
-    }
-
-    [Fact]
-    public async Task Handle_CallsDeleteByIdsAndSaves()
-    {
-        var ids = new[] { Guid.NewGuid(), Guid.NewGuid() };
-
-        var result = await _handler.Handle(new BulkDeleteFlashcardsCommand(ids, _userId), default);
-
-        Assert.True(result.IsSuccess);
-        _flashcards.Verify(r => r.DeleteByIdsAsync(ids, _userId, default), Times.Once);
-        _uow.Verify(u => u.SaveChangesAsync(default), Times.Once);
-    }
-
-    [Fact]
-    public async Task Handle_EmptyList_StillSaves()
-    {
-        var result = await _handler.Handle(new BulkDeleteFlashcardsCommand(Array.Empty<Guid>(), _userId), default);
-
-        Assert.True(result.IsSuccess);
-        _uow.Verify(u => u.SaveChangesAsync(default), Times.Once);
-    }
-}
-
 public class GetFlashcardSrsQueryHandlerTests
 {
     private readonly Mock<IUnitOfWork> _uow = new();

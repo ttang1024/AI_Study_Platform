@@ -30,8 +30,8 @@ public class AIChatCommandHandler : IRequestHandler<AIChatCommand, Result<ChatMe
 
     public async Task<Result<ChatMessageDto>> Handle(AIChatCommand request, CancellationToken cancellationToken)
     {
-        var document = await _unitOfWork.Documents.GetByIdAsync(request.DocumentId, cancellationToken);
-        if (document == null || document.UserId != request.UserId)
+        var document = await _unitOfWork.Documents.GetOwnedAsync(request.DocumentId, request.UserId, cancellationToken);
+        if (document == null)
             return Result<ChatMessageDto>.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
 
         var history = await _unitOfWork.ChatMessages.GetByDocumentIdAsync(request.DocumentId, request.UserId, cancellationToken);

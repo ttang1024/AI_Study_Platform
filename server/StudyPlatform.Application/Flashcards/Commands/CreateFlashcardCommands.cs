@@ -23,8 +23,8 @@ public class CreateFlashcardCommandHandler : IRequestHandler<CreateFlashcardComm
     {
         if (request.DocumentId.HasValue)
         {
-            var doc = await _unitOfWork.Documents.GetByIdAsync(request.DocumentId.Value, cancellationToken);
-            if (doc == null || doc.UserId != request.UserId)
+            var doc = await _unitOfWork.Documents.GetOwnedAsync(request.DocumentId.Value, request.UserId, cancellationToken);
+            if (doc == null)
                 return Result<FlashcardDto>.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
         }
 

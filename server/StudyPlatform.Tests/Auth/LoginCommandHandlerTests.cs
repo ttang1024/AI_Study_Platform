@@ -58,6 +58,38 @@ public class LoginCommandHandlerTests
     }
 
     [Fact]
+    public async Task Handle_PendingDeletion_CancelsItAndSignsIn()
+    {
+        var user = MakeUser(active: false);
+        user.DeletionRequestedAt = DateTime.UtcNow.AddDays(-1);
+        _users.Setup(r => r.GetByEmailAsync("user@example.com", default)).ReturnsAsync(user);
+        _hasher.Setup(h => h.Verify("password", "hashed")).Returns(true);
+        _tokenService.Setup(t => t.GenerateRefreshToken()).Returns("refresh-token");
+        _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
+
+        var result = await _handler.Handle(new LoginCommand("user@example.com", "password"), default);
+
+        Assert.True(result.IsSuccess);
+        Assert.True(user.IsActive);
+        Assert.Null(user.DeletionRequestedAt);
+    }
+
+    [Fact]
+    public async Task Handle_PendingDeletion_WrongPassword_LeavesItScheduled()
+    {
+        var user = MakeUser(active: false);
+        user.DeletionRequestedAt = DateTime.UtcNow.AddDays(-1);
+        _users.Setup(r => r.GetByEmailAsync("user@example.com", default)).ReturnsAsync(user);
+        _hasher.Setup(h => h.Verify("wrong", "hashed")).Returns(false);
+
+        var result = await _handler.Handle(new LoginCommand("user@example.com", "wrong"), default);
+
+        Assert.False(result.IsSuccess);
+        Assert.False(user.IsActive);
+        Assert.NotNull(user.DeletionRequestedAt);
+    }
+
+    [Fact]
     public async Task Handle_UserNotFound_ReturnsFailure()
     {
         _users.Setup(r => r.GetByEmailAsync(It.IsAny<string>(), default)).ReturnsAsync((User?)null);

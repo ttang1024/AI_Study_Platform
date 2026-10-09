@@ -33,7 +33,7 @@ failing on a permissions surprise.
 
 Which schema they land in does not matter for a fresh database: EF emits the type unqualified
 (`vector(1536)`), which Supabase's `search_path` resolves whether the extension sits in `extensions`
-(Dashboard default) or `public`. Verified both ways — 45 tables, `vector(1536)`, HNSW index. It *must*
+(Dashboard default) or `public`. Verified both ways — full schema, `vector(1536)`, HNSW index. It *must*
 be in `public` only when restoring a `pg_dump` (§4b).
 
 ```sql
@@ -238,8 +238,9 @@ export SMTP_USER=... SMTP_PASSWORD=...
 export EMBEDDINGS_API_KEY=...   # optional; enables semantic search indexing
 export LIGHTSAIL_AWS_ACCESS_KEY_ID=... LIGHTSAIL_AWS_SECRET_ACCESS_KEY=...   # see §4c
 
-./deploy.sh              # everything
-./deploy-backend.sh      # API only
+./deploy.sh                          # everything
+DEPLOY_BACKEND_ONLY=1 ./deploy.sh    # API only
+DEPLOY_WEB_ONLY=1 ./deploy.sh        # web + admin only
 ```
 
 Defaults: `REDIS_ENABLED=false`, `PUBLIC_DOMAIN` unset. The database is always the external managed
@@ -347,9 +348,9 @@ limit.
 * **A deploy is a short outage.** One container on one box: the old one is removed before the new one
   starts, so the API is down for the container's startup plus any pending migration. There is also no
   second availability zone — if `us-east-1a` goes, the API goes.
-* **AI generation jobs are replica-affine.** A job's provider credentials live only in the accepting
-  instance's in-memory queue, never in the row, so no other instance can run it. `StaleAiJobReaper`
-  fails orphans after 30 minutes. A deploy fails the in-flight jobs; the user retries.
+* **A deploy interrupts in-flight work.** Audio transcriptions queued in memory and AI responses
+  mid-stream are lost when the container restarts; the user retries. Nothing defers AI work to a
+  queue (provider credentials are never persisted), so there are no orphaned jobs to reap.
 * **`EmbeddingBackfillWorker` duplicates work** if more than one instance runs it. Nothing enforces
   that — keep it to one box unless you gate the worker.
 * **The container's AWS credentials are a long-lived access key**, not a role Lightsail can assume.
@@ -362,3 +363,12 @@ limit.
   if any previously built image is still in ECR; they are readable in its layers.
 * **Whisper and yt-dlp run in-process** in the API container. 2 GB is the working default; transcript
   jobs on long videos are the memory ceiling to watch.
+
+## Origin hardening (CloudFront → API)
+
+Two opt-in settings in `.env_variables`, off until you enable them. Roll them out in this order, one deploy each, and watch the first one:
+
+1. **`API_ORIGIN_SECRET=<long random string>`** (e.g. `openssl rand -hex 32`). The deploy first makes CloudFront send `X-Origin-Verify: <secret>` on every API origin request (API and web distributions), waits for CloudFront to finish deploying, and only then starts the container with `Api__OriginVerifySecret`, which rejects any request without it (403; `/health` stays open). This stops callers from bypassing CloudFront and forging `X-Forwarded-For`, which the rate limiter now trusts only from CloudFront.
+2. **`API_ORIGIN_TLS=1`**. The deploy opens port 443 on the Lightsail instance and runs `caddy:2.8.4` in front of the API. Caddy gets a Let's Encrypt certificate for `$API_ORIGIN_HOST`, using port 80 for the ACME challenge. Once `https://$API_ORIGIN_HOST/health` answers on the instance with a valid certificate, the deploy switches both distributions' API origin to `https-only`. If the certificate isn't ready, CloudFront stays on HTTP (which Caddy still serves) and the deploy says so; re-run once `sudo docker logs caddy` shows the certificate. With TLS on, the API trusts two `X-Forwarded-For` hops (`Api__ForwardedHops=2`) because Caddy adds one.
+
+To roll back TLS: set `API_ORIGIN_TLS=0`, switch the API origin back to `http-only` in the CloudFront console, then redeploy. Rotating the secret is not zero-downtime: changing `API_ORIGIN_SECRET` and redeploying updates CloudFront first, and while that propagates (several minutes) up to the container restart, requests carrying the new value get 403. Rotate in a quiet window, or temporarily unset it (deploy), then set the new one (deploy).

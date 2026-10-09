@@ -109,8 +109,8 @@ public class RemoveCalendarFeedCommandHandler : IRequestHandler<RemoveCalendarFe
 
     public async Task<Result> Handle(RemoveCalendarFeedCommand request, CancellationToken ct)
     {
-        var feed = await _unitOfWork.UserCalendarFeeds.GetByIdAsync(request.FeedId, ct);
-        if (feed == null || feed.UserId != request.UserId)
+        var feed = await _unitOfWork.UserCalendarFeeds.GetOwnedAsync(request.FeedId, request.UserId, ct);
+        if (feed == null)
             return Result.Failure("Calendar not found.", "FEED_NOT_FOUND");
 
         _unitOfWork.UserCalendarFeeds.Remove(feed);

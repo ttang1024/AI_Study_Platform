@@ -143,7 +143,7 @@ public class SourceAnchorResolverTests
     [Fact]
     public void RoundTrip_SerializesAndDeserializes()
     {
-        var original = new SourceAnchor("a quoted span", 10, 23, 4, 88.5);
+        var original = new SourceAnchor("a quoted span", 10, 23, 88.5);
 
         var restored = SourceAnchorResolver.Deserialize(SourceAnchorResolver.Serialize(original));
 

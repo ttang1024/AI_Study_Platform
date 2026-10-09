@@ -60,7 +60,7 @@ public static class ArtifactMappings
         var anchor = SourceAnchorResolver.Deserialize(sourceAnchorJson);
         return anchor == null
             ? null
-            : new SourceCitationDto(anchor.Quote, anchor.StartOffset, anchor.EndOffset, anchor.Page, anchor.StartSeconds);
+            : new SourceCitationDto(anchor.Quote, anchor.StartOffset, anchor.EndOffset, anchor.StartSeconds);
     }
 
     public static QuizSubmissionDto ToQuizSubmissionDto(this QuizSubmission s) => new(

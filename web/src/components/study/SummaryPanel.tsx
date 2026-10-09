@@ -19,7 +19,7 @@ interface SummaryPanelProps {
 	streamingText?: string;
 	/** Forwarded to the summary content div for text-selection handling */
 	onMouseUp?: React.MouseEventHandler<HTMLDivElement>;
-	summaryRef?: React.RefObject<HTMLDivElement>;
+	summaryRef?: React.RefObject<HTMLDivElement | null>;
 	onTimelineSeek?: (seconds: number) => void;
 	generateDisabled?: boolean;
 	generateDisabledReason?: string;

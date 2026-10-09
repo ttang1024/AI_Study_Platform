@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import Captions from 'lucide-react-native/icons/captions';
 import RotateCcw from 'lucide-react-native/icons/rotate-ccw';
@@ -37,9 +37,13 @@ export const VideoTranscriptSection: React.FC<VideoTranscriptSectionProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reloadNonce, setReloadNonce] = useState(0);
+  // Uploaded videos are transcribed in the background; while that runs the API answers
+  // TRANSCRIPT_PENDING and this re-checks on its own (bounded, ~10 minutes).
+  const pendingPolls = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
     const fetchCaptions = () =>
       sourceType === 'youtube' && sourceVideoId
         ? videoService.getTranscript(sourceVideoId)
@@ -53,11 +57,14 @@ export const VideoTranscriptSection: React.FC<VideoTranscriptSectionProps> = ({
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        const message =
-          (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-          'No captions available for this video.';
+        const data = (err as { response?: { data?: { message?: string; errorCode?: string } } })?.response?.data;
+        const message = data?.message ?? 'No captions available for this video.';
         setSegments(null);
         setError(message);
+        if (data?.errorCode === 'TRANSCRIPT_PENDING' && pendingPolls.current < 40) {
+          pendingPolls.current += 1;
+          retryTimer = setTimeout(() => setReloadNonce((n) => n + 1), 15_000);
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -65,6 +72,7 @@ export const VideoTranscriptSection: React.FC<VideoTranscriptSectionProps> = ({
 
     return () => {
       cancelled = true;
+      if (retryTimer) clearTimeout(retryTimer);
     };
   }, [videoRecordId, sourceVideoId, sourceType, reloadNonce]);
 

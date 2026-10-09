@@ -186,32 +186,3 @@ public class GetAllNotesPagedQueryHandlerTests
         Assert.Equal("Hello", result.Data.Items.First().Content);
     }
 }
-
-public class BulkDeleteNotesCommandHandlerTests
-{
-    private readonly Mock<IUnitOfWork> _uow = new();
-    private readonly Mock<INoteRepository> _notes = new();
-    private readonly Mock<IEmbeddingIndex> _embeddingIndex = new();
-    private readonly BulkDeleteNotesCommandHandler _handler;
-    private readonly Guid _userId = Guid.NewGuid();
-
-    public BulkDeleteNotesCommandHandlerTests()
-    {
-        _uow.Setup(u => u.Notes).Returns(_notes.Object);
-        _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new BulkDeleteNotesCommandHandler(_uow.Object, _embeddingIndex.Object);
-    }
-
-    [Fact]
-    public async Task Handle_DeletesByIdsAndReturnsSuccess()
-    {
-        var ids = new[] { Guid.NewGuid(), Guid.NewGuid() };
-        _notes.Setup(r => r.DeleteByIdsAsync(ids, _userId, default)).Returns(Task.CompletedTask);
-
-        var result = await _handler.Handle(new BulkDeleteNotesCommand(ids, _userId), default);
-
-        Assert.True(result.IsSuccess);
-        _notes.Verify(r => r.DeleteByIdsAsync(ids, _userId, default), Times.Once);
-        _uow.Verify(u => u.SaveChangesAsync(default), Times.Once);
-    }
-}

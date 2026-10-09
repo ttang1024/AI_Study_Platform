@@ -1,6 +1,8 @@
+using StudyPlatform.Domain.Interfaces;
+
 namespace StudyPlatform.Domain.Entities;
 
-public class Document
+public class Document : IUserOwned
 {
     public Guid DocumentId { get; set; }
     public Guid CourseId { get; set; }
@@ -13,6 +15,13 @@ public class Document
     public string? Summary { get; set; }
     public string? MindMapText { get; set; }
     public string? Transcript { get; set; }
+
+    /// <summary>
+    /// Set when a transcription is queued, cleared when it finishes or fails. The queue itself is
+    /// in-memory, so this is what lets a restarted API (every deploy) pick unfinished jobs back up
+    /// instead of leaving the document waiting forever.
+    /// </summary>
+    public DateTime? TranscriptionRequestedAt { get; set; }
     public string? OriginalUrl { get; set; }
 
     /// <summary>
@@ -24,35 +33,9 @@ public class Document
     /// what the source view renders, so what a citation points at is what the reader sees.</para>
     ///
     /// <para>Null for images (extracting would mean a paid OCR call just to enable a link) and for
-    /// documents uploaded before this existed. Cleared when the source file is replaced.</para>
+    /// documents uploaded before this existed.</para>
     /// </summary>
     public string? ExtractedText { get; set; }
-
-    /// <summary>
-    /// Bumped every time the underlying file is replaced. Generated artifacts record the version
-    /// they were built from, so "is this flashcard out of date?" is a comparison rather than a flag
-    /// somebody has to remember to set on every write path.
-    /// </summary>
-    public int ContentVersion { get; set; } = 1;
-
-    /// <summary>When the source file was last replaced. Null for documents never re-uploaded.</summary>
-    public DateTime? SourceChangedAt { get; set; }
-
-    /// <summary>
-    /// The ContentVersion the summary and mind map were generated from.
-    ///
-    /// <para>These live on the document rather than in rows of their own, so they need their own
-    /// stamps to answer "is this out of date?". Deriving it from SourceChangedAt instead would make
-    /// the answer permanently yes: the timestamp never clears, so a regenerated summary would go on
-    /// reporting itself stale forever, with no action the reader could take to silence it.</para>
-    ///
-    /// <para>Default 1 matches ContentVersion's default, so material written before versioning
-    /// existed reads as current rather than as universally stale.</para>
-    /// </summary>
-    public int SummaryVersion { get; set; } = 1;
-
-    /// <inheritdoc cref="SummaryVersion"/>
-    public int MindMapVersion { get; set; } = 1;
 
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }

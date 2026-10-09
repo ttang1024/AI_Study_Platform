@@ -137,6 +137,6 @@ public class GenerateGlossaryCommandEdgeCaseTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal("GENERATION_FAILED", result.ErrorCode);
-        Assert.Contains("db unavailable", result.Message);
+        Assert.DoesNotContain("db unavailable", result.Message); // internal detail must not reach the client
     }
 }

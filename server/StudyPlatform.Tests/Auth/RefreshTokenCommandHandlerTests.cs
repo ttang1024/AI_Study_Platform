@@ -45,11 +45,26 @@ public class RefreshTokenCommandHandlerTests
     };
 
     [Fact]
+    public async Task Handle_DeactivatedUser_GetsNoNewTokens()
+    {
+        var user = MakeUser();
+        user.IsActive = false;
+        FindValid(MakeToken(user.UserId));
+        _users.Setup(r => r.GetByIdAsync(user.UserId, default)).ReturnsAsync(user);
+
+        var result = await _handler.Handle(new RefreshTokenCommand("valid-refresh"), default);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("ACCOUNT_DEACTIVATED", result.ErrorCode);
+        _tokenService.Verify(t => t.GenerateAccessToken(It.IsAny<User>()), Times.Never);
+    }
+
+    [Fact]
     public async Task Handle_ValidToken_ReturnsNewTokens()
     {
         var user = MakeUser();
         var token = MakeToken(user.UserId);
-        _tokens.Setup(r => r.GetValidTokenAsync("valid-refresh", default)).ReturnsAsync(token);
+        FindValid(token);
         _users.Setup(r => r.GetByIdAsync(user.UserId, default)).ReturnsAsync(user);
         _tokenService.Setup(t => t.GenerateAccessToken(user)).Returns("new-access");
         _tokenService.Setup(t => t.GenerateRefreshToken()).Returns("new-refresh");
@@ -65,7 +80,7 @@ public class RefreshTokenCommandHandlerTests
     [Fact]
     public async Task Handle_InvalidToken_ReturnsFailure()
     {
-        _tokens.Setup(r => r.GetValidTokenAsync(It.IsAny<string>(), default)).ReturnsAsync((RefreshToken?)null);
+        _tokens.Setup(r => r.FindByHashAsync(It.IsAny<string>(), default)).ReturnsAsync((RefreshToken?)null);
 
         var result = await _handler.Handle(new RefreshTokenCommand("invalid-token"), default);
 
@@ -77,7 +92,7 @@ public class RefreshTokenCommandHandlerTests
     public async Task Handle_UserNotFound_ReturnsFailure()
     {
         var token = MakeToken(Guid.NewGuid());
-        _tokens.Setup(r => r.GetValidTokenAsync("valid-refresh", default)).ReturnsAsync(token);
+        FindValid(token);
         _users.Setup(r => r.GetByIdAsync(token.UserId, default)).ReturnsAsync((User?)null);
 
         var result = await _handler.Handle(new RefreshTokenCommand("valid-refresh"), default);
@@ -87,19 +102,85 @@ public class RefreshTokenCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_OldTokenRevoked()
+    public async Task Handle_OldTokenIsClaimedAtomically()
     {
         var user = MakeUser();
         var token = MakeToken(user.UserId);
-        _tokens.Setup(r => r.GetValidTokenAsync("valid-refresh", default)).ReturnsAsync(token);
+        FindValid(token);
         _users.Setup(r => r.GetByIdAsync(user.UserId, default)).ReturnsAsync(user);
         _tokenService.Setup(t => t.GenerateAccessToken(user)).Returns("tok");
         _tokenService.Setup(t => t.GenerateRefreshToken()).Returns("ref");
-        _tokens.Setup(r => r.AddAsync(It.IsAny<RefreshToken>(), default)).Returns(Task.CompletedTask);
 
         await _handler.Handle(new RefreshTokenCommand("valid-refresh"), default);
 
-        Assert.True(token.IsRevoked);
-        _tokens.Verify(r => r.Update(token), Times.Once);
+        _tokens.Verify(r => r.TryRevokeAsync(token.TokenId, default), Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_LosingAConcurrentRefresh_IssuesNothing()
+    {
+        var user = MakeUser();
+        var token = MakeToken(user.UserId);
+        FindValid(token);
+        _users.Setup(r => r.GetByIdAsync(user.UserId, default)).ReturnsAsync(user);
+        _tokens.Setup(r => r.TryRevokeAsync(token.TokenId, default)).ReturnsAsync(false);
+
+        var result = await _handler.Handle(new RefreshTokenCommand("valid-refresh"), default);
+
+        Assert.Equal("INVALID_REFRESH_TOKEN", result.ErrorCode);
+        _tokens.Verify(r => r.AddAsync(It.IsAny<RefreshToken>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Handle_RotatedTokenReplayedLater_RevokesTheWholeSession()
+    {
+        var token = MakeToken(Guid.NewGuid());
+        token.IsRevoked = true;
+        token.RevokedAt = DateTime.UtcNow.AddMinutes(-5);
+        FindValid(token);
+
+        var result = await _handler.Handle(new RefreshTokenCommand("valid-refresh"), default);
+
+        Assert.False(result.IsSuccess);
+        _tokens.Verify(r => r.RevokeSessionAsync(token.UserId, token.SessionId, default), Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_RotatedTokenWithinGrace_FailsWithoutRevokingTheSession()
+    {
+        // Two tabs refreshing in the same instant: the slower one carries the just-rotated token.
+        var token = MakeToken(Guid.NewGuid());
+        token.IsRevoked = true;
+        token.RevokedAt = DateTime.UtcNow.AddSeconds(-2);
+        FindValid(token);
+
+        var result = await _handler.Handle(new RefreshTokenCommand("valid-refresh"), default);
+
+        Assert.False(result.IsSuccess);
+        _tokens.Verify(r => r.RevokeSessionAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task IssuedTokens_AreStoredHashed()
+    {
+        var user = MakeUser();
+        FindValid(MakeToken(user.UserId));
+        _users.Setup(r => r.GetByIdAsync(user.UserId, default)).ReturnsAsync(user);
+        _tokenService.Setup(t => t.GenerateRefreshToken()).Returns("plain-new-refresh");
+        RefreshToken? stored = null;
+        _tokens.Setup(r => r.AddAsync(It.IsAny<RefreshToken>(), default))
+            .Callback<RefreshToken, CancellationToken>((t, _) => stored = t);
+
+        var result = await _handler.Handle(new RefreshTokenCommand("valid-refresh"), default);
+
+        Assert.Equal("plain-new-refresh", result.Data!.RefreshToken);
+        Assert.Equal(RefreshTokenHash.Compute("plain-new-refresh"), stored!.Token);
+        Assert.DoesNotContain("plain", stored.Token);
+    }
+
+    private void FindValid(RefreshToken token)
+    {
+        _tokens.Setup(r => r.FindByHashAsync(RefreshTokenHash.Compute("valid-refresh"), default)).ReturnsAsync(token);
+        _tokens.Setup(r => r.TryRevokeAsync(token.TokenId, default)).ReturnsAsync(true);
     }
 }

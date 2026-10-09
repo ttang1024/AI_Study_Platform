@@ -26,8 +26,8 @@ public class CreatePodcastFromFeedCommandHandler : IRequestHandler<CreatePodcast
 
     public async Task<Result<DocumentDto>> Handle(CreatePodcastFromFeedCommand request, CancellationToken cancellationToken)
     {
-        var course = await _unitOfWork.Courses.GetByIdAsync(request.CourseId, cancellationToken);
-        if (course == null || course.UserId != request.UserId)
+        var course = await _unitOfWork.Courses.GetOwnedAsync(request.CourseId, request.UserId, cancellationToken);
+        if (course == null)
             return Result<DocumentDto>.Failure("Course not found.", "COURSE_NOT_FOUND");
 
         // Re-fetch the feed server-side so episode metadata can't be spoofed by the client.

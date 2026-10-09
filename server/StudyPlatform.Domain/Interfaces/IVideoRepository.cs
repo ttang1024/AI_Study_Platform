@@ -34,5 +34,8 @@ public interface IVideoRepository : IRepository<Video>
 
     Task<Video?> GetByIdForUserAsync(Guid id, Guid userId, CancellationToken cancellationToken = default);
     Task<Video?> GetByIdWithCourseAsync(Guid id, CancellationToken cancellationToken = default);
+    /// <summary>Uploaded videos with a background transcription in flight, across all users (worker recovery only).</summary>
+    Task<IReadOnlyList<PendingVideoTranscription>> GetPendingTranscriptionsAsync(CancellationToken cancellationToken = default);
+
     Task<Video?> GetByExternalVideoIdAsync(string externalVideoId, CancellationToken cancellationToken = default);
 }

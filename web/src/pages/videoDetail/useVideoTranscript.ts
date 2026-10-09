@@ -13,6 +13,9 @@ interface UseVideoTranscriptArgs {
   videoTitle: string | null;
 }
 
+const TRANSCRIPT_PENDING_POLL_MS = 15_000;
+const TRANSCRIPT_PENDING_MAX_POLLS = 40;
+
 /** Transcript/subtitles fetching, export (copy/download) and the transcript-panel text selection toolbar. */
 export function useVideoTranscript({ id, videoId, videoUrl, sourceType, videoTitle }: UseVideoTranscriptArgs) {
   const transcriptRef = useRef<HTMLDivElement>(null);
@@ -25,6 +28,14 @@ export function useVideoTranscript({ id, videoId, videoUrl, sourceType, videoTit
   const [transcript, setTranscript] = useState<TranscriptSegment[] | null>(null);
   const [transcriptError, setTranscriptError] = useState<string | null>(null);
   const [isLoadingTranscript, setIsLoadingTranscript] = useState(false);
+  // An uploaded video is transcribed in the background after upload; while that runs the API answers
+  // TRANSCRIPT_PENDING and the panel re-checks on its own (bounded, ~10 minutes).
+  const pendingRetry = useRef<{ timer: ReturnType<typeof setTimeout> | null; attempts: number }>({ timer: null, attempts: 0 });
+  const clearPendingRetry = () => {
+    if (pendingRetry.current.timer) clearTimeout(pendingRetry.current.timer);
+    pendingRetry.current = { timer: null, attempts: 0 };
+  };
+  useEffect(() => clearPendingRetry, []);
 
   // Subtitles (raw caption lines)
   const [subtitles, setSubtitles] = useState<TranscriptSegment[] | null>(null);
@@ -43,6 +54,10 @@ export function useVideoTranscript({ id, videoId, videoUrl, sourceType, videoTit
     } catch (err: any) {
       setTranscriptError(err?.response?.data?.message ?? 'No captions available for this video.');
       setTranscript(null);
+      if (err?.response?.data?.errorCode === 'TRANSCRIPT_PENDING' && pendingRetry.current.attempts < TRANSCRIPT_PENDING_MAX_POLLS) {
+        pendingRetry.current.attempts += 1;
+        pendingRetry.current.timer = setTimeout(() => void fetchTranscript(vid, fetcher), TRANSCRIPT_PENDING_POLL_MS);
+      }
     } finally {
       setIsLoadingTranscript(false);
     }
@@ -68,6 +83,7 @@ export function useVideoTranscript({ id, videoId, videoUrl, sourceType, videoTit
   // fire them together instead of chaining, since neither result depends on the other.
   useEffect(() => {
     if (!videoId || !videoUrl || !id) return;
+    clearPendingRetry();
     setResolvedSubtitlesVideoId(null);
     setSubtitles(null);
     setSubtitlesError(null);

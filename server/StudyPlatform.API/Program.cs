@@ -13,6 +13,7 @@ using StudyPlatform.API.HealthChecks;
 using StudyPlatform.API.Hubs;
 using StudyPlatform.API.Json;
 using StudyPlatform.API.Middleware;
+using StudyPlatform.API.Security;
 using StudyPlatform.API.Services;
 using StudyPlatform.Application;
 using StudyPlatform.Application.Settings;
@@ -169,7 +170,8 @@ builder.Services.AddApplicationCache(builder.Configuration, redis);
 // turn ordinary API requests into 500s.
 builder.Services.AddInMemoryRateLimiting();
 builder.Services.Configure<IpRateLimitOptions>(builder.Configuration.GetSection("IpRateLimiting"));
-builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
+builder.Services.AddSingleton<IRateLimitConfiguration, ConnectionIpRateLimitConfiguration>();
+builder.Services.AddCloudFrontForwardedHeaders(builder.Configuration);
 
 // SignalR, plus the Redis backplane when Redis is enabled and answering. Without one, a hub message
 // only reaches the clients connected to the replica that produced it, so group chat silently
@@ -192,8 +194,8 @@ if (backplaneUnavailableReason != null && redis.Enabled)
         + "reach only clients on this instance — fine for a single replica, not for scale-out. "
         + "Set Api:RequireScaleOutBackplane=true to make this a startup failure instead.");
 }
-builder.Services.AddSingleton<AudioTranscriptionQueue>();
-builder.Services.AddHostedService(sp => sp.GetRequiredService<AudioTranscriptionQueue>());
+builder.Services.AddSingleton<TranscriptionQueue>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<TranscriptionQueue>());
 
 // Application and Infrastructure layers
 builder.Services.AddApplication();
@@ -202,6 +204,7 @@ builder.Services.Configure<AppLimitsOptions>(builder.Configuration.GetSection(Ap
 builder.Services.Configure<CacheOptions>(builder.Configuration.GetSection(CacheOptions.SectionName));
 builder.Services.Configure<VapidOptions>(builder.Configuration.GetSection(VapidOptions.SectionName));
 builder.Services.Configure<AiUsageOptions>(builder.Configuration.GetSection(AiUsageOptions.SectionName));
+builder.Services.Configure<AiRequestOptions>(builder.Configuration.GetSection(AiRequestOptions.SectionName));
 builder.Services.Configure<EmbeddingOptions>(builder.Configuration.GetSection(EmbeddingOptions.SectionName));
 
 // Keeps the semantic index in step with the library (no-op until Embeddings:ApiKey is configured).
@@ -220,6 +223,10 @@ builder.Services.AddHostedService<AccountDeletionWorker>();
 // Trims the page-view table to its retention window. Safe on every replica: the delete is
 // idempotent, so a second instance sweeping the same rows finds nothing left to do.
 builder.Services.AddHostedService<PageVisitRetentionWorker>();
+
+// Deletes expired cache, transcript, OTP and refresh-token rows (each is otherwise only removed when read).
+// Safe on every replica: deletes are idempotent.
+builder.Services.AddHostedService<ExpiredDataSweepWorker>();
 
 // Health checks.
 //
@@ -266,26 +273,31 @@ using (var scope = app.Services.CreateScope())
 }
 
 // Middleware pipeline
+// First, so everything after sees the real client address (rate limiting, audit/session IPs).
+app.UseForwardedHeaders();
+app.UseMiddleware<OriginVerificationMiddleware>();
 app.UseResponseCompression();
 app.UseCors("AllowFrontend");
 app.UseMiddleware<RequestLoggingMiddleware>();
 app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
 
-app.UseSwagger();
-app.UseSwaggerUI(options =>
+// The API description is a map of every endpoint and parameter — useful locally, a free recon aid on a
+// public host. Development-only unless explicitly switched on.
+if (app.Environment.IsDevelopment() || app.Configuration.GetValue("Swagger:Enabled", false))
 {
-    options.SwaggerEndpoint("/swagger/v1/swagger.json", "StudyPlatform API v1");
-    options.RoutePrefix = "swagger";
-});
+    app.UseSwagger();
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/swagger/v1/swagger.json", "StudyPlatform API v1");
+        options.RoutePrefix = "swagger";
+    });
+}
 
 if (app.Environment.IsDevelopment())
     app.UseHttpsRedirection();
 app.UseIpRateLimiting();
 app.UseAuthentication();
 app.UseAuthorization();
-
-// After authentication so the caller's identity is known: resolves their plan once per request and
-// leaves it on the HttpContext for the hosted-key and quota paths, which cannot await.
 
 app.MapControllers();
 app.MapHub<GroupChatHub>("/hubs/group-chat");

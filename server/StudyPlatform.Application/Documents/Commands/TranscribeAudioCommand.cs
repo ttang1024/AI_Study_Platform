@@ -26,8 +26,8 @@ public class TranscribeAudioCommandHandler : IRequestHandler<TranscribeAudioComm
 
     public async Task<Result<DocumentDto>> Handle(TranscribeAudioCommand request, CancellationToken cancellationToken)
     {
-        var document = await _unitOfWork.Documents.GetByIdAsync(request.DocumentId, cancellationToken);
-        if (document == null || document.UserId != request.UserId)
+        var document = await _unitOfWork.Documents.GetOwnedAsync(request.DocumentId, request.UserId, cancellationToken);
+        if (document == null)
             return Result<DocumentDto>.Failure("Audio file not found.", "DOCUMENT_NOT_FOUND");
 
         if (string.IsNullOrEmpty(document.Transcript))
@@ -40,6 +40,7 @@ public class TranscribeAudioCommandHandler : IRequestHandler<TranscribeAudioComm
                 ms.ToArray(), document.ContentType, cancellationToken);
 
             document.Transcript = transcript;
+            document.TranscriptionRequestedAt = null;
             document.UpdatedAt = DateTime.UtcNow;
             _unitOfWork.Documents.Update(document);
             await _unitOfWork.SaveChangesAsync(cancellationToken);

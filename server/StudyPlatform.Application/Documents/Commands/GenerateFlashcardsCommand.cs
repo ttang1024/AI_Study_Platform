@@ -34,8 +34,8 @@ public class GenerateFlashcardsCommandHandler : IRequestHandler<GenerateFlashcar
 
     public async Task<Result<IEnumerable<FlashcardDto>>> Handle(GenerateFlashcardsCommand request, CancellationToken cancellationToken)
     {
-        var document = await _unitOfWork.Documents.GetByIdAsync(request.DocumentId, cancellationToken);
-        if (document == null || document.UserId != request.UserId)
+        var document = await _unitOfWork.Documents.GetOwnedAsync(request.DocumentId, request.UserId, cancellationToken);
+        if (document == null)
             return Result<IEnumerable<FlashcardDto>>.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
 
         var existing = await _unitOfWork.Flashcards.GetByDocumentIdAsync(request.DocumentId, cancellationToken);
@@ -85,7 +85,6 @@ public class GenerateFlashcardsCommandHandler : IRequestHandler<GenerateFlashcar
                 Back = back,
                 CardType = isChart ? "chart" : isCloze ? "cloze" : "basic",
                 SourceAnchorJson = anchor == null ? null : SourceAnchorResolver.Serialize(anchor),
-                SourceVersion = document.ContentVersion,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
             };

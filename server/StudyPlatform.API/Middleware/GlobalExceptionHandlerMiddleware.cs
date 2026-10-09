@@ -2,6 +2,8 @@ using System.Net;
 using System.Text.Json;
 using FluentValidation;
 using StudyPlatform.API.Extensions;
+using StudyPlatform.Application.Common;
+using StudyPlatform.Domain.Exceptions;
 using StudyPlatform.Application.Services;
 
 namespace StudyPlatform.API.Middleware;
@@ -23,6 +25,15 @@ public class GlobalExceptionHandlerMiddleware
         {
             await _next(context);
         }
+        catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
+        {
+            // The client went away (closed tab, CloudFront gave up). Not an error, and nobody to answer.
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            _logger.LogInformation(ex, "Concurrent update conflict");
+            await HandleExceptionAsync(context, HttpStatusCode.Conflict, ex.Message, "CONCURRENCY_CONFLICT", Array.Empty<string>());
+        }
         catch (ValidationException ex)
         {
             _logger.LogWarning(ex, "Validation error occurred");
@@ -36,7 +47,9 @@ public class GlobalExceptionHandlerMiddleware
         catch (KeyNotFoundException ex)
         {
             _logger.LogWarning(ex, "Resource not found");
-            await HandleExceptionAsync(context, HttpStatusCode.NotFound, ex.Message, "NOT_FOUND", Array.Empty<string>());
+            // A KeyNotFoundException is as likely to be a dictionary miss as a missing entity, and its
+            // message names internal keys — never echo it.
+            await HandleExceptionAsync(context, HttpStatusCode.NotFound, "Resource not found.", "NOT_FOUND", Array.Empty<string>());
         }
         catch (YouTubeTranscriptUnavailableException ex)
         {
@@ -48,16 +61,15 @@ public class GlobalExceptionHandlerMiddleware
                 "YOUTUBE_TRANSCRIPT_UNAVAILABLE",
                 Array.Empty<string>());
         }
-        catch (InvalidOperationException ex)
+        catch (UserFacingException ex)
         {
-            _logger.LogError(ex, "Invalid operation");
-            if (AiErrorMapper.TryGetAiError(ex.Message, out var statusCode, out var errorCode))
-            {
-                await HandleExceptionAsync(context, (HttpStatusCode)statusCode, ex.Message, errorCode, Array.Empty<string>());
-                return;
-            }
-
-            await HandleExceptionAsync(context, HttpStatusCode.BadRequest, ex.Message, "INVALID_OPERATION", Array.Empty<string>());
+            // Written for the user (AI provider/key problems, provider limits) — the one kind of
+            // exception whose message is returned. Provider errors are refined to 429 / 502.
+            _logger.LogWarning(ex, "User-facing failure");
+            var (statusCode, errorCode) = AiErrorMapper.TryGetAiError(ex.Message, out var aiStatus, out var aiCode)
+                ? (aiStatus, aiCode)
+                : (ex.StatusCode, ex.ErrorCode);
+            await HandleExceptionAsync(context, (HttpStatusCode)statusCode, ex.Message, errorCode, Array.Empty<string>());
         }
         catch (Exception ex)
         {
@@ -93,6 +105,10 @@ public class GlobalExceptionHandlerMiddleware
         string errorCode,
         IEnumerable<string> errors)
     {
+        // Mid-stream (SSE) the status line is already sent; the stream carries its own [ERROR] frame.
+        if (context.Response.HasStarted)
+            return;
+
         context.Response.StatusCode = (int)statusCode;
         context.Response.ContentType = "application/json";
 

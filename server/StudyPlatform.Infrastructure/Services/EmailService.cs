@@ -3,6 +3,7 @@ using Amazon.SimpleEmailV2;
 using Amazon.SimpleEmailV2.Model;
 using MailKit.Net.Smtp;
 using MailKit.Security;
+using System.Net;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using MimeKit;
@@ -62,7 +63,7 @@ public class EmailService : IEmailService
         <h1 style=""color: white; margin: 0;"">Welcome to StudyPlatform!</h1>
     </div>
     <div style=""background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; border: 1px solid #ddd;"">
-        <h2 style=""color: #333;"">Hello, {fullName}!</h2>
+        <h2 style=""color: #333;"">Hello, {WebUtility.HtmlEncode(fullName)}!</h2>
         <p style=""color: #666;"">Your account has been successfully created. You can now start your AI-powered learning journey!</p>
         <ul style=""color: #666;"">
             <li>Upload documents and get AI-generated summaries</li>
@@ -71,6 +72,25 @@ public class EmailService : IEmailService
             <li>Track your study progress</li>
         </ul>
         <p style=""color: #666;"">Happy studying!</p>
+    </div>
+</body>
+</html>";
+
+        await SendEmailAsync(toEmail, subject, body, cancellationToken);
+    }
+
+    public async Task SendAccountExistsEmailAsync(string toEmail, CancellationToken cancellationToken = default)
+    {
+        var subject = "Someone tried to register with your email";
+        var body = @"
+<!DOCTYPE html>
+<html>
+<head><meta charset=""utf-8""></head>
+<body style=""font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;"">
+    <div style=""background: #f9f9f9; padding: 30px; border-radius: 10px; border: 1px solid #ddd;"">
+        <h2 style=""color: #333;"">You already have an account</h2>
+        <p style=""color: #666;"">Someone asked to create a new account with this email address, but it is already registered, so no account was created.</p>
+        <p style=""color: #666;"">If that was you, sign in instead — or use “Forgot password” if you can't remember it. If it wasn't you, you can ignore this email.</p>
     </div>
 </body>
 </html>";

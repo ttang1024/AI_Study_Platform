@@ -22,15 +22,6 @@ public class NoteRepository : Repository<Note>, INoteRepository
             .OrderByDescending(n => n.CreatedAt)
             .ToListAsync(cancellationToken);
 
-    public async Task DeleteByIdsAsync(IEnumerable<Guid> ids, Guid userId, CancellationToken cancellationToken = default)
-    {
-        var idList = ids.ToList();
-        var notes = await _dbSet
-            .Where(n => idList.Contains(n.NoteId) && n.UserId == userId)
-            .ToListAsync(cancellationToken);
-        _dbSet.RemoveRange(notes);
-    }
-
     public async Task<(IEnumerable<Note> Items, int TotalCount)> GetPagedByUserIdAsync(Guid userId, int page, int pageSize, CancellationToken cancellationToken = default)
     {
         var query = _dbSet

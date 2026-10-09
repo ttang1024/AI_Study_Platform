@@ -49,23 +49,6 @@ describe('glossaryService', () => {
     })
   })
 
-  describe('getGlossary', () => {
-    it('fetches glossary for a course+document', async () => {
-      mockApiClient.get.mockResolvedValueOnce({ data: { data: [backendTerm()] } })
-
-      const terms = await glossaryService.getGlossary('c-1', 'doc-1')
-
-      expect(mockApiClient.get).toHaveBeenCalledWith('/api/courses/c-1/documents/doc-1/glossary')
-      expect(terms).toHaveLength(1)
-    })
-
-    it('returns empty array on error', async () => {
-      mockApiClient.get.mockRejectedValueOnce(new Error('Not found'))
-      const terms = await glossaryService.getGlossary('c-1', 'doc-1')
-      expect(terms).toEqual([])
-    })
-  })
-
   describe('updateTerm', () => {
     it('puts and returns the mapped term', async () => {
       const updated = { ...backendTerm('t-1'), term: 'Enthalpy', definition: 'Heat content' }

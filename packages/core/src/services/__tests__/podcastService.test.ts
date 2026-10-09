@@ -45,13 +45,6 @@ describe('podcastService', () => {
     expect(fakeHttp.post).toHaveBeenCalledWith('/api/podcasts/from-feed', { feedUrl: 'https://feed.xml', episodeId: 'ep-1', courseId: 'c-1' })
   })
 
-  it('getEpisode maps the fetched episode', async () => {
-    vi.mocked(fakeHttp.get).mockResolvedValueOnce({ data: { data: rawEpisode({ summary: 'S' }) } })
-    const episode = await service.getEpisode('d-1')
-    expect(fakeHttp.get).toHaveBeenCalledWith('/api/podcasts/d-1')
-    expect(episode.summary).toBe('S')
-  })
-
   it('getAudioUrl returns the unwrapped string', async () => {
     vi.mocked(fakeHttp.get).mockResolvedValueOnce({ data: { data: 'https://signed/url' } })
     expect(await service.getAudioUrl('d-1')).toBe('https://signed/url')

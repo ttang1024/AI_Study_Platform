@@ -60,6 +60,9 @@ public static class DependencyInjection
         // review handler stays a handler.
         services.AddScoped<IReviewScheduler, ReviewScheduler>();
 
+        // Transcript retrieval for videos (cache → saved row → stored segments → source fetch).
+        services.AddScoped<StudyPlatform.Application.Videos.Transcripts.IVideoTranscriptProvider, StudyPlatform.Application.Videos.Transcripts.VideoTranscriptProvider>();
+
         // Social link previews for /share/{token}. Small collaborators rather than one builder:
         // markdown snippets, the "what's inside" inventory, the card's wording and the meta-tag
         // writing each change for their own reasons, and each is worth testing on its own.

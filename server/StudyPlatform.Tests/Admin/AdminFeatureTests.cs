@@ -46,7 +46,7 @@ public class AdminLoginCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_NonAdminUser_ReturnsForbidden()
+    public async Task Handle_NonAdminWithCorrectPassword_LooksExactlyLikeAWrongPassword()
     {
         _users.Setup(r => r.GetByEmailAsync("a@b.com", default)).ReturnsAsync(new User { Email = "a@b.com", PasswordHash = "hash", IsAdmin = false });
         _hasher.Setup(h => h.Verify("pw", "hash")).Returns(true);
@@ -54,7 +54,7 @@ public class AdminLoginCommandHandlerTests
         var result = await _handler.Handle(new AdminLoginCommand("a@b.com", "pw"), default);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal("FORBIDDEN", result.ErrorCode);
+        Assert.Equal("INVALID_CREDENTIALS", result.ErrorCode); // anything else confirms a non-admin's password
     }
 
     [Fact]
@@ -320,12 +320,14 @@ public class SetUserActiveStatusCommandHandlerTests
 {
     private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IUserRepository> _users = new();
+    private readonly Mock<IRefreshTokenRepository> _refreshTokens = new();
     private readonly SetUserActiveStatusCommandHandler _handler;
     private readonly Guid _userId = Guid.NewGuid();
 
     public SetUserActiveStatusCommandHandlerTests()
     {
         _uow.Setup(u => u.Users).Returns(_users.Object);
+        _uow.Setup(u => u.RefreshTokens).Returns(_refreshTokens.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
         _handler = new SetUserActiveStatusCommandHandler(_uow.Object);
     }
@@ -363,6 +365,26 @@ public class SetUserActiveStatusCommandHandlerTests
         Assert.True(result.IsSuccess);
         Assert.False(user.IsActive);
         Assert.False(result.Data!.IsActive);
+    }
+
+    [Fact]
+    public async Task Handle_Deactivating_RevokesTheUsersSessions()
+    {
+        _users.Setup(r => r.GetByIdAsync(_userId, default)).ReturnsAsync(new User { UserId = _userId, IsActive = true });
+
+        await _handler.Handle(new SetUserActiveStatusCommand(_userId, false), default);
+
+        _refreshTokens.Verify(r => r.RevokeAllUserTokensAsync(_userId, default), Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_Reactivating_LeavesSessionsAlone()
+    {
+        _users.Setup(r => r.GetByIdAsync(_userId, default)).ReturnsAsync(new User { UserId = _userId, IsActive = false });
+
+        await _handler.Handle(new SetUserActiveStatusCommand(_userId, true), default);
+
+        _refreshTokens.Verify(r => r.RevokeAllUserTokensAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 }
 

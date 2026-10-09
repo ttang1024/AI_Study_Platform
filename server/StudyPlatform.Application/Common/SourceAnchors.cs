@@ -14,7 +14,6 @@ public record SourceAnchor(
     string Quote,
     int? StartOffset = null,
     int? EndOffset = null,
-    int? Page = null,
     double? StartSeconds = null)
 {
     /// <summary>True when the anchor can be turned into a jump target rather than just a quotation.</summary>

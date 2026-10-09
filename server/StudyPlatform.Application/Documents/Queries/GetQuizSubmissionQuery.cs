@@ -31,7 +31,7 @@ public class GetQuizSubmissionQueryHandler : IRequestHandler<GetQuizSubmissionQu
     }
 }
 
-public record GetAllQuizSubmissionsPagedQuery(Guid UserId, int Page, int PageSize) : IRequest<Result<PaginatedList<QuizSubmissionDto>>>;
+public record GetAllQuizSubmissionsPagedQuery(Guid UserId, int Page, int PageSize) : IRequest<Result<PaginatedList<QuizSubmissionDto>>>, IPagedRequest;
 
 public record GetQuizSubmissionCoverageQuery(Guid UserId) : IRequest<Result<QuizSubmissionCoverageDto>>;
 

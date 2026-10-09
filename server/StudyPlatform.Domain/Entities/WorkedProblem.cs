@@ -1,6 +1,8 @@
+using StudyPlatform.Domain.Interfaces;
+
 namespace StudyPlatform.Domain.Entities;
 
-public class WorkedProblem
+public class WorkedProblem : IUserOwned
 {
     public Guid WorkedProblemId { get; set; }
     public Guid UserId { get; set; }

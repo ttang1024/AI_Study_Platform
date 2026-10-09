@@ -10,14 +10,15 @@ public class OtpRepository : Repository<OtpCode>, IOtpRepository
 {
     public OtpRepository(AppDbContext context) : base(context) { }
 
-    public async Task<OtpCode?> GetValidOtpAsync(string email, string code, OtpPurpose purpose, CancellationToken cancellationToken = default)
-        => await _dbSet.FirstOrDefaultAsync(o =>
-            o.Email == email &&
-            o.Code == code &&
-            o.Purpose == purpose &&
-            !o.IsUsed &&
-            o.ExpiresAt > DateTime.UtcNow,
-            cancellationToken);
+    public async Task<OtpCode?> GetActiveOtpAsync(string email, OtpPurpose purpose, CancellationToken cancellationToken = default)
+        => await _dbSet
+            .Where(o =>
+                o.Email == email &&
+                o.Purpose == purpose &&
+                !o.IsUsed &&
+                o.ExpiresAt > DateTime.UtcNow)
+            .OrderByDescending(o => o.CreatedAt)
+            .FirstOrDefaultAsync(cancellationToken);
 
     public async Task InvalidateExistingOtpsAsync(string email, OtpPurpose purpose, CancellationToken cancellationToken = default)
     {

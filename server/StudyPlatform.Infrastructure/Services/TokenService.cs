@@ -69,12 +69,17 @@ public class TokenService : ITokenService
             var tokenHandler = new JwtSecurityTokenHandler();
             var key = Encoding.UTF8.GetBytes(secretKey);
 
+            // The same checks the JwtBearer handler applies (Program.cs), so a token accepted here is
+            // exactly one the rest of the API would accept.
             tokenHandler.ValidateToken(token, new TokenValidationParameters
             {
                 ValidateIssuerSigningKey = true,
                 IssuerSigningKey = new SymmetricSecurityKey(key),
-                ValidateIssuer = false,
-                ValidateAudience = false,
+                ValidateIssuer = true,
+                ValidIssuer = jwtSettings["Issuer"] ?? "StudyPlatform",
+                ValidateAudience = true,
+                ValidAudience = jwtSettings["Audience"] ?? "StudyPlatformUsers",
+                ValidateLifetime = true,
                 ClockSkew = TimeSpan.Zero
             }, out SecurityToken validatedToken);
 

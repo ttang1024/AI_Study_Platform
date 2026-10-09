@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using StudyPlatform.API.Extensions;
 using StudyPlatform.Application.Common;
@@ -47,7 +46,7 @@ public partial class SecurityController
 
     /// <summary>
     /// Schedules account deletion. Takes effect immediately for access; the data is erased after a
-    /// grace period during which <see cref="CancelAccountDeletion"/> can call it off.
+    /// grace period during which signing in again calls it off (see <c>PendingDeletion</c>).
     /// </summary>
     [HttpPost("account/delete")]
     [ProducesResponseType(typeof(BaseResponse<DateTime>), 200)]
@@ -73,23 +72,4 @@ public partial class SecurityController
 
         return Ok(BaseResponse<DateTime>.Ok(result.Data, result.Message));
     }
-
-    /// <summary>
-    /// Calls off a scheduled deletion. Anonymous because requesting deletion signs the user out
-    /// everywhere — there is no session left to authorize with, so the password stands in.
-    /// </summary>
-    [HttpPost("/api/auth/cancel-deletion")]
-    [AllowAnonymous]
-    [ProducesResponseType(typeof(BaseResponse), 200)]
-    [ProducesResponseType(typeof(BaseResponse), 400)]
-    public async Task<IActionResult> CancelAccountDeletion([FromBody] CancelAccountDeletionRequest request)
-    {
-        var result = await _mediator.Send(new CancelAccountDeletionCommand(request.Email, request.Password));
-        if (!result.IsSuccess)
-            return BadRequest(new BaseResponse { Success = false, Message = result.Message, ErrorCode = result.ErrorCode });
-
-        return Ok(new BaseResponse { Success = true, Message = result.Message });
-    }
 }
-
-public record CancelAccountDeletionRequest(string Email, string Password);

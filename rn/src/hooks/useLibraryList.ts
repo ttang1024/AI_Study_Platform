@@ -10,7 +10,7 @@ import type { AssignSelectionItem } from '@/components/library/LibraryAssignShee
 import { videoService } from '@/services/videoService';
 import type { Course } from '@/types';
 
-export const PAGE_SIZE = 20;
+const PAGE_SIZE = 20;
 
 export const TYPE_FILTERS: { id: LibraryFilterType; label: string }[] = [
   { id: 'all', label: 'All' },

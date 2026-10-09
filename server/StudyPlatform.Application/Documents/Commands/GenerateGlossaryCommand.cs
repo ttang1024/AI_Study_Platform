@@ -31,8 +31,8 @@ public class GenerateGlossaryCommandHandler : IRequestHandler<GenerateGlossaryCo
 
     public async Task<Result<IEnumerable<GlossaryTermDto>>> Handle(GenerateGlossaryCommand request, CancellationToken cancellationToken)
     {
-        var document = await _unitOfWork.Documents.GetByIdAsync(request.DocumentId, cancellationToken);
-        if (document == null || document.UserId != request.UserId)
+        var document = await _unitOfWork.Documents.GetOwnedAsync(request.DocumentId, request.UserId, cancellationToken);
+        if (document == null)
             return Result<IEnumerable<GlossaryTermDto>>.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
 
         try
@@ -71,7 +71,6 @@ public class GenerateGlossaryCommandHandler : IRequestHandler<GenerateGlossaryCo
                     Term = i.Term,
                     Definition = i.Definition,
                     SourceAnchorJson = anchor == null ? null : SourceAnchorResolver.Serialize(anchor),
-                    SourceVersion = document.ContentVersion,
                     CreatedAt = DateTime.UtcNow
                 };
             }).ToList();
@@ -85,7 +84,7 @@ public class GenerateGlossaryCommandHandler : IRequestHandler<GenerateGlossaryCo
         catch (Exception ex)
         {
             return Result<IEnumerable<GlossaryTermDto>>.Failure(
-                $"Failed to generate glossary: {ex.Message}", "GENERATION_FAILED");
+                $"Failed to generate glossary: {ClientErrors.MessageFor(ex, "please try again.")}", "GENERATION_FAILED");
         }
     }
 

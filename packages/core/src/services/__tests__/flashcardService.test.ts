@@ -64,8 +64,8 @@ describe('mapBackendFlashcard', () => {
   })
 
   it('normalizes citation when present', () => {
-    const mapped = mapBackendFlashcard(backendCard({ citation: { quote: 'q', page: 3 } }))
-    expect(mapped.citation).toEqual({ quote: 'q', startOffset: undefined, endOffset: undefined, page: 3, startSeconds: undefined })
+    const mapped = mapBackendFlashcard(backendCard({ citation: { quote: 'q', startSeconds: 3 } }))
+    expect(mapped.citation).toEqual({ quote: 'q', startOffset: undefined, endOffset: undefined, startSeconds: 3 })
   })
 })
 
@@ -158,12 +158,6 @@ describe('createFlashcardService', () => {
     const service = createFlashcardService(fakeHttp)
     await service.deleteFlashcard('f-1')
     expect(fakeHttp.delete).toHaveBeenCalledWith('/api/flashcards/f-1')
-  })
-
-  it('deleteFlashcardsBulk sends ids in the DELETE body', async () => {
-    const service = createFlashcardService(fakeHttp)
-    await service.deleteFlashcardsBulk(['f-1', 'f-2'])
-    expect(fakeHttp.delete).toHaveBeenCalledWith('/api/flashcards/bulk', { data: { flashcardIds: ['f-1', 'f-2'] } })
   })
 
   it('reviewFlashcard posts the rating and maps the returned srs', async () => {

@@ -1,3 +1,5 @@
+using StudyPlatform.Domain.Interfaces;
+
 namespace StudyPlatform.Domain.Entities;
 
 /// <summary>
@@ -9,7 +11,7 @@ namespace StudyPlatform.Domain.Entities;
 /// tables would mean two sets of CRUD, two join tables, and two bulk-assign paths to keep in step,
 /// all to express one idea twice. <see cref="Kind"/> is what the UI branches on.</para>
 /// </summary>
-public class LibraryTag
+public class LibraryTag : IUserOwned
 {
     public Guid LibraryTagId { get; set; }
     public Guid UserId { get; set; }

@@ -1,10 +1,12 @@
+using StudyPlatform.Domain.Interfaces;
+
 namespace StudyPlatform.Domain.Entities;
 
 /// <summary>
 /// An external ICS calendar the user subscribed to (Google/Outlook/Apple "secret address" URL).
 /// Busy blocks from these feeds let the planner schedule study around real commitments.
 /// </summary>
-public class UserCalendarFeed
+public class UserCalendarFeed : IUserOwned
 {
     public Guid Id { get; set; }
     public Guid UserId { get; set; }

@@ -26,12 +26,9 @@ public class HttpRequestContext : IRequestContext
             if (http == null)
                 return null;
 
-            // Behind a load balancer the socket address is the balancer, so the forwarded chain is
-            // the only thing carrying the client. Spoofable, and recorded for display only.
-            var forwarded = http.Request.Headers["X-Forwarded-For"].ToString();
-            if (!string.IsNullOrWhiteSpace(forwarded))
-                return Truncate(forwarded.Split(',')[0].Trim(), 64);
-
+            // UseForwardedHeaders has already replaced the socket address with the one CloudFront
+            // appended to X-Forwarded-For. What is left in that header is whatever the client sent
+            // itself, so it is deliberately not read here.
             return Truncate(http.Connection.RemoteIpAddress?.ToString(), 64);
         }
     }

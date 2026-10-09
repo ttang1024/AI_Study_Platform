@@ -35,18 +35,23 @@ public class RegisterCommandHandler : IRequestHandler<RegisterCommand, Result<Au
 
     public async Task<Result<AuthResponse>> Handle(RegisterCommand request, CancellationToken cancellationToken)
     {
-        var emailExists = await _unitOfWork.Users.EmailExistsAsync(request.Email, cancellationToken);
+        var email = OtpVerifier.NormalizeEmail(request.Email);
+        var emailExists = await _unitOfWork.Users.EmailExistsAsync(email, cancellationToken);
         if (emailExists)
             return Result<AuthResponse>.Failure("Email is already registered.", "EMAIL_ALREADY_EXISTS");
 
-        var otp = await _unitOfWork.Otps.GetValidOtpAsync(request.Email, request.OtpCode, OtpPurpose.Registration, cancellationToken);
-        if (otp == null)
+        var otp = await _unitOfWork.Otps.GetActiveOtpAsync(email, OtpPurpose.Registration, cancellationToken);
+        if (!OtpVerifier.TryConsume(otp, request.OtpCode))
+        {
+            if (otp != null)
+                await _unitOfWork.SaveChangesAsync(cancellationToken); // persist the counted wrong guess
             return Result<AuthResponse>.Failure("Invalid or expired OTP code.", "INVALID_OTP");
+        }
 
         var user = new User
         {
             UserId = Guid.NewGuid(),
-            Email = request.Email.ToLowerInvariant(),
+            Email = email,
             PasswordHash = _passwordHasher.Hash(request.Password),
             FullName = request.FullName,
             IsEmailVerified = true,
@@ -54,10 +59,8 @@ public class RegisterCommandHandler : IRequestHandler<RegisterCommand, Result<Au
             UpdatedAt = DateTime.UtcNow
         };
 
-        otp.IsUsed = true;
-
         await _unitOfWork.Users.AddAsync(user, cancellationToken);
-        _unitOfWork.Otps.Update(otp);
+        _unitOfWork.Otps.Update(otp!);
 
         // Issuing the session is what saves the unit of work, so the new user and the spent OTP
         // land in the same transaction as the refresh-token row.

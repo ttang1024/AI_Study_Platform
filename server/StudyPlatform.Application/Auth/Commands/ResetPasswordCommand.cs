@@ -24,20 +24,23 @@ public class ResetPasswordCommandHandler : IRequestHandler<ResetPasswordCommand,
 
     public async Task<Result> Handle(ResetPasswordCommand request, CancellationToken cancellationToken)
     {
-        var user = await _unitOfWork.Users.GetByEmailAsync(request.Email.ToLowerInvariant(), cancellationToken);
-        if (user == null)
-            return Result.Failure("No account found with this email.", "USER_NOT_FOUND");
-
-        var otp = await _unitOfWork.Otps.GetValidOtpAsync(request.Email, request.OtpCode, OtpPurpose.PasswordReset, cancellationToken);
-        if (otp == null)
+        var email = OtpVerifier.NormalizeEmail(request.Email);
+        var user = await _unitOfWork.Users.GetByEmailAsync(email, cancellationToken);
+        if (user == null) // same answer as a wrong code: this endpoint must not reveal which emails exist
             return Result.Failure("Invalid or expired OTP code.", "INVALID_OTP");
+
+        var otp = await _unitOfWork.Otps.GetActiveOtpAsync(email, OtpPurpose.PasswordReset, cancellationToken);
+        if (!OtpVerifier.TryConsume(otp, request.OtpCode))
+        {
+            if (otp != null)
+                await _unitOfWork.SaveChangesAsync(cancellationToken); // persist the counted wrong guess
+            return Result.Failure("Invalid or expired OTP code.", "INVALID_OTP");
+        }
 
         user.PasswordHash = _passwordHasher.Hash(request.NewPassword);
         user.UpdatedAt = DateTime.UtcNow;
-        otp.IsUsed = true;
-
         _unitOfWork.Users.Update(user);
-        _unitOfWork.Otps.Update(otp);
+        _unitOfWork.Otps.Update(otp!);
 
         await _unitOfWork.RefreshTokens.RevokeAllUserTokensAsync(user.UserId, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);

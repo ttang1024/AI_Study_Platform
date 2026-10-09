@@ -30,6 +30,8 @@ public class DocumentConfiguration : IEntityTypeConfiguration<Document>
             .HasForeignKey(d => d.UserId)
             .OnDelete(DeleteBehavior.NoAction);
 
+        // Startup recovery reads only the (few) documents with a transcription in flight.
+        builder.HasIndex(d => d.TranscriptionRequestedAt).HasFilter("\"TranscriptionRequestedAt\" IS NOT NULL");
         builder.HasIndex(d => new { d.UserId, d.FileHash })
             .IsUnique()
             .HasFilter("\"FileHash\" IS NOT NULL");

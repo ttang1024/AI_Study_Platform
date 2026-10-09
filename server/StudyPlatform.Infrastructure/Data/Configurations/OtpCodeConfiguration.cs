@@ -13,6 +13,7 @@ public class OtpCodeConfiguration : IEntityTypeConfiguration<OtpCode>
         builder.Property(o => o.Code).IsRequired().HasMaxLength(10);
         builder.Property(o => o.Purpose).IsRequired();
         builder.Property(o => o.IsUsed).HasDefaultValue(false);
+        builder.Property(o => o.FailedAttempts).HasDefaultValue(0);
         builder.Property(o => o.ExpiresAt).IsRequired();
         builder.Property(o => o.CreatedAt).IsRequired();
 

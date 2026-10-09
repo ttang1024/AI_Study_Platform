@@ -25,8 +25,8 @@ public class DeleteCourseCommandHandler : IRequestHandler<DeleteCourseCommand, R
 
     public async Task<Result> Handle(DeleteCourseCommand request, CancellationToken cancellationToken)
     {
-        var course = await _unitOfWork.Courses.GetByIdAsync(request.CourseId, cancellationToken);
-        if (course == null || course.UserId != request.UserId)
+        var course = await _unitOfWork.Courses.GetOwnedAsync(request.CourseId, request.UserId, cancellationToken);
+        if (course == null)
             return Result.Failure("Course not found.", "COURSE_NOT_FOUND");
 
         // Only the blob locations, not the document rows — the rows themselves are deleted by the

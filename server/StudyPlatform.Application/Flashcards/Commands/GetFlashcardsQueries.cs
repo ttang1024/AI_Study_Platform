@@ -7,7 +7,7 @@ using StudyPlatform.Domain.Interfaces;
 
 namespace StudyPlatform.Application.Flashcards.Commands;
 
-public record GetAllFlashcardsPagedQuery(Guid UserId, int Page, int PageSize) : IRequest<Result<PaginatedList<FlashcardDto>>>;
+public record GetAllFlashcardsPagedQuery(Guid UserId, int Page, int PageSize) : IRequest<Result<PaginatedList<FlashcardDto>>>, IPagedRequest;
 
 public record GetFlashcardCoverageQuery(Guid UserId) : IRequest<Result<FlashcardCoverageDto>>;
 

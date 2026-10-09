@@ -9,6 +9,7 @@ import { offlineCacheService } from '../services/offlineCacheService';
 import { flashcardService } from '../services/flashcardService';
 import { glossaryService } from '../services/glossaryService';
 import { noteService } from '../services/noteService';
+import { sanitizeHtml } from '../utils/sanitizeHtml';
 
 const CARD_SHADOW = '0 1px 3px rgba(0,0,0,0.06), 0 6px 20px rgba(0,0,0,0.05)';
 
@@ -136,7 +137,7 @@ const OfflineNotes: React.FC<{ notes: Note[] }> = ({ notes }) => {
             )}
             <div
               className="text-sm text-text-main leading-relaxed prose prose-sm max-w-none"
-              dangerouslySetInnerHTML={{ __html: note.content }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(note.content) }}
             />
           </div>
         ))}

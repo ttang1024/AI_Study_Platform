@@ -5,7 +5,6 @@ import { useStudy } from '../context/StudyContext';
 import { useDocumentNote } from '../hooks/useDocumentNote';
 import { useShareableQuizzes } from '../hooks/useShareableQuizzes';
 import { DocumentViewer } from '../components/document/DocumentViewer';
-import StaleSourceBanner from '../components/document/StaleSourceBanner';
 import { AnnotatedPdfViewer } from '../components/AnnotatedPdfViewer';
 import { ChatPanelRef } from '../components/ai/ChatPanel';
 import { StudyChatTab } from '../components/ai/StudyChatTab';
@@ -30,6 +29,7 @@ import { getApiErrorCode } from '@core/utils/apiError';
 import { normalizeSummaryText } from '@core/utils/summary';
 import { getApiUrl } from '../utils/env';
 import { useStudyTimer } from '../hooks/useStudyTimer';
+import { useAccessToken } from '../services/accessToken';
 
 export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; initialDoc?: Document }> = ({ embedded, id: propId, initialDoc }) => {
   const { id: paramId } = useParams();
@@ -200,7 +200,7 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
   }, []);
 
   const API_URL = getApiUrl();
-  const token = localStorage.getItem('sp_access_token');
+  const token = useAccessToken();
   const authHeaders = useMemo(
     () => token ? { Authorization: `Bearer ${token}` } : undefined,
     [token]
@@ -333,14 +333,6 @@ export const DocumentDetailsPage: React.FC<{ embedded?: boolean; id?: string; in
 
             {/* Tab Content */}
             <div className="flex-1 flex flex-col overflow-hidden bg-[var(--bg-sidebar)]">
-
-              {/* Above the tabs' content, not inside one: a replaced source invalidates every kind
-                  of generated material, so the warning belongs to the document, not to a tab. */}
-              {id && (
-                <div className="px-4 pt-4">
-                  <StaleSourceBanner documentId={id} />
-                </div>
-              )}
 
               <div className={cn("flex-1 overflow-y-auto no-scrollbar", activeTab === 'chat' && "hidden")}>
                 <div className={cn("h-full", activeTab !== 'summary' && "hidden")}>

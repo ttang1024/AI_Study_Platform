@@ -83,11 +83,12 @@ export function useQuizHistory() {
         pending: true,
       };
     }
-    const doc = pendingMaterialToItem(material).doc;
+    const item = pendingMaterialToItem(material);
+    const doc = item.kind === 'doc' ? item.doc : undefined;
     return {
       type: docToQuizType(doc),
       id: `generated-${material.id}`,
-      name: getDocDisplayName(doc),
+      name: doc ? getDocDisplayName(doc) : material.name,
       courseId: material.courseId,
       courseColor: material.courseColor,
       courseName: material.courseName,

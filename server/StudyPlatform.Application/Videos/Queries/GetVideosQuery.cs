@@ -11,7 +11,7 @@ public record GetVideosQuery(
     Guid? CourseId,
     string? Search,
     int Page,
-    int PageSize) : IRequest<Result<VideoPagedResult>>;
+    int PageSize) : IRequest<Result<VideoPagedResult>>, IPagedRequest;
 
 public class GetVideosQueryHandler : IRequestHandler<GetVideosQuery, Result<VideoPagedResult>>
 {

@@ -22,15 +22,6 @@ public class FlashcardRepository : Repository<Flashcard>, IFlashcardRepository
             .OrderBy(f => f.CreatedAt)
             .ToListAsync(cancellationToken);
 
-    public async Task DeleteByIdsAsync(IEnumerable<Guid> ids, Guid userId, CancellationToken cancellationToken = default)
-    {
-        var idList = ids.ToList();
-        var flashcards = await _dbSet
-            .Where(f => idList.Contains(f.FlashcardId) && f.UserId == userId)
-            .ToListAsync(cancellationToken);
-        _dbSet.RemoveRange(flashcards);
-    }
-
     public async Task<(IEnumerable<Flashcard> Items, int TotalCount)> GetPagedByUserIdAsync(Guid userId, int page, int pageSize, CancellationToken cancellationToken = default)
     {
         var query = _dbSet

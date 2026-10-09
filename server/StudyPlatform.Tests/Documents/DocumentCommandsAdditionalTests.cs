@@ -45,35 +45,33 @@ public class UpdateDocumentContentCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_SummaryProvided_UpdatesSummaryAndStampsVersion()
+    public async Task Handle_SummaryProvided_UpdatesSummary()
     {
-        var doc = new Document { DocumentId = _documentId, UserId = _userId, ContentVersion = 5, SummaryVersion = 1 };
+        var doc = new Document { DocumentId = _documentId, UserId = _userId };
         _documents.Setup(r => r.GetByIdAsync(_documentId, default)).ReturnsAsync(doc);
 
         var result = await _handler.Handle(new UpdateDocumentContentCommand(_documentId, _userId, "New summary", null), default);
 
         Assert.True(result.IsSuccess);
         Assert.Equal("New summary", doc.Summary);
-        Assert.Equal(5, doc.SummaryVersion);
     }
 
     [Fact]
-    public async Task Handle_MindMapProvided_UpdatesMindMapAndStampsVersion()
+    public async Task Handle_MindMapProvided_UpdatesMindMap()
     {
-        var doc = new Document { DocumentId = _documentId, UserId = _userId, ContentVersion = 7, MindMapVersion = 1 };
+        var doc = new Document { DocumentId = _documentId, UserId = _userId };
         _documents.Setup(r => r.GetByIdAsync(_documentId, default)).ReturnsAsync(doc);
 
         var result = await _handler.Handle(new UpdateDocumentContentCommand(_documentId, _userId, null, "# Map"), default);
 
         Assert.True(result.IsSuccess);
         Assert.Equal("# Map", doc.MindMapText);
-        Assert.Equal(7, doc.MindMapVersion);
     }
 
     [Fact]
     public async Task Handle_NullFields_LeavesExistingValuesUnchanged()
     {
-        var doc = new Document { DocumentId = _documentId, UserId = _userId, Summary = "Old", MindMapText = "Old map", ContentVersion = 3 };
+        var doc = new Document { DocumentId = _documentId, UserId = _userId, Summary = "Old", MindMapText = "Old map" };
         _documents.Setup(r => r.GetByIdAsync(_documentId, default)).ReturnsAsync(doc);
 
         var result = await _handler.Handle(new UpdateDocumentContentCommand(_documentId, _userId, null, null), default);

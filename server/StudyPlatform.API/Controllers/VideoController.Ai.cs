@@ -1,3 +1,4 @@
+using StudyPlatform.Application.Videos.Transcripts;
 using Microsoft.AspNetCore.Mvc;
 using StudyPlatform.API.Extensions;
 using StudyPlatform.Application.Common;
@@ -23,12 +24,12 @@ public partial class VideoController
         if (videoId == null) return BadRequest(BaseResponse<string>.Fail("Invalid YouTube URL.", "INVALID_VIDEO_URL"));
 
         var ttl = TimeSpan.FromSeconds(_cacheOptions.GeneratedResultSeconds);
-        var cacheKey = MindMapCacheKey(videoId);
+        var cacheKey = VideoCacheKeys.MindMap(videoId);
         var cached = await _cache.GetAsync<string>(cacheKey, cancellationToken);
         if (!string.IsNullOrEmpty(cached))
             return Ok(BaseResponse<string>.Ok(cached));
 
-        var transcript = await GetTranscriptTextAsync(videoId, cancellationToken);
+        var transcript = await _transcripts.GetTranscriptTextAsync(videoId, cancellationToken);
         if (transcript == null) return BadRequest(BaseResponse<string>.Fail("No subtitles available for this video.", "NO_TRANSCRIPT"));
 
         var result = await _aiService.GenerateMindMapFromYouTubeAsync(transcript, cancellationToken);
@@ -51,12 +52,12 @@ public partial class VideoController
             return BadRequest(BaseResponse<string>.Fail("Invalid YouTube URL.", "INVALID_VIDEO_URL"));
 
         var ttl = TimeSpan.FromSeconds(_cacheOptions.GeneratedResultSeconds);
-        var cacheKey = MindMapCacheKey(videoId);
+        var cacheKey = VideoCacheKeys.MindMap(videoId);
         var cached = await _cache.GetAsync<string>(cacheKey, cancellationToken);
         if (!string.IsNullOrEmpty(cached))
             return await this.WriteSseCachedAsync(cached, cancellationToken);
 
-        var transcript = await GetTranscriptTextAsync(videoId, cancellationToken);
+        var transcript = await _transcripts.GetTranscriptTextAsync(videoId, cancellationToken);
         if (transcript == null)
             return BadRequest(BaseResponse<string>.Fail("No subtitles available for this video.", "NO_TRANSCRIPT"));
 
@@ -73,7 +74,7 @@ public partial class VideoController
         if (video is null)
             return NotFound(BaseResponse<string>.Fail("Video not found.", "VIDEO_NOT_FOUND"));
 
-        var transcript = await GetOrFetchTranscriptAsync(video, cancellationToken);
+        var transcript = await _transcripts.GetOrFetchTranscriptAsync(video, cancellationToken);
         if (transcript == null)
             return BadRequest(BaseResponse<string>.Fail("No subtitles available for this video.", "NO_TRANSCRIPT"));
 
@@ -97,12 +98,12 @@ public partial class VideoController
         if (videoId == null) return BadRequest(BaseResponse<string>.Fail("Invalid YouTube URL.", "INVALID_VIDEO_URL"));
 
         var ttl = TimeSpan.FromSeconds(_cacheOptions.GeneratedResultSeconds);
-        var cacheKey = QuizCacheKey(videoId);
+        var cacheKey = VideoCacheKeys.Quiz(videoId);
         var cached = await _cache.GetAsync<string>(cacheKey, cancellationToken);
         if (!string.IsNullOrEmpty(cached))
             return Ok(BaseResponse<string>.Ok(cached));
 
-        var transcript = await GetTranscriptTextAsync(videoId, cancellationToken);
+        var transcript = await _transcripts.GetTranscriptTextAsync(videoId, cancellationToken);
         if (transcript == null) return BadRequest(BaseResponse<string>.Fail("No subtitles available for this video.", "NO_TRANSCRIPT"));
 
         var result = await _aiService.GenerateQuizFromYouTubeAsync(transcript, "medium", cancellationToken);
@@ -120,12 +121,12 @@ public partial class VideoController
         if (videoId == null) return BadRequest(BaseResponse<string>.Fail("Invalid YouTube URL.", "INVALID_VIDEO_URL"));
 
         var ttl = TimeSpan.FromSeconds(_cacheOptions.GeneratedResultSeconds);
-        var cacheKey = FlashcardsCacheKey(videoId);
+        var cacheKey = VideoCacheKeys.Flashcards(videoId);
         var cached = await _cache.GetAsync<string>(cacheKey, cancellationToken);
         if (!string.IsNullOrEmpty(cached))
             return Ok(BaseResponse<string>.Ok(cached));
 
-        var transcript = await GetTranscriptTextAsync(videoId, cancellationToken);
+        var transcript = await _transcripts.GetTranscriptTextAsync(videoId, cancellationToken);
         if (transcript == null) return BadRequest(BaseResponse<string>.Fail("No subtitles available for this video.", "NO_TRANSCRIPT"));
 
         var result = await _aiService.GenerateFlashcardsFromYouTubeAsync(transcript, cancellationToken);
@@ -148,7 +149,7 @@ public partial class VideoController
 
         var videoId = ExtractVideoId(request.VideoUrl);
         if (videoId == null) return BadRequest(BaseResponse<string>.Fail("Invalid YouTube URL.", "INVALID_VIDEO_URL"));
-        var transcript = await GetTranscriptTextAsync(videoId, cancellationToken);
+        var transcript = await _transcripts.GetTranscriptTextAsync(videoId, cancellationToken);
         if (transcript == null) return BadRequest(BaseResponse<string>.Fail("No subtitles available for this video.", "NO_TRANSCRIPT"));
 
         var history = (request.History ?? []).Select(h => (h.Role, h.Content));
@@ -170,17 +171,6 @@ public partial class VideoController
     }
 
     // ── Saved video chat (persisted) ─────────────────────────────────────
-
-    [HttpPost("{id:guid}/chat")]
-    [ProducesResponseType(typeof(BaseResponse<ChatMessageDto>), 200)]
-    public async Task<IActionResult> VideoChat(Guid id, [FromBody] AIChatRequest request, CancellationToken cancellationToken)
-    {
-        var userId = User.GetUserId();
-        var result = await _mediator.Send(new AIVideoChatCommand(id, userId, request.Message), cancellationToken);
-        if (!result.IsSuccess)
-            return NotFound(BaseResponse<ChatMessageDto>.Fail(result.Message, result.ErrorCode));
-        return Ok(BaseResponse<ChatMessageDto>.Ok(result.Data!, result.Message));
-    }
 
     [HttpGet("{id:guid}/chat")]
     [ProducesResponseType(typeof(BaseResponse<IEnumerable<ChatMessageDto>>), 200)]

@@ -34,12 +34,7 @@ export const SourceCitation: React.FC<Props> = ({ citation, videoId, className =
 
   const href = videoId && hasTimestamp ? `/videos/${videoId}?t=${Math.floor(citation.startSeconds!)}` : null;
 
-  const locationLabel =
-    hasTimestamp
-      ? formatTimestamp(citation.startSeconds!)
-      : citation.page != null
-        ? `page ${citation.page}`
-        : 'the source';
+  const locationLabel = hasTimestamp ? formatTimestamp(citation.startSeconds!) : 'the source';
 
   const positionNote = href ? null : 'Quoted from the source.';
 

@@ -348,9 +348,6 @@ namespace StudyPlatform.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<int>("ContentVersion")
-                        .HasColumnType("integer");
-
                     b.Property<Guid>("CourseId")
                         .HasColumnType("uuid");
 
@@ -375,24 +372,18 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Property<string>("MindMapText")
                         .HasColumnType("text");
 
-                    b.Property<int>("MindMapVersion")
-                        .HasColumnType("integer");
-
                     b.Property<string>("OriginalUrl")
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
 
-                    b.Property<DateTime?>("SourceChangedAt")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<string>("Summary")
                         .HasColumnType("text");
 
-                    b.Property<int>("SummaryVersion")
-                        .HasColumnType("integer");
-
                     b.Property<string>("Transcript")
                         .HasColumnType("text");
+
+                    b.Property<DateTime?>("TranscriptionRequestedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -413,6 +404,9 @@ namespace StudyPlatform.Infrastructure.Migrations
 
                     NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Summary"), "gin");
                     NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("Summary"), new[] { "gin_trgm_ops" });
+
+                    b.HasIndex("TranscriptionRequestedAt")
+                        .HasFilter("\"TranscriptionRequestedAt\" IS NOT NULL");
 
                     b.HasIndex("UserId", "CreatedAt");
 
@@ -612,9 +606,6 @@ namespace StudyPlatform.Infrastructure.Migrations
                         .HasColumnType("character varying(20)")
                         .HasDefaultValue("document");
 
-                    b.Property<int>("SourceVersion")
-                        .HasColumnType("integer");
-
                     b.PrimitiveCollection<List<string>>("Tags")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -747,6 +738,12 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.HasKey("Id");
 
                     b.HasIndex("FlashcardId");
@@ -802,9 +799,6 @@ namespace StudyPlatform.Infrastructure.Migrations
 
                     b.Property<string>("SourceAnchorJson")
                         .HasColumnType("text");
-
-                    b.Property<int>("SourceVersion")
-                        .HasColumnType("integer");
 
                     b.Property<string>("Term")
                         .IsRequired()
@@ -1086,6 +1080,11 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Property<DateTime>("ExpiresAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int>("FailedAttempts")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
                     b.Property<bool>("IsUsed")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
@@ -1200,9 +1199,6 @@ namespace StudyPlatform.Infrastructure.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
                         .HasDefaultValue("document");
-
-                    b.Property<int>("SourceVersion")
-                        .HasColumnType("integer");
 
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
@@ -1817,6 +1813,9 @@ namespace StudyPlatform.Infrastructure.Migrations
                     b.Property<string>("Transcript")
                         .HasColumnType("text");
 
+                    b.Property<DateTime?>("TranscriptionRequestedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -1836,6 +1835,9 @@ namespace StudyPlatform.Infrastructure.Migrations
 
                     NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Title"), "gin");
                     NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("Title"), new[] { "gin_trgm_ops" });
+
+                    b.HasIndex("TranscriptionRequestedAt")
+                        .HasFilter("\"TranscriptionRequestedAt\" IS NOT NULL");
 
                     b.HasIndex("UserId");
 

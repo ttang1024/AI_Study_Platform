@@ -5,6 +5,7 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import { cn } from '../../utils/cn';
+import { parseInertHtml } from '../../utils/sanitizeHtml';
 
 interface SharedChatMessage {
   role: 'user' | 'model';
@@ -16,9 +17,7 @@ function legacySharedChatHtmlToMessages(value: string): SharedChatMessage[] | nu
     return null;
   }
 
-  const wrapper = document.createElement('div');
-  wrapper.innerHTML = value;
-  const sections = Array.from(wrapper.querySelectorAll('section'));
+  const sections = Array.from(parseInertHtml(value).querySelectorAll('section'));
 
   const messages = sections.map(section => {
     const columns = Array.from(section.children).filter(child => child.tagName.toLowerCase() === 'div');
@@ -29,9 +28,7 @@ function legacySharedChatHtmlToMessages(value: string): SharedChatMessage[] | nu
     const normalizedHtml = contentColumn.innerHTML
       .replace(/<br\s*\/?>/gi, '\n')
       .replace(/<\/p>\s*<p[^>]*>/gi, '\n\n');
-    const textHolder = document.createElement('div');
-    textHolder.innerHTML = normalizedHtml;
-    const content = textHolder.textContent?.trim() ?? '';
+    const content = parseInertHtml(normalizedHtml).body.textContent?.trim() ?? '';
 
     if (!content) return null;
     return {

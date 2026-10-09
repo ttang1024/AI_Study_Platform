@@ -8,13 +8,14 @@ import {
 } from '@core/sse'
 import { aiSettingsService } from './aiSettingsService'
 import { getApiUrl } from '../utils/env'
+import { getAccessToken, refreshAccessToken } from './accessToken'
 
 const API_URL = getApiUrl()
 export { STREAM_ERROR_MESSAGE }
 export type { StreamError } from '@core/sse'
 
 function getAuthHeaders(): Record<string, string> {
-	const token = localStorage.getItem('sp_access_token')
+	const token = getAccessToken()
 	const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
 
 	const provider = aiSettingsService.getActiveProvider()
@@ -38,15 +39,28 @@ export async function streamSse(
 	onChunk: (chunk: string) => void,
 	signal?: AbortSignal,
 ): Promise<void> {
-	const response = await fetch(`${API_URL}${url}`, {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-			...getAuthHeaders(),
-		},
-		body: JSON.stringify(body),
-		signal,
-	})
+	const send = () =>
+		fetch(`${API_URL}${url}`, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				...getAuthHeaders(),
+			},
+			body: JSON.stringify(body),
+			signal,
+		})
+
+	let response = await send()
+	// The access token is short-lived and memory-only; an expired one is re-minted from the refresh
+	// cookie once, the same way apiClient's interceptor does for ordinary requests.
+	if (response.status === 401) {
+		try {
+			await refreshAccessToken()
+			response = await send()
+		} catch {
+			// Fall through: the original 401 is reported below.
+		}
+	}
 
 	if (!response.ok) {
 		throw makeStreamError(await extractStreamErrorCode(response))

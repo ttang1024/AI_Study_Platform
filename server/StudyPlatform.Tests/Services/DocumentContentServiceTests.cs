@@ -66,7 +66,7 @@ public class DocumentContentServiceTests
         var doc = MakeDoc("audio/mpeg");
         doc.FileSize = 40L * 1024 * 1024;
 
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => _service.GetContentAsync(doc));
+        var ex = await Assert.ThrowsAsync<StudyPlatform.Application.Common.UserFacingException>(() => _service.GetContentAsync(doc));
         Assert.Contains("40 MB", ex.Message);
     }
 

@@ -54,7 +54,7 @@ public class AuthSessionIssuerTests
 
         var token = Assert.Single(_added);
         Assert.Equal(_user.UserId, token.UserId);
-        Assert.Equal("refresh-token", token.Token);
+        Assert.Equal(RefreshTokenHash.Compute("refresh-token"), token.Token); // stored hashed, never verbatim
         Assert.False(token.IsRevoked);
         _uow.Verify(u => u.SaveChangesAsync(default), Times.Once);
     }

@@ -172,9 +172,9 @@ public partial class AiController : ControllerBase
         catch (Exception ex)
         {
             if (AiErrorMapper.TryGetAiError(ex.Message, out var statusCode, out var errorCode))
-                return StatusCode(statusCode, BaseResponse<ExplanationEvaluationDto>.Fail(ex.Message, errorCode));
+                return StatusCode(statusCode, BaseResponse<ExplanationEvaluationDto>.Fail(ClientErrors.MessageFor(ex, "The AI request failed."), errorCode));
 
-            return BadRequest(BaseResponse<ExplanationEvaluationDto>.Fail(ex.Message));
+            return BadRequest(BaseResponse<ExplanationEvaluationDto>.Fail(ClientErrors.MessageFor(ex, "The AI request failed.")));
         }
     }
 
@@ -191,9 +191,9 @@ public partial class AiController : ControllerBase
         catch (Exception ex)
         {
             if (AiErrorMapper.TryGetAiError(ex.Message, out var statusCode, out var errorCode))
-                return StatusCode(statusCode, BaseResponse<string>.Fail(ex.Message, errorCode));
+                return StatusCode(statusCode, BaseResponse<string>.Fail(ClientErrors.MessageFor(ex, "The AI request failed."), errorCode));
 
-            return BadRequest(BaseResponse<string>.Fail(ex.Message));
+            return BadRequest(BaseResponse<string>.Fail(ClientErrors.MessageFor(ex, "Could not reach the AI provider.")));
         }
     }
 

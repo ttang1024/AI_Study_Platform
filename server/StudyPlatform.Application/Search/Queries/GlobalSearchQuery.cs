@@ -28,7 +28,7 @@ public record GlobalSearchQuery(
     string Query,
     string[]? EntityTypes,
     int Page,
-    int PageSize) : IRequest<Result<SearchResultsDto>>;
+    int PageSize) : IRequest<Result<SearchResultsDto>>, IPagedRequest;
 
 /// <summary>
 /// Hybrid search. Keyword matching finds the exact string the user typed; semantic matching finds the

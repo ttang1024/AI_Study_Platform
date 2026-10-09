@@ -44,8 +44,8 @@ public class SetFlashcardSuspendedCommandHandler : IRequestHandler<SetFlashcardS
 
     public async Task<Result<FlashcardSrsDto>> Handle(SetFlashcardSuspendedCommand request, CancellationToken cancellationToken)
     {
-        var flashcard = await _unitOfWork.Flashcards.GetByIdAsync(request.FlashcardId, cancellationToken);
-        if (flashcard == null || flashcard.UserId != request.UserId)
+        var flashcard = await _unitOfWork.Flashcards.GetOwnedAsync(request.FlashcardId, request.UserId, cancellationToken);
+        if (flashcard == null)
             return Result<FlashcardSrsDto>.Failure("Flashcard not found.", "FLASHCARD_NOT_FOUND");
 
         // A card without an srs row has never been reviewed and is not in any due queue,
@@ -76,8 +76,8 @@ public class ResetFlashcardSrsCommandHandler : IRequestHandler<ResetFlashcardSrs
 
     public async Task<Result> Handle(ResetFlashcardSrsCommand request, CancellationToken cancellationToken)
     {
-        var flashcard = await _unitOfWork.Flashcards.GetByIdAsync(request.FlashcardId, cancellationToken);
-        if (flashcard == null || flashcard.UserId != request.UserId)
+        var flashcard = await _unitOfWork.Flashcards.GetOwnedAsync(request.FlashcardId, request.UserId, cancellationToken);
+        if (flashcard == null)
             return Result.Failure("Flashcard not found.", "FLASHCARD_NOT_FOUND");
 
         var srs = await _unitOfWork.FlashcardSrs.GetByUserAndFlashcardAsync(request.UserId, request.FlashcardId, cancellationToken);

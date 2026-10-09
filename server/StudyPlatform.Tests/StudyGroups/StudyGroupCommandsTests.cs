@@ -523,10 +523,26 @@ public class ShareCourseWithGroupCommandHandlerTests
     }
 
     [Fact]
+    public async Task Handle_CourseOwnedBySomeoneElse_IsNotShared()
+    {
+        // A member must not be able to pull another user's course into their group: sharing hands every
+        // member read access to its documents.
+        _members.Setup(r => r.ExistsAsync(It.IsAny<Expression<Func<StudyGroupMember, bool>>>(), default)).ReturnsAsync(true);
+        _courses.Setup(r => r.GetByIdAsync(_courseId, default))
+            .ReturnsAsync(new Course { CourseId = _courseId, UserId = Guid.NewGuid(), CourseName = "Private" });
+
+        var result = await _handler.Handle(new ShareCourseWithGroupCommand(_userId, _groupId, _courseId), default);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("NOT_FOUND", result.ErrorCode);
+        _shared.Verify(r => r.AddAsync(It.IsAny<StudyGroupSharedCourse>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     public async Task Handle_AlreadyShared_ReturnsFailure()
     {
         _members.Setup(r => r.ExistsAsync(It.IsAny<Expression<Func<StudyGroupMember, bool>>>(), default)).ReturnsAsync(true);
-        _courses.Setup(r => r.GetByIdAsync(_courseId, default)).ReturnsAsync(new Course { CourseId = _courseId, CourseName = "Algo" });
+        _courses.Setup(r => r.GetByIdAsync(_courseId, default)).ReturnsAsync(new Course { CourseId = _courseId, UserId = _userId, CourseName = "Algo" });
         _shared.Setup(r => r.ExistsAsync(It.IsAny<Expression<Func<StudyGroupSharedCourse, bool>>>(), default)).ReturnsAsync(true);
 
         var result = await _handler.Handle(new ShareCourseWithGroupCommand(_userId, _groupId, _courseId), default);
@@ -539,7 +555,7 @@ public class ShareCourseWithGroupCommandHandlerTests
     public async Task Handle_ValidShare_Succeeds()
     {
         _members.Setup(r => r.ExistsAsync(It.IsAny<Expression<Func<StudyGroupMember, bool>>>(), default)).ReturnsAsync(true);
-        _courses.Setup(r => r.GetByIdAsync(_courseId, default)).ReturnsAsync(new Course { CourseId = _courseId, CourseName = "Algo" });
+        _courses.Setup(r => r.GetByIdAsync(_courseId, default)).ReturnsAsync(new Course { CourseId = _courseId, UserId = _userId, CourseName = "Algo" });
         _shared.Setup(r => r.ExistsAsync(It.IsAny<Expression<Func<StudyGroupSharedCourse, bool>>>(), default)).ReturnsAsync(false);
         _shared.Setup(r => r.AddAsync(It.IsAny<StudyGroupSharedCourse>(), default)).Returns(Task.CompletedTask);
 

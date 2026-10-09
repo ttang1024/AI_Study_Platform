@@ -1,8 +1,12 @@
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import path from 'node:path'
 import type { HtmlTagDescriptor, Plugin } from 'vite'
+import { FEATURE_PAGES, featurePagePath, type FeaturePageContent } from './src/seo/featurePages'
 
 /**
- * Build-time SEO artifacts for the web SPA: robots.txt, sitemap.xml, and the optional
- * Google Search Console verification tag.
+ * Build-time SEO artifacts for the web SPA: robots.txt, sitemap.xml, the optional Google Search
+ * Console verification tag, and a static HTML shell per public feature page
+ * (src/seo/featurePages.ts) carrying that page's own title, meta, canonical, JSON-LD and copy.
  *
  * These used to be written by `deploy.sh` after `npm run build`. They live here instead so
  * the route lists sit next to the router that defines them (web/src/App.tsx) and so a plain
@@ -24,6 +28,12 @@ type SitemapRoute = {
  */
 const SITEMAP_ROUTES: SitemapRoute[] = [
 	{ path: '/', changefreq: 'weekly', priority: '1.0' },
+	// Public and server-rendered as static HTML, so these are real content, not the login shell.
+	...FEATURE_PAGES.map(({ slug }) => ({
+		path: featurePagePath(slug),
+		changefreq: 'monthly' as const,
+		priority: '0.8',
+	})),
 	{ path: '/register', changefreq: 'monthly', priority: '0.5' },
 	{ path: '/login', changefreq: 'monthly', priority: '0.3' },
 ]
@@ -37,7 +47,7 @@ const SITEMAP_ROUTES: SitemapRoute[] = [
  *    "indexed on Google", and a user sharing a doc with a classmate has not agreed to the second.
  *    /auth/ and /verify-email carry one-time tokens for the same reason.
  */
-const DISALLOWED_PREFIXES = [
+export const DISALLOWED_PREFIXES = [
 	'/analytics',
 	'/articles/',
 	'/audio/',
@@ -145,7 +155,8 @@ const resolveOrigin = (html: string, origin: string): string => {
 	return html.replace(PLACEHOLDER_URL_TAG, '').split(ORIGIN_PLACEHOLDER).join('')
 }
 
-const xmlEscape = (value: string): string =>
+/** Escapes text for XML (the sitemap) and for HTML text and attribute values alike. */
+const escapeMarkup = (value: string): string =>
 	value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
 const buildRobotsTxt = (origin: string): string => {
@@ -173,7 +184,7 @@ const buildSitemapXml = (origin: string, lastmod: string): string => {
 		const loc = path === '/' ? `${origin}/` : `${origin}${path}`
 		return [
 			'\t<url>',
-			`\t\t<loc>${xmlEscape(loc)}</loc>`,
+			`\t\t<loc>${escapeMarkup(loc)}</loc>`,
 			`\t\t<lastmod>${lastmod}</lastmod>`,
 			`\t\t<changefreq>${changefreq}</changefreq>`,
 			`\t\t<priority>${priority}</priority>`,
@@ -182,6 +193,134 @@ const buildSitemapXml = (origin: string, lastmod: string): string => {
 	}).join('\n')
 
 	return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`
+}
+
+/** Where index.html's <noscript> gets the list of feature page links. */
+const FEATURE_LINKS_MARKER = '<!-- seo:feature-page-links -->'
+
+const featureLinksHtml = (indent: string): string =>
+	[
+		`${indent}<h2>Study tools</h2>`,
+		`${indent}<ul>`,
+		...FEATURE_PAGES.map(
+			(p) => `${indent}\t<li><a href="${featurePagePath(p.slug)}">${escapeMarkup(p.navLabel)}</a></li>`,
+		),
+		`${indent}</ul>`,
+	].join('\n')
+
+/**
+ * Replaces the content attribute of every <meta> whose name/property is one of `keys`. Matched on
+ * the attribute rather than the whole tag because index.html wraps long tags across lines.
+ */
+const setMetaContent = (html: string, keys: string[], value: string): string =>
+	keys.reduce(
+		(out, key) =>
+			out.replace(
+				new RegExp(`(<meta\\b[^>]*?\\b(?:name|property)="${key}"[^>]*?\\bcontent=")[^"]*(")`, 'g'),
+				`$1${escapeMarkup(value)}$2`,
+			),
+		html,
+	)
+
+/**
+ * Swaps exactly one match of `pattern`. Throws when there is none: a page silently keeping the
+ * homepage's title or copy is the duplicate-content failure this whole file exists to avoid, so a
+ * reshaped index.html should break the build rather than ship it.
+ */
+const replaceRequired = (html: string, pattern: RegExp, replacement: string, what: string): string => {
+	if (!pattern.test(html)) throw new Error(`vite-plugin-seo: index.html has no ${what} to replace`)
+	return html.replace(pattern, () => replacement)
+}
+
+const featurePageJsonLd = (page: FeaturePageContent, origin: string): string => {
+	const url = `${origin}${featurePagePath(page.slug)}`
+	const graph = [
+		{
+			'@type': 'WebPage',
+			'@id': `${url}#webpage`,
+			url,
+			name: page.title,
+			description: page.description,
+			isPartOf: { '@id': `${origin}/#website` },
+			about: { '@id': `${origin}/#app` },
+		},
+		{
+			'@type': 'BreadcrumbList',
+			itemListElement: [
+				{ '@type': 'ListItem', position: 1, name: 'Toto Study', item: `${origin}/` },
+				{ '@type': 'ListItem', position: 2, name: page.navLabel, item: url },
+			],
+		},
+		{
+			'@type': 'FAQPage',
+			mainEntity: page.faqs.map((f) => ({
+				'@type': 'Question',
+				name: f.question,
+				acceptedAnswer: { '@type': 'Answer', text: f.answer },
+			})),
+		},
+	]
+	// "</" inside a JSON string would close the <script> early; none of the copy has one, but escape it anyway.
+	const json = JSON.stringify({ '@context': 'https://schema.org', '@graph': graph }, null, '\t').replace(/<\//g, '<\\/')
+	return `<script type="application/ld+json">\n${json}\n\t\t</script>`
+}
+
+const featurePageNoscript = (page: FeaturePageContent): string => {
+	const i = '\t\t\t'
+	const lines = [
+		'<noscript>',
+		`${i}<h1>${escapeMarkup(page.h1)}</h1>`,
+		`${i}<p>${escapeMarkup(page.intro)}</p>`,
+		`${i}<h2>How it works</h2>`,
+		`${i}<ol>`,
+		...page.steps.map((step) => `${i}\t<li>${escapeMarkup(step)}</li>`),
+		`${i}</ol>`,
+		...page.sections.flatMap((sec) => [
+			`${i}<h2>${escapeMarkup(sec.heading)}</h2>`,
+			`${i}<p>${escapeMarkup(sec.body)}</p>`,
+			...(sec.example ? [`${i}<blockquote>${escapeMarkup(sec.example.label)}: ${escapeMarkup(sec.example.text)}</blockquote>`] : []),
+		]),
+		...(page.examples?.length
+			? [
+					`${i}<h2>Real examples</h2>`,
+					...page.examples.flatMap((ex) => [
+						`${i}<h3><a href="${ex.sharePath}">${escapeMarkup(ex.title)}</a></h3>`,
+						`${i}<p>${escapeMarkup(ex.excerpt)}</p>`,
+					]),
+				]
+			: []),
+		`${i}<h2>Frequently asked questions</h2>`,
+		...page.faqs.flatMap((f) => [`${i}<h3>${escapeMarkup(f.question)}</h3>`, `${i}<p>${escapeMarkup(f.answer)}</p>`]),
+		`${i}<p><a href="/register">Create a free Toto Study account</a> or <a href="/">see everything Toto Study does</a>.</p>`,
+		featureLinksHtml(i),
+		'\t\t</noscript>',
+	]
+	return lines.join('\n')
+}
+
+/**
+ * The built index.html, re-headed and re-worded for one feature page. Everything else (the script
+ * and style tags pointing at this build's hashed assets) stays byte for byte, so the SPA boots and
+ * renders the same page on top.
+ */
+export const renderFeaturePageHtml = (shell: string, page: FeaturePageContent, origin: string): string => {
+	const url = `${origin}${featurePagePath(page.slug)}`
+	let html = replaceRequired(shell, /<title>[\s\S]*?<\/title>/, `<title>${escapeMarkup(page.title)}</title>`, '<title>')
+	html = replaceRequired(
+		html,
+		/<script type="application\/ld\+json">[\s\S]*?<\/script>/,
+		featurePageJsonLd(page, origin),
+		'ld+json block',
+	)
+	html = replaceRequired(html, /<noscript>[\s\S]*?<\/noscript>/, featurePageNoscript(page), '<noscript>')
+	if (!/<meta\b[^>]*?\bname="description"/.test(html)) {
+		throw new Error('vite-plugin-seo: index.html has no meta description to replace')
+	}
+	html = setMetaContent(html, ['description', 'og:description', 'twitter:description', 'wechat:description'], page.description)
+	html = setMetaContent(html, ['og:title', 'twitter:title', 'wechat:title'], page.title)
+	// Present only on a build with an origin (resolveOrigin drops them otherwise).
+	html = setMetaContent(html, ['og:url'], url)
+	return html.replace(/(<link\b[^>]*?\brel="canonical"[^>]*?\bhref=")[^"]*(")/, `$1${escapeMarkup(url)}$2`)
 }
 
 export type SeoPluginOptions = {
@@ -220,7 +359,9 @@ export function seoPlugin({ origin = '', googleSiteVerification = '' }: SeoPlugi
 						]
 					: []
 
-				return { html: resolveOrigin(html, baseUrl), tags }
+				const indent = html.match(new RegExp(`([ \\t]*)${FEATURE_LINKS_MARKER}`))?.[1] ?? ''
+				const withLinks = html.replace(FEATURE_LINKS_MARKER, featureLinksHtml(indent).trimStart())
+				return { html: resolveOrigin(withLinks, baseUrl), tags }
 			},
 		},
 
@@ -240,6 +381,18 @@ export function seoPlugin({ origin = '', googleSiteVerification = '' }: SeoPlugi
 				fileName: 'sitemap.xml',
 				source: buildSitemapXml(baseUrl, lastmod),
 			})
+		},
+
+		// After Vite has written index.html, so each page starts from the finished shell with this
+		// build's asset hashes already in it.
+		writeBundle(options) {
+			const outDir = options.dir ?? path.resolve('dist')
+			const shell = readFileSync(path.join(outDir, 'index.html'), 'utf8')
+			for (const page of FEATURE_PAGES) {
+				const dir = path.join(outDir, page.slug)
+				mkdirSync(dir, { recursive: true })
+				writeFileSync(path.join(dir, 'index.html'), renderFeaturePageHtml(shell, page, baseUrl))
+			}
 		},
 	}
 }

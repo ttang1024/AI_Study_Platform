@@ -97,8 +97,6 @@ export interface SourceCitation {
   quote: string;
   startOffset?: number;
   endOffset?: number;
-  /** 1-based, paginated documents only. */
-  page?: number;
   /** Timed media only. */
   startSeconds?: number;
 }
@@ -108,7 +106,6 @@ type WireCitation = {
   quote: string;
   startOffset?: number | null;
   endOffset?: number | null;
-  page?: number | null;
   startSeconds?: number | null;
 };
 
@@ -126,7 +123,6 @@ export const normalizeCitation = (c?: WireCitation | null): SourceCitation | und
         quote: c.quote,
         startOffset: c.startOffset ?? undefined,
         endOffset: c.endOffset ?? undefined,
-        page: c.page ?? undefined,
         startSeconds: c.startSeconds ?? undefined,
       };
 

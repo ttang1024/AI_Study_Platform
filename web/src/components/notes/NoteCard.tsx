@@ -1,6 +1,7 @@
 import React from 'react';
 import { ChevronRight, Calendar, Trash2, Edit3, X, Check, Share2, CheckSquare, Square } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { sanitizeHtml } from '../../utils/sanitizeHtml';
 import { Button } from '../common/Button';
 import { RichTextEditor } from '../common/RichTextEditor';
 
@@ -85,7 +86,7 @@ export const NoteCard: React.FC<NoteCardProps> = ({
               <button onClick={onDelete} className="p-1.5 text-text-muted hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"><Trash2 size={14} /></button>
             </div>
           </div>
-          <div className="text-sm text-text-main leading-relaxed prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: content }} />
+          <div className="text-sm text-text-main leading-relaxed prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: sanitizeHtml(content) }} />
         </>
       )}
     </div>

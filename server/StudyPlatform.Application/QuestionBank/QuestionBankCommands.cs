@@ -23,8 +23,8 @@ public class RecordQuestionBankAttemptCommandHandler
         if (string.IsNullOrWhiteSpace(request.SelectedAnswer))
             return Result<QuestionBankAttemptResultDto>.Failure("An answer is required.", "INVALID_ANSWER");
 
-        var quiz = await _unitOfWork.Quizzes.GetByIdAsync(request.QuizId, cancellationToken);
-        if (quiz == null || quiz.UserId != request.UserId)
+        var quiz = await _unitOfWork.Quizzes.GetOwnedAsync(request.QuizId, request.UserId, cancellationToken);
+        if (quiz == null)
             return Result<QuestionBankAttemptResultDto>.Failure("Question not found.", "QUESTION_NOT_FOUND");
 
         // Same upsert as quiz submissions: a wrong pick creates or bumps an open

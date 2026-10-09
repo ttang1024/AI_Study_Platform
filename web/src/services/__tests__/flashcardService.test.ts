@@ -95,16 +95,6 @@ describe('flashcardService', () => {
 
   // ─── deleteFlashcardsBulk ──────────────────────────────────────────────────
 
-  describe('deleteFlashcardsBulk', () => {
-    it('calls DELETE /bulk with the ids list', async () => {
-      mockApiClient.delete.mockResolvedValueOnce({})
-      await flashcardService.deleteFlashcardsBulk(['fc-1', 'fc-2'])
-      expect(mockApiClient.delete).toHaveBeenCalledWith('/api/flashcards/bulk', {
-        data: { flashcardIds: ['fc-1', 'fc-2'] },
-      })
-    })
-  })
-
   // ─── mapFlashcard (via createFlashcard) ────────────────────────────────────
 
   describe('mapFlashcard edge cases', () => {

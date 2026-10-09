@@ -10,7 +10,6 @@ import { questionBankService } from '@/services/questionBankService';
 import { Colors } from '@/constants/theme';
 import type { Flashcard, GlossaryTerm, Note, QuizQuestion } from '@/types';
 import {
-  ARTIFACT_META,
   isArtifactKind,
   type ArtifactKind,
   type CourseArtifacts,
@@ -134,5 +133,3 @@ export function useCourseWorkspace() {
     filteredEntries, openEntry, docCount, videoCount,
   };
 }
-
-export { ARTIFACT_META };

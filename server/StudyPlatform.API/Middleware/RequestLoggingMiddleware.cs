@@ -23,7 +23,7 @@ public class RequestLoggingMiddleware
             requestId,
             context.Request.Method,
             context.Request.Path,
-            context.Request.QueryString);
+            RedactQueryString(context.Request.Query));
 
         try
         {
@@ -40,5 +40,24 @@ public class RequestLoggingMiddleware
                 context.Response.StatusCode,
                 stopwatch.ElapsedMilliseconds);
         }
+    }
+
+    // Credentials that ride in the query string because the client cannot set a header: the access
+    // token on <video>/<img> sources and the SignalR handshake, OAuth codes. Logged verbatim they would
+    // sit in CloudWatch as working bearer tokens.
+    private static readonly HashSet<string> SensitiveQueryKeys = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "access_token", "refresh_token", "token", "key", "api_key", "code", "password",
+    };
+
+    internal static string RedactQueryString(IQueryCollection query)
+    {
+        if (query.Count == 0)
+            return string.Empty;
+
+        var parts = query.SelectMany(pair => SensitiveQueryKeys.Contains(pair.Key)
+            ? [$"{Uri.EscapeDataString(pair.Key)}=[REDACTED]"]
+            : pair.Value.Select(v => $"{Uri.EscapeDataString(pair.Key)}={Uri.EscapeDataString(v ?? string.Empty)}"));
+        return "?" + string.Join("&", parts);
     }
 }

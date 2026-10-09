@@ -35,8 +35,8 @@ public class GenerateQuizCommandHandler : IRequestHandler<GenerateQuizCommand, R
 
     public async Task<Result<IEnumerable<QuizDto>>> Handle(GenerateQuizCommand request, CancellationToken cancellationToken)
     {
-        var document = await _unitOfWork.Documents.GetByIdAsync(request.DocumentId, cancellationToken);
-        if (document == null || document.UserId != request.UserId)
+        var document = await _unitOfWork.Documents.GetOwnedAsync(request.DocumentId, request.UserId, cancellationToken);
+        if (document == null)
             return Result<IEnumerable<QuizDto>>.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
 
         var isAdaptive = QuizDifficulty.IsAdaptive(request.Difficulty);
@@ -103,7 +103,6 @@ public class GenerateQuizCommandHandler : IRequestHandler<GenerateQuizCommand, R
                 CorrectAnswer = NormalizeCorrectAnswer(q.Options, q.CorrectAnswer),
                 Explanation = q.Explanation,
                 SourceAnchorJson = anchor == null ? null : SourceAnchorResolver.Serialize(anchor),
-                SourceVersion = document.ContentVersion,
                 // Adaptive quizzes are stored under their own key rather than the difficulty they resolved
                 // to, so that clearing them can't take a regular easy/medium/hard quiz down with it, and so
                 // that asking for "hard" never silently serves a quiz built for someone else's weak spots.

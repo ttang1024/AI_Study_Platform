@@ -45,7 +45,7 @@ public class DocumentContentService : IDocumentContentService
             // summarise, and returning an empty string would ask the model to summarise nothing
             // and present whatever it invented as the summary. Fail loudly instead.
             if (AiInlineData.IsSupported(document.ContentType))
-                throw new InvalidOperationException(
+                throw new UserFacingException(
                     $"This audio file is {document.FileSize / (1024 * 1024)} MB, over the {MaxInlineBytes / (1024 * 1024)} MB limit for sending audio to the AI provider. Transcribe it first, then generate the summary.");
 
             return new DocumentContent(null, string.Empty);

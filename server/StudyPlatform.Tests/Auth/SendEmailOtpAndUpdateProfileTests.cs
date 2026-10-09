@@ -52,15 +52,16 @@ public class SendEmailOtpCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_RegistrationPurpose_ExistingEmail_ReturnsFailure()
+    public async Task Handle_RegistrationPurpose_ExistingEmail_AnswersLikeSuccess_AndNotifiesTheOwner()
     {
-        _users.Setup(r => r.EmailExistsAsync("existing@example.com", default)).ReturnsAsync(true);
+        // Same answer as for a new address, so the endpoint does not reveal who is registered.
+        _users.Setup(r => r.GetByEmailAsync("existing@example.com", default)).ReturnsAsync(MakeUser("existing@example.com"));
 
         var result = await _handler.Handle(new SendEmailOtpCommand("existing@example.com", "registration"), default);
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal("EMAIL_ALREADY_EXISTS", result.ErrorCode);
+        Assert.True(result.IsSuccess);
         _otps.Verify(r => r.AddAsync(It.IsAny<OtpCode>(), default), Times.Never);
+        _email.Verify(e => e.SendAccountExistsEmailAsync("existing@example.com", default), Times.Once);
     }
 
     [Fact]
@@ -78,14 +79,15 @@ public class SendEmailOtpCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_PasswordResetPurpose_UnknownEmail_ReturnsFailure()
+    public async Task Handle_PasswordResetPurpose_UnknownEmail_AnswersLikeSuccess_WithoutSending()
     {
         _users.Setup(r => r.GetByEmailAsync("unknown@example.com", default)).ReturnsAsync((User?)null);
 
         var result = await _handler.Handle(new SendEmailOtpCommand("unknown@example.com", "password_reset"), default);
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal("USER_NOT_FOUND", result.ErrorCode);
+        Assert.True(result.IsSuccess);
+        _otps.Verify(r => r.AddAsync(It.IsAny<OtpCode>(), default), Times.Never);
+        _email.Verify(e => e.SendOtpEmailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), default), Times.Never);
     }
 
     [Fact]

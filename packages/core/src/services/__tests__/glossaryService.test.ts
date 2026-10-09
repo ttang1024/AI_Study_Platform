@@ -19,13 +19,13 @@ describe('glossaryService', () => {
     it('maps terms and normalizes citation', async () => {
       const service = createGlossaryService(fakeHttp)
       vi.mocked(fakeHttp.get).mockResolvedValueOnce({
-        data: { data: [backendTerm({ citation: { quote: 'q', page: 2 } })] },
+        data: { data: [backendTerm({ citation: { quote: 'q', startOffset: null } })] },
       })
 
       const terms = await service.getAllGlossary()
 
       expect(fakeHttp.get).toHaveBeenCalledWith('/api/glossary')
-      expect(terms[0].citation).toEqual({ quote: 'q', startOffset: undefined, endOffset: undefined, page: 2, startSeconds: undefined })
+      expect(terms[0].citation).toEqual({ quote: 'q', startOffset: undefined, endOffset: undefined, startSeconds: undefined })
     })
 
     it('caches successful results when an offline cache is injected', async () => {
@@ -66,24 +66,6 @@ describe('glossaryService', () => {
       vi.mocked(fakeHttp.get).mockRejectedValueOnce(new Error('network down'))
 
       await expect(service.getAllGlossary()).rejects.toThrow('network down')
-    })
-  })
-
-  describe('getGlossary', () => {
-    it('fetches the course/document-scoped glossary', async () => {
-      const service = createGlossaryService(fakeHttp)
-      vi.mocked(fakeHttp.get).mockResolvedValueOnce({ data: { data: [backendTerm()] } })
-
-      const terms = await service.getGlossary('c-1', 'd-1')
-
-      expect(fakeHttp.get).toHaveBeenCalledWith('/api/courses/c-1/documents/d-1/glossary')
-      expect(terms).toEqual([{ id: 't-1', term: 'Mitosis', definition: 'Cell division', documentId: 'd-1' }])
-    })
-
-    it('returns an empty array on failure', async () => {
-      const service = createGlossaryService(fakeHttp)
-      vi.mocked(fakeHttp.get).mockRejectedValueOnce(new Error('fail'))
-      expect(await service.getGlossary('c-1', 'd-1')).toEqual([])
     })
   })
 

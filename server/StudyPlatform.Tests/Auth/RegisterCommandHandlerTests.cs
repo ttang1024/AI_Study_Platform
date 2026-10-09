@@ -37,7 +37,7 @@ public class RegisterCommandHandlerTests
     private void SetupValidOtp()
     {
         var otp = new OtpCode { OtpId = Guid.NewGuid(), Email = "user@example.com", Code = "123456", Purpose = OtpPurpose.Registration };
-        _otps.Setup(r => r.GetValidOtpAsync("user@example.com", "123456", OtpPurpose.Registration, default)).ReturnsAsync(otp);
+        _otps.Setup(r => r.GetActiveOtpAsync("user@example.com", OtpPurpose.Registration, default)).ReturnsAsync(otp);
     }
 
     [Fact]
@@ -75,7 +75,7 @@ public class RegisterCommandHandlerTests
     public async Task Handle_InvalidOtp_ReturnsFailure()
     {
         _users.Setup(r => r.EmailExistsAsync("user@example.com", default)).ReturnsAsync(false);
-        _otps.Setup(r => r.GetValidOtpAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<OtpPurpose>(), default))
+        _otps.Setup(r => r.GetActiveOtpAsync(It.IsAny<string>(), It.IsAny<OtpPurpose>(), default))
             .ReturnsAsync((OtpCode?)null);
 
         var result = await _handler.Handle(Valid(), default);
@@ -90,7 +90,7 @@ public class RegisterCommandHandlerTests
     {
         _users.Setup(r => r.EmailExistsAsync(It.IsAny<string>(), default)).ReturnsAsync(false);
         var otp = new OtpCode { OtpId = Guid.NewGuid(), Email = "USER@EXAMPLE.COM", Code = "123456", Purpose = OtpPurpose.Registration };
-        _otps.Setup(r => r.GetValidOtpAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<OtpPurpose>(), default)).ReturnsAsync(otp);
+        _otps.Setup(r => r.GetActiveOtpAsync(It.IsAny<string>(), It.IsAny<OtpPurpose>(), default)).ReturnsAsync(otp);
         _hasher.Setup(h => h.Hash(It.IsAny<string>())).Returns("hashed");
         _tokenService.Setup(t => t.GenerateAccessToken(It.IsAny<User>())).Returns("tok");
         _tokenService.Setup(t => t.GenerateRefreshToken()).Returns("ref");
@@ -112,7 +112,7 @@ public class RegisterCommandHandlerTests
     {
         _users.Setup(r => r.EmailExistsAsync("user@example.com", default)).ReturnsAsync(false);
         var otp = new OtpCode { OtpId = Guid.NewGuid(), Email = "user@example.com", Code = "123456", Purpose = OtpPurpose.Registration, IsUsed = false };
-        _otps.Setup(r => r.GetValidOtpAsync("user@example.com", "123456", OtpPurpose.Registration, default)).ReturnsAsync(otp);
+        _otps.Setup(r => r.GetActiveOtpAsync("user@example.com", OtpPurpose.Registration, default)).ReturnsAsync(otp);
         _hasher.Setup(h => h.Hash(It.IsAny<string>())).Returns("hashed");
         _tokenService.Setup(t => t.GenerateAccessToken(It.IsAny<User>())).Returns("tok");
         _tokenService.Setup(t => t.GenerateRefreshToken()).Returns("ref");

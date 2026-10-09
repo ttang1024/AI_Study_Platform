@@ -71,6 +71,8 @@ public static class InfrastructureServiceExtensions
         // blob-storage chain the extractor depends on.
         services.AddScoped<Func<IDocumentTextExtractor>>(sp => sp.GetRequiredService<IDocumentTextExtractor>);
         services.AddScoped<IPasswordHasher, PasswordHasher>();
+        services.AddSingleton<IRichTextSanitizer, RichTextSanitizer>();
+        services.AddScoped<ITranscriptSegmentStore, TranscriptSegmentStore>();
         services.AddSingleton<IAnkiExportService, AnkiExportService>();
         services.AddSingleton<IAppCache, DistributedAppCache>();
         // Token accounting for every AI call. Singleton: it opens its own scope per write so usage
@@ -100,9 +102,11 @@ public static class InfrastructureServiceExtensions
         services.AddSingleton<ITranscriptionService, WhisperTranscriptionService>();
 
         // AI HTTP Client
+        // No client-wide timeout: it would also cut off a long but healthy stream. AiService applies
+        // its own deadline (Ai:NonStreamingTimeoutSeconds) to the parts that can stall.
         services.AddHttpClient<IAiService, AiService>(client =>
         {
-            client.Timeout = TimeSpan.FromSeconds(120);
+            client.Timeout = Timeout.InfiniteTimeSpan;
         });
 
         // Semantic search. Configured independently of the per-user chat provider: the backfill worker

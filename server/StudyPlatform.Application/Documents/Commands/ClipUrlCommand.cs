@@ -29,8 +29,8 @@ public class ClipUrlCommandHandler : IRequestHandler<ClipUrlCommand, Result<Docu
 
     public async Task<Result<DocumentDto>> Handle(ClipUrlCommand request, CancellationToken cancellationToken)
     {
-        var course = await _unitOfWork.Courses.GetByIdAsync(request.CourseId, cancellationToken);
-        if (course == null || course.UserId != request.UserId)
+        var course = await _unitOfWork.Courses.GetOwnedAsync(request.CourseId, request.UserId, cancellationToken);
+        if (course == null)
             return Result<DocumentDto>.Failure("Course not found.", "COURSE_NOT_FOUND");
 
         var blobFileName = $"{request.UserId}/{request.CourseId}/{Guid.NewGuid()}_{request.FileName}";
@@ -41,7 +41,7 @@ public class ClipUrlCommandHandler : IRequestHandler<ClipUrlCommand, Result<Docu
         }
         catch (Exception ex)
         {
-            return Result<DocumentDto>.Failure($"Storage unavailable: {ex.Message}", "STORAGE_ERROR");
+            return Result<DocumentDto>.Failure("Storage is unavailable right now. Please try again.", "STORAGE_ERROR");
         }
 
         var document = new Document

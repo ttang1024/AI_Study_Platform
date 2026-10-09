@@ -55,34 +55,67 @@
 			name="image_src"
 			content="%VITE_SHARE_BASE_URL%/share.png" />
 		<link rel="image_src" href="%VITE_SHARE_BASE_URL%/share.png" />
+		<!-- One @graph so the brand entities link to each other by @id. WebSite (name + alternateName)
+		     is what Google reads for the site name shown above a result; Organization is the brand entity.
+		     Add social profile URLs to sameAs as they are created: matching profiles are how Google learns
+		     that "Toto Study" is a brand rather than two separate words. Feature pages swap this whole
+		     block for their own (vite-plugin-seo.ts), so keep it the only ld+json script in the head. -->
 		<script type="application/ld+json">
 			{
 				"@context": "https://schema.org",
-				"@type": "SoftwareApplication",
-				"name": "Toto Study",
-				"applicationCategory": "EducationalApplication",
-				"operatingSystem": "Web, iOS, Android",
-				"url": "%VITE_SHARE_BASE_URL%/",
-				"description": "Turn any document, video, podcast, or article into AI summaries, mind maps, flashcards, and quizzes — then master it with spaced repetition, mock exams, and an AI tutor.",
-				"featureList": [
-					"AI summaries of any source",
-					"AI flashcards with FSRS spaced repetition",
-					"AI quizzes and adaptive question banks",
-					"Mind maps and knowledge graphs",
-					"Worked problems with step-by-step solutions",
-					"Glossary and key-term extraction",
-					"AI chat and AI tutor over your own library",
-					"Voice chat and teach-back practice",
-					"Exam planner and timed mock exams",
-					"Global semantic search across your library",
-					"Study groups and public sharing",
-					"Reads 240+ file formats"
-				],
-				"offers": {
-					"@type": "Offer",
-					"price": "0",
-					"priceCurrency": "USD"
-				}
+				"@graph": [
+					{
+						"@type": "Organization",
+						"@id": "%VITE_SHARE_BASE_URL%/#organization",
+						"name": "Toto Study",
+						"alternateName": ["TotoStudy", "Toto-Study"],
+						"url": "%VITE_SHARE_BASE_URL%/",
+						"logo": {
+							"@type": "ImageObject",
+							"url": "%VITE_SHARE_BASE_URL%/app-512.png",
+							"width": 512,
+							"height": 512
+						},
+						"sameAs": ["https://github.com/ttang1024/AI_Study_Platform"]
+					},
+					{
+						"@type": "WebSite",
+						"@id": "%VITE_SHARE_BASE_URL%/#website",
+						"name": "Toto Study",
+						"alternateName": ["TotoStudy", "Toto-Study", "Toto Study AI Study Platform"],
+						"url": "%VITE_SHARE_BASE_URL%/",
+						"publisher": { "@id": "%VITE_SHARE_BASE_URL%/#organization" }
+					},
+					{
+						"@type": "SoftwareApplication",
+						"@id": "%VITE_SHARE_BASE_URL%/#app",
+						"name": "Toto Study",
+						"applicationCategory": "EducationalApplication",
+						"operatingSystem": "Web, iOS, Android",
+						"url": "%VITE_SHARE_BASE_URL%/",
+						"publisher": { "@id": "%VITE_SHARE_BASE_URL%/#organization" },
+						"description": "Turn any document, video, podcast, or article into AI summaries, mind maps, flashcards, and quizzes, then master it with spaced repetition, mock exams, and an AI tutor.",
+						"featureList": [
+							"AI summaries of any source",
+							"AI flashcards with FSRS spaced repetition",
+							"AI quizzes and adaptive question banks",
+							"Mind maps and knowledge graphs",
+							"Worked problems with step-by-step solutions",
+							"Glossary and key-term extraction",
+							"AI chat and AI tutor over your own library",
+							"Voice chat and teach-back practice",
+							"Exam planner and timed mock exams",
+							"Global semantic search across your library",
+							"Study groups and public sharing",
+							"Reads 240+ file formats"
+						],
+						"offers": {
+							"@type": "Offer",
+							"price": "0",
+							"priceCurrency": "USD"
+						}
+					}
+				]
 			}
 		</script>
 	</head>
@@ -168,6 +201,8 @@
 				Bring your own AI provider key. It travels with your request and is never stored on our
 				servers.
 			</p>
+
+			<!-- seo:feature-page-links -->
 
 			<p>Free to start. easy study platform · built to help you learn faster with AI.</p>
 		</noscript>

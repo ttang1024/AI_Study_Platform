@@ -80,17 +80,4 @@ public class NotesController : ControllerBase
 
         return Ok(new BaseResponse { Success = true, Message = result.Message });
     }
-
-    /// <summary>
-    /// Bulk delete notes
-    /// </summary>
-    [HttpDelete("bulk")]
-    [ProducesResponseType(typeof(BaseResponse), 200)]
-    public async Task<IActionResult> BulkDeleteNotes([FromBody] BulkDeleteNotesRequest request)
-    {
-        var userId = User.GetUserId();
-        var result = await _mediator.Send(new BulkDeleteNotesCommand(request.NoteIds, userId));
-        return Ok(new BaseResponse { Success = true, Message = result.Message });
-    }
-
 }

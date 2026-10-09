@@ -11,6 +11,7 @@ public partial class YouTubeTranscriptService
     {
         var argList = args.ToList();
         Exception? lastException = null;
+        var lastFailure = YtDlpFailureType.Unknown;
 
         var credentials = _pool.GetNext();
 
@@ -38,6 +39,7 @@ public partial class YouTubeTranscriptService
                 }
 
                 var failure = ClassifyFailure(stderr);
+                lastFailure = failure;
                 _logger.LogWarning(
                     "yt-dlp attempt {Attempt}/{Max} failed ({Type}): {Error}",
                     attempt + 1, MaxYtDlpAttempts, failure, stderr.Trim().Split('\n')[^1]);
@@ -67,6 +69,11 @@ public partial class YouTubeTranscriptService
                     File.Delete(cookieFile);
             }
         }
+
+        // Every attempt was refused by a proxy or by YouTube's bot check: an upstream outage, not a
+        // property of the video, so callers must not report it as "no captions".
+        if (IsBlocked(lastFailure))
+            throw new YtDlpBlockedException(lastException?.Message ?? "yt-dlp was blocked on every attempt", lastException);
 
         throw lastException ?? new InvalidOperationException("yt-dlp failed after all retry attempts");
     }
@@ -100,6 +107,8 @@ public partial class YouTubeTranscriptService
         }
 
         process.Start();
+        // WaitForExitAsync only stops waiting on cancellation; kill the child so it doesn't run on.
+        using var kill = ct.Register(() => { try { process.Kill(entireProcessTree: true); } catch (InvalidOperationException) { } });
 
         var stdoutTask = process.StandardOutput.ReadToEndAsync(ct);
         var stderrTask = process.StandardError.ReadToEndAsync(ct);
@@ -110,9 +119,15 @@ public partial class YouTubeTranscriptService
 
     // ── Failure classification ────────────────────────────────────────────────
 
-    private enum YtDlpFailureType { ProxyError, BotDetection, NotRetryable, Unknown }
+    internal enum YtDlpFailureType { ProxyError, BotDetection, NotRetryable, Unknown }
 
-    private static YtDlpFailureType ClassifyFailure(string stderr)
+    internal sealed class YtDlpBlockedException(string message, Exception? inner)
+        : InvalidOperationException(message, inner);
+
+    internal static bool IsBlocked(YtDlpFailureType failure)
+        => failure is YtDlpFailureType.ProxyError or YtDlpFailureType.BotDetection;
+
+    internal static YtDlpFailureType ClassifyFailure(string stderr)
     {
         var s = stderr.ToLowerInvariant();
 

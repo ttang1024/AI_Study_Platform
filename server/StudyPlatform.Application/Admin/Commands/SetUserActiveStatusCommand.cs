@@ -25,6 +25,11 @@ public class SetUserActiveStatusCommandHandler : IRequestHandler<SetUserActiveSt
         user.IsActive = request.IsActive;
         user.UpdatedAt = DateTime.UtcNow;
 
+        // Deactivating has to end the sessions the user already holds; otherwise their refresh tokens
+        // keep minting access tokens for up to a week. Access tokens already issued lapse within 15 minutes.
+        if (!request.IsActive)
+            await _unitOfWork.RefreshTokens.RevokeAllUserTokensAsync(user.UserId, cancellationToken);
+
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         var dto = new UserDto(user.UserId, user.Email, user.FullName,

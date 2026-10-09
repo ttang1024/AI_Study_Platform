@@ -10,7 +10,7 @@ public record ListUsersQuery(
     int PageSize,
     string? Search,
     string? Status,
-    string? Sort) : IRequest<Result<PaginatedList<UserDto>>>;
+    string? Sort) : IRequest<Result<PaginatedList<UserDto>>>, IPagedRequest;
 
 public class ListUsersQueryHandler : IRequestHandler<ListUsersQuery, Result<PaginatedList<UserDto>>>
 {

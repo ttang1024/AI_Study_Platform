@@ -1,4 +1,5 @@
 using Moq;
+using StudyPlatform.Application.Security;
 using StudyPlatform.Application.Security.Commands;
 using StudyPlatform.Application.Services;
 using StudyPlatform.Domain.Entities;
@@ -109,78 +110,27 @@ public class RequestAccountDeletionCommandHandlerTests
     }
 }
 
-public class CancelAccountDeletionCommandHandlerTests
+public class PendingDeletionTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
-    private readonly Mock<IUserRepository> _users = new();
-    private readonly Mock<IPasswordHasher> _hasher = new();
-    private readonly CancelAccountDeletionCommandHandler _handler;
-
-    public CancelAccountDeletionCommandHandlerTests()
-    {
-        _uow.Setup(u => u.Users).Returns(_users.Object);
-        _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new CancelAccountDeletionCommandHandler(_uow.Object, _hasher.Object);
-    }
-
     [Fact]
-    public async Task Handle_UnknownEmail_ReturnsGenericInvalidCredentials()
+    public void CancelOnSignIn_PendingDeletion_ReactivatesTheAccount()
     {
-        _users.Setup(r => r.GetByEmailAsync("a@b.com", default)).ReturnsAsync((User?)null);
+        var user = new User { IsActive = false, DeletionRequestedAt = DateTime.UtcNow.AddDays(-2) };
 
-        var result = await _handler.Handle(new CancelAccountDeletionCommand("a@b.com", "pw"), default);
+        PendingDeletion.CancelOnSignIn(user);
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal("INVALID_CREDENTIALS", result.ErrorCode);
-    }
-
-    [Fact]
-    public async Task Handle_WrongPassword_ReturnsSameGenericError()
-    {
-        _users.Setup(r => r.GetByEmailAsync("a@b.com", default)).ReturnsAsync(new User { Email = "a@b.com", PasswordHash = "hash" });
-        _hasher.Setup(h => h.Verify("wrong", "hash")).Returns(false);
-
-        var result = await _handler.Handle(new CancelAccountDeletionCommand("a@b.com", "wrong"), default);
-
-        Assert.Equal("INVALID_CREDENTIALS", result.ErrorCode);
-    }
-
-    [Fact]
-    public async Task Handle_NoPendingDeletion_ReturnsFailure()
-    {
-        _users.Setup(r => r.GetByEmailAsync("a@b.com", default))
-            .ReturnsAsync(new User { Email = "a@b.com", PasswordHash = "hash", DeletionRequestedAt = null });
-        _hasher.Setup(h => h.Verify("pw", "hash")).Returns(true);
-
-        var result = await _handler.Handle(new CancelAccountDeletionCommand("a@b.com", "pw"), default);
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal("NO_DELETION_PENDING", result.ErrorCode);
-    }
-
-    [Fact]
-    public async Task Handle_ValidRequest_ReactivatesAccount()
-    {
-        var user = new User { UserId = Guid.NewGuid(), Email = "a@b.com", PasswordHash = "hash", DeletionRequestedAt = DateTime.UtcNow, IsActive = false };
-        _users.Setup(r => r.GetByEmailAsync("a@b.com", default)).ReturnsAsync(user);
-        _hasher.Setup(h => h.Verify("pw", "hash")).Returns(true);
-
-        var result = await _handler.Handle(new CancelAccountDeletionCommand("A@B.COM", "pw"), default);
-
-        Assert.True(result.IsSuccess);
         Assert.True(user.IsActive);
         Assert.Null(user.DeletionRequestedAt);
     }
 
     [Fact]
-    public async Task Handle_LowercasesEmailBeforeLookup()
+    public void CancelOnSignIn_DeactivatedWithoutDeletionRequest_StaysClosed()
     {
-        _users.Setup(r => r.GetByEmailAsync("a@b.com", default))
-            .ReturnsAsync(new User { Email = "a@b.com", PasswordHash = "hash", DeletionRequestedAt = DateTime.UtcNow });
-        _hasher.Setup(h => h.Verify("pw", "hash")).Returns(true);
+        // An admin deactivation never sets DeletionRequestedAt, so signing in must not undo it.
+        var user = new User { IsActive = false };
 
-        await _handler.Handle(new CancelAccountDeletionCommand("A@B.COM", "pw"), default);
+        PendingDeletion.CancelOnSignIn(user);
 
-        _users.Verify(r => r.GetByEmailAsync("a@b.com", default), Times.Once);
+        Assert.False(user.IsActive);
     }
 }

@@ -224,11 +224,6 @@ export function createFlashcardService(http: HttpClient) {
       invalidateFlashcardListCache();
     },
 
-    async deleteFlashcardsBulk(flashcardIds: string[]): Promise<void> {
-      await http.delete('/api/flashcards/bulk', { data: { flashcardIds } });
-      invalidateFlashcardListCache();
-    },
-
     /** Submit FSRS review. rating: 1=Again, 2=Hard, 3=Good, 4=Easy */
     async reviewFlashcard(flashcardId: string, rating: FsrsRating): Promise<{ scheduledDays: number; retrievability: number; srs: FlashcardSrsState }> {
       const response = await http.post<{ data: { scheduledDays: number; retrievability: number; srs: BackendSrs } }>(`/api/flashcards/${flashcardId}/review`, { rating });

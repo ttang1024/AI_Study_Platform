@@ -3,6 +3,7 @@ import axios, { AxiosRequestConfig } from 'axios';
 import { buildAiHeaders } from '@core/ai';
 import { aiSettingsService } from './aiSettingsService';
 import { getApiUrl } from '../utils/env';
+import { getAccessToken, refreshAccessToken, SessionRejectedError } from './accessToken';
 
 const API_URL = getApiUrl();
 
@@ -23,7 +24,7 @@ const normalizeParams = (params: AxiosRequestConfig['params']): string => {
 
 const getDedupeKey = (url: string, config?: AxiosRequestConfig): string => {
   if (typeof window === 'undefined') return [url, normalizeParams(config?.params), config?.responseType ?? ''].join('|');
-  const token = localStorage.getItem('sp_access_token') ?? '';
+  const token = getAccessToken() ?? '';
   return [
     url,
     normalizeParams(config?.params),
@@ -50,7 +51,7 @@ apiClient.get = ((url: string, config?: AxiosRequestConfig) => {
 // Request interceptor: attach Bearer token and AI service headers
 apiClient.interceptors.request.use((config) => {
   if (typeof window === 'undefined') return config;
-  const token = localStorage.getItem('sp_access_token');
+  const token = getAccessToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -67,72 +68,31 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
-// Response interceptor: handle 401 with token refresh
-let isRefreshing = false;
-let failedQueue: Array<{ resolve: (value: any) => void; reject: (reason?: any) => void }> = [];
-
-const processQueue = (error: any, token: string | null = null) => {
-  failedQueue.forEach((prom) => {
-    if (error) {
-      prom.reject(error);
-    } else {
-      prom.resolve(token);
-    }
-  });
-  failedQueue = [];
-};
-
+// Response interceptor: on 401, mint a new access token from the refresh cookie and retry once.
+// refreshAccessToken is single-flight, so a burst of 401s shares one refresh.
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+    const isLoginRequest = originalRequest?.url?.includes('/api/auth/login');
 
-    const isLoginRequest = originalRequest.url?.includes('/api/auth/login');
+    if (error.response?.status !== 401 || !originalRequest || originalRequest._retry || isLoginRequest) {
+      return Promise.reject(error);
+    }
+    if (typeof window === 'undefined') return Promise.reject(error);
 
-    if (error.response?.status === 401 && !originalRequest._retry && !isLoginRequest) {
-      if (typeof window === 'undefined') return Promise.reject(error);
-      if (isRefreshing) {
-        return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject });
-        }).then((token) => {
-          originalRequest.headers.Authorization = `Bearer ${token}`;
-          return apiClient(originalRequest);
-        }).catch((err) => {
-          return Promise.reject(err);
-        });
-      }
-
-      originalRequest._retry = true;
-      isRefreshing = true;
-
-      try {
-        // The refresh token lives in an HttpOnly cookie, so it is sent automatically
-        // with withCredentials — never read from JavaScript.
-        const response = await axios.post(
-          `${API_URL}/api/auth/refresh-token`,
-          {},
-          { withCredentials: true },
-        );
-        const { accessToken } = response.data.data;
-
-        localStorage.setItem('sp_access_token', accessToken);
-
-        apiClient.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
-        originalRequest.headers.Authorization = `Bearer ${accessToken}`;
-
-        processQueue(null, accessToken);
-        return apiClient(originalRequest);
-      } catch (refreshError) {
-        processQueue(refreshError, null);
-        localStorage.removeItem('sp_access_token');
+    originalRequest._retry = true;
+    try {
+      const accessToken = await refreshAccessToken();
+      originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+      return apiClient(originalRequest);
+    } catch (refreshError) {
+      // Only a rejected session signs the user out; a network failure (offline) leaves them signed in.
+      if (refreshError instanceof SessionRejectedError) {
         localStorage.removeItem('sp_user');
         window.location.href = '/login';
-        return Promise.reject(refreshError);
-      } finally {
-        isRefreshing = false;
       }
+      return Promise.reject(refreshError);
     }
-
-    return Promise.reject(error);
   }
 );

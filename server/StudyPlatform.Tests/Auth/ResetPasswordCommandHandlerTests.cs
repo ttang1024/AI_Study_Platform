@@ -48,7 +48,7 @@ public class ResetPasswordCommandHandlerTests
         var user = MakeUser();
         var otp = MakeOtp("user@example.com");
         _users.Setup(r => r.GetByEmailAsync("user@example.com", default)).ReturnsAsync(user);
-        _otps.Setup(r => r.GetValidOtpAsync("user@example.com", "123456", OtpPurpose.PasswordReset, default)).ReturnsAsync(otp);
+        _otps.Setup(r => r.GetActiveOtpAsync("user@example.com", OtpPurpose.PasswordReset, default)).ReturnsAsync(otp);
         _hasher.Setup(h => h.Hash("NewPass1")).Returns("new-hash");
         _tokens.Setup(r => r.RevokeAllUserTokensAsync(user.UserId, default)).Returns(Task.CompletedTask);
 
@@ -62,14 +62,14 @@ public class ResetPasswordCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_UserNotFound_ReturnsFailure()
+    public async Task Handle_UserNotFound_FailsLikeAWrongCode()
     {
         _users.Setup(r => r.GetByEmailAsync(It.IsAny<string>(), default)).ReturnsAsync((User?)null);
 
         var result = await _handler.Handle(new ResetPasswordCommand("nobody@example.com", "123456", "NewPass1"), default);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal("USER_NOT_FOUND", result.ErrorCode);
+        Assert.Equal("INVALID_OTP", result.ErrorCode);
         _uow.Verify(u => u.SaveChangesAsync(default), Times.Never);
     }
 
@@ -78,7 +78,7 @@ public class ResetPasswordCommandHandlerTests
     {
         var user = MakeUser();
         _users.Setup(r => r.GetByEmailAsync("user@example.com", default)).ReturnsAsync(user);
-        _otps.Setup(r => r.GetValidOtpAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<OtpPurpose>(), default))
+        _otps.Setup(r => r.GetActiveOtpAsync(It.IsAny<string>(), It.IsAny<OtpPurpose>(), default))
             .ReturnsAsync((OtpCode?)null);
 
         var result = await _handler.Handle(new ResetPasswordCommand("user@example.com", "wrong-otp", "NewPass1"), default);
@@ -93,11 +93,27 @@ public class ResetPasswordCommandHandlerTests
     {
         var user = MakeUser();
         _users.Setup(r => r.GetByEmailAsync("user@example.com", default)).ReturnsAsync(user);
-        _otps.Setup(r => r.GetValidOtpAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<OtpPurpose>(), default))
+        _otps.Setup(r => r.GetActiveOtpAsync(It.IsAny<string>(), It.IsAny<OtpPurpose>(), default))
             .ReturnsAsync((OtpCode?)null);
 
         await _handler.Handle(new ResetPasswordCommand("USER@EXAMPLE.COM", "123456", "NewPass1"), default);
 
         _users.Verify(r => r.GetByEmailAsync("user@example.com", default), Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_WrongCode_IsCountedAndSaved_WithoutResettingThePassword()
+    {
+        var user = MakeUser();
+        var otp = MakeOtp("user@example.com");
+        _users.Setup(r => r.GetByEmailAsync("user@example.com", default)).ReturnsAsync(user);
+        _otps.Setup(r => r.GetActiveOtpAsync("user@example.com", OtpPurpose.PasswordReset, default)).ReturnsAsync(otp);
+
+        var result = await _handler.Handle(new ResetPasswordCommand("user@example.com", "999999", "NewPass1"), default);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(1, otp.FailedAttempts);
+        _uow.Verify(u => u.SaveChangesAsync(default), Times.Once);
+        _hasher.Verify(h => h.Hash(It.IsAny<string>()), Times.Never);
     }
 }
