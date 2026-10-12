@@ -1,6 +1,7 @@
 /// <reference types="vite/client" />
 import axios, { AxiosRequestConfig } from 'axios';
-import { buildAiHeaders } from '@core/ai';
+import { buildAiHeaders, needsAiHeaders } from '@core/ai';
+import { timeZoneHeaders } from '@core/timeZone';
 import { aiSettingsService } from './aiSettingsService';
 import { getApiUrl } from '../utils/env';
 import { getAccessToken, refreshAccessToken, SessionRejectedError } from './accessToken';
@@ -8,7 +9,7 @@ import { getAccessToken, refreshAccessToken, SessionRejectedError } from './acce
 const API_URL = getApiUrl();
 
 // withCredentials lets the browser send/receive the HttpOnly refresh-token cookie.
-export const apiClient = axios.create({ baseURL: API_URL, withCredentials: true });
+export const apiClient = axios.create({ baseURL: API_URL, withCredentials: true, headers: timeZoneHeaders() });
 
 const inflightGetRequests = new Map<string, Promise<any>>();
 
@@ -56,8 +57,9 @@ apiClient.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${token}`;
   }
 
-  // Only inject AI headers from settings if not already explicitly set on this request
-  if (!config.headers['X-AI-Provider']) {
+  // Only inject AI headers from settings if not already explicitly set on this request, and only on
+  // requests that can run AI work — the provider key stays off plain reads.
+  if (!config.headers['X-AI-Provider'] && needsAiHeaders(config.method, config.url)) {
     Object.assign(config.headers, buildAiHeaders({
       provider: aiSettingsService.getActiveProvider(),
       model: aiSettingsService.getActiveModel(),

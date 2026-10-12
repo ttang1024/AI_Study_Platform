@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { useSyncExternalStore } from 'react';
+import { timeZoneHeaders } from '@core/timeZone';
 import { getApiUrl } from '../utils/env';
 
 /**
@@ -50,7 +51,7 @@ export const useAccessToken = (): string | null => useSyncExternalStore(subscrib
 export function refreshAccessToken(): Promise<string> {
   if (!inflightRefresh) {
     inflightRefresh = axios
-      .post(`${getApiUrl()}/api/auth/refresh-token`, {}, { withCredentials: true })
+      .post(`${getApiUrl()}/api/auth/refresh-token`, {}, { withCredentials: true, headers: timeZoneHeaders() })
       .then((response) => {
         const token = response.data?.data?.accessToken as string | undefined;
         if (!token) throw new SessionRejectedError();

@@ -21,8 +21,10 @@ public record GetReviewForecastQuery(Guid UserId, int Days = GetReviewForecastQu
 
 public class GetReviewForecastQueryHandler : IRequestHandler<GetReviewForecastQuery, Result<ReviewForecastDto>>
 {
-    private readonly IUnitOfWork _unitOfWork;
-    public GetReviewForecastQueryHandler(IUnitOfWork unitOfWork) { _unitOfWork = unitOfWork; }
+    private readonly IFlashcardSrsDataRepository _flashcardSrs;
+    private readonly IUserFsrsSettingsRepository _userFsrsSettings;
+    public GetReviewForecastQueryHandler(IFlashcardSrsDataRepository flashcardSrs, IUserFsrsSettingsRepository userFsrsSettings) { _flashcardSrs = flashcardSrs;
+    _userFsrsSettings = userFsrsSettings; }
 
     public async Task<Result<ReviewForecastDto>> Handle(GetReviewForecastQuery request, CancellationToken cancellationToken)
     {
@@ -30,13 +32,13 @@ public class GetReviewForecastQueryHandler : IRequestHandler<GetReviewForecastQu
         var today = DateTime.SpecifyKind(DateTime.UtcNow.Date, DateTimeKind.Utc);
         var end = today.AddDays(days).AddTicks(-1);
 
-        var counts = await _unitOfWork.FlashcardSrs.GetDueCountsByDayAsync(request.UserId, today, end, cancellationToken);
+        var counts = await _flashcardSrs.GetDueCountsByDayAsync(request.UserId, today, end, cancellationToken);
 
         // Anything due before today is backlog, not part of the forward view — it is already late
         // and would otherwise be invisible in a chart that starts at today.
-        var overdue = await _unitOfWork.FlashcardSrs.CountDueByUserIdAsync(request.UserId, today.AddTicks(-1), cancellationToken);
+        var overdue = await _flashcardSrs.CountDueByUserIdAsync(request.UserId, today.AddTicks(-1), cancellationToken);
 
-        var settings = await _unitOfWork.UserFsrsSettings.GetByUserIdAsync(request.UserId, cancellationToken);
+        var settings = await _userFsrsSettings.GetByUserIdAsync(request.UserId, cancellationToken);
 
         var series = Enumerable.Range(0, days)
             .Select(offset =>
@@ -74,7 +76,11 @@ public record RescheduleBacklogCommand(Guid UserId, int Days = RescheduleBacklog
 public class RescheduleBacklogCommandHandler : IRequestHandler<RescheduleBacklogCommand, Result<RescheduleBacklogDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
-    public RescheduleBacklogCommandHandler(IUnitOfWork unitOfWork) { _unitOfWork = unitOfWork; }
+    private readonly IFlashcardSrsDataRepository _flashcardSrs;
+    private readonly IUserFsrsSettingsRepository _userFsrsSettings;
+    public RescheduleBacklogCommandHandler(IUnitOfWork unitOfWork, IFlashcardSrsDataRepository flashcardSrs, IUserFsrsSettingsRepository userFsrsSettings) { _unitOfWork = unitOfWork;
+    _flashcardSrs = flashcardSrs;
+    _userFsrsSettings = userFsrsSettings; }
 
     public async Task<Result<RescheduleBacklogDto>> Handle(RescheduleBacklogCommand request, CancellationToken cancellationToken)
     {
@@ -83,13 +89,13 @@ public class RescheduleBacklogCommandHandler : IRequestHandler<RescheduleBacklog
                 $"Spread must be between 1 and {RescheduleBacklogCommand.MaxDays} days.", "INVALID_SPREAD");
 
         var today = DateTime.SpecifyKind(DateTime.UtcNow.Date, DateTimeKind.Utc);
-        var overdue = await _unitOfWork.FlashcardSrs.GetOverdueByUserIdAsync(request.UserId, today, cancellationToken);
+        var overdue = await _flashcardSrs.GetOverdueByUserIdAsync(request.UserId, today, cancellationToken);
         if (overdue.Count == 0)
             return Result<RescheduleBacklogDto>.Success(new RescheduleBacklogDto(0, request.Days, 0), "Nothing is overdue.");
 
-        var settings = await _unitOfWork.UserFsrsSettings.GetByUserIdAsync(request.UserId, cancellationToken);
+        var settings = await _userFsrsSettings.GetByUserIdAsync(request.UserId, cancellationToken);
         var end = today.AddDays(request.Days - 1).AddDays(1).AddTicks(-1);
-        var existing = await _unitOfWork.FlashcardSrs.GetDueCountsByDayAsync(request.UserId, today, end, cancellationToken);
+        var existing = await _flashcardSrs.GetDueCountsByDayAsync(request.UserId, today, end, cancellationToken);
 
         // Aim for an even total load per day — counting what is already scheduled in the window,
         // so spreading a backlog doesn't bury days that were already full.

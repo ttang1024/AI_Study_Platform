@@ -29,6 +29,20 @@ public static class DependencyInjection
         // row, save — so those paths cannot drift apart on session identity or token lifetime.
         services.AddScoped<IAuthSessionIssuer, AuthSessionIssuer>();
 
+        // Per-account cap on failed password sign-ins, shared by the user and admin login.
+        services.AddScoped<ILoginThrottle, LoginThrottle>();
+
+        // Where a user's days start (streaks, daily totals): device zone, then the saved one, then UTC.
+        services.AddScoped<IUserTimeZone, UserTimeZone>();
+
+        // The one validate → cache → transcript → generate pipeline behind the video AI endpoints.
+        services.AddScoped<IDocumentAiStreams, DocumentAiStreams>();
+
+        // Cross-user read access through study groups (shared courses, and the videos in them).
+        services.AddScoped<ICourseAccess, CourseAccess>();
+        services.AddScoped<StudyPlatform.Application.Videos.IVideoAccess, StudyPlatform.Application.Videos.VideoAccess>();
+        services.AddScoped<StudyPlatform.Application.Videos.Generation.IVideoAiGenerator, StudyPlatform.Application.Videos.Generation.VideoAiGenerator>();
+
         // Find-or-provision the local account behind a verified external identity, so the provider
         // handlers differ only in which provider vouched.
         services.AddScoped<IExternalSignIn, ExternalSignIn>();

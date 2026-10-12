@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -28,7 +27,7 @@ public class AiServiceTimeoutTests
     private static AiService Service(int timeoutSeconds) => new(
         new HttpClient(new NeverAnswers()) { Timeout = Timeout.InfiniteTimeSpan },
         NullLogger<AiService>.Instance,
-        AiTestCredentials.Accessor("openai", "gpt-4o-mini", "sk-test"),
+        AiTestCredentials.Provider("openai", "gpt-4o-mini", "sk-test"),
         Mock.Of<IAppCache>(),
         Options.Create(new CacheOptions()),
         Mock.Of<IAiUsageRecorder>(),

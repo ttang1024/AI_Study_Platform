@@ -9,7 +9,7 @@ import { VideoPlayerStage } from '@/components/library/VideoPlayerStage';
 import { VideoTabContent } from '@/components/library/VideoTabContent';
 import { TABS } from '@/components/library/videoDetailMeta';
 import { useVideoDetail } from '@/hooks/useVideoDetail';
-import { quizService } from '@/services/quizService';
+import { videoService } from '@/services/videoService';
 import { fetchVideoShareCards } from '@/services/shareService';
 
 export default function VideoDetailScreen() {
@@ -50,7 +50,7 @@ export default function VideoDetailScreen() {
         sourceType={video.sourceType}
         sourceUrl={video.sourceType === 'upload' ? `video/${video.id}` : video.videoUrl}
         fetchQuizzes={async () => {
-          const qs = await quizService.getVideoQuiz(video.id);
+          const qs = await videoService.getQuiz(video.id);
           return qs.map((q) => ({
             question: q.question,
             options: q.options ?? [],

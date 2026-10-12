@@ -40,22 +40,27 @@ public class GetRetentionAnalyticsQueryHandler : IRequestHandler<GetRetentionAna
 {
     private static readonly int[] CurveDays = [1, 2, 3, 5, 7, 10, 14, 21, 30, 45, 60, 90];
 
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly IFlashcardSrsDataRepository _flashcardSrs;
+    private readonly IFlashcardReviewLogRepository _flashcardReviewLogs;
 
-    public GetRetentionAnalyticsQueryHandler(IUnitOfWork unitOfWork)
+    private readonly IUserTimeZone _timeZone;
+
+    public GetRetentionAnalyticsQueryHandler(IFlashcardSrsDataRepository flashcardSrs, IFlashcardReviewLogRepository flashcardReviewLogs, IUserTimeZone timeZone)
     {
-        _unitOfWork = unitOfWork;
+        _flashcardSrs = flashcardSrs;
+        _flashcardReviewLogs = flashcardReviewLogs;
+        _timeZone = timeZone;
     }
 
     public async Task<Result<RetentionAnalyticsDto>> Handle(GetRetentionAnalyticsQuery request, CancellationToken ct)
     {
         var now = DateTime.UtcNow;
 
-        var srs = (await _unitOfWork.FlashcardSrs.GetByUserIdAsync(request.UserId, ct))
+        var srs = (await _flashcardSrs.GetByUserIdAsync(request.UserId, ct))
             .Where(s => s.State != 0 && s.Stability > 0)
             .ToList();
 
-        var logs = (await _unitOfWork.FlashcardReviewLogs.GetByUserAsync(request.UserId, null, ct)).ToList();
+        var logs = (await _flashcardReviewLogs.GetByUserAsync(request.UserId, null, ct)).ToList();
 
         // Cards' predicted recall right now.
         var predictedNow = srs.Count > 0
@@ -96,10 +101,11 @@ public class GetRetentionAnalyticsQueryHandler : IRequestHandler<GetRetentionAna
         }
 
         // Daily review volume + success over the last 30 days.
-        var since = now.Date.AddDays(-29);
+        var zone = await _timeZone.ForUserAsync(request.UserId, ct);
+        var since = UserCalendar.StartOfDayUtc(UserCalendar.LocalDate(now, zone).AddDays(-29), zone);
         var daily = logs
             .Where(l => l.ReviewedAt >= since)
-            .GroupBy(l => l.ReviewedAt.Date)
+            .GroupBy(l => UserCalendar.LocalDate(l.ReviewedAt, zone))
             .OrderBy(g => g.Key)
             .Select(g => new DailyReviewStatDto(
                 g.Key, g.Count(),

@@ -10,12 +10,12 @@ public record GetAllGlossaryTermsQuery(Guid UserId) : IRequest<Result<IEnumerabl
 
 public class GetAllGlossaryTermsQueryHandler : IRequestHandler<GetAllGlossaryTermsQuery, Result<IEnumerable<GlossaryTermDto>>>
 {
-    private readonly IUnitOfWork _unitOfWork;
-    public GetAllGlossaryTermsQueryHandler(IUnitOfWork unitOfWork) { _unitOfWork = unitOfWork; }
+    private readonly IGlossaryTermRepository _glossaryTerms;
+    public GetAllGlossaryTermsQueryHandler(IGlossaryTermRepository glossaryTerms) { _glossaryTerms = glossaryTerms; }
 
     public async Task<Result<IEnumerable<GlossaryTermDto>>> Handle(GetAllGlossaryTermsQuery request, CancellationToken cancellationToken)
     {
-        var terms = await _unitOfWork.GlossaryTerms.GetByUserWithSourcesAsync(request.UserId, cancellationToken);
+        var terms = await _glossaryTerms.GetByUserWithSourcesAsync(request.UserId, cancellationToken);
         var dtos = terms.Select(t =>
         {
             var isVideo = t.VideoId.HasValue;
@@ -69,17 +69,19 @@ public record UpdateGlossaryTermCommand(Guid UserId, Guid TermId, string Term, s
 public class UpdateGlossaryTermCommandHandler : IRequestHandler<UpdateGlossaryTermCommand, Result<GlossaryTermDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
-    public UpdateGlossaryTermCommandHandler(IUnitOfWork unitOfWork) { _unitOfWork = unitOfWork; }
+    private readonly IGlossaryTermRepository _glossaryTerms;
+    public UpdateGlossaryTermCommandHandler(IUnitOfWork unitOfWork, IGlossaryTermRepository glossaryTerms) { _unitOfWork = unitOfWork;
+    _glossaryTerms = glossaryTerms; }
 
     public async Task<Result<GlossaryTermDto>> Handle(UpdateGlossaryTermCommand request, CancellationToken cancellationToken)
     {
-        var term = await _unitOfWork.GlossaryTerms.GetOwnedAsync(request.TermId, request.UserId, cancellationToken);
+        var term = await _glossaryTerms.GetOwnedAsync(request.TermId, request.UserId, cancellationToken);
         if (term == null)
             return Result<GlossaryTermDto>.Failure("Glossary term not found.", "NOT_FOUND");
 
         term.Term = request.Term.Trim();
         term.Definition = request.Definition.Trim();
-        _unitOfWork.GlossaryTerms.Update(term);
+        _glossaryTerms.Update(term);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         var dto = term.ToGlossaryTermDto();
@@ -92,21 +94,23 @@ public record DeleteGlossaryTermCommand(Guid UserId, Guid TermId) : IRequest<Res
 public class DeleteGlossaryTermCommandHandler : IRequestHandler<DeleteGlossaryTermCommand, Result<bool>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IGlossaryTermRepository _glossaryTerms;
     private readonly IEmbeddingIndex _embeddingIndex;
 
-    public DeleteGlossaryTermCommandHandler(IUnitOfWork unitOfWork, IEmbeddingIndex embeddingIndex)
+    public DeleteGlossaryTermCommandHandler(IUnitOfWork unitOfWork, IGlossaryTermRepository glossaryTerms, IEmbeddingIndex embeddingIndex)
     {
         _unitOfWork = unitOfWork;
+        _glossaryTerms = glossaryTerms;
         _embeddingIndex = embeddingIndex;
     }
 
     public async Task<Result<bool>> Handle(DeleteGlossaryTermCommand request, CancellationToken cancellationToken)
     {
-        var term = await _unitOfWork.GlossaryTerms.GetOwnedAsync(request.TermId, request.UserId, cancellationToken);
+        var term = await _glossaryTerms.GetOwnedAsync(request.TermId, request.UserId, cancellationToken);
         if (term == null)
             return Result<bool>.Failure("Glossary term not found.", "NOT_FOUND");
 
-        _unitOfWork.GlossaryTerms.Remove(term);
+        _glossaryTerms.Remove(term);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         await _embeddingIndex.PruneOrphansAsync(request.UserId, cancellationToken);
         return Result<bool>.Success(true, "Term deleted.");

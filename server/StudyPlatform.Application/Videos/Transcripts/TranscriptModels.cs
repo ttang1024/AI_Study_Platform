@@ -19,10 +19,10 @@ public static class VideoCacheKeys
     public static string Transcript(string videoKey) => $"transcript:{videoKey}";
     public static string TranscriptSegments(string videoKey) => $"transcript_segments:{videoKey}";
     public static string Subtitles(string videoKey) => $"subtitles:{videoKey}";
-    public static string MindMap(string videoId) => $"mindmap:{videoId}";
-    public static string Summary(string videoId) => $"summary:{videoId}";
-    public static string Quiz(string videoId) => $"quiz:{videoId}";
-    public static string Flashcards(string videoId) => $"flashcards:{videoId}";
+
+    /// <summary>An AI result for a pasted video URL, scoped to the caller (see <c>AiCredentials.CacheScope</c>).</summary>
+    public static string Generated(string artifact, string videoKey, string callerScope)
+        => $"video-ai:{artifact.ToLowerInvariant()}:{videoKey}:{callerScope}";
     public static string Glossary(Guid videoRecordId, Guid userId) => $"glossary:video:{videoRecordId}:{userId}";
     public static string Quiz(Guid videoRecordId, Guid userId, string difficulty) => $"quiz:video:{videoRecordId}:{userId}:{difficulty}";
 }

@@ -13,12 +13,14 @@ public record UpdateDocumentContentCommand(Guid DocumentId, Guid UserId, string?
 public class UpdateDocumentContentCommandHandler : IRequestHandler<UpdateDocumentContentCommand, Result<DocumentDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IDocumentRepository _documents;
 
-    public UpdateDocumentContentCommandHandler(IUnitOfWork unitOfWork) { _unitOfWork = unitOfWork; }
+    public UpdateDocumentContentCommandHandler(IUnitOfWork unitOfWork, IDocumentRepository documents) { _unitOfWork = unitOfWork;
+    _documents = documents; }
 
     public async Task<Result<DocumentDto>> Handle(UpdateDocumentContentCommand request, CancellationToken cancellationToken)
     {
-        var document = await _unitOfWork.Documents.GetOwnedAsync(request.DocumentId, request.UserId, cancellationToken);
+        var document = await _documents.GetOwnedAsync(request.DocumentId, request.UserId, cancellationToken);
         if (document == null)
             return Result<DocumentDto>.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
 

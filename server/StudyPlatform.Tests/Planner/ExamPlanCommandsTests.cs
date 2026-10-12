@@ -17,11 +17,9 @@ public class CreateExamPlanCommandHandlerTests
 
     public CreateExamPlanCommandHandlerTests()
     {
-        _uow.Setup(u => u.ExamPlans).Returns(_plans.Object);
-        _uow.Setup(u => u.Courses).Returns(_courses.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
         _plans.Setup(r => r.AddAsync(It.IsAny<ExamPlan>(), default)).Returns(Task.CompletedTask);
-        _handler = new CreateExamPlanCommandHandler(_uow.Object);
+        _handler = new CreateExamPlanCommandHandler(_uow.Object, _courses.Object, _plans.Object);
     }
 
     [Fact]
@@ -94,9 +92,8 @@ public class DeleteExamPlanCommandHandlerTests
 
     public DeleteExamPlanCommandHandlerTests()
     {
-        _uow.Setup(u => u.ExamPlans).Returns(_plans.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new DeleteExamPlanCommandHandler(_uow.Object);
+        _handler = new DeleteExamPlanCommandHandler(_uow.Object, _plans.Object);
     }
 
     [Fact]
@@ -126,7 +123,6 @@ public class DeleteExamPlanCommandHandlerTests
 
 public class GetExamPlansQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IExamPlanRepository> _plans = new();
     private readonly Mock<ICourseRepository> _courses = new();
     private readonly GetExamPlansQueryHandler _handler;
@@ -134,9 +130,7 @@ public class GetExamPlansQueryHandlerTests
 
     public GetExamPlansQueryHandlerTests()
     {
-        _uow.Setup(u => u.ExamPlans).Returns(_plans.Object);
-        _uow.Setup(u => u.Courses).Returns(_courses.Object);
-        _handler = new GetExamPlansQueryHandler(_uow.Object);
+        _handler = new GetExamPlansQueryHandler(_courses.Object, _plans.Object);
     }
 
     [Fact]

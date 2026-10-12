@@ -1,6 +1,5 @@
 using System.Net;
 using System.Text;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -28,7 +27,7 @@ public class AiServiceRequestTests
         }
     }
 
-    private static AiService Service(HttpMessageHandler handler, IHttpContextAccessor accessor) => new(
+    private static AiService Service(HttpMessageHandler handler, IAiCredentialsProvider accessor) => new(
         new HttpClient(handler),
         NullLogger<AiService>.Instance,
         accessor,
@@ -41,7 +40,7 @@ public class AiServiceRequestTests
     public async Task Gemini_KeyGoesInAHeader_AndTheModelIsEscaped()
     {
         var handler = new Capture("""{"candidates":[{"content":{"parts":[{"text":"OK"}]}}]}""");
-        var accessor = AiTestCredentials.Accessor("gemini", "gemini/../evil?x=1", "AIza-secret");
+        var accessor = AiTestCredentials.Provider("gemini", "gemini/../evil?x=1", "AIza-secret");
 
         Assert.Equal("OK", await Service(handler, accessor).TestConnectionAsync());
 
@@ -56,7 +55,7 @@ public class AiServiceRequestTests
     public async Task OpenAiCompatible_UsesBearerAuth()
     {
         var handler = new Capture("""{"choices":[{"message":{"content":"OK"}}]}""");
-        var accessor = AiTestCredentials.Accessor("openai", "gpt-4o-mini", "sk-secret");
+        var accessor = AiTestCredentials.Provider("openai", "gpt-4o-mini", "sk-secret");
 
         await Service(handler, accessor).TestConnectionAsync();
 

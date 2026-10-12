@@ -2,6 +2,7 @@ import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 import { defineConfig, loadEnv } from 'vite'
+import { cspPlugin } from './vite-plugin-csp'
 import { seoPlugin } from './vite-plugin-seo'
 
 export default defineConfig(({ mode }) => {
@@ -16,6 +17,8 @@ export default defineConfig(({ mode }) => {
 				origin: env.VITE_SHARE_BASE_URL,
 				googleSiteVerification: env.VITE_GOOGLE_SITE_VERIFICATION,
 			}),
+			// Build-only CSP <meta>; see vite-plugin-csp.ts for what it does and doesn't restrict.
+			cspPlugin({ apiUrl: env.VITE_API_URL }),
 		],
 		resolve: {
 			// Array form: one entry needs a regex (exact-match 'react'), which the

@@ -31,11 +31,15 @@ public class CreateOcclusionFlashcardCommandHandler : IRequestHandler<CreateOccl
     private static readonly string[] AllowedContentTypes = ["image/png", "image/jpeg", "image/webp", "image/gif"];
 
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IDocumentRepository _documents;
+    private readonly IFlashcardRepository _flashcards;
     private readonly IBlobStorageService _blobStorage;
 
-    public CreateOcclusionFlashcardCommandHandler(IUnitOfWork unitOfWork, IBlobStorageService blobStorage)
+    public CreateOcclusionFlashcardCommandHandler(IUnitOfWork unitOfWork, IDocumentRepository documents, IFlashcardRepository flashcards, IBlobStorageService blobStorage)
     {
         _unitOfWork = unitOfWork;
+        _documents = documents;
+        _flashcards = flashcards;
         _blobStorage = blobStorage;
     }
 
@@ -64,7 +68,7 @@ public class CreateOcclusionFlashcardCommandHandler : IRequestHandler<CreateOccl
 
         if (request.DocumentId.HasValue)
         {
-            var doc = await _unitOfWork.Documents.GetOwnedAsync(request.DocumentId.Value, request.UserId, ct);
+            var doc = await _documents.GetOwnedAsync(request.DocumentId.Value, request.UserId, ct);
             if (doc == null)
                 return Result<FlashcardDto>.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
         }
@@ -106,7 +110,7 @@ public class CreateOcclusionFlashcardCommandHandler : IRequestHandler<CreateOccl
             UpdatedAt = DateTime.UtcNow,
         };
 
-        await _unitOfWork.Flashcards.AddAsync(flashcard, ct);
+        await _flashcards.AddAsync(flashcard, ct);
         await _unitOfWork.SaveChangesAsync(ct);
 
         return Result<FlashcardDto>.Success(flashcard.ToFlashcardDto(), "Occlusion card created.");

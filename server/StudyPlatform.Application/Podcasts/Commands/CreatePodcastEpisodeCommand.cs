@@ -15,17 +15,21 @@ public record CreatePodcastEpisodeCommand(
 public class CreatePodcastEpisodeCommandHandler : IRequestHandler<CreatePodcastEpisodeCommand, Result<DocumentDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICourseRepository _courses;
+    private readonly IDocumentRepository _documents;
     private readonly IPodcastEpisodeService _podcastService;
 
-    public CreatePodcastEpisodeCommandHandler(IUnitOfWork unitOfWork, IPodcastEpisodeService podcastService)
+    public CreatePodcastEpisodeCommandHandler(IUnitOfWork unitOfWork, ICourseRepository courses, IDocumentRepository documents, IPodcastEpisodeService podcastService)
     {
         _unitOfWork = unitOfWork;
+        _courses = courses;
+        _documents = documents;
         _podcastService = podcastService;
     }
 
     public async Task<Result<DocumentDto>> Handle(CreatePodcastEpisodeCommand request, CancellationToken cancellationToken)
     {
-        var course = await _unitOfWork.Courses.GetOwnedAsync(request.CourseId, request.UserId, cancellationToken);
+        var course = await _courses.GetOwnedAsync(request.CourseId, request.UserId, cancellationToken);
         if (course == null)
             return Result<DocumentDto>.Failure("Course not found.", "COURSE_NOT_FOUND");
 
@@ -59,7 +63,7 @@ public class CreatePodcastEpisodeCommandHandler : IRequestHandler<CreatePodcastE
             UpdatedAt = DateTime.UtcNow,
         };
 
-        await _unitOfWork.Documents.AddAsync(document, cancellationToken);
+        await _documents.AddAsync(document, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result<DocumentDto>.Success(document.ToDocumentDto(),

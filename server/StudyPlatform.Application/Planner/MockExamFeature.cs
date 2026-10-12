@@ -18,23 +18,27 @@ public record GradeMockExamCommand(Guid UserId, Dictionary<string, string> Answe
 
 public class GetMockExamQueryHandler : IRequestHandler<GetMockExamQuery, Result<MockExamDto>>
 {
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly IDocumentRepository _documents;
+    private readonly IQuizRepository _quizzes;
+    private readonly IVideoRepository _videos;
 
-    public GetMockExamQueryHandler(IUnitOfWork unitOfWork)
+    public GetMockExamQueryHandler(IDocumentRepository documents, IQuizRepository quizzes, IVideoRepository videos)
     {
-        _unitOfWork = unitOfWork;
+        _documents = documents;
+        _quizzes = quizzes;
+        _videos = videos;
     }
 
     public async Task<Result<MockExamDto>> Handle(GetMockExamQuery request, CancellationToken cancellationToken)
     {
-        var quizzes = (await _unitOfWork.Quizzes.FindAsync(q => q.UserId == request.UserId, cancellationToken)).ToList();
+        var quizzes = (await _quizzes.FindAsync(q => q.UserId == request.UserId, cancellationToken)).ToList();
 
         if (request.CourseId.HasValue)
         {
-            var docIds = (await _unitOfWork.Documents.FindAsync(
+            var docIds = (await _documents.FindAsync(
                 d => d.UserId == request.UserId && d.CourseId == request.CourseId.Value, cancellationToken))
                 .Select(d => d.DocumentId).ToHashSet();
-            var videoIds = (await _unitOfWork.Videos.FindAsync(
+            var videoIds = (await _videos.FindAsync(
                 v => v.UserId == request.UserId && v.CourseId == request.CourseId.Value, cancellationToken))
                 .Select(v => v.VideoId).ToHashSet();
 
@@ -74,10 +78,14 @@ public class GetMockExamQueryHandler : IRequestHandler<GetMockExamQuery, Result<
 public class GradeMockExamCommandHandler : IRequestHandler<GradeMockExamCommand, Result<MockExamResultDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IQuizRepository _quizzes;
+    private readonly IMistakeEntryRepository _mistakeEntries;
 
-    public GradeMockExamCommandHandler(IUnitOfWork unitOfWork)
+    public GradeMockExamCommandHandler(IUnitOfWork unitOfWork, IQuizRepository quizzes, IMistakeEntryRepository mistakeEntries)
     {
         _unitOfWork = unitOfWork;
+        _quizzes = quizzes;
+        _mistakeEntries = mistakeEntries;
     }
 
     public async Task<Result<MockExamResultDto>> Handle(GradeMockExamCommand request, CancellationToken cancellationToken)
@@ -90,7 +98,7 @@ public class GradeMockExamCommandHandler : IRequestHandler<GradeMockExamCommand,
             .Where(id => id != Guid.Empty)
             .ToList();
 
-        var quizzes = (await _unitOfWork.Quizzes.FindAsync(
+        var quizzes = (await _quizzes.FindAsync(
             q => q.UserId == request.UserId && quizIds.Contains(q.QuizId), cancellationToken)).ToList();
 
         var items = new List<MockExamResultItemDto>();
@@ -102,7 +110,7 @@ public class GradeMockExamCommandHandler : IRequestHandler<GradeMockExamCommand,
                 quiz.QuizId, quiz.Question, quiz.CorrectAnswer, userAnswer, correct, quiz.Explanation));
         }
 
-        await MistakeCapture.CaptureForQuizzesAsync(_unitOfWork, request.UserId, quizzes, request.Answers, cancellationToken);
+        await MistakeCapture.CaptureForQuizzesAsync(_mistakeEntries, request.UserId, quizzes, request.Answers, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         var score = items.Count(i => i.Correct);

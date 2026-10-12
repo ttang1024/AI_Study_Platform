@@ -17,25 +17,29 @@ public class GetExamScheduleQueryHandler : IRequestHandler<GetExamScheduleQuery,
 {
     private const int MaxDays = 21;
 
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly ICourseRepository _courses;
+    private readonly IMistakeEntryRepository _mistakeEntries;
+    private readonly IExamPlanRepository _examPlans;
     private readonly IMediator _mediator;
 
-    public GetExamScheduleQueryHandler(IUnitOfWork unitOfWork, IMediator mediator)
+    public GetExamScheduleQueryHandler(ICourseRepository courses, IMistakeEntryRepository mistakeEntries, IExamPlanRepository examPlans, IMediator mediator)
     {
-        _unitOfWork = unitOfWork;
+        _courses = courses;
+        _mistakeEntries = mistakeEntries;
+        _examPlans = examPlans;
         _mediator = mediator;
     }
 
     public async Task<Result<ExamScheduleDto>> Handle(GetExamScheduleQuery request, CancellationToken cancellationToken)
     {
-        var plan = await _unitOfWork.ExamPlans.FirstOrDefaultAsync(
+        var plan = await _examPlans.FirstOrDefaultAsync(
             p => p.ExamPlanId == request.PlanId && p.UserId == request.UserId, cancellationToken);
         if (plan == null)
             return Result<ExamScheduleDto>.Failure("Exam plan not found.", "PLAN_NOT_FOUND");
 
         string? courseName = null;
         if (plan.CourseId.HasValue)
-            courseName = (await _unitOfWork.Courses.GetByIdAsync(plan.CourseId.Value, cancellationToken))?.CourseName;
+            courseName = (await _courses.GetByIdAsync(plan.CourseId.Value, cancellationToken))?.CourseName;
 
         var gaps = (await _mediator.Send(new GetKnowledgeGapsQuery(request.UserId), cancellationToken)).Data!;
         var relevantGaps = gaps.Gaps
@@ -43,7 +47,7 @@ public class GetExamScheduleQueryHandler : IRequestHandler<GetExamScheduleQuery,
             .Take(12)
             .ToList();
 
-        var openMistakes = await _unitOfWork.MistakeEntries.CountAsync(
+        var openMistakes = await _mistakeEntries.CountAsync(
             m => m.UserId == request.UserId && m.Status == "open", cancellationToken);
 
         var summary = (await _mediator.Send(new GetDashboardSummaryQuery(request.UserId), cancellationToken)).Data!;

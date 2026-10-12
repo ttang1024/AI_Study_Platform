@@ -11,7 +11,6 @@ namespace StudyPlatform.Tests.Search;
 
 public class AskLibraryQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IDocumentRepository> _documents = new();
     private readonly Mock<IVideoRepository> _videos = new();
     private readonly Mock<INoteRepository> _notes = new();
@@ -23,11 +22,6 @@ public class AskLibraryQueryHandlerTests
 
     public AskLibraryQueryHandlerTests()
     {
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
-        _uow.Setup(u => u.Videos).Returns(_videos.Object);
-        _uow.Setup(u => u.Notes).Returns(_notes.Object);
-        _uow.Setup(u => u.GlossaryTerms).Returns(_terms.Object);
-
         _documents.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Document, bool>>>(), default)).ReturnsAsync(Array.Empty<Document>());
         _videos.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Video, bool>>>(), default)).ReturnsAsync(Array.Empty<Video>());
         _notes.Setup(r => r.GetByUserIdAsync(_userId, default)).ReturnsAsync(Array.Empty<Note>());
@@ -36,7 +30,7 @@ public class AskLibraryQueryHandlerTests
             .ReturnsAsync(Array.Empty<EmbeddingHit>());
         _ai.Setup(a => a.AnswerQuestionAsync(It.IsAny<string>(), It.IsAny<string>(), default)).ReturnsAsync("The answer is 42 [1].");
 
-        _handler = new AskLibraryQueryHandler(_uow.Object, _ai.Object, _embeddingIndex.Object, Mock.Of<ILogger<AskLibraryQueryHandler>>());
+        _handler = new AskLibraryQueryHandler(_documents.Object, _notes.Object, _videos.Object, _terms.Object, _ai.Object, _embeddingIndex.Object, Mock.Of<ILogger<AskLibraryQueryHandler>>());
     }
 
     [Fact]

@@ -14,26 +14,30 @@ public record UpdateCourseCommand(
 public class UpdateCourseCommandHandler : IRequestHandler<UpdateCourseCommand, Result<CourseDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICourseRepository _courses;
+    private readonly IDocumentRepository _documents;
 
-    public UpdateCourseCommandHandler(IUnitOfWork unitOfWork)
+    public UpdateCourseCommandHandler(IUnitOfWork unitOfWork, ICourseRepository courses, IDocumentRepository documents)
     {
         _unitOfWork = unitOfWork;
+        _courses = courses;
+        _documents = documents;
     }
 
     public async Task<Result<CourseDto>> Handle(UpdateCourseCommand request, CancellationToken cancellationToken)
     {
-        var course = await _unitOfWork.Courses.GetOwnedAsync(request.CourseId, request.UserId, cancellationToken);
+        var course = await _courses.GetOwnedAsync(request.CourseId, request.UserId, cancellationToken);
         if (course == null)
             return Result<CourseDto>.Failure("Course not found.", "COURSE_NOT_FOUND");
 
         // A COUNT for the response DTO, rather than loading every document (and its text) to call .Count.
-        var documentCount = await _unitOfWork.Documents.CountAsync(d => d.CourseId == request.CourseId, cancellationToken);
+        var documentCount = await _documents.CountAsync(d => d.CourseId == request.CourseId, cancellationToken);
 
         course.CourseName = request.CourseName;
         course.CourseColor = request.CourseColor;
         course.UpdatedAt = DateTime.UtcNow;
 
-        _unitOfWork.Courses.Update(course);
+        _courses.Update(course);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         var dto = new CourseDto(

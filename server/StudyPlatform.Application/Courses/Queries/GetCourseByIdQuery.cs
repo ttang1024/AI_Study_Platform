@@ -9,21 +9,23 @@ public record GetCourseByIdQuery(Guid CourseId, Guid UserId) : IRequest<Result<C
 
 public class GetCourseByIdQueryHandler : IRequestHandler<GetCourseByIdQuery, Result<CourseDto>>
 {
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly ICourseRepository _courses;
+    private readonly ICourseAccess _courseAccess;
 
-    public GetCourseByIdQueryHandler(IUnitOfWork unitOfWork)
+    public GetCourseByIdQueryHandler(ICourseRepository courses, ICourseAccess courseAccess)
     {
-        _unitOfWork = unitOfWork;
+        _courses = courses;
+        _courseAccess = courseAccess;
     }
 
     public async Task<Result<CourseDto>> Handle(GetCourseByIdQuery request, CancellationToken cancellationToken)
     {
-        var course = await _unitOfWork.Courses.GetListItemByIdAsync(request.CourseId, cancellationToken);
+        var course = await _courses.GetListItemByIdAsync(request.CourseId, cancellationToken);
         if (course == null)
             return Result<CourseDto>.Failure("Course not found.", "COURSE_NOT_FOUND");
 
         if (course.UserId != request.UserId
-            && !await _unitOfWork.HasSharedCourseAccessAsync(request.UserId, request.CourseId, cancellationToken))
+            && !await _courseAccess.HasSharedCourseAccessAsync(request.UserId, request.CourseId, cancellationToken))
             return Result<CourseDto>.Failure("Course not found.", "COURSE_NOT_FOUND");
 
         var dto = new CourseDto(

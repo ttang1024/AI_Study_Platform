@@ -9,13 +9,13 @@ public record GetFeedbackByIdQuery(Guid Id) : IRequest<Result<FeedbackItemDto>>;
 
 public class GetFeedbackByIdQueryHandler : IRequestHandler<GetFeedbackByIdQuery, Result<FeedbackItemDto>>
 {
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly IFeedbackRepository _feedbacks;
 
-    public GetFeedbackByIdQueryHandler(IUnitOfWork unitOfWork) => _unitOfWork = unitOfWork;
+    public GetFeedbackByIdQueryHandler(IFeedbackRepository feedbacks) => _feedbacks = feedbacks;
 
     public async Task<Result<FeedbackItemDto>> Handle(GetFeedbackByIdQuery request, CancellationToken cancellationToken)
     {
-        var feedback = await _unitOfWork.Feedbacks.GetByIdAsync(request.Id, cancellationToken);
+        var feedback = await _feedbacks.GetByIdAsync(request.Id, cancellationToken);
         if (feedback == null)
             return Result<FeedbackItemDto>.Failure("Feedback not found.", "NOT_FOUND");
 

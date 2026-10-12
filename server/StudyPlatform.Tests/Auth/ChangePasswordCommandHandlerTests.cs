@@ -17,9 +17,8 @@ public class ChangePasswordCommandHandlerTests
 
     public ChangePasswordCommandHandlerTests()
     {
-        _uow.Setup(u => u.Users).Returns(_users.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new ChangePasswordCommandHandler(_uow.Object, _hasher.Object);
+        _handler = new ChangePasswordCommandHandler(_uow.Object, _users.Object, _hasher.Object);
     }
 
     private User MakeUser() => new()

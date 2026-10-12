@@ -21,10 +21,12 @@ public class ImportFlashcardsCommandHandler : IRequestHandler<ImportFlashcardsCo
     private const int MaxRows = 2000;
 
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IFlashcardRepository _flashcards;
 
-    public ImportFlashcardsCommandHandler(IUnitOfWork unitOfWork)
+    public ImportFlashcardsCommandHandler(IUnitOfWork unitOfWork, IFlashcardRepository flashcards)
     {
         _unitOfWork = unitOfWork;
+        _flashcards = flashcards;
     }
 
     public async Task<Result<ImportFlashcardsResultDto>> Handle(ImportFlashcardsCommand request, CancellationToken cancellationToken)
@@ -34,7 +36,7 @@ public class ImportFlashcardsCommandHandler : IRequestHandler<ImportFlashcardsCo
         if (request.Rows.Count > MaxRows)
             return Result<ImportFlashcardsResultDto>.Failure($"Too many cards — limit is {MaxRows} per import.", "TOO_MANY_ROWS");
 
-        var existing = await _unitOfWork.Flashcards.FindAsync(f => f.UserId == request.UserId, cancellationToken);
+        var existing = await _flashcards.FindAsync(f => f.UserId == request.UserId, cancellationToken);
         var existingFronts = existing.Select(f => f.Front.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         var now = DateTime.UtcNow;
@@ -68,7 +70,7 @@ public class ImportFlashcardsCommandHandler : IRequestHandler<ImportFlashcardsCo
 
         if (toAdd.Count > 0)
         {
-            await _unitOfWork.Flashcards.AddRangeAsync(toAdd, cancellationToken);
+            await _flashcards.AddRangeAsync(toAdd, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
         }
 

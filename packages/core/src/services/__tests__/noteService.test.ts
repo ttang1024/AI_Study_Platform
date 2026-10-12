@@ -79,13 +79,6 @@ describe('noteService', () => {
       expect(fakeHttp.post).toHaveBeenCalledWith('/api/notes', payload)
     })
 
-    it('createNoteForDocument posts to the course/document-scoped endpoint', async () => {
-      const service = createNoteService(fakeHttp)
-      vi.mocked(fakeHttp.post).mockResolvedValueOnce({ data: { data: backendNote() } })
-      await service.createNoteForDocument('c-1', 'd-1', 'body')
-      expect(fakeHttp.post).toHaveBeenCalledWith('/api/courses/c-1/documents/d-1/notes', { content: 'body' })
-    })
-
     it('updateNote puts to the note-scoped endpoint', async () => {
       const service = createNoteService(fakeHttp)
       vi.mocked(fakeHttp.put).mockResolvedValueOnce({ data: { data: backendNote() } })

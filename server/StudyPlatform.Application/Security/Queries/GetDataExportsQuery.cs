@@ -11,17 +11,17 @@ public record GetDataExportsQuery(Guid UserId) : IRequest<Result<IReadOnlyList<D
 public class GetDataExportsQueryHandler
     : IRequestHandler<GetDataExportsQuery, Result<IReadOnlyList<DataExportDto>>>
 {
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly IDataExportRequestRepository _dataExportRequests;
 
-    public GetDataExportsQueryHandler(IUnitOfWork unitOfWork)
+    public GetDataExportsQueryHandler(IDataExportRequestRepository dataExportRequests)
     {
-        _unitOfWork = unitOfWork;
+        _dataExportRequests = dataExportRequests;
     }
 
     public async Task<Result<IReadOnlyList<DataExportDto>>> Handle(
         GetDataExportsQuery request, CancellationToken cancellationToken)
     {
-        var exports = await _unitOfWork.DataExportRequests.GetForUserAsync(request.UserId, cancellationToken);
+        var exports = await _dataExportRequests.GetForUserAsync(request.UserId, cancellationToken);
         IReadOnlyList<DataExportDto> dtos = exports.Select(DataExportMapper.ToDto).ToList();
         return Result<IReadOnlyList<DataExportDto>>.Success(dtos);
     }

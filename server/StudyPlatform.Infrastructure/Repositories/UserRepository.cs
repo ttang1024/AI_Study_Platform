@@ -37,8 +37,7 @@ public class UserRepository : Repository<User>, IUserRepository
 
         var total = await query.CountAsync(cancellationToken);
         var items = await query
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
+            .Page(page, pageSize)
             .ToListAsync(cancellationToken);
 
         return (items, total);

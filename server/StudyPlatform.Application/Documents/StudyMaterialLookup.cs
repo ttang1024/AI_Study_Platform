@@ -11,11 +11,15 @@ public class StudyMaterialLookup : IStudyMaterialLookup
 {
     private const string FallbackCourseColor = "#a1a1aa";
 
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly ICourseRepository _courses;
+    private readonly IDocumentRepository _documents;
+    private readonly IVideoRepository _videos;
 
-    public StudyMaterialLookup(IUnitOfWork unitOfWork)
+    public StudyMaterialLookup(ICourseRepository courses, IDocumentRepository documents, IVideoRepository videos)
     {
-        _unitOfWork = unitOfWork;
+        _courses = courses;
+        _documents = documents;
+        _videos = videos;
     }
 
     public Task<IEnumerable<PendingMaterialDto>> ListUncoveredAsync(
@@ -50,14 +54,14 @@ public class StudyMaterialLookup : IStudyMaterialLookup
         Expression<Func<Video, bool>> videoFilter,
         CancellationToken cancellationToken)
     {
-        var courseMap = (await _unitOfWork.Courses.FindAsNoTrackingAsync(
+        var courseMap = (await _courses.FindAsNoTrackingAsync(
                 c => c.UserId == userId, cancellationToken))
             .ToDictionary(c => c.CourseId);
 
-        var documents = (await _unitOfWork.Documents.FindAsNoTrackingAsync(documentFilter, cancellationToken))
+        var documents = (await _documents.FindAsNoTrackingAsync(documentFilter, cancellationToken))
             .Select(d => ToMaterial(d, courseMap));
 
-        var videos = (await _unitOfWork.Videos.FindAsNoTrackingAsync(videoFilter, cancellationToken))
+        var videos = (await _videos.FindAsNoTrackingAsync(videoFilter, cancellationToken))
             .Select(v => ToMaterial(v, courseMap));
 
         return documents.Concat(videos).OrderByDescending(m => m.CreatedAt);

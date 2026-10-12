@@ -318,11 +318,13 @@ export function createVideoService(http: HttpClient, streamSse: SseStreamFn) {
       answers: Record<string, string>,
       score: number,
       total: number,
+      confidence?: Record<string, number>,
     ): Promise<void> {
       await http.post(`${VIDEO_API}/${videoId}/quiz/submit`, {
         answers,
         score,
         total,
+        confidence,
       });
     },
 

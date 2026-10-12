@@ -14,10 +14,12 @@ public record CreateCourseCommand(
 public class CreateCourseCommandHandler : IRequestHandler<CreateCourseCommand, Result<CourseDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICourseRepository _courses;
 
-    public CreateCourseCommandHandler(IUnitOfWork unitOfWork)
+    public CreateCourseCommandHandler(IUnitOfWork unitOfWork, ICourseRepository courses)
     {
         _unitOfWork = unitOfWork;
+        _courses = courses;
     }
 
     public async Task<Result<CourseDto>> Handle(CreateCourseCommand request, CancellationToken cancellationToken)
@@ -32,7 +34,7 @@ public class CreateCourseCommandHandler : IRequestHandler<CreateCourseCommand, R
             UpdatedAt = DateTime.UtcNow
         };
 
-        await _unitOfWork.Courses.AddAsync(course, cancellationToken);
+        await _courses.AddAsync(course, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         var dto = new CourseDto(

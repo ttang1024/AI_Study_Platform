@@ -52,7 +52,7 @@ public partial class UserDocumentsController : ControllerBase
             response.EnsureSuccessStatusCode();
             html = await response.Content.ReadAsStringAsync(cancellationToken);
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             return BadRequest(BaseResponse<DocumentDto>.Fail("Failed to fetch that URL. Check that it is public and reachable.", "URL_FETCH_FAILED"));
         }

@@ -10,7 +10,6 @@ namespace StudyPlatform.Tests.Practice;
 
 public class GetSmartSessionQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IDocumentRepository> _documents = new();
     private readonly Mock<IVideoRepository> _videos = new();
     private readonly Mock<IFlashcardSrsDataRepository> _srs = new();
@@ -23,14 +22,6 @@ public class GetSmartSessionQueryHandlerTests
 
     public GetSmartSessionQueryHandlerTests()
     {
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
-        _uow.Setup(u => u.Videos).Returns(_videos.Object);
-        _uow.Setup(u => u.FlashcardSrs).Returns(_srs.Object);
-        _uow.Setup(u => u.Flashcards).Returns(_flashcards.Object);
-        _uow.Setup(u => u.MistakeEntries).Returns(_mistakes.Object);
-        _uow.Setup(u => u.GlossaryMastered).Returns(_mastered.Object);
-        _uow.Setup(u => u.GlossaryTerms).Returns(_terms.Object);
-
         _documents.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Document, bool>>>(), default)).ReturnsAsync(Array.Empty<Document>());
         _videos.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Video, bool>>>(), default)).ReturnsAsync(Array.Empty<Video>());
         _srs.Setup(r => r.GetDueByUserIdAsync(_userId, It.IsAny<DateTime>(), default)).ReturnsAsync(Array.Empty<FlashcardSrsData>());
@@ -39,7 +30,7 @@ public class GetSmartSessionQueryHandlerTests
         _mastered.Setup(r => r.GetMasteredTermIdsByUserAsync(_userId, default)).ReturnsAsync(Array.Empty<Guid>());
         _terms.Setup(r => r.GetByUserWithSourcesAsync(_userId, default)).ReturnsAsync(Array.Empty<GlossaryTerm>());
 
-        _handler = new GetSmartSessionQueryHandler(_uow.Object);
+        _handler = new GetSmartSessionQueryHandler(_documents.Object, _flashcards.Object, _videos.Object, _terms.Object, _mastered.Object, _srs.Object, _mistakes.Object);
     }
 
     [Fact]

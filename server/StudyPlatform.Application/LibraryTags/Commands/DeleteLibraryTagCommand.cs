@@ -13,19 +13,21 @@ public record DeleteLibraryTagCommand(Guid UserId, Guid LibraryTagId) : IRequest
 public class DeleteLibraryTagCommandHandler : IRequestHandler<DeleteLibraryTagCommand, Result>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ILibraryTagRepository _libraryTags;
 
-    public DeleteLibraryTagCommandHandler(IUnitOfWork unitOfWork)
+    public DeleteLibraryTagCommandHandler(IUnitOfWork unitOfWork, ILibraryTagRepository libraryTags)
     {
         _unitOfWork = unitOfWork;
+        _libraryTags = libraryTags;
     }
 
     public async Task<Result> Handle(DeleteLibraryTagCommand request, CancellationToken cancellationToken)
     {
-        var tag = await _unitOfWork.LibraryTags.GetOwnedAsync(request.LibraryTagId, request.UserId, cancellationToken);
+        var tag = await _libraryTags.GetOwnedAsync(request.LibraryTagId, request.UserId, cancellationToken);
         if (tag == null)
             return Result.Failure("Not found.", "TAG_NOT_FOUND");
 
-        _unitOfWork.LibraryTags.Remove(tag);
+        _libraryTags.Remove(tag);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result.Success("Deleted. Your items were not removed.");

@@ -29,11 +29,21 @@ public class GeneratePracticeTestQueryHandler : IRequestHandler<GeneratePractice
     private static readonly string[] AllSources = { "quiz", "flashcard", "glossary", "problem" };
     private const int MaxCount = 50;
 
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly IDocumentRepository _documents;
+    private readonly IQuizRepository _quizzes;
+    private readonly IFlashcardRepository _flashcards;
+    private readonly IVideoRepository _videos;
+    private readonly IGlossaryTermRepository _glossaryTerms;
+    private readonly IWorkedProblemRepository _workedProblems;
 
-    public GeneratePracticeTestQueryHandler(IUnitOfWork unitOfWork)
+    public GeneratePracticeTestQueryHandler(IDocumentRepository documents, IQuizRepository quizzes, IFlashcardRepository flashcards, IVideoRepository videos, IGlossaryTermRepository glossaryTerms, IWorkedProblemRepository workedProblems)
     {
-        _unitOfWork = unitOfWork;
+        _documents = documents;
+        _quizzes = quizzes;
+        _flashcards = flashcards;
+        _videos = videos;
+        _glossaryTerms = glossaryTerms;
+        _workedProblems = workedProblems;
     }
 
     public async Task<Result<PracticeTestDto>> Handle(GeneratePracticeTestQuery request, CancellationToken ct)
@@ -45,8 +55,8 @@ public class GeneratePracticeTestQueryHandler : IRequestHandler<GeneratePractice
             .ToHashSet();
 
         // Course mapping so we can filter any source down to a single course.
-        var documents = (await _unitOfWork.Documents.FindAsNoTrackingAsync(d => d.UserId == userId, ct)).ToList();
-        var videos = (await _unitOfWork.Videos.FindAsNoTrackingAsync(v => v.UserId == userId, ct)).ToList();
+        var documents = (await _documents.FindAsNoTrackingAsync(d => d.UserId == userId, ct)).ToList();
+        var videos = (await _videos.FindAsNoTrackingAsync(v => v.UserId == userId, ct)).ToList();
         var docToCourse = documents.ToDictionary(d => d.DocumentId, d => d.CourseId);
         var videoToCourse = videos.ToDictionary(v => v.VideoId, v => v.CourseId);
 
@@ -64,7 +74,7 @@ public class GeneratePracticeTestQueryHandler : IRequestHandler<GeneratePractice
         // ── Quiz bank (multiple choice, auto-graded) ──
         if (sources.Contains("quiz"))
         {
-            var quizzes = (await _unitOfWork.Quizzes.FindAsNoTrackingAsync(q => q.UserId == userId, ct)).ToList();
+            var quizzes = (await _quizzes.FindAsNoTrackingAsync(q => q.UserId == userId, ct)).ToList();
             var pool = new List<PracticeQuestionDto>();
             foreach (var q in quizzes)
             {
@@ -83,7 +93,7 @@ public class GeneratePracticeTestQueryHandler : IRequestHandler<GeneratePractice
         // ── Flashcards (recall, self-graded; cloze fronts get blanked out) ──
         if (sources.Contains("flashcard"))
         {
-            var cards = (await _unitOfWork.Flashcards.GetByUserIdAsync(userId, ct)).ToList();
+            var cards = (await _flashcards.GetByUserIdAsync(userId, ct)).ToList();
             pools["flashcard"] = cards
                 .Select(f => new
                 {
@@ -101,7 +111,7 @@ public class GeneratePracticeTestQueryHandler : IRequestHandler<GeneratePractice
         // ── Glossary (term → definition; multiple choice when enough distractors exist) ──
         if (sources.Contains("glossary"))
         {
-            var terms = (await _unitOfWork.GlossaryTerms.GetByUserWithSourcesAsync(userId, ct)).ToList();
+            var terms = (await _glossaryTerms.GetByUserWithSourcesAsync(userId, ct)).ToList();
             var allDefinitions = terms.Select(t => t.Definition).Where(d => !string.IsNullOrWhiteSpace(d)).Distinct().ToList();
             var pool = new List<PracticeQuestionDto>();
             foreach (var t in terms)
@@ -136,7 +146,7 @@ public class GeneratePracticeTestQueryHandler : IRequestHandler<GeneratePractice
         // ── Worked problems (recall, self-graded) ──
         if (sources.Contains("problem"))
         {
-            var problems = (await _unitOfWork.WorkedProblems.GetByUserAsync(userId, null, null, ct)).ToList();
+            var problems = (await _workedProblems.GetByUserAsync(userId, null, null, ct)).ToList();
             pools["problem"] = problems
                 .Select(p => new { p, courseId = CourseOf(p.DocumentId, p.VideoId) })
                 .Where(x => CourseMatches(x.courseId) && !string.IsNullOrWhiteSpace(x.p.ProblemText))

@@ -21,16 +21,12 @@ public class SaveVideoQuizSubmissionCommandHandlerTests
 
     public SaveVideoQuizSubmissionCommandHandlerTests()
     {
-        _uow.Setup(u => u.Videos).Returns(_videos.Object);
-        _uow.Setup(u => u.QuizSubmissions).Returns(_submissions.Object);
-        _uow.Setup(u => u.MistakeEntries).Returns(_mistakes.Object);
-        _uow.Setup(u => u.Quizzes).Returns(_quizzes.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
         _videos.Setup(r => r.GetByIdForUserAsync(_videoId, _userId, default))
             .ReturnsAsync(new Video { VideoId = _videoId, UserId = _userId });
         _quizzes.Setup(r => r.FindAsync(It.IsAny<Expression<Func<Quiz, bool>>>(), default)).ReturnsAsync(Array.Empty<Quiz>());
         _mistakes.Setup(r => r.FindAsync(It.IsAny<Expression<Func<MistakeEntry, bool>>>(), default)).ReturnsAsync(Array.Empty<MistakeEntry>());
-        _handler = new SaveVideoQuizSubmissionCommandHandler(_uow.Object, new QuizSubmissionWriter(_uow.Object));
+        _handler = new SaveVideoQuizSubmissionCommandHandler(_videos.Object, new QuizSubmissionWriter(_uow.Object, _quizzes.Object, _submissions.Object, _mistakes.Object));
     }
 
     [Fact]

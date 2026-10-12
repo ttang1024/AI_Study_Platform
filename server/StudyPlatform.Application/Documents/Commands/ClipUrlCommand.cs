@@ -19,17 +19,21 @@ public record ClipUrlCommand(
 public class ClipUrlCommandHandler : IRequestHandler<ClipUrlCommand, Result<DocumentDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICourseRepository _courses;
+    private readonly IDocumentRepository _documents;
     private readonly IBlobStorageService _blobStorageService;
 
-    public ClipUrlCommandHandler(IUnitOfWork unitOfWork, IBlobStorageService blobStorageService)
+    public ClipUrlCommandHandler(IUnitOfWork unitOfWork, ICourseRepository courses, IDocumentRepository documents, IBlobStorageService blobStorageService)
     {
         _unitOfWork = unitOfWork;
+        _courses = courses;
+        _documents = documents;
         _blobStorageService = blobStorageService;
     }
 
     public async Task<Result<DocumentDto>> Handle(ClipUrlCommand request, CancellationToken cancellationToken)
     {
-        var course = await _unitOfWork.Courses.GetOwnedAsync(request.CourseId, request.UserId, cancellationToken);
+        var course = await _courses.GetOwnedAsync(request.CourseId, request.UserId, cancellationToken);
         if (course == null)
             return Result<DocumentDto>.Failure("Course not found.", "COURSE_NOT_FOUND");
 
@@ -39,7 +43,7 @@ public class ClipUrlCommandHandler : IRequestHandler<ClipUrlCommand, Result<Docu
         {
             blobUrl = await _blobStorageService.UploadAsync(request.ContentStream, blobFileName, request.ContentType, cancellationToken);
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             return Result<DocumentDto>.Failure("Storage is unavailable right now. Please try again.", "STORAGE_ERROR");
         }
@@ -58,7 +62,7 @@ public class ClipUrlCommandHandler : IRequestHandler<ClipUrlCommand, Result<Docu
             UpdatedAt = DateTime.UtcNow
         };
 
-        await _unitOfWork.Documents.AddAsync(document, cancellationToken);
+        await _documents.AddAsync(document, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result<DocumentDto>.Success(document.ToDocumentDto(), "Article clipped successfully.");

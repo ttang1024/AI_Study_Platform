@@ -8,15 +8,13 @@ namespace StudyPlatform.Tests.Flashcards;
 
 public class GetLeechFlashcardsQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IFlashcardSrsDataRepository> _srs = new();
     private readonly GetLeechFlashcardsQueryHandler _handler;
     private readonly Guid _userId = Guid.NewGuid();
 
     public GetLeechFlashcardsQueryHandlerTests()
     {
-        _uow.Setup(u => u.FlashcardSrs).Returns(_srs.Object);
-        _handler = new GetLeechFlashcardsQueryHandler(_uow.Object);
+        _handler = new GetLeechFlashcardsQueryHandler(_srs.Object);
     }
 
     [Fact]
@@ -60,10 +58,8 @@ public class SetFlashcardSuspendedCommandHandlerTests
 
     public SetFlashcardSuspendedCommandHandlerTests()
     {
-        _uow.Setup(u => u.Flashcards).Returns(_flashcards.Object);
-        _uow.Setup(u => u.FlashcardSrs).Returns(_srs.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new SetFlashcardSuspendedCommandHandler(_uow.Object);
+        _handler = new SetFlashcardSuspendedCommandHandler(_uow.Object, _flashcards.Object, _srs.Object);
     }
 
     [Fact]
@@ -135,10 +131,8 @@ public class ResetFlashcardSrsCommandHandlerTests
 
     public ResetFlashcardSrsCommandHandlerTests()
     {
-        _uow.Setup(u => u.Flashcards).Returns(_flashcards.Object);
-        _uow.Setup(u => u.FlashcardSrs).Returns(_srs.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new ResetFlashcardSrsCommandHandler(_uow.Object);
+        _handler = new ResetFlashcardSrsCommandHandler(_uow.Object, _flashcards.Object, _srs.Object);
     }
 
     [Fact]

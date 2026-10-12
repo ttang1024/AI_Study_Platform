@@ -150,8 +150,7 @@ public class LibraryRepository : ILibraryRepository
         var items = await merged
             .OrderByDescending(i => i.CreatedAt)
             .ThenByDescending(i => i.Id)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
+            .Page(page, pageSize)
             .ToListAsync(cancellationToken);
 
         return (items, totalCount);

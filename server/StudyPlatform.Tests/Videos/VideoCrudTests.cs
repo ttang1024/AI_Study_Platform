@@ -9,6 +9,7 @@ using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
 using StudyPlatform.Domain.Projections;
 using Xunit;
+using StudyPlatform.Application.Common;
 
 namespace StudyPlatform.Tests.Videos;
 
@@ -24,9 +25,6 @@ public class SaveVideoCommandHandlerAdditionalTests
 
     public SaveVideoCommandHandlerAdditionalTests()
     {
-        _uow.Setup(u => u.Videos).Returns(_videos.Object);
-        _uow.Setup(u => u.Flashcards).Returns(_flashcards.Object);
-        _uow.Setup(u => u.Quizzes).Returns(_quizzes.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
         _videos.Setup(r => r.FindAsync(It.IsAny<Expression<Func<Video, bool>>>(), default)).ReturnsAsync(Array.Empty<Video>());
         _videos.Setup(r => r.AddAsync(It.IsAny<Video>(), default)).Returns(Task.CompletedTask);
@@ -38,7 +36,7 @@ public class SaveVideoCommandHandlerAdditionalTests
                 ExternalVideoId = "abc", VideoUrl = "https://x", SourceType = "youtube", Title = "T", ThumbnailUrl = "th",
             });
 
-        _handler = new SaveVideoCommandHandler(_uow.Object, Options.Create(new AppLimitsOptions { VideoUploadLimit = -1 }));
+        _handler = new SaveVideoCommandHandler(_uow.Object, _quizzes.Object, _flashcards.Object, _videos.Object, Options.Create(new AppLimitsOptions { VideoUploadLimit = -1 }));
     }
 
     private SaveVideoCommand MakeCommand(string? sourceType = "youtube") =>
@@ -83,7 +81,7 @@ public class SaveVideoCommandHandlerAdditionalTests
     [Fact]
     public async Task Handle_NegativeLimit_MeansUnlimited()
     {
-        var handler = new SaveVideoCommandHandler(_uow.Object, Options.Create(new AppLimitsOptions { VideoUploadLimit = -1 }));
+        var handler = new SaveVideoCommandHandler(_uow.Object, _quizzes.Object, _flashcards.Object, _videos.Object, Options.Create(new AppLimitsOptions { VideoUploadLimit = -1 }));
 
         var result = await handler.Handle(MakeCommand("upload"), default);
 
@@ -148,10 +146,8 @@ public class MoveVideoCommandHandlerTests
 
     public MoveVideoCommandHandlerTests()
     {
-        _uow.Setup(u => u.Videos).Returns(_videos.Object);
-        _uow.Setup(u => u.Courses).Returns(_courses.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new MoveVideoCommandHandler(_uow.Object);
+        _handler = new MoveVideoCommandHandler(_uow.Object, _courses.Object, _videos.Object);
     }
 
     [Fact]
@@ -204,9 +200,8 @@ public class UpdateVideoCommandHandlerTests
 
     public UpdateVideoCommandHandlerTests()
     {
-        _uow.Setup(u => u.Videos).Returns(_videos.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new UpdateVideoCommandHandler(_uow.Object);
+        _handler = new UpdateVideoCommandHandler(_uow.Object, _videos.Object);
     }
 
     private Video MakeVideo() => new() { VideoId = _videoId, UserId = _userId, Title = "Old", Course = new Course { CourseName = "A", CourseColor = "#000" } };
@@ -282,12 +277,10 @@ public class DeleteVideoCommandHandlerTests
 
     public DeleteVideoCommandHandlerTests()
     {
-        _uow.Setup(u => u.Videos).Returns(_videos.Object);
-        _uow.Setup(u => u.LibraryTags).Returns(_tags.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
         _tags.Setup(r => r.RemoveAssignmentsForItemAsync("video", _videoId, default)).Returns(Task.CompletedTask);
         _embeddingIndex.Setup(e => e.PruneOrphansAsync(_userId, default)).ReturnsAsync(0);
-        _handler = new DeleteVideoCommandHandler(_uow.Object, _embeddingIndex.Object);
+        _handler = new DeleteVideoCommandHandler(_uow.Object, _videos.Object, _tags.Object, _embeddingIndex.Object);
     }
 
     [Fact]
@@ -318,7 +311,6 @@ public class DeleteVideoCommandHandlerTests
 
 public class GetVideoByIdQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IVideoRepository> _videos = new();
     private readonly Mock<IStudyGroupSharedCourseRepository> _shared = new();
     private readonly Mock<IStudyGroupMemberRepository> _members = new();
@@ -329,10 +321,7 @@ public class GetVideoByIdQueryHandlerTests
 
     public GetVideoByIdQueryHandlerTests()
     {
-        _uow.Setup(u => u.Videos).Returns(_videos.Object);
-        _uow.Setup(u => u.StudyGroupSharedCourses).Returns(_shared.Object);
-        _uow.Setup(u => u.StudyGroupMembers).Returns(_members.Object);
-        _handler = new GetVideoByIdQueryHandler(_uow.Object);
+        _handler = new GetVideoByIdQueryHandler(_videos.Object, new CourseAccess(_shared.Object, _members.Object));
     }
 
     [Fact]
@@ -407,7 +396,6 @@ public class GetVideoByIdQueryHandlerTests
 
 public class GetVideosQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IVideoRepository> _videos = new();
     private readonly Mock<ICourseRepository> _courses = new();
     private readonly Mock<IStudyGroupSharedCourseRepository> _shared = new();
@@ -418,13 +406,9 @@ public class GetVideosQueryHandlerTests
 
     public GetVideosQueryHandlerTests()
     {
-        _uow.Setup(u => u.Videos).Returns(_videos.Object);
-        _uow.Setup(u => u.Courses).Returns(_courses.Object);
-        _uow.Setup(u => u.StudyGroupSharedCourses).Returns(_shared.Object);
-        _uow.Setup(u => u.StudyGroupMembers).Returns(_members.Object);
         _videos.Setup(r => r.GetPagedAsync(It.IsAny<Guid>(), It.IsAny<Guid?>(), It.IsAny<string?>(), It.IsAny<int>(), It.IsAny<int>(), default))
             .ReturnsAsync((Array.Empty<Video>(), 0));
-        _handler = new GetVideosQueryHandler(_uow.Object);
+        _handler = new GetVideosQueryHandler(_courses.Object, _videos.Object, new CourseAccess(_shared.Object, _members.Object));
     }
 
     [Fact]
@@ -491,15 +475,13 @@ public class GetVideosQueryHandlerTests
 
 public class GetVideosLiteQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IVideoRepository> _videos = new();
     private readonly GetVideosLiteQueryHandler _handler;
     private readonly Guid _userId = Guid.NewGuid();
 
     public GetVideosLiteQueryHandlerTests()
     {
-        _uow.Setup(u => u.Videos).Returns(_videos.Object);
-        _handler = new GetVideosLiteQueryHandler(_uow.Object);
+        _handler = new GetVideosLiteQueryHandler(_videos.Object);
     }
 
     [Fact]

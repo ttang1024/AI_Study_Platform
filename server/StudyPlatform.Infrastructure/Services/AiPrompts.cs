@@ -3,20 +3,7 @@ namespace StudyPlatform.Infrastructure.Services;
 /// <summary>Prompt templates and prompt builders for AI generation/chat features.</summary>
 internal static class AiPrompts
 {
-    public static string BuildDocumentChatPrompt(string truncatedDoc, string historyText, string userMessage) =>
-        $@"You are a knowledgeable AI assistant. Answer the user's question using your broad general knowledge. The source context below is supplementary; use it when relevant, but do not restrict answers to only that context.
-
-Source context:
-{truncatedDoc}
-
-Conversation history:
-{historyText}
-
-USER: {userMessage}
-
-Provide a helpful, accurate, and complete answer. Discuss ideas directly and do not mention the source format or use phrases like ""this document"", ""the document"", ""this video"", ""the video"", ""the transcript"", ""the source material"", or ""the content"" unless quoting the user.";
-
-    /// <summary>System prompt variant of the document chat prompt, for multimodal turns that carry image/PDF attachments alongside the user's message.</summary>
+    /// <summary>The document chat system prompt; the conversation itself goes in as real turns.</summary>
     public static string BuildDocumentChatSystem(string truncatedDoc) =>
         $@"You are a knowledgeable AI assistant. Answer the user's question using your broad general knowledge, taking into account any images or files the user attaches. The source context below is supplementary; use it when relevant, but do not restrict answers to only that context.
 

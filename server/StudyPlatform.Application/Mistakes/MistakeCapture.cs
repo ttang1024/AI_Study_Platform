@@ -12,7 +12,8 @@ namespace StudyPlatform.Application.Mistakes;
 public static class MistakeCapture
 {
     public static async Task CaptureAsync(
-        IUnitOfWork unitOfWork,
+        IQuizRepository quizRepository,
+        IMistakeEntryRepository mistakeEntries,
         Guid userId,
         string sourceType,
         Guid? documentId,
@@ -21,10 +22,10 @@ public static class MistakeCapture
         CancellationToken cancellationToken)
     {
         var quizzes = sourceType == "video"
-            ? await unitOfWork.Quizzes.FindAsync(q => q.UserId == userId && q.VideoId == videoId, cancellationToken)
-            : await unitOfWork.Quizzes.FindAsync(q => q.UserId == userId && q.DocumentId == documentId, cancellationToken);
+            ? await quizRepository.FindAsync(q => q.UserId == userId && q.VideoId == videoId, cancellationToken)
+            : await quizRepository.FindAsync(q => q.UserId == userId && q.DocumentId == documentId, cancellationToken);
 
-        await CaptureForQuizzesAsync(unitOfWork, userId, quizzes.ToList(), answers, cancellationToken);
+        await CaptureForQuizzesAsync(mistakeEntries, userId, quizzes.ToList(), answers, cancellationToken);
     }
 
     /// <summary>
@@ -33,7 +34,7 @@ public static class MistakeCapture
     /// missed/resolved timestamps so backfilled entries keep their original submission date.
     /// </summary>
     public static async Task CaptureForQuizzesAsync(
-        IUnitOfWork unitOfWork,
+        IMistakeEntryRepository mistakeEntries,
         Guid userId,
         IReadOnlyList<Quiz> quizzes,
         IReadOnlyDictionary<string, string> answers,
@@ -45,7 +46,7 @@ public static class MistakeCapture
         if (quizById.Count == 0) return;
 
         var quizIds = quizzes.Select(q => (Guid?)q.QuizId).ToList();
-        var existingEntries = await unitOfWork.MistakeEntries.FindAsync(
+        var existingEntries = await mistakeEntries.FindAsync(
             m => m.UserId == userId && m.QuizId != null && quizIds.Contains(m.QuizId), cancellationToken);
         var entryByQuizId = existingEntries
             .Where(m => m.QuizId.HasValue)
@@ -68,7 +69,7 @@ public static class MistakeCapture
                 {
                     entry.Status = "resolved";
                     entry.ResolvedAt = now;
-                    unitOfWork.MistakeEntries.Update(entry);
+                    mistakeEntries.Update(entry);
                 }
                 continue;
             }
@@ -80,11 +81,11 @@ public static class MistakeCapture
                 entry.UserAnswer = selectedAnswer;
                 entry.Status = "open";
                 entry.ResolvedAt = null;
-                unitOfWork.MistakeEntries.Update(entry);
+                mistakeEntries.Update(entry);
             }
             else
             {
-                await unitOfWork.MistakeEntries.AddAsync(new MistakeEntry
+                await mistakeEntries.AddAsync(new MistakeEntry
                 {
                     MistakeEntryId = Guid.NewGuid(),
                     UserId = userId,

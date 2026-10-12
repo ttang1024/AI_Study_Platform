@@ -25,9 +25,6 @@ public class QuizSubmissionWriterTests
 
     public QuizSubmissionWriterTests()
     {
-        _uow.Setup(u => u.QuizSubmissions).Returns(_submissions.Object);
-        _uow.Setup(u => u.Quizzes).Returns(_quizzes.Object);
-        _uow.Setup(u => u.MistakeEntries).Returns(_mistakes.Object);
         _submissions.Setup(r => r.AddAsync(It.IsAny<QuizSubmission>(), default))
             .Callback<QuizSubmission, CancellationToken>((s, _) => _added.Add(s))
             .Returns(Task.CompletedTask);
@@ -40,7 +37,7 @@ public class QuizSubmissionWriterTests
         // No generated quizzes → MistakeCapture is a no-op, which keeps these tests about the upsert.
         _quizzes.Setup(r => r.FindAsync(It.IsAny<Expression<Func<Quiz, bool>>>(), default))
             .ReturnsAsync(Array.Empty<Quiz>());
-        _writer = new QuizSubmissionWriter(_uow.Object);
+        _writer = new QuizSubmissionWriter(_uow.Object, _quizzes.Object, _submissions.Object, _mistakes.Object);
     }
 
     private static Dictionary<string, string> Answers(params (string quizId, string answer)[] pairs) =>

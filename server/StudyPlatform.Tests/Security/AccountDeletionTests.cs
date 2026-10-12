@@ -19,12 +19,10 @@ public class RequestAccountDeletionCommandHandlerTests
 
     public RequestAccountDeletionCommandHandlerTests()
     {
-        _uow.Setup(u => u.Users).Returns(_users.Object);
-        _uow.Setup(u => u.RefreshTokens).Returns(_tokens.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
         _users.Setup(r => r.GetByIdAsync(_userId, default)).ReturnsAsync(new User { UserId = _userId, PasswordHash = "hash" });
         _tokens.Setup(r => r.RevokeAllUserTokensAsync(_userId, default)).Returns(Task.CompletedTask);
-        _handler = new RequestAccountDeletionCommandHandler(_uow.Object, _hasher.Object);
+        _handler = new RequestAccountDeletionCommandHandler(_uow.Object, _users.Object, _tokens.Object, _hasher.Object);
     }
 
     private const string Confirmation = RequestAccountDeletionCommandHandler.RequiredConfirmation;

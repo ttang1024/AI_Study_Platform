@@ -34,19 +34,28 @@ public class AdaptiveQuizPlanner : IAdaptiveQuizPlanner
     /// <summary>Focus topics are fed to the model in a prompt; full question text would swamp it.</summary>
     private const int MaxTopicChars = 120;
 
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly IFlashcardRepository _flashcards;
+    private readonly IQuizSubmissionRepository _quizSubmissions;
+    private readonly IFlashcardSrsDataRepository _flashcardSrs;
+    private readonly IMistakeEntryRepository _mistakeEntries;
 
-    public AdaptiveQuizPlanner(IUnitOfWork unitOfWork) => _unitOfWork = unitOfWork;
+    public AdaptiveQuizPlanner(IFlashcardRepository flashcards, IQuizSubmissionRepository quizSubmissions, IFlashcardSrsDataRepository flashcardSrs, IMistakeEntryRepository mistakeEntries)
+    {
+        _flashcards = flashcards;
+        _quizSubmissions = quizSubmissions;
+        _flashcardSrs = flashcardSrs;
+        _mistakeEntries = mistakeEntries;
+    }
 
     public async Task<QuizPlan> PlanAsync(Guid userId, Guid documentId, CancellationToken cancellationToken = default)
     {
-        var submissions = (await _unitOfWork.QuizSubmissions.FindAsNoTrackingAsync(
+        var submissions = (await _quizSubmissions.FindAsNoTrackingAsync(
                 s => s.UserId == userId && s.DocumentId == documentId, cancellationToken))
             .OrderByDescending(s => s.SubmittedAt)
             .Take(RecentSubmissions)
             .ToList();
 
-        var openMistakes = (await _unitOfWork.MistakeEntries.FindAsNoTrackingAsync(
+        var openMistakes = (await _mistakeEntries.FindAsNoTrackingAsync(
                 m => m.UserId == userId && m.DocumentId == documentId && m.Status == "open", cancellationToken))
             .OrderByDescending(m => m.TimesMissed)
             .ThenByDescending(m => m.LastMissedAt)
@@ -98,12 +107,12 @@ public class AdaptiveQuizPlanner : IAdaptiveQuizPlanner
     /// </summary>
     private async Task<List<Flashcard>> GetFragileCardsAsync(Guid userId, Guid documentId, CancellationToken cancellationToken)
     {
-        var cards = (await _unitOfWork.Flashcards.GetByDocumentIdAsync(documentId, cancellationToken)).ToList();
+        var cards = (await _flashcards.GetByDocumentIdAsync(documentId, cancellationToken)).ToList();
         if (cards.Count == 0)
             return [];
 
         var cardIds = cards.Select(c => c.FlashcardId).ToHashSet();
-        var srs = (await _unitOfWork.FlashcardSrs.FindAsNoTrackingAsync(
+        var srs = (await _flashcardSrs.FindAsNoTrackingAsync(
                 s => s.UserId == userId, cancellationToken))
             .Where(s => cardIds.Contains(s.FlashcardId))
             .ToList();

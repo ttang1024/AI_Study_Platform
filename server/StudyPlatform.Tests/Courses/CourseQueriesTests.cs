@@ -5,12 +5,12 @@ using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
 using StudyPlatform.Domain.Projections;
 using Xunit;
+using StudyPlatform.Application.Common;
 
 namespace StudyPlatform.Tests.Courses;
 
 public class GetCourseByIdQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<ICourseRepository> _courses = new();
     private readonly Mock<IStudyGroupSharedCourseRepository> _shared = new();
     private readonly Mock<IStudyGroupMemberRepository> _members = new();
@@ -20,10 +20,7 @@ public class GetCourseByIdQueryHandlerTests
 
     public GetCourseByIdQueryHandlerTests()
     {
-        _uow.Setup(u => u.Courses).Returns(_courses.Object);
-        _uow.Setup(u => u.StudyGroupSharedCourses).Returns(_shared.Object);
-        _uow.Setup(u => u.StudyGroupMembers).Returns(_members.Object);
-        _handler = new GetCourseByIdQueryHandler(_uow.Object);
+        _handler = new GetCourseByIdQueryHandler(_courses.Object, new CourseAccess(_shared.Object, _members.Object));
     }
 
     private CourseListItem MakeItem(Guid userId) => new(_courseId, userId, "Algorithms", "#000", 3, DateTime.UtcNow, DateTime.UtcNow);

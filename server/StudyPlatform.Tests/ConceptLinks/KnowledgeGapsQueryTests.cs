@@ -12,7 +12,6 @@ namespace StudyPlatform.Tests.ConceptLinks;
 
 public class GetKnowledgeGapsQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IGlossaryTermRepository> _terms = new();
     private readonly Mock<IGlossaryMasteredRepository> _mastered = new();
     private readonly Mock<INoteRepository> _notes = new();
@@ -24,13 +23,6 @@ public class GetKnowledgeGapsQueryHandlerTests
 
     public GetKnowledgeGapsQueryHandlerTests()
     {
-        _uow.Setup(u => u.GlossaryTerms).Returns(_terms.Object);
-        _uow.Setup(u => u.GlossaryMastered).Returns(_mastered.Object);
-        _uow.Setup(u => u.Notes).Returns(_notes.Object);
-        _uow.Setup(u => u.Quizzes).Returns(_quizzes.Object);
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
-        _uow.Setup(u => u.Videos).Returns(_videos.Object);
-
         _terms.Setup(r => r.GetByUserWithSourcesAsync(_userId, default)).ReturnsAsync(Array.Empty<GlossaryTerm>());
         _mastered.Setup(r => r.GetMasteredTermIdsByUserAsync(_userId, default)).ReturnsAsync(Array.Empty<Guid>());
         _notes.Setup(r => r.GetByUserIdAsync(_userId, default)).ReturnsAsync(Array.Empty<Note>());
@@ -44,7 +36,7 @@ public class GetKnowledgeGapsQueryHandlerTests
                 It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
             .Returns((string _, Func<CancellationToken, Task<KnowledgeGapsDto>> factory, TimeSpan _, CancellationToken ct) => factory(ct));
 
-        _handler = new GetKnowledgeGapsQueryHandler(_uow.Object, cache.Object, Options.Create(new CacheOptions()));
+        _handler = new GetKnowledgeGapsQueryHandler(_documents.Object, _quizzes.Object, _notes.Object, _videos.Object, _terms.Object, _mastered.Object, cache.Object, Options.Create(new CacheOptions()));
     }
 
     [Fact]

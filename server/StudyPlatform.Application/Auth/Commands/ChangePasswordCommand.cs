@@ -13,17 +13,19 @@ public record ChangePasswordCommand(
 public class ChangePasswordCommandHandler : IRequestHandler<ChangePasswordCommand, Result>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IUserRepository _users;
     private readonly IPasswordHasher _passwordHasher;
 
-    public ChangePasswordCommandHandler(IUnitOfWork unitOfWork, IPasswordHasher passwordHasher)
+    public ChangePasswordCommandHandler(IUnitOfWork unitOfWork, IUserRepository users, IPasswordHasher passwordHasher)
     {
         _unitOfWork = unitOfWork;
+        _users = users;
         _passwordHasher = passwordHasher;
     }
 
     public async Task<Result> Handle(ChangePasswordCommand request, CancellationToken cancellationToken)
     {
-        var user = await _unitOfWork.Users.GetByIdAsync(request.UserId, cancellationToken);
+        var user = await _users.GetByIdAsync(request.UserId, cancellationToken);
         if (user == null)
             return Result.Failure("User not found.", "USER_NOT_FOUND");
 
@@ -32,7 +34,7 @@ public class ChangePasswordCommandHandler : IRequestHandler<ChangePasswordComman
 
         user.PasswordHash = _passwordHasher.Hash(request.NewPassword);
         user.UpdatedAt = DateTime.UtcNow;
-        _unitOfWork.Users.Update(user);
+        _users.Update(user);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 

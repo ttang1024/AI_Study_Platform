@@ -10,7 +10,6 @@ namespace StudyPlatform.Tests.Documents;
 
 public class GetQuizSubmissionQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IQuizSubmissionRepository> _submissions = new();
     private readonly GetQuizSubmissionQueryHandler _handler;
     private readonly Guid _userId = Guid.NewGuid();
@@ -18,8 +17,7 @@ public class GetQuizSubmissionQueryHandlerTests
 
     public GetQuizSubmissionQueryHandlerTests()
     {
-        _uow.Setup(u => u.QuizSubmissions).Returns(_submissions.Object);
-        _handler = new GetQuizSubmissionQueryHandler(_uow.Object);
+        _handler = new GetQuizSubmissionQueryHandler(_submissions.Object);
     }
 
     [Fact]
@@ -58,15 +56,13 @@ public class GetQuizSubmissionQueryHandlerTests
 
 public class GetAllQuizSubmissionsPagedQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IQuizSubmissionRepository> _submissions = new();
     private readonly GetAllQuizSubmissionsPagedQueryHandler _handler;
     private readonly Guid _userId = Guid.NewGuid();
 
     public GetAllQuizSubmissionsPagedQueryHandlerTests()
     {
-        _uow.Setup(u => u.QuizSubmissions).Returns(_submissions.Object);
-        _handler = new GetAllQuizSubmissionsPagedQueryHandler(_uow.Object);
+        _handler = new GetAllQuizSubmissionsPagedQueryHandler(_submissions.Object);
     }
 
     [Fact]
@@ -84,15 +80,13 @@ public class GetAllQuizSubmissionsPagedQueryHandlerTests
 
 public class GetQuizSubmissionCoverageQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IQuizSubmissionRepository> _submissions = new();
     private readonly GetQuizSubmissionCoverageQueryHandler _handler;
     private readonly Guid _userId = Guid.NewGuid();
 
     public GetQuizSubmissionCoverageQueryHandlerTests()
     {
-        _uow.Setup(u => u.QuizSubmissions).Returns(_submissions.Object);
-        _handler = new GetQuizSubmissionCoverageQueryHandler(_uow.Object);
+        _handler = new GetQuizSubmissionCoverageQueryHandler(_submissions.Object);
     }
 
     [Fact]
@@ -112,7 +106,6 @@ public class GetQuizSubmissionCoverageQueryHandlerTests
 
 public class GetPendingQuizMaterialsQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IQuizSubmissionRepository> _submissions = new();
     private readonly Mock<ICourseRepository> _courses = new();
     private readonly Mock<IDocumentRepository> _documents = new();
@@ -122,15 +115,11 @@ public class GetPendingQuizMaterialsQueryHandlerTests
 
     public GetPendingQuizMaterialsQueryHandlerTests()
     {
-        _uow.Setup(u => u.QuizSubmissions).Returns(_submissions.Object);
-        _uow.Setup(u => u.Courses).Returns(_courses.Object);
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
-        _uow.Setup(u => u.Videos).Returns(_videos.Object);
         _submissions.Setup(r => r.GetCoverageByUserAsync(_userId, default)).ReturnsAsync((Array.Empty<Guid>(), Array.Empty<Guid>()));
         _courses.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Course, bool>>>(), default)).ReturnsAsync(Array.Empty<Course>());
         _documents.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Document, bool>>>(), default)).ReturnsAsync(Array.Empty<Document>());
         _videos.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Video, bool>>>(), default)).ReturnsAsync(Array.Empty<Video>());
-        _handler = new GetPendingQuizMaterialsQueryHandler(_uow.Object, new StudyMaterialLookup(_uow.Object));
+        _handler = new GetPendingQuizMaterialsQueryHandler(_submissions.Object, new StudyMaterialLookup(_courses.Object, _documents.Object, _videos.Object));
     }
 
     [Fact]
@@ -165,7 +154,6 @@ public class GetPendingQuizMaterialsQueryHandlerTests
 
 public class GetGeneratedQuizMaterialsQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IQuizRepository> _quizzes = new();
     private readonly Mock<IQuizSubmissionRepository> _submissions = new();
     private readonly Mock<ICourseRepository> _courses = new();
@@ -176,17 +164,12 @@ public class GetGeneratedQuizMaterialsQueryHandlerTests
 
     public GetGeneratedQuizMaterialsQueryHandlerTests()
     {
-        _uow.Setup(u => u.Quizzes).Returns(_quizzes.Object);
-        _uow.Setup(u => u.QuizSubmissions).Returns(_submissions.Object);
-        _uow.Setup(u => u.Courses).Returns(_courses.Object);
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
-        _uow.Setup(u => u.Videos).Returns(_videos.Object);
         _quizzes.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Quiz, bool>>>(), default)).ReturnsAsync(Array.Empty<Quiz>());
         _submissions.Setup(r => r.GetCoverageByUserAsync(_userId, default)).ReturnsAsync((Array.Empty<Guid>(), Array.Empty<Guid>()));
         _courses.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Course, bool>>>(), default)).ReturnsAsync(Array.Empty<Course>());
         _documents.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Document, bool>>>(), default)).ReturnsAsync(Array.Empty<Document>());
         _videos.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Video, bool>>>(), default)).ReturnsAsync(Array.Empty<Video>());
-        _handler = new GetGeneratedQuizMaterialsQueryHandler(_uow.Object, new StudyMaterialLookup(_uow.Object));
+        _handler = new GetGeneratedQuizMaterialsQueryHandler(_quizzes.Object, _submissions.Object, new StudyMaterialLookup(_courses.Object, _documents.Object, _videos.Object));
     }
 
     [Fact]

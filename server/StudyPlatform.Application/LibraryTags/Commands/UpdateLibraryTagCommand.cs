@@ -14,16 +14,18 @@ public class UpdateLibraryTagCommandHandler
     : IRequestHandler<UpdateLibraryTagCommand, Result<LibraryTagDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ILibraryTagRepository _libraryTags;
 
-    public UpdateLibraryTagCommandHandler(IUnitOfWork unitOfWork)
+    public UpdateLibraryTagCommandHandler(IUnitOfWork unitOfWork, ILibraryTagRepository libraryTags)
     {
         _unitOfWork = unitOfWork;
+        _libraryTags = libraryTags;
     }
 
     public async Task<Result<LibraryTagDto>> Handle(
         UpdateLibraryTagCommand request, CancellationToken cancellationToken)
     {
-        var tag = await _unitOfWork.LibraryTags.GetOwnedAsync(request.LibraryTagId, request.UserId, cancellationToken);
+        var tag = await _libraryTags.GetOwnedAsync(request.LibraryTagId, request.UserId, cancellationToken);
         if (tag == null)
             return Result<LibraryTagDto>.Failure("Not found.", "TAG_NOT_FOUND");
 
@@ -35,7 +37,7 @@ public class UpdateLibraryTagCommandHandler
         // with itself.
         if (!string.Equals(name, tag.Name, StringComparison.OrdinalIgnoreCase))
         {
-            var clash = await _unitOfWork.LibraryTags.GetByNameAsync(request.UserId, name, tag.Kind, cancellationToken);
+            var clash = await _libraryTags.GetByNameAsync(request.UserId, name, tag.Kind, cancellationToken);
             if (clash != null)
                 return Result<LibraryTagDto>.Failure("You already have one with that name.", "DUPLICATE_NAME");
         }
@@ -46,10 +48,10 @@ public class UpdateLibraryTagCommandHandler
             tag.Description = request.Description;
         tag.UpdatedAt = DateTime.UtcNow;
 
-        _unitOfWork.LibraryTags.Update(tag);
+        _libraryTags.Update(tag);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        var counts = await _unitOfWork.LibraryTags.GetForUserAsync(request.UserId, tag.Kind, cancellationToken);
+        var counts = await _libraryTags.GetForUserAsync(request.UserId, tag.Kind, cancellationToken);
         var count = counts.FirstOrDefault(c => c.Tag.LibraryTagId == tag.LibraryTagId)?.ItemCount ?? 0;
 
         return Result<LibraryTagDto>.Success(

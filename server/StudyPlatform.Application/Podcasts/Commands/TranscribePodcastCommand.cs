@@ -11,22 +11,25 @@ public record TranscribePodcastCommand(Guid DocumentId, Guid UserId) : IRequest<
 public class TranscribePodcastCommandHandler : IRequestHandler<TranscribePodcastCommand, Result<DocumentDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IDocumentRepository _documents;
     private readonly ITranscriptionService _transcriptionService;
     private readonly IPodcastEpisodeService _podcastService;
 
     public TranscribePodcastCommandHandler(
         IUnitOfWork unitOfWork,
+        IDocumentRepository documents,
         ITranscriptionService transcriptionService,
         IPodcastEpisodeService podcastService)
     {
         _unitOfWork = unitOfWork;
+        _documents = documents;
         _transcriptionService = transcriptionService;
         _podcastService = podcastService;
     }
 
     public async Task<Result<DocumentDto>> Handle(TranscribePodcastCommand request, CancellationToken cancellationToken)
     {
-        var document = await _unitOfWork.Documents.GetOwnedAsync(request.DocumentId, request.UserId, cancellationToken);
+        var document = await _documents.GetOwnedAsync(request.DocumentId, request.UserId, cancellationToken);
         if (document == null)
             return Result<DocumentDto>.Failure("Podcast episode not found.", "DOCUMENT_NOT_FOUND");
 
@@ -45,7 +48,7 @@ public class TranscribePodcastCommandHandler : IRequestHandler<TranscribePodcast
             document.Transcript = transcript;
             document.TranscriptionRequestedAt = null;
             document.UpdatedAt = DateTime.UtcNow;
-            _unitOfWork.Documents.Update(document);
+            _documents.Update(document);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
         }
 

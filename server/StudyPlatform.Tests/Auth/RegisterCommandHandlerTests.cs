@@ -23,13 +23,12 @@ public class RegisterCommandHandlerTests
 
     public RegisterCommandHandlerTests()
     {
-        _uow.Setup(u => u.Users).Returns(_users.Object);
-        _uow.Setup(u => u.Otps).Returns(_otps.Object);
-        _uow.Setup(u => u.RefreshTokens).Returns(_tokens.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
         _handler = new RegisterCommandHandler(
-            _uow.Object, _emailService.Object, _hasher.Object,
-            new AuthSessionIssuer(_uow.Object, _tokenService.Object, _requestContext.Object));
+            _uow.Object,
+            _users.Object,
+            _otps.Object, _emailService.Object, _hasher.Object,
+            new AuthSessionIssuer(_uow.Object, _users.Object, _tokens.Object, _tokenService.Object, _requestContext.Object));
     }
 
     private static RegisterCommand Valid() => new("user@example.com", "Password1", "Test User", "123456");

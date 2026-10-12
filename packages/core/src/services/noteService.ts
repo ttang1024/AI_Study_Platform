@@ -57,18 +57,6 @@ export function createNoteService(http: HttpClient) {
       return response.data.data;
     },
 
-    async createNoteForDocument(
-      courseId: string,
-      documentId: string,
-      content: string,
-    ): Promise<BackendNote> {
-      const response = await http.post<{ data: BackendNote }>(
-        `/api/courses/${courseId}/documents/${documentId}/notes`,
-        { content },
-      );
-      return response.data.data;
-    },
-
     async updateNote(noteId: string, data: { title?: string; content: string }): Promise<BackendNote> {
       const response = await http.put<{ data: BackendNote }>(`/api/notes/${noteId}`, data);
       return response.data.data;

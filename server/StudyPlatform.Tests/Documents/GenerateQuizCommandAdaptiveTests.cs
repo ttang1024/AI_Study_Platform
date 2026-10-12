@@ -28,8 +28,6 @@ public class GenerateQuizCommandAdaptiveTests
 
     public GenerateQuizCommandAdaptiveTests()
     {
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
-        _uow.Setup(u => u.Quizzes).Returns(_quizzes.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
         _quizzes.Setup(r => r.AddRangeAsync(It.IsAny<IEnumerable<Quiz>>(), default)).Returns(Task.CompletedTask);
         _quizzes.Setup(r => r.RemoveRange(It.IsAny<IEnumerable<Quiz>>()));
@@ -37,7 +35,7 @@ public class GenerateQuizCommandAdaptiveTests
         _doc = new Document { DocumentId = _docId, UserId = _userId, ContentType = "text/plain", BlobUrl = "blob://q" };
         _documents.Setup(r => r.GetByIdAsync(_docId, default)).ReturnsAsync(_doc);
         _handler = new GenerateQuizCommandHandler(
-            _uow.Object, _ai.Object, _content.Object, _planner.Object, _textProvider.Object);
+            _uow.Object, _documents.Object, _quizzes.Object, _ai.Object, _content.Object, _planner.Object, _textProvider.Object);
     }
 
     private static string QuizJson(string answer = "A") => JsonSerializer.Serialize(new[]

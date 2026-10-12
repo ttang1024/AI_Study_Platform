@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-import { buildAiHeaders } from '@core/ai';
+import { buildAiHeaders, needsAiHeaders } from '@core/ai';
+import { timeZoneHeaders } from '@core/timeZone';
 import { API_URL } from '@/constants/env';
 import { aiSettingsService } from '@/services/aiSettingsService';
 import { tokenStore } from '@/services/tokenStore';
@@ -23,6 +24,7 @@ export const setOnSessionExpired = (fn: (() => void) | null) => {
 // and returns the refresh token in the response body instead of a cookie
 // (see server/StudyPlatform.API/Controllers/AuthController.cs `IsMobileClient`).
 apiClient.defaults.headers.common['X-Client-Type'] = 'mobile';
+Object.assign(apiClient.defaults.headers.common, timeZoneHeaders());
 
 apiClient.interceptors.request.use(async (config) => {
   const token = await tokenStore.getAccessToken();
@@ -31,8 +33,9 @@ apiClient.interceptors.request.use(async (config) => {
   }
 
   // Only inject AI headers from settings if not already explicitly set on this request
-  // (see AiServicesTab's test-connection call, which sets its own).
-  if (!config.headers['X-AI-Provider']) {
+  // (see AiServicesTab's test-connection call, which sets its own), and only on requests that can run
+  // AI work — the provider key stays off plain reads.
+  if (!config.headers['X-AI-Provider'] && needsAiHeaders(config.method, config.url)) {
     const [provider, key, model] = await Promise.all([
       aiSettingsService.getActiveProvider(),
       aiSettingsService.getActiveKey(),
@@ -78,7 +81,7 @@ apiClient.interceptors.response.use(
         const response = await axios.post(
           `${API_URL}/api/auth/refresh-token`,
           { refreshToken },
-          { headers: { 'X-Client-Type': 'mobile' } },
+          { headers: { 'X-Client-Type': 'mobile', ...timeZoneHeaders() } },
         );
         const { accessToken, refreshToken: newRefreshToken } = response.data.data;
 

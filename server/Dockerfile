@@ -23,6 +23,11 @@ RUN dotnet publish StudyPlatform.API/StudyPlatform.API.csproj -c Release -o /app
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 
+# Pinned so a rebuild is reproducible. yt-dlp in particular breaks and gets fixed often as YouTube
+# changes: when caption fetching starts failing, bump YT_DLP_VERSION (or pass --build-arg) deliberately.
+ARG YT_DLP_VERSION=2026.8.19
+ARG EDGE_TTS_VERSION=7.2.8
+
 # Install native deps for Whisper.net, FFmpeg, and yt-dlp.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
@@ -30,10 +35,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgomp1 \
     python3 \
     python3-pip \
-    && pip3 install --no-cache-dir yt-dlp edge-tts --break-system-packages \
+    && pip3 install --no-cache-dir "yt-dlp==${YT_DLP_VERSION}" "edge-tts==${EDGE_TTS_VERSION}" --break-system-packages \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /app/publish .
+
+# Run as the image's unprivileged `app` user (APP_UID), not root: the process shells out to yt-dlp,
+# ffmpeg and edge-tts on user-supplied media, so a compromise there shouldn't own the container. The
+# application files stay root-owned (read-only to it); only the two directories it writes to at runtime
+# are its own: downloaded Whisper models, and DataProtection keys (deploy.sh mounts a volume over that).
+RUN mkdir -p /app/whisper-models /home/app/.aspnet/DataProtection-Keys \
+    && chown -R $APP_UID /app/whisper-models /home/app/.aspnet
+USER $APP_UID
 
 ENV ASPNETCORE_HTTP_PORTS=5000
 EXPOSE 5000

@@ -130,13 +130,13 @@ public partial class DocumentsController
     public async Task<IActionResult> DeleteChatHistory(Guid courseId, Guid documentId, CancellationToken cancellationToken)
     {
         var userId = User.GetUserId();
-        var document = await _unitOfWork.Documents.GetOwnedAsync(documentId, userId, cancellationToken);
+        var document = await _documents.GetOwnedAsync(documentId, userId, cancellationToken);
         if (document == null)
             return NotFound(BaseResponse<string>.Fail("Document not found.", "DOCUMENT_NOT_FOUND"));
 
-        await _unitOfWork.ChatMessages.DeleteByDocumentIdAsync(documentId, userId, cancellationToken);
-        foreach (var conversation in await _unitOfWork.ChatMessages.GetConversationsByDocumentIdAsync(documentId, userId, cancellationToken))
-            await _unitOfWork.ChatMessages.DeleteConversationAsync(conversation.ConversationId, userId, cancellationToken);
+        await _chatMessages.DeleteByDocumentIdAsync(documentId, userId, cancellationToken);
+        foreach (var conversation in await _chatMessages.GetConversationsByDocumentIdAsync(documentId, userId, cancellationToken))
+            await _chatMessages.DeleteConversationAsync(conversation.ConversationId, userId, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return Ok(BaseResponse<string>.Ok("Chat history deleted."));
     }
@@ -149,13 +149,13 @@ public partial class DocumentsController
     public async Task<IActionResult> GetChatConversations(Guid courseId, Guid documentId, CancellationToken cancellationToken)
     {
         var userId = User.GetUserId();
-        var document = await _unitOfWork.Documents.GetOwnedAsync(documentId, userId, cancellationToken);
+        var document = await _documents.GetOwnedAsync(documentId, userId, cancellationToken);
         if (document == null)
             return NotFound(BaseResponse<string>.Fail("Document not found.", "DOCUMENT_NOT_FOUND"));
 
-        await ChatThreads.AdoptLegacyDocumentChatAsync(_unitOfWork, documentId, userId, cancellationToken);
+        await ChatThreads.AdoptLegacyDocumentChatAsync(_chatMessages, _unitOfWork, documentId, userId, cancellationToken);
 
-        var conversations = await _unitOfWork.ChatMessages.GetDocumentThreadSummariesAsync(documentId, userId, cancellationToken);
+        var conversations = await _chatMessages.GetDocumentThreadSummariesAsync(documentId, userId, cancellationToken);
         return Ok(BaseResponse<IEnumerable<ChatThreadSummary>>.Ok(conversations));
     }
 
@@ -165,11 +165,11 @@ public partial class DocumentsController
     public async Task<IActionResult> CreateChatConversation(Guid courseId, Guid documentId, [FromBody] CreateChatThreadRequest? request, CancellationToken cancellationToken)
     {
         var userId = User.GetUserId();
-        var document = await _unitOfWork.Documents.GetOwnedAsync(documentId, userId, cancellationToken);
+        var document = await _documents.GetOwnedAsync(documentId, userId, cancellationToken);
         if (document == null)
             return NotFound(BaseResponse<string>.Fail("Document not found.", "DOCUMENT_NOT_FOUND"));
 
-        var conversation = await _unitOfWork.ChatMessages.CreateDocumentConversationAsync(
+        var conversation = await _chatMessages.CreateDocumentConversationAsync(
             userId, documentId, request?.Title ?? ChatThreads.DefaultTitle, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -183,11 +183,11 @@ public partial class DocumentsController
     public async Task<IActionResult> GetChatConversationMessages(Guid courseId, Guid documentId, Guid conversationId, CancellationToken cancellationToken)
     {
         var userId = User.GetUserId();
-        var conversation = await _unitOfWork.ChatMessages.GetConversationAsync(conversationId, userId, cancellationToken);
+        var conversation = await _chatMessages.GetConversationAsync(conversationId, userId, cancellationToken);
         if (conversation is null || conversation.DocumentId != documentId)
             return NotFound(BaseResponse<string>.Fail("Conversation not found.", "CONVERSATION_NOT_FOUND"));
 
-        var messages = await _unitOfWork.ChatMessages.GetByConversationIdAsync(conversationId, userId, cancellationToken);
+        var messages = await _chatMessages.GetByConversationIdAsync(conversationId, userId, cancellationToken);
         var dtos = new List<ChatMessageDto>();
         foreach (var m in messages)
             dtos.Add(await m.ToDtoAsync(_blobStorageService, cancellationToken));
@@ -200,11 +200,11 @@ public partial class DocumentsController
     public async Task<IActionResult> DeleteChatConversation(Guid courseId, Guid documentId, Guid conversationId, CancellationToken cancellationToken)
     {
         var userId = User.GetUserId();
-        var conversation = await _unitOfWork.ChatMessages.GetConversationAsync(conversationId, userId, cancellationToken);
+        var conversation = await _chatMessages.GetConversationAsync(conversationId, userId, cancellationToken);
         if (conversation is null || conversation.DocumentId != documentId)
             return NotFound(BaseResponse<string>.Fail("Conversation not found.", "CONVERSATION_NOT_FOUND"));
 
-        await _unitOfWork.ChatMessages.DeleteConversationAsync(conversationId, userId, cancellationToken);
+        await _chatMessages.DeleteConversationAsync(conversationId, userId, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return Ok(BaseResponse<string>.Ok("Conversation deleted."));
     }
@@ -222,55 +222,6 @@ public partial class DocumentsController
             return NotFound(BaseResponse<IEnumerable<NoteDto>>.Fail(result.Message, result.ErrorCode));
 
         return Ok(BaseResponse<IEnumerable<NoteDto>>.Ok(result.Data!));
-    }
-
-    /// <summary>
-    /// Create a note for a document
-    /// </summary>
-    [HttpPost("{documentId:guid}/notes")]
-    [ProducesResponseType(typeof(BaseResponse<NoteDto>), 201)]
-    [ProducesResponseType(typeof(BaseResponse), 400)]
-    public async Task<IActionResult> CreateDocumentNote(Guid courseId, Guid documentId, [FromBody] CreateNoteRequest request)
-    {
-        var userId = User.GetUserId();
-        var result = await _mediator.Send(new CreateNoteCommand(userId, request.Content, request.Title, documentId));
-        if (!result.IsSuccess)
-            return BadRequest(BaseResponse<NoteDto>.Fail(result.Message, result.ErrorCode));
-
-        return CreatedAtAction(nameof(GetDocumentNotes), new { courseId, documentId },
-            BaseResponse<NoteDto>.Ok(result.Data!, result.Message));
-    }
-
-    /// <summary>
-    /// Update a document note
-    /// </summary>
-    [HttpPut("{documentId:guid}/notes/{noteId:guid}")]
-    [ProducesResponseType(typeof(BaseResponse<NoteDto>), 200)]
-    [ProducesResponseType(typeof(BaseResponse), 404)]
-    public async Task<IActionResult> UpdateDocumentNote(Guid courseId, Guid documentId, Guid noteId, [FromBody] UpdateNoteRequest request)
-    {
-        var userId = User.GetUserId();
-        var result = await _mediator.Send(new UpdateNoteCommand(noteId, userId, request.Content, request.Title));
-        if (!result.IsSuccess)
-            return NotFound(BaseResponse<NoteDto>.Fail(result.Message, result.ErrorCode));
-
-        return Ok(BaseResponse<NoteDto>.Ok(result.Data!, result.Message));
-    }
-
-    /// <summary>
-    /// Delete a document note
-    /// </summary>
-    [HttpDelete("{documentId:guid}/notes/{noteId:guid}")]
-    [ProducesResponseType(typeof(BaseResponse), 200)]
-    [ProducesResponseType(typeof(BaseResponse), 404)]
-    public async Task<IActionResult> DeleteDocumentNote(Guid courseId, Guid documentId, Guid noteId)
-    {
-        var userId = User.GetUserId();
-        var result = await _mediator.Send(new DeleteNoteCommand(noteId, userId));
-        if (!result.IsSuccess)
-            return NotFound(new BaseResponse { Success = false, Message = result.Message, ErrorCode = result.ErrorCode });
-
-        return Ok(new BaseResponse { Success = true, Message = result.Message });
     }
 
     /// <summary>

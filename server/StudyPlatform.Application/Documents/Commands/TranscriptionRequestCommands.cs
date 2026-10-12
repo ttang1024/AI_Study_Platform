@@ -10,12 +10,17 @@ public record RequestTranscriptionCommand(Guid DocumentId, Guid UserId) : IReque
 public class RequestTranscriptionCommandHandler : IRequestHandler<RequestTranscriptionCommand, Result>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IDocumentRepository _documents;
 
-    public RequestTranscriptionCommandHandler(IUnitOfWork unitOfWork) => _unitOfWork = unitOfWork;
+    public RequestTranscriptionCommandHandler(IUnitOfWork unitOfWork, IDocumentRepository documents)
+    {
+        _unitOfWork = unitOfWork;
+        _documents = documents;
+    }
 
     public async Task<Result> Handle(RequestTranscriptionCommand request, CancellationToken cancellationToken)
     {
-        var document = await _unitOfWork.Documents.GetOwnedAsync(request.DocumentId, request.UserId, cancellationToken);
+        var document = await _documents.GetOwnedAsync(request.DocumentId, request.UserId, cancellationToken);
         if (document == null)
             return Result.Failure("Audio file not found.", "DOCUMENT_NOT_FOUND");
 
@@ -34,12 +39,17 @@ public record AbandonTranscriptionCommand(Guid DocumentId) : IRequest<Result>;
 public class AbandonTranscriptionCommandHandler : IRequestHandler<AbandonTranscriptionCommand, Result>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IDocumentRepository _documents;
 
-    public AbandonTranscriptionCommandHandler(IUnitOfWork unitOfWork) => _unitOfWork = unitOfWork;
+    public AbandonTranscriptionCommandHandler(IUnitOfWork unitOfWork, IDocumentRepository documents)
+    {
+        _unitOfWork = unitOfWork;
+        _documents = documents;
+    }
 
     public async Task<Result> Handle(AbandonTranscriptionCommand request, CancellationToken cancellationToken)
     {
-        var document = await _unitOfWork.Documents.GetByIdAsync(request.DocumentId, cancellationToken);
+        var document = await _documents.GetByIdAsync(request.DocumentId, cancellationToken);
         if (document == null)
             return Result.Success();
 

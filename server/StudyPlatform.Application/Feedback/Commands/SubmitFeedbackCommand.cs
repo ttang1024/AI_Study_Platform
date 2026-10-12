@@ -15,8 +15,13 @@ public record SubmitFeedbackCommand(
 public class SubmitFeedbackCommandHandler : IRequestHandler<SubmitFeedbackCommand, Result>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IFeedbackRepository _feedbacks;
 
-    public SubmitFeedbackCommandHandler(IUnitOfWork unitOfWork) => _unitOfWork = unitOfWork;
+    public SubmitFeedbackCommandHandler(IUnitOfWork unitOfWork, IFeedbackRepository feedbacks)
+    {
+        _unitOfWork = unitOfWork;
+        _feedbacks = feedbacks;
+    }
 
     public async Task<Result> Handle(SubmitFeedbackCommand request, CancellationToken cancellationToken)
     {
@@ -33,7 +38,7 @@ public class SubmitFeedbackCommandHandler : IRequestHandler<SubmitFeedbackComman
             UserEmail = request.UserEmail,
         };
 
-        await _unitOfWork.Feedbacks.AddAsync(feedback, cancellationToken);
+        await _feedbacks.AddAsync(feedback, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return Result.Success("Feedback submitted. Thank you!");
     }

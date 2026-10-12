@@ -19,11 +19,10 @@ public class RecordPageVisitCommandHandlerTests
 
     public RecordPageVisitCommandHandlerTests()
     {
-        _uow.Setup(u => u.PageVisits).Returns(_visits.Object);
         _visits.Setup(r => r.AddAsync(It.IsAny<PageVisit>(), default))
             .Callback<PageVisit, CancellationToken>((v, _) => _saved = v)
             .Returns(Task.CompletedTask);
-        _handler = new RecordPageVisitCommandHandler(_uow.Object);
+        _handler = new RecordPageVisitCommandHandler(_uow.Object, _visits.Object);
     }
 
     private static RecordPageVisitCommand Command(

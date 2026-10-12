@@ -7,6 +7,7 @@ using StudyPlatform.Application.Settings;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
 using StudyPlatform.Domain.Projections;
+using StudyPlatform.Tests.TestSupport;
 using Xunit;
 
 namespace StudyPlatform.Tests.Analytics;
@@ -20,9 +21,8 @@ public class RecordStudySessionCommandHandlerTests
 
     public RecordStudySessionCommandHandlerTests()
     {
-        _uow.Setup(u => u.StudySessions).Returns(_sessions.Object);
         _sessions.Setup(r => r.AddAsync(It.IsAny<StudySession>(), default)).Returns(Task.CompletedTask);
-        _handler = new RecordStudySessionCommandHandler(_uow.Object);
+        _handler = new RecordStudySessionCommandHandler(_uow.Object, _sessions.Object);
     }
 
     [Fact]
@@ -76,7 +76,6 @@ public class RecordStudySessionCommandHandlerTests
 
 public class GetTimeOnTaskQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IStudySessionRepository> _sessions = new();
     private readonly Mock<ICourseRepository> _courses = new();
     private readonly GetTimeOnTaskQueryHandler _handler;
@@ -84,8 +83,6 @@ public class GetTimeOnTaskQueryHandlerTests
 
     public GetTimeOnTaskQueryHandlerTests()
     {
-        _uow.Setup(u => u.StudySessions).Returns(_sessions.Object);
-        _uow.Setup(u => u.Courses).Returns(_courses.Object);
         _sessions.Setup(r => r.GetByDateRangeAsync(_userId, It.IsAny<DateTime>(), It.IsAny<DateTime>(), default))
             .ReturnsAsync(Array.Empty<StudySession>());
         _courses.Setup(r => r.GetListItemsByUserAsync(_userId, default)).ReturnsAsync(Array.Empty<CourseListItem>());
@@ -96,7 +93,7 @@ public class GetTimeOnTaskQueryHandlerTests
                 It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
             .Returns((string _, Func<CancellationToken, Task<TimeOnTaskDto>> factory, TimeSpan _, CancellationToken ct) => factory(ct));
 
-        _handler = new GetTimeOnTaskQueryHandler(_uow.Object, cache.Object, Options.Create(new CacheOptions()));
+        _handler = new GetTimeOnTaskQueryHandler(_courses.Object, _sessions.Object, cache.Object, Options.Create(new CacheOptions()), FixedTimeZone.Utc);
     }
 
     [Fact]

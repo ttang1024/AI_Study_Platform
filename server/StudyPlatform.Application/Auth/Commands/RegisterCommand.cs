@@ -17,17 +17,23 @@ public record RegisterCommand(
 public class RegisterCommandHandler : IRequestHandler<RegisterCommand, Result<AuthResponse>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IUserRepository _users;
+    private readonly IOtpRepository _otps;
     private readonly IEmailService _emailService;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IAuthSessionIssuer _sessionIssuer;
 
     public RegisterCommandHandler(
         IUnitOfWork unitOfWork,
+        IUserRepository users,
+        IOtpRepository otps,
         IEmailService emailService,
         IPasswordHasher passwordHasher,
         IAuthSessionIssuer sessionIssuer)
     {
         _unitOfWork = unitOfWork;
+        _users = users;
+        _otps = otps;
         _emailService = emailService;
         _passwordHasher = passwordHasher;
         _sessionIssuer = sessionIssuer;
@@ -36,11 +42,11 @@ public class RegisterCommandHandler : IRequestHandler<RegisterCommand, Result<Au
     public async Task<Result<AuthResponse>> Handle(RegisterCommand request, CancellationToken cancellationToken)
     {
         var email = OtpVerifier.NormalizeEmail(request.Email);
-        var emailExists = await _unitOfWork.Users.EmailExistsAsync(email, cancellationToken);
+        var emailExists = await _users.EmailExistsAsync(email, cancellationToken);
         if (emailExists)
             return Result<AuthResponse>.Failure("Email is already registered.", "EMAIL_ALREADY_EXISTS");
 
-        var otp = await _unitOfWork.Otps.GetActiveOtpAsync(email, OtpPurpose.Registration, cancellationToken);
+        var otp = await _otps.GetActiveOtpAsync(email, OtpPurpose.Registration, cancellationToken);
         if (!OtpVerifier.TryConsume(otp, request.OtpCode))
         {
             if (otp != null)
@@ -59,8 +65,8 @@ public class RegisterCommandHandler : IRequestHandler<RegisterCommand, Result<Au
             UpdatedAt = DateTime.UtcNow
         };
 
-        await _unitOfWork.Users.AddAsync(user, cancellationToken);
-        _unitOfWork.Otps.Update(otp!);
+        await _users.AddAsync(user, cancellationToken);
+        _otps.Update(otp!);
 
         // Issuing the session is what saves the unit of work, so the new user and the spent OTP
         // land in the same transaction as the refresh-token row.

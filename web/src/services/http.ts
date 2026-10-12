@@ -2,8 +2,8 @@ import type { HttpClient } from '@core/http';
 import { apiClient } from './apiClient';
 
 /**
- * Adapts the web axios instance (Bearer token from localStorage, AI headers,
- * in-flight GET dedupe, silent refresh) to the platform-agnostic HttpClient the
+ * Adapts the web axios instance (in-memory Bearer token, AI headers on AI-capable
+ * requests, in-flight GET dedupe, silent refresh) to the platform-agnostic HttpClient the
  * shared services in @study/core are written against.
  */
 // Forward `config`/`body` only when provided so the underlying call arity matches

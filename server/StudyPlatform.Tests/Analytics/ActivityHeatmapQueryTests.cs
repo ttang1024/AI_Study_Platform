@@ -6,13 +6,13 @@ using StudyPlatform.Application.Services;
 using StudyPlatform.Application.Settings;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
+using StudyPlatform.Tests.TestSupport;
 using Xunit;
 
 namespace StudyPlatform.Tests.Analytics;
 
 public class ActivityHeatmapQueryTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IFlashcardReviewLogRepository> _logs = new();
     private readonly Mock<IStudySessionRepository> _sessions = new();
     private readonly GetActivityHeatmapQueryHandler _handler;
@@ -20,16 +20,13 @@ public class ActivityHeatmapQueryTests
 
     public ActivityHeatmapQueryTests()
     {
-        _uow.Setup(u => u.FlashcardReviewLogs).Returns(_logs.Object);
-        _uow.Setup(u => u.StudySessions).Returns(_sessions.Object);
-
         var cache = new Mock<IAppCache>();
         cache.Setup(c => c.GetOrCreateAsync(
                 It.IsAny<string>(), It.IsAny<Func<CancellationToken, Task<ActivityHeatmapDto>>>(),
                 It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
             .Returns((string _, Func<CancellationToken, Task<ActivityHeatmapDto>> factory, TimeSpan _, CancellationToken ct) => factory(ct));
 
-        _handler = new GetActivityHeatmapQueryHandler(_uow.Object, cache.Object, Options.Create(new CacheOptions()));
+        _handler = new GetActivityHeatmapQueryHandler(_sessions.Object, _logs.Object, cache.Object, Options.Create(new CacheOptions()), FixedTimeZone.Utc);
     }
 
     private static FlashcardReviewLog Log(DateTime reviewedAt) => new()

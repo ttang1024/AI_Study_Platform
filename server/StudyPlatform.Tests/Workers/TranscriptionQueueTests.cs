@@ -22,19 +22,17 @@ namespace StudyPlatform.Tests.Workers;
 public class TranscriptionQueueTests
 {
     private readonly Mock<IMediator> _mediator = new();
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IDocumentRepository> _documents = new();
     private readonly Mock<IVideoRepository> _videos = new();
 
     private TranscriptionQueue CreateQueue()
     {
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
-        _uow.Setup(u => u.Videos).Returns(_videos.Object);
         _documents.Setup(r => r.GetPendingTranscriptionsAsync(It.IsAny<CancellationToken>())).ReturnsAsync([]);
         _videos.Setup(r => r.GetPendingTranscriptionsAsync(It.IsAny<CancellationToken>())).ReturnsAsync([]);
         var services = new ServiceCollection()
             .AddSingleton(_mediator.Object)
-            .AddSingleton(_uow.Object)
+            .AddSingleton(_documents.Object)
+            .AddSingleton(_videos.Object)
             .BuildServiceProvider();
         return new TranscriptionQueue(
             services.GetRequiredService<IServiceScopeFactory>(), NullLogger<TranscriptionQueue>.Instance);
@@ -95,11 +93,8 @@ public class TranscriptionQueueVideoTests
     public async Task OnStart_RequeuesInterruptedVideoUploads_AndAbandonsFailuresAsVideos()
     {
         var mediator = new Mock<IMediator>();
-        var uow = new Mock<IUnitOfWork>();
         var documents = new Mock<IDocumentRepository>();
         var videos = new Mock<IVideoRepository>();
-        uow.Setup(u => u.Documents).Returns(documents.Object);
-        uow.Setup(u => u.Videos).Returns(videos.Object);
         documents.Setup(r => r.GetPendingTranscriptionsAsync(It.IsAny<CancellationToken>())).ReturnsAsync([]);
         var pending = new PendingVideoTranscription(Guid.NewGuid(), Guid.NewGuid());
         videos.Setup(r => r.GetPendingTranscriptionsAsync(It.IsAny<CancellationToken>())).ReturnsAsync([pending]);
@@ -108,7 +103,8 @@ public class TranscriptionQueueVideoTests
         var abandoned = false;
         mediator.Setup(m => m.Send(It.IsAny<AbandonVideoTranscriptionCommand>(), It.IsAny<CancellationToken>()))
             .Callback(() => abandoned = true).ReturnsAsync(Result.Success());
-        var services = new ServiceCollection().AddSingleton(mediator.Object).AddSingleton(uow.Object).BuildServiceProvider();
+        var services = new ServiceCollection().AddSingleton(mediator.Object)
+            .AddSingleton(documents.Object).AddSingleton(videos.Object).BuildServiceProvider();
         var queue = new TranscriptionQueue(services.GetRequiredService<IServiceScopeFactory>(), NullLogger<TranscriptionQueue>.Instance);
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
@@ -127,15 +123,13 @@ public class TranscriptionRequestCommandTests
     private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IDocumentRepository> _documents = new();
 
-    public TranscriptionRequestCommandTests() => _uow.Setup(u => u.Documents).Returns(_documents.Object);
-
     [Fact]
     public async Task Request_MarksOnlyTheCallersDocument()
     {
         var owner = Guid.NewGuid();
         var doc = new Document { DocumentId = Guid.NewGuid(), UserId = owner };
         _documents.Setup(r => r.GetByIdAsync(doc.DocumentId, default)).ReturnsAsync(doc);
-        var handler = new RequestTranscriptionCommandHandler(_uow.Object);
+        var handler = new RequestTranscriptionCommandHandler(_uow.Object, _documents.Object);
 
         Assert.False((await handler.Handle(new RequestTranscriptionCommand(doc.DocumentId, Guid.NewGuid()), default)).IsSuccess);
         Assert.Null(doc.TranscriptionRequestedAt);
@@ -150,7 +144,7 @@ public class TranscriptionRequestCommandTests
         var doc = new Document { DocumentId = Guid.NewGuid(), TranscriptionRequestedAt = DateTime.UtcNow };
         _documents.Setup(r => r.GetByIdAsync(doc.DocumentId, default)).ReturnsAsync(doc);
 
-        await new AbandonTranscriptionCommandHandler(_uow.Object).Handle(new AbandonTranscriptionCommand(doc.DocumentId), default);
+        await new AbandonTranscriptionCommandHandler(_uow.Object, _documents.Object).Handle(new AbandonTranscriptionCommand(doc.DocumentId), default);
 
         Assert.Null(doc.TranscriptionRequestedAt);
     }

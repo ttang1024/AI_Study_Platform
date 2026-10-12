@@ -293,24 +293,11 @@ describe('createDocumentService', () => {
   })
 
   describe('notes', () => {
-    it('createNote / updateNote / getNotes map noteId to id', async () => {
+    it('getNotes maps noteId to id', async () => {
       const service = createDocumentService(fakeHttp, streamSse)
       const backendNote = { noteId: 'n-1', documentId: 'd-1', content: 'text', createdAt: '2026-01-01' }
-
-      vi.mocked(fakeHttp.post).mockResolvedValueOnce({ data: { data: backendNote } })
-      expect((await service.createNote('c-1', 'd-1', 'text')).id).toBe('n-1')
-
-      vi.mocked(fakeHttp.put).mockResolvedValueOnce({ data: { data: backendNote } })
-      expect((await service.updateNote('c-1', 'd-1', 'n-1', 'updated')).id).toBe('n-1')
-
       vi.mocked(fakeHttp.get).mockResolvedValueOnce({ data: { data: [backendNote] } })
       expect((await service.getNotes('c-1', 'd-1'))[0].id).toBe('n-1')
-    })
-
-    it('deleteNote deletes by id', async () => {
-      const service = createDocumentService(fakeHttp, streamSse)
-      await service.deleteNote('c-1', 'd-1', 'n-1')
-      expect(fakeHttp.delete).toHaveBeenCalledWith('/api/courses/c-1/documents/d-1/notes/n-1')
     })
   })
 

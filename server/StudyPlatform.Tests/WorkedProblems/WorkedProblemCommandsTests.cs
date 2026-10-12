@@ -22,12 +22,9 @@ public class GenerateWorkedProblemsCommandHandlerTests
 
     public GenerateWorkedProblemsCommandHandlerTests()
     {
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
-        _uow.Setup(u => u.Videos).Returns(_videos.Object);
-        _uow.Setup(u => u.WorkedProblems).Returns(_problems.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
         _problems.Setup(r => r.AddRangeAsync(It.IsAny<IEnumerable<WorkedProblem>>(), default)).Returns(Task.CompletedTask);
-        _handler = new GenerateWorkedProblemsCommandHandler(_uow.Object, _ai.Object, _extractor.Object);
+        _handler = new GenerateWorkedProblemsCommandHandler(_uow.Object, _documents.Object, _videos.Object, _problems.Object, _ai.Object, _extractor.Object);
     }
 
     private static string OneProblemJson() => JsonSerializer.Serialize(new[]
@@ -123,11 +120,9 @@ public class SubmitProblemAttemptCommandHandlerTests
 
     public SubmitProblemAttemptCommandHandlerTests()
     {
-        _uow.Setup(u => u.WorkedProblems).Returns(_problems.Object);
-        _uow.Setup(u => u.WorkedProblemAttempts).Returns(_attempts.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
         _attempts.Setup(r => r.AddAsync(It.IsAny<WorkedProblemAttempt>(), default)).Returns(Task.CompletedTask);
-        _handler = new SubmitProblemAttemptCommandHandler(_uow.Object, _ai.Object);
+        _handler = new SubmitProblemAttemptCommandHandler(_uow.Object, _problems.Object, _attempts.Object, _ai.Object);
     }
 
     [Fact]

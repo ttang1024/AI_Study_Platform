@@ -45,18 +45,27 @@ public class AskLibraryQueryHandler : IRequestHandler<AskLibraryQuery, Result<As
         "about", "between", "explain", "their", "there", "have", "has", "had", "you", "your",
     };
 
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly IDocumentRepository _documents;
+    private readonly INoteRepository _notes;
+    private readonly IVideoRepository _videos;
+    private readonly IGlossaryTermRepository _glossaryTerms;
     private readonly IAiService _aiService;
     private readonly IEmbeddingIndex _embeddingIndex;
     private readonly ILogger<AskLibraryQueryHandler> _logger;
 
     public AskLibraryQueryHandler(
-        IUnitOfWork unitOfWork,
+        IDocumentRepository documents,
+        INoteRepository notes,
+        IVideoRepository videos,
+        IGlossaryTermRepository glossaryTerms,
         IAiService aiService,
         IEmbeddingIndex embeddingIndex,
         ILogger<AskLibraryQueryHandler> logger)
     {
-        _unitOfWork = unitOfWork;
+        _documents = documents;
+        _notes = notes;
+        _videos = videos;
+        _glossaryTerms = glossaryTerms;
         _aiService = aiService;
         _embeddingIndex = embeddingIndex;
         _logger = logger;
@@ -151,10 +160,10 @@ public class AskLibraryQueryHandler : IRequestHandler<AskLibraryQuery, Result<As
         if (keywords.Count == 0)
             keywords = [question.Trim().ToLowerInvariant()];
 
-        var documents = (await _unitOfWork.Documents.FindAsNoTrackingAsync(d => d.UserId == userId, cancellationToken)).ToList();
-        var videos = (await _unitOfWork.Videos.FindAsNoTrackingAsync(v => v.UserId == userId, cancellationToken)).ToList();
-        var notes = (await _unitOfWork.Notes.GetByUserIdAsync(userId, cancellationToken)).ToList();
-        var terms = (await _unitOfWork.GlossaryTerms.FindAsNoTrackingAsync(t => t.UserId == userId, cancellationToken)).ToList();
+        var documents = (await _documents.FindAsNoTrackingAsync(d => d.UserId == userId, cancellationToken)).ToList();
+        var videos = (await _videos.FindAsNoTrackingAsync(v => v.UserId == userId, cancellationToken)).ToList();
+        var notes = (await _notes.GetByUserIdAsync(userId, cancellationToken)).ToList();
+        var terms = (await _glossaryTerms.FindAsNoTrackingAsync(t => t.UserId == userId, cancellationToken)).ToList();
 
         var candidates = new List<(Source Source, double Score)>();
 

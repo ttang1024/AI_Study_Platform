@@ -78,7 +78,7 @@ Output ONLY the translation, with no preamble.
         var prompt = $@"Answer the following question using the supplied source context when relevant. Give a clear, accurate, and helpful answer. Do not mention the source format or use meta phrases such as ""this document"", ""the document"", ""this video"", ""the video"", ""the transcript"", ""the source material"", ""the content"", or similar wording unless quoting the user.
 
 Source context:
-{AiResponseParsing.TruncateContent(documentContent, 4000)}
+{DocumentContextSelector.Select(documentContent, question)}
 
 Question: {question}
 

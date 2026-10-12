@@ -19,16 +19,20 @@ public record UndoLastReviewCommand(Guid UserId, Guid? FlashcardId = null) : IRe
 public class UndoLastReviewCommandHandler : IRequestHandler<UndoLastReviewCommand, Result<UndoReviewDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
-    public UndoLastReviewCommandHandler(IUnitOfWork unitOfWork) { _unitOfWork = unitOfWork; }
+    private readonly IFlashcardSrsDataRepository _flashcardSrs;
+    private readonly IFlashcardReviewLogRepository _flashcardReviewLogs;
+    public UndoLastReviewCommandHandler(IUnitOfWork unitOfWork, IFlashcardSrsDataRepository flashcardSrs, IFlashcardReviewLogRepository flashcardReviewLogs) { _unitOfWork = unitOfWork;
+    _flashcardSrs = flashcardSrs;
+    _flashcardReviewLogs = flashcardReviewLogs; }
 
     public async Task<Result<UndoReviewDto>> Handle(UndoLastReviewCommand request, CancellationToken cancellationToken)
     {
-        var log = await _unitOfWork.FlashcardReviewLogs.GetLatestAsync(request.UserId, request.FlashcardId, cancellationToken);
+        var log = await _flashcardReviewLogs.GetLatestAsync(request.UserId, request.FlashcardId, cancellationToken);
         if (log == null)
             return Result<UndoReviewDto>.Failure("There is no review to undo.", "NO_REVIEW_TO_UNDO");
 
-        var srs = await _unitOfWork.FlashcardSrs.GetByUserAndFlashcardAsync(request.UserId, log.FlashcardId, cancellationToken);
-        var previous = await _unitOfWork.FlashcardReviewLogs.GetPreviousAsync(
+        var srs = await _flashcardSrs.GetByUserAndFlashcardAsync(request.UserId, log.FlashcardId, cancellationToken);
+        var previous = await _flashcardReviewLogs.GetPreviousAsync(
             request.UserId, log.FlashcardId, log.ReviewedAt, cancellationToken);
 
         // No earlier review means this was the card's first: there is no prior state to restore it
@@ -39,7 +43,7 @@ public class UndoLastReviewCommandHandler : IRequestHandler<UndoLastReviewComman
         {
             if (cardReset)
             {
-                _unitOfWork.FlashcardSrs.Remove(srs);
+                _flashcardSrs.Remove(srs);
             }
             else
             {
@@ -59,7 +63,7 @@ public class UndoLastReviewCommandHandler : IRequestHandler<UndoLastReviewComman
             }
         }
 
-        _unitOfWork.FlashcardReviewLogs.Remove(log);
+        _flashcardReviewLogs.Remove(log);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result<UndoReviewDto>.Success(

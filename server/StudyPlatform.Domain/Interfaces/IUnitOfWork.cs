@@ -1,42 +1,11 @@
 namespace StudyPlatform.Domain.Interfaces;
 
-public interface IUnitOfWork : IDisposable
+/// <summary>
+/// Commits everything the request's repositories have changed, as one transaction. Repositories are
+/// injected individually where they're used; they share the request's DbContext, so this one save covers
+/// all of them.
+/// </summary>
+public interface IUnitOfWork
 {
-    IUserRepository Users { get; }
-    ICourseRepository Courses { get; }
-    IDocumentRepository Documents { get; }
-    IOtpRepository Otps { get; }
-    IRefreshTokenRepository RefreshTokens { get; }
-    IQuizRepository Quizzes { get; }
-    IFlashcardRepository Flashcards { get; }
-    INoteRepository Notes { get; }
-    IChatMessageRepository ChatMessages { get; }
-    IAnalyticsRepository Analytics { get; }
-    IQuizSubmissionRepository QuizSubmissions { get; }
-    IVideoRepository Videos { get; }
-    IGlossaryTermRepository GlossaryTerms { get; }
-    IFeedbackRepository Feedbacks { get; }
-    IShareTokenRepository ShareTokens { get; }
-    IGlossaryMasteredRepository GlossaryMastered { get; }
-    IWorkedProblemRepository WorkedProblems { get; }
-    IWorkedProblemAttemptRepository WorkedProblemAttempts { get; }
-    IWorkedProblemMasteredRepository WorkedProblemMastered { get; }
-    IDocumentAnnotationRepository DocumentAnnotations { get; }
-    IStudyGroupRepository StudyGroups { get; }
-    IStudyGroupMemberRepository StudyGroupMembers { get; }
-    IStudyGroupSharedCourseRepository StudyGroupSharedCourses { get; }
-    IGroupChatMessageRepository GroupChatMessages { get; }
-    IFlashcardSrsDataRepository FlashcardSrs { get; }
-    IStudySessionRepository StudySessions { get; }
-    IMistakeEntryRepository MistakeEntries { get; }
-    IExamPlanRepository ExamPlans { get; }
-    IFlashcardReviewLogRepository FlashcardReviewLogs { get; }
-    IStreakCoverDayRepository StreakCoverDays { get; }
-    IUserCalendarFeedRepository UserCalendarFeeds { get; }
-    IAiUsageRepository AiUsage { get; }
-    IDataExportRequestRepository DataExportRequests { get; }
-    ILibraryTagRepository LibraryTags { get; }
-    IUserFsrsSettingsRepository UserFsrsSettings { get; }
-    IPageVisitRepository PageVisits { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

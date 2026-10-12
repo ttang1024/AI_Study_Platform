@@ -10,22 +10,28 @@ public record DeleteDocumentCommand(Guid DocumentId, Guid UserId) : IRequest<Res
 public class DeleteDocumentCommandHandler : IRequestHandler<DeleteDocumentCommand, Result>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IDocumentRepository _documents;
+    private readonly ILibraryTagRepository _libraryTags;
     private readonly IBlobStorageService _blobStorageService;
     private readonly IEmbeddingIndex _embeddingIndex;
 
     public DeleteDocumentCommandHandler(
         IUnitOfWork unitOfWork,
+        IDocumentRepository documents,
+        ILibraryTagRepository libraryTags,
         IBlobStorageService blobStorageService,
         IEmbeddingIndex embeddingIndex)
     {
         _unitOfWork = unitOfWork;
+        _documents = documents;
+        _libraryTags = libraryTags;
         _blobStorageService = blobStorageService;
         _embeddingIndex = embeddingIndex;
     }
 
     public async Task<Result> Handle(DeleteDocumentCommand request, CancellationToken cancellationToken)
     {
-        var document = await _unitOfWork.Documents.GetOwnedAsync(request.DocumentId, request.UserId, cancellationToken);
+        var document = await _documents.GetOwnedAsync(request.DocumentId, request.UserId, cancellationToken);
         if (document == null)
             return Result.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
 
@@ -38,11 +44,11 @@ public class DeleteDocumentCommandHandler : IRequestHandler<DeleteDocumentComman
             // Continue even if blob deletion fails
         }
 
-        _unitOfWork.Documents.Remove(document);
+        _documents.Remove(document);
 
         // The tag join is polymorphic, so no foreign key reaches it and no cascade fires. Pruned
         // here or the assignment outlives the document and inflates every collection's item count.
-        await _unitOfWork.LibraryTags.RemoveAssignmentsForItemAsync(
+        await _libraryTags.RemoveAssignmentsForItemAsync(
             "document", document.DocumentId, cancellationToken);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);

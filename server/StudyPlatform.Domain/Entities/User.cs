@@ -14,6 +14,12 @@ public class User
     public int DailyStudyGoalMinutes { get; set; } = 30;
 
     /// <summary>
+    /// The IANA time zone (e.g. "Pacific/Auckland") of the device the user last signed in or refreshed
+    /// from. Decides where the user's days start for streaks, daily totals and reminders; null means UTC.
+    /// </summary>
+    public string? TimeZone { get; set; }
+
+    /// <summary>
     /// When the one-time replay of pre-notebook quiz submissions into the mistake notebook ran.
     /// Null means it still needs to run; it is stamped even when the replay finds nothing, so an
     /// empty notebook doesn't re-trigger a full history scan on every open.

@@ -3,6 +3,7 @@ using StudyPlatform.Application.Analytics.Commands;
 using StudyPlatform.Application.Services;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
+using StudyPlatform.Tests.TestSupport;
 using Xunit;
 
 namespace StudyPlatform.Tests.Analytics;
@@ -17,10 +18,9 @@ public class SetVacationCommandHandlerTests
 
     public SetVacationCommandHandlerTests()
     {
-        _uow.Setup(u => u.StreakCoverDays).Returns(_covers.Object);
         _covers.Setup(r => r.GetByUserAsync(_userId, default)).ReturnsAsync(Array.Empty<StreakCoverDay>());
         _covers.Setup(r => r.AddAsync(It.IsAny<StreakCoverDay>(), default)).Returns(Task.CompletedTask);
-        _handler = new SetVacationCommandHandler(_uow.Object, _cache.Object);
+        _handler = new SetVacationCommandHandler(_uow.Object, _covers.Object, _cache.Object, FixedTimeZone.Utc);
     }
 
     private static DateTime Today => DateTime.UtcNow.Date;
@@ -98,8 +98,7 @@ public class CancelVacationCommandHandlerTests
 
     public CancelVacationCommandHandlerTests()
     {
-        _uow.Setup(u => u.StreakCoverDays).Returns(_covers.Object);
-        _handler = new CancelVacationCommandHandler(_uow.Object, _cache.Object);
+        _handler = new CancelVacationCommandHandler(_uow.Object, _covers.Object, _cache.Object, FixedTimeZone.Utc);
     }
 
     [Fact]

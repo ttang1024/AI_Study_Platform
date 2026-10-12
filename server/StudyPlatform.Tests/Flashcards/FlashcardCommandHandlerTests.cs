@@ -18,11 +18,9 @@ public class CreateFlashcardCommandHandlerTests
 
     public CreateFlashcardCommandHandlerTests()
     {
-        _uow.Setup(u => u.Flashcards).Returns(_flashcards.Object);
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
         _flashcards.Setup(r => r.AddAsync(It.IsAny<Flashcard>(), default)).Returns(Task.CompletedTask);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new CreateFlashcardCommandHandler(_uow.Object);
+        _handler = new CreateFlashcardCommandHandler(_uow.Object, _documents.Object, _flashcards.Object);
     }
 
     [Fact]
@@ -108,9 +106,8 @@ public class DeleteFlashcardCommandHandlerTests
 
     public DeleteFlashcardCommandHandlerTests()
     {
-        _uow.Setup(u => u.Flashcards).Returns(_flashcards.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new DeleteFlashcardCommandHandler(_uow.Object, _embeddingIndex.Object);
+        _handler = new DeleteFlashcardCommandHandler(_uow.Object, _flashcards.Object, _embeddingIndex.Object);
     }
 
     [Fact]
@@ -171,7 +168,6 @@ public class DeleteFlashcardCommandHandlerTests
 
 public class GetAllFlashcardsPagedQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IFlashcardRepository> _flashcards = new();
     private readonly Mock<IFlashcardSrsDataRepository> _srsRepo = new();
     private readonly GetAllFlashcardsPagedQueryHandler _handler;
@@ -179,10 +175,8 @@ public class GetAllFlashcardsPagedQueryHandlerTests
 
     public GetAllFlashcardsPagedQueryHandlerTests()
     {
-        _uow.Setup(u => u.Flashcards).Returns(_flashcards.Object);
-        _uow.Setup(u => u.FlashcardSrs).Returns(_srsRepo.Object);
         _srsRepo.Setup(r => r.GetByUserIdAsync(_userId, default)).ReturnsAsync(Array.Empty<FlashcardSrsData>());
-        _handler = new GetAllFlashcardsPagedQueryHandler(_uow.Object);
+        _handler = new GetAllFlashcardsPagedQueryHandler(_flashcards.Object, _srsRepo.Object);
     }
 
     [Fact]
@@ -224,10 +218,6 @@ public class ReviewFlashcardCommandHandlerTests
 
     public ReviewFlashcardCommandHandlerTests()
     {
-        _uow.Setup(u => u.Flashcards).Returns(_flashcards.Object);
-        _uow.Setup(u => u.FlashcardSrs).Returns(_srsRepo.Object);
-        _uow.Setup(u => u.FlashcardReviewLogs).Returns(_reviewLogs.Object);
-        _uow.Setup(u => u.UserFsrsSettings).Returns(_fsrsSettings.Object);
         _srsRepo.Setup(r => r.GetDueCountsByDayAsync(_userId, It.IsAny<DateTime>(), It.IsAny<DateTime>(), default))
             .ReturnsAsync(new Dictionary<DateTime, int>());
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
@@ -235,7 +225,7 @@ public class ReviewFlashcardCommandHandlerTests
         _reviewLogs.Setup(r => r.AddAsync(It.IsAny<FlashcardReviewLog>(), default)).Returns(Task.CompletedTask);
         // The real scheduler over the same mocked unit of work: these tests are about the
         // handler's persistence, and a stubbed scheduler would stop them noticing if it broke.
-        _handler = new ReviewFlashcardCommandHandler(_uow.Object, new ReviewScheduler(_uow.Object));
+        _handler = new ReviewFlashcardCommandHandler(_uow.Object, _flashcards.Object, _srsRepo.Object, _reviewLogs.Object, new ReviewScheduler(_srsRepo.Object, _fsrsSettings.Object));
     }
 
     [Theory]
@@ -338,9 +328,8 @@ public class ClassifyFlashcardCommandHandlerTests
 
     public ClassifyFlashcardCommandHandlerTests()
     {
-        _uow.Setup(u => u.Flashcards).Returns(_flashcards.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new ClassifyFlashcardCommandHandler(_uow.Object);
+        _handler = new ClassifyFlashcardCommandHandler(_uow.Object, _flashcards.Object);
     }
 
     [Fact]
@@ -430,15 +419,13 @@ public class ClassifyFlashcardCommandHandlerTests
 
 public class GetFlashcardSrsQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IFlashcardSrsDataRepository> _srsRepo = new();
     private readonly GetFlashcardSrsQueryHandler _handler;
     private readonly Guid _userId = Guid.NewGuid();
 
     public GetFlashcardSrsQueryHandlerTests()
     {
-        _uow.Setup(u => u.FlashcardSrs).Returns(_srsRepo.Object);
-        _handler = new GetFlashcardSrsQueryHandler(_uow.Object);
+        _handler = new GetFlashcardSrsQueryHandler(_srsRepo.Object);
     }
 
     [Fact]

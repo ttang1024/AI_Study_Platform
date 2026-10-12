@@ -22,17 +22,23 @@ public record UploadDocumentCommand(
 public class UploadDocumentCommandHandler : IRequestHandler<UploadDocumentCommand, Result<DocumentDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICourseRepository _courses;
+    private readonly IDocumentRepository _documents;
     private readonly IBlobStorageService _blobStorageService;
     private readonly ILogger<UploadDocumentCommandHandler> _logger;
     private readonly AppLimitsOptions _limits;
 
     public UploadDocumentCommandHandler(
         IUnitOfWork unitOfWork,
+        ICourseRepository courses,
+        IDocumentRepository documents,
         IBlobStorageService blobStorageService,
         IOptions<AppLimitsOptions> limits,
         ILogger<UploadDocumentCommandHandler> logger)
     {
         _unitOfWork = unitOfWork;
+        _courses = courses;
+        _documents = documents;
         _blobStorageService = blobStorageService;
         _limits = limits.Value;
         _logger = logger;
@@ -40,13 +46,13 @@ public class UploadDocumentCommandHandler : IRequestHandler<UploadDocumentComman
 
     public async Task<Result<DocumentDto>> Handle(UploadDocumentCommand request, CancellationToken cancellationToken)
     {
-        var course = await _unitOfWork.Courses.GetOwnedAsync(request.CourseId, request.UserId, cancellationToken);
+        var course = await _courses.GetOwnedAsync(request.CourseId, request.UserId, cancellationToken);
         if (course == null)
             return Result<DocumentDto>.Failure("Course not found.", "COURSE_NOT_FOUND");
 
         if (_limits.DocumentUploadLimit >= 0)
         {
-            var count = await _unitOfWork.Documents.CountByUserIdAsync(request.UserId, cancellationToken);
+            var count = await _documents.CountByUserIdAsync(request.UserId, cancellationToken);
             if (count >= _limits.DocumentUploadLimit)
                 return Result<DocumentDto>.Failure(
                     $"Upload limit of {_limits.DocumentUploadLimit} documents per account reached.",
@@ -55,7 +61,7 @@ public class UploadDocumentCommandHandler : IRequestHandler<UploadDocumentComman
 
         if (IsAudioUpload(request.ContentType) && _limits.AudioUploadLimit >= 0)
         {
-            var count = await _unitOfWork.Documents.CountAsync(
+            var count = await _documents.CountAsync(
                 d => d.UserId == request.UserId
                      && d.ContentType != "audio/podcast"
                      && d.ContentType.StartsWith("audio/"),
@@ -69,7 +75,7 @@ public class UploadDocumentCommandHandler : IRequestHandler<UploadDocumentComman
         var (fileHash, uploadStream, disposeUploadStream) = await PrepareUploadStreamAsync(request.FileStream, cancellationToken);
         await using var _ = disposeUploadStream ? uploadStream : Stream.Null;
 
-        var duplicate = await _unitOfWork.Documents.GetByUserIdAndFileHashAsync(request.UserId, fileHash, cancellationToken);
+        var duplicate = await _documents.GetByUserIdAndFileHashAsync(request.UserId, fileHash, cancellationToken);
         if (duplicate != null)
             return Result<DocumentDto>.Failure(
                 $"This file already exists as \"{duplicate.FileName}\".",
@@ -101,7 +107,7 @@ public class UploadDocumentCommandHandler : IRequestHandler<UploadDocumentComman
             UpdatedAt = DateTime.UtcNow
         };
 
-        await _unitOfWork.Documents.AddAsync(document, cancellationToken);
+        await _documents.AddAsync(document, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         var dto = document.ToDocumentDto();

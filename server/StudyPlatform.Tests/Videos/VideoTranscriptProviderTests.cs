@@ -20,8 +20,8 @@ public class VideoTranscriptProviderTests
 
     public VideoTranscriptProviderTests()
     {
-        _uow.Setup(u => u.Videos).Returns(_videos.Object);
-        _provider = new VideoTranscriptProvider(_cache.Object, _uow.Object, _source.Object, _store.Object,
+        _provider = new VideoTranscriptProvider(_cache.Object, _uow.Object,
+        _videos.Object, _source.Object, _store.Object,
             Options.Create(new CacheOptions()));
     }
 

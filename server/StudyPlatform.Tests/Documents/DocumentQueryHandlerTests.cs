@@ -4,6 +4,7 @@ using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
 using StudyPlatform.Tests.TestSupport;
 using Xunit;
+using StudyPlatform.Application.Common;
 
 namespace StudyPlatform.Tests.Documents;
 
@@ -11,15 +12,13 @@ namespace StudyPlatform.Tests.Documents;
 
 public class GetAllDocumentsQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IDocumentRepository> _documents = new();
     private readonly GetAllDocumentsQueryHandler _handler;
     private readonly Guid _userId = Guid.NewGuid();
 
     public GetAllDocumentsQueryHandlerTests()
     {
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
-        _handler = new GetAllDocumentsQueryHandler(_uow.Object);
+        _handler = new GetAllDocumentsQueryHandler(_documents.Object);
     }
 
 
@@ -68,15 +67,13 @@ public class GetAllDocumentsQueryHandlerTests
 
 public class GetDocumentByIdQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IDocumentRepository> _documents = new();
     private readonly GetDocumentByIdQueryHandler _handler;
     private readonly Guid _userId = Guid.NewGuid();
 
     public GetDocumentByIdQueryHandlerTests()
     {
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
-        _handler = new GetDocumentByIdQueryHandler(_uow.Object);
+        _handler = new GetDocumentByIdQueryHandler(_documents.Object, new CourseAccess(Mock.Of<IStudyGroupSharedCourseRepository>(), Mock.Of<IStudyGroupMemberRepository>()));
     }
 
 
@@ -109,7 +106,6 @@ public class GetDocumentByIdQueryHandlerTests
 
 public class GetDocumentQuizzesQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IDocumentRepository> _documents = new();
     private readonly Mock<IQuizRepository> _quizzes = new();
     private readonly GetDocumentQuizzesQueryHandler _handler;
@@ -117,9 +113,7 @@ public class GetDocumentQuizzesQueryHandlerTests
 
     public GetDocumentQuizzesQueryHandlerTests()
     {
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
-        _uow.Setup(u => u.Quizzes).Returns(_quizzes.Object);
-        _handler = new GetDocumentQuizzesQueryHandler(_uow.Object);
+        _handler = new GetDocumentQuizzesQueryHandler(_documents.Object, _quizzes.Object, new CourseAccess(Mock.Of<IStudyGroupSharedCourseRepository>(), Mock.Of<IStudyGroupMemberRepository>()));
     }
 
 

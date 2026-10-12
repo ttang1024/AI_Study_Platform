@@ -9,7 +9,6 @@ namespace StudyPlatform.Tests.Flashcards;
 
 public class ExportFlashcardsToAnkiQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IFlashcardRepository> _flashcards = new();
     private readonly Mock<ICourseRepository> _courses = new();
     private readonly Mock<IDocumentRepository> _documents = new();
@@ -21,15 +20,10 @@ public class ExportFlashcardsToAnkiQueryHandlerTests
 
     public ExportFlashcardsToAnkiQueryHandlerTests()
     {
-        _uow.Setup(u => u.Flashcards).Returns(_flashcards.Object);
-        _uow.Setup(u => u.Courses).Returns(_courses.Object);
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
-        _uow.Setup(u => u.Videos).Returns(_videos.Object);
-        _uow.Setup(u => u.FlashcardSrs).Returns(_srs.Object);
         _srs.Setup(r => r.GetByUserIdAsync(_userId, default)).ReturnsAsync(Array.Empty<FlashcardSrsData>());
         _ankiExport.Setup(a => a.BuildPackage(It.IsAny<string>(), It.IsAny<IReadOnlyList<AnkiExportCard>>()))
             .Returns(new byte[] { 1, 2, 3 });
-        _handler = new ExportFlashcardsToAnkiQueryHandler(_uow.Object, _ankiExport.Object);
+        _handler = new ExportFlashcardsToAnkiQueryHandler(_courses.Object, _documents.Object, _flashcards.Object, _videos.Object, _srs.Object, _ankiExport.Object);
     }
 
     [Fact]

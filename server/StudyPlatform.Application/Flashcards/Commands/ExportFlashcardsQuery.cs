@@ -12,31 +12,39 @@ public record ExportFlashcardsToAnkiQuery(Guid UserId, Guid? CourseId = null) : 
 
 public class ExportFlashcardsToAnkiQueryHandler : IRequestHandler<ExportFlashcardsToAnkiQuery, Result<AnkiPackageDto>>
 {
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly ICourseRepository _courses;
+    private readonly IDocumentRepository _documents;
+    private readonly IFlashcardRepository _flashcards;
+    private readonly IVideoRepository _videos;
+    private readonly IFlashcardSrsDataRepository _flashcardSrs;
     private readonly IAnkiExportService _ankiExport;
 
-    public ExportFlashcardsToAnkiQueryHandler(IUnitOfWork unitOfWork, IAnkiExportService ankiExport)
+    public ExportFlashcardsToAnkiQueryHandler(ICourseRepository courses, IDocumentRepository documents, IFlashcardRepository flashcards, IVideoRepository videos, IFlashcardSrsDataRepository flashcardSrs, IAnkiExportService ankiExport)
     {
-        _unitOfWork = unitOfWork;
+        _courses = courses;
+        _documents = documents;
+        _flashcards = flashcards;
+        _videos = videos;
+        _flashcardSrs = flashcardSrs;
         _ankiExport = ankiExport;
     }
 
     public async Task<Result<AnkiPackageDto>> Handle(ExportFlashcardsToAnkiQuery request, CancellationToken ct)
     {
-        var flashcards = (await _unitOfWork.Flashcards.GetByUserIdAsync(request.UserId, ct)).ToList();
+        var flashcards = (await _flashcards.GetByUserIdAsync(request.UserId, ct)).ToList();
         var deckName = "Study Platform";
 
         if (request.CourseId.HasValue)
         {
-            var course = await _unitOfWork.Courses.GetOwnedAsync(request.CourseId.Value, request.UserId, ct);
+            var course = await _courses.GetOwnedAsync(request.CourseId.Value, request.UserId, ct);
             if (course == null)
                 return Result<AnkiPackageDto>.Failure("Course not found.", "COURSE_NOT_FOUND");
             deckName = course.CourseName;
 
             // The attribution maps, not the rows: this only needs to know which source belongs to the
             // course, and materialising the documents and videos to find out drags their text along.
-            var docToCourse = await _unitOfWork.Documents.GetDocumentCourseMapAsync(request.UserId, ct);
-            var videoToCourse = await _unitOfWork.Videos.GetVideoCourseMapAsync(request.UserId, ct);
+            var docToCourse = await _documents.GetDocumentCourseMapAsync(request.UserId, ct);
+            var videoToCourse = await _videos.GetVideoCourseMapAsync(request.UserId, ct);
 
             bool InCourse(Guid? documentId, Guid? videoId)
                 => (documentId.HasValue && docToCourse.TryGetValue(documentId.Value, out var docCourse) && docCourse == request.CourseId.Value)
@@ -48,7 +56,7 @@ public class ExportFlashcardsToAnkiQueryHandler : IRequestHandler<ExportFlashcar
         if (flashcards.Count == 0)
             return Result<AnkiPackageDto>.Failure("No flashcards to export.", "NO_FLASHCARDS");
 
-        var srsMap = (await _unitOfWork.FlashcardSrs.GetByUserIdAsync(request.UserId, ct))
+        var srsMap = (await _flashcardSrs.GetByUserIdAsync(request.UserId, ct))
             .ToDictionary(s => s.FlashcardId);
 
         var cards = flashcards.Select(f =>

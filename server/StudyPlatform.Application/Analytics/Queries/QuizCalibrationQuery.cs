@@ -52,15 +52,20 @@ public class GetQuizCalibrationQueryHandler : IRequestHandler<GetQuizCalibration
     /// <summary>Cap on the worked list of confident mistakes — it is a to-do list, not an archive.</summary>
     private const int MaxConfidentMistakes = 20;
 
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly IQuizRepository _quizzes;
+    private readonly IQuizSubmissionRepository _quizSubmissions;
 
-    public GetQuizCalibrationQueryHandler(IUnitOfWork unitOfWork) => _unitOfWork = unitOfWork;
+    public GetQuizCalibrationQueryHandler(IQuizRepository quizzes, IQuizSubmissionRepository quizSubmissions)
+    {
+        _quizzes = quizzes;
+        _quizSubmissions = quizSubmissions;
+    }
 
     public async Task<Result<QuizCalibrationDto>> Handle(GetQuizCalibrationQuery request, CancellationToken ct)
     {
         var userId = request.UserId;
 
-        var submissions = (await _unitOfWork.QuizSubmissions.GetAllByUserAsync(userId, ct))
+        var submissions = (await _quizSubmissions.GetAllByUserAsync(userId, ct))
             // Submissions predating confidence capture have nothing to say here.
             .Where(s => !string.IsNullOrWhiteSpace(s.ConfidenceJson))
             .ToList();
@@ -68,7 +73,7 @@ public class GetQuizCalibrationQueryHandler : IRequestHandler<GetQuizCalibration
         if (submissions.Count == 0)
             return Result<QuizCalibrationDto>.Success(Empty());
 
-        var quizzes = (await _unitOfWork.Quizzes.FindAsNoTrackingAsync(q => q.UserId == userId, ct))
+        var quizzes = (await _quizzes.FindAsNoTrackingAsync(q => q.UserId == userId, ct))
             .ToDictionary(q => q.QuizId);
 
         // level -> (answered, correct)

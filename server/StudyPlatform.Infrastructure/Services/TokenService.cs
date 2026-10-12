@@ -19,7 +19,11 @@ public class TokenService : ITokenService
         _configuration = configuration;
     }
 
-    public string GenerateAccessToken(User user)
+    public string GenerateAccessToken(User user) => CreateAccessToken(user, includeAdminRole: false);
+
+    public string GenerateAdminAccessToken(User user) => CreateAccessToken(user, includeAdminRole: user.IsAdmin);
+
+    private string CreateAccessToken(User user, bool includeAdminRole)
     {
         var jwtSettings = _configuration.GetSection("JwtSettings");
         var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey is not configured.");
@@ -38,7 +42,7 @@ public class TokenService : ITokenService
             new(JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64)
         };
 
-        if (user.IsAdmin)
+        if (includeAdminRole)
             claims.Add(new Claim(ClaimTypes.Role, "Admin"));
 
         var token = new JwtSecurityToken(

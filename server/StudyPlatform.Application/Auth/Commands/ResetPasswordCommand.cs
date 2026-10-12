@@ -14,22 +14,28 @@ public record ResetPasswordCommand(
 public class ResetPasswordCommandHandler : IRequestHandler<ResetPasswordCommand, Result>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IUserRepository _users;
+    private readonly IOtpRepository _otps;
+    private readonly IRefreshTokenRepository _refreshTokens;
     private readonly IPasswordHasher _passwordHasher;
 
-    public ResetPasswordCommandHandler(IUnitOfWork unitOfWork, IPasswordHasher passwordHasher)
+    public ResetPasswordCommandHandler(IUnitOfWork unitOfWork, IUserRepository users, IOtpRepository otps, IRefreshTokenRepository refreshTokens, IPasswordHasher passwordHasher)
     {
         _unitOfWork = unitOfWork;
+        _users = users;
+        _otps = otps;
+        _refreshTokens = refreshTokens;
         _passwordHasher = passwordHasher;
     }
 
     public async Task<Result> Handle(ResetPasswordCommand request, CancellationToken cancellationToken)
     {
         var email = OtpVerifier.NormalizeEmail(request.Email);
-        var user = await _unitOfWork.Users.GetByEmailAsync(email, cancellationToken);
+        var user = await _users.GetByEmailAsync(email, cancellationToken);
         if (user == null) // same answer as a wrong code: this endpoint must not reveal which emails exist
             return Result.Failure("Invalid or expired OTP code.", "INVALID_OTP");
 
-        var otp = await _unitOfWork.Otps.GetActiveOtpAsync(email, OtpPurpose.PasswordReset, cancellationToken);
+        var otp = await _otps.GetActiveOtpAsync(email, OtpPurpose.PasswordReset, cancellationToken);
         if (!OtpVerifier.TryConsume(otp, request.OtpCode))
         {
             if (otp != null)
@@ -39,10 +45,10 @@ public class ResetPasswordCommandHandler : IRequestHandler<ResetPasswordCommand,
 
         user.PasswordHash = _passwordHasher.Hash(request.NewPassword);
         user.UpdatedAt = DateTime.UtcNow;
-        _unitOfWork.Users.Update(user);
-        _unitOfWork.Otps.Update(otp!);
+        _users.Update(user);
+        _otps.Update(otp!);
 
-        await _unitOfWork.RefreshTokens.RevokeAllUserTokensAsync(user.UserId, cancellationToken);
+        await _refreshTokens.RevokeAllUserTokensAsync(user.UserId, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result.Success("Password reset successfully.");

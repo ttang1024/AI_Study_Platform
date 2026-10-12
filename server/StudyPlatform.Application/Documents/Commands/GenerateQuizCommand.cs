@@ -14,6 +14,8 @@ public record GenerateQuizCommand(Guid DocumentId, Guid UserId, string Difficult
 public class GenerateQuizCommandHandler : IRequestHandler<GenerateQuizCommand, Result<IEnumerable<QuizDto>>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IDocumentRepository _documents;
+    private readonly IQuizRepository _quizzes;
     private readonly IAiService _aiService;
     private readonly IDocumentContentService _contentService;
     private readonly IAdaptiveQuizPlanner _planner;
@@ -21,12 +23,16 @@ public class GenerateQuizCommandHandler : IRequestHandler<GenerateQuizCommand, R
 
     public GenerateQuizCommandHandler(
         IUnitOfWork unitOfWork,
+        IDocumentRepository documents,
+        IQuizRepository quizzes,
         IAiService aiService,
         IDocumentContentService contentService,
         IAdaptiveQuizPlanner planner,
         IDocumentTextProvider textProvider)
     {
         _unitOfWork = unitOfWork;
+        _documents = documents;
+        _quizzes = quizzes;
         _aiService = aiService;
         _contentService = contentService;
         _planner = planner;
@@ -35,7 +41,7 @@ public class GenerateQuizCommandHandler : IRequestHandler<GenerateQuizCommand, R
 
     public async Task<Result<IEnumerable<QuizDto>>> Handle(GenerateQuizCommand request, CancellationToken cancellationToken)
     {
-        var document = await _unitOfWork.Documents.GetOwnedAsync(request.DocumentId, request.UserId, cancellationToken);
+        var document = await _documents.GetOwnedAsync(request.DocumentId, request.UserId, cancellationToken);
         if (document == null)
             return Result<IEnumerable<QuizDto>>.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
 
@@ -56,7 +62,7 @@ public class GenerateQuizCommandHandler : IRequestHandler<GenerateQuizCommand, R
 
         if (!isAdaptive)
         {
-            var existing = await _unitOfWork.Quizzes.GetByDocumentIdAndDifficultyAsync(request.DocumentId, difficulty, cancellationToken);
+            var existing = await _quizzes.GetByDocumentIdAndDifficultyAsync(request.DocumentId, difficulty, cancellationToken);
             if (existing.Any())
             {
                 var cachedDtos = existing.Select(q => q.ToQuizDto());
@@ -111,7 +117,7 @@ public class GenerateQuizCommandHandler : IRequestHandler<GenerateQuizCommand, R
             };
         }).ToList();
 
-        await _unitOfWork.Quizzes.AddRangeAsync(quizzes, cancellationToken);
+        await _quizzes.AddRangeAsync(quizzes, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         var dtos = quizzes.Select(q => q.ToQuizDto());
@@ -122,14 +128,14 @@ public class GenerateQuizCommandHandler : IRequestHandler<GenerateQuizCommand, R
     /// <summary>Drops the previous adaptive quiz for this document. Regular quizzes are untouched.</summary>
     private async Task ClearPreviousAdaptiveQuizzesAsync(Guid documentId, CancellationToken cancellationToken)
     {
-        var previous = await _unitOfWork.Quizzes.GetByDocumentIdAndDifficultyAsync(
+        var previous = await _quizzes.GetByDocumentIdAndDifficultyAsync(
             documentId, QuizDifficulty.Adaptive, cancellationToken);
 
         var stale = previous.ToList();
         if (stale.Count == 0)
             return;
 
-        _unitOfWork.Quizzes.RemoveRange(stale);
+        _quizzes.RemoveRange(stale);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 

@@ -75,7 +75,18 @@ public sealed class YouTubeCredentialPool
     {
         if (string.IsNullOrEmpty(proxy)) return;
         _proxyFailures[proxy] = DateTimeOffset.UtcNow;
-        _logger.LogWarning("Proxy {Proxy} marked failed (cooldown {Cooldown})", proxy, _cooldown);
+        _logger.LogWarning("Proxy {Proxy} marked failed (cooldown {Cooldown})", Describe(proxy), _cooldown);
+    }
+
+    /// <summary>
+    /// A proxy URL as it may be logged: host and port only. The pool's URLs carry the proxy account's
+    /// username and password in the userinfo part, so the raw string must never reach a log line.
+    /// </summary>
+    public static string Describe(string? proxy)
+    {
+        if (string.IsNullOrEmpty(proxy))
+            return "none";
+        return Uri.TryCreate(proxy, UriKind.Absolute, out var uri) ? $"{uri.Host}:{uri.Port}" : "[unparseable proxy]";
     }
 
     public void ReportCookieFailure(int cookieIndex)

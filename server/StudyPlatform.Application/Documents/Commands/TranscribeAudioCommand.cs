@@ -11,22 +11,25 @@ public record TranscribeAudioCommand(Guid DocumentId, Guid UserId) : IRequest<Re
 public class TranscribeAudioCommandHandler : IRequestHandler<TranscribeAudioCommand, Result<DocumentDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IDocumentRepository _documents;
     private readonly ITranscriptionService _transcriptionService;
     private readonly IBlobStorageService _blobStorageService;
 
     public TranscribeAudioCommandHandler(
         IUnitOfWork unitOfWork,
+        IDocumentRepository documents,
         ITranscriptionService transcriptionService,
         IBlobStorageService blobStorageService)
     {
         _unitOfWork = unitOfWork;
+        _documents = documents;
         _transcriptionService = transcriptionService;
         _blobStorageService = blobStorageService;
     }
 
     public async Task<Result<DocumentDto>> Handle(TranscribeAudioCommand request, CancellationToken cancellationToken)
     {
-        var document = await _unitOfWork.Documents.GetOwnedAsync(request.DocumentId, request.UserId, cancellationToken);
+        var document = await _documents.GetOwnedAsync(request.DocumentId, request.UserId, cancellationToken);
         if (document == null)
             return Result<DocumentDto>.Failure("Audio file not found.", "DOCUMENT_NOT_FOUND");
 
@@ -42,7 +45,7 @@ public class TranscribeAudioCommandHandler : IRequestHandler<TranscribeAudioComm
             document.Transcript = transcript;
             document.TranscriptionRequestedAt = null;
             document.UpdatedAt = DateTime.UtcNow;
-            _unitOfWork.Documents.Update(document);
+            _documents.Update(document);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
         }
 

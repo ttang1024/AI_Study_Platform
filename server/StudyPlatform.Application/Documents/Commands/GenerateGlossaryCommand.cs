@@ -13,17 +13,23 @@ public record GenerateGlossaryCommand(Guid DocumentId, Guid UserId) : IRequest<R
 public class GenerateGlossaryCommandHandler : IRequestHandler<GenerateGlossaryCommand, Result<IEnumerable<GlossaryTermDto>>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IDocumentRepository _documents;
+    private readonly IGlossaryTermRepository _glossaryTerms;
     private readonly IAiService _aiService;
     private readonly IDocumentContentService _contentService;
     private readonly IDocumentTextProvider _textProvider;
 
     public GenerateGlossaryCommandHandler(
         IUnitOfWork unitOfWork,
+        IDocumentRepository documents,
+        IGlossaryTermRepository glossaryTerms,
         IAiService aiService,
         IDocumentContentService contentService,
         IDocumentTextProvider textProvider)
     {
         _unitOfWork = unitOfWork;
+        _documents = documents;
+        _glossaryTerms = glossaryTerms;
         _aiService = aiService;
         _contentService = contentService;
         _textProvider = textProvider;
@@ -31,14 +37,14 @@ public class GenerateGlossaryCommandHandler : IRequestHandler<GenerateGlossaryCo
 
     public async Task<Result<IEnumerable<GlossaryTermDto>>> Handle(GenerateGlossaryCommand request, CancellationToken cancellationToken)
     {
-        var document = await _unitOfWork.Documents.GetOwnedAsync(request.DocumentId, request.UserId, cancellationToken);
+        var document = await _documents.GetOwnedAsync(request.DocumentId, request.UserId, cancellationToken);
         if (document == null)
             return Result<IEnumerable<GlossaryTermDto>>.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
 
         try
         {
             // Delete existing terms so we can regenerate
-            await _unitOfWork.GlossaryTerms.DeleteByDocumentIdAsync(request.DocumentId, cancellationToken);
+            await _glossaryTerms.DeleteByDocumentIdAsync(request.DocumentId, cancellationToken);
 
             var (bytes, text) = await _contentService.GetContentAsync(document, cancellationToken);
             var glossaryJson = bytes != null
@@ -75,7 +81,7 @@ public class GenerateGlossaryCommandHandler : IRequestHandler<GenerateGlossaryCo
                 };
             }).ToList();
 
-            await _unitOfWork.GlossaryTerms.AddRangeAsync(terms, cancellationToken);
+            await _glossaryTerms.AddRangeAsync(terms, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             var dtos = terms.Select(t => t.ToGlossaryTermDto());

@@ -10,7 +10,6 @@ namespace StudyPlatform.Tests.Auth;
 
 public class ExternalSignInTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IUserRepository> _users = new();
     private readonly Mock<IAuthSessionIssuer> _issuer = new();
     private readonly ExternalSignIn _signIn;
@@ -19,14 +18,13 @@ public class ExternalSignInTests
 
     public ExternalSignInTests()
     {
-        _uow.Setup(u => u.Users).Returns(_users.Object);
         _users.Setup(r => r.AddAsync(It.IsAny<User>(), default))
             .Callback<User, CancellationToken>((u, _) => _added.Add(u))
             .Returns(Task.CompletedTask);
         _issuer.Setup(i => i.IssueAsync(It.IsAny<User>(), null, default))
             .ReturnsAsync((User u, RefreshToken? _, CancellationToken _) =>
                 new AuthResponse(u.UserId, u.Email, u.FullName, "access", "refresh", DateTime.UtcNow));
-        _signIn = new ExternalSignIn(_uow.Object, _issuer.Object);
+        _signIn = new ExternalSignIn(_users.Object, _issuer.Object);
     }
 
     private void ExistingUser(User? user) =>

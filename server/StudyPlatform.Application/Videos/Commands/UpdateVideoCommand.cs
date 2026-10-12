@@ -15,11 +15,13 @@ public record UpdateVideoCommand(
 public class UpdateVideoCommandHandler : IRequestHandler<UpdateVideoCommand, Result<VideoDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
-    public UpdateVideoCommandHandler(IUnitOfWork unitOfWork) { _unitOfWork = unitOfWork; }
+    private readonly IVideoRepository _videos;
+    public UpdateVideoCommandHandler(IUnitOfWork unitOfWork, IVideoRepository videos) { _unitOfWork = unitOfWork;
+    _videos = videos; }
 
     public async Task<Result<VideoDto>> Handle(UpdateVideoCommand request, CancellationToken cancellationToken)
     {
-        var video = await _unitOfWork.Videos.GetByIdForUserAsync(request.VideoId, request.UserId, cancellationToken);
+        var video = await _videos.GetByIdForUserAsync(request.VideoId, request.UserId, cancellationToken);
         if (video is null) return Result<VideoDto>.Failure("Video not found.", "VIDEO_NOT_FOUND");
 
         if (request.Title is not null)
@@ -37,7 +39,7 @@ public class UpdateVideoCommandHandler : IRequestHandler<UpdateVideoCommand, Res
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        var saved = await _unitOfWork.Videos.GetByIdForUserAsync(video.VideoId, request.UserId, cancellationToken);
+        var saved = await _videos.GetByIdForUserAsync(video.VideoId, request.UserId, cancellationToken);
         return Result<VideoDto>.Success(SaveVideoCommandHandler.ToDto(saved!));
     }
 }

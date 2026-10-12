@@ -14,7 +14,6 @@ namespace StudyPlatform.Tests.Planner;
 
 public class GetExamScheduleQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IExamPlanRepository> _plans = new();
     private readonly Mock<ICourseRepository> _courses = new();
     private readonly Mock<IMistakeEntryRepository> _mistakes = new();
@@ -25,9 +24,6 @@ public class GetExamScheduleQueryHandlerTests
 
     public GetExamScheduleQueryHandlerTests()
     {
-        _uow.Setup(u => u.ExamPlans).Returns(_plans.Object);
-        _uow.Setup(u => u.Courses).Returns(_courses.Object);
-        _uow.Setup(u => u.MistakeEntries).Returns(_mistakes.Object);
         _mistakes.Setup(r => r.CountAsync(It.IsAny<Expression<Func<MistakeEntry, bool>>>(), default)).ReturnsAsync(0);
 
         var emptyGaps = new KnowledgeGapsDto(Array.Empty<ConceptGapDto>(), new KnowledgeGapStatsDto(0, 0, 0, 0, 0));
@@ -39,7 +35,7 @@ public class GetExamScheduleQueryHandlerTests
         _mediator.Setup(m => m.Send(It.IsAny<GetDashboardSummaryQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result<DashboardSummaryDto>.Success(summary));
 
-        _handler = new GetExamScheduleQueryHandler(_uow.Object, _mediator.Object);
+        _handler = new GetExamScheduleQueryHandler(_courses.Object, _mistakes.Object, _plans.Object, _mediator.Object);
     }
 
     private ExamPlan MakePlan(int daysUntilExam, Guid? courseId = null, int dailyMinutes = 30) => new()

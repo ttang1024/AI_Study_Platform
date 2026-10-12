@@ -10,12 +10,17 @@ public record UpdateFeedbackStatusCommand(Guid Id, string Status) : IRequest<Res
 public class UpdateFeedbackStatusCommandHandler : IRequestHandler<UpdateFeedbackStatusCommand, Result<FeedbackItemDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IFeedbackRepository _feedbacks;
 
-    public UpdateFeedbackStatusCommandHandler(IUnitOfWork unitOfWork) => _unitOfWork = unitOfWork;
+    public UpdateFeedbackStatusCommandHandler(IUnitOfWork unitOfWork, IFeedbackRepository feedbacks)
+    {
+        _unitOfWork = unitOfWork;
+        _feedbacks = feedbacks;
+    }
 
     public async Task<Result<FeedbackItemDto>> Handle(UpdateFeedbackStatusCommand request, CancellationToken cancellationToken)
     {
-        var feedback = await _unitOfWork.Feedbacks.GetByIdAsync(request.Id, cancellationToken);
+        var feedback = await _feedbacks.GetByIdAsync(request.Id, cancellationToken);
         if (feedback == null)
             return Result<FeedbackItemDto>.Failure("Feedback not found.", "NOT_FOUND");
 
@@ -23,7 +28,7 @@ public class UpdateFeedbackStatusCommandHandler : IRequestHandler<UpdateFeedback
         if (request.Status == "resolved")
             feedback.ResolvedAt = DateTime.UtcNow;
 
-        _unitOfWork.Feedbacks.Update(feedback);
+        _feedbacks.Update(feedback);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result<FeedbackItemDto>.Success(feedback.ToDto());

@@ -4,6 +4,7 @@ using StudyPlatform.Application.Auth.Commands;
 using StudyPlatform.Application.Services;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
+using StudyPlatform.Tests.TestSupport;
 using Xunit;
 
 namespace StudyPlatform.Tests.Auth;
@@ -16,15 +17,15 @@ public class LoginCommandHandlerTests
     private readonly Mock<ITokenService> _tokenService = new();
     private readonly Mock<IPasswordHasher> _hasher = new();
     private readonly Mock<IRequestContext> _requestContext = new();
+    private readonly LoginThrottle _throttle = new(new InMemoryAppCache());
     private readonly LoginCommandHandler _handler;
 
     public LoginCommandHandlerTests()
     {
-        _uow.Setup(u => u.Users).Returns(_users.Object);
-        _uow.Setup(u => u.RefreshTokens).Returns(_tokens.Object);
         _handler = new LoginCommandHandler(
-            _uow.Object, _hasher.Object,
-            new AuthSessionIssuer(_uow.Object, _tokenService.Object, _requestContext.Object));
+            _users.Object, _hasher.Object,
+            new AuthSessionIssuer(_uow.Object, _users.Object, _tokens.Object, _tokenService.Object, _requestContext.Object),
+            _throttle);
     }
 
     private User MakeUser(bool verified = true, bool active = true) => new()
@@ -155,5 +156,53 @@ public class LoginCommandHandlerTests
 
         _users.Verify(r => r.GetByEmailAsync("user@example.com", default), Times.Once);
         Assert.True(result.IsSuccess);
+    }
+
+    [Fact]
+    public async Task Handle_LocksTheAccountAfterRepeatedFailures_EvenWithTheRightPassword()
+    {
+        var user = MakeUser();
+        _users.Setup(r => r.GetByEmailAsync("user@example.com", default)).ReturnsAsync(user);
+        _hasher.Setup(h => h.Verify("wrong", "hashed")).Returns(false);
+        _hasher.Setup(h => h.Verify("right", "hashed")).Returns(true);
+
+        for (var i = 0; i < LoginThrottle.MaxFailedAttempts; i++)
+            await _handler.Handle(new LoginCommand("user@example.com", "wrong"), default);
+
+        var result = await _handler.Handle(new LoginCommand("USER@example.com", "right"), default);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("TOO_MANY_ATTEMPTS", result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task Handle_UnknownEmail_CountsTowardsTheLockout_SoLockoutRevealsNothing()
+    {
+        _users.Setup(r => r.GetByEmailAsync("ghost@example.com", default)).ReturnsAsync((User?)null);
+        _hasher.Setup(h => h.Hash(It.IsAny<string>())).Returns("dummy");
+
+        for (var i = 0; i < LoginThrottle.MaxFailedAttempts; i++)
+            await _handler.Handle(new LoginCommand("ghost@example.com", "pw"), default);
+
+        var result = await _handler.Handle(new LoginCommand("ghost@example.com", "pw"), default);
+        Assert.Equal("TOO_MANY_ATTEMPTS", result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task Handle_SuccessfulSignIn_ClearsEarlierFailures()
+    {
+        var user = MakeUser();
+        _users.Setup(r => r.GetByEmailAsync("user@example.com", default)).ReturnsAsync(user);
+        _hasher.Setup(h => h.Verify("wrong", "hashed")).Returns(false);
+        _hasher.Setup(h => h.Verify("right", "hashed")).Returns(true);
+        _tokenService.Setup(t => t.GenerateAccessToken(user)).Returns("access");
+        _tokenService.Setup(t => t.GenerateRefreshToken()).Returns("refresh");
+
+        for (var i = 0; i < LoginThrottle.MaxFailedAttempts - 1; i++)
+            await _handler.Handle(new LoginCommand("user@example.com", "wrong"), default);
+        Assert.True((await _handler.Handle(new LoginCommand("user@example.com", "right"), default)).IsSuccess);
+
+        await _handler.Handle(new LoginCommand("user@example.com", "wrong"), default);
+        Assert.False(await _throttle.IsLockedOutAsync("user@example.com"));
     }
 }

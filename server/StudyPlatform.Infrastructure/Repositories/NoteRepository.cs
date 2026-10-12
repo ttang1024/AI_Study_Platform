@@ -30,8 +30,7 @@ public class NoteRepository : Repository<Note>, INoteRepository
         var totalCount = await query.CountAsync(cancellationToken);
         var items = await query
             .OrderByDescending(n => n.UpdatedAt)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
+            .Page(page, pageSize)
             .ToListWithSourcesAsync(cancellationToken);
         return (items, totalCount);
     }

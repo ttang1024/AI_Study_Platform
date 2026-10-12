@@ -1,3 +1,5 @@
+using StudyPlatform.Domain.Interfaces;
+
 namespace StudyPlatform.Application.Common;
 
 public class PaginatedList<T>
@@ -16,7 +18,6 @@ public class PaginatedList<T>
     {
         Items = items;
         TotalCount = totalCount;
-        Page = page;
-        PageSize = pageSize;
+        (Page, PageSize) = Paging.Normalize(page, pageSize);
     }
 }

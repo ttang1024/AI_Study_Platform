@@ -38,13 +38,15 @@ public partial class AiController : ControllerBase
 {
     private readonly IAiService _aiService;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IChatMessageRepository _chatMessages;
     private readonly IBlobStorageService _blobStorageService;
     private readonly IChatTurnRecorder _chatTurns;
 
-    public AiController(IAiService aiService, IUnitOfWork unitOfWork, IBlobStorageService blobStorageService, IChatTurnRecorder chatTurns)
+    public AiController(IAiService aiService, IUnitOfWork unitOfWork, IChatMessageRepository chatMessages, IBlobStorageService blobStorageService, IChatTurnRecorder chatTurns)
     {
         _aiService = aiService;
         _unitOfWork = unitOfWork;
+        _chatMessages = chatMessages;
         _blobStorageService = blobStorageService;
         _chatTurns = chatTurns;
     }
@@ -58,12 +60,12 @@ public partial class AiController : ControllerBase
 
         // Summaries are one entry per thread, so messages saved before threads
         // existed must be folded into a conversation first.
-        foreach (var videoId in await _unitOfWork.ChatMessages.GetVideoIdsWithLegacyChatAsync(userId, cancellationToken))
-            await ChatThreads.AdoptLegacyVideoChatAsync(_unitOfWork, videoId, userId, cancellationToken);
-        foreach (var documentId in await _unitOfWork.ChatMessages.GetDocumentIdsWithLegacyChatAsync(userId, cancellationToken))
-            await ChatThreads.AdoptLegacyDocumentChatAsync(_unitOfWork, documentId, userId, cancellationToken);
+        foreach (var videoId in await _chatMessages.GetVideoIdsWithLegacyChatAsync(userId, cancellationToken))
+            await ChatThreads.AdoptLegacyVideoChatAsync(_chatMessages, _unitOfWork, videoId, userId, cancellationToken);
+        foreach (var documentId in await _chatMessages.GetDocumentIdsWithLegacyChatAsync(userId, cancellationToken))
+            await ChatThreads.AdoptLegacyDocumentChatAsync(_chatMessages, _unitOfWork, documentId, userId, cancellationToken);
 
-        var summaries = await _unitOfWork.ChatMessages.GetConversationSummariesAsync(userId, cancellationToken);
+        var summaries = await _chatMessages.GetConversationSummariesAsync(userId, cancellationToken);
         return Ok(BaseResponse<IEnumerable<ChatConversationSummary>>.Ok(summaries));
     }
 
@@ -73,7 +75,7 @@ public partial class AiController : ControllerBase
     public async Task<IActionResult> CreateChatConversation([FromBody] CreateGeneralChatConversationRequest? request, CancellationToken cancellationToken)
     {
         var userId = User.GetUserId();
-        var conversation = await _unitOfWork.ChatMessages.CreateConversationAsync(
+        var conversation = await _chatMessages.CreateConversationAsync(
             userId,
             request?.Title ?? "New conversation",
             cancellationToken);
@@ -89,11 +91,11 @@ public partial class AiController : ControllerBase
     public async Task<IActionResult> GetChatConversationMessages(Guid conversationId, CancellationToken cancellationToken)
     {
         var userId = User.GetUserId();
-        var conversation = await _unitOfWork.ChatMessages.GetConversationAsync(conversationId, userId, cancellationToken);
+        var conversation = await _chatMessages.GetConversationAsync(conversationId, userId, cancellationToken);
         if (conversation is null)
             return NotFound(BaseResponse<string>.Fail("Conversation not found.", "CONVERSATION_NOT_FOUND"));
 
-        var messages = await _unitOfWork.ChatMessages.GetByConversationIdAsync(conversationId, userId, cancellationToken);
+        var messages = await _chatMessages.GetByConversationIdAsync(conversationId, userId, cancellationToken);
         var dtos = new List<ChatMessageDto>();
         foreach (var m in messages)
             dtos.Add(await m.ToDtoAsync(_blobStorageService, cancellationToken));
@@ -107,11 +109,11 @@ public partial class AiController : ControllerBase
     public async Task<IActionResult> DeleteChatConversation(Guid conversationId, CancellationToken cancellationToken)
     {
         var userId = User.GetUserId();
-        var conversation = await _unitOfWork.ChatMessages.GetConversationAsync(conversationId, userId, cancellationToken);
+        var conversation = await _chatMessages.GetConversationAsync(conversationId, userId, cancellationToken);
         if (conversation is null)
             return NotFound(BaseResponse<string>.Fail("Conversation not found.", "CONVERSATION_NOT_FOUND"));
 
-        await _unitOfWork.ChatMessages.DeleteConversationAsync(conversationId, userId, cancellationToken);
+        await _chatMessages.DeleteConversationAsync(conversationId, userId, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return Ok(BaseResponse<string>.Ok("Conversation deleted."));
     }
@@ -226,7 +228,7 @@ public partial class AiController : ControllerBase
             return invalid;
 
         var userId = User.GetUserId();
-        var conversation = await _unitOfWork.ChatMessages.GetConversationAsync(conversationId, userId, cancellationToken);
+        var conversation = await _chatMessages.GetConversationAsync(conversationId, userId, cancellationToken);
         if (conversation is null)
             return NotFound(BaseResponse<string>.Fail("Conversation not found.", "CONVERSATION_NOT_FOUND"));
 
@@ -239,7 +241,7 @@ public partial class AiController : ControllerBase
             ? request.Message
             : attachmentList.FirstOrDefault()?.FileName ?? "Attachment";
 
-        var history = await _unitOfWork.ChatMessages.GetByConversationIdAsync(conversationId, userId, cancellationToken);
+        var history = await _chatMessages.GetByConversationIdAsync(conversationId, userId, cancellationToken);
         var stream = _aiService.StreamGeneralChatAsync(history.Select(m => (m.Role, m.Content)), promptMessage, ChatAttachments.ToModelInputs(attachments), cancellationToken);
         var thread = new ChatThread(userId, conversation, "general");
         return await this.StreamAiToSseAsync(stream, cancellationToken,

@@ -22,12 +22,18 @@ public class SubmitPracticeTestCommandHandler : IRequestHandler<SubmitPracticeTe
     private const int RatingAgain = 1;
 
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IGlossaryMasteredRepository _glossaryMastered;
+    private readonly IWorkedProblemMasteredRepository _workedProblemMastered;
+    private readonly IMistakeEntryRepository _mistakeEntries;
     private readonly IMediator _mediator;
     private readonly IAppCache _cache;
 
-    public SubmitPracticeTestCommandHandler(IUnitOfWork unitOfWork, IMediator mediator, IAppCache cache)
+    public SubmitPracticeTestCommandHandler(IUnitOfWork unitOfWork, IGlossaryMasteredRepository glossaryMastered, IWorkedProblemMasteredRepository workedProblemMastered, IMistakeEntryRepository mistakeEntries, IMediator mediator, IAppCache cache)
     {
         _unitOfWork = unitOfWork;
+        _glossaryMastered = glossaryMastered;
+        _workedProblemMastered = workedProblemMastered;
+        _mistakeEntries = mistakeEntries;
         _mediator = mediator;
         _cache = cache;
     }
@@ -37,8 +43,8 @@ public class SubmitPracticeTestCommandHandler : IRequestHandler<SubmitPracticeTe
         var results = request.Results ?? Array.Empty<PracticeResultItem>();
         var userId = request.UserId;
 
-        var masteredTerms = (await _unitOfWork.GlossaryMastered.GetMasteredTermIdsByUserAsync(userId, ct)).ToHashSet();
-        var masteredProblems = (await _unitOfWork.WorkedProblemMastered.GetMasteredProblemIdsByUserAsync(userId, ct)).ToHashSet();
+        var masteredTerms = (await _glossaryMastered.GetMasteredTermIdsByUserAsync(userId, ct)).ToHashSet();
+        var masteredProblems = (await _workedProblemMastered.GetMasteredProblemIdsByUserAsync(userId, ct)).ToHashSet();
 
         foreach (var item in results)
         {
@@ -54,20 +60,20 @@ public class SubmitPracticeTestCommandHandler : IRequestHandler<SubmitPracticeTe
 
                 case "glossary":
                     if (item.IsCorrect && masteredTerms.Add(item.SourceId))
-                        await _unitOfWork.GlossaryMastered.AddAsync(
+                        await _glossaryMastered.AddAsync(
                             new GlossaryMastered { Id = Guid.NewGuid(), UserId = userId, GlossaryTermId = item.SourceId, MasteredAt = DateTime.UtcNow }, ct);
                     break;
 
                 case "problem":
                     if (item.IsCorrect && masteredProblems.Add(item.SourceId))
-                        await _unitOfWork.WorkedProblemMastered.AddAsync(
+                        await _workedProblemMastered.AddAsync(
                             new WorkedProblemMastered { Id = Guid.NewGuid(), UserId = userId, WorkedProblemId = item.SourceId, MasteredAt = DateTime.UtcNow }, ct);
                     break;
 
                 case "mistake":
                     // Smart-session redo of a mistake-notebook entry: a correct answer
                     // resolves it, a wrong one bumps its missed counter.
-                    var mistake = (await _unitOfWork.MistakeEntries.FindAsync(
+                    var mistake = (await _mistakeEntries.FindAsync(
                         m => m.MistakeEntryId == item.SourceId && m.UserId == userId, ct)).FirstOrDefault();
                     if (mistake is null) break;
                     if (item.IsCorrect)

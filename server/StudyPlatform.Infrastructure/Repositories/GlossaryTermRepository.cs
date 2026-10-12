@@ -46,9 +46,9 @@ public class GlossaryTermRepository : Repository<GlossaryTerm>, IGlossaryTermRep
             .OrderBy(t => t.Term)
             .ToListAsync(cancellationToken);
 
-    public async Task DeleteByVideoIdAsync(Guid videoId, CancellationToken cancellationToken = default)
+    public async Task DeleteByVideoIdAsync(Guid videoId, Guid userId, CancellationToken cancellationToken = default)
     {
-        var terms = await _dbSet.Where(t => t.VideoId == videoId).ToListAsync(cancellationToken);
+        var terms = await _dbSet.Where(t => t.VideoId == videoId && t.UserId == userId).ToListAsync(cancellationToken);
         _dbSet.RemoveRange(terms);
     }
 }

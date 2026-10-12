@@ -10,25 +10,29 @@ public record DeleteVideoCommand(Guid Id, Guid UserId) : IRequest<Result>;
 public class DeleteVideoCommandHandler : IRequestHandler<DeleteVideoCommand, Result>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IVideoRepository _videos;
+    private readonly ILibraryTagRepository _libraryTags;
     private readonly IEmbeddingIndex _embeddingIndex;
 
-    public DeleteVideoCommandHandler(IUnitOfWork unitOfWork, IEmbeddingIndex embeddingIndex)
+    public DeleteVideoCommandHandler(IUnitOfWork unitOfWork, IVideoRepository videos, ILibraryTagRepository libraryTags, IEmbeddingIndex embeddingIndex)
     {
         _unitOfWork = unitOfWork;
+        _videos = videos;
+        _libraryTags = libraryTags;
         _embeddingIndex = embeddingIndex;
     }
 
     public async Task<Result> Handle(DeleteVideoCommand request, CancellationToken cancellationToken)
     {
-        var video = await _unitOfWork.Videos.GetByIdForUserAsync(request.Id, request.UserId, cancellationToken);
+        var video = await _videos.GetByIdForUserAsync(request.Id, request.UserId, cancellationToken);
         if (video is null)
             return Result.Failure("Video not found.", "NOT_FOUND");
 
-        _unitOfWork.Videos.Remove(video);
+        _videos.Remove(video);
 
         // The tag join is polymorphic, so no foreign key reaches it and no cascade fires. Pruned
         // here or the assignment outlives the video and inflates every collection's item count.
-        await _unitOfWork.LibraryTags.RemoveAssignmentsForItemAsync(
+        await _libraryTags.RemoveAssignmentsForItemAsync(
             "video", video.VideoId, cancellationToken);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);

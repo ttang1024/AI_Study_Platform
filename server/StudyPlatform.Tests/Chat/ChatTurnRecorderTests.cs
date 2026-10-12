@@ -26,13 +26,12 @@ public class ChatTurnRecorderTests
 
     public ChatTurnRecorderTests()
     {
-        _uow.Setup(u => u.ChatMessages).Returns(_chat.Object);
         _chat.Setup(r => r.AddAsync(It.IsAny<ChatMessage>(), default))
             .Callback<ChatMessage, CancellationToken>((m, _) => _added.Add(m))
             .Returns(Task.CompletedTask);
         _chat.Setup(r => r.UpdateConversation(It.IsAny<ChatConversation>()))
             .Callback<ChatConversation>(_updatedConversations.Add);
-        _recorder = new ChatTurnRecorder(_uow.Object);
+        _recorder = new ChatTurnRecorder(_uow.Object, _chat.Object);
     }
 
     private ChatThread DocumentThread(Guid documentId) =>

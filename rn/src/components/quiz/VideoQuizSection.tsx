@@ -1,7 +1,8 @@
 import React from 'react';
 
 import { QuizRunner } from '@/components/quiz/QuizRunner';
-import { quizService } from '@/services/quizService';
+import { mapQuiz } from '@core/services/documentService';
+import { videoService } from '@/services/videoService';
 
 interface VideoQuizSectionProps {
   videoId: string;
@@ -10,9 +11,9 @@ interface VideoQuizSectionProps {
 
 export const VideoQuizSection: React.FC<VideoQuizSectionProps> = ({ videoId, videoUrl }) => (
   <QuizRunner
-    getQuiz={(difficulty) => quizService.getVideoQuiz(videoId, difficulty)}
-    generateQuiz={(difficulty) => quizService.generateForVideo(videoId, videoUrl, difficulty)}
+    getQuiz={(difficulty) => videoService.getQuiz(videoId, difficulty).then((qs) => qs.map(mapQuiz))}
+    generateQuiz={(difficulty) => videoService.generateQuiz(videoId, videoUrl, difficulty).then((qs) => qs.map(mapQuiz))}
     submitQuiz={(answers, score, total, confidence) =>
-      quizService.submitVideoQuiz(videoId, answers, score, total, confidence)}
+      videoService.submitQuiz(videoId, answers, score, total, confidence)}
   />
 );

@@ -18,9 +18,8 @@ public class UpdateGlossaryTermCommandHandlerTests
 
     public UpdateGlossaryTermCommandHandlerTests()
     {
-        _uow.Setup(u => u.GlossaryTerms).Returns(_terms.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new UpdateGlossaryTermCommandHandler(_uow.Object);
+        _handler = new UpdateGlossaryTermCommandHandler(_uow.Object, _terms.Object);
     }
 
     private GlossaryTerm MakeTerm(Guid? userId = null) => new()
@@ -87,9 +86,8 @@ public class DeleteGlossaryTermCommandHandlerTests
 
     public DeleteGlossaryTermCommandHandlerTests()
     {
-        _uow.Setup(u => u.GlossaryTerms).Returns(_terms.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new DeleteGlossaryTermCommandHandler(_uow.Object, _embeddingIndex.Object);
+        _handler = new DeleteGlossaryTermCommandHandler(_uow.Object, _terms.Object, _embeddingIndex.Object);
     }
 
     private GlossaryTerm MakeTerm(Guid? userId = null) => new()
@@ -143,15 +141,13 @@ public class DeleteGlossaryTermCommandHandlerTests
 
 public class GetAllGlossaryTermsQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IGlossaryTermRepository> _terms = new();
     private readonly GetAllGlossaryTermsQueryHandler _handler;
     private readonly Guid _userId = Guid.NewGuid();
 
     public GetAllGlossaryTermsQueryHandlerTests()
     {
-        _uow.Setup(u => u.GlossaryTerms).Returns(_terms.Object);
-        _handler = new GetAllGlossaryTermsQueryHandler(_uow.Object);
+        _handler = new GetAllGlossaryTermsQueryHandler(_terms.Object);
     }
 
     [Fact]

@@ -8,15 +8,13 @@ namespace StudyPlatform.Tests.WorkedProblems;
 
 public class GetWorkedProblemsQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IWorkedProblemRepository> _problems = new();
     private readonly GetWorkedProblemsQueryHandler _handler;
     private readonly Guid _userId = Guid.NewGuid();
 
     public GetWorkedProblemsQueryHandlerTests()
     {
-        _uow.Setup(u => u.WorkedProblems).Returns(_problems.Object);
-        _handler = new GetWorkedProblemsQueryHandler(_uow.Object);
+        _handler = new GetWorkedProblemsQueryHandler(_problems.Object);
     }
 
     [Fact]

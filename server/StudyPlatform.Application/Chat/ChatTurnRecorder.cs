@@ -8,10 +8,12 @@ namespace StudyPlatform.Application.Chat;
 public class ChatTurnRecorder : IChatTurnRecorder
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IChatMessageRepository _chatMessages;
 
-    public ChatTurnRecorder(IUnitOfWork unitOfWork)
+    public ChatTurnRecorder(IUnitOfWork unitOfWork, IChatMessageRepository chatMessages)
     {
         _unitOfWork = unitOfWork;
+        _chatMessages = chatMessages;
     }
 
     public Task RecordUserAsync(
@@ -38,9 +40,9 @@ public class ChatTurnRecorder : IChatTurnRecorder
         if (title != null)
             thread.Conversation.Title = title;
         thread.Conversation.UpdatedAt = now;
-        _unitOfWork.ChatMessages.UpdateConversation(thread.Conversation);
+        _chatMessages.UpdateConversation(thread.Conversation);
 
-        await _unitOfWork.ChatMessages.AddAsync(new ChatMessage
+        await _chatMessages.AddAsync(new ChatMessage
         {
             MessageId = Guid.NewGuid(),
             ChatConversationId = thread.Conversation.ConversationId,

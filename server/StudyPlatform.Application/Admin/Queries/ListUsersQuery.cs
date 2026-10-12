@@ -14,13 +14,13 @@ public record ListUsersQuery(
 
 public class ListUsersQueryHandler : IRequestHandler<ListUsersQuery, Result<PaginatedList<UserDto>>>
 {
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly IUserRepository _users;
 
-    public ListUsersQueryHandler(IUnitOfWork unitOfWork) => _unitOfWork = unitOfWork;
+    public ListUsersQueryHandler(IUserRepository users) => _users = users;
 
     public async Task<Result<PaginatedList<UserDto>>> Handle(ListUsersQuery request, CancellationToken cancellationToken)
     {
-        var (items, total) = await _unitOfWork.Users.ListAsync(
+        var (items, total) = await _users.ListAsync(
             request.Page, request.PageSize, request.Search, request.Status, request.Sort, cancellationToken);
 
         var dtos = items.Select(u => new UserDto(

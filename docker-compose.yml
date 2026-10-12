@@ -81,7 +81,7 @@ services:
       minio-init:
         condition: service_completed_successfully
     volumes:
-      - data_protection_keys:/root/.aspnet/DataProtection-Keys
+      - data_protection_keys:/home/app/.aspnet/DataProtection-Keys
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       # Defaults to the bundled postgres service. Point DATABASE_CONNECTION_STRING at a managed

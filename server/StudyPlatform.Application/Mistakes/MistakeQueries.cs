@@ -10,21 +10,29 @@ public record GetMistakesQuery(Guid UserId, string? Status = null) : IRequest<Re
 public class GetMistakesQueryHandler : IRequestHandler<GetMistakesQuery, Result<MistakesDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IUserRepository _users;
+    private readonly IQuizRepository _quizzes;
+    private readonly IQuizSubmissionRepository _quizSubmissions;
+    private readonly IMistakeEntryRepository _mistakeEntries;
 
-    public GetMistakesQueryHandler(IUnitOfWork unitOfWork)
+    public GetMistakesQueryHandler(IUnitOfWork unitOfWork, IUserRepository users, IQuizRepository quizzes, IQuizSubmissionRepository quizSubmissions, IMistakeEntryRepository mistakeEntries)
     {
         _unitOfWork = unitOfWork;
+        _users = users;
+        _quizzes = quizzes;
+        _quizSubmissions = quizSubmissions;
+        _mistakeEntries = mistakeEntries;
     }
 
     public async Task<Result<MistakesDto>> Handle(GetMistakesQuery request, CancellationToken cancellationToken)
     {
-        var entries = (await _unitOfWork.MistakeEntries.FindAsNoTrackingAsync(m => m.UserId == request.UserId, cancellationToken)).ToList();
+        var entries = (await _mistakeEntries.FindAsNoTrackingAsync(m => m.UserId == request.UserId, cancellationToken)).ToList();
 
         // Mistakes are normally captured at submission time, but submissions that predate the
         // notebook never went through capture. First time a user with history opens an empty
         // notebook, replay their stored submissions once.
         if (entries.Count == 0 && await TryBackfillOnceAsync(request.UserId, cancellationToken))
-            entries = (await _unitOfWork.MistakeEntries.FindAsNoTrackingAsync(m => m.UserId == request.UserId, cancellationToken)).ToList();
+            entries = (await _mistakeEntries.FindAsNoTrackingAsync(m => m.UserId == request.UserId, cancellationToken)).ToList();
 
         var openCount = entries.Count(m => m.Status == "open");
         var resolvedCount = entries.Count - openCount;
@@ -50,13 +58,13 @@ public class GetMistakesQueryHandler : IRequestHandler<GetMistakesQuery, Result<
     /// </summary>
     private async Task<bool> TryBackfillOnceAsync(Guid userId, CancellationToken cancellationToken)
     {
-        var user = await _unitOfWork.Users.GetByIdAsync(userId, cancellationToken);
+        var user = await _users.GetByIdAsync(userId, cancellationToken);
         if (user is null || user.MistakesBackfilledAt.HasValue) return false;
 
         var wroteAnything = await BackfillFromSubmissionsAsync(userId, cancellationToken);
 
         user.MistakesBackfilledAt = DateTime.UtcNow;
-        _unitOfWork.Users.Update(user);
+        _users.Update(user);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return wroteAnything;
     }
@@ -64,10 +72,10 @@ public class GetMistakesQueryHandler : IRequestHandler<GetMistakesQuery, Result<
     /// <summary>Replays stored quiz submissions through the capture logic. Returns true if anything was written.</summary>
     private async Task<bool> BackfillFromSubmissionsAsync(Guid userId, CancellationToken cancellationToken)
     {
-        var submissions = (await _unitOfWork.QuizSubmissions.FindAsNoTrackingAsync(s => s.UserId == userId, cancellationToken)).ToList();
+        var submissions = (await _quizSubmissions.FindAsNoTrackingAsync(s => s.UserId == userId, cancellationToken)).ToList();
         if (submissions.Count == 0) return false;
 
-        var quizzes = (await _unitOfWork.Quizzes.FindAsNoTrackingAsync(q => q.UserId == userId, cancellationToken)).ToList();
+        var quizzes = (await _quizzes.FindAsNoTrackingAsync(q => q.UserId == userId, cancellationToken)).ToList();
         if (quizzes.Count == 0) return false;
 
         // Indexed once up front — the per-submission source lookup below used to re-scan the
@@ -98,7 +106,7 @@ public class GetMistakesQueryHandler : IRequestHandler<GetMistakesQuery, Result<
             if (sourceQuizzes.Count == 0) continue;
 
             await MistakeCapture.CaptureForQuizzesAsync(
-                _unitOfWork, userId, sourceQuizzes, answers, cancellationToken, submission.SubmittedAt);
+                _mistakeEntries, userId, sourceQuizzes, answers, cancellationToken, submission.SubmittedAt);
             wroteAnything = true;
         }
 

@@ -1,8 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using System.Text.RegularExpressions;
-using StudyPlatform.API.Extensions;
 using StudyPlatform.Application.Common;
-using StudyPlatform.Application.Services;
 using StudyPlatform.Application.Videos;
 using StudyPlatform.Domain.Entities;
 
@@ -13,61 +10,12 @@ public partial class VideoController
 {
     // ── Access helper ─────────────────────────────────────────────────────
 
-    private async Task<Video?> GetVideoWithAccessCheckAsync(Guid id, Guid userId, CancellationToken cancellationToken)
-    {
-        var video = await _unitOfWork.Videos.GetByIdForUserAsync(id, userId, cancellationToken);
-        if (video is not null) return video;
-
-        video = await _unitOfWork.Videos.GetByIdWithCourseAsync(id, cancellationToken);
-        if (video is null) return null;
-
-        return await _unitOfWork.HasSharedCourseAccessAsync(userId, video.CourseId, cancellationToken) ? video : null;
-    }
+    private Task<Video?> GetVideoWithAccessCheckAsync(Guid id, Guid userId, CancellationToken cancellationToken)
+        => _videoAccess.GetAccessibleVideoAsync(id, userId, cancellationToken);
 
     // ── URL helpers ───────────────────────────────────────────────────────
 
-    private static string? ExtractVideoId(string videoUrl)
-    {
-        try
-        {
-            var uri = new Uri(videoUrl);
-            if (uri.Host.Contains("bilibili.com", StringComparison.OrdinalIgnoreCase))
-            {
-                var match = Regex.Match(uri.AbsolutePath, @"/video/(?<id>BV[0-9A-Za-z]+)", RegexOptions.IgnoreCase);
-                if (match.Success)
-                {
-                    var page = 1;
-                    foreach (var param in uri.Query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries))
-                    {
-                        var parts = param.Split('=', 2);
-                        if (parts.Length == 2 && parts[0] == "p" && int.TryParse(parts[1], out var parsed) && parsed > 1)
-                        {
-                            page = parsed;
-                            break;
-                        }
-                    }
-
-                    var bvid = match.Groups["id"].Value;
-                    return page > 1 ? $"{bvid}:p{page}" : bvid;
-                }
-            }
-            if (uri.Host.Contains("youtu.be"))
-                return uri.AbsolutePath.TrimStart('/').Split('?')[0];
-            // Parse ?v= from query string without System.Web dependency
-            foreach (var param in uri.Query.TrimStart('?').Split('&'))
-            {
-                var parts = param.Split('=', 2);
-                if (parts.Length == 2 && parts[0] == "v" && !string.IsNullOrEmpty(parts[1]))
-                    return Uri.UnescapeDataString(parts[1]);
-            }
-            var segments = uri.AbsolutePath.Split('/');
-            for (var i = 0; i < segments.Length - 1; i++)
-                if (segments[i] is "shorts" or "embed")
-                    return segments[i + 1];
-        }
-        catch { }
-        return null;
-    }
+    private static string? ExtractVideoId(string videoUrl) => VideoUrls.ExtractVideoId(videoUrl);
 
     private static bool IsBilibiliVideo(Video video)
         => string.Equals(video.SourceType, "bilibili", StringComparison.OrdinalIgnoreCase);

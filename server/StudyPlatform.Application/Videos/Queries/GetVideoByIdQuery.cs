@@ -10,25 +10,27 @@ public record GetVideoByIdQuery(Guid Id, Guid UserId) : IRequest<Result<VideoDto
 
 public class GetVideoByIdQueryHandler : IRequestHandler<GetVideoByIdQuery, Result<VideoDto>>
 {
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly IVideoRepository _videos;
+    private readonly ICourseAccess _courseAccess;
 
-    public GetVideoByIdQueryHandler(IUnitOfWork unitOfWork)
+    public GetVideoByIdQueryHandler(IVideoRepository videos, ICourseAccess courseAccess)
     {
-        _unitOfWork = unitOfWork;
+        _videos = videos;
+        _courseAccess = courseAccess;
     }
 
     public async Task<Result<VideoDto>> Handle(GetVideoByIdQuery request, CancellationToken cancellationToken)
     {
-        var video = await _unitOfWork.Videos.GetByIdForUserAsync(request.Id, request.UserId, cancellationToken);
+        var video = await _videos.GetByIdForUserAsync(request.Id, request.UserId, cancellationToken);
 
         if (video is null)
         {
             // Check if the video belongs to a course shared with one of the user's study groups
-            video = await _unitOfWork.Videos.GetByIdWithCourseAsync(request.Id, cancellationToken);
+            video = await _videos.GetByIdWithCourseAsync(request.Id, cancellationToken);
             if (video is null)
                 return Result<VideoDto>.Failure("Video not found.", "NOT_FOUND");
 
-            if (!await _unitOfWork.HasSharedCourseAccessAsync(request.UserId, video.CourseId, cancellationToken))
+            if (!await _courseAccess.HasSharedCourseAccessAsync(request.UserId, video.CourseId, cancellationToken))
                 return Result<VideoDto>.Failure("Video not found.", "NOT_FOUND");
         }
 

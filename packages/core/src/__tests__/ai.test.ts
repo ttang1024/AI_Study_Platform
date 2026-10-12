@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildAiHeaders, AI_PROVIDERS, AI_PROVIDER_IDS, DEFAULT_MODELS } from '../ai'
+import { buildAiHeaders, needsAiHeaders, AI_PROVIDERS, AI_PROVIDER_IDS, DEFAULT_MODELS } from '../ai'
 
 describe('buildAiHeaders', () => {
   it('builds provider/model headers and omits the key header when absent', () => {
@@ -32,5 +32,25 @@ describe('AI_PROVIDERS registry', () => {
 
   it('AI_PROVIDER_IDS matches the ids in AI_PROVIDERS', () => {
     expect(AI_PROVIDER_IDS).toEqual(AI_PROVIDERS.map((p) => p.id))
+  })
+})
+
+describe('needsAiHeaders', () => {
+  it('attaches AI credentials to every mutation', () => {
+    expect(needsAiHeaders('post', '/api/documents')).toBe(true)
+    expect(needsAiHeaders('PUT', '/api/flashcards/1')).toBe(true)
+    expect(needsAiHeaders('delete', '/api/notes/1')).toBe(true)
+  })
+
+  it('keeps AI credentials off plain reads', () => {
+    expect(needsAiHeaders('get', '/api/library?page=1')).toBe(false)
+    expect(needsAiHeaders(undefined, '/api/auth/me')).toBe(false)
+    expect(needsAiHeaders('get', '/api/planner/exam-plans')).toBe(false)
+  })
+
+  it('attaches AI credentials to the reads that run AI work', () => {
+    expect(needsAiHeaders('get', '/api/planner/exam-plans/abc/cram-sheet')).toBe(true)
+    expect(needsAiHeaders('get', '/api/planner/exam-plans/abc/cram-sheet?refresh=true')).toBe(true)
+    expect(needsAiHeaders('get', 'https://api.example.com/api/ai/test-provider')).toBe(true)
   })
 })

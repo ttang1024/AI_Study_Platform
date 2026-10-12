@@ -18,6 +18,7 @@ public record TranscribeUploadedVideoCommand(Guid VideoRecordId, Guid UserId) : 
 public class TranscribeUploadedVideoCommandHandler : IRequestHandler<TranscribeUploadedVideoCommand, Result>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IVideoRepository _videos;
     private readonly IBlobStorageService _blobStorage;
     private readonly ITranscriptionService _transcription;
     private readonly IVideoTranscriptProvider _transcripts;
@@ -25,12 +26,14 @@ public class TranscribeUploadedVideoCommandHandler : IRequestHandler<TranscribeU
 
     public TranscribeUploadedVideoCommandHandler(
         IUnitOfWork unitOfWork,
+        IVideoRepository videos,
         IBlobStorageService blobStorage,
         ITranscriptionService transcription,
         IVideoTranscriptProvider transcripts,
         IOptions<CacheOptions> cacheOptions)
     {
         _unitOfWork = unitOfWork;
+        _videos = videos;
         _blobStorage = blobStorage;
         _transcription = transcription;
         _transcripts = transcripts;
@@ -39,7 +42,7 @@ public class TranscribeUploadedVideoCommandHandler : IRequestHandler<TranscribeU
 
     public async Task<Result> Handle(TranscribeUploadedVideoCommand request, CancellationToken cancellationToken)
     {
-        var video = await _unitOfWork.Videos.GetOwnedAsync(request.VideoRecordId, request.UserId, cancellationToken);
+        var video = await _videos.GetOwnedAsync(request.VideoRecordId, request.UserId, cancellationToken);
         if (video == null || !string.Equals(video.SourceType, "upload", StringComparison.OrdinalIgnoreCase))
             return Result.Failure("Uploaded video not found.", "VIDEO_NOT_FOUND");
 
@@ -75,12 +78,17 @@ public record AbandonVideoTranscriptionCommand(Guid VideoRecordId) : IRequest<Re
 public class AbandonVideoTranscriptionCommandHandler : IRequestHandler<AbandonVideoTranscriptionCommand, Result>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IVideoRepository _videos;
 
-    public AbandonVideoTranscriptionCommandHandler(IUnitOfWork unitOfWork) => _unitOfWork = unitOfWork;
+    public AbandonVideoTranscriptionCommandHandler(IUnitOfWork unitOfWork, IVideoRepository videos)
+    {
+        _unitOfWork = unitOfWork;
+        _videos = videos;
+    }
 
     public async Task<Result> Handle(AbandonVideoTranscriptionCommand request, CancellationToken cancellationToken)
     {
-        var video = await _unitOfWork.Videos.GetByIdAsync(request.VideoRecordId, cancellationToken);
+        var video = await _videos.GetByIdAsync(request.VideoRecordId, cancellationToken);
         if (video == null)
             return Result.Success();
 

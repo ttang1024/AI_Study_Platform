@@ -26,12 +26,12 @@ public record GetAnnotationsByDocumentQuery(Guid UserId, Guid DocumentId) : IReq
 
 public class GetAnnotationsByDocumentQueryHandler : IRequestHandler<GetAnnotationsByDocumentQuery, Result<IEnumerable<DocumentAnnotationDto>>>
 {
-    private readonly IUnitOfWork _unitOfWork;
-    public GetAnnotationsByDocumentQueryHandler(IUnitOfWork unitOfWork) { _unitOfWork = unitOfWork; }
+    private readonly IDocumentAnnotationRepository _documentAnnotations;
+    public GetAnnotationsByDocumentQueryHandler(IDocumentAnnotationRepository documentAnnotations) { _documentAnnotations = documentAnnotations; }
 
     public async Task<Result<IEnumerable<DocumentAnnotationDto>>> Handle(GetAnnotationsByDocumentQuery request, CancellationToken cancellationToken)
     {
-        var annotations = await _unitOfWork.DocumentAnnotations.GetByDocumentAsync(request.DocumentId, request.UserId, cancellationToken);
+        var annotations = await _documentAnnotations.GetByDocumentAsync(request.DocumentId, request.UserId, cancellationToken);
         return Result<IEnumerable<DocumentAnnotationDto>>.Success(annotations.Select(ToDto));
     }
 
@@ -53,11 +53,15 @@ public record CreateAnnotationCommand(
 public class CreateAnnotationCommandHandler : IRequestHandler<CreateAnnotationCommand, Result<DocumentAnnotationDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
-    public CreateAnnotationCommandHandler(IUnitOfWork unitOfWork) { _unitOfWork = unitOfWork; }
+    private readonly IDocumentRepository _documents;
+    private readonly IDocumentAnnotationRepository _documentAnnotations;
+    public CreateAnnotationCommandHandler(IUnitOfWork unitOfWork, IDocumentRepository documents, IDocumentAnnotationRepository documentAnnotations) { _unitOfWork = unitOfWork;
+    _documents = documents;
+    _documentAnnotations = documentAnnotations; }
 
     public async Task<Result<DocumentAnnotationDto>> Handle(CreateAnnotationCommand request, CancellationToken cancellationToken)
     {
-        var doc = await _unitOfWork.Documents.GetOwnedAsync(request.DocumentId, request.UserId, cancellationToken);
+        var doc = await _documents.GetOwnedAsync(request.DocumentId, request.UserId, cancellationToken);
         if (doc == null)
             return Result<DocumentAnnotationDto>.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
 
@@ -75,7 +79,7 @@ public class CreateAnnotationCommandHandler : IRequestHandler<CreateAnnotationCo
             UpdatedAt = DateTime.UtcNow
         };
 
-        await _unitOfWork.DocumentAnnotations.AddAsync(annotation, cancellationToken);
+        await _documentAnnotations.AddAsync(annotation, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result<DocumentAnnotationDto>.Success(GetAnnotationsByDocumentQueryHandler.ToDto(annotation), "Annotation created.");
@@ -87,11 +91,13 @@ public record UpdateAnnotationCommand(Guid UserId, Guid AnnotationId, string? No
 public class UpdateAnnotationCommandHandler : IRequestHandler<UpdateAnnotationCommand, Result<DocumentAnnotationDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
-    public UpdateAnnotationCommandHandler(IUnitOfWork unitOfWork) { _unitOfWork = unitOfWork; }
+    private readonly IDocumentAnnotationRepository _documentAnnotations;
+    public UpdateAnnotationCommandHandler(IUnitOfWork unitOfWork, IDocumentAnnotationRepository documentAnnotations) { _unitOfWork = unitOfWork;
+    _documentAnnotations = documentAnnotations; }
 
     public async Task<Result<DocumentAnnotationDto>> Handle(UpdateAnnotationCommand request, CancellationToken cancellationToken)
     {
-        var annotation = await _unitOfWork.DocumentAnnotations.GetOwnedAsync(request.AnnotationId, request.UserId, cancellationToken);
+        var annotation = await _documentAnnotations.GetOwnedAsync(request.AnnotationId, request.UserId, cancellationToken);
         if (annotation == null)
             return Result<DocumentAnnotationDto>.Failure("Annotation not found.", "ANNOTATION_NOT_FOUND");
 
@@ -99,7 +105,7 @@ public class UpdateAnnotationCommandHandler : IRequestHandler<UpdateAnnotationCo
         annotation.Color = string.IsNullOrWhiteSpace(request.Color) ? annotation.Color : request.Color;
         annotation.UpdatedAt = DateTime.UtcNow;
 
-        _unitOfWork.DocumentAnnotations.Update(annotation);
+        _documentAnnotations.Update(annotation);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result<DocumentAnnotationDto>.Success(GetAnnotationsByDocumentQueryHandler.ToDto(annotation), "Annotation updated.");
@@ -111,15 +117,17 @@ public record DeleteAnnotationCommand(Guid UserId, Guid AnnotationId) : IRequest
 public class DeleteAnnotationCommandHandler : IRequestHandler<DeleteAnnotationCommand, Result<bool>>
 {
     private readonly IUnitOfWork _unitOfWork;
-    public DeleteAnnotationCommandHandler(IUnitOfWork unitOfWork) { _unitOfWork = unitOfWork; }
+    private readonly IDocumentAnnotationRepository _documentAnnotations;
+    public DeleteAnnotationCommandHandler(IUnitOfWork unitOfWork, IDocumentAnnotationRepository documentAnnotations) { _unitOfWork = unitOfWork;
+    _documentAnnotations = documentAnnotations; }
 
     public async Task<Result<bool>> Handle(DeleteAnnotationCommand request, CancellationToken cancellationToken)
     {
-        var annotation = await _unitOfWork.DocumentAnnotations.GetOwnedAsync(request.AnnotationId, request.UserId, cancellationToken);
+        var annotation = await _documentAnnotations.GetOwnedAsync(request.AnnotationId, request.UserId, cancellationToken);
         if (annotation == null)
             return Result<bool>.Failure("Annotation not found.", "ANNOTATION_NOT_FOUND");
 
-        _unitOfWork.DocumentAnnotations.Remove(annotation);
+        _documentAnnotations.Remove(annotation);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result<bool>.Success(true, "Annotation deleted.");
@@ -131,16 +139,20 @@ public record CreateFlashcardFromAnnotationCommand(Guid UserId, Guid AnnotationI
 public class CreateFlashcardFromAnnotationCommandHandler : IRequestHandler<CreateFlashcardFromAnnotationCommand, Result<bool>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IFlashcardRepository _flashcards;
+    private readonly IDocumentAnnotationRepository _documentAnnotations;
     private readonly IAiService _aiService;
-    public CreateFlashcardFromAnnotationCommandHandler(IUnitOfWork unitOfWork, IAiService aiService)
+    public CreateFlashcardFromAnnotationCommandHandler(IUnitOfWork unitOfWork, IFlashcardRepository flashcards, IDocumentAnnotationRepository documentAnnotations, IAiService aiService)
     {
         _unitOfWork = unitOfWork;
+        _flashcards = flashcards;
+        _documentAnnotations = documentAnnotations;
         _aiService = aiService;
     }
 
     public async Task<Result<bool>> Handle(CreateFlashcardFromAnnotationCommand request, CancellationToken cancellationToken)
     {
-        var annotation = await _unitOfWork.DocumentAnnotations.GetOwnedAsync(request.AnnotationId, request.UserId, cancellationToken);
+        var annotation = await _documentAnnotations.GetOwnedAsync(request.AnnotationId, request.UserId, cancellationToken);
         if (annotation == null)
             return Result<bool>.Failure("Annotation not found.", "ANNOTATION_NOT_FOUND");
 
@@ -158,7 +170,7 @@ public class CreateFlashcardFromAnnotationCommandHandler : IRequestHandler<Creat
             UpdatedAt = DateTime.UtcNow
         };
 
-        await _unitOfWork.Flashcards.AddAsync(flashcard, cancellationToken);
+        await _flashcards.AddAsync(flashcard, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result<bool>.Success(true, "Flashcard created from annotation.");

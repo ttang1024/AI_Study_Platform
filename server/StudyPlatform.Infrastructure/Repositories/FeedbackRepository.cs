@@ -76,7 +76,7 @@ public class FeedbackRepository : Repository<Feedback>, IFeedbackRepository
         };
 
         var total = await query.CountAsync(cancellationToken);
-        var items = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
+        var items = await query.Page(page, pageSize).ToListAsync(cancellationToken);
         return (items, total);
     }
 }

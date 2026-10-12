@@ -8,7 +8,6 @@ namespace StudyPlatform.Tests.Services;
 
 public class ReviewSchedulerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IUserFsrsSettingsRepository> _settings = new();
     private readonly Mock<IFlashcardSrsDataRepository> _srsRepo = new();
     private readonly ReviewScheduler _scheduler;
@@ -19,11 +18,9 @@ public class ReviewSchedulerTests
 
     public ReviewSchedulerTests()
     {
-        _uow.Setup(u => u.UserFsrsSettings).Returns(_settings.Object);
-        _uow.Setup(u => u.FlashcardSrs).Returns(_srsRepo.Object);
         _settings.Setup(r => r.GetByUserIdAsync(_userId, default)).ReturnsAsync((UserFsrsSettings?)null);
         DueCounts([]);
-        _scheduler = new ReviewScheduler(_uow.Object);
+        _scheduler = new ReviewScheduler(_srsRepo.Object, _settings.Object);
     }
 
     private void DueCounts(Dictionary<DateTime, int> counts) =>

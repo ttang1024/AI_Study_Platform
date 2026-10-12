@@ -20,13 +20,11 @@ public class SendEmailOtpCommandHandlerTests
 
     public SendEmailOtpCommandHandlerTests()
     {
-        _uow.Setup(u => u.Users).Returns(_users.Object);
-        _uow.Setup(u => u.Otps).Returns(_otps.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
         _otps.Setup(r => r.InvalidateExistingOtpsAsync(It.IsAny<string>(), It.IsAny<OtpPurpose>(), default))
             .Returns(Task.CompletedTask);
         _otps.Setup(r => r.AddAsync(It.IsAny<OtpCode>(), default)).Returns(Task.CompletedTask);
-        _handler = new SendEmailOtpCommandHandler(_uow.Object, _email.Object);
+        _handler = new SendEmailOtpCommandHandler(_uow.Object, _users.Object, _otps.Object, _email.Object);
     }
 
     private User MakeUser(string email = "user@example.com") => new()
@@ -126,9 +124,8 @@ public class UpdateProfileCommandHandlerTests
 
     public UpdateProfileCommandHandlerTests()
     {
-        _uow.Setup(u => u.Users).Returns(_users.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new UpdateProfileCommandHandler(_uow.Object);
+        _handler = new UpdateProfileCommandHandler(_uow.Object, _users.Object);
     }
 
     private User MakeUser() => new()

@@ -20,18 +20,18 @@ public record SaveQuizSubmissionCommand(
 
 public class SaveQuizSubmissionCommandHandler : IRequestHandler<SaveQuizSubmissionCommand, Result<QuizSubmissionDto>>
 {
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly IDocumentRepository _documents;
     private readonly IQuizSubmissionWriter _submissions;
 
-    public SaveQuizSubmissionCommandHandler(IUnitOfWork unitOfWork, IQuizSubmissionWriter submissions)
+    public SaveQuizSubmissionCommandHandler(IDocumentRepository documents, IQuizSubmissionWriter submissions)
     {
-        _unitOfWork = unitOfWork;
+        _documents = documents;
         _submissions = submissions;
     }
 
     public async Task<Result<QuizSubmissionDto>> Handle(SaveQuizSubmissionCommand request, CancellationToken cancellationToken)
     {
-        var document = await _unitOfWork.Documents.GetOwnedAsync(request.DocumentId, request.UserId, cancellationToken);
+        var document = await _documents.GetOwnedAsync(request.DocumentId, request.UserId, cancellationToken);
         if (document == null)
             return Result<QuizSubmissionDto>.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
 

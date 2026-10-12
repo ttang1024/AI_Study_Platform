@@ -1,16 +1,17 @@
 using Moq;
 using StudyPlatform.Application.Admin.Commands;
 using StudyPlatform.Application.Admin.Queries;
+using StudyPlatform.Application.Auth;
 using StudyPlatform.Application.Services;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
+using StudyPlatform.Tests.TestSupport;
 using Xunit;
 
 namespace StudyPlatform.Tests.Admin;
 
 public class AdminLoginCommandHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IUserRepository> _users = new();
     private readonly Mock<ITokenService> _tokens = new();
     private readonly Mock<IPasswordHasher> _hasher = new();
@@ -18,8 +19,7 @@ public class AdminLoginCommandHandlerTests
 
     public AdminLoginCommandHandlerTests()
     {
-        _uow.Setup(u => u.Users).Returns(_users.Object);
-        _handler = new AdminLoginCommandHandler(_uow.Object, _tokens.Object, _hasher.Object);
+        _handler = new AdminLoginCommandHandler(_users.Object, _tokens.Object, _hasher.Object, new LoginThrottle(new InMemoryAppCache()));
     }
 
     [Fact]
@@ -62,25 +62,35 @@ public class AdminLoginCommandHandlerTests
     {
         _users.Setup(r => r.GetByEmailAsync("a@b.com", default)).ReturnsAsync(new User { Email = "a@b.com", PasswordHash = "hash", IsAdmin = true });
         _hasher.Setup(h => h.Verify("pw", "hash")).Returns(true);
-        _tokens.Setup(t => t.GenerateAccessToken(It.IsAny<User>())).Returns("token-1");
+        _tokens.Setup(t => t.GenerateAdminAccessToken(It.IsAny<User>())).Returns("token-1");
 
         var result = await _handler.Handle(new AdminLoginCommand("A@B.COM", "pw"), default);
 
         Assert.True(result.IsSuccess);
         Assert.Equal("token-1", result.Data!.Token);
+        _tokens.Verify(t => t.GenerateAccessToken(It.IsAny<User>()), Times.Never); // the user-app token has no Admin role
+    }
+
+    [Fact]
+    public async Task Handle_UnknownEmail_StillSpendsAHashVerification()
+    {
+        _users.Setup(r => r.GetByEmailAsync("a@b.com", default)).ReturnsAsync((User?)null);
+        _hasher.Setup(h => h.Hash(It.IsAny<string>())).Returns("dummy");
+
+        await _handler.Handle(new AdminLoginCommand("a@b.com", "pw"), default);
+
+        _hasher.Verify(h => h.Verify("pw", It.IsAny<string>()), Times.Once);
     }
 }
 
 public class GetFeedbackByIdQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IFeedbackRepository> _feedbacks = new();
     private readonly GetFeedbackByIdQueryHandler _handler;
 
     public GetFeedbackByIdQueryHandlerTests()
     {
-        _uow.Setup(u => u.Feedbacks).Returns(_feedbacks.Object);
-        _handler = new GetFeedbackByIdQueryHandler(_uow.Object);
+        _handler = new GetFeedbackByIdQueryHandler(_feedbacks.Object);
     }
 
     [Fact]
@@ -110,14 +120,12 @@ public class GetFeedbackByIdQueryHandlerTests
 
 public class GetFeedbackStatsQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IFeedbackRepository> _feedbacks = new();
     private readonly GetFeedbackStatsQueryHandler _handler;
 
     public GetFeedbackStatsQueryHandlerTests()
     {
-        _uow.Setup(u => u.Feedbacks).Returns(_feedbacks.Object);
-        _handler = new GetFeedbackStatsQueryHandler(_uow.Object);
+        _handler = new GetFeedbackStatsQueryHandler(_feedbacks.Object);
     }
 
     [Fact]
@@ -137,14 +145,12 @@ public class GetFeedbackStatsQueryHandlerTests
 
 public class ListFeedbackQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IFeedbackRepository> _feedbacks = new();
     private readonly ListFeedbackQueryHandler _handler;
 
     public ListFeedbackQueryHandlerTests()
     {
-        _uow.Setup(u => u.Feedbacks).Returns(_feedbacks.Object);
-        _handler = new ListFeedbackQueryHandler(_uow.Object);
+        _handler = new ListFeedbackQueryHandler(_feedbacks.Object);
     }
 
     [Fact]
@@ -163,14 +169,12 @@ public class ListFeedbackQueryHandlerTests
 
 public class ListUsersQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IUserRepository> _users = new();
     private readonly ListUsersQueryHandler _handler;
 
     public ListUsersQueryHandlerTests()
     {
-        _uow.Setup(u => u.Users).Returns(_users.Object);
-        _handler = new ListUsersQueryHandler(_uow.Object);
+        _handler = new ListUsersQueryHandler(_users.Object);
     }
 
     [Fact]
@@ -194,9 +198,8 @@ public class DeleteFeedbackCommandHandlerTests
 
     public DeleteFeedbackCommandHandlerTests()
     {
-        _uow.Setup(u => u.Feedbacks).Returns(_feedbacks.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new DeleteFeedbackCommandHandler(_uow.Object);
+        _handler = new DeleteFeedbackCommandHandler(_uow.Object, _feedbacks.Object);
     }
 
     [Fact]
@@ -233,9 +236,8 @@ public class SaveAdminNoteCommandHandlerTests
 
     public SaveAdminNoteCommandHandlerTests()
     {
-        _uow.Setup(u => u.Feedbacks).Returns(_feedbacks.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new SaveAdminNoteCommandHandler(_uow.Object);
+        _handler = new SaveAdminNoteCommandHandler(_uow.Object, _feedbacks.Object);
     }
 
     [Fact]
@@ -272,9 +274,8 @@ public class UpdateFeedbackStatusCommandHandlerTests
 
     public UpdateFeedbackStatusCommandHandlerTests()
     {
-        _uow.Setup(u => u.Feedbacks).Returns(_feedbacks.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new UpdateFeedbackStatusCommandHandler(_uow.Object);
+        _handler = new UpdateFeedbackStatusCommandHandler(_uow.Object, _feedbacks.Object);
     }
 
     [Fact]
@@ -326,10 +327,8 @@ public class SetUserActiveStatusCommandHandlerTests
 
     public SetUserActiveStatusCommandHandlerTests()
     {
-        _uow.Setup(u => u.Users).Returns(_users.Object);
-        _uow.Setup(u => u.RefreshTokens).Returns(_refreshTokens.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new SetUserActiveStatusCommandHandler(_uow.Object);
+        _handler = new SetUserActiveStatusCommandHandler(_uow.Object, _users.Object, _refreshTokens.Object);
     }
 
     [Fact]

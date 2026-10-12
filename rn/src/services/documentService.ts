@@ -5,7 +5,12 @@
 //
 // There is deliberately no generateSummary override: the API exposes only
 // `summary/stream`, so callers use core's streamSummary and accumulate the chunks.
-import { createDocumentService, mapDocument, type BackendDocument } from '@core/services/documentService';
+import {
+  createDocumentService,
+  createQuizSubmissionService,
+  mapDocument,
+  type BackendDocument,
+} from '@core/services/documentService';
 import { normalizeCitation } from '@core/types';
 import { apiClient } from '@/services/apiClient';
 import { http } from '@/services/http';
@@ -16,6 +21,8 @@ import { toFormDataPart } from '@/utils/formData';
 export * from '@core/services/documentService';
 
 const coreService = createDocumentService(http, streamSse);
+
+export const quizSubmissionService = createQuizSubmissionService(http);
 
 interface BackendDocumentFlashcard {
   flashcardId: string;

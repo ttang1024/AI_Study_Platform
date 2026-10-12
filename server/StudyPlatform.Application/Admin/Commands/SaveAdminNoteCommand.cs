@@ -10,17 +10,22 @@ public record SaveAdminNoteCommand(Guid Id, string AdminNote) : IRequest<Result<
 public class SaveAdminNoteCommandHandler : IRequestHandler<SaveAdminNoteCommand, Result<FeedbackItemDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IFeedbackRepository _feedbacks;
 
-    public SaveAdminNoteCommandHandler(IUnitOfWork unitOfWork) => _unitOfWork = unitOfWork;
+    public SaveAdminNoteCommandHandler(IUnitOfWork unitOfWork, IFeedbackRepository feedbacks)
+    {
+        _unitOfWork = unitOfWork;
+        _feedbacks = feedbacks;
+    }
 
     public async Task<Result<FeedbackItemDto>> Handle(SaveAdminNoteCommand request, CancellationToken cancellationToken)
     {
-        var feedback = await _unitOfWork.Feedbacks.GetByIdAsync(request.Id, cancellationToken);
+        var feedback = await _feedbacks.GetByIdAsync(request.Id, cancellationToken);
         if (feedback == null)
             return Result<FeedbackItemDto>.Failure("Feedback not found.", "NOT_FOUND");
 
         feedback.AdminNote = request.AdminNote;
-        _unitOfWork.Feedbacks.Update(feedback);
+        _feedbacks.Update(feedback);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result<FeedbackItemDto>.Success(feedback.ToDto());

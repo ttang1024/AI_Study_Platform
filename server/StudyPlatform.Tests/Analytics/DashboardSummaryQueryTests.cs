@@ -4,10 +4,12 @@ using Microsoft.Extensions.Options;
 using Moq;
 using StudyPlatform.Application.Analytics.DTOs;
 using StudyPlatform.Application.Analytics.Queries;
+using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Services;
 using StudyPlatform.Application.Settings;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
+using StudyPlatform.Tests.TestSupport;
 using Xunit;
 
 namespace StudyPlatform.Tests.Analytics;
@@ -19,7 +21,6 @@ namespace StudyPlatform.Tests.Analytics;
 /// </summary>
 public class DashboardSummaryQueryTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IQuizRepository> _quizzes = new();
     private readonly Mock<IQuizSubmissionRepository> _submissions = new();
     private readonly Mock<IFlashcardRepository> _flashcards = new();
@@ -30,6 +31,7 @@ public class DashboardSummaryQueryTests
     private readonly Mock<IUserRepository> _users = new();
 
     private readonly GetDashboardSummaryQueryHandler _handler;
+    private readonly Mock<IAppCache> _cache;
 
     private readonly Guid _userId = Guid.NewGuid();
     private readonly List<Quiz> _quizStore = new();
@@ -37,15 +39,6 @@ public class DashboardSummaryQueryTests
 
     public DashboardSummaryQueryTests()
     {
-        _uow.Setup(u => u.Quizzes).Returns(_quizzes.Object);
-        _uow.Setup(u => u.QuizSubmissions).Returns(_submissions.Object);
-        _uow.Setup(u => u.Flashcards).Returns(_flashcards.Object);
-        _uow.Setup(u => u.FlashcardSrs).Returns(_srs.Object);
-        _uow.Setup(u => u.GlossaryTerms).Returns(_terms.Object);
-        _uow.Setup(u => u.StudySessions).Returns(_sessions.Object);
-        _uow.Setup(u => u.StreakCoverDays).Returns(_covers.Object);
-        _uow.Setup(u => u.Users).Returns(_users.Object);
-
         _quizzes.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Quiz, bool>>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(() => _quizStore.ToList());
         _submissions.Setup(r => r.GetAllByUserAsync(_userId, It.IsAny<CancellationToken>()))
@@ -62,13 +55,14 @@ public class DashboardSummaryQueryTests
         _users.Setup(r => r.GetByIdAsync(_userId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new User { UserId = _userId, DailyStudyGoalMinutes = 45 });
 
-        var cache = new Mock<IAppCache>();
+        _cache = new Mock<IAppCache>();
+        var cache = _cache;
         cache.Setup(c => c.GetOrCreateAsync(
                 It.IsAny<string>(), It.IsAny<Func<CancellationToken, Task<DashboardSummaryDto>>>(),
                 It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
             .Returns((string _, Func<CancellationToken, Task<DashboardSummaryDto>> factory, TimeSpan _, CancellationToken ct) => factory(ct));
 
-        _handler = new GetDashboardSummaryQueryHandler(_uow.Object, cache.Object, Options.Create(new CacheOptions()));
+        _handler = new GetDashboardSummaryQueryHandler(_users.Object, _quizzes.Object, _flashcards.Object, _submissions.Object, _terms.Object, _srs.Object, _sessions.Object, _covers.Object, cache.Object, Options.Create(new CacheOptions()), FixedTimeZone.Utc);
     }
 
     private Quiz AddQuiz(string correctAnswer, Guid? documentId = null, Guid? videoId = null)
@@ -201,6 +195,50 @@ public class DashboardSummaryQueryTests
         Assert.Equal(0, (await Run()).QuizMistakes);
         _submissions.Verify(r => r.GetAllByUserAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
     }
+    // ── Days follow the user's time zone ─────────────────────────────────────────────────
+
+    private GetDashboardSummaryQueryHandler HandlerIn(string zoneId)
+        => new(_users.Object, _quizzes.Object, _flashcards.Object, _submissions.Object, _terms.Object, _srs.Object,
+            _sessions.Object, _covers.Object, _cache.Object, Options.Create(new CacheOptions()), new FixedTimeZone(zoneId));
+
+    private void StudiedAt(params DateTime[] utcInstants)
+        => _sessions.Setup(r => r.GetByDateRangeAsync(_userId, It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(utcInstants.Select(t => new StudySession { UserId = _userId, OccurredAt = t, DurationSeconds = 600 }).ToArray());
+
+    [Fact]
+    public async Task TodaysMinutes_CountASessionEarlyInTheUsersLocalDay()
+    {
+        // 00:30 local in Auckland is still "yesterday" in UTC (NZ is 12–13 hours ahead).
+        var zone = UserCalendar.Resolve("Pacific/Auckland");
+        var localToday = UserCalendar.LocalDate(DateTime.UtcNow, zone);
+        var earlyThisMorning = UserCalendar.StartOfDayUtc(localToday, zone).AddMinutes(30);
+        if (earlyThisMorning > DateTime.UtcNow)
+            return; // the first half hour of an Auckland day: nothing has happened "this morning" yet
+        StudiedAt(earlyThisMorning);
+
+        var result = await HandlerIn("Pacific/Auckland").Handle(new GetDashboardSummaryQuery(_userId), default);
+
+        Assert.Equal(10, result.Data!.Streak.TodayMinutes);
+        Assert.Equal(1, result.Data.Streak.CurrentStreak);
+    }
+
+    [Fact]
+    public async Task Streak_CountsConsecutiveLocalDays_ThatStraddleUtcMidnight()
+    {
+        var zone = UserCalendar.Resolve("Pacific/Auckland");
+        var localToday = UserCalendar.LocalDate(DateTime.UtcNow, zone);
+
+        // Late-night and just-after-midnight sessions on the three local days before today. Bucketed by UTC
+        // date they land on the wrong days (Auckland is 12–13 hours ahead), breaking the run.
+        StudiedAt(
+            UserCalendar.StartOfDayUtc(localToday.AddDays(-1), zone).AddHours(23.5),
+            UserCalendar.StartOfDayUtc(localToday.AddDays(-2), zone).AddHours(23.5),
+            UserCalendar.StartOfDayUtc(localToday.AddDays(-3), zone).AddHours(0.5));
+
+        var result = await HandlerIn("Pacific/Auckland").Handle(new GetDashboardSummaryQuery(_userId), default);
+
+        Assert.Equal(3, result.Data!.Streak.CurrentStreak);
+    }
 }
 
 public class UpdateDailyGoalCommandHandlerTests
@@ -213,9 +251,8 @@ public class UpdateDailyGoalCommandHandlerTests
 
     public UpdateDailyGoalCommandHandlerTests()
     {
-        _uow.Setup(u => u.Users).Returns(_users.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new UpdateDailyGoalCommandHandler(_uow.Object, _cache.Object);
+        _handler = new UpdateDailyGoalCommandHandler(_uow.Object, _users.Object, _cache.Object);
     }
 
     [Fact]

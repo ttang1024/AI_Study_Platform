@@ -10,16 +10,20 @@ public record MoveDocumentCommand(Guid DocumentId, Guid UserId, Guid TargetCours
 public class MoveDocumentCommandHandler : IRequestHandler<MoveDocumentCommand, Result<DocumentDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICourseRepository _courses;
+    private readonly IDocumentRepository _documents;
 
-    public MoveDocumentCommandHandler(IUnitOfWork unitOfWork) { _unitOfWork = unitOfWork; }
+    public MoveDocumentCommandHandler(IUnitOfWork unitOfWork, ICourseRepository courses, IDocumentRepository documents) { _unitOfWork = unitOfWork;
+    _courses = courses;
+    _documents = documents; }
 
     public async Task<Result<DocumentDto>> Handle(MoveDocumentCommand request, CancellationToken cancellationToken)
     {
-        var document = await _unitOfWork.Documents.GetOwnedAsync(request.DocumentId, request.UserId, cancellationToken);
+        var document = await _documents.GetOwnedAsync(request.DocumentId, request.UserId, cancellationToken);
         if (document == null)
             return Result<DocumentDto>.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
 
-        var courseExists = await _unitOfWork.Courses.BelongsToUserAsync(request.TargetCourseId, request.UserId, cancellationToken);
+        var courseExists = await _courses.BelongsToUserAsync(request.TargetCourseId, request.UserId, cancellationToken);
         if (!courseExists)
             return Result<DocumentDto>.Failure("Target course not found.", "COURSE_NOT_FOUND");
 

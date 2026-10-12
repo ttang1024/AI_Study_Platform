@@ -70,10 +70,9 @@ public class RequestDataExportCommandHandlerTests
 
     public RequestDataExportCommandHandlerTests()
     {
-        _uow.Setup(u => u.DataExportRequests).Returns(_exports.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
         _exports.Setup(r => r.AddAsync(It.IsAny<DataExportRequest>(), default)).Returns(Task.CompletedTask);
-        _handler = new RequestDataExportCommandHandler(_uow.Object);
+        _handler = new RequestDataExportCommandHandler(_uow.Object, _exports.Object);
     }
 
     [Fact]
@@ -104,15 +103,13 @@ public class RequestDataExportCommandHandlerTests
 
 public class GetDataExportsQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IDataExportRequestRepository> _exports = new();
     private readonly GetDataExportsQueryHandler _handler;
     private readonly Guid _userId = Guid.NewGuid();
 
     public GetDataExportsQueryHandlerTests()
     {
-        _uow.Setup(u => u.DataExportRequests).Returns(_exports.Object);
-        _handler = new GetDataExportsQueryHandler(_uow.Object);
+        _handler = new GetDataExportsQueryHandler(_exports.Object);
     }
 
     [Fact]
@@ -130,7 +127,6 @@ public class GetDataExportsQueryHandlerTests
 
 public class GetDataExportDownloadQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IDataExportRequestRepository> _exports = new();
     private readonly Mock<IBlobStorageService> _blobStorage = new();
     private readonly GetDataExportDownloadQueryHandler _handler;
@@ -139,8 +135,7 @@ public class GetDataExportDownloadQueryHandlerTests
 
     public GetDataExportDownloadQueryHandlerTests()
     {
-        _uow.Setup(u => u.DataExportRequests).Returns(_exports.Object);
-        _handler = new GetDataExportDownloadQueryHandler(_uow.Object, _blobStorage.Object);
+        _handler = new GetDataExportDownloadQueryHandler(_exports.Object, _blobStorage.Object);
     }
 
     [Fact]

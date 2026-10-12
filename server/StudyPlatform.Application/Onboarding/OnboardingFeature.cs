@@ -31,26 +31,34 @@ public record GetOnboardingStateQuery(Guid UserId) : IRequest<Result<OnboardingS
 public class GetOnboardingStateQueryHandler
     : IRequestHandler<GetOnboardingStateQuery, Result<OnboardingStateDto>>
 {
-    private readonly IUnitOfWork _unitOfWork;
-    public GetOnboardingStateQueryHandler(IUnitOfWork unitOfWork) { _unitOfWork = unitOfWork; }
+    private readonly IUserRepository _users;
+    private readonly ICourseRepository _courses;
+    private readonly IDocumentRepository _documents;
+    private readonly IFlashcardRepository _flashcards;
+    private readonly IFlashcardReviewLogRepository _flashcardReviewLogs;
+    public GetOnboardingStateQueryHandler(IUserRepository users, ICourseRepository courses, IDocumentRepository documents, IFlashcardRepository flashcards, IFlashcardReviewLogRepository flashcardReviewLogs) { _users = users;
+    _courses = courses;
+    _documents = documents;
+    _flashcards = flashcards;
+    _flashcardReviewLogs = flashcardReviewLogs; }
 
     public async Task<Result<OnboardingStateDto>> Handle(
         GetOnboardingStateQuery request, CancellationToken cancellationToken)
     {
-        var user = await _unitOfWork.Users.GetByIdAsync(request.UserId, cancellationToken);
+        var user = await _users.GetByIdAsync(request.UserId, cancellationToken);
         if (user == null)
             return Result<OnboardingStateDto>.Failure("User not found.", "NOT_FOUND");
 
-        var hasCourse = await _unitOfWork.Courses.ExistsAsync(
+        var hasCourse = await _courses.ExistsAsync(
             c => c.UserId == request.UserId, cancellationToken);
 
-        var hasDocument = await _unitOfWork.Documents.ExistsAsync(
+        var hasDocument = await _documents.ExistsAsync(
             d => d.UserId == request.UserId, cancellationToken);
 
-        var hasFlashcards = await _unitOfWork.Flashcards.ExistsAsync(
+        var hasFlashcards = await _flashcards.ExistsAsync(
             f => f.UserId == request.UserId, cancellationToken);
 
-        var hasReviewed = await _unitOfWork.FlashcardReviewLogs.ExistsAsync(
+        var hasReviewed = await _flashcardReviewLogs.ExistsAsync(
             r => r.UserId == request.UserId, cancellationToken);
 
         var steps = new List<OnboardingStepDto>
@@ -91,16 +99,18 @@ public record DismissOnboardingCommand(Guid UserId) : IRequest<Result<bool>>;
 public class DismissOnboardingCommandHandler : IRequestHandler<DismissOnboardingCommand, Result<bool>>
 {
     private readonly IUnitOfWork _unitOfWork;
-    public DismissOnboardingCommandHandler(IUnitOfWork unitOfWork) { _unitOfWork = unitOfWork; }
+    private readonly IUserRepository _users;
+    public DismissOnboardingCommandHandler(IUnitOfWork unitOfWork, IUserRepository users) { _unitOfWork = unitOfWork;
+    _users = users; }
 
     public async Task<Result<bool>> Handle(DismissOnboardingCommand request, CancellationToken cancellationToken)
     {
-        var user = await _unitOfWork.Users.GetByIdAsync(request.UserId, cancellationToken);
+        var user = await _users.GetByIdAsync(request.UserId, cancellationToken);
         if (user == null)
             return Result<bool>.Failure("User not found.", "NOT_FOUND");
 
         user.OnboardingDismissedAt = DateTime.UtcNow;
-        _unitOfWork.Users.Update(user);
+        _users.Update(user);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result<bool>.Success(true, "Checklist dismissed.");
@@ -120,11 +130,23 @@ public record SeedDemoContentCommand(Guid UserId) : IRequest<Result<Guid>>;
 public class SeedDemoContentCommandHandler : IRequestHandler<SeedDemoContentCommand, Result<Guid>>
 {
     private readonly IUnitOfWork _unitOfWork;
-    public SeedDemoContentCommandHandler(IUnitOfWork unitOfWork) { _unitOfWork = unitOfWork; }
+    private readonly IUserRepository _users;
+    private readonly ICourseRepository _courses;
+    private readonly IDocumentRepository _documents;
+    private readonly IQuizRepository _quizzes;
+    private readonly IFlashcardRepository _flashcards;
+    private readonly IGlossaryTermRepository _glossaryTerms;
+    public SeedDemoContentCommandHandler(IUnitOfWork unitOfWork, IUserRepository users, ICourseRepository courses, IDocumentRepository documents, IQuizRepository quizzes, IFlashcardRepository flashcards, IGlossaryTermRepository glossaryTerms) { _unitOfWork = unitOfWork;
+    _users = users;
+    _courses = courses;
+    _documents = documents;
+    _quizzes = quizzes;
+    _flashcards = flashcards;
+    _glossaryTerms = glossaryTerms; }
 
     public async Task<Result<Guid>> Handle(SeedDemoContentCommand request, CancellationToken cancellationToken)
     {
-        var user = await _unitOfWork.Users.GetByIdAsync(request.UserId, cancellationToken);
+        var user = await _users.GetByIdAsync(request.UserId, cancellationToken);
         if (user == null)
             return Result<Guid>.Failure("User not found.", "NOT_FOUND");
 
@@ -142,7 +164,7 @@ public class SeedDemoContentCommandHandler : IRequestHandler<SeedDemoContentComm
             CreatedAt = now,
             UpdatedAt = now,
         };
-        await _unitOfWork.Courses.AddAsync(course, cancellationToken);
+        await _courses.AddAsync(course, cancellationToken);
 
         var document = new Document
         {
@@ -160,19 +182,19 @@ public class SeedDemoContentCommandHandler : IRequestHandler<SeedDemoContentComm
             CreatedAt = now,
             UpdatedAt = now,
         };
-        await _unitOfWork.Documents.AddAsync(document, cancellationToken);
+        await _documents.AddAsync(document, cancellationToken);
 
-        await _unitOfWork.Flashcards.AddRangeAsync(
+        await _flashcards.AddRangeAsync(
             DemoFlashcards(request.UserId, document.DocumentId, now), cancellationToken);
 
-        await _unitOfWork.Quizzes.AddRangeAsync(
+        await _quizzes.AddRangeAsync(
             DemoQuizzes(request.UserId, document.DocumentId, now), cancellationToken);
 
-        await _unitOfWork.GlossaryTerms.AddRangeAsync(
+        await _glossaryTerms.AddRangeAsync(
             DemoGlossary(request.UserId, document.DocumentId, now), cancellationToken);
 
         user.DemoContentSeededAt = now;
-        _unitOfWork.Users.Update(user);
+        _users.Update(user);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 

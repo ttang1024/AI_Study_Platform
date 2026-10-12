@@ -5,7 +5,6 @@ using StudyPlatform.Application.Analytics.DTOs;
 using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Services;
 using StudyPlatform.Application.Settings;
-using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
 
 namespace StudyPlatform.Application.Analytics.Queries;
@@ -32,23 +31,25 @@ public class UpdateDailyGoalCommandHandler : IRequestHandler<UpdateDailyGoalComm
     private const int MaxGoalMinutes = 600;
 
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IUserRepository _users;
     private readonly IAppCache _cache;
 
-    public UpdateDailyGoalCommandHandler(IUnitOfWork unitOfWork, IAppCache cache)
+    public UpdateDailyGoalCommandHandler(IUnitOfWork unitOfWork, IUserRepository users, IAppCache cache)
     {
         _unitOfWork = unitOfWork;
+        _users = users;
         _cache = cache;
     }
 
     public async Task<Result> Handle(UpdateDailyGoalCommand request, CancellationToken cancellationToken)
     {
-        var user = await _unitOfWork.Users.GetByIdAsync(request.UserId, cancellationToken);
+        var user = await _users.GetByIdAsync(request.UserId, cancellationToken);
         if (user == null)
             return Result.Failure("User not found.", "USER_NOT_FOUND");
 
         user.DailyStudyGoalMinutes = Math.Clamp(request.Minutes, MinGoalMinutes, MaxGoalMinutes);
         user.UpdatedAt = DateTime.UtcNow;
-        _unitOfWork.Users.Update(user);
+        _users.Update(user);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // Drop the cached summary so the next dashboard load reflects the new goal immediately.
@@ -63,15 +64,32 @@ public class GetDashboardSummaryQueryHandler : IRequestHandler<GetDashboardSumma
     // How far back to look when reconstructing the streak. Generous enough for any realistic run.
     private const int StreakLookbackDays = 400;
 
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly IUserRepository _users;
+    private readonly IQuizRepository _quizzes;
+    private readonly IFlashcardRepository _flashcards;
+    private readonly IQuizSubmissionRepository _quizSubmissions;
+    private readonly IGlossaryTermRepository _glossaryTerms;
+    private readonly IFlashcardSrsDataRepository _flashcardSrs;
+    private readonly IStudySessionRepository _studySessions;
+    private readonly IStreakCoverDayRepository _streakCoverDays;
     private readonly IAppCache _cache;
     private readonly CacheOptions _cacheOptions;
+    private readonly IUserTimeZone _timeZone;
 
-    public GetDashboardSummaryQueryHandler(IUnitOfWork unitOfWork, IAppCache cache, IOptions<CacheOptions> cacheOptions)
+    public GetDashboardSummaryQueryHandler(
+        IUserRepository users, IQuizRepository quizzes, IFlashcardRepository flashcards, IQuizSubmissionRepository quizSubmissions, IGlossaryTermRepository glossaryTerms, IFlashcardSrsDataRepository flashcardSrs, IStudySessionRepository studySessions, IStreakCoverDayRepository streakCoverDays, IAppCache cache, IOptions<CacheOptions> cacheOptions, IUserTimeZone timeZone)
     {
-        _unitOfWork = unitOfWork;
+        _users = users;
+        _quizzes = quizzes;
+        _flashcards = flashcards;
+        _quizSubmissions = quizSubmissions;
+        _glossaryTerms = glossaryTerms;
+        _flashcardSrs = flashcardSrs;
+        _studySessions = studySessions;
+        _streakCoverDays = streakCoverDays;
         _cache = cache;
         _cacheOptions = cacheOptions.Value;
+        _timeZone = timeZone;
     }
 
     public async Task<Result<DashboardSummaryDto>> Handle(GetDashboardSummaryQuery request, CancellationToken cancellationToken)
@@ -89,29 +107,34 @@ public class GetDashboardSummaryQueryHandler : IRequestHandler<GetDashboardSumma
     {
         var now = DateTime.UtcNow;
 
-        var streak = await ComputeStreakAsync(userId, now, ct);
-        var dueFlashcards = await _unitOfWork.FlashcardSrs.CountDueByUserIdAsync(userId, now, ct);
+        var zone = await _timeZone.ForUserAsync(userId, ct);
+        var streak = await ComputeStreakAsync(userId, now, zone, ct);
+        var dueFlashcards = await _flashcardSrs.CountDueByUserIdAsync(userId, now, ct);
         var reinforcement = await ComputeReinforcementCountsAsync(userId, ct);
 
-        var user = await _unitOfWork.Users.GetByIdAsync(userId, ct);
+        var user = await _users.GetByIdAsync(userId, ct);
         var dailyGoalMinutes = user?.DailyStudyGoalMinutes ?? 30;
 
         return new DashboardSummaryDto(streak, dueFlashcards, reinforcement, dailyGoalMinutes);
     }
 
-    private async Task<StudyStreakDto> ComputeStreakAsync(Guid userId, DateTime now, CancellationToken ct)
+    private async Task<StudyStreakDto> ComputeStreakAsync(Guid userId, DateTime now, TimeZoneInfo zone, CancellationToken ct)
     {
-        var sessions = await _unitOfWork.StudySessions.GetByDateRangeAsync(userId, now.AddDays(-StreakLookbackDays), now, ct);
+        var sessions = await _studySessions.GetByDateRangeAsync(userId, now.AddDays(-StreakLookbackDays), now, ct);
         var sessionList = sessions.ToList();
 
-        var today = now.Date;
-        var todaySeconds = sessionList.Where(s => s.OccurredAt.Date == today).Sum(s => s.DurationSeconds);
+        // Days are the user's own calendar days, not UTC ones (see UserCalendar).
+        var today = UserCalendar.LocalDate(now, zone);
+        var todaySeconds = sessionList.Where(s => UserCalendar.LocalDate(s.OccurredAt, zone) == today).Sum(s => s.DurationSeconds);
 
-        // Distinct UTC days with any recorded study time (consistent with the rest of analytics, which group on OccurredAt.Date).
-        var studyDays = sessionList.Where(s => s.DurationSeconds > 0).Select(s => s.OccurredAt.Date).ToHashSet();
+        // Distinct local days with any recorded study time.
+        var studyDays = sessionList
+            .Where(s => s.DurationSeconds > 0)
+            .Select(s => UserCalendar.LocalDate(s.OccurredAt, zone))
+            .ToHashSet();
 
         // Covered days: scheduled vacation plus already-consumed streak freezes.
-        var covers = (await _unitOfWork.StreakCoverDays.GetByUserAsync(userId, ct)).ToList();
+        var covers = (await _streakCoverDays.GetByUserAsync(userId, ct)).ToList();
         var coveredDays = covers.Select(c => c.Date.Date).ToHashSet();
         var freezesUsed = covers.Count(c => c.Type == "freeze");
 
@@ -185,19 +208,11 @@ public class GetDashboardSummaryQueryHandler : IRequestHandler<GetDashboardSumma
         if (gap.Count == 0 || gap.Count > freezesAvailable || !studyDays.Contains(day))
             return 0;
 
+        // The one write this read makes, so the decision to spend a freeze is stable across loads. It is
+        // idempotent per day: a concurrent load that already covered the gap leaves nothing to add.
+        await _streakCoverDays.AddFreezeDaysAsync(userId, gap, ct);
         foreach (var missed in gap)
-        {
-            await _unitOfWork.StreakCoverDays.AddAsync(new StreakCoverDay
-            {
-                Id = Guid.NewGuid(),
-                UserId = userId,
-                Date = missed,
-                Type = "freeze",
-                CreatedAt = DateTime.UtcNow,
-            }, ct);
             coveredDays.Add(missed);
-        }
-        await _unitOfWork.SaveChangesAsync(ct);
         return gap.Count;
     }
 
@@ -206,8 +221,8 @@ public class GetDashboardSummaryQueryHandler : IRequestHandler<GetDashboardSumma
         // Hard flashcards and unmastered glossary terms. Both are counted in the database: this handler
         // renders three integers, and loading a user's whole card and term library to arrive at them was
         // the most expensive thing the dashboard did.
-        var hardFlashcards = await _unitOfWork.Flashcards.CountByDifficultyAsync(userId, "hard", ct);
-        var unmasteredTerms = await _unitOfWork.GlossaryTerms.CountUnmasteredByUserAsync(userId, ct);
+        var hardFlashcards = await _flashcards.CountByDifficultyAsync(userId, "hard", ct);
+        var unmasteredTerms = await _glossaryTerms.CountUnmasteredByUserAsync(userId, ct);
 
         // Quiz mistakes: questions answered wrong at least once and never since answered correctly.
         var quizMistakes = await ComputeQuizMistakesAsync(userId, ct);
@@ -217,12 +232,12 @@ public class GetDashboardSummaryQueryHandler : IRequestHandler<GetDashboardSumma
 
     private async Task<int> ComputeQuizMistakesAsync(Guid userId, CancellationToken ct)
     {
-        var quizzes = (await _unitOfWork.Quizzes.FindAsNoTrackingAsync(q => q.UserId == userId, ct)).ToList();
+        var quizzes = (await _quizzes.FindAsNoTrackingAsync(q => q.UserId == userId, ct)).ToList();
         if (quizzes.Count == 0)
             return 0;
 
         var byId = quizzes.GroupBy(q => q.QuizId).ToDictionary(g => g.Key, g => g.First());
-        var submissions = await _unitOfWork.QuizSubmissions.GetAllByUserAsync(userId, ct);
+        var submissions = await _quizSubmissions.GetAllByUserAsync(userId, ct);
 
         // Questions bucketed by the source they belong to, once. Re-filtering the whole question bank
         // inside the submission loop instead is a full scan per submission — quadratic for anyone with

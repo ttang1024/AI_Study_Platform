@@ -10,21 +10,23 @@ public record DeleteFlashcardCommand(Guid FlashcardId, Guid UserId) : IRequest<R
 public class DeleteFlashcardCommandHandler : IRequestHandler<DeleteFlashcardCommand, Result>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IFlashcardRepository _flashcards;
     private readonly IEmbeddingIndex _embeddingIndex;
 
-    public DeleteFlashcardCommandHandler(IUnitOfWork unitOfWork, IEmbeddingIndex embeddingIndex)
+    public DeleteFlashcardCommandHandler(IUnitOfWork unitOfWork, IFlashcardRepository flashcards, IEmbeddingIndex embeddingIndex)
     {
         _unitOfWork = unitOfWork;
+        _flashcards = flashcards;
         _embeddingIndex = embeddingIndex;
     }
 
     public async Task<Result> Handle(DeleteFlashcardCommand request, CancellationToken cancellationToken)
     {
-        var flashcard = await _unitOfWork.Flashcards.GetOwnedAsync(request.FlashcardId, request.UserId, cancellationToken);
+        var flashcard = await _flashcards.GetOwnedAsync(request.FlashcardId, request.UserId, cancellationToken);
         if (flashcard == null)
             return Result.Failure("Flashcard not found.", "FLASHCARD_NOT_FOUND");
 
-        _unitOfWork.Flashcards.Remove(flashcard);
+        _flashcards.Remove(flashcard);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // A deleted card must leave the dedup index too, or it goes on suppressing its own regeneration.

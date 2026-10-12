@@ -16,9 +16,8 @@ public class ToggleGlossaryMasteredCommandHandlerTests
 
     public ToggleGlossaryMasteredCommandHandlerTests()
     {
-        _uow.Setup(u => u.GlossaryMastered).Returns(_masteredRepo.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new ToggleGlossaryMasteredCommandHandler(_uow.Object);
+        _handler = new ToggleGlossaryMasteredCommandHandler(_uow.Object, _masteredRepo.Object);
     }
 
     [Fact]
@@ -53,15 +52,13 @@ public class ToggleGlossaryMasteredCommandHandlerTests
 
 public class GetMasteredGlossaryIdsQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IGlossaryMasteredRepository> _masteredRepo = new();
     private readonly GetMasteredGlossaryIdsQueryHandler _handler;
     private readonly Guid _userId = Guid.NewGuid();
 
     public GetMasteredGlossaryIdsQueryHandlerTests()
     {
-        _uow.Setup(u => u.GlossaryMastered).Returns(_masteredRepo.Object);
-        _handler = new GetMasteredGlossaryIdsQueryHandler(_uow.Object);
+        _handler = new GetMasteredGlossaryIdsQueryHandler(_masteredRepo.Object);
     }
 
     [Fact]

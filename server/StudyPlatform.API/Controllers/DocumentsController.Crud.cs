@@ -294,7 +294,7 @@ public partial class DocumentsController
         CancellationToken cancellationToken)
     {
         var userId = User.GetUserId();
-        var document = await _unitOfWork.Documents.GetOwnedAsync(documentId, userId, cancellationToken);
+        var document = await _documents.GetOwnedAsync(documentId, userId, cancellationToken);
         if (document == null)
             return NotFound();
 

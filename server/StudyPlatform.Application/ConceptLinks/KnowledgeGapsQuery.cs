@@ -36,13 +36,23 @@ public record GetKnowledgeGapsQuery(Guid UserId) : IRequest<Result<KnowledgeGaps
 
 public class GetKnowledgeGapsQueryHandler : IRequestHandler<GetKnowledgeGapsQuery, Result<KnowledgeGapsDto>>
 {
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly IDocumentRepository _documents;
+    private readonly IQuizRepository _quizzes;
+    private readonly INoteRepository _notes;
+    private readonly IVideoRepository _videos;
+    private readonly IGlossaryTermRepository _glossaryTerms;
+    private readonly IGlossaryMasteredRepository _glossaryMastered;
     private readonly IAppCache _cache;
     private readonly CacheOptions _cacheOptions;
 
-    public GetKnowledgeGapsQueryHandler(IUnitOfWork unitOfWork, IAppCache cache, IOptions<CacheOptions> cacheOptions)
+    public GetKnowledgeGapsQueryHandler(IDocumentRepository documents, IQuizRepository quizzes, INoteRepository notes, IVideoRepository videos, IGlossaryTermRepository glossaryTerms, IGlossaryMasteredRepository glossaryMastered, IAppCache cache, IOptions<CacheOptions> cacheOptions)
     {
-        _unitOfWork = unitOfWork;
+        _documents = documents;
+        _quizzes = quizzes;
+        _notes = notes;
+        _videos = videos;
+        _glossaryTerms = glossaryTerms;
+        _glossaryMastered = glossaryMastered;
         _cache = cache;
         _cacheOptions = cacheOptions.Value;
     }
@@ -69,12 +79,12 @@ public class GetKnowledgeGapsQueryHandler : IRequestHandler<GetKnowledgeGapsQuer
 
     private async Task<KnowledgeGapsDto> ComputeAsync(Guid userId, CancellationToken cancellationToken)
     {
-        var glossaryTerms = (await _unitOfWork.GlossaryTerms.GetByUserWithSourcesAsync(userId, cancellationToken)).ToList();
-        var masteredTerms = (await _unitOfWork.GlossaryMastered.GetMasteredTermIdsByUserAsync(userId, cancellationToken)).ToHashSet();
-        var notes = (await _unitOfWork.Notes.GetByUserIdAsync(userId, cancellationToken)).ToList();
-        var quizzes = (await _unitOfWork.Quizzes.FindAsNoTrackingAsync(q => q.UserId == userId, cancellationToken)).ToList();
-        var documents = (await _unitOfWork.Documents.FindAsNoTrackingAsync(d => d.UserId == userId, cancellationToken)).ToList();
-        var videos = (await _unitOfWork.Videos.FindAsNoTrackingAsync(v => v.UserId == userId, cancellationToken)).ToList();
+        var glossaryTerms = (await _glossaryTerms.GetByUserWithSourcesAsync(userId, cancellationToken)).ToList();
+        var masteredTerms = (await _glossaryMastered.GetMasteredTermIdsByUserAsync(userId, cancellationToken)).ToHashSet();
+        var notes = (await _notes.GetByUserIdAsync(userId, cancellationToken)).ToList();
+        var quizzes = (await _quizzes.FindAsNoTrackingAsync(q => q.UserId == userId, cancellationToken)).ToList();
+        var documents = (await _documents.FindAsNoTrackingAsync(d => d.UserId == userId, cancellationToken)).ToList();
+        var videos = (await _videos.FindAsNoTrackingAsync(v => v.UserId == userId, cancellationToken)).ToList();
 
         var docToCourse = documents.ToDictionary(d => d.DocumentId, d => d.CourseId);
         var videoToCourse = videos.ToDictionary(v => v.VideoId, v => v.CourseId);

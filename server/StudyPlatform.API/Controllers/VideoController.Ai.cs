@@ -1,10 +1,9 @@
-using StudyPlatform.Application.Videos.Transcripts;
 using Microsoft.AspNetCore.Mvc;
 using StudyPlatform.API.Extensions;
 using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Documents.DTOs;
 using StudyPlatform.Application.Services;
-using StudyPlatform.Application.Videos.Commands;
+using StudyPlatform.Application.Videos.Generation;
 using StudyPlatform.Domain.Interfaces;
 
 namespace StudyPlatform.API.Controllers;
@@ -13,125 +12,57 @@ namespace StudyPlatform.API.Controllers;
 public partial class VideoController
 {
     // ── AI generation ─────────────────────────────────────────────────────
+    // Validation, caching, transcript lookup and generation all live in IVideoAiGenerator; these actions
+    // only pick the artifact and the response shape.
 
     [HttpPost("mindmap")]
-    public async Task<IActionResult> GenerateMindMap([FromBody] VideoUrlRequest request, CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrWhiteSpace(request.VideoUrl))
-            return BadRequest(BaseResponse<string>.Fail("videoUrl is required.", "MISSING_VIDEO_URL"));
-
-        var videoId = ExtractVideoId(request.VideoUrl);
-        if (videoId == null) return BadRequest(BaseResponse<string>.Fail("Invalid YouTube URL.", "INVALID_VIDEO_URL"));
-
-        var ttl = TimeSpan.FromSeconds(_cacheOptions.GeneratedResultSeconds);
-        var cacheKey = VideoCacheKeys.MindMap(videoId);
-        var cached = await _cache.GetAsync<string>(cacheKey, cancellationToken);
-        if (!string.IsNullOrEmpty(cached))
-            return Ok(BaseResponse<string>.Ok(cached));
-
-        var transcript = await _transcripts.GetTranscriptTextAsync(videoId, cancellationToken);
-        if (transcript == null) return BadRequest(BaseResponse<string>.Fail("No subtitles available for this video.", "NO_TRANSCRIPT"));
-
-        var result = await _aiService.GenerateMindMapFromYouTubeAsync(transcript, cancellationToken);
-        await _cache.SetAsync(cacheKey, result, ttl, cancellationToken);
-        return Ok(BaseResponse<string>.Ok(result));
-    }
+    public Task<IActionResult> GenerateMindMap([FromBody] VideoUrlRequest request, CancellationToken cancellationToken)
+        => GenerateForUrl(request, VideoAiArtifact.MindMap, cancellationToken);
 
     [HttpPost("mindmap/stream")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status429TooManyRequests)]
     [ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status502BadGateway)]
-    public async Task<IActionResult> StreamMindMap([FromBody] VideoUrlRequest request, CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrWhiteSpace(request.VideoUrl))
-            return BadRequest(BaseResponse<string>.Fail("videoUrl is required.", "MISSING_VIDEO_URL"));
-
-        var videoId = ExtractVideoId(request.VideoUrl);
-        if (videoId == null)
-            return BadRequest(BaseResponse<string>.Fail("Invalid YouTube URL.", "INVALID_VIDEO_URL"));
-
-        var ttl = TimeSpan.FromSeconds(_cacheOptions.GeneratedResultSeconds);
-        var cacheKey = VideoCacheKeys.MindMap(videoId);
-        var cached = await _cache.GetAsync<string>(cacheKey, cancellationToken);
-        if (!string.IsNullOrEmpty(cached))
-            return await this.WriteSseCachedAsync(cached, cancellationToken);
-
-        var transcript = await _transcripts.GetTranscriptTextAsync(videoId, cancellationToken);
-        if (transcript == null)
-            return BadRequest(BaseResponse<string>.Fail("No subtitles available for this video.", "NO_TRANSCRIPT"));
-
-        var stream = _aiService.StreamMindMapFromYouTubeAsync(transcript, cancellationToken);
-        return await this.StreamAiToSseAsync(stream, cancellationToken,
-            onCompleted: (text, ct) => _cache.SetAsync(cacheKey, text, ttl, ct));
-    }
+    public Task<IActionResult> StreamMindMap([FromBody] VideoUrlRequest request, CancellationToken cancellationToken)
+        => StreamForUrl(request, VideoAiArtifact.MindMap, cancellationToken);
 
     [HttpPost("{id:guid}/mindmap/stream")]
-    public async Task<IActionResult> StreamVideoMindMap(Guid id, CancellationToken cancellationToken)
-    {
-        var userId = User.GetUserId();
-        var video = await GetVideoWithAccessCheckAsync(id, userId, cancellationToken);
-        if (video is null)
-            return NotFound(BaseResponse<string>.Fail("Video not found.", "VIDEO_NOT_FOUND"));
-
-        var transcript = await _transcripts.GetOrFetchTranscriptAsync(video, cancellationToken);
-        if (transcript == null)
-            return BadRequest(BaseResponse<string>.Fail("No subtitles available for this video.", "NO_TRANSCRIPT"));
-
-        var stream = _aiService.StreamMindMapFromYouTubeAsync(transcript, cancellationToken);
-        return await this.StreamAiToSseAsync(stream, cancellationToken, onCompleted: async (text, ct) =>
-        {
-            video.MindMapText = text;
-            video.UpdatedAt = DateTime.UtcNow;
-            _unitOfWork.Videos.Update(video);
-            await _unitOfWork.SaveChangesAsync(ct);
-        });
-    }
+    public Task<IActionResult> StreamVideoMindMap(Guid id, CancellationToken cancellationToken)
+        => StreamForSavedVideo(id, VideoAiArtifact.MindMap, cancellationToken);
 
     [HttpPost("quiz")]
-    public async Task<IActionResult> GenerateQuiz([FromBody] VideoUrlRequest request, CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrWhiteSpace(request.VideoUrl))
-            return BadRequest(BaseResponse<string>.Fail("videoUrl is required.", "MISSING_VIDEO_URL"));
-
-        var videoId = ExtractVideoId(request.VideoUrl);
-        if (videoId == null) return BadRequest(BaseResponse<string>.Fail("Invalid YouTube URL.", "INVALID_VIDEO_URL"));
-
-        var ttl = TimeSpan.FromSeconds(_cacheOptions.GeneratedResultSeconds);
-        var cacheKey = VideoCacheKeys.Quiz(videoId);
-        var cached = await _cache.GetAsync<string>(cacheKey, cancellationToken);
-        if (!string.IsNullOrEmpty(cached))
-            return Ok(BaseResponse<string>.Ok(cached));
-
-        var transcript = await _transcripts.GetTranscriptTextAsync(videoId, cancellationToken);
-        if (transcript == null) return BadRequest(BaseResponse<string>.Fail("No subtitles available for this video.", "NO_TRANSCRIPT"));
-
-        var result = await _aiService.GenerateQuizFromYouTubeAsync(transcript, "medium", cancellationToken);
-        await _cache.SetAsync(cacheKey, result, ttl, cancellationToken);
-        return Ok(BaseResponse<string>.Ok(result));
-    }
+    public Task<IActionResult> GenerateQuiz([FromBody] VideoUrlRequest request, CancellationToken cancellationToken)
+        => GenerateForUrl(request, VideoAiArtifact.Quiz, cancellationToken);
 
     [HttpPost("flashcards")]
-    public async Task<IActionResult> GenerateFlashcards([FromBody] VideoUrlRequest request, CancellationToken cancellationToken)
+    public Task<IActionResult> GenerateFlashcards([FromBody] VideoUrlRequest request, CancellationToken cancellationToken)
+        => GenerateForUrl(request, VideoAiArtifact.Flashcards, cancellationToken);
+
+    private async Task<IActionResult> GenerateForUrl(VideoUrlRequest request, VideoAiArtifact artifact, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.VideoUrl))
-            return BadRequest(BaseResponse<string>.Fail("videoUrl is required.", "MISSING_VIDEO_URL"));
+        var result = await _videoAi.GenerateForUrlAsync(request.VideoUrl, artifact, cancellationToken);
+        return result.IsSuccess
+            ? Ok(BaseResponse<string>.Ok(result.Data!))
+            : BadRequest(BaseResponse<string>.Fail(result.Message, result.ErrorCode));
+    }
 
-        var videoId = ExtractVideoId(request.VideoUrl);
-        if (videoId == null) return BadRequest(BaseResponse<string>.Fail("Invalid YouTube URL.", "INVALID_VIDEO_URL"));
+    private async Task<IActionResult> StreamForUrl(VideoUrlRequest request, VideoAiArtifact artifact, CancellationToken cancellationToken)
+    {
+        var result = await _videoAi.StreamForUrlAsync(request.VideoUrl, artifact, cancellationToken);
+        return result.IsSuccess
+            ? await this.WriteAiTextStreamAsync(result.Data!, cancellationToken)
+            : BadRequest(BaseResponse<string>.Fail(result.Message, result.ErrorCode));
+    }
 
-        var ttl = TimeSpan.FromSeconds(_cacheOptions.GeneratedResultSeconds);
-        var cacheKey = VideoCacheKeys.Flashcards(videoId);
-        var cached = await _cache.GetAsync<string>(cacheKey, cancellationToken);
-        if (!string.IsNullOrEmpty(cached))
-            return Ok(BaseResponse<string>.Ok(cached));
-
-        var transcript = await _transcripts.GetTranscriptTextAsync(videoId, cancellationToken);
-        if (transcript == null) return BadRequest(BaseResponse<string>.Fail("No subtitles available for this video.", "NO_TRANSCRIPT"));
-
-        var result = await _aiService.GenerateFlashcardsFromYouTubeAsync(transcript, cancellationToken);
-        await _cache.SetAsync(cacheKey, result, ttl, cancellationToken);
-        return Ok(BaseResponse<string>.Ok(result));
+    private async Task<IActionResult> StreamForSavedVideo(Guid id, VideoAiArtifact artifact, CancellationToken cancellationToken)
+    {
+        var result = await _videoAi.StreamForSavedVideoAsync(id, User.GetUserId(), artifact, cancellationToken);
+        if (result.IsSuccess)
+            return await this.WriteAiTextStreamAsync(result.Data!, cancellationToken);
+        return result.ErrorCode == "VIDEO_NOT_FOUND"
+            ? NotFound(BaseResponse<string>.Fail(result.Message, result.ErrorCode))
+            : BadRequest(BaseResponse<string>.Fail(result.Message, result.ErrorCode));
     }
 
     [HttpPost("chat")]
@@ -181,7 +112,7 @@ public partial class VideoController
         if (video is null)
             return NotFound(BaseResponse<IEnumerable<ChatMessageDto>>.Fail("Video not found.", "VIDEO_NOT_FOUND"));
 
-        var messages = await _unitOfWork.ChatMessages.GetByVideoIdAsync(id, video.UserId, cancellationToken);
+        var messages = await _chatMessages.GetByVideoIdAsync(id, video.UserId, cancellationToken);
         var dtos = new List<ChatMessageDto>();
         foreach (var m in messages)
             dtos.Add(await m.ToDtoAsync(_blobStorageService, cancellationToken));
@@ -198,9 +129,9 @@ public partial class VideoController
         if (video is null)
             return NotFound(BaseResponse<string>.Fail("Video not found.", "VIDEO_NOT_FOUND"));
 
-        await _unitOfWork.ChatMessages.DeleteByVideoIdAsync(id, userId, cancellationToken);
-        foreach (var conversation in await _unitOfWork.ChatMessages.GetConversationsByVideoIdAsync(id, userId, cancellationToken))
-            await _unitOfWork.ChatMessages.DeleteConversationAsync(conversation.ConversationId, userId, cancellationToken);
+        await _chatMessages.DeleteByVideoIdAsync(id, userId, cancellationToken);
+        foreach (var conversation in await _chatMessages.GetConversationsByVideoIdAsync(id, userId, cancellationToken))
+            await _chatMessages.DeleteConversationAsync(conversation.ConversationId, userId, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return Ok(BaseResponse<string>.Ok("Chat history deleted."));
     }
@@ -217,9 +148,9 @@ public partial class VideoController
         if (video is null)
             return NotFound(BaseResponse<string>.Fail("Video not found.", "VIDEO_NOT_FOUND"));
 
-        await ChatThreads.AdoptLegacyVideoChatAsync(_unitOfWork, id, userId, cancellationToken);
+        await ChatThreads.AdoptLegacyVideoChatAsync(_chatMessages, _unitOfWork, id, userId, cancellationToken);
 
-        var conversations = await _unitOfWork.ChatMessages.GetVideoThreadSummariesAsync(id, userId, cancellationToken);
+        var conversations = await _chatMessages.GetVideoThreadSummariesAsync(id, userId, cancellationToken);
         return Ok(BaseResponse<IEnumerable<ChatThreadSummary>>.Ok(conversations));
     }
 
@@ -233,7 +164,7 @@ public partial class VideoController
         if (video is null)
             return NotFound(BaseResponse<string>.Fail("Video not found.", "VIDEO_NOT_FOUND"));
 
-        var conversation = await _unitOfWork.ChatMessages.CreateVideoConversationAsync(
+        var conversation = await _chatMessages.CreateVideoConversationAsync(
             userId, id, request?.Title ?? ChatThreads.DefaultTitle, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -247,11 +178,11 @@ public partial class VideoController
     public async Task<IActionResult> GetVideoChatConversationMessages(Guid id, Guid conversationId, CancellationToken cancellationToken)
     {
         var userId = User.GetUserId();
-        var conversation = await _unitOfWork.ChatMessages.GetConversationAsync(conversationId, userId, cancellationToken);
+        var conversation = await _chatMessages.GetConversationAsync(conversationId, userId, cancellationToken);
         if (conversation is null || conversation.VideoId != id)
             return NotFound(BaseResponse<string>.Fail("Conversation not found.", "CONVERSATION_NOT_FOUND"));
 
-        var messages = await _unitOfWork.ChatMessages.GetByConversationIdAsync(conversationId, userId, cancellationToken);
+        var messages = await _chatMessages.GetByConversationIdAsync(conversationId, userId, cancellationToken);
         var dtos = new List<ChatMessageDto>();
         foreach (var m in messages)
             dtos.Add(await m.ToDtoAsync(_blobStorageService, cancellationToken));
@@ -264,11 +195,11 @@ public partial class VideoController
     public async Task<IActionResult> DeleteVideoChatConversation(Guid id, Guid conversationId, CancellationToken cancellationToken)
     {
         var userId = User.GetUserId();
-        var conversation = await _unitOfWork.ChatMessages.GetConversationAsync(conversationId, userId, cancellationToken);
+        var conversation = await _chatMessages.GetConversationAsync(conversationId, userId, cancellationToken);
         if (conversation is null || conversation.VideoId != id)
             return NotFound(BaseResponse<string>.Fail("Conversation not found.", "CONVERSATION_NOT_FOUND"));
 
-        await _unitOfWork.ChatMessages.DeleteConversationAsync(conversationId, userId, cancellationToken);
+        await _chatMessages.DeleteConversationAsync(conversationId, userId, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return Ok(BaseResponse<string>.Ok("Conversation deleted."));
     }

@@ -9,13 +9,17 @@ namespace StudyPlatform.Application.Auth;
 public class AuthSessionIssuer : IAuthSessionIssuer
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IUserRepository _users;
+    private readonly IRefreshTokenRepository _refreshTokens;
     private readonly ITokenService _tokenService;
     private readonly IRequestContext _requestContext;
 
     public AuthSessionIssuer(
-        IUnitOfWork unitOfWork, ITokenService tokenService, IRequestContext requestContext)
+        IUnitOfWork unitOfWork, IUserRepository users, IRefreshTokenRepository refreshTokens, ITokenService tokenService, IRequestContext requestContext)
     {
         _unitOfWork = unitOfWork;
+        _users = users;
+        _refreshTokens = refreshTokens;
         _tokenService = tokenService;
         _requestContext = requestContext;
     }
@@ -23,6 +27,15 @@ public class AuthSessionIssuer : IAuthSessionIssuer
     public async Task<AuthResponse> IssueAsync(
         User user, RefreshToken? rotating = null, CancellationToken cancellationToken = default)
     {
+        // Every sign-in and refresh records the device's zone, so reminders and other work with no
+        // request of its own know where the user's day starts. Refreshes run every 15 minutes, which
+        // keeps it current for a user who travels.
+        if (_requestContext.TimeZone is { } zone && zone != user.TimeZone)
+        {
+            user.TimeZone = zone;
+            _users.Update(user);
+        }
+
         var accessToken = _tokenService.GenerateAccessToken(user);
         var refreshTokenValue = _tokenService.GenerateRefreshToken();
         var refreshToken = RefreshTokenFactory.Create(
@@ -37,7 +50,7 @@ public class AuthSessionIssuer : IAuthSessionIssuer
             refreshToken.IpAddress ??= rotating.IpAddress;
         }
 
-        await _unitOfWork.RefreshTokens.AddAsync(refreshToken, cancellationToken);
+        await _refreshTokens.AddAsync(refreshToken, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return new AuthResponse(

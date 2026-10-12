@@ -17,13 +17,17 @@ public record CreateFlashcardCommand(
 public class CreateFlashcardCommandHandler : IRequestHandler<CreateFlashcardCommand, Result<FlashcardDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
-    public CreateFlashcardCommandHandler(IUnitOfWork unitOfWork) { _unitOfWork = unitOfWork; }
+    private readonly IDocumentRepository _documents;
+    private readonly IFlashcardRepository _flashcards;
+    public CreateFlashcardCommandHandler(IUnitOfWork unitOfWork, IDocumentRepository documents, IFlashcardRepository flashcards) { _unitOfWork = unitOfWork;
+    _documents = documents;
+    _flashcards = flashcards; }
 
     public async Task<Result<FlashcardDto>> Handle(CreateFlashcardCommand request, CancellationToken cancellationToken)
     {
         if (request.DocumentId.HasValue)
         {
-            var doc = await _unitOfWork.Documents.GetOwnedAsync(request.DocumentId.Value, request.UserId, cancellationToken);
+            var doc = await _documents.GetOwnedAsync(request.DocumentId.Value, request.UserId, cancellationToken);
             if (doc == null)
                 return Result<FlashcardDto>.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
         }
@@ -42,7 +46,7 @@ public class CreateFlashcardCommandHandler : IRequestHandler<CreateFlashcardComm
             UpdatedAt = DateTime.UtcNow
         };
 
-        await _unitOfWork.Flashcards.AddAsync(flashcard, cancellationToken);
+        await _flashcards.AddAsync(flashcard, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result<FlashcardDto>.Success(flashcard.ToFlashcardDto(), "Flashcard created successfully.");

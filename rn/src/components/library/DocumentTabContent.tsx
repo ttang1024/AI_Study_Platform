@@ -79,7 +79,7 @@ export function DocumentTabContent({ doc, setDoc, courseId, id, downloadUrl, tab
       )}
 
       {tab === 'notes' && (
-        <QuickNoteForm onSubmit={(content) => noteService.createForDocument(courseId, id, content).then(() => {})} />
+        <QuickNoteForm onSubmit={(content) => noteService.create({ content, documentId: id }).then(() => {})} />
       )}
 
       {tab === 'glossary' && (

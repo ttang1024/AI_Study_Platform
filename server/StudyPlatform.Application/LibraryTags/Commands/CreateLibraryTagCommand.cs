@@ -14,10 +14,12 @@ public class CreateLibraryTagCommandHandler
     : IRequestHandler<CreateLibraryTagCommand, Result<LibraryTagDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ILibraryTagRepository _libraryTags;
 
-    public CreateLibraryTagCommandHandler(IUnitOfWork unitOfWork)
+    public CreateLibraryTagCommandHandler(IUnitOfWork unitOfWork, ILibraryTagRepository libraryTags)
     {
         _unitOfWork = unitOfWork;
+        _libraryTags = libraryTags;
     }
 
     public async Task<Result<LibraryTagDto>> Handle(
@@ -31,7 +33,7 @@ public class CreateLibraryTagCommandHandler
         if (!LibraryTagKinds.IsValid(kind))
             return Result<LibraryTagDto>.Failure("Kind must be 'tag' or 'collection'.", "INVALID_KIND");
 
-        var existing = await _unitOfWork.LibraryTags.GetByNameAsync(request.UserId, name, kind, cancellationToken);
+        var existing = await _libraryTags.GetByNameAsync(request.UserId, name, kind, cancellationToken);
         if (existing != null)
             return Result<LibraryTagDto>.Failure(
                 kind == LibraryTagKinds.Collection
@@ -54,7 +56,7 @@ public class CreateLibraryTagCommandHandler
             UpdatedAt = now,
         };
 
-        await _unitOfWork.LibraryTags.AddAsync(tag, cancellationToken);
+        await _libraryTags.AddAsync(tag, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result<LibraryTagDto>.Success(

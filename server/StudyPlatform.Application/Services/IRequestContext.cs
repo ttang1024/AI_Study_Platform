@@ -18,4 +18,10 @@ public interface IRequestContext
     /// authorizes off it.
     /// </summary>
     string? DeviceName { get; }
+
+    /// <summary>
+    /// The calling device's IANA time zone, from the <c>X-Time-Zone</c> header — only when it names a
+    /// zone this server knows, so anything else reads as absent.
+    /// </summary>
+    string? TimeZone { get; }
 }

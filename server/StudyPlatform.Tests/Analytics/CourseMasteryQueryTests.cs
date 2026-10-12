@@ -13,7 +13,6 @@ namespace StudyPlatform.Tests.Analytics;
 
 public class GetCourseMasteryQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<ICourseRepository> _courses = new();
     private readonly Mock<IDocumentRepository> _documents = new();
     private readonly Mock<IVideoRepository> _videos = new();
@@ -30,17 +29,6 @@ public class GetCourseMasteryQueryHandlerTests
 
     public GetCourseMasteryQueryHandlerTests()
     {
-        _uow.Setup(u => u.Courses).Returns(_courses.Object);
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
-        _uow.Setup(u => u.Videos).Returns(_videos.Object);
-        _uow.Setup(u => u.Flashcards).Returns(_flashcards.Object);
-        _uow.Setup(u => u.FlashcardSrs).Returns(_srs.Object);
-        _uow.Setup(u => u.GlossaryTerms).Returns(_terms.Object);
-        _uow.Setup(u => u.GlossaryMastered).Returns(_masteredTerms.Object);
-        _uow.Setup(u => u.QuizSubmissions).Returns(_submissions.Object);
-        _uow.Setup(u => u.WorkedProblems).Returns(_problems.Object);
-        _uow.Setup(u => u.WorkedProblemMastered).Returns(_masteredProblems.Object);
-
         _courses.Setup(r => r.GetListItemsByUserAsync(_userId, default))
             .ReturnsAsync(new List<CourseListItem> { new(_courseId, _userId, "Algorithms", "#123456", 1, DateTime.UtcNow, DateTime.UtcNow) });
         _documents.Setup(r => r.GetDocumentCourseMapAsync(_userId, default)).ReturnsAsync(new Dictionary<Guid, Guid>());
@@ -59,7 +47,7 @@ public class GetCourseMasteryQueryHandlerTests
                 It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
             .Returns((string _, Func<CancellationToken, Task<CourseMasteryDto[]>> factory, TimeSpan _, CancellationToken ct) => factory(ct));
 
-        _handler = new GetCourseMasteryQueryHandler(_uow.Object, cache.Object, Options.Create(new CacheOptions()));
+        _handler = new GetCourseMasteryQueryHandler(_courses.Object, _documents.Object, _flashcards.Object, _submissions.Object, _videos.Object, _terms.Object, _masteredTerms.Object, _problems.Object, _masteredProblems.Object, _srs.Object, cache.Object, Options.Create(new CacheOptions()));
     }
 
     [Fact]

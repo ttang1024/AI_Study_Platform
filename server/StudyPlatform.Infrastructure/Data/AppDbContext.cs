@@ -41,7 +41,6 @@ public class AppDbContext : DbContext
     public DbSet<UserPushSubscription> UserPushSubscriptions => Set<UserPushSubscription>();
     public DbSet<FlashcardReviewLog> FlashcardReviewLogs => Set<FlashcardReviewLog>();
     public DbSet<StreakCoverDay> StreakCoverDays => Set<StreakCoverDay>();
-    public DbSet<UserCalendarFeed> UserCalendarFeeds => Set<UserCalendarFeed>();
     public DbSet<AiUsageLog> AiUsageLogs => Set<AiUsageLog>();
     public DbSet<ContentEmbedding> ContentEmbeddings => Set<ContentEmbedding>();
     public DbSet<DataExportRequest> DataExportRequests => Set<DataExportRequest>();

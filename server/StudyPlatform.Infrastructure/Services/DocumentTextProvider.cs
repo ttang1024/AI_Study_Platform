@@ -8,6 +8,7 @@ namespace StudyPlatform.Infrastructure.Services;
 public class DocumentTextProvider : IDocumentTextProvider
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IDocumentRepository _documents;
     private readonly ILogger<DocumentTextProvider> _logger;
 
     /// <summary>
@@ -20,10 +21,12 @@ public class DocumentTextProvider : IDocumentTextProvider
 
     public DocumentTextProvider(
         IUnitOfWork unitOfWork,
+        IDocumentRepository documents,
         Func<IDocumentTextExtractor> extractorFactory,
         ILogger<DocumentTextProvider> logger)
     {
         _unitOfWork = unitOfWork;
+        _documents = documents;
         _extractorFactory = extractorFactory;
         _logger = logger;
     }
@@ -50,7 +53,7 @@ public class DocumentTextProvider : IDocumentTextProvider
                 return null;
 
             document.ExtractedText = text;
-            _unitOfWork.Documents.Update(document);
+            _documents.Update(document);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             return text;

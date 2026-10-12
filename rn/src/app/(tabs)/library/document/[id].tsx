@@ -8,7 +8,7 @@ import { DocumentDetailHeader } from '@/components/library/DocumentDetailHeader'
 import { DocumentTabContent } from '@/components/library/DocumentTabContent';
 import { resolveTabs } from '@/components/library/documentDetailMeta';
 import { useDocumentDetail } from '@/hooks/useDocumentDetail';
-import { quizService } from '@/services/quizService';
+import { documentService } from '@/services/documentService';
 import { fetchDocumentShareCards } from '@/services/shareService';
 import { normalizeSummaryText } from '@core/utils/summary';
 
@@ -53,7 +53,7 @@ export default function DocumentDetailScreen() {
         sourceType="document"
         sourceUrl={`${courseId}/${id}`}
         fetchQuizzes={async () => {
-          const qs = await quizService.getDocumentQuiz(courseId, id);
+          const qs = await documentService.getQuiz(courseId, id);
           return qs.map((q) => ({
             question: q.question,
             options: q.options ?? [],

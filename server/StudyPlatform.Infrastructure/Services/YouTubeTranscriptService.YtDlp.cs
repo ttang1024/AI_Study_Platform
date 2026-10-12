@@ -34,7 +34,7 @@ public partial class YouTubeTranscriptService
                 {
                     if (attempt > 0)
                         _logger.LogInformation("yt-dlp succeeded on attempt {Attempt} (proxy={Proxy}, cookie={Cookie})",
-                            attempt + 1, proxy ?? "none", cookieIndex);
+                            attempt + 1, YouTubeCredentialPool.Describe(proxy), cookieIndex);
                     return stdout;
                 }
 

@@ -10,12 +10,12 @@ namespace StudyPlatform.Application.Auth;
 /// <inheritdoc cref="IExternalSignIn"/>
 public class ExternalSignIn : IExternalSignIn
 {
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly IUserRepository _users;
     private readonly IAuthSessionIssuer _sessionIssuer;
 
-    public ExternalSignIn(IUnitOfWork unitOfWork, IAuthSessionIssuer sessionIssuer)
+    public ExternalSignIn(IUserRepository users, IAuthSessionIssuer sessionIssuer)
     {
-        _unitOfWork = unitOfWork;
+        _users = users;
         _sessionIssuer = sessionIssuer;
     }
 
@@ -23,7 +23,7 @@ public class ExternalSignIn : IExternalSignIn
         OAuthUserInfo userInfo, CancellationToken cancellationToken = default)
     {
         var email = userInfo.Email.ToLowerInvariant();
-        var user = await _unitOfWork.Users.GetByEmailAsync(email, cancellationToken);
+        var user = await _users.GetByEmailAsync(email, cancellationToken);
 
         if (user == null)
         {
@@ -39,7 +39,7 @@ public class ExternalSignIn : IExternalSignIn
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
-            await _unitOfWork.Users.AddAsync(user, cancellationToken);
+            await _users.AddAsync(user, cancellationToken);
         }
 
         PendingDeletion.CancelOnSignIn(user);

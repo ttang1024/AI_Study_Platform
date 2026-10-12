@@ -32,16 +32,13 @@ public class ShareControllerSecurityTests
 
     public ShareControllerSecurityTests()
     {
-        _uow.Setup(u => u.ShareTokens).Returns(_shares.Object);
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
-        _uow.Setup(u => u.Videos).Returns(_videos.Object);
         _shares.Setup(r => r.AddAsync(It.IsAny<ShareToken>(), It.IsAny<CancellationToken>()))
             .Callback<ShareToken, CancellationToken>((s, _) => _saved = s);
     }
 
     private ShareController CreateController(Guid? userId)
     {
-        var controller = new ShareController(_uow.Object, _blobs.Object, new RichTextSanitizer());
+        var controller = new ShareController(_uow.Object, _documents.Object, _videos.Object, _shares.Object, _blobs.Object, new RichTextSanitizer());
         var identity = userId is { } id
             ? new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, id.ToString())], "test")
             : new ClaimsIdentity();

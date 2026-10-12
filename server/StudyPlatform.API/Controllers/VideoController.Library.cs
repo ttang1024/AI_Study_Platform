@@ -55,13 +55,13 @@ public partial class VideoController
             return BadRequest(BaseResponse<VideoDto>.Fail("File type not supported. Allowed: MP4, MOV, WEBM, MKV, AVI, WMV, FLV, 3GP, TS, MPG, OGV, VOB, ASF.", "INVALID_FILE_TYPE"));
 
         var userId = User.GetUserId();
-        var course = await _unitOfWork.Courses.GetOwnedAsync(courseId, userId, cancellationToken);
+        var course = await _courses.GetOwnedAsync(courseId, userId, cancellationToken);
         if (course == null)
             return BadRequest(BaseResponse<VideoDto>.Fail("Course not found.", "COURSE_NOT_FOUND"));
 
         if (_limits.VideoUploadLimit >= 0)
         {
-            var count = await _unitOfWork.Videos.CountAsync(
+            var count = await _videos.CountAsync(
                 v => v.UserId == userId && v.SourceType == "upload",
                 cancellationToken);
             if (count >= _limits.VideoUploadLimit)
@@ -109,11 +109,11 @@ public partial class VideoController
             UpdatedAt = DateTime.UtcNow,
         };
 
-        await _unitOfWork.Videos.AddAsync(video, cancellationToken);
+        await _videos.AddAsync(video, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         transcriptionQueue.TryEnqueue(video.VideoId, userId, TranscriptionJobKind.UploadedVideo);
 
-        var saved = await _unitOfWork.Videos.GetByIdForUserAsync(video.VideoId, userId, cancellationToken);
+        var saved = await _videos.GetByIdForUserAsync(video.VideoId, userId, cancellationToken);
         return StatusCode(StatusCodes.Status201Created, BaseResponse<VideoDto>.Ok(SaveVideoCommandHandler.ToDto(saved!)));
     }
 

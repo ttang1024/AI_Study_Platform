@@ -43,8 +43,44 @@ public static class InfrastructureServiceExtensions
             });
         });
 
-        // Unit of Work
+        // Repositories are injected individually where they're used. All share the request's scoped
+        // AppDbContext, so IUnitOfWork.SaveChangesAsync commits whatever any of them changed.
         services.AddScoped<IUnitOfWork, UnitOfWork>();
+        services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<ICourseRepository, CourseRepository>();
+        services.AddScoped<IDocumentRepository, DocumentRepository>();
+        services.AddScoped<IOtpRepository, OtpRepository>();
+        services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+        services.AddScoped<IQuizRepository, QuizRepository>();
+        services.AddScoped<IFlashcardRepository, FlashcardRepository>();
+        services.AddScoped<INoteRepository, NoteRepository>();
+        services.AddScoped<IChatMessageRepository, ChatMessageRepository>();
+        services.AddScoped<IAnalyticsRepository, AnalyticsRepository>();
+        services.AddScoped<IQuizSubmissionRepository, QuizSubmissionRepository>();
+        services.AddScoped<IVideoRepository, VideoRepository>();
+        services.AddScoped<IGlossaryTermRepository, GlossaryTermRepository>();
+        services.AddScoped<IFeedbackRepository, FeedbackRepository>();
+        services.AddScoped<IShareTokenRepository, ShareTokenRepository>();
+        services.AddScoped<IGlossaryMasteredRepository, GlossaryMasteredRepository>();
+        services.AddScoped<IWorkedProblemRepository, WorkedProblemRepository>();
+        services.AddScoped<IWorkedProblemAttemptRepository, WorkedProblemAttemptRepository>();
+        services.AddScoped<IWorkedProblemMasteredRepository, WorkedProblemMasteredRepository>();
+        services.AddScoped<IDocumentAnnotationRepository, DocumentAnnotationRepository>();
+        services.AddScoped<IStudyGroupRepository, StudyGroupRepository>();
+        services.AddScoped<IStudyGroupMemberRepository, StudyGroupMemberRepository>();
+        services.AddScoped<IStudyGroupSharedCourseRepository, StudyGroupSharedCourseRepository>();
+        services.AddScoped<IGroupChatMessageRepository, GroupChatMessageRepository>();
+        services.AddScoped<IFlashcardSrsDataRepository, FlashcardSrsDataRepository>();
+        services.AddScoped<IStudySessionRepository, StudySessionRepository>();
+        services.AddScoped<IMistakeEntryRepository, MistakeEntryRepository>();
+        services.AddScoped<IExamPlanRepository, ExamPlanRepository>();
+        services.AddScoped<IFlashcardReviewLogRepository, FlashcardReviewLogRepository>();
+        services.AddScoped<IStreakCoverDayRepository, StreakCoverDayRepository>();
+        services.AddScoped<IAiUsageRepository, AiUsageRepository>();
+        services.AddScoped<IDataExportRequestRepository, DataExportRequestRepository>();
+        services.AddScoped<ILibraryTagRepository, LibraryTagRepository>();
+        services.AddScoped<IUserFsrsSettingsRepository, UserFsrsSettingsRepository>();
+        services.AddScoped<IPageVisitRepository, PageVisitRepository>();
 
         // Admin platform-wide analytics (reads across all users; admin-only endpoints)
         services.AddScoped<IAdminAnalyticsRepository, AdminAnalyticsRepository>();
@@ -57,6 +93,10 @@ public static class InfrastructureServiceExtensions
         // Singleton for the same reason AiUsageRecorder is one — it opens a scope per write so an
         // audit entry survives the operation it describes failing.
         services.AddScoped<IRequestContext, HttpRequestContext>();
+        services.AddScoped<IAiCredentialsProvider, HttpAiCredentialsProvider>();
+
+        // Singleton: it owns the cap on concurrent edge-tts processes.
+        services.AddSingleton<ISpeechSynthesizer, EdgeTtsSynthesizer>();
         services.AddScoped<IDataExportBuilder, DataExportBuilder>();
         services.AddScoped<IAccountEraser, AccountEraser>();
 
@@ -79,15 +119,6 @@ public static class InfrastructureServiceExtensions
         // rows never enlist in the caller's unit of work.
         services.AddSingleton<IAiUsageRecorder, AiUsageRecorder>();
 
-        // External ICS calendars ("secret address" feeds) for planner busy-time import.
-        // User-supplied URL → SSRF-guarded handler that refuses private/loopback/metadata addresses
-        // on the initial request and every redirect hop.
-        services.AddHttpClient<ICalendarFeedService, CalendarFeedService>(client =>
-        {
-            client.Timeout = TimeSpan.FromSeconds(20);
-            client.DefaultRequestHeaders.Add("User-Agent", "StudyPlatform");
-        })
-        .ConfigurePrimaryHttpMessageHandler(() => SsrfGuard.CreateHandler());
         // Push notifications — the HttpClient delivers to Expo's push API for
         // native-device tokens; browser Web Push goes through the WebPush library.
         services.AddHttpClient<IPushNotificationService, WebPushNotificationService>(client =>

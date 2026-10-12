@@ -7,12 +7,12 @@ using StudyPlatform.Application.Settings;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
 using Xunit;
+using StudyPlatform.Application.Common;
 
 namespace StudyPlatform.Tests.Documents;
 
 public class GetDocumentsByCourseQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<ICourseRepository> _courses = new();
     private readonly Mock<IDocumentRepository> _documents = new();
     private readonly Mock<IStudyGroupSharedCourseRepository> _shared = new();
@@ -23,11 +23,7 @@ public class GetDocumentsByCourseQueryHandlerTests
 
     public GetDocumentsByCourseQueryHandlerTests()
     {
-        _uow.Setup(u => u.Courses).Returns(_courses.Object);
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
-        _uow.Setup(u => u.StudyGroupSharedCourses).Returns(_shared.Object);
-        _uow.Setup(u => u.StudyGroupMembers).Returns(_members.Object);
-        _handler = new GetDocumentsByCourseQueryHandler(_uow.Object);
+        _handler = new GetDocumentsByCourseQueryHandler(_courses.Object, _documents.Object, new CourseAccess(_shared.Object, _members.Object));
     }
 
     [Fact]
@@ -86,7 +82,6 @@ public class GetDocumentsByCourseQueryHandlerTests
 
 public class GetDocumentNotesQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IDocumentRepository> _documents = new();
     private readonly Mock<INoteRepository> _notes = new();
     private readonly Mock<IStudyGroupSharedCourseRepository> _shared = new();
@@ -97,11 +92,7 @@ public class GetDocumentNotesQueryHandlerTests
 
     public GetDocumentNotesQueryHandlerTests()
     {
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
-        _uow.Setup(u => u.Notes).Returns(_notes.Object);
-        _uow.Setup(u => u.StudyGroupSharedCourses).Returns(_shared.Object);
-        _uow.Setup(u => u.StudyGroupMembers).Returns(_members.Object);
-        _handler = new GetDocumentNotesQueryHandler(_uow.Object);
+        _handler = new GetDocumentNotesQueryHandler(_documents.Object, _notes.Object, new CourseAccess(_shared.Object, _members.Object));
     }
 
     [Fact]
@@ -145,7 +136,6 @@ public class GetDocumentNotesQueryHandlerTests
 
 public class GetAIChatHistoryQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IDocumentRepository> _documents = new();
     private readonly Mock<IChatMessageRepository> _chatMessages = new();
     private readonly Mock<IStudyGroupSharedCourseRepository> _shared = new();
@@ -157,11 +147,7 @@ public class GetAIChatHistoryQueryHandlerTests
 
     public GetAIChatHistoryQueryHandlerTests()
     {
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
-        _uow.Setup(u => u.ChatMessages).Returns(_chatMessages.Object);
-        _uow.Setup(u => u.StudyGroupSharedCourses).Returns(_shared.Object);
-        _uow.Setup(u => u.StudyGroupMembers).Returns(_members.Object);
-        _handler = new GetAIChatHistoryQueryHandler(_uow.Object, _blobStorage.Object);
+        _handler = new GetAIChatHistoryQueryHandler(_documents.Object, _chatMessages.Object, new CourseAccess(_shared.Object, _members.Object), _blobStorage.Object);
     }
 
     [Fact]
@@ -192,7 +178,6 @@ public class GetAIChatHistoryQueryHandlerTests
 
 public class GetDocumentDownloadUrlQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IDocumentRepository> _documents = new();
     private readonly Mock<IBlobStorageService> _blobStorage = new();
     private readonly Mock<IAppCache> _cache = new();
@@ -202,12 +187,11 @@ public class GetDocumentDownloadUrlQueryHandlerTests
 
     public GetDocumentDownloadUrlQueryHandlerTests()
     {
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
         _cache.Setup(c => c.GetOrCreateAsync(
                 It.IsAny<string>(), It.IsAny<Func<CancellationToken, Task<string>>>(),
                 It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
             .Returns((string _, Func<CancellationToken, Task<string>> factory, TimeSpan _, CancellationToken ct) => factory(ct));
-        _handler = new GetDocumentDownloadUrlQueryHandler(_uow.Object, _blobStorage.Object, _cache.Object, Options.Create(new CacheOptions()));
+        _handler = new GetDocumentDownloadUrlQueryHandler(_documents.Object, _blobStorage.Object, _cache.Object, Options.Create(new CacheOptions()));
     }
 
     [Fact]
@@ -249,7 +233,6 @@ public class GetDocumentDownloadUrlQueryHandlerTests
 
 public class GetDocumentFlashcardsQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IDocumentRepository> _documents = new();
     private readonly Mock<IFlashcardRepository> _flashcards = new();
     private readonly Mock<IStudyGroupSharedCourseRepository> _shared = new();
@@ -260,11 +243,7 @@ public class GetDocumentFlashcardsQueryHandlerTests
 
     public GetDocumentFlashcardsQueryHandlerTests()
     {
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
-        _uow.Setup(u => u.Flashcards).Returns(_flashcards.Object);
-        _uow.Setup(u => u.StudyGroupSharedCourses).Returns(_shared.Object);
-        _uow.Setup(u => u.StudyGroupMembers).Returns(_members.Object);
-        _handler = new GetDocumentFlashcardsQueryHandler(_uow.Object);
+        _handler = new GetDocumentFlashcardsQueryHandler(_documents.Object, _flashcards.Object, new CourseAccess(_shared.Object, _members.Object));
     }
 
     [Fact]

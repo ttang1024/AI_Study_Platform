@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { documentService } from '../services/documentService';
+import { noteService } from '../services/noteService';
 
 /**
  * The single note attached to a document: loads it when the document changes and
@@ -28,10 +29,10 @@ export function useDocumentNote(courseId?: string, documentId?: string) {
     setNoteContent(html);
     try {
       if (noteId) {
-        await documentService.updateNote(courseId, documentId, noteId, html);
+        await noteService.updateNote(noteId, { content: html });
       } else {
-        const note = await documentService.createNote(courseId, documentId, html);
-        setNoteId(note.id);
+        const note = await noteService.createNote({ content: html, documentId });
+        setNoteId(note.noteId);
       }
     } catch { }
   }, [courseId, documentId, noteId]);

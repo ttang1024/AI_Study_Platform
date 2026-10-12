@@ -11,6 +11,7 @@ export interface QuizSubmission {
   submissionId: string;
   documentId: string;
   videoId?: string;
+  courseId?: string;
   sourceType?: string;
   documentName?: string;
   videoName?: string;
@@ -222,7 +223,7 @@ const mapChatMessage = (bm: BackendChatMessage): ChatMessage => ({
   attachments: bm.attachments ?? undefined,
 });
 
-const mapQuiz = (bq: BackendQuiz): QuizQuestion => ({
+export const mapQuiz = (bq: BackendQuiz): QuizQuestion => ({
   id: bq.quizId,
   question: bq.question,
   options: Array.isArray(bq.options) ? bq.options : [],
@@ -250,6 +251,7 @@ const mapQuizSubmission = (bs: any): QuizSubmission => ({
   submissionId: bs.submissionId,
   documentId: bs.documentId,
   videoId: bs.videoId ?? undefined,
+  courseId: bs.courseId ?? undefined,
   sourceType: bs.sourceType ?? undefined,
   documentName: bs.document ?? (bs.sourceType === 'document' ? bs.title : undefined) ?? undefined,
   videoName: bs.video ?? (bs.sourceType === 'video' ? bs.title : undefined) ?? undefined,
@@ -275,7 +277,6 @@ export function createDocumentService(http: HttpClient, streamSse: SseStreamFn) 
 
   return {
     invalidateDocumentListCache,
-
 
     async getAllDocuments(page = 1, pageSize = 3, courseId?: string): Promise<PagedDocuments> {
       const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
@@ -527,31 +528,6 @@ export function createDocumentService(http: HttpClient, streamSse: SseStreamFn) 
         `${docPath(courseId, documentId)}/notes`,
       );
       return response.data.data.map(mapNote);
-    },
-
-    async createNote(courseId: string, documentId: string, content: string): Promise<Note> {
-      const response = await http.post<{ data: BackendNote }>(
-        `${docPath(courseId, documentId)}/notes`,
-        { content },
-      );
-      return mapNote(response.data.data);
-    },
-
-    async updateNote(
-      courseId: string,
-      documentId: string,
-      noteId: string,
-      content: string,
-    ): Promise<Note> {
-      const response = await http.put<{ data: BackendNote }>(
-        `${docPath(courseId, documentId)}/notes/${noteId}`,
-        { content },
-      );
-      return mapNote(response.data.data);
-    },
-
-    async deleteNote(courseId: string, documentId: string, noteId: string): Promise<void> {
-      await http.delete(`${docPath(courseId, documentId)}/notes/${noteId}`);
     },
 
     /**

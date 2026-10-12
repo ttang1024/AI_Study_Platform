@@ -1,9 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Services;
 using StudyPlatform.Application.Settings;
 
@@ -13,7 +11,7 @@ public partial class AiService : IAiService
 {
     private readonly HttpClient _httpClient;
     private readonly ILogger<AiService> _logger;
-    private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly IAiCredentialsProvider _credentialsProvider;
     private readonly IAppCache _cache;
     private readonly CacheOptions _cacheOptions;
     private readonly IAiUsageRecorder _usageRecorder;
@@ -22,7 +20,7 @@ public partial class AiService : IAiService
     public AiService(
         HttpClient httpClient,
         ILogger<AiService> logger,
-        IHttpContextAccessor httpContextAccessor,
+        IAiCredentialsProvider credentialsProvider,
         IAppCache cache,
         IOptions<CacheOptions> cacheOptions,
         IAiUsageRecorder usageRecorder,
@@ -31,7 +29,7 @@ public partial class AiService : IAiService
         _requestTimeout = TimeSpan.FromSeconds(Math.Max(1, requestOptions.Value.NonStreamingTimeoutSeconds));
         _httpClient = httpClient;
         _logger = logger;
-        _httpContextAccessor = httpContextAccessor;
+        _credentialsProvider = credentialsProvider;
         _cache = cache;
         _cacheOptions = cacheOptions.Value;
         _usageRecorder = usageRecorder;
@@ -39,43 +37,14 @@ public partial class AiService : IAiService
 
     // ── Credentials ───────────────────────────────────────────────────────
 
-    private AiCredentials ReadCredentials()
-    {
-        var headers = _httpContextAccessor.HttpContext?.Request.Headers;
+    // Resolved once per instance (AiService is a transient typed HttpClient, so one per consumer within a
+    // request) rather than re-read from the request on every property access.
+    private AiCredentials? _credentials;
+    private AiCredentials Credentials => _credentials ??= _credentialsProvider.GetRequired();
 
-        var provider = headers?["X-AI-Provider"].FirstOrDefault();
-        var model = headers?["X-AI-Model"].FirstOrDefault();
-        var key = headers?["X-AI-Key"].FirstOrDefault()?.Trim();
-
-        var hasOwnCredentials =
-            !string.IsNullOrWhiteSpace(provider)
-            && !string.IsNullOrWhiteSpace(model)
-            && !string.IsNullOrWhiteSpace(key);
-
-        if (hasOwnCredentials)
-            return new AiCredentials(provider!.ToLowerInvariant(), model!, key!, CurrentUserId());
-
-        if (string.IsNullOrWhiteSpace(provider))
-            throw new UserFacingException("No AI provider specified. Please configure a provider in Settings → AI Services.");
-
-        if (string.IsNullOrWhiteSpace(model))
-            throw new UserFacingException("No AI model specified. Please configure a model in Settings → AI Services.");
-
-        throw new UserFacingException(
-            $"No API key configured for provider '{provider.ToLowerInvariant()}'. Please add your API key in Settings → AI Services.");
-    }
-
-    private Guid CurrentUserId()
-    {
-        var claim = _httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
-                    ?? _httpContextAccessor.HttpContext?.User?.FindFirst(
-                        System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-        return Guid.TryParse(claim, out var id) ? id : Guid.Empty;
-    }
-
-    private string ApiKey => ReadCredentials().ApiKey;
-    private string Model => ReadCredentials().Model;
-    private string Provider => ReadCredentials().Provider;
+    private string ApiKey => Credentials.ApiKey;
+    private string Model => Credentials.Model;
+    private string Provider => Credentials.Provider;
 
     // ── Provider endpoints ───────────────────────────────────────────────
 
@@ -98,7 +67,7 @@ public partial class AiService : IAiService
 
     private const string GeminiModelsUrl = "https://generativelanguage.googleapis.com/v1beta/models/";
 
-    private bool IsGemini => !ChatEndpoints.ContainsKey(Provider);
+    private bool IsGemini => Provider == "gemini";
 
     // The model name comes from a client header, so it is escaped before it becomes part of a path.
     // The Gemini key travels in the x-goog-api-key header (BuildHttpRequest), never in the URL, where
@@ -262,7 +231,7 @@ public partial class AiService : IAiService
         Func<CancellationToken, Task<string>> factory,
         CancellationToken cancellationToken)
     {
-        var cacheKey = $"ai:{Provider}:{Model}:{category}:{inputHash}";
+        var cacheKey = $"ai:{Credentials.CacheScope}:{category}:{inputHash}";
         return _cache.GetOrCreateAsync(
             cacheKey,
             factory,
@@ -300,7 +269,7 @@ public partial class AiService : IAiService
         // The document goes in the system block and the history stays as real turns, rather than all
         // three being flattened into one user message. The system block is then byte-identical across
         // a conversation, which is what lets the provider's prompt cache hit on every turn but the first.
-        var system = AiPrompts.BuildDocumentChatSystem(AiResponseParsing.TruncateContent(documentContent, 3000));
+        var system = AiPrompts.BuildDocumentChatSystem(DocumentContextSelector.Select(documentContent, userMessage));
         return SendTextAsync(system, history.Append(("user", userMessage)), 0.7, 8192, cleanJson: false, cancellationToken);
     }
 

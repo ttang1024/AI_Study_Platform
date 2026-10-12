@@ -6,13 +6,13 @@ using StudyPlatform.Application.Services;
 using StudyPlatform.Application.Settings;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
+using StudyPlatform.Tests.TestSupport;
 using Xunit;
 
 namespace StudyPlatform.Tests.Analytics;
 
 public class GetDailyQuizAccuracyQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IAnalyticsRepository> _analytics = new();
     private readonly Mock<IQuizSubmissionRepository> _submissions = new();
     private readonly GetDailyQuizAccuracyQueryHandler _handler;
@@ -20,8 +20,6 @@ public class GetDailyQuizAccuracyQueryHandlerTests
 
     public GetDailyQuizAccuracyQueryHandlerTests()
     {
-        _uow.Setup(u => u.Analytics).Returns(_analytics.Object);
-        _uow.Setup(u => u.QuizSubmissions).Returns(_submissions.Object);
         _analytics.Setup(r => r.GetQuizAttemptsByDateRangeAsync(_userId, It.IsAny<DateTime>(), It.IsAny<DateTime>(), default))
             .ReturnsAsync(Array.Empty<QuizAttempt>());
         _submissions.Setup(r => r.GetByDateRangeAsync(_userId, It.IsAny<DateTime>(), It.IsAny<DateTime>(), default))
@@ -33,7 +31,7 @@ public class GetDailyQuizAccuracyQueryHandlerTests
                 It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
             .Returns((string _, Func<CancellationToken, Task<DailyQuizAccuracyDto[]>> factory, TimeSpan _, CancellationToken ct) => factory(ct));
 
-        _handler = new GetDailyQuizAccuracyQueryHandler(_uow.Object, cache.Object, Options.Create(new CacheOptions()));
+        _handler = new GetDailyQuizAccuracyQueryHandler(_analytics.Object, _submissions.Object, cache.Object, Options.Create(new CacheOptions()), FixedTimeZone.Utc);
     }
 
     private DateTime Day(int offset) => DateTime.UtcNow.Date.AddDays(offset);
@@ -113,9 +111,8 @@ public class RecordQuizAttemptCommandHandlerTests
 
     public RecordQuizAttemptCommandHandlerTests()
     {
-        _uow.Setup(u => u.Analytics).Returns(_analytics.Object);
         _analytics.Setup(r => r.AddQuizAttemptAsync(It.IsAny<QuizAttempt>(), default)).Returns(Task.CompletedTask);
-        _handler = new RecordQuizAttemptCommandHandler(_uow.Object);
+        _handler = new RecordQuizAttemptCommandHandler(_uow.Object, _analytics.Object);
     }
 
     [Fact]

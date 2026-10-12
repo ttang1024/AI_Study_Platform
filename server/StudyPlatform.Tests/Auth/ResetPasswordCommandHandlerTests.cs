@@ -19,11 +19,8 @@ public class ResetPasswordCommandHandlerTests
 
     public ResetPasswordCommandHandlerTests()
     {
-        _uow.Setup(u => u.Users).Returns(_users.Object);
-        _uow.Setup(u => u.Otps).Returns(_otps.Object);
-        _uow.Setup(u => u.RefreshTokens).Returns(_tokens.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new ResetPasswordCommandHandler(_uow.Object, _hasher.Object);
+        _handler = new ResetPasswordCommandHandler(_uow.Object, _users.Object, _otps.Object, _tokens.Object, _hasher.Object);
     }
 
     private User MakeUser() => new()

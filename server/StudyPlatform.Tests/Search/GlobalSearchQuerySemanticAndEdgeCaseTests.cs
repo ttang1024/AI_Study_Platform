@@ -10,7 +10,6 @@ namespace StudyPlatform.Tests.Search;
 
 public class GlobalSearchQuerySemanticAndEdgeCaseTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IDocumentRepository> _documents = new();
     private readonly Mock<IVideoRepository> _videos = new();
     private readonly Mock<INoteRepository> _notes = new();
@@ -22,12 +21,6 @@ public class GlobalSearchQuerySemanticAndEdgeCaseTests
 
     public GlobalSearchQuerySemanticAndEdgeCaseTests()
     {
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
-        _uow.Setup(u => u.Videos).Returns(_videos.Object);
-        _uow.Setup(u => u.Notes).Returns(_notes.Object);
-        _uow.Setup(u => u.Flashcards).Returns(_flashcards.Object);
-        _uow.Setup(u => u.GlossaryTerms).Returns(_glossary.Object);
-
         _documents.Setup(r => r.SearchByUserAsync(_userId, It.IsAny<string>(), It.IsAny<int>(), default))
             .ReturnsAsync(Array.Empty<Document>());
         _videos.Setup(r => r.SearchByUserAsync(_userId, It.IsAny<string>(), It.IsAny<int>(), default))
@@ -43,7 +36,7 @@ public class GlobalSearchQuerySemanticAndEdgeCaseTests
             .ReturnsAsync(Array.Empty<EmbeddingHit>());
 
         _handler = new GlobalSearchQueryHandler(
-            _uow.Object, _embeddingIndex.Object, NullLogger<GlobalSearchQueryHandler>.Instance);
+            _documents.Object, _flashcards.Object, _notes.Object, _videos.Object, _glossary.Object, _embeddingIndex.Object, NullLogger<GlobalSearchQueryHandler>.Instance);
     }
 
     [Fact]

@@ -17,11 +17,13 @@ public record ClassifyFlashcardCommand(
 public class ClassifyFlashcardCommandHandler : IRequestHandler<ClassifyFlashcardCommand, Result<FlashcardDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
-    public ClassifyFlashcardCommandHandler(IUnitOfWork unitOfWork) { _unitOfWork = unitOfWork; }
+    private readonly IFlashcardRepository _flashcards;
+    public ClassifyFlashcardCommandHandler(IUnitOfWork unitOfWork, IFlashcardRepository flashcards) { _unitOfWork = unitOfWork;
+    _flashcards = flashcards; }
 
     public async Task<Result<FlashcardDto>> Handle(ClassifyFlashcardCommand request, CancellationToken cancellationToken)
     {
-        var flashcard = await _unitOfWork.Flashcards.GetOwnedAsync(request.FlashcardId, request.UserId, cancellationToken);
+        var flashcard = await _flashcards.GetOwnedAsync(request.FlashcardId, request.UserId, cancellationToken);
         if (flashcard == null)
             return Result<FlashcardDto>.Failure("Flashcard not found.", "FLASHCARD_NOT_FOUND");
 

@@ -18,8 +18,6 @@ public class FsrsSettingsHandlerTests
 
     public FsrsSettingsHandlerTests()
     {
-        _uow.Setup(u => u.UserFsrsSettings).Returns(_settings.Object);
-        _uow.Setup(u => u.FlashcardReviewLogs).Returns(_reviewLogs.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
         _settings.Setup(r => r.AddAsync(It.IsAny<UserFsrsSettings>(), default)).Returns(Task.CompletedTask);
         _reviewLogs.Setup(r => r.CountAsync(It.IsAny<Expression<Func<FlashcardReviewLog, bool>>>(), default))
@@ -30,7 +28,7 @@ public class FsrsSettingsHandlerTests
     public async Task Get_WithoutRow_ReturnsDefaultsWithoutWriting()
     {
         _settings.Setup(r => r.GetByUserIdAsync(_userId, default)).ReturnsAsync((UserFsrsSettings?)null);
-        var handler = new GetFsrsSettingsQueryHandler(_uow.Object);
+        var handler = new GetFsrsSettingsQueryHandler(_reviewLogs.Object, _settings.Object);
 
         var result = await handler.Handle(new GetFsrsSettingsQuery(_userId), default);
 
@@ -48,7 +46,7 @@ public class FsrsSettingsHandlerTests
         _settings.Setup(r => r.GetByUserIdAsync(_userId, default)).ReturnsAsync((UserFsrsSettings?)null);
         _reviewLogs.Setup(r => r.CountAsync(It.IsAny<Expression<Func<FlashcardReviewLog, bool>>>(), default))
             .ReturnsAsync(742);
-        var handler = new GetFsrsSettingsQueryHandler(_uow.Object);
+        var handler = new GetFsrsSettingsQueryHandler(_reviewLogs.Object, _settings.Object);
 
         var result = await handler.Handle(new GetFsrsSettingsQuery(_userId), default);
 
@@ -59,7 +57,7 @@ public class FsrsSettingsHandlerTests
     public async Task Update_WithoutRow_CreatesOne()
     {
         _settings.Setup(r => r.GetByUserIdAsync(_userId, default)).ReturnsAsync((UserFsrsSettings?)null);
-        var handler = new UpdateFsrsSettingsCommandHandler(_uow.Object);
+        var handler = new UpdateFsrsSettingsCommandHandler(_uow.Object, _reviewLogs.Object, _settings.Object);
 
         var result = await handler.Handle(new UpdateFsrsSettingsCommand(_userId, DesiredRetention: 0.85), default);
 
@@ -73,7 +71,7 @@ public class FsrsSettingsHandlerTests
     public async Task Update_LeavesOmittedFieldsAlone()
     {
         var existing = Existing(retention: 0.85, maxInterval: 180, fuzz: false);
-        var handler = new UpdateFsrsSettingsCommandHandler(_uow.Object);
+        var handler = new UpdateFsrsSettingsCommandHandler(_uow.Object, _reviewLogs.Object, _settings.Object);
 
         var result = await handler.Handle(new UpdateFsrsSettingsCommand(_userId, EnableFuzz: true), default);
 
@@ -89,7 +87,7 @@ public class FsrsSettingsHandlerTests
     public async Task Update_RejectsRetentionOutsideSupportedRange(double retention)
     {
         Existing();
-        var handler = new UpdateFsrsSettingsCommandHandler(_uow.Object);
+        var handler = new UpdateFsrsSettingsCommandHandler(_uow.Object, _reviewLogs.Object, _settings.Object);
 
         var result = await handler.Handle(new UpdateFsrsSettingsCommand(_userId, DesiredRetention: retention), default);
 
@@ -104,7 +102,7 @@ public class FsrsSettingsHandlerTests
     public async Task Update_RejectsUnusableMaximumInterval(int days)
     {
         Existing();
-        var handler = new UpdateFsrsSettingsCommandHandler(_uow.Object);
+        var handler = new UpdateFsrsSettingsCommandHandler(_uow.Object, _reviewLogs.Object, _settings.Object);
 
         var result = await handler.Handle(new UpdateFsrsSettingsCommand(_userId, MaximumIntervalDays: days), default);
 
@@ -118,7 +116,7 @@ public class FsrsSettingsHandlerTests
     public async Task Update_RejectsAnUnusableNewCardLimit(int perDay)
     {
         Existing();
-        var handler = new UpdateFsrsSettingsCommandHandler(_uow.Object);
+        var handler = new UpdateFsrsSettingsCommandHandler(_uow.Object, _reviewLogs.Object, _settings.Object);
 
         var result = await handler.Handle(new UpdateFsrsSettingsCommand(_userId, NewCardsPerDay: perDay), default);
 
@@ -133,7 +131,7 @@ public class FsrsSettingsHandlerTests
     public async Task Update_RejectsAnUnusableReviewLimit(int perDay)
     {
         Existing();
-        var handler = new UpdateFsrsSettingsCommandHandler(_uow.Object);
+        var handler = new UpdateFsrsSettingsCommandHandler(_uow.Object, _reviewLogs.Object, _settings.Object);
 
         var result = await handler.Handle(new UpdateFsrsSettingsCommand(_userId, MaxReviewsPerDay: perDay), default);
 
@@ -146,7 +144,7 @@ public class FsrsSettingsHandlerTests
     {
         var existing = Existing();
         existing.MaxReviewsPerDay = 40;
-        var handler = new UpdateFsrsSettingsCommandHandler(_uow.Object);
+        var handler = new UpdateFsrsSettingsCommandHandler(_uow.Object, _reviewLogs.Object, _settings.Object);
 
         var result = await handler.Handle(new UpdateFsrsSettingsCommand(_userId, MaxReviewsPerDay: 0), default);
 
@@ -158,7 +156,7 @@ public class FsrsSettingsHandlerTests
     public async Task Get_WithoutRow_ReportsTheNewCardDefaultBothClientsUsed()
     {
         _settings.Setup(r => r.GetByUserIdAsync(_userId, default)).ReturnsAsync((UserFsrsSettings?)null);
-        var handler = new GetFsrsSettingsQueryHandler(_uow.Object);
+        var handler = new GetFsrsSettingsQueryHandler(_reviewLogs.Object, _settings.Object);
 
         var result = await handler.Handle(new GetFsrsSettingsQuery(_userId), default);
 
@@ -171,7 +169,7 @@ public class FsrsSettingsHandlerTests
     {
         Existing();
         _reviewLogs.Setup(r => r.GetByUserAsync(_userId, null, default)).ReturnsAsync([]);
-        var handler = new OptimizeFsrsWeightsCommandHandler(_uow.Object, new FsrsOptimizer());
+        var handler = new OptimizeFsrsWeightsCommandHandler(_uow.Object, _reviewLogs.Object, _settings.Object, new FsrsOptimizer());
 
         var result = await handler.Handle(new OptimizeFsrsWeightsCommand(_userId), default);
 
@@ -185,7 +183,7 @@ public class FsrsSettingsHandlerTests
     {
         var existing = Existing();
         _reviewLogs.Setup(r => r.GetByUserAsync(_userId, null, default)).ReturnsAsync(ReviewHistory.Durable(_userId));
-        var handler = new OptimizeFsrsWeightsCommandHandler(_uow.Object, new FsrsOptimizer());
+        var handler = new OptimizeFsrsWeightsCommandHandler(_uow.Object, _reviewLogs.Object, _settings.Object, new FsrsOptimizer());
 
         var result = await handler.Handle(new OptimizeFsrsWeightsCommand(_userId), default);
 
@@ -211,7 +209,7 @@ public class FsrsSettingsHandlerTests
 
         var logs = ReviewHistory.Durable(_userId);
         _reviewLogs.Setup(r => r.GetByUserAsync(_userId, null, default)).ReturnsAsync(logs);
-        var handler = new OptimizeFsrsWeightsCommandHandler(_uow.Object, new FsrsOptimizer());
+        var handler = new OptimizeFsrsWeightsCommandHandler(_uow.Object, _reviewLogs.Object, _settings.Object, new FsrsOptimizer());
 
         var result = await handler.Handle(new OptimizeFsrsWeightsCommand(_userId), default);
 
@@ -228,7 +226,7 @@ public class FsrsSettingsHandlerTests
         existing.ReviewsAtOptimization = 900;
         existing.LogLossBefore = 0.5;
         existing.LogLossAfter = 0.4;
-        var handler = new ResetFsrsWeightsCommandHandler(_uow.Object);
+        var handler = new ResetFsrsWeightsCommandHandler(_uow.Object, _reviewLogs.Object, _settings.Object);
 
         var result = await handler.Handle(new ResetFsrsWeightsCommand(_userId), default);
 
@@ -246,7 +244,7 @@ public class FsrsSettingsHandlerTests
     public async Task Reset_WithoutRow_IsANoOp()
     {
         _settings.Setup(r => r.GetByUserIdAsync(_userId, default)).ReturnsAsync((UserFsrsSettings?)null);
-        var handler = new ResetFsrsWeightsCommandHandler(_uow.Object);
+        var handler = new ResetFsrsWeightsCommandHandler(_uow.Object, _reviewLogs.Object, _settings.Object);
 
         var result = await handler.Handle(new ResetFsrsWeightsCommand(_userId), default);
 
@@ -267,5 +265,4 @@ public class FsrsSettingsHandlerTests
         _settings.Setup(r => r.GetByUserIdAsync(_userId, default)).ReturnsAsync(settings);
         return settings;
     }
-
 }

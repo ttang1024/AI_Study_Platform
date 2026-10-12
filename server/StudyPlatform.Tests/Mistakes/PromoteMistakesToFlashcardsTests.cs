@@ -23,9 +23,6 @@ public class PromoteMistakesToFlashcardsTests
 
     public PromoteMistakesToFlashcardsTests()
     {
-        _uow.Setup(u => u.MistakeEntries).Returns(_mistakes.Object);
-        _uow.Setup(u => u.Flashcards).Returns(_flashcards.Object);
-        _uow.Setup(u => u.FlashcardSrs).Returns(_srs.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
 
         _mistakes.Setup(r => r.FindAsync(It.IsAny<Expression<Func<MistakeEntry, bool>>>(), default))
@@ -40,7 +37,7 @@ public class PromoteMistakesToFlashcardsTests
             .Callback<FlashcardSrsData, CancellationToken>((s, _) => _createdSrs.Add(s))
             .Returns(Task.CompletedTask);
 
-        _handler = new PromoteMistakesToFlashcardsCommandHandler(_uow.Object);
+        _handler = new PromoteMistakesToFlashcardsCommandHandler(_uow.Object, _flashcards.Object, _srs.Object, _mistakes.Object);
     }
 
     private MistakeEntry AddMistake(

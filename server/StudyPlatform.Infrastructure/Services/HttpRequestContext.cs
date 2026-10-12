@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Http;
+using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Services;
 
 namespace StudyPlatform.Infrastructure.Services;
@@ -34,6 +35,15 @@ public class HttpRequestContext : IRequestContext
     }
 
     public string? DeviceName => DescribeDevice(UserAgent);
+
+    public string? TimeZone
+    {
+        get
+        {
+            var id = Http?.Request.Headers["X-Time-Zone"].FirstOrDefault()?.Trim();
+            return UserCalendar.IsKnownZone(id) ? id : null;
+        }
+    }
 
     /// <summary>
     /// Names the browser and OS from a user-agent string.

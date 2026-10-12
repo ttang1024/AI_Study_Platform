@@ -9,14 +9,12 @@ namespace StudyPlatform.Tests.Analytics;
 
 public class GetAiUsageQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IAiUsageRepository> _aiUsage = new();
     private readonly GetAiUsageQueryHandler _handler;
     private readonly Guid _userId = Guid.NewGuid();
 
     public GetAiUsageQueryHandlerTests()
     {
-        _uow.Setup(u => u.AiUsage).Returns(_aiUsage.Object);
         _aiUsage.Setup(r => r.GetTotalsAsync(_userId, It.IsAny<DateTime>(), It.IsAny<DateTime>(), default))
             .ReturnsAsync(AiUsageTotals.Empty);
         _aiUsage.Setup(r => r.GetByOperationAsync(_userId, It.IsAny<DateTime>(), It.IsAny<DateTime>(), default))
@@ -25,7 +23,7 @@ public class GetAiUsageQueryHandlerTests
             .ReturnsAsync(Array.Empty<AiUsageGroup>());
         _aiUsage.Setup(r => r.GetDailyAsync(_userId, It.IsAny<DateTime>(), It.IsAny<DateTime>(), default))
             .ReturnsAsync(Array.Empty<AiUsageDay>());
-        _handler = new GetAiUsageQueryHandler(_uow.Object, Options.Create(new AiUsageOptions { DailyTokenLimit = 100_000 }));
+        _handler = new GetAiUsageQueryHandler(_aiUsage.Object, Options.Create(new AiUsageOptions { DailyTokenLimit = 100_000 }));
     }
 
     [Fact]

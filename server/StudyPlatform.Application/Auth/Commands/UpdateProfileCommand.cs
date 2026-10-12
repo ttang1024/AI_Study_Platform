@@ -11,21 +11,23 @@ public record UpdateProfileCommand(
 public class UpdateProfileCommandHandler : IRequestHandler<UpdateProfileCommand, Result>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IUserRepository _users;
 
-    public UpdateProfileCommandHandler(IUnitOfWork unitOfWork)
+    public UpdateProfileCommandHandler(IUnitOfWork unitOfWork, IUserRepository users)
     {
         _unitOfWork = unitOfWork;
+        _users = users;
     }
 
     public async Task<Result> Handle(UpdateProfileCommand request, CancellationToken cancellationToken)
     {
-        var user = await _unitOfWork.Users.GetByIdAsync(request.UserId, cancellationToken);
+        var user = await _users.GetByIdAsync(request.UserId, cancellationToken);
         if (user == null)
             return Result.Failure("User not found.", "USER_NOT_FOUND");
 
         user.FullName = request.FullName;
         user.UpdatedAt = DateTime.UtcNow;
-        _unitOfWork.Users.Update(user);
+        _users.Update(user);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 

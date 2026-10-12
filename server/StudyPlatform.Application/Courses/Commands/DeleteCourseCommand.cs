@@ -10,28 +10,34 @@ public record DeleteCourseCommand(Guid CourseId, Guid UserId) : IRequest<Result>
 public class DeleteCourseCommandHandler : IRequestHandler<DeleteCourseCommand, Result>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICourseRepository _courses;
+    private readonly IDocumentRepository _documents;
     private readonly IBlobStorageService _blobStorageService;
     private readonly IEmbeddingIndex _embeddingIndex;
 
     public DeleteCourseCommandHandler(
         IUnitOfWork unitOfWork,
+        ICourseRepository courses,
+        IDocumentRepository documents,
         IBlobStorageService blobStorageService,
         IEmbeddingIndex embeddingIndex)
     {
         _unitOfWork = unitOfWork;
+        _courses = courses;
+        _documents = documents;
         _blobStorageService = blobStorageService;
         _embeddingIndex = embeddingIndex;
     }
 
     public async Task<Result> Handle(DeleteCourseCommand request, CancellationToken cancellationToken)
     {
-        var course = await _unitOfWork.Courses.GetOwnedAsync(request.CourseId, request.UserId, cancellationToken);
+        var course = await _courses.GetOwnedAsync(request.CourseId, request.UserId, cancellationToken);
         if (course == null)
             return Result.Failure("Course not found.", "COURSE_NOT_FOUND");
 
         // Only the blob locations, not the document rows — the rows themselves are deleted by the
         // Course -> Document cascade, so loading them (and their text) would be for the URL alone.
-        var blobUrls = await _unitOfWork.Documents.GetBlobUrlsByCourseAsync(request.CourseId, cancellationToken);
+        var blobUrls = await _documents.GetBlobUrlsByCourseAsync(request.CourseId, cancellationToken);
         foreach (var blobUrl in blobUrls)
         {
             try
@@ -44,7 +50,7 @@ public class DeleteCourseCommandHandler : IRequestHandler<DeleteCourseCommand, R
             }
         }
 
-        _unitOfWork.Courses.Remove(course);
+        _courses.Remove(course);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // The same cascade that removed the document rows without loading them also removed their

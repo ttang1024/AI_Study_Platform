@@ -21,11 +21,17 @@ public record SaveVideoCommand(
 public class SaveVideoCommandHandler : IRequestHandler<SaveVideoCommand, Result<VideoDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IQuizRepository _quizzes;
+    private readonly IFlashcardRepository _flashcards;
+    private readonly IVideoRepository _videos;
     private readonly AppLimitsOptions _limits;
 
-    public SaveVideoCommandHandler(IUnitOfWork unitOfWork, IOptions<AppLimitsOptions> limits)
+    public SaveVideoCommandHandler(IUnitOfWork unitOfWork, IQuizRepository quizzes, IFlashcardRepository flashcards, IVideoRepository videos, IOptions<AppLimitsOptions> limits)
     {
         _unitOfWork = unitOfWork;
+        _quizzes = quizzes;
+        _flashcards = flashcards;
+        _videos = videos;
         _limits = limits.Value;
     }
 
@@ -36,7 +42,7 @@ public class SaveVideoCommandHandler : IRequestHandler<SaveVideoCommand, Result<
 
         if (sourceType == "upload" && _limits.VideoUploadLimit >= 0)
         {
-            var count = await _unitOfWork.Videos.CountAsync(
+            var count = await _videos.CountAsync(
                 v => v.UserId == request.UserId && v.SourceType == "upload",
                 cancellationToken);
             if (count >= _limits.VideoUploadLimit)
@@ -45,7 +51,7 @@ public class SaveVideoCommandHandler : IRequestHandler<SaveVideoCommand, Result<
                     "VIDEO_LIMIT_REACHED");
         }
 
-        var previousRecords = (await _unitOfWork.Videos.FindAsync(
+        var previousRecords = (await _videos.FindAsync(
             v => v.UserId == request.UserId && v.ExternalVideoId == request.VideoId && v.SourceType == sourceType,
             cancellationToken)).ToList();
 
@@ -69,19 +75,19 @@ public class SaveVideoCommandHandler : IRequestHandler<SaveVideoCommand, Result<
             UpdatedAt = DateTime.UtcNow,
         };
 
-        await _unitOfWork.Videos.AddAsync(video, cancellationToken);
+        await _videos.AddAsync(video, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // Copy flashcards and quiz from the source record if available
         if (sourceRecord != null)
         {
-            var srcFlashcards = (await _unitOfWork.Flashcards.FindAsync(
+            var srcFlashcards = (await _flashcards.FindAsync(
                 f => f.VideoId == sourceRecord.VideoId,
                 cancellationToken)).ToList();
 
             foreach (var fc in srcFlashcards)
             {
-                await _unitOfWork.Flashcards.AddAsync(new Flashcard
+                await _flashcards.AddAsync(new Flashcard
                 {
                     FlashcardId = Guid.NewGuid(),
                     UserId = request.UserId,
@@ -94,13 +100,13 @@ public class SaveVideoCommandHandler : IRequestHandler<SaveVideoCommand, Result<
                 }, cancellationToken);
             }
 
-            var srcQuizzes = (await _unitOfWork.Quizzes.FindAsync(
+            var srcQuizzes = (await _quizzes.FindAsync(
                 q => q.VideoId == sourceRecord.VideoId,
                 cancellationToken)).ToList();
 
             foreach (var q in srcQuizzes)
             {
-                await _unitOfWork.Quizzes.AddAsync(new Quiz
+                await _quizzes.AddAsync(new Quiz
                 {
                     QuizId = Guid.NewGuid(),
                     UserId = request.UserId,
@@ -119,7 +125,7 @@ public class SaveVideoCommandHandler : IRequestHandler<SaveVideoCommand, Result<
         }
 
         // Reload with course navigation property
-        var saved = await _unitOfWork.Videos.GetByIdForUserAsync(video.VideoId, request.UserId, cancellationToken);
+        var saved = await _videos.GetByIdForUserAsync(video.VideoId, request.UserId, cancellationToken);
 
         return Result<VideoDto>.Success(ToDto(saved!));
     }

@@ -21,19 +21,31 @@ public class GetSmartSessionQueryHandler : IRequestHandler<GetSmartSessionQuery,
     private const int MaxMistakes = 5;
     private const int MaxWeakTerms = 5;
 
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly IDocumentRepository _documents;
+    private readonly IFlashcardRepository _flashcards;
+    private readonly IVideoRepository _videos;
+    private readonly IGlossaryTermRepository _glossaryTerms;
+    private readonly IGlossaryMasteredRepository _glossaryMastered;
+    private readonly IFlashcardSrsDataRepository _flashcardSrs;
+    private readonly IMistakeEntryRepository _mistakeEntries;
 
-    public GetSmartSessionQueryHandler(IUnitOfWork unitOfWork)
+    public GetSmartSessionQueryHandler(IDocumentRepository documents, IFlashcardRepository flashcards, IVideoRepository videos, IGlossaryTermRepository glossaryTerms, IGlossaryMasteredRepository glossaryMastered, IFlashcardSrsDataRepository flashcardSrs, IMistakeEntryRepository mistakeEntries)
     {
-        _unitOfWork = unitOfWork;
+        _documents = documents;
+        _flashcards = flashcards;
+        _videos = videos;
+        _glossaryTerms = glossaryTerms;
+        _glossaryMastered = glossaryMastered;
+        _flashcardSrs = flashcardSrs;
+        _mistakeEntries = mistakeEntries;
     }
 
     public async Task<Result<PracticeTestDto>> Handle(GetSmartSessionQuery request, CancellationToken ct)
     {
         var userId = request.UserId;
 
-        var documents = (await _unitOfWork.Documents.FindAsNoTrackingAsync(d => d.UserId == userId, ct)).ToList();
-        var videos = (await _unitOfWork.Videos.FindAsNoTrackingAsync(v => v.UserId == userId, ct)).ToList();
+        var documents = (await _documents.FindAsNoTrackingAsync(d => d.UserId == userId, ct)).ToList();
+        var videos = (await _videos.FindAsNoTrackingAsync(v => v.UserId == userId, ct)).ToList();
         var docToCourse = documents.ToDictionary(d => d.DocumentId, d => d.CourseId);
         var videoToCourse = videos.ToDictionary(v => v.VideoId, v => v.CourseId);
 
@@ -45,14 +57,14 @@ public class GetSmartSessionQueryHandler : IRequestHandler<GetSmartSessionQuery,
         }
 
         // ── 1. FSRS flashcards due now (most overdue first) ──
-        var due = (await _unitOfWork.FlashcardSrs.GetDueByUserIdAsync(userId, DateTime.UtcNow, ct))
+        var due = (await _flashcardSrs.GetDueByUserIdAsync(userId, DateTime.UtcNow, ct))
             .OrderBy(s => s.Due)
             .Take(MaxDueCards)
             .ToList();
         var dueCards = new List<PracticeQuestionDto>();
         if (due.Count > 0)
         {
-            var cards = (await _unitOfWork.Flashcards.GetByUserIdAsync(userId, ct))
+            var cards = (await _flashcards.GetByUserIdAsync(userId, ct))
                 .ToDictionary(f => f.FlashcardId);
             foreach (var srs in due)
             {
@@ -74,7 +86,7 @@ public class GetSmartSessionQueryHandler : IRequestHandler<GetSmartSessionQuery,
         // is now the thing scheduling this question. Including both would deal the same question twice in
         // one session. The entry stays "open" in the notebook — it is only resolved by answering it right —
         // it just stops being served here directly.
-        var mistakes = (await _unitOfWork.MistakeEntries.FindAsNoTrackingAsync(
+        var mistakes = (await _mistakeEntries.FindAsNoTrackingAsync(
                 m => m.UserId == userId && m.Status == "open" && m.FlashcardId == null, ct))
             .OrderByDescending(m => m.TimesMissed)
             .ThenByDescending(m => m.LastMissedAt)
@@ -93,8 +105,8 @@ public class GetSmartSessionQueryHandler : IRequestHandler<GetSmartSessionQuery,
             .ToList();
 
         // ── 3. Unmastered glossary terms (weak concepts) ──
-        var masteredTerms = (await _unitOfWork.GlossaryMastered.GetMasteredTermIdsByUserAsync(userId, ct)).ToHashSet();
-        var allTerms = (await _unitOfWork.GlossaryTerms.GetByUserWithSourcesAsync(userId, ct))
+        var masteredTerms = (await _glossaryMastered.GetMasteredTermIdsByUserAsync(userId, ct)).ToHashSet();
+        var allTerms = (await _glossaryTerms.GetByUserWithSourcesAsync(userId, ct))
             .Where(t => !masteredTerms.Contains(t.GlossaryTermId)
                 && !string.IsNullOrWhiteSpace(t.Term)
                 && !string.IsNullOrWhiteSpace(t.Definition))

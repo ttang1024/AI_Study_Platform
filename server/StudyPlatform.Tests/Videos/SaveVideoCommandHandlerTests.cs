@@ -20,9 +20,11 @@ public class SaveVideoCommandHandlerTests
 
     public SaveVideoCommandHandlerTests()
     {
-        _uow.Setup(u => u.Videos).Returns(_videos.Object);
         _handler = new SaveVideoCommandHandler(
             _uow.Object,
+            Mock.Of<IQuizRepository>(),
+            Mock.Of<IFlashcardRepository>(),
+            _videos.Object,
             Options.Create(new AppLimitsOptions { VideoUploadLimit = 10 }));
     }
 

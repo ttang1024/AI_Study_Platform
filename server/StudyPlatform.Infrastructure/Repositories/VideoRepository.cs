@@ -28,8 +28,7 @@ public class VideoRepository : Repository<Video>, IVideoRepository
         var totalCount = await query.CountAsync(cancellationToken);
         var items = await query
             .OrderByDescending(v => v.CreatedAt)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
+            .Page(page, pageSize)
             .ToListAsync(cancellationToken);
 
         return (items, totalCount);
@@ -45,8 +44,7 @@ public class VideoRepository : Repository<Video>, IVideoRepository
         // Transcript) out of the SQL SELECT entirely — only the labeling fields are read.
         var items = await query
             .OrderByDescending(v => v.CreatedAt)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
+            .Page(page, pageSize)
             .Select(v => new VideoListItem(
                 v.VideoId,
                 v.CourseId,

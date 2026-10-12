@@ -12,10 +12,16 @@ namespace StudyPlatform.Application.Documents;
 public class QuizSubmissionWriter : IQuizSubmissionWriter
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IQuizRepository _quizzes;
+    private readonly IQuizSubmissionRepository _quizSubmissions;
+    private readonly IMistakeEntryRepository _mistakeEntries;
 
-    public QuizSubmissionWriter(IUnitOfWork unitOfWork)
+    public QuizSubmissionWriter(IUnitOfWork unitOfWork, IQuizRepository quizzes, IQuizSubmissionRepository quizSubmissions, IMistakeEntryRepository mistakeEntries)
     {
         _unitOfWork = unitOfWork;
+        _quizzes = quizzes;
+        _quizSubmissions = quizSubmissions;
+        _mistakeEntries = mistakeEntries;
     }
 
     public async Task<QuizSubmissionDto> UpsertAsync(
@@ -28,8 +34,8 @@ public class QuizSubmissionWriter : IQuizSubmissionWriter
         CancellationToken cancellationToken = default)
     {
         var existing = source.VideoId is { } videoId
-            ? await _unitOfWork.QuizSubmissions.GetByVideoAndUserAsync(videoId, userId, cancellationToken)
-            : await _unitOfWork.QuizSubmissions.GetByDocumentAndUserAsync(source.DocumentId!.Value, userId, cancellationToken);
+            ? await _quizSubmissions.GetByVideoAndUserAsync(videoId, userId, cancellationToken)
+            : await _quizSubmissions.GetByDocumentAndUserAsync(source.DocumentId!.Value, userId, cancellationToken);
 
         var answersJson = JsonSerializer.Serialize(answers);
         var confidenceJson = ConfidenceSerializer.Serialize(confidence);
@@ -43,7 +49,7 @@ public class QuizSubmissionWriter : IQuizSubmissionWriter
             existing.Score = score;
             existing.Total = total;
             existing.SubmittedAt = DateTime.UtcNow;
-            _unitOfWork.QuizSubmissions.Update(existing);
+            _quizSubmissions.Update(existing);
         }
         else
         {
@@ -60,11 +66,11 @@ public class QuizSubmissionWriter : IQuizSubmissionWriter
                 Total = total,
                 SubmittedAt = DateTime.UtcNow,
             };
-            await _unitOfWork.QuizSubmissions.AddAsync(existing, cancellationToken);
+            await _quizSubmissions.AddAsync(existing, cancellationToken);
         }
 
         await MistakeCapture.CaptureAsync(
-            _unitOfWork, userId, source.SourceType, source.DocumentId, source.VideoId, answers, cancellationToken);
+            _quizzes, _mistakeEntries, userId, source.SourceType, source.DocumentId, source.VideoId, answers, cancellationToken);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 

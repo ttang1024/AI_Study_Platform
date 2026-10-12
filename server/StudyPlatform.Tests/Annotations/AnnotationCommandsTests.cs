@@ -9,7 +9,6 @@ namespace StudyPlatform.Tests.Annotations;
 
 public class GetAnnotationsByDocumentQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IDocumentAnnotationRepository> _annotations = new();
     private readonly GetAnnotationsByDocumentQueryHandler _handler;
     private readonly Guid _userId = Guid.NewGuid();
@@ -17,8 +16,7 @@ public class GetAnnotationsByDocumentQueryHandlerTests
 
     public GetAnnotationsByDocumentQueryHandlerTests()
     {
-        _uow.Setup(u => u.DocumentAnnotations).Returns(_annotations.Object);
-        _handler = new GetAnnotationsByDocumentQueryHandler(_uow.Object);
+        _handler = new GetAnnotationsByDocumentQueryHandler(_annotations.Object);
     }
 
     [Fact]
@@ -53,11 +51,9 @@ public class CreateAnnotationCommandHandlerTests
 
     public CreateAnnotationCommandHandlerTests()
     {
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
-        _uow.Setup(u => u.DocumentAnnotations).Returns(_annotations.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
         _annotations.Setup(r => r.AddAsync(It.IsAny<DocumentAnnotation>(), default)).Returns(Task.CompletedTask);
-        _handler = new CreateAnnotationCommandHandler(_uow.Object);
+        _handler = new CreateAnnotationCommandHandler(_uow.Object, _documents.Object, _annotations.Object);
     }
 
     [Fact]
@@ -116,9 +112,8 @@ public class UpdateAnnotationCommandHandlerTests
 
     public UpdateAnnotationCommandHandlerTests()
     {
-        _uow.Setup(u => u.DocumentAnnotations).Returns(_annotations.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new UpdateAnnotationCommandHandler(_uow.Object);
+        _handler = new UpdateAnnotationCommandHandler(_uow.Object, _annotations.Object);
     }
 
     [Fact]
@@ -168,9 +163,8 @@ public class DeleteAnnotationCommandHandlerTests
 
     public DeleteAnnotationCommandHandlerTests()
     {
-        _uow.Setup(u => u.DocumentAnnotations).Returns(_annotations.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new DeleteAnnotationCommandHandler(_uow.Object);
+        _handler = new DeleteAnnotationCommandHandler(_uow.Object, _annotations.Object);
     }
 
     [Fact]
@@ -211,10 +205,8 @@ public class CreateFlashcardFromAnnotationCommandHandlerTests
 
     public CreateFlashcardFromAnnotationCommandHandlerTests()
     {
-        _uow.Setup(u => u.DocumentAnnotations).Returns(_annotations.Object);
-        _uow.Setup(u => u.Flashcards).Returns(_flashcards.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new CreateFlashcardFromAnnotationCommandHandler(_uow.Object, _ai.Object);
+        _handler = new CreateFlashcardFromAnnotationCommandHandler(_uow.Object, _flashcards.Object, _annotations.Object, _ai.Object);
     }
 
     [Fact]

@@ -21,15 +21,12 @@ public class AssignLibraryTagCommandHandlerTests
 
     public AssignLibraryTagCommandHandlerTests()
     {
-        _uow.Setup(u => u.LibraryTags).Returns(_tags.Object);
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
-        _uow.Setup(u => u.Videos).Returns(_videos.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
 
         NoDocuments();
         NoVideos();
 
-        _handler = new AssignLibraryTagCommandHandler(_uow.Object);
+        _handler = new AssignLibraryTagCommandHandler(_uow.Object, _documents.Object, _videos.Object, _tags.Object);
     }
 
     private LibraryTag MakeTag(Guid? owner = null) => new()

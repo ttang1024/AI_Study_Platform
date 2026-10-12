@@ -25,8 +25,13 @@ public record RecordPageVisitCommand(
 public class RecordPageVisitCommandHandler : IRequestHandler<RecordPageVisitCommand, Result>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IPageVisitRepository _pageVisits;
 
-    public RecordPageVisitCommandHandler(IUnitOfWork unitOfWork) => _unitOfWork = unitOfWork;
+    public RecordPageVisitCommandHandler(IUnitOfWork unitOfWork, IPageVisitRepository pageVisits)
+    {
+        _unitOfWork = unitOfWork;
+        _pageVisits = pageVisits;
+    }
 
     public async Task<Result> Handle(RecordPageVisitCommand request, CancellationToken cancellationToken)
     {
@@ -34,7 +39,7 @@ public class RecordPageVisitCommandHandler : IRequestHandler<RecordPageVisitComm
         if (PageVisitTelemetry.IsBot(request.UserAgent))
             return Result.Success("Ignored.");
 
-        await _unitOfWork.PageVisits.AddAsync(new PageVisit
+        await _pageVisits.AddAsync(new PageVisit
         {
             Id = Guid.NewGuid(),
             UserId = request.UserId,

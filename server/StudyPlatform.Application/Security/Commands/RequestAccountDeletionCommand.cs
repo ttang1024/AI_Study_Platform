@@ -27,19 +27,23 @@ public class RequestAccountDeletionCommandHandler
     public const string RequiredConfirmation = "DELETE MY ACCOUNT";
 
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IUserRepository _users;
+    private readonly IRefreshTokenRepository _refreshTokens;
     private readonly IPasswordHasher _hasher;
 
     public RequestAccountDeletionCommandHandler(
-        IUnitOfWork unitOfWork, IPasswordHasher hasher)
+        IUnitOfWork unitOfWork, IUserRepository users, IRefreshTokenRepository refreshTokens, IPasswordHasher hasher)
     {
         _unitOfWork = unitOfWork;
+        _users = users;
+        _refreshTokens = refreshTokens;
         _hasher = hasher;
     }
 
     public async Task<Result<DateTime>> Handle(
         RequestAccountDeletionCommand request, CancellationToken cancellationToken)
     {
-        var user = await _unitOfWork.Users.GetByIdAsync(request.UserId, cancellationToken);
+        var user = await _users.GetByIdAsync(request.UserId, cancellationToken);
         if (user == null)
             return Result<DateTime>.Failure("User not found.", "USER_NOT_FOUND");
 
@@ -58,11 +62,11 @@ public class RequestAccountDeletionCommandHandler
         user.DeletionRequestedAt = now;
         user.IsActive = false;
         user.UpdatedAt = now;
-        _unitOfWork.Users.Update(user);
+        _users.Update(user);
 
         // Immediately, not on the worker's schedule: the account is closed from this moment, and a
         // live session would otherwise keep working for the whole grace period.
-        await _unitOfWork.RefreshTokens.RevokeAllUserTokensAsync(request.UserId, cancellationToken);
+        await _refreshTokens.RevokeAllUserTokensAsync(request.UserId, cancellationToken);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 

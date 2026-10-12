@@ -18,7 +18,6 @@ namespace StudyPlatform.Tests.StudyQueue;
 
 public class GetRecommendationsQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IFlashcardSrsDataRepository> _srs = new();
     private readonly Mock<IQuizSubmissionRepository> _submissions = new();
     private readonly Mock<IDocumentRepository> _documents = new();
@@ -33,15 +32,6 @@ public class GetRecommendationsQueryHandlerTests
 
     public GetRecommendationsQueryHandlerTests()
     {
-        _uow.Setup(u => u.FlashcardSrs).Returns(_srs.Object);
-        _uow.Setup(u => u.QuizSubmissions).Returns(_submissions.Object);
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
-        _uow.Setup(u => u.Videos).Returns(_videos.Object);
-        _uow.Setup(u => u.GlossaryTerms).Returns(_terms.Object);
-        _uow.Setup(u => u.GlossaryMastered).Returns(_mastered.Object);
-        _uow.Setup(u => u.WorkedProblems).Returns(_problems.Object);
-        _uow.Setup(u => u.WorkedProblemMastered).Returns(_problemsMastered.Object);
-
         _srs.Setup(r => r.GetDueByUserIdAsync(_userId, It.IsAny<DateTime>(), default)).ReturnsAsync(Array.Empty<FlashcardSrsData>());
         _submissions.Setup(r => r.GetAllByUserAsync(_userId, default)).ReturnsAsync(Array.Empty<QuizSubmission>());
         _terms.Setup(r => r.GetByUserWithSourcesAsync(_userId, default)).ReturnsAsync(Array.Empty<GlossaryTerm>());
@@ -59,7 +49,7 @@ public class GetRecommendationsQueryHandlerTests
                 It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
             .Returns((string _, Func<CancellationToken, Task<RecommendationsDto>> factory, TimeSpan _, CancellationToken ct) => factory(ct));
 
-        _handler = new GetRecommendationsQueryHandler(_uow.Object, _mediator.Object, cache.Object, Options.Create(new CacheOptions()));
+        _handler = new GetRecommendationsQueryHandler(_documents.Object, _submissions.Object, _videos.Object, _terms.Object, _mastered.Object, _problems.Object, _problemsMastered.Object, _srs.Object, _mediator.Object, cache.Object, Options.Create(new CacheOptions()));
     }
 
     [Fact]

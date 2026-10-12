@@ -12,24 +12,25 @@ public record GetVideosLiteQuery(
 
 public class GetVideosLiteQueryHandler : IRequestHandler<GetVideosLiteQuery, Result<VideoLitePagedResult>>
 {
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly IVideoRepository _videos;
 
-    public GetVideosLiteQueryHandler(IUnitOfWork unitOfWork)
+    public GetVideosLiteQueryHandler(IVideoRepository videos)
     {
-        _unitOfWork = unitOfWork;
+        _videos = videos;
     }
 
     public async Task<Result<VideoLitePagedResult>> Handle(GetVideosLiteQuery request, CancellationToken cancellationToken)
     {
-        var (items, totalCount) = await _unitOfWork.Videos.GetPagedLiteAsync(
-            request.UserId, request.Page, request.PageSize, cancellationToken);
+        var (page, pageSize) = Paging.Normalize(request.Page, request.PageSize);
+        var (items, totalCount) = await _videos.GetPagedLiteAsync(
+            request.UserId, page, pageSize, cancellationToken);
 
-        var totalPages = (int)Math.Ceiling(totalCount / (double)request.PageSize);
+        var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
         var dtos = items.Select(i => new VideoLiteDto(
             i.Id, i.CourseId, i.CourseName, i.CourseColor, i.VideoId, i.VideoUrl,
             i.SourceType, i.Title, i.ThumbnailUrl, i.CreatedAt));
 
         return Result<VideoLitePagedResult>.Success(
-            new VideoLitePagedResult(dtos, totalCount, request.Page, request.PageSize, totalPages));
+            new VideoLitePagedResult(dtos, totalCount, page, pageSize, totalPages));
     }
 }

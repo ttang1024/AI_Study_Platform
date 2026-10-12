@@ -25,22 +25,25 @@ public static class ChatThreads
     /// Folds a video's messages saved before threads existed (no conversation id)
     /// into a conversation, so history predating the feature stays visible.
     /// </summary>
-    public static Task AdoptLegacyVideoChatAsync(IUnitOfWork unitOfWork, Guid videoId, Guid userId, CancellationToken cancellationToken)
+    public static Task AdoptLegacyVideoChatAsync(IChatMessageRepository chatMessages, IUnitOfWork unitOfWork, Guid videoId, Guid userId, CancellationToken cancellationToken)
         => AdoptAsync(
+            chatMessages,
             unitOfWork,
-            () => unitOfWork.ChatMessages.GetByVideoIdAsync(videoId, userId, cancellationToken),
-            title => unitOfWork.ChatMessages.CreateVideoConversationAsync(userId, videoId, title, cancellationToken),
+            () => chatMessages.GetByVideoIdAsync(videoId, userId, cancellationToken),
+            title => chatMessages.CreateVideoConversationAsync(userId, videoId, title, cancellationToken),
             cancellationToken);
 
     /// <summary>Document counterpart of <see cref="AdoptLegacyVideoChatAsync"/>.</summary>
-    public static Task AdoptLegacyDocumentChatAsync(IUnitOfWork unitOfWork, Guid documentId, Guid userId, CancellationToken cancellationToken)
+    public static Task AdoptLegacyDocumentChatAsync(IChatMessageRepository chatMessages, IUnitOfWork unitOfWork, Guid documentId, Guid userId, CancellationToken cancellationToken)
         => AdoptAsync(
+            chatMessages,
             unitOfWork,
-            () => unitOfWork.ChatMessages.GetByDocumentIdAsync(documentId, userId, cancellationToken),
-            title => unitOfWork.ChatMessages.CreateDocumentConversationAsync(userId, documentId, title, cancellationToken),
+            () => chatMessages.GetByDocumentIdAsync(documentId, userId, cancellationToken),
+            title => chatMessages.CreateDocumentConversationAsync(userId, documentId, title, cancellationToken),
             cancellationToken);
 
     private static async Task AdoptAsync(
+        IChatMessageRepository chatMessages,
         IUnitOfWork unitOfWork,
         Func<Task<IEnumerable<Domain.Entities.ChatMessage>>> loadMessages,
         Func<string, Task<Domain.Entities.ChatConversation>> createConversation,
@@ -58,7 +61,7 @@ public static class ChatThreads
         foreach (var m in legacy)
         {
             m.ChatConversationId = conversation.ConversationId;
-            unitOfWork.ChatMessages.Update(m);
+            chatMessages.Update(m);
         }
         await unitOfWork.SaveChangesAsync(cancellationToken);
     }

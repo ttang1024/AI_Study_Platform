@@ -12,16 +12,16 @@ public record GetWorkedProblemsQuery(Guid UserId, Guid? DocumentId, Guid? VideoI
 
 public class GetWorkedProblemsQueryHandler : IRequestHandler<GetWorkedProblemsQuery, Result<IEnumerable<WorkedProblemDto>>>
 {
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly IWorkedProblemRepository _workedProblems;
 
-    public GetWorkedProblemsQueryHandler(IUnitOfWork unitOfWork)
+    public GetWorkedProblemsQueryHandler(IWorkedProblemRepository workedProblems)
     {
-        _unitOfWork = unitOfWork;
+        _workedProblems = workedProblems;
     }
 
     public async Task<Result<IEnumerable<WorkedProblemDto>>> Handle(GetWorkedProblemsQuery request, CancellationToken cancellationToken)
     {
-        var problems = await _unitOfWork.WorkedProblems.GetByUserAsync(
+        var problems = await _workedProblems.GetByUserAsync(
             request.UserId, request.DocumentId, request.VideoId, cancellationToken);
         return Result<IEnumerable<WorkedProblemDto>>.Success(
             problems.Select(GenerateWorkedProblemsCommandHandler.ToDto));

@@ -15,6 +15,8 @@ set -euo pipefail
 #
 # DEPLOY_WEB_ONLY=1 ./deploy.sh      rebuild and resync the frontends only
 # DEPLOY_BACKEND_ONLY=1 ./deploy.sh  build, push and roll the API only
+# SKIP_DB_BACKUP=1 ./deploy.sh       don't pg_dump the database before rolling the API
+# REQUIRE_DB_BACKUP=1 ./deploy.sh    abort the deploy if that pg_dump fails (default: warn and go on)
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 if [[ -f "$SCRIPT_DIR/.env_variables" ]]; then
@@ -460,6 +462,8 @@ AWS_REGION="${AWS_REGION:-ap-southeast-2}"
 export AWS_DEFAULT_REGION="$AWS_REGION"
 DEPLOY_WEB_ONLY="${DEPLOY_WEB_ONLY:-0}"
 DEPLOY_BACKEND_ONLY="${DEPLOY_BACKEND_ONLY:-0}"
+SKIP_DB_BACKUP="${SKIP_DB_BACKUP:-0}"
+REQUIRE_DB_BACKUP="${REQUIRE_DB_BACKUP:-0}"
 
 GOOGLE_CLIENT_ID="${GOOGLE_CLIENT_ID:?Set GOOGLE_CLIENT_ID env var}"
 GITHUB_CLIENT_ID="${GITHUB_CLIENT_ID:?Set GITHUB_CLIENT_ID env var}"
@@ -686,8 +690,20 @@ echo "    Web:   $WEB_ORIGIN"
 echo "    Admin: $ADMIN_ORIGIN"
 echo "    API:   $API_URL"
 
+# The refresh cookie is SameSite=Lax when the web app and the API share a registrable domain (a custom
+# PUBLIC_DOMAIN: example.com and api.example.com). Two *.cloudfront.net hosts are different sites —
+# cloudfront.net is a public suffix — and need None for the browser to send the cookie at all.
+same_site_as_web() {
+  local web_host="${WEB_ORIGIN#https://}" api_host="${API_URL#https://}"
+  [[ -n "$PUBLIC_DOMAIN" ]] \
+    && [[ "$web_host" == "$PUBLIC_DOMAIN" || "$web_host" == *".$PUBLIC_DOMAIN" ]] \
+    && [[ "$api_host" == "$PUBLIC_DOMAIN" || "$api_host" == *".$PUBLIC_DOMAIN" ]]
+}
+REFRESH_COOKIE_SAME_SITE="$(same_site_as_web && echo Lax || echo None)"
+
 API_ENVIRONMENT=(
   "ASPNETCORE_ENVIRONMENT=Production"
+  "Auth__RefreshCookieSameSite=$REFRESH_COOKIE_SAME_SITE"
   "AWS__Region=$AWS_REGION"
   "S3__BucketName=$DOCS_BUCKET"
   "ConnectionStrings__DefaultConnection=$DATABASE_CONNECTION_STRING"
@@ -775,14 +791,60 @@ else
   API_HEALTH_URL="http://localhost/health"
 fi
 
+# The image the running container was started from, so a new one that never becomes ready can be
+# rolled back. Empty on a first deploy.
+PREVIOUS_API_IMAGE="$("${SSH[@]}" "sudo docker inspect --format '{{.Config.Image}}' $API_CONTAINER_NAME 2>/dev/null" || true)"
+
+# Migrations run when the new container starts, so this is the last moment the schema is the one the
+# previous image expects. pg_dump runs on the instance, reading the connection string from api.env there
+# (the password never crosses this SSH command line); the newest five dumps are kept.
+if [[ "$SKIP_DB_BACKUP" != "1" ]]; then
+  echo "==> Backing up the database before migrations run"
+  if "${SSH[@]}" "bash -s" <<REMOTE_BACKUP
+set -euo pipefail
+dir="$LIGHTSAIL_APP_DIR/db-backups"
+sudo mkdir -p "\$dir" && sudo chmod 700 "\$dir"  # every user's data: root-only
+cs="\$(sudo grep -m1 '^ConnectionStrings__DefaultConnection=' "$LIGHTSAIL_APP_DIR/api.env" | cut -d= -f2-)"
+# Npgsql "Key=Value;..." -> libpq PG* variables. Keys are case-insensitive and have aliases.
+envfile="\$(mktemp)"; chmod 600 "\$envfile"
+trap 'rm -f "\$envfile"' EXIT
+echo "\$cs" | tr ';' '\n' | while IFS='=' read -r key value; do
+  case "\$(echo "\$key" | tr '[:upper:]' '[:lower:]' | tr -d ' ')" in
+    host|server) echo "PGHOST=\$value" ;;
+    port) echo "PGPORT=\$value" ;;
+    database) echo "PGDATABASE=\$value" ;;
+    username|userid|user) echo "PGUSER=\$value" ;;
+    password) echo "PGPASSWORD=\$value" ;;
+  esac
+done > "\$envfile"
+echo "PGSSLMODE=require" >> "\$envfile"
+stamp="\$(date -u +%Y%m%dT%H%M%SZ)"
+sudo docker run --rm --network host --env-file "\$envfile" -v "\$dir:/backups" pgvector/pgvector:pg17 \
+  pg_dump --format=custom --no-owner --file="/backups/\$stamp.dump"
+sudo ls -1t "\$dir" | grep '\.dump\$' | tail -n +6 | while read -r old; do sudo rm -f "\$dir/\$old"; done
+echo "    Saved \$dir/\$stamp.dump"
+REMOTE_BACKUP
+  then
+    :
+  elif [[ "$REQUIRE_DB_BACKUP" == "1" ]]; then
+    echo "The pre-deploy database backup failed and REQUIRE_DB_BACKUP=1; the API was not touched." >&2
+    exit 1
+  else
+    echo "WARNING: the pre-deploy database backup failed; continuing (set REQUIRE_DB_BACKUP=1 to abort instead)." >&2
+  fi
+fi
+
 "${SSH[@]}" "set -e
   sudo mkdir -p $LIGHTSAIL_APP_DIR/dp-keys
+  # The container runs as the image's non-root app user (UID 1654, see server/Dockerfile), which has to
+  # own the key directory. Idempotent, and also migrates keys written by earlier root-run containers.
+  sudo chown -R 1654:1654 $LIGHTSAIL_APP_DIR/dp-keys
   sudo docker network create $API_DOCKER_NETWORK >/dev/null 2>&1 || true
   sudo docker rm -f $API_CONTAINER_NAME >/dev/null 2>&1 || true
   sudo docker run -d --name $API_CONTAINER_NAME --restart unless-stopped \
     $API_PORT_ARGS \
     --env-file $LIGHTSAIL_APP_DIR/api.env \
-    -v $LIGHTSAIL_APP_DIR/dp-keys:/root/.aspnet/DataProtection-Keys \
+    -v $LIGHTSAIL_APP_DIR/dp-keys:/home/app/.aspnet/DataProtection-Keys \
     --log-driver=awslogs \
     --log-opt awslogs-region=$AWS_REGION \
     --log-opt awslogs-group=$LOG_GROUP_NAME \
@@ -818,19 +880,46 @@ CADDY
       -v caddy_data:/data -v caddy_config:/config \
       $CADDY_IMAGE >/dev/null"
 fi
-echo "    Container started; waiting for /health"
+echo "    Container started; waiting for /health/ready"
 
-API_HEALTHY=0
-for _ in $(seq 1 30); do
-  if "${SSH[@]}" "curl -sf -m 5 $API_HEALTH_URL >/dev/null"; then API_HEALTHY=1; break; fi
-  sleep 5
-done
-if [[ "$API_HEALTHY" != "1" ]]; then
-  echo "The API never reported healthy. Last container logs:" >&2
+# Readiness, not liveness: /health answers as soon as the process routes requests, while /health/ready
+# also needs Postgres — a deploy whose database connection is broken must not count as healthy.
+wait_for_api_ready() {
+  for _ in $(seq 1 30); do
+    if "${SSH[@]}" "curl -sf -m 5 $API_HEALTH_URL/ready >/dev/null"; then return 0; fi
+    sleep 5
+  done
+  return 1
+}
+
+if ! wait_for_api_ready; then
+  echo "The API never reported ready. Last container logs:" >&2
   "${SSH[@]}" "sudo docker logs --tail 40 $API_CONTAINER_NAME" >&2 || true
+
+  if [[ -n "$PREVIOUS_API_IMAGE" && "$PREVIOUS_API_IMAGE" != "$ECR_URI:$IMAGE_TAG" ]]; then
+    # EF applies each migration in a transaction, so one that failed has left the schema as the
+    # previous image expects it. One that succeeded is usually additive; the dump above covers the rest.
+    echo "==> Rolling back to $PREVIOUS_API_IMAGE" >&2
+    "${SSH[@]}" "set -e
+      sudo docker rm -f $API_CONTAINER_NAME >/dev/null 2>&1 || true
+      sudo docker run -d --name $API_CONTAINER_NAME --restart unless-stopped \
+        $API_PORT_ARGS \
+        --env-file $LIGHTSAIL_APP_DIR/api.env \
+        -v $LIGHTSAIL_APP_DIR/dp-keys:/home/app/.aspnet/DataProtection-Keys \
+        --log-driver=awslogs \
+        --log-opt awslogs-region=$AWS_REGION \
+        --log-opt awslogs-group=$LOG_GROUP_NAME \
+        --log-opt awslogs-stream=lightsail/$API_CONTAINER_NAME \
+        $PREVIOUS_API_IMAGE >/dev/null"
+    if wait_for_api_ready; then
+      echo "    Rolled back: the previous image is serving again. The failed deploy is $ECR_URI:$IMAGE_TAG." >&2
+    else
+      echo "    The rollback did not become ready either; the API is DOWN. Check the database first." >&2
+    fi
+  fi
   exit 1
 fi
-echo "    API healthy on $LIGHTSAIL_IP"
+echo "    API ready on $LIGHTSAIL_IP"
 
 if [[ "$API_ORIGIN_TLS" == "1" ]]; then
   # Only once Caddy answers HTTPS with a certificate curl accepts does CloudFront switch to HTTPS;

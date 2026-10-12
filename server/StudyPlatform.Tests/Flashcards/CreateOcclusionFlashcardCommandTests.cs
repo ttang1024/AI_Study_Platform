@@ -18,13 +18,11 @@ public class CreateOcclusionFlashcardCommandHandlerTests
 
     public CreateOcclusionFlashcardCommandHandlerTests()
     {
-        _uow.Setup(u => u.Flashcards).Returns(_flashcards.Object);
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
         _flashcards.Setup(r => r.AddAsync(It.IsAny<Flashcard>(), default)).Returns(Task.CompletedTask);
         _blobStorage.Setup(b => b.UploadAsync(It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<string>(), default))
             .ReturnsAsync("https://blob/image.png");
-        _handler = new CreateOcclusionFlashcardCommandHandler(_uow.Object, _blobStorage.Object);
+        _handler = new CreateOcclusionFlashcardCommandHandler(_uow.Object, _documents.Object, _flashcards.Object, _blobStorage.Object);
     }
 
     private static CreateOcclusionFlashcardCommand MakeCommand(

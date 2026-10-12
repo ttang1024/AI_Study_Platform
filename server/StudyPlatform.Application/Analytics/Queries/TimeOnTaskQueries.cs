@@ -23,10 +23,12 @@ public class RecordStudySessionCommandHandler : IRequestHandler<RecordStudySessi
     private const int MaxHeartbeatSeconds = 600;
 
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IStudySessionRepository _studySessions;
 
-    public RecordStudySessionCommandHandler(IUnitOfWork unitOfWork)
+    public RecordStudySessionCommandHandler(IUnitOfWork unitOfWork, IStudySessionRepository studySessions)
     {
         _unitOfWork = unitOfWork;
+        _studySessions = studySessions;
     }
 
     public async Task<Result> Handle(RecordStudySessionCommand request, CancellationToken cancellationToken)
@@ -46,7 +48,7 @@ public class RecordStudySessionCommandHandler : IRequestHandler<RecordStudySessi
             OccurredAt = DateTime.UtcNow,
         };
 
-        await _unitOfWork.StudySessions.AddAsync(session, cancellationToken);
+        await _studySessions.AddAsync(session, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result.Success("Study session recorded.");
@@ -57,30 +59,36 @@ public record GetTimeOnTaskQuery(Guid UserId, DateTime From, DateTime To) : IReq
 
 public class GetTimeOnTaskQueryHandler : IRequestHandler<GetTimeOnTaskQuery, Result<TimeOnTaskDto>>
 {
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly ICourseRepository _courses;
+    private readonly IStudySessionRepository _studySessions;
     private readonly IAppCache _cache;
     private readonly CacheOptions _cacheOptions;
+    private readonly IUserTimeZone _timeZone;
 
-    public GetTimeOnTaskQueryHandler(IUnitOfWork unitOfWork, IAppCache cache, IOptions<CacheOptions> cacheOptions)
+    public GetTimeOnTaskQueryHandler(
+        ICourseRepository courses, IStudySessionRepository studySessions, IAppCache cache, IOptions<CacheOptions> cacheOptions, IUserTimeZone timeZone)
     {
-        _unitOfWork = unitOfWork;
+        _courses = courses;
+        _studySessions = studySessions;
         _cache = cache;
         _cacheOptions = cacheOptions.Value;
+        _timeZone = timeZone;
     }
 
     public async Task<Result<TimeOnTaskDto>> Handle(GetTimeOnTaskQuery request, CancellationToken cancellationToken)
     {
-        var cacheKey = $"analytics:time-on-task:user:{request.UserId}:from:{request.From:yyyyMMdd}:to:{request.To:yyyyMMdd}";
+        var zone = await _timeZone.ForUserAsync(request.UserId, cancellationToken);
+        var cacheKey = $"analytics:time-on-task:user:{request.UserId}:from:{request.From:yyyyMMdd}:to:{request.To:yyyyMMdd}:tz:{zone.Id}";
         var result = await _cache.GetOrCreateAsync(
             cacheKey,
             async ct =>
             {
-                var sessions = (await _unitOfWork.StudySessions.GetByDateRangeAsync(request.UserId, request.From, request.To, ct)).ToList();
-                var courses = await _unitOfWork.Courses.GetListItemsByUserAsync(request.UserId, ct);
+                var sessions = (await _studySessions.GetByDateRangeAsync(request.UserId, request.From, request.To, ct)).ToList();
+                var courses = await _courses.GetListItemsByUserAsync(request.UserId, ct);
                 var coursesById = courses.ToDictionary(c => c.CourseId);
 
                 var daily = sessions
-                    .GroupBy(s => s.OccurredAt.Date)
+                    .GroupBy(s => UserCalendar.LocalDate(s.OccurredAt, zone))
                     .Select(g =>
                     {
                         var total = g.Sum(s => s.DurationSeconds);

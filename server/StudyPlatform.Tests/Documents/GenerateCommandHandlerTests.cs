@@ -25,8 +25,6 @@ public class GenerateFlashcardsCommandHandlerTests
 
     public GenerateFlashcardsCommandHandlerTests()
     {
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
-        _uow.Setup(u => u.Flashcards).Returns(_flashcards.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
         _flashcards.Setup(r => r.AddRangeAsync(It.IsAny<IEnumerable<Flashcard>>(), default)).Returns(Task.CompletedTask);
 
@@ -47,7 +45,7 @@ public class GenerateFlashcardsCommandHandlerTests
         };
 
         _handler = new GenerateFlashcardsCommandHandler(
-            _uow.Object, _ai.Object, _content.Object, _deduplicator.Object, _textProvider.Object);
+            _uow.Object, _documents.Object, _flashcards.Object, _ai.Object, _content.Object, _deduplicator.Object, _textProvider.Object);
     }
 
     [Fact]
@@ -262,15 +260,13 @@ public class GenerateGlossaryCommandHandlerTests
 
     public GenerateGlossaryCommandHandlerTests()
     {
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
-        _uow.Setup(u => u.GlossaryTerms).Returns(_glossary.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
         _glossary.Setup(r => r.DeleteByDocumentIdAsync(_docId, default)).Returns(Task.CompletedTask);
         _glossary.Setup(r => r.AddRangeAsync(It.IsAny<IEnumerable<GlossaryTerm>>(), default)).Returns(Task.CompletedTask);
 
         _doc = new Document { DocumentId = _docId, UserId = _userId, ContentType = "text/plain", BlobUrl = "blob://g" };
         _handler = new GenerateGlossaryCommandHandler(
-            _uow.Object, _ai.Object, _content.Object, _textProvider.Object);
+            _uow.Object, _documents.Object, _glossary.Object, _ai.Object, _content.Object, _textProvider.Object);
     }
 
     [Fact]
@@ -354,14 +350,12 @@ public class GenerateQuizCommandHandlerTests
 
     public GenerateQuizCommandHandlerTests()
     {
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
-        _uow.Setup(u => u.Quizzes).Returns(_quizzes.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
         _quizzes.Setup(r => r.AddRangeAsync(It.IsAny<IEnumerable<Quiz>>(), default)).Returns(Task.CompletedTask);
 
         _doc = new Document { DocumentId = _docId, UserId = _userId, ContentType = "text/plain", BlobUrl = "blob://q" };
         _handler = new GenerateQuizCommandHandler(
-            _uow.Object, _ai.Object, _content.Object, _planner.Object, _textProvider.Object);
+            _uow.Object, _documents.Object, _quizzes.Object, _ai.Object, _content.Object, _planner.Object, _textProvider.Object);
     }
 
     private static string QuizJson(string answer = "A") => JsonSerializer.Serialize(new[]

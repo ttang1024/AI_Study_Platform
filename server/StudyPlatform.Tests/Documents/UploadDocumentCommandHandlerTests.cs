@@ -25,8 +25,6 @@ public class UploadDocumentCommandHandlerTests
 
     public UploadDocumentCommandHandlerTests()
     {
-        _uow.Setup(u => u.Courses).Returns(_courses.Object);
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
 
         _courses.Setup(r => r.GetByIdAsync(_courseId, default)).ReturnsAsync(new Course
@@ -45,6 +43,8 @@ public class UploadDocumentCommandHandlerTests
 
         _handler = new UploadDocumentCommandHandler(
             _uow.Object,
+            _courses.Object,
+            _documents.Object,
             _storage.Object,
             Options.Create(new AppLimitsOptions { DocumentUploadLimit = -1 }),
             _logger.Object);
@@ -103,6 +103,8 @@ public class UploadDocumentCommandHandlerTests
 
         var handler = new UploadDocumentCommandHandler(
             _uow.Object,
+            _courses.Object,
+            _documents.Object,
             _storage.Object,
             Options.Create(new AppLimitsOptions { DocumentUploadLimit = -1, AudioUploadLimit = 10 }),
             _logger.Object);

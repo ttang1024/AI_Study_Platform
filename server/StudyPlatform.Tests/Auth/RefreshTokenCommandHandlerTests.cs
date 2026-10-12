@@ -19,12 +19,11 @@ public class RefreshTokenCommandHandlerTests
 
     public RefreshTokenCommandHandlerTests()
     {
-        _uow.Setup(u => u.Users).Returns(_users.Object);
-        _uow.Setup(u => u.RefreshTokens).Returns(_tokens.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
         _handler = new RefreshTokenCommandHandler(
-            _uow.Object,
-            new AuthSessionIssuer(_uow.Object, _tokenService.Object, _requestContext.Object));
+            _users.Object,
+            _tokens.Object,
+            new AuthSessionIssuer(_uow.Object, _users.Object, _tokens.Object, _tokenService.Object, _requestContext.Object));
     }
 
     private User MakeUser() => new()

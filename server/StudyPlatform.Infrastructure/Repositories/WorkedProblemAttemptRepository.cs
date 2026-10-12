@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
 using StudyPlatform.Infrastructure.Data;

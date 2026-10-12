@@ -67,3 +67,20 @@ export function buildAiHeaders(settings: { provider: string; model: string; key?
   if (settings.key) headers['X-AI-Key'] = settings.key;
   return headers;
 }
+
+/**
+ * GET endpoints that run AI work and therefore need the X-AI-* headers. Every other GET is a plain read,
+ * so the user's provider key is not attached to it — it would only widen where the key travels and
+ * could be captured. Keep in step with the server: a GET handler that starts calling IAiService
+ * belongs here.
+ */
+const AI_GET_PATHS: RegExp[] = [/\/api\/planner\/exam-plans\/[^/]+\/cram-sheet(?:[?#]|$)/, /\/api\/ai\/test-provider(?:[?#]|$)/];
+
+/**
+ * Whether a request should carry the user's AI credentials. Mutations (POST/PUT/PATCH/DELETE) may all
+ * start AI work; reads only do on the paths in {@link AI_GET_PATHS}.
+ */
+export function needsAiHeaders(method: string | undefined, url: string | undefined): boolean {
+  if ((method ?? 'get').toLowerCase() !== 'get') return true;
+  return AI_GET_PATHS.some((pattern) => pattern.test(url ?? ''));
+}

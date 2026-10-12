@@ -8,9 +8,9 @@ import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
 import { PressableScale } from '@/components/PressableScale';
 import { Colors, Layout, Spacing, Typography } from '@/constants/theme';
-import { quizHistoryService } from '@/services/quizHistoryService';
+import { quizSubmissionService, type QuizSubmission } from '@/services/documentService';
 import { statsService } from '@/services/statsService';
-import type { PendingMaterial, QuizSubmission, UserStats } from '@/types';
+import type { PendingMaterial, UserStats } from '@/types';
 
 export const HistoryTab: React.FC = () => {
   const router = useRouter();
@@ -22,9 +22,9 @@ export const HistoryTab: React.FC = () => {
 
   useEffect(() => {
     Promise.all([
-      quizHistoryService.list(1, 30),
-      quizHistoryService.getPendingMaterials(),
-      quizHistoryService.getGeneratedMaterials(),
+      quizSubmissionService.getAllSubmissions(1, 30),
+      quizSubmissionService.getPendingMaterials(),
+      quizSubmissionService.getGeneratedMaterials(),
       statsService.getUserStats(),
     ]).then(([subs, pendingMaterials, generatedMaterials, userStats]) => {
       setSubmissions(subs.items);
@@ -83,8 +83,8 @@ export const HistoryTab: React.FC = () => {
           const canOpen = !!s.videoId || (!!s.documentId && !!s.courseId);
           return (
             <ItemCard
-              key={s.id}
-              title={s.title ?? 'Quiz'}
+              key={s.submissionId}
+              title={s.documentName ?? s.videoName ?? 'Quiz'}
               subtitle={`${s.score}/${s.total} · ${new Date(s.submittedAt).toLocaleDateString()}`}
               onPress={canOpen ? () => openSubmission(s) : undefined}
             />

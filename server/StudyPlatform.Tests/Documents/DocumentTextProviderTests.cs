@@ -22,11 +22,10 @@ public class DocumentTextProviderTests
 
     public DocumentTextProviderTests()
     {
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
 
         _provider = new DocumentTextProvider(
-            _uow.Object, () => _extractor.Object, NullLogger<DocumentTextProvider>.Instance);
+            _uow.Object, _documents.Object, () => _extractor.Object, NullLogger<DocumentTextProvider>.Instance);
     }
 
     private static Document Doc(string contentType = "application/pdf", string? extracted = null, string? transcript = null) => new()

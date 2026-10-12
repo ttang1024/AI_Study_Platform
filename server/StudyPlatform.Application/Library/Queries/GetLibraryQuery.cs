@@ -23,12 +23,12 @@ public class GetLibraryQueryHandler : IRequestHandler<GetLibraryQuery, Result<Pa
     };
 
     private readonly ILibraryRepository _library;
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly ILibraryTagRepository _libraryTags;
 
-    public GetLibraryQueryHandler(ILibraryRepository library, IUnitOfWork unitOfWork)
+    public GetLibraryQueryHandler(ILibraryRepository library, ILibraryTagRepository libraryTags)
     {
         _library = library;
-        _unitOfWork = unitOfWork;
+        _libraryTags = libraryTags;
     }
 
     public async Task<Result<PaginatedList<LibraryItemDto>>> Handle(GetLibraryQuery request, CancellationToken cancellationToken)
@@ -44,7 +44,7 @@ public class GetLibraryQueryHandler : IRequestHandler<GetLibraryQuery, Result<Pa
         // One lookup for the whole page rather than a join in the union: the union's two operands
         // must project identical shapes, and an item with three tags would otherwise appear three
         // times and throw the page count off.
-        var tagsByItem = await _unitOfWork.LibraryTags.GetAssignmentsAsync(
+        var tagsByItem = await _libraryTags.GetAssignmentsAsync(
             request.UserId,
             items.Select(i => (i.Kind, i.Id)).ToList(),
             cancellationToken);

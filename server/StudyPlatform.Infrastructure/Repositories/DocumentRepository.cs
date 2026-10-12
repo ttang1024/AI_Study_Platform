@@ -113,8 +113,7 @@ public class DocumentRepository : Repository<Document>, IDocumentRepository
         var totalCount = await query.CountAsync(cancellationToken);
         var items = await query
             .OrderByDescending(d => d.CreatedAt)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
+            .Page(page, pageSize)
             .ToListAsync(cancellationToken);
 
         return (items, totalCount);

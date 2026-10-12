@@ -20,13 +20,13 @@ public record GetLeechFlashcardsQuery(Guid UserId, int Threshold = GetLeechFlash
 
 public class GetLeechFlashcardsQueryHandler : IRequestHandler<GetLeechFlashcardsQuery, Result<IEnumerable<FlashcardDto>>>
 {
-    private readonly IUnitOfWork _unitOfWork;
-    public GetLeechFlashcardsQueryHandler(IUnitOfWork unitOfWork) { _unitOfWork = unitOfWork; }
+    private readonly IFlashcardSrsDataRepository _flashcardSrs;
+    public GetLeechFlashcardsQueryHandler(IFlashcardSrsDataRepository flashcardSrs) { _flashcardSrs = flashcardSrs; }
 
     public async Task<Result<IEnumerable<FlashcardDto>>> Handle(GetLeechFlashcardsQuery request, CancellationToken cancellationToken)
     {
         var threshold = Math.Max(GetLeechFlashcardsQuery.MinThreshold, request.Threshold);
-        var leeches = await _unitOfWork.FlashcardSrs.GetLeechesByUserIdAsync(request.UserId, threshold, cancellationToken);
+        var leeches = await _flashcardSrs.GetLeechesByUserIdAsync(request.UserId, threshold, cancellationToken);
         var dtos = leeches.Select(l => l.Card.ToFlashcardDto(l.Srs));
         return Result<IEnumerable<FlashcardDto>>.Success(dtos);
     }
@@ -40,17 +40,21 @@ public record SetFlashcardSuspendedCommand(Guid FlashcardId, Guid UserId, bool S
 public class SetFlashcardSuspendedCommandHandler : IRequestHandler<SetFlashcardSuspendedCommand, Result<FlashcardSrsDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
-    public SetFlashcardSuspendedCommandHandler(IUnitOfWork unitOfWork) { _unitOfWork = unitOfWork; }
+    private readonly IFlashcardRepository _flashcards;
+    private readonly IFlashcardSrsDataRepository _flashcardSrs;
+    public SetFlashcardSuspendedCommandHandler(IUnitOfWork unitOfWork, IFlashcardRepository flashcards, IFlashcardSrsDataRepository flashcardSrs) { _unitOfWork = unitOfWork;
+    _flashcards = flashcards;
+    _flashcardSrs = flashcardSrs; }
 
     public async Task<Result<FlashcardSrsDto>> Handle(SetFlashcardSuspendedCommand request, CancellationToken cancellationToken)
     {
-        var flashcard = await _unitOfWork.Flashcards.GetOwnedAsync(request.FlashcardId, request.UserId, cancellationToken);
+        var flashcard = await _flashcards.GetOwnedAsync(request.FlashcardId, request.UserId, cancellationToken);
         if (flashcard == null)
             return Result<FlashcardSrsDto>.Failure("Flashcard not found.", "FLASHCARD_NOT_FOUND");
 
         // A card without an srs row has never been reviewed and is not in any due queue,
         // so there is nothing to suspend it *from*.
-        var srs = await _unitOfWork.FlashcardSrs.GetByUserAndFlashcardAsync(request.UserId, request.FlashcardId, cancellationToken);
+        var srs = await _flashcardSrs.GetByUserAndFlashcardAsync(request.UserId, request.FlashcardId, cancellationToken);
         if (srs == null)
             return Result<FlashcardSrsDto>.Failure("Card has no review history yet.", "FLASHCARD_NOT_REVIEWED");
 
@@ -72,19 +76,23 @@ public record ResetFlashcardSrsCommand(Guid FlashcardId, Guid UserId) : IRequest
 public class ResetFlashcardSrsCommandHandler : IRequestHandler<ResetFlashcardSrsCommand, Result>
 {
     private readonly IUnitOfWork _unitOfWork;
-    public ResetFlashcardSrsCommandHandler(IUnitOfWork unitOfWork) { _unitOfWork = unitOfWork; }
+    private readonly IFlashcardRepository _flashcards;
+    private readonly IFlashcardSrsDataRepository _flashcardSrs;
+    public ResetFlashcardSrsCommandHandler(IUnitOfWork unitOfWork, IFlashcardRepository flashcards, IFlashcardSrsDataRepository flashcardSrs) { _unitOfWork = unitOfWork;
+    _flashcards = flashcards;
+    _flashcardSrs = flashcardSrs; }
 
     public async Task<Result> Handle(ResetFlashcardSrsCommand request, CancellationToken cancellationToken)
     {
-        var flashcard = await _unitOfWork.Flashcards.GetOwnedAsync(request.FlashcardId, request.UserId, cancellationToken);
+        var flashcard = await _flashcards.GetOwnedAsync(request.FlashcardId, request.UserId, cancellationToken);
         if (flashcard == null)
             return Result.Failure("Flashcard not found.", "FLASHCARD_NOT_FOUND");
 
-        var srs = await _unitOfWork.FlashcardSrs.GetByUserAndFlashcardAsync(request.UserId, request.FlashcardId, cancellationToken);
+        var srs = await _flashcardSrs.GetByUserAndFlashcardAsync(request.UserId, request.FlashcardId, cancellationToken);
         if (srs == null)
             return Result.Success("Card was already unscheduled.");
 
-        _unitOfWork.FlashcardSrs.Remove(srs);
+        _flashcardSrs.Remove(srs);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result.Success("Card scheduling reset.");

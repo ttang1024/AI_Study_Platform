@@ -45,6 +45,7 @@ public sealed class VideoTranscriptProvider : IVideoTranscriptProvider
 {
     private readonly IAppCache _cache;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IVideoRepository _videos;
     private readonly IYouTubeTranscriptService _transcriptService;
     private readonly ITranscriptSegmentStore _store;
     private readonly TimeSpan _ttl;
@@ -52,12 +53,14 @@ public sealed class VideoTranscriptProvider : IVideoTranscriptProvider
     public VideoTranscriptProvider(
         IAppCache cache,
         IUnitOfWork unitOfWork,
+        IVideoRepository videos,
         IYouTubeTranscriptService transcriptService,
         ITranscriptSegmentStore store,
         IOptions<CacheOptions> cacheOptions)
     {
         _cache = cache;
         _unitOfWork = unitOfWork;
+        _videos = videos;
         _transcriptService = transcriptService;
         _store = store;
         _ttl = TimeSpan.FromSeconds(cacheOptions.Value.TranscriptSeconds);
@@ -178,7 +181,7 @@ public sealed class VideoTranscriptProvider : IVideoTranscriptProvider
         if (!string.IsNullOrEmpty(cached))
             return cached;
 
-        var savedVideo = await _unitOfWork.Videos.GetByExternalVideoIdAsync(videoId, cancellationToken);
+        var savedVideo = await _videos.GetByExternalVideoIdAsync(videoId, cancellationToken);
         if (savedVideo != null)
             return await GetOrFetchTranscriptAsync(savedVideo, cancellationToken);
 
@@ -229,7 +232,7 @@ public sealed class VideoTranscriptProvider : IVideoTranscriptProvider
     {
         video.Transcript = transcript;
         video.UpdatedAt = DateTime.UtcNow;
-        _unitOfWork.Videos.Update(video);
+        _videos.Update(video);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 

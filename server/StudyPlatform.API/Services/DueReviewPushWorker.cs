@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Services;
 using StudyPlatform.Application.Settings;
 using StudyPlatform.Infrastructure.Data;
@@ -52,6 +53,16 @@ public sealed class DueReviewPushWorker : PeriodicSweepWorker
     protected override Task SweepAsync(CancellationToken cancellationToken)
         => NotifyUsersWithDueCardsAsync(cancellationToken);
 
+    private const int FirstWakingHour = 8;
+    private const int LastWakingHour = 21;
+
+    /// <summary>Whether <paramref name="utcNow"/> falls between 08:00 and 21:59 in the user's zone (UTC when unknown).</summary>
+    internal static bool IsWakingHour(DateTime utcNow, string? timeZone)
+    {
+        var local = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utcNow, DateTimeKind.Utc), UserCalendar.Resolve(timeZone));
+        return local.Hour is >= FirstWakingHour and <= LastWakingHour;
+    }
+
     private async Task NotifyUsersWithDueCardsAsync(CancellationToken ct)
     {
         await using var scope = _scopeFactory.CreateAsyncScope();
@@ -67,6 +78,18 @@ public sealed class DueReviewPushWorker : PeriodicSweepWorker
             .Select(s => s.UserId)
             .Distinct()
             .ToListAsync(ct);
+        if (candidateUserIds.Count == 0) return;
+
+        // Only users for whom it is daytime. The worker runs hourly, so someone skipped at 3am is picked
+        // up again once their morning comes round.
+        var zones = await db.Users
+            .Where(u => candidateUserIds.Contains(u.UserId))
+            .Select(u => new { u.UserId, u.TimeZone })
+            .ToListAsync(ct);
+        candidateUserIds = zones
+            .Where(u => IsWakingHour(now, u.TimeZone))
+            .Select(u => u.UserId)
+            .ToList();
         if (candidateUserIds.Count == 0) return;
 
         var dueCounts = await db.FlashcardSrs

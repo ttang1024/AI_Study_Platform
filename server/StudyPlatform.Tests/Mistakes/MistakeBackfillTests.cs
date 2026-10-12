@@ -23,10 +23,6 @@ public class MistakeBackfillTests
     {
         _user = new User { UserId = _userId, Email = "u@example.com" };
 
-        _uow.Setup(u => u.MistakeEntries).Returns(_mistakes.Object);
-        _uow.Setup(u => u.Quizzes).Returns(_quizzes.Object);
-        _uow.Setup(u => u.QuizSubmissions).Returns(_submissions.Object);
-        _uow.Setup(u => u.Users).Returns(_users.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
 
         // The backfill runs at most once per user; the handler reads and stamps this marker.
@@ -69,7 +65,7 @@ public class MistakeBackfillTests
         _submissions.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<QuizSubmission, bool>>>(), default))
             .ReturnsAsync(new[] { submission });
 
-        var handler = new GetMistakesQueryHandler(_uow.Object);
+        var handler = new GetMistakesQueryHandler(_uow.Object, _users.Object, _quizzes.Object, _submissions.Object, _mistakes.Object);
         var result = await handler.Handle(new GetMistakesQuery(_userId), default);
 
         Assert.True(result.IsSuccess);
@@ -90,7 +86,7 @@ public class MistakeBackfillTests
         // marker this re-scanned the user's whole submission history on every open.
         _user.MistakesBackfilledAt = DateTime.UtcNow.AddDays(-1);
 
-        var handler = new GetMistakesQueryHandler(_uow.Object);
+        var handler = new GetMistakesQueryHandler(_uow.Object, _users.Object, _quizzes.Object, _submissions.Object, _mistakes.Object);
         var result = await handler.Handle(new GetMistakesQuery(_userId), default);
 
         Assert.True(result.IsSuccess);
@@ -123,7 +119,7 @@ public class MistakeBackfillTests
                 },
             });
 
-        var handler = new GetMistakesQueryHandler(_uow.Object);
+        var handler = new GetMistakesQueryHandler(_uow.Object, _users.Object, _quizzes.Object, _submissions.Object, _mistakes.Object);
         var result = await handler.Handle(new GetMistakesQuery(_userId), default);
 
         Assert.True(result.IsSuccess);
@@ -144,7 +140,7 @@ public class MistakeBackfillTests
             Status = "open",
         });
 
-        var handler = new GetMistakesQueryHandler(_uow.Object);
+        var handler = new GetMistakesQueryHandler(_uow.Object, _users.Object, _quizzes.Object, _submissions.Object, _mistakes.Object);
         var result = await handler.Handle(new GetMistakesQuery(_userId), default);
 
         Assert.True(result.IsSuccess);

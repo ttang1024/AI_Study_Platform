@@ -24,14 +24,28 @@ public class GetRecommendationsQueryHandler : IRequestHandler<GetRecommendations
     private const double LowMasteryThreshold = 60;
     private const int MaxPerSection = 8;
 
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly IDocumentRepository _documents;
+    private readonly IQuizSubmissionRepository _quizSubmissions;
+    private readonly IVideoRepository _videos;
+    private readonly IGlossaryTermRepository _glossaryTerms;
+    private readonly IGlossaryMasteredRepository _glossaryMastered;
+    private readonly IWorkedProblemRepository _workedProblems;
+    private readonly IWorkedProblemMasteredRepository _workedProblemMastered;
+    private readonly IFlashcardSrsDataRepository _flashcardSrs;
     private readonly IMediator _mediator;
     private readonly IAppCache _cache;
     private readonly CacheOptions _cacheOptions;
 
-    public GetRecommendationsQueryHandler(IUnitOfWork unitOfWork, IMediator mediator, IAppCache cache, IOptions<CacheOptions> cacheOptions)
+    public GetRecommendationsQueryHandler(IDocumentRepository documents, IQuizSubmissionRepository quizSubmissions, IVideoRepository videos, IGlossaryTermRepository glossaryTerms, IGlossaryMasteredRepository glossaryMastered, IWorkedProblemRepository workedProblems, IWorkedProblemMasteredRepository workedProblemMastered, IFlashcardSrsDataRepository flashcardSrs, IMediator mediator, IAppCache cache, IOptions<CacheOptions> cacheOptions)
     {
-        _unitOfWork = unitOfWork;
+        _documents = documents;
+        _quizSubmissions = quizSubmissions;
+        _videos = videos;
+        _glossaryTerms = glossaryTerms;
+        _glossaryMastered = glossaryMastered;
+        _workedProblems = workedProblems;
+        _workedProblemMastered = workedProblemMastered;
+        _flashcardSrs = flashcardSrs;
         _mediator = mediator;
         _cache = cache;
         _cacheOptions = cacheOptions.Value;
@@ -58,7 +72,7 @@ public class GetRecommendationsQueryHandler : IRequestHandler<GetRecommendations
         // ── Review queue ────────────────────────────────────────────────────────
 
         // 1. Flashcards due for spaced repetition.
-        var dueCards = (await _unitOfWork.FlashcardSrs.GetDueByUserIdAsync(userId, now, ct)).ToList();
+        var dueCards = (await _flashcardSrs.GetDueByUserIdAsync(userId, now, ct)).ToList();
         if (dueCards.Count > 0)
         {
             var mostOverdue = dueCards.Max(c => (now - c.Due).TotalDays);
@@ -69,7 +83,7 @@ public class GetRecommendationsQueryHandler : IRequestHandler<GetRecommendations
         }
 
         // 2. Quizzes you scored poorly on.
-        var submissions = (await _unitOfWork.QuizSubmissions.GetAllByUserAsync(userId, ct))
+        var submissions = (await _quizSubmissions.GetAllByUserAsync(userId, ct))
             .Where(s => s.Total > 0)
             .ToList();
         var weakSubs = submissions
@@ -85,11 +99,11 @@ public class GetRecommendationsQueryHandler : IRequestHandler<GetRecommendations
         var weakVideoIds = weakSubs.Where(x => x.Sub.VideoId.HasValue).Select(x => x.Sub.VideoId!.Value).ToHashSet();
         var docTitles = weakDocIds.Count == 0
             ? new Dictionary<Guid, string>()
-            : (await _unitOfWork.Documents.FindAsNoTrackingAsync(d => weakDocIds.Contains(d.DocumentId), ct))
+            : (await _documents.FindAsNoTrackingAsync(d => weakDocIds.Contains(d.DocumentId), ct))
                 .ToDictionary(d => d.DocumentId, d => d.FileName);
         var videoTitles = weakVideoIds.Count == 0
             ? new Dictionary<Guid, string>()
-            : (await _unitOfWork.Videos.FindAsNoTrackingAsync(v => weakVideoIds.Contains(v.VideoId), ct))
+            : (await _videos.FindAsNoTrackingAsync(v => weakVideoIds.Contains(v.VideoId), ct))
                 .ToDictionary(v => v.VideoId, v => v.Title);
 
         foreach (var x in weakSubs)
@@ -102,8 +116,8 @@ public class GetRecommendationsQueryHandler : IRequestHandler<GetRecommendations
         }
 
         // 3. Unmastered glossary terms.
-        var allTerms = (await _unitOfWork.GlossaryTerms.GetByUserWithSourcesAsync(userId, ct)).ToList();
-        var masteredTerms = (await _unitOfWork.GlossaryMastered.GetMasteredTermIdsByUserAsync(userId, ct)).ToHashSet();
+        var allTerms = (await _glossaryTerms.GetByUserWithSourcesAsync(userId, ct)).ToList();
+        var masteredTerms = (await _glossaryMastered.GetMasteredTermIdsByUserAsync(userId, ct)).ToHashSet();
         var unmasteredTerms = allTerms.Count(t => !masteredTerms.Contains(t.GlossaryTermId));
         if (unmasteredTerms > 0)
         {
@@ -114,8 +128,8 @@ public class GetRecommendationsQueryHandler : IRequestHandler<GetRecommendations
         }
 
         // 4. Unmastered worked problems.
-        var problems = (await _unitOfWork.WorkedProblems.GetByUserAsync(userId, null, null, ct)).ToList();
-        var masteredProblems = (await _unitOfWork.WorkedProblemMastered.GetMasteredProblemIdsByUserAsync(userId, ct)).ToHashSet();
+        var problems = (await _workedProblems.GetByUserAsync(userId, null, null, ct)).ToList();
+        var masteredProblems = (await _workedProblemMastered.GetMasteredProblemIdsByUserAsync(userId, ct)).ToHashSet();
         var unmasteredProblems = problems.Count(p => !masteredProblems.Contains(p.WorkedProblemId));
         if (unmasteredProblems > 0)
         {
@@ -147,7 +161,7 @@ public class GetRecommendationsQueryHandler : IRequestHandler<GetRecommendations
         var remainingSlots = MaxPerSection - nextBest.Count;
         var untested = remainingSlots <= 0
             ? new List<DocumentListItem>()
-            : (await _unitOfWork.Documents.GetRecentUntestedAsync(userId, submittedDocIds, remainingSlots, ct)).ToList();
+            : (await _documents.GetRecentUntestedAsync(userId, submittedDocIds, remainingSlots, ct)).ToList();
         foreach (var d in untested)
         {
             nextBest.Add(new RecommendationItemDto(

@@ -11,10 +11,16 @@ namespace StudyPlatform.API.Hubs;
 public class GroupChatHub : Hub
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IUserRepository _users;
+    private readonly IStudyGroupMemberRepository _studyGroupMembers;
+    private readonly IGroupChatMessageRepository _groupChatMessages;
 
-    public GroupChatHub(IUnitOfWork unitOfWork)
+    public GroupChatHub(IUnitOfWork unitOfWork, IUserRepository users, IStudyGroupMemberRepository studyGroupMembers, IGroupChatMessageRepository groupChatMessages)
     {
         _unitOfWork = unitOfWork;
+        _users = users;
+        _studyGroupMembers = studyGroupMembers;
+        _groupChatMessages = groupChatMessages;
     }
 
     public async Task JoinGroup(string groupId)
@@ -23,7 +29,7 @@ public class GroupChatHub : Hub
             throw new HubException("Invalid group ID.");
 
         var userId = Context.User!.GetUserId();
-        var isMember = await _unitOfWork.StudyGroupMembers.ExistsAsync(
+        var isMember = await _studyGroupMembers.ExistsAsync(
             m => m.GroupId == groupGuid && m.UserId == userId);
 
         if (!isMember)
@@ -41,13 +47,13 @@ public class GroupChatHub : Hub
             throw new HubException("Message cannot be empty.");
 
         var userId = Context.User!.GetUserId();
-        var isMember = await _unitOfWork.StudyGroupMembers.ExistsAsync(
+        var isMember = await _studyGroupMembers.ExistsAsync(
             m => m.GroupId == groupGuid && m.UserId == userId);
 
         if (!isMember)
             throw new HubException("Access denied.");
 
-        var user = await _unitOfWork.Users.GetByIdAsync(userId);
+        var user = await _users.GetByIdAsync(userId);
 
         var msg = new GroupChatMessage
         {
@@ -58,7 +64,7 @@ public class GroupChatHub : Hub
             SentAt = DateTime.UtcNow
         };
 
-        await _unitOfWork.GroupChatMessages.AddAsync(msg);
+        await _groupChatMessages.AddAsync(msg);
         await _unitOfWork.SaveChangesAsync();
 
         var dto = new GroupChatMessageDto(

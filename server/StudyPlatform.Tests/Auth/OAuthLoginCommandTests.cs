@@ -20,8 +20,6 @@ public class OAuthLoginCommandHandlerTests
 
     public OAuthLoginCommandHandlerTests()
     {
-        _uow.Setup(u => u.Users).Returns(_users.Object);
-        _uow.Setup(u => u.RefreshTokens).Returns(_tokens.Object);
         _users.Setup(r => r.AddAsync(It.IsAny<User>(), default)).Returns(Task.CompletedTask);
         _tokens.Setup(r => r.AddAsync(It.IsAny<RefreshToken>(), default)).Returns(Task.CompletedTask);
         _tokenService.Setup(t => t.GenerateAccessToken(It.IsAny<User>())).Returns("access-token");
@@ -29,8 +27,8 @@ public class OAuthLoginCommandHandlerTests
         _handler = new OAuthLoginCommandHandler(
             _oAuthService.Object,
             new ExternalSignIn(
-                _uow.Object,
-                new AuthSessionIssuer(_uow.Object, _tokenService.Object, _requestContext.Object)));
+                _users.Object,
+                new AuthSessionIssuer(_uow.Object, _users.Object, _tokens.Object, _tokenService.Object, _requestContext.Object)));
     }
 
     [Fact]
@@ -114,8 +112,6 @@ public class GoogleCredentialLoginCommandHandlerTests
 
     public GoogleCredentialLoginCommandHandlerTests()
     {
-        _uow.Setup(u => u.Users).Returns(_users.Object);
-        _uow.Setup(u => u.RefreshTokens).Returns(_tokens.Object);
         _users.Setup(r => r.AddAsync(It.IsAny<User>(), default)).Returns(Task.CompletedTask);
         _tokens.Setup(r => r.AddAsync(It.IsAny<RefreshToken>(), default)).Returns(Task.CompletedTask);
         _tokenService.Setup(t => t.GenerateAccessToken(It.IsAny<User>())).Returns("access-token");
@@ -123,8 +119,8 @@ public class GoogleCredentialLoginCommandHandlerTests
         _handler = new GoogleCredentialLoginCommandHandler(
             _oAuthService.Object,
             new ExternalSignIn(
-                _uow.Object,
-                new AuthSessionIssuer(_uow.Object, _tokenService.Object, _requestContext.Object)));
+                _users.Object,
+                new AuthSessionIssuer(_uow.Object, _users.Object, _tokens.Object, _tokenService.Object, _requestContext.Object)));
     }
 
     [Fact]

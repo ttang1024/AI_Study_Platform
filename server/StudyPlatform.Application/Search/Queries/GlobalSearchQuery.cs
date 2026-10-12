@@ -54,16 +54,28 @@ public class GlobalSearchQueryHandler : IRequestHandler<GlobalSearchQuery, Resul
     /// <summary>Searched when the caller names no categories. Must match the ids the UI's filter tabs send.</summary>
     private static readonly string[] DefaultCategories = ["documents", "notes", "flashcards", "glossary"];
 
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly IDocumentRepository _documents;
+    private readonly IFlashcardRepository _flashcards;
+    private readonly INoteRepository _notes;
+    private readonly IVideoRepository _videos;
+    private readonly IGlossaryTermRepository _glossaryTerms;
     private readonly IEmbeddingIndex _embeddingIndex;
     private readonly ILogger<GlobalSearchQueryHandler> _logger;
 
     public GlobalSearchQueryHandler(
-        IUnitOfWork unitOfWork,
+        IDocumentRepository documents,
+        IFlashcardRepository flashcards,
+        INoteRepository notes,
+        IVideoRepository videos,
+        IGlossaryTermRepository glossaryTerms,
         IEmbeddingIndex embeddingIndex,
         ILogger<GlobalSearchQueryHandler> logger)
     {
-        _unitOfWork = unitOfWork;
+        _documents = documents;
+        _flashcards = flashcards;
+        _notes = notes;
+        _videos = videos;
+        _glossaryTerms = glossaryTerms;
         _embeddingIndex = embeddingIndex;
         _logger = logger;
     }
@@ -97,8 +109,7 @@ public class GlobalSearchQueryHandler : IRequestHandler<GlobalSearchQuery, Resul
 
         var total = results.Count;
         var paged = results
-            .Skip((request.Page - 1) * request.PageSize)
-            .Take(request.PageSize)
+            .Page(request.Page, request.PageSize)
             .ToList();
 
         return Result<SearchResultsDto>.Success(new SearchResultsDto(paged, total, request.Page, request.PageSize));
@@ -198,7 +209,7 @@ public class GlobalSearchQueryHandler : IRequestHandler<GlobalSearchQuery, Resul
     private async Task<IEnumerable<SearchResultItemDto>> SearchDocumentsAsync(
         Guid userId, string q, CancellationToken cancellationToken)
     {
-        var docs = await _unitOfWork.Documents.SearchByUserAsync(userId, q, PerCategoryLimit, cancellationToken);
+        var docs = await _documents.SearchByUserAsync(userId, q, PerCategoryLimit, cancellationToken);
         return docs.Select(d => new SearchResultItemDto(
             d.DocumentId.ToString(),
             "document",
@@ -210,7 +221,7 @@ public class GlobalSearchQueryHandler : IRequestHandler<GlobalSearchQuery, Resul
     private async Task<IEnumerable<SearchResultItemDto>> SearchVideosAsync(
         Guid userId, string q, CancellationToken cancellationToken)
     {
-        var videos = await _unitOfWork.Videos.SearchByUserAsync(userId, q, PerCategoryLimit, cancellationToken);
+        var videos = await _videos.SearchByUserAsync(userId, q, PerCategoryLimit, cancellationToken);
         return videos.Select(v => new SearchResultItemDto(
             v.VideoId.ToString(),
             "video",
@@ -222,7 +233,7 @@ public class GlobalSearchQueryHandler : IRequestHandler<GlobalSearchQuery, Resul
     private async Task<IEnumerable<SearchResultItemDto>> SearchNotesAsync(
         Guid userId, string q, CancellationToken cancellationToken)
     {
-        var notes = await _unitOfWork.Notes.SearchByUserAsync(userId, q, PerCategoryLimit, cancellationToken);
+        var notes = await _notes.SearchByUserAsync(userId, q, PerCategoryLimit, cancellationToken);
         return notes.Select(n => new SearchResultItemDto(
             n.NoteId.ToString(),
             "note",
@@ -234,7 +245,7 @@ public class GlobalSearchQueryHandler : IRequestHandler<GlobalSearchQuery, Resul
     private async Task<IEnumerable<SearchResultItemDto>> SearchFlashcardsAsync(
         Guid userId, string q, CancellationToken cancellationToken)
     {
-        var cards = await _unitOfWork.Flashcards.SearchByUserAsync(userId, q, PerCategoryLimit, cancellationToken);
+        var cards = await _flashcards.SearchByUserAsync(userId, q, PerCategoryLimit, cancellationToken);
         return cards.Select(f => new SearchResultItemDto(
             f.FlashcardId.ToString(),
             "flashcard",
@@ -246,7 +257,7 @@ public class GlobalSearchQueryHandler : IRequestHandler<GlobalSearchQuery, Resul
     private async Task<IEnumerable<SearchResultItemDto>> SearchGlossaryAsync(
         Guid userId, string q, CancellationToken cancellationToken)
     {
-        var terms = await _unitOfWork.GlossaryTerms.SearchByUserAsync(userId, q, PerCategoryLimit, cancellationToken);
+        var terms = await _glossaryTerms.SearchByUserAsync(userId, q, PerCategoryLimit, cancellationToken);
         return terms.Select(t => new SearchResultItemDto(
             t.GlossaryTermId.ToString(),
             "glossary",

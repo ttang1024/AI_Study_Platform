@@ -16,10 +16,9 @@ public class ToggleWorkedProblemMasteredCommandHandlerTests
 
     public ToggleWorkedProblemMasteredCommandHandlerTests()
     {
-        _uow.Setup(u => u.WorkedProblemMastered).Returns(_masteredRepo.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
         _masteredRepo.Setup(r => r.AddAsync(It.IsAny<WorkedProblemMastered>(), default)).Returns(Task.CompletedTask);
-        _handler = new ToggleWorkedProblemMasteredCommandHandler(_uow.Object);
+        _handler = new ToggleWorkedProblemMasteredCommandHandler(_uow.Object, _masteredRepo.Object);
     }
 
     [Fact]
@@ -63,15 +62,13 @@ public class ToggleWorkedProblemMasteredCommandHandlerTests
 
 public class GetMasteredProblemIdsQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IWorkedProblemMasteredRepository> _masteredRepo = new();
     private readonly GetMasteredProblemIdsQueryHandler _handler;
     private readonly Guid _userId = Guid.NewGuid();
 
     public GetMasteredProblemIdsQueryHandlerTests()
     {
-        _uow.Setup(u => u.WorkedProblemMastered).Returns(_masteredRepo.Object);
-        _handler = new GetMasteredProblemIdsQueryHandler(_uow.Object);
+        _handler = new GetMasteredProblemIdsQueryHandler(_masteredRepo.Object);
     }
 
     [Fact]

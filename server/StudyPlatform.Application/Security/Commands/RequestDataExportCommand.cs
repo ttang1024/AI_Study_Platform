@@ -16,10 +16,12 @@ public class RequestDataExportCommandHandler
     : IRequestHandler<RequestDataExportCommand, Result<DataExportDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IDataExportRequestRepository _dataExportRequests;
 
-    public RequestDataExportCommandHandler(IUnitOfWork unitOfWork)
+    public RequestDataExportCommandHandler(IUnitOfWork unitOfWork, IDataExportRequestRepository dataExportRequests)
     {
         _unitOfWork = unitOfWork;
+        _dataExportRequests = dataExportRequests;
     }
 
     public async Task<Result<DataExportDto>> Handle(
@@ -27,7 +29,7 @@ public class RequestDataExportCommandHandler
     {
         // One in flight at a time. The export walks every table the user appears in, so an unbounded
         // queue of them is a self-inflicted denial of service on the database.
-        var active = await _unitOfWork.DataExportRequests.GetActiveForUserAsync(request.UserId, cancellationToken);
+        var active = await _dataExportRequests.GetActiveForUserAsync(request.UserId, cancellationToken);
         if (active != null)
             return Result<DataExportDto>.Failure(
                 "An export is already being prepared. You'll be able to download it shortly.",
@@ -41,7 +43,7 @@ public class RequestDataExportCommandHandler
             CreatedAt = DateTime.UtcNow,
         };
 
-        await _unitOfWork.DataExportRequests.AddAsync(entity, cancellationToken);
+        await _dataExportRequests.AddAsync(entity, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
 

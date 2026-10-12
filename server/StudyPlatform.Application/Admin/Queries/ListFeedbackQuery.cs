@@ -15,13 +15,13 @@ public record ListFeedbackQuery(
 
 public class ListFeedbackQueryHandler : IRequestHandler<ListFeedbackQuery, Result<PaginatedList<FeedbackItemDto>>>
 {
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly IFeedbackRepository _feedbacks;
 
-    public ListFeedbackQueryHandler(IUnitOfWork unitOfWork) => _unitOfWork = unitOfWork;
+    public ListFeedbackQueryHandler(IFeedbackRepository feedbacks) => _feedbacks = feedbacks;
 
     public async Task<Result<PaginatedList<FeedbackItemDto>>> Handle(ListFeedbackQuery request, CancellationToken cancellationToken)
     {
-        var (items, total) = await _unitOfWork.Feedbacks.ListAsync(
+        var (items, total) = await _feedbacks.ListAsync(
             request.Page, request.PageSize,
             request.Status, request.Type, request.Search, request.Sort,
             cancellationToken);

@@ -15,11 +15,13 @@ public class GetCalendarFeedQueryHandler : IRequestHandler<GetCalendarFeedQuery,
 {
     private const int HorizonDays = 14;
 
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly IFlashcardSrsDataRepository _flashcardSrs;
+    private readonly IExamPlanRepository _examPlans;
 
-    public GetCalendarFeedQueryHandler(IUnitOfWork unitOfWork)
+    public GetCalendarFeedQueryHandler(IFlashcardSrsDataRepository flashcardSrs, IExamPlanRepository examPlans)
     {
-        _unitOfWork = unitOfWork;
+        _flashcardSrs = flashcardSrs;
+        _examPlans = examPlans;
     }
 
     public async Task<Result<string>> Handle(GetCalendarFeedQuery request, CancellationToken cancellationToken)
@@ -36,7 +38,7 @@ public class GetCalendarFeedQueryHandler : IRequestHandler<GetCalendarFeedQuery,
         sb.AppendLine("X-WR-CALNAME:Easy Study");
 
         // Flashcards due per day (cards already overdue roll into today).
-        var srs = await _unitOfWork.FlashcardSrs.FindAsNoTrackingAsync(
+        var srs = await _flashcardSrs.FindAsNoTrackingAsync(
             s => s.UserId == userId && s.Due < horizon, cancellationToken);
         var dueByDay = srs
             .GroupBy(s => s.Due.Date < today ? today : s.Due.Date)
@@ -53,7 +55,7 @@ public class GetCalendarFeedQueryHandler : IRequestHandler<GetCalendarFeedQuery,
         }
 
         // Exam dates + a daily study block leading up to each exam.
-        var plans = await _unitOfWork.ExamPlans.FindAsNoTrackingAsync(
+        var plans = await _examPlans.FindAsNoTrackingAsync(
             p => p.UserId == userId && p.ExamDate >= today, cancellationToken);
 
         foreach (var plan in plans)

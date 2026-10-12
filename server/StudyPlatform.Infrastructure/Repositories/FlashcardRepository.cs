@@ -30,8 +30,7 @@ public class FlashcardRepository : Repository<Flashcard>, IFlashcardRepository
         var totalCount = await query.CountAsync(cancellationToken);
         var items = await query
             .OrderByDescending(f => f.CreatedAt)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
+            .Page(page, pageSize)
             .ToListWithSourcesAsync(cancellationToken);
         return (items, totalCount);
     }

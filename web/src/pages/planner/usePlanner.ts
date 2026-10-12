@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { calendarService, type DayBusySummary } from '../../services/calendarService';
+import { calendarService } from '../../services/calendarService';
 import {
   plannerService, type ExamPlan, type ExamSchedule, type MockExam,
 } from '../../services/plannerService';
@@ -14,7 +14,6 @@ export function usePlanner() {
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [schedule, setSchedule] = useState<ExamSchedule | null>(null);
   const [scheduleLoading, setScheduleLoading] = useState(false);
-  const [busyByDate, setBusyByDate] = useState<Record<string, DayBusySummary>>({});
   const [cramPlanId, setCramPlanId] = useState<string | null>(null);
 
   const [mockCourseId, setMockCourseId] = useState('');
@@ -59,23 +58,6 @@ export function usePlanner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Busy times from connected calendars (Settings → Export & Interop) so each
-  // planned day shows real commitments next to the study plan.
-  useEffect(() => {
-    if (!schedule || schedule.days.length === 0) { setBusyByDate({}); return; }
-    const first = schedule.days[0].date.slice(0, 10);
-    const last = schedule.days[schedule.days.length - 1].date.slice(0, 10);
-    const to = new Date(last);
-    to.setDate(to.getDate() + 1);
-    calendarService.getBusyTimes(first, to.toISOString().slice(0, 10))
-      .then(days => {
-        const map: Record<string, DayBusySummary> = {};
-        for (const d of days) map[d.date.slice(0, 10)] = d;
-        setBusyByDate(map);
-      })
-      .catch(() => setBusyByDate({}));
-  }, [schedule]);
-
   useEffect(() => {
     if (!selectedPlanId) { setSchedule(null); return; }
     setScheduleLoading(true);
@@ -112,7 +94,7 @@ export function usePlanner() {
 
   return {
     plans, loading, selectedPlanId, setSelectedPlanId,
-    schedule, scheduleLoading, busyByDate,
+    schedule, scheduleLoading,
     cramPlanId, setCramPlanId,
     mockCourseId, setMockCourseId, mockCount, setMockCount,
     mockExam, setMockExam, mockError, mockLoading,

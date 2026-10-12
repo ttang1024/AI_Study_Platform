@@ -22,20 +22,30 @@ public class GetCramSheetQueryHandler : IRequestHandler<GetCramSheetQuery, Resul
     private const int MaxTerms = 40;
     private static readonly TimeSpan CacheTtl = TimeSpan.FromHours(24);
 
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly IDocumentRepository _documents;
+    private readonly IVideoRepository _videos;
+    private readonly IGlossaryTermRepository _glossaryTerms;
+    private readonly IGlossaryMasteredRepository _glossaryMastered;
+    private readonly IMistakeEntryRepository _mistakeEntries;
+    private readonly IExamPlanRepository _examPlans;
     private readonly IAiService _aiService;
     private readonly IAppCache _cache;
 
-    public GetCramSheetQueryHandler(IUnitOfWork unitOfWork, IAiService aiService, IAppCache cache)
+    public GetCramSheetQueryHandler(IDocumentRepository documents, IVideoRepository videos, IGlossaryTermRepository glossaryTerms, IGlossaryMasteredRepository glossaryMastered, IMistakeEntryRepository mistakeEntries, IExamPlanRepository examPlans, IAiService aiService, IAppCache cache)
     {
-        _unitOfWork = unitOfWork;
+        _documents = documents;
+        _videos = videos;
+        _glossaryTerms = glossaryTerms;
+        _glossaryMastered = glossaryMastered;
+        _mistakeEntries = mistakeEntries;
+        _examPlans = examPlans;
         _aiService = aiService;
         _cache = cache;
     }
 
     public async Task<Result<CramSheetDto>> Handle(GetCramSheetQuery request, CancellationToken ct)
     {
-        var plan = (await _unitOfWork.ExamPlans.FindAsNoTrackingAsync(
+        var plan = (await _examPlans.FindAsNoTrackingAsync(
             p => p.ExamPlanId == request.ExamPlanId && p.UserId == request.UserId, ct)).FirstOrDefault();
         if (plan is null)
             return Result<CramSheetDto>.Failure("Exam plan not found.", "PLAN_NOT_FOUND");
@@ -50,8 +60,8 @@ public class GetCramSheetQueryHandler : IRequestHandler<GetCramSheetQuery, Resul
 
         // Course scoping: material belongs to the plan's course via its source doc/video.
         var userId = request.UserId;
-        var documents = (await _unitOfWork.Documents.FindAsNoTrackingAsync(d => d.UserId == userId, ct)).ToList();
-        var videos = (await _unitOfWork.Videos.FindAsNoTrackingAsync(v => v.UserId == userId, ct)).ToList();
+        var documents = (await _documents.FindAsNoTrackingAsync(d => d.UserId == userId, ct)).ToList();
+        var videos = (await _videos.FindAsNoTrackingAsync(v => v.UserId == userId, ct)).ToList();
         var docToCourse = documents.ToDictionary(d => d.DocumentId, d => d.CourseId);
         var videoToCourse = videos.ToDictionary(v => v.VideoId, v => v.CourseId);
 
@@ -63,15 +73,15 @@ public class GetCramSheetQueryHandler : IRequestHandler<GetCramSheetQuery, Resul
             return false;
         }
 
-        var mistakes = (await _unitOfWork.MistakeEntries.FindAsNoTrackingAsync(
+        var mistakes = (await _mistakeEntries.FindAsNoTrackingAsync(
                 m => m.UserId == userId && m.Status == "open", ct))
             .Where(m => InCourse(m.DocumentId, m.VideoId))
             .OrderByDescending(m => m.TimesMissed)
             .Take(MaxMistakes)
             .ToList();
 
-        var masteredTerms = (await _unitOfWork.GlossaryMastered.GetMasteredTermIdsByUserAsync(userId, ct)).ToHashSet();
-        var weakTerms = (await _unitOfWork.GlossaryTerms.GetByUserWithSourcesAsync(userId, ct))
+        var masteredTerms = (await _glossaryMastered.GetMasteredTermIdsByUserAsync(userId, ct)).ToHashSet();
+        var weakTerms = (await _glossaryTerms.GetByUserWithSourcesAsync(userId, ct))
             .Where(t => !masteredTerms.Contains(t.GlossaryTermId)
                 && InCourse(t.DocumentId, t.VideoId)
                 && !string.IsNullOrWhiteSpace(t.Term)

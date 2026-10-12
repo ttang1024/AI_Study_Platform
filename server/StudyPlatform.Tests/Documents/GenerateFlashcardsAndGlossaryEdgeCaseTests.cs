@@ -25,8 +25,6 @@ public class GenerateFlashcardsCommandEdgeCaseTests
 
     public GenerateFlashcardsCommandEdgeCaseTests()
     {
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
-        _uow.Setup(u => u.Flashcards).Returns(_flashcards.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
         _flashcards.Setup(r => r.AddRangeAsync(It.IsAny<IEnumerable<Flashcard>>(), default)).Returns(Task.CompletedTask);
         _flashcards.Setup(r => r.GetByDocumentIdAsync(_docId, default)).ReturnsAsync(Array.Empty<Flashcard>());
@@ -36,7 +34,7 @@ public class GenerateFlashcardsCommandEdgeCaseTests
         _content.Setup(c => c.GetContentAsync(_doc, default)).ReturnsAsync(new DocumentContent(null, "text"));
 
         _handler = new GenerateFlashcardsCommandHandler(
-            _uow.Object, _ai.Object, _content.Object, _deduplicator.Object, _textProvider.Object);
+            _uow.Object, _documents.Object, _flashcards.Object, _ai.Object, _content.Object, _deduplicator.Object, _textProvider.Object);
     }
 
     private static string FlashcardsJson() => JsonSerializer.Serialize(new[]
@@ -116,15 +114,13 @@ public class GenerateGlossaryCommandEdgeCaseTests
 
     public GenerateGlossaryCommandEdgeCaseTests()
     {
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
-        _uow.Setup(u => u.GlossaryTerms).Returns(_glossary.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
 
         _doc = new Document { DocumentId = _docId, UserId = _userId, ContentType = "text/plain", BlobUrl = "blob://test" };
         _documents.Setup(r => r.GetByIdAsync(_docId, default)).ReturnsAsync(_doc);
         _content.Setup(c => c.GetContentAsync(_doc, default)).ReturnsAsync(new DocumentContent(null, "text"));
 
-        _handler = new GenerateGlossaryCommandHandler(_uow.Object, _ai.Object, _content.Object, _textProvider.Object);
+        _handler = new GenerateGlossaryCommandHandler(_uow.Object, _documents.Object, _glossary.Object, _ai.Object, _content.Object, _textProvider.Object);
     }
 
     [Fact]

@@ -21,16 +21,22 @@ public class AssignLibraryTagCommandHandler
     private const int MaxItemsPerRequest = 500;
 
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IDocumentRepository _documents;
+    private readonly IVideoRepository _videos;
+    private readonly ILibraryTagRepository _libraryTags;
 
-    public AssignLibraryTagCommandHandler(IUnitOfWork unitOfWork)
+    public AssignLibraryTagCommandHandler(IUnitOfWork unitOfWork, IDocumentRepository documents, IVideoRepository videos, ILibraryTagRepository libraryTags)
     {
         _unitOfWork = unitOfWork;
+        _documents = documents;
+        _videos = videos;
+        _libraryTags = libraryTags;
     }
 
     public async Task<Result<BulkTagResultDto>> Handle(
         AssignLibraryTagCommand request, CancellationToken cancellationToken)
     {
-        var tag = await _unitOfWork.LibraryTags.GetOwnedAsync(request.LibraryTagId, request.UserId, cancellationToken);
+        var tag = await _libraryTags.GetOwnedAsync(request.LibraryTagId, request.UserId, cancellationToken);
         if (tag == null)
             return Result<BulkTagResultDto>.Failure("Not found.", "TAG_NOT_FOUND");
 
@@ -59,8 +65,8 @@ public class AssignLibraryTagCommandHandler
             return Result<BulkTagResultDto>.Failure("None of those items are in your library.", "NO_OWNED_ITEMS");
 
         var changed = request.Assign
-            ? await _unitOfWork.LibraryTags.AssignAsync(tag.LibraryTagId, owned, cancellationToken)
-            : await _unitOfWork.LibraryTags.UnassignAsync(tag.LibraryTagId, owned, cancellationToken);
+            ? await _libraryTags.AssignAsync(tag.LibraryTagId, owned, cancellationToken)
+            : await _libraryTags.UnassignAsync(tag.LibraryTagId, owned, cancellationToken);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -91,7 +97,7 @@ public class AssignLibraryTagCommandHandler
         var documentIds = requested.Where(i => i.ItemKind == "document").Select(i => i.ItemId).ToList();
         if (documentIds.Count > 0)
         {
-            var found = await _unitOfWork.Documents.FindAsNoTrackingAsync(
+            var found = await _documents.FindAsNoTrackingAsync(
                 d => d.UserId == userId && documentIds.Contains(d.DocumentId), cancellationToken);
             result.AddRange(found.Select(d => ("document", d.DocumentId)));
         }
@@ -99,7 +105,7 @@ public class AssignLibraryTagCommandHandler
         var videoIds = requested.Where(i => i.ItemKind == "video").Select(i => i.ItemId).ToList();
         if (videoIds.Count > 0)
         {
-            var found = await _unitOfWork.Videos.FindAsNoTrackingAsync(
+            var found = await _videos.FindAsNoTrackingAsync(
                 v => v.UserId == userId && videoIds.Contains(v.VideoId), cancellationToken);
             result.AddRange(found.Select(v => ("video", v.VideoId)));
         }

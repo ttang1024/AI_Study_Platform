@@ -15,11 +15,17 @@ public record ReviewFlashcardCommand(Guid FlashcardId, Guid UserId, int Rating) 
 public class ReviewFlashcardCommandHandler : IRequestHandler<ReviewFlashcardCommand, Result<ReviewFlashcardResponse>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IFlashcardRepository _flashcards;
+    private readonly IFlashcardSrsDataRepository _flashcardSrs;
+    private readonly IFlashcardReviewLogRepository _flashcardReviewLogs;
     private readonly IReviewScheduler _scheduler;
 
-    public ReviewFlashcardCommandHandler(IUnitOfWork unitOfWork, IReviewScheduler scheduler)
+    public ReviewFlashcardCommandHandler(IUnitOfWork unitOfWork, IFlashcardRepository flashcards, IFlashcardSrsDataRepository flashcardSrs, IFlashcardReviewLogRepository flashcardReviewLogs, IReviewScheduler scheduler)
     {
         _unitOfWork = unitOfWork;
+        _flashcards = flashcards;
+        _flashcardSrs = flashcardSrs;
+        _flashcardReviewLogs = flashcardReviewLogs;
         _scheduler = scheduler;
     }
 
@@ -28,11 +34,11 @@ public class ReviewFlashcardCommandHandler : IRequestHandler<ReviewFlashcardComm
         if (request.Rating is < 1 or > 4)
             return Result<ReviewFlashcardResponse>.Failure("Rating must be 1–4.", "INVALID_RATING");
 
-        var flashcard = await _unitOfWork.Flashcards.GetOwnedAsync(request.FlashcardId, request.UserId, cancellationToken);
+        var flashcard = await _flashcards.GetOwnedAsync(request.FlashcardId, request.UserId, cancellationToken);
         if (flashcard == null)
             return Result<ReviewFlashcardResponse>.Failure("Flashcard not found.", "FLASHCARD_NOT_FOUND");
 
-        var srs = await _unitOfWork.FlashcardSrs.GetByUserAndFlashcardAsync(
+        var srs = await _flashcardSrs.GetByUserAndFlashcardAsync(
             request.UserId, request.FlashcardId, cancellationToken)
             ?? new FlashcardSrsData
             {
@@ -47,7 +53,7 @@ public class ReviewFlashcardCommandHandler : IRequestHandler<ReviewFlashcardComm
 
         // Append to the review log before mutating srs — the "before" values are what undo
         // restores, and the whole log is what the FSRS weight optimizer fits against.
-        await _unitOfWork.FlashcardReviewLogs.AddAsync(new FlashcardReviewLog
+        await _flashcardReviewLogs.AddAsync(new FlashcardReviewLog
         {
             Id = Guid.NewGuid(),
             UserId = request.UserId,
@@ -75,7 +81,7 @@ public class ReviewFlashcardCommandHandler : IRequestHandler<ReviewFlashcardComm
         srs.Due = result.Due;
 
         if (srs.Reps == 1)
-            await _unitOfWork.FlashcardSrs.AddAsync(srs, cancellationToken);
+            await _flashcardSrs.AddAsync(srs, cancellationToken);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -91,12 +97,12 @@ public record GetFlashcardSrsQuery(Guid UserId) : IRequest<Result<IEnumerable<Fl
 
 public class GetFlashcardSrsQueryHandler : IRequestHandler<GetFlashcardSrsQuery, Result<IEnumerable<FlashcardSrsDto>>>
 {
-    private readonly IUnitOfWork _unitOfWork;
-    public GetFlashcardSrsQueryHandler(IUnitOfWork unitOfWork) { _unitOfWork = unitOfWork; }
+    private readonly IFlashcardSrsDataRepository _flashcardSrs;
+    public GetFlashcardSrsQueryHandler(IFlashcardSrsDataRepository flashcardSrs) { _flashcardSrs = flashcardSrs; }
 
     public async Task<Result<IEnumerable<FlashcardSrsDto>>> Handle(GetFlashcardSrsQuery request, CancellationToken cancellationToken)
     {
-        var all = await _unitOfWork.FlashcardSrs.GetByUserIdAsync(request.UserId, cancellationToken);
+        var all = await _flashcardSrs.GetByUserIdAsync(request.UserId, cancellationToken);
         var dtos = all.Select(s => s.ToSrsDto());
         return Result<IEnumerable<FlashcardSrsDto>>.Success(dtos);
     }

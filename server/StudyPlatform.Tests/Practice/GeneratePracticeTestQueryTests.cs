@@ -10,7 +10,6 @@ namespace StudyPlatform.Tests.Practice;
 
 public class GeneratePracticeTestQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IDocumentRepository> _documents = new();
     private readonly Mock<IVideoRepository> _videos = new();
     private readonly Mock<IQuizRepository> _quizzes = new();
@@ -22,13 +21,6 @@ public class GeneratePracticeTestQueryHandlerTests
 
     public GeneratePracticeTestQueryHandlerTests()
     {
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
-        _uow.Setup(u => u.Videos).Returns(_videos.Object);
-        _uow.Setup(u => u.Quizzes).Returns(_quizzes.Object);
-        _uow.Setup(u => u.Flashcards).Returns(_flashcards.Object);
-        _uow.Setup(u => u.GlossaryTerms).Returns(_terms.Object);
-        _uow.Setup(u => u.WorkedProblems).Returns(_problems.Object);
-
         _documents.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Document, bool>>>(), default)).ReturnsAsync(Array.Empty<Document>());
         _videos.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Video, bool>>>(), default)).ReturnsAsync(Array.Empty<Video>());
         _quizzes.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Quiz, bool>>>(), default)).ReturnsAsync(Array.Empty<Quiz>());
@@ -36,7 +28,7 @@ public class GeneratePracticeTestQueryHandlerTests
         _terms.Setup(r => r.GetByUserWithSourcesAsync(_userId, default)).ReturnsAsync(Array.Empty<GlossaryTerm>());
         _problems.Setup(r => r.GetByUserAsync(_userId, null, null, default)).ReturnsAsync(Array.Empty<WorkedProblem>());
 
-        _handler = new GeneratePracticeTestQueryHandler(_uow.Object);
+        _handler = new GeneratePracticeTestQueryHandler(_documents.Object, _quizzes.Object, _flashcards.Object, _videos.Object, _terms.Object, _problems.Object);
     }
 
     private static Quiz MakeQuiz(Guid userId, string correctAnswer, string[] options, Guid? docId = null) => new()

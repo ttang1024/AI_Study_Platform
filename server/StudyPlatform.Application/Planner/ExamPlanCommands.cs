@@ -15,10 +15,14 @@ public record GetExamPlansQuery(Guid UserId) : IRequest<Result<IReadOnlyList<Exa
 public class CreateExamPlanCommandHandler : IRequestHandler<CreateExamPlanCommand, Result<ExamPlanDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICourseRepository _courses;
+    private readonly IExamPlanRepository _examPlans;
 
-    public CreateExamPlanCommandHandler(IUnitOfWork unitOfWork)
+    public CreateExamPlanCommandHandler(IUnitOfWork unitOfWork, ICourseRepository courses, IExamPlanRepository examPlans)
     {
         _unitOfWork = unitOfWork;
+        _courses = courses;
+        _examPlans = examPlans;
     }
 
     public async Task<Result<ExamPlanDto>> Handle(CreateExamPlanCommand request, CancellationToken cancellationToken)
@@ -31,7 +35,7 @@ public class CreateExamPlanCommandHandler : IRequestHandler<CreateExamPlanComman
         string? courseName = null;
         if (request.CourseId.HasValue)
         {
-            var course = await _unitOfWork.Courses.GetOwnedAsync(request.CourseId.Value, request.UserId, cancellationToken);
+            var course = await _courses.GetOwnedAsync(request.CourseId.Value, request.UserId, cancellationToken);
             if (course == null)
                 return Result<ExamPlanDto>.Failure("Course not found.", "COURSE_NOT_FOUND");
             courseName = course.CourseName;
@@ -47,7 +51,7 @@ public class CreateExamPlanCommandHandler : IRequestHandler<CreateExamPlanComman
             DailyMinutes = Math.Clamp(request.DailyMinutes, 10, 480),
             CreatedAt = DateTime.UtcNow,
         };
-        await _unitOfWork.ExamPlans.AddAsync(plan, cancellationToken);
+        await _examPlans.AddAsync(plan, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result<ExamPlanDto>.Success(ToDto(plan, courseName), "Exam plan created.");
@@ -61,20 +65,22 @@ public class CreateExamPlanCommandHandler : IRequestHandler<CreateExamPlanComman
 public class DeleteExamPlanCommandHandler : IRequestHandler<DeleteExamPlanCommand, Result<bool>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IExamPlanRepository _examPlans;
 
-    public DeleteExamPlanCommandHandler(IUnitOfWork unitOfWork)
+    public DeleteExamPlanCommandHandler(IUnitOfWork unitOfWork, IExamPlanRepository examPlans)
     {
         _unitOfWork = unitOfWork;
+        _examPlans = examPlans;
     }
 
     public async Task<Result<bool>> Handle(DeleteExamPlanCommand request, CancellationToken cancellationToken)
     {
-        var plan = await _unitOfWork.ExamPlans.FirstOrDefaultAsync(
+        var plan = await _examPlans.FirstOrDefaultAsync(
             p => p.ExamPlanId == request.PlanId && p.UserId == request.UserId, cancellationToken);
         if (plan == null)
             return Result<bool>.Failure("Exam plan not found.", "PLAN_NOT_FOUND");
 
-        _unitOfWork.ExamPlans.Remove(plan);
+        _examPlans.Remove(plan);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return Result<bool>.Success(true, "Exam plan deleted.");
     }
@@ -82,17 +88,19 @@ public class DeleteExamPlanCommandHandler : IRequestHandler<DeleteExamPlanComman
 
 public class GetExamPlansQueryHandler : IRequestHandler<GetExamPlansQuery, Result<IReadOnlyList<ExamPlanDto>>>
 {
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly ICourseRepository _courses;
+    private readonly IExamPlanRepository _examPlans;
 
-    public GetExamPlansQueryHandler(IUnitOfWork unitOfWork)
+    public GetExamPlansQueryHandler(ICourseRepository courses, IExamPlanRepository examPlans)
     {
-        _unitOfWork = unitOfWork;
+        _courses = courses;
+        _examPlans = examPlans;
     }
 
     public async Task<Result<IReadOnlyList<ExamPlanDto>>> Handle(GetExamPlansQuery request, CancellationToken cancellationToken)
     {
-        var plans = (await _unitOfWork.ExamPlans.FindAsync(p => p.UserId == request.UserId, cancellationToken)).ToList();
-        var courses = (await _unitOfWork.Courses.FindAsync(c => c.UserId == request.UserId, cancellationToken))
+        var plans = (await _examPlans.FindAsync(p => p.UserId == request.UserId, cancellationToken)).ToList();
+        var courses = (await _courses.FindAsync(c => c.UserId == request.UserId, cancellationToken))
             .ToDictionary(c => c.CourseId, c => c.CourseName);
 
         var items = plans

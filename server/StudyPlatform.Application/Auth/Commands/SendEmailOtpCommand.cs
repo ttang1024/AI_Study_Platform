@@ -12,11 +12,15 @@ public record SendEmailOtpCommand(string Email, string Purpose) : IRequest<Resul
 public class SendEmailOtpCommandHandler : IRequestHandler<SendEmailOtpCommand, Result>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IUserRepository _users;
+    private readonly IOtpRepository _otps;
     private readonly IEmailService _emailService;
 
-    public SendEmailOtpCommandHandler(IUnitOfWork unitOfWork, IEmailService emailService)
+    public SendEmailOtpCommandHandler(IUnitOfWork unitOfWork, IUserRepository users, IOtpRepository otps, IEmailService emailService)
     {
         _unitOfWork = unitOfWork;
+        _users = users;
+        _otps = otps;
         _emailService = emailService;
     }
 
@@ -29,7 +33,7 @@ public class SendEmailOtpCommandHandler : IRequestHandler<SendEmailOtpCommand, R
 
         // Answers the same whether or not the address has an account — otherwise this endpoint tells
         // anyone which emails are registered here. The account holder still learns what happened.
-        var user = await _unitOfWork.Users.GetByEmailAsync(email, cancellationToken);
+        var user = await _users.GetByEmailAsync(email, cancellationToken);
         if (purpose == OtpPurpose.Registration && user != null)
         {
             try { await _emailService.SendAccountExistsEmailAsync(email, cancellationToken); }
@@ -39,7 +43,7 @@ public class SendEmailOtpCommandHandler : IRequestHandler<SendEmailOtpCommand, R
         if (purpose == OtpPurpose.PasswordReset && user == null)
             return Result.Success(SentMessage);
 
-        await _unitOfWork.Otps.InvalidateExistingOtpsAsync(email, purpose, cancellationToken);
+        await _otps.InvalidateExistingOtpsAsync(email, purpose, cancellationToken);
 
         var code = OtpVerifier.GenerateCode();
         var otp = new OtpCode
@@ -57,7 +61,7 @@ public class SendEmailOtpCommandHandler : IRequestHandler<SendEmailOtpCommand, R
         if (purpose == OtpPurpose.PasswordReset)
             otp.UserId = user!.UserId;
 
-        await _unitOfWork.Otps.AddAsync(otp, cancellationToken);
+        await _otps.AddAsync(otp, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         var purposeText = purpose == OtpPurpose.Registration ? "Registration" : "Password Reset";

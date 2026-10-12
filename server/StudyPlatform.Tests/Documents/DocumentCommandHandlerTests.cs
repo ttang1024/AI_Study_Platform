@@ -23,10 +23,8 @@ public class DeleteDocumentCommandHandlerTests
 
     public DeleteDocumentCommandHandlerTests()
     {
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
-        _uow.Setup(u => u.LibraryTags).Returns(_libraryTags.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new DeleteDocumentCommandHandler(_uow.Object, _storage.Object, _embeddingIndex.Object);
+        _handler = new DeleteDocumentCommandHandler(_uow.Object, _documents.Object, _libraryTags.Object, _storage.Object, _embeddingIndex.Object);
     }
 
 
@@ -116,9 +114,8 @@ public class UpdateDocumentCommandHandlerTests
 
     public UpdateDocumentCommandHandlerTests()
     {
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new UpdateDocumentCommandHandler(_uow.Object);
+        _handler = new UpdateDocumentCommandHandler(_uow.Object, _documents.Object);
     }
 
 
@@ -195,10 +192,8 @@ public class MoveDocumentCommandHandlerTests
 
     public MoveDocumentCommandHandlerTests()
     {
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
-        _uow.Setup(u => u.Courses).Returns(_courses.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new MoveDocumentCommandHandler(_uow.Object);
+        _handler = new MoveDocumentCommandHandler(_uow.Object, _courses.Object, _documents.Object);
     }
 
 
@@ -256,16 +251,12 @@ public class SaveQuizSubmissionCommandHandlerTests
 
     public SaveQuizSubmissionCommandHandlerTests()
     {
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
-        _uow.Setup(u => u.QuizSubmissions).Returns(_submissions.Object);
-        _uow.Setup(u => u.Quizzes).Returns(_quizzes.Object);
-        _uow.Setup(u => u.MistakeEntries).Returns(_mistakes.Object);
         _quizzes.Setup(r => r.FindAsync(It.IsAny<System.Linq.Expressions.Expression<Func<Quiz, bool>>>(), default))
             .ReturnsAsync(Array.Empty<Quiz>());
         _mistakes.Setup(r => r.FindAsync(It.IsAny<System.Linq.Expressions.Expression<Func<MistakeEntry, bool>>>(), default))
             .ReturnsAsync(Array.Empty<MistakeEntry>());
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new SaveQuizSubmissionCommandHandler(_uow.Object, new QuizSubmissionWriter(_uow.Object));
+        _handler = new SaveQuizSubmissionCommandHandler(_documents.Object, new QuizSubmissionWriter(_uow.Object, _quizzes.Object, _submissions.Object, _mistakes.Object));
     }
 
 

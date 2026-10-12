@@ -18,8 +18,7 @@ public class SetMistakeStatusCommandHandlerTests
 
     public SetMistakeStatusCommandHandlerTests()
     {
-        _uow.Setup(u => u.MistakeEntries).Returns(_mistakes.Object);
-        _handler = new SetMistakeStatusCommandHandler(_uow.Object);
+        _handler = new SetMistakeStatusCommandHandler(_uow.Object, _mistakes.Object);
     }
 
     [Theory]
@@ -82,8 +81,7 @@ public class DeleteMistakeCommandHandlerTests
 
     public DeleteMistakeCommandHandlerTests()
     {
-        _uow.Setup(u => u.MistakeEntries).Returns(_mistakes.Object);
-        _handler = new DeleteMistakeCommandHandler(_uow.Object);
+        _handler = new DeleteMistakeCommandHandler(_uow.Object, _mistakes.Object);
     }
 
     [Fact]
@@ -114,7 +112,6 @@ public class DeleteMistakeCommandHandlerTests
 
 public class GenerateMistakeVariantsCommandHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IMistakeEntryRepository> _mistakes = new();
     private readonly Mock<IAiService> _aiService = new();
     private readonly GenerateMistakeVariantsCommandHandler _handler;
@@ -123,8 +120,7 @@ public class GenerateMistakeVariantsCommandHandlerTests
 
     public GenerateMistakeVariantsCommandHandlerTests()
     {
-        _uow.Setup(u => u.MistakeEntries).Returns(_mistakes.Object);
-        _handler = new GenerateMistakeVariantsCommandHandler(_uow.Object, _aiService.Object);
+        _handler = new GenerateMistakeVariantsCommandHandler(_mistakes.Object, _aiService.Object);
     }
 
     private MistakeEntry MakeEntry() => new()

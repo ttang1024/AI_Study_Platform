@@ -11,27 +11,33 @@ public record GetQuestionBankQuery(Guid UserId, Guid? CourseId = null, string? S
 
 public class GetQuestionBankQueryHandler : IRequestHandler<GetQuestionBankQuery, Result<IEnumerable<QuestionBankQuestionDto>>>
 {
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly ICourseRepository _courses;
+    private readonly IDocumentRepository _documents;
+    private readonly IQuizRepository _quizzes;
+    private readonly IVideoRepository _videos;
 
-    public GetQuestionBankQueryHandler(IUnitOfWork unitOfWork)
+    public GetQuestionBankQueryHandler(ICourseRepository courses, IDocumentRepository documents, IQuizRepository quizzes, IVideoRepository videos)
     {
-        _unitOfWork = unitOfWork;
+        _courses = courses;
+        _documents = documents;
+        _quizzes = quizzes;
+        _videos = videos;
     }
 
     public async Task<Result<IEnumerable<QuestionBankQuestionDto>>> Handle(GetQuestionBankQuery request, CancellationToken cancellationToken)
     {
-        var quizzes = (await _unitOfWork.Quizzes.FindAsNoTrackingAsync(q =>
+        var quizzes = (await _quizzes.FindAsNoTrackingAsync(q =>
                 q.UserId == request.UserId &&
                 (request.SourceType == null || q.SourceType == request.SourceType) &&
                 (request.Difficulty == null || q.Difficulty == request.Difficulty),
                 cancellationToken))
             .ToList();
 
-        var documents = (await _unitOfWork.Documents.FindAsNoTrackingAsync(d => d.UserId == request.UserId, cancellationToken))
+        var documents = (await _documents.FindAsNoTrackingAsync(d => d.UserId == request.UserId, cancellationToken))
             .ToDictionary(d => d.DocumentId);
-        var videos = (await _unitOfWork.Videos.FindAsNoTrackingAsync(v => v.UserId == request.UserId, cancellationToken))
+        var videos = (await _videos.FindAsNoTrackingAsync(v => v.UserId == request.UserId, cancellationToken))
             .ToDictionary(v => v.VideoId);
-        var courses = (await _unitOfWork.Courses.FindAsNoTrackingAsync(c => c.UserId == request.UserId, cancellationToken))
+        var courses = (await _courses.FindAsNoTrackingAsync(c => c.UserId == request.UserId, cancellationToken))
             .ToDictionary(c => c.CourseId);
 
         var dtos = quizzes

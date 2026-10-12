@@ -17,10 +17,19 @@ public class AuthController : ControllerBase
     private static readonly TimeSpan RefreshTokenLifetime = TimeSpan.FromDays(7);
 
     private readonly IMediator _mediator;
+    private readonly SameSiteMode _refreshCookieSameSite;
 
-    public AuthController(IMediator mediator)
+    public AuthController(IMediator mediator, IConfiguration configuration)
     {
         _mediator = mediator;
+
+        // Lax unless the deployment says otherwise. The web app and API share a site in production
+        // (toto-study.com / api.toto-study.com), and Lax keeps another site from making the browser
+        // POST /refresh-token or /logout with the cookie attached. Only a cross-site deployment (two
+        // *.cloudfront.net hosts — a public suffix) needs None; deploy.sh sets it there.
+        _refreshCookieSameSite = Enum.TryParse<SameSiteMode>(configuration["Auth:RefreshCookieSameSite"], true, out var mode)
+            ? mode
+            : SameSiteMode.Lax;
     }
 
     /// <summary>
@@ -32,7 +41,7 @@ public class AuthController : ControllerBase
         {
             HttpOnly = true,
             Secure = true,
-            SameSite = SameSiteMode.None,
+            SameSite = _refreshCookieSameSite,
             Path = "/api/auth",
             Expires = DateTimeOffset.UtcNow.Add(RefreshTokenLifetime)
         });
@@ -44,7 +53,7 @@ public class AuthController : ControllerBase
         {
             HttpOnly = true,
             Secure = true,
-            SameSite = SameSiteMode.None,
+            SameSite = _refreshCookieSameSite,
             Path = "/api/auth",
             Expires = DateTimeOffset.UnixEpoch
         });

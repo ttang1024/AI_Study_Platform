@@ -11,39 +11,40 @@ public record LoginCommand(string Email, string Password) : IRequest<Result<Auth
 
 public class LoginCommandHandler : IRequestHandler<LoginCommand, Result<AuthResponse>>
 {
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly IUserRepository _users;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IAuthSessionIssuer _sessionIssuer;
+    private readonly ILoginThrottle _throttle;
 
     public LoginCommandHandler(
-        IUnitOfWork unitOfWork,
+        IUserRepository users,
         IPasswordHasher passwordHasher,
-        IAuthSessionIssuer sessionIssuer)
+        IAuthSessionIssuer sessionIssuer,
+        ILoginThrottle throttle)
     {
-        _unitOfWork = unitOfWork;
+        _users = users;
         _passwordHasher = passwordHasher;
         _sessionIssuer = sessionIssuer;
+        _throttle = throttle;
     }
-
-    private static string? DummyHash;
 
     public async Task<Result<AuthResponse>> Handle(LoginCommand request, CancellationToken cancellationToken)
     {
-        var user = await _unitOfWork.Users.GetByEmailAsync(request.Email.ToLowerInvariant(), cancellationToken);
-        if (user == null)
+        // Checked and counted for unknown emails too, so a lockout says nothing about whether the
+        // address is registered.
+        if (await _throttle.IsLockedOutAsync(request.Email, cancellationToken))
+            return Result<AuthResponse>.Failure(LoginThrottleMessages.LockedOut, LoginThrottleMessages.ErrorCode);
+
+        var user = await _users.GetByEmailAsync(request.Email.ToLowerInvariant(), cancellationToken);
+        if (!PasswordCheck.Matches(_passwordHasher, user, request.Password))
         {
-            // Spend the same bcrypt work as a real check, so response time does not reveal whether the
-            // email is registered.
-            _passwordHasher.Verify(request.Password, DummyHash ??= _passwordHasher.Hash(Guid.NewGuid().ToString()));
+            await _throttle.RecordFailureAsync(request.Email, cancellationToken);
             return Result<AuthResponse>.Failure("Invalid email or password.", "INVALID_CREDENTIALS");
         }
 
-        if (!_passwordHasher.Verify(request.Password, user.PasswordHash))
-        {
-            return Result<AuthResponse>.Failure("Invalid email or password.", "INVALID_CREDENTIALS");
-        }
+        await _throttle.ResetAsync(request.Email, cancellationToken);
 
-        if (!user.IsEmailVerified)
+        if (!user!.IsEmailVerified)
             return Result<AuthResponse>.Failure("Email not verified.", "EMAIL_NOT_VERIFIED");
 
         PendingDeletion.CancelOnSignIn(user);
@@ -51,7 +52,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, Result<AuthResp
         if (!user.IsActive)
             return Result<AuthResponse>.Failure("Your account has been deactivated. Please contact support.", "ACCOUNT_DEACTIVATED");
 
-        var response = await _sessionIssuer.IssueAsync(user, cancellationToken: cancellationToken);
+        var response = await _sessionIssuer.IssueAsync(user!, cancellationToken: cancellationToken);
         return Result<AuthResponse>.Success(response, "Login successful.");
     }
 }

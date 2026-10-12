@@ -15,9 +15,8 @@ public class LogoutCommandHandlerTests
 
     public LogoutCommandHandlerTests()
     {
-        _uow.Setup(u => u.RefreshTokens).Returns(_tokens.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new LogoutCommandHandler(_uow.Object);
+        _handler = new LogoutCommandHandler(_tokens.Object);
     }
 
     [Fact]

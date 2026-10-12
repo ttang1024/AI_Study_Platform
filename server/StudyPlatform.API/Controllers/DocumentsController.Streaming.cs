@@ -1,5 +1,4 @@
 using StudyPlatform.Domain.Interfaces;
-using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using StudyPlatform.API.Extensions;
 using StudyPlatform.Application.Common;
@@ -20,38 +19,8 @@ public partial class DocumentsController
     [ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status429TooManyRequests)]
     [ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status502BadGateway)]
-    public async Task<IActionResult> StreamMindMap(Guid courseId, Guid documentId, CancellationToken cancellationToken)
-    {
-        var userId = User.GetUserId();
-        var document = await _unitOfWork.Documents.GetOwnedAsync(documentId, userId, cancellationToken);
-        if (document == null)
-            return NotFound(BaseResponse<string>.Fail("Document not found.", "DOCUMENT_NOT_FOUND"));
-
-        IAsyncEnumerable<string> stream;
-        try
-        {
-            var (bytes, text) = await _contentService.GetContentAsync(document, cancellationToken);
-            stream = bytes != null
-                ? _aiService.StreamMindMapAsync(bytes, document.ContentType, cancellationToken)
-                : _aiService.StreamMindMapAsync(text!, cancellationToken);
-        }
-        catch (OperationCanceledException)
-        {
-            return new EmptyResult();
-        }
-        catch (Exception ex)
-        {
-            return this.AiStreamError(ex);
-        }
-
-        return await this.StreamAiToSseAsync(stream, cancellationToken, onCompleted: async (text, ct) =>
-        {
-            document.MindMapText = text;
-            document.UpdatedAt = DateTime.UtcNow;
-            _unitOfWork.Documents.Update(document);
-            await _unitOfWork.SaveChangesAsync(ct);
-        });
-    }
+    public Task<IActionResult> StreamMindMap(Guid courseId, Guid documentId, CancellationToken cancellationToken)
+        => StreamDocumentAi(ct => _documentAi.StreamMindMapAsync(documentId, User.GetUserId(), ct), cancellationToken);
 
     /// <summary>
     /// Stream AI summary for a document (SSE), saves result to DB on completion
@@ -61,26 +30,16 @@ public partial class DocumentsController
     [ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status429TooManyRequests)]
     [ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status502BadGateway)]
-    public async Task<IActionResult> StreamSummary(Guid courseId, Guid documentId, CancellationToken cancellationToken)
-    {
-        var userId = User.GetUserId();
-        var document = await _unitOfWork.Documents.GetOwnedAsync(documentId, userId, cancellationToken);
-        if (document == null)
-            return NotFound(BaseResponse<string>.Fail("Document not found.", "DOCUMENT_NOT_FOUND"));
+    public Task<IActionResult> StreamSummary(Guid courseId, Guid documentId, CancellationToken cancellationToken)
+        => StreamDocumentAi(ct => _documentAi.StreamSummaryAsync(documentId, User.GetUserId(), ct), cancellationToken);
 
-        IAsyncEnumerable<string> stream;
+    private async Task<IActionResult> StreamDocumentAi(
+        Func<CancellationToken, Task<Result<AiTextStream>>> start, CancellationToken cancellationToken)
+    {
+        Result<AiTextStream> result;
         try
         {
-            var (bytes, text) = await _contentService.GetContentAsync(document, cancellationToken);
-            var timelineText = document.ContentType.StartsWith("audio/", StringComparison.OrdinalIgnoreCase)
-                ? FormatAudioTranscriptForTimeline(text)
-                : null;
-
-            stream = timelineText != null
-                ? _aiService.StreamTimelineSummaryAsync(timelineText, cancellationToken)
-                : bytes != null
-                ? _aiService.StreamSummaryAsync(bytes, document.ContentType, cancellationToken)
-                : _aiService.StreamSummaryAsync(text!, cancellationToken);
+            result = await start(cancellationToken);
         }
         catch (OperationCanceledException)
         {
@@ -88,62 +47,15 @@ public partial class DocumentsController
         }
         catch (Exception ex)
         {
+            // Reading the document (blob storage, text extraction) failed before any SSE was written.
             return this.AiStreamError(ex);
         }
 
-        return await this.StreamAiToSseAsync(stream, cancellationToken, onCompleted: async (text, ct) =>
-        {
-            document.Summary = text;
-            document.UpdatedAt = DateTime.UtcNow;
-            _unitOfWork.Documents.Update(document);
-            await _unitOfWork.SaveChangesAsync(ct);
-        });
+        return result.IsSuccess
+            ? await this.WriteAiTextStreamAsync(result.Data!, cancellationToken)
+            : NotFound(BaseResponse<string>.Fail(result.Message, result.ErrorCode));
     }
 
-    private static string? FormatAudioTranscriptForTimeline(string? transcript)
-    {
-        if (string.IsNullOrWhiteSpace(transcript))
-            return null;
-
-        try
-        {
-            using var doc = JsonDocument.Parse(transcript);
-            if (doc.RootElement.ValueKind != JsonValueKind.Array)
-                return null;
-
-            var lines = new List<string>();
-            foreach (var chunk in doc.RootElement.EnumerateArray())
-            {
-                if (!chunk.TryGetProperty("text", out var textElement))
-                    continue;
-
-                var text = textElement.GetString();
-                if (string.IsNullOrWhiteSpace(text))
-                    continue;
-
-                var start = GetDoubleProperty(chunk, "start");
-                if (start is null)
-                    continue;
-
-                var end = GetDoubleProperty(chunk, "end");
-                var timestamp = end is null
-                    ? MediaFormatting.FormatTimestamp(start.Value)
-                    : $"{MediaFormatting.FormatTimestamp(start.Value)} – {MediaFormatting.FormatTimestamp(end.Value)}";
-                lines.Add($"{timestamp} {text.Trim()}");
-            }
-
-            return lines.Count > 0 ? string.Join('\n', lines) : null;
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
-    }
-
-    private static double? GetDoubleProperty(JsonElement element, string name)
-        => element.TryGetProperty(name, out var property) && property.TryGetDouble(out var value)
-            ? value
-            : null;
     /// <summary>
     /// Stream AI chat for a document (SSE), saves messages to DB on completion
     /// </summary>
@@ -159,7 +71,7 @@ public partial class DocumentsController
             return invalid;
 
         var userId = User.GetUserId();
-        var document = await _unitOfWork.Documents.GetOwnedAsync(documentId, userId, cancellationToken);
+        var document = await _documents.GetOwnedAsync(documentId, userId, cancellationToken);
         if (document == null)
             return NotFound(BaseResponse<string>.Fail("Document not found.", "DOCUMENT_NOT_FOUND"));
 
@@ -168,23 +80,23 @@ public partial class DocumentsController
         ChatConversation? conversation;
         if (request.ConversationId is { } conversationId)
         {
-            conversation = await _unitOfWork.ChatMessages.GetConversationAsync(conversationId, userId, cancellationToken);
+            conversation = await _chatMessages.GetConversationAsync(conversationId, userId, cancellationToken);
             if (conversation is null || conversation.DocumentId != documentId)
                 return NotFound(BaseResponse<string>.Fail("Conversation not found.", "CONVERSATION_NOT_FOUND"));
         }
         else
         {
-            await ChatThreads.AdoptLegacyDocumentChatAsync(_unitOfWork, documentId, userId, cancellationToken);
-            var existing = await _unitOfWork.ChatMessages.GetConversationsByDocumentIdAsync(documentId, userId, cancellationToken);
+            await ChatThreads.AdoptLegacyDocumentChatAsync(_chatMessages, _unitOfWork, documentId, userId, cancellationToken);
+            var existing = await _chatMessages.GetConversationsByDocumentIdAsync(documentId, userId, cancellationToken);
             conversation = existing.FirstOrDefault()
-                ?? await _unitOfWork.ChatMessages.CreateDocumentConversationAsync(userId, documentId, ChatThreads.DefaultTitle, cancellationToken);
+                ?? await _chatMessages.CreateDocumentConversationAsync(userId, documentId, ChatThreads.DefaultTitle, cancellationToken);
         }
 
         var promptMessage = ChatAttachments.PromptOrDefault(request.Message);
         var attachmentsJson = await ChatAttachmentStore.SaveAsync(_blobStorageService, attachments, userId, cancellationToken);
         var savedMessage = request.Message ?? string.Empty;
 
-        var history = await _unitOfWork.ChatMessages.GetByConversationIdAsync(conversation.ConversationId, userId, cancellationToken);
+        var history = await _chatMessages.GetByConversationIdAsync(conversation.ConversationId, userId, cancellationToken);
         var historyTuples = history.Select(m => (m.Role, m.Content)).ToList();
         string content;
 

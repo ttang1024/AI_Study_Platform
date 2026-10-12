@@ -9,7 +9,6 @@ namespace StudyPlatform.Tests.Onboarding;
 
 public class GetOnboardingStateQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IUserRepository> _users = new();
     private readonly Mock<ICourseRepository> _courses = new();
     private readonly Mock<IDocumentRepository> _documents = new();
@@ -21,15 +20,9 @@ public class GetOnboardingStateQueryHandlerTests
 
     public GetOnboardingStateQueryHandlerTests()
     {
-        _uow.Setup(u => u.Users).Returns(_users.Object);
-        _uow.Setup(u => u.Courses).Returns(_courses.Object);
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
-        _uow.Setup(u => u.Flashcards).Returns(_flashcards.Object);
-        _uow.Setup(u => u.FlashcardReviewLogs).Returns(_reviewLogs.Object);
-
         _users.Setup(r => r.GetByIdAsync(_userId, default)).ReturnsAsync(new User { UserId = _userId });
 
-        _handler = new GetOnboardingStateQueryHandler(_uow.Object);
+        _handler = new GetOnboardingStateQueryHandler(_users.Object, _courses.Object, _documents.Object, _flashcards.Object, _reviewLogs.Object);
     }
 
     private void Has(bool course = false, bool document = false, bool flashcards = false, bool reviewed = false)
@@ -112,9 +105,8 @@ public class DismissOnboardingCommandHandlerTests
 
     public DismissOnboardingCommandHandlerTests()
     {
-        _uow.Setup(u => u.Users).Returns(_users.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new DismissOnboardingCommandHandler(_uow.Object);
+        _handler = new DismissOnboardingCommandHandler(_uow.Object, _users.Object);
     }
 
     [Fact]
@@ -162,12 +154,6 @@ public class SeedDemoContentCommandHandlerTests
 
     public SeedDemoContentCommandHandlerTests()
     {
-        _uow.Setup(u => u.Users).Returns(_users.Object);
-        _uow.Setup(u => u.Courses).Returns(_courses.Object);
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
-        _uow.Setup(u => u.Flashcards).Returns(_flashcards.Object);
-        _uow.Setup(u => u.Quizzes).Returns(_quizzes.Object);
-        _uow.Setup(u => u.GlossaryTerms).Returns(_glossary.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
 
         _users.Setup(r => r.GetByIdAsync(_userId, default)).ReturnsAsync(new User { UserId = _userId });
@@ -182,7 +168,7 @@ public class SeedDemoContentCommandHandlerTests
         _quizzes.Setup(r => r.AddRangeAsync(It.IsAny<IEnumerable<Quiz>>(), default)).Returns(Task.CompletedTask);
         _glossary.Setup(r => r.AddRangeAsync(It.IsAny<IEnumerable<GlossaryTerm>>(), default)).Returns(Task.CompletedTask);
 
-        _handler = new SeedDemoContentCommandHandler(_uow.Object);
+        _handler = new SeedDemoContentCommandHandler(_uow.Object, _users.Object, _courses.Object, _documents.Object, _quizzes.Object, _flashcards.Object, _glossary.Object);
     }
 
     [Fact]

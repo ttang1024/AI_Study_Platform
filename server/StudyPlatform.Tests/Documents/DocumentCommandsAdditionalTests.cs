@@ -17,8 +17,7 @@ public class UpdateDocumentContentCommandHandlerTests
 
     public UpdateDocumentContentCommandHandlerTests()
     {
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
-        _handler = new UpdateDocumentContentCommandHandler(_uow.Object);
+        _handler = new UpdateDocumentContentCommandHandler(_uow.Object, _documents.Object);
     }
 
     [Fact]
@@ -94,10 +93,8 @@ public class ClipUrlCommandHandlerTests
 
     public ClipUrlCommandHandlerTests()
     {
-        _uow.Setup(u => u.Courses).Returns(_courses.Object);
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
         _documents.Setup(r => r.AddAsync(It.IsAny<Document>(), default)).Returns(Task.CompletedTask);
-        _handler = new ClipUrlCommandHandler(_uow.Object, _blobStorage.Object);
+        _handler = new ClipUrlCommandHandler(_uow.Object, _courses.Object, _documents.Object, _blobStorage.Object);
     }
 
     private static MemoryStream Stream() => new(new byte[] { 1, 2, 3 });
@@ -166,8 +163,7 @@ public class TranscribeAudioCommandHandlerTests
 
     public TranscribeAudioCommandHandlerTests()
     {
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
-        _handler = new TranscribeAudioCommandHandler(_uow.Object, _transcription.Object, _blobStorage.Object);
+        _handler = new TranscribeAudioCommandHandler(_uow.Object, _documents.Object, _transcription.Object, _blobStorage.Object);
     }
 
     [Fact]
@@ -223,11 +219,9 @@ public class AIChatCommandHandlerTests
 
     public AIChatCommandHandlerTests()
     {
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
-        _uow.Setup(u => u.ChatMessages).Returns(_chatMessages.Object);
         _chatMessages.Setup(r => r.GetByDocumentIdAsync(_documentId, _userId, default)).ReturnsAsync(Array.Empty<ChatMessage>());
         _chatMessages.Setup(r => r.AddAsync(It.IsAny<ChatMessage>(), default)).Returns(Task.CompletedTask);
-        _handler = new AIChatCommandHandler(_uow.Object, _aiService.Object, _textExtractor.Object);
+        _handler = new AIChatCommandHandler(_uow.Object, _documents.Object, _chatMessages.Object, _aiService.Object, _textExtractor.Object);
     }
 
     [Fact]

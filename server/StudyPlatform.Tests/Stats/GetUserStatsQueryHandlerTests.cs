@@ -13,7 +13,6 @@ namespace StudyPlatform.Tests.Stats;
 
 public class GetUserStatsQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IDocumentRepository> _documents = new();
     private readonly Mock<INoteRepository> _notes = new();
     private readonly Mock<IFlashcardRepository> _flashcards = new();
@@ -27,15 +26,6 @@ public class GetUserStatsQueryHandlerTests
 
     public GetUserStatsQueryHandlerTests()
     {
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
-        _uow.Setup(u => u.Notes).Returns(_notes.Object);
-        _uow.Setup(u => u.Flashcards).Returns(_flashcards.Object);
-        _uow.Setup(u => u.GlossaryTerms).Returns(_terms.Object);
-        _uow.Setup(u => u.Quizzes).Returns(_quizzes.Object);
-        _uow.Setup(u => u.QuizSubmissions).Returns(_submissions.Object);
-        _uow.Setup(u => u.Videos).Returns(_videos.Object);
-        _uow.Setup(u => u.Courses).Returns(_courses.Object);
-
         _documents.Setup(r => r.GetMaterialCountsAsync(_userId, default)).ReturnsAsync(new MaterialCounts(2, 1, 0));
         _notes.Setup(r => r.CountAsync(It.IsAny<Expression<Func<Note, bool>>>(), default)).ReturnsAsync(3);
         _flashcards.Setup(r => r.CountAsync(It.IsAny<Expression<Func<Flashcard, bool>>>(), default)).ReturnsAsync(40);
@@ -54,7 +44,7 @@ public class GetUserStatsQueryHandlerTests
                 It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
             .Returns((string _, Func<CancellationToken, Task<UserStatsDto>> factory, TimeSpan _, CancellationToken ct) => factory(ct));
 
-        _handler = new GetUserStatsQueryHandler(_uow.Object, cache.Object, Options.Create(new CacheOptions()));
+        _handler = new GetUserStatsQueryHandler(_courses.Object, _documents.Object, _quizzes.Object, _flashcards.Object, _notes.Object, _submissions.Object, _videos.Object, _terms.Object, cache.Object, Options.Create(new CacheOptions()));
     }
 
     [Fact]

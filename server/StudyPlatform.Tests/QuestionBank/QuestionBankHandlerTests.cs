@@ -15,7 +15,6 @@ namespace StudyPlatform.Tests.QuestionBank;
 
 public class GetQuestionBankQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IQuizRepository> _quizzes = new();
     private readonly Mock<IDocumentRepository> _documents = new();
     private readonly Mock<IVideoRepository> _videos = new();
@@ -25,11 +24,6 @@ public class GetQuestionBankQueryHandlerTests
 
     public GetQuestionBankQueryHandlerTests()
     {
-        _uow.Setup(u => u.Quizzes).Returns(_quizzes.Object);
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
-        _uow.Setup(u => u.Videos).Returns(_videos.Object);
-        _uow.Setup(u => u.Courses).Returns(_courses.Object);
-
         _documents.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Document, bool>>>(), default))
             .ReturnsAsync(Array.Empty<Document>());
         _videos.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Video, bool>>>(), default))
@@ -37,7 +31,7 @@ public class GetQuestionBankQueryHandlerTests
         _courses.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Course, bool>>>(), default))
             .ReturnsAsync(Array.Empty<Course>());
 
-        _handler = new GetQuestionBankQueryHandler(_uow.Object);
+        _handler = new GetQuestionBankQueryHandler(_courses.Object, _documents.Object, _quizzes.Object, _videos.Object);
     }
 
     private Quiz MakeQuiz(string difficulty = "medium", Guid? documentId = null) => new()
@@ -109,15 +103,13 @@ public class RecordQuestionBankAttemptCommandHandlerTests
 
     public RecordQuestionBankAttemptCommandHandlerTests()
     {
-        _uow.Setup(u => u.Quizzes).Returns(_quizzes.Object);
-        _uow.Setup(u => u.MistakeEntries).Returns(_mistakes.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
         _mistakes.Setup(r => r.FindAsync(It.IsAny<Expression<Func<MistakeEntry, bool>>>(), default))
             .ReturnsAsync(() => _store.ToList());
         _mistakes.Setup(r => r.AddAsync(It.IsAny<MistakeEntry>(), default))
             .Callback<MistakeEntry, CancellationToken>((e, _) => _store.Add(e))
             .Returns(Task.CompletedTask);
-        _handler = new RecordQuestionBankAttemptCommandHandler(_uow.Object);
+        _handler = new RecordQuestionBankAttemptCommandHandler(_uow.Object, _quizzes.Object, _mistakes.Object);
     }
 
     private Quiz MakeQuiz(Guid? userId = null) => new()

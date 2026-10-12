@@ -26,13 +26,12 @@ public class AuthSessionIssuerTests
 
     public AuthSessionIssuerTests()
     {
-        _uow.Setup(u => u.RefreshTokens).Returns(_tokens.Object);
         _tokens.Setup(r => r.AddAsync(It.IsAny<RefreshToken>(), default))
             .Callback<RefreshToken, CancellationToken>((t, _) => _added.Add(t))
             .Returns(Task.CompletedTask);
         _tokenService.Setup(t => t.GenerateAccessToken(It.IsAny<User>())).Returns("access-token");
         _tokenService.Setup(t => t.GenerateRefreshToken()).Returns("refresh-token");
-        _issuer = new AuthSessionIssuer(_uow.Object, _tokenService.Object, _requestContext.Object);
+        _issuer = new AuthSessionIssuer(_uow.Object, Mock.Of<IUserRepository>(), _tokens.Object, _tokenService.Object, _requestContext.Object);
     }
 
     [Fact]

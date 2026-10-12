@@ -11,7 +11,6 @@ namespace StudyPlatform.Tests.Analytics;
 
 public class QuizCalibrationTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IQuizSubmissionRepository> _submissions = new();
     private readonly Mock<IQuizRepository> _quizzes = new();
     private readonly GetQuizCalibrationQueryHandler _handler;
@@ -22,16 +21,13 @@ public class QuizCalibrationTests
 
     public QuizCalibrationTests()
     {
-        _uow.Setup(u => u.QuizSubmissions).Returns(_submissions.Object);
-        _uow.Setup(u => u.Quizzes).Returns(_quizzes.Object);
-
         _submissions.Setup(r => r.GetAllByUserAsync(_userId, default))
             .ReturnsAsync(() => _submissionStore.ToList());
 
         _quizzes.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Quiz, bool>>>(), default))
             .ReturnsAsync(() => _quizStore.ToList());
 
-        _handler = new GetQuizCalibrationQueryHandler(_uow.Object);
+        _handler = new GetQuizCalibrationQueryHandler(_quizzes.Object, _submissions.Object);
     }
 
     private Quiz AddQuiz(string question, string correctAnswer)

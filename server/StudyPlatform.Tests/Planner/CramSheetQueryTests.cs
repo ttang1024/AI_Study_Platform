@@ -10,7 +10,6 @@ namespace StudyPlatform.Tests.Planner;
 
 public class GetCramSheetQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IExamPlanRepository> _plans = new();
     private readonly Mock<IDocumentRepository> _documents = new();
     private readonly Mock<IVideoRepository> _videos = new();
@@ -25,13 +24,6 @@ public class GetCramSheetQueryHandlerTests
 
     public GetCramSheetQueryHandlerTests()
     {
-        _uow.Setup(u => u.ExamPlans).Returns(_plans.Object);
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
-        _uow.Setup(u => u.Videos).Returns(_videos.Object);
-        _uow.Setup(u => u.MistakeEntries).Returns(_mistakes.Object);
-        _uow.Setup(u => u.GlossaryMastered).Returns(_mastered.Object);
-        _uow.Setup(u => u.GlossaryTerms).Returns(_terms.Object);
-
         _documents.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Document, bool>>>(), default)).ReturnsAsync(Array.Empty<Document>());
         _videos.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Video, bool>>>(), default)).ReturnsAsync(Array.Empty<Video>());
         _mistakes.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<MistakeEntry, bool>>>(), default)).ReturnsAsync(Array.Empty<MistakeEntry>());
@@ -41,7 +33,7 @@ public class GetCramSheetQueryHandlerTests
         _cache.Setup(c => c.SetAsync(It.IsAny<string>(), It.IsAny<CramSheetDto>(), It.IsAny<TimeSpan>(), default)).Returns(Task.CompletedTask);
         _ai.Setup(a => a.GeneralChatAsync(It.IsAny<IEnumerable<(string, string)>>(), It.IsAny<string>(), default)).ReturnsAsync("## Cram sheet");
 
-        _handler = new GetCramSheetQueryHandler(_uow.Object, _ai.Object, _cache.Object);
+        _handler = new GetCramSheetQueryHandler(_documents.Object, _videos.Object, _terms.Object, _mastered.Object, _mistakes.Object, _plans.Object, _ai.Object, _cache.Object);
     }
 
     private ExamPlan MakePlan(Guid? courseId = null) => new()

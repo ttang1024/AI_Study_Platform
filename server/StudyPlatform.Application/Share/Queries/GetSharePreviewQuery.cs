@@ -16,12 +16,12 @@ public class GetSharePreviewQueryHandler : IRequestHandler<GetSharePreviewQuery,
     public const string NotFoundCode = "share_not_found";
     public const string ExpiredCode = "share_expired";
 
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly IShareTokenRepository _shareTokens;
     private readonly ISharePreviewFactory _previews;
 
-    public GetSharePreviewQueryHandler(IUnitOfWork unitOfWork, ISharePreviewFactory previews)
+    public GetSharePreviewQueryHandler(IShareTokenRepository shareTokens, ISharePreviewFactory previews)
     {
-        _unitOfWork = unitOfWork;
+        _shareTokens = shareTokens;
         _previews = previews;
     }
 
@@ -30,7 +30,7 @@ public class GetSharePreviewQueryHandler : IRequestHandler<GetSharePreviewQuery,
         if (string.IsNullOrWhiteSpace(request.Token))
             return Result<SharePreview>.Failure("Share not found", NotFoundCode);
 
-        var share = await _unitOfWork.ShareTokens.GetByTokenAsync(request.Token, cancellationToken);
+        var share = await _shareTokens.GetByTokenAsync(request.Token, cancellationToken);
         if (share == null)
             return Result<SharePreview>.Failure("Share not found", NotFoundCode);
 

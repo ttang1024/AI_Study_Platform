@@ -17,10 +17,12 @@ public record GenerateMistakeVariantsCommand(Guid MistakeId, Guid UserId) : IReq
 public class SetMistakeStatusCommandHandler : IRequestHandler<SetMistakeStatusCommand, Result<MistakeDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IMistakeEntryRepository _mistakeEntries;
 
-    public SetMistakeStatusCommandHandler(IUnitOfWork unitOfWork)
+    public SetMistakeStatusCommandHandler(IUnitOfWork unitOfWork, IMistakeEntryRepository mistakeEntries)
     {
         _unitOfWork = unitOfWork;
+        _mistakeEntries = mistakeEntries;
     }
 
     public async Task<Result<MistakeDto>> Handle(SetMistakeStatusCommand request, CancellationToken cancellationToken)
@@ -28,14 +30,14 @@ public class SetMistakeStatusCommandHandler : IRequestHandler<SetMistakeStatusCo
         if (request.Status is not ("open" or "resolved"))
             return Result<MistakeDto>.Failure("Invalid status.", "INVALID_STATUS");
 
-        var entry = await _unitOfWork.MistakeEntries.FirstOrDefaultAsync(
+        var entry = await _mistakeEntries.FirstOrDefaultAsync(
             m => m.MistakeEntryId == request.MistakeId && m.UserId == request.UserId, cancellationToken);
         if (entry == null)
             return Result<MistakeDto>.Failure("Mistake not found.", "MISTAKE_NOT_FOUND");
 
         entry.Status = request.Status;
         entry.ResolvedAt = request.Status == "resolved" ? DateTime.UtcNow : null;
-        _unitOfWork.MistakeEntries.Update(entry);
+        _mistakeEntries.Update(entry);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result<MistakeDto>.Success(GetMistakesQueryHandler.ToDto(entry), "Mistake updated.");
@@ -45,20 +47,22 @@ public class SetMistakeStatusCommandHandler : IRequestHandler<SetMistakeStatusCo
 public class DeleteMistakeCommandHandler : IRequestHandler<DeleteMistakeCommand, Result<bool>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IMistakeEntryRepository _mistakeEntries;
 
-    public DeleteMistakeCommandHandler(IUnitOfWork unitOfWork)
+    public DeleteMistakeCommandHandler(IUnitOfWork unitOfWork, IMistakeEntryRepository mistakeEntries)
     {
         _unitOfWork = unitOfWork;
+        _mistakeEntries = mistakeEntries;
     }
 
     public async Task<Result<bool>> Handle(DeleteMistakeCommand request, CancellationToken cancellationToken)
     {
-        var entry = await _unitOfWork.MistakeEntries.FirstOrDefaultAsync(
+        var entry = await _mistakeEntries.FirstOrDefaultAsync(
             m => m.MistakeEntryId == request.MistakeId && m.UserId == request.UserId, cancellationToken);
         if (entry == null)
             return Result<bool>.Failure("Mistake not found.", "MISTAKE_NOT_FOUND");
 
-        _unitOfWork.MistakeEntries.Remove(entry);
+        _mistakeEntries.Remove(entry);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return Result<bool>.Success(true, "Mistake deleted.");
     }
@@ -68,18 +72,18 @@ public class GenerateMistakeVariantsCommandHandler : IRequestHandler<GenerateMis
 {
     private const int MaxVariants = 3;
 
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly IMistakeEntryRepository _mistakeEntries;
     private readonly IAiService _aiService;
 
-    public GenerateMistakeVariantsCommandHandler(IUnitOfWork unitOfWork, IAiService aiService)
+    public GenerateMistakeVariantsCommandHandler(IMistakeEntryRepository mistakeEntries, IAiService aiService)
     {
-        _unitOfWork = unitOfWork;
+        _mistakeEntries = mistakeEntries;
         _aiService = aiService;
     }
 
     public async Task<Result<IReadOnlyList<VariantQuestionDto>>> Handle(GenerateMistakeVariantsCommand request, CancellationToken cancellationToken)
     {
-        var entry = await _unitOfWork.MistakeEntries.FirstOrDefaultAsync(
+        var entry = await _mistakeEntries.FirstOrDefaultAsync(
             m => m.MistakeEntryId == request.MistakeId && m.UserId == request.UserId, cancellationToken);
         if (entry == null)
             return Result<IReadOnlyList<VariantQuestionDto>>.Failure("Mistake not found.", "MISTAKE_NOT_FOUND");

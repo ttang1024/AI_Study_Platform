@@ -9,7 +9,6 @@ namespace StudyPlatform.Tests.Documents;
 
 public class StudyMaterialLookupTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<ICourseRepository> _courses = new();
     private readonly Mock<IDocumentRepository> _documents = new();
     private readonly Mock<IVideoRepository> _videos = new();
@@ -20,13 +19,10 @@ public class StudyMaterialLookupTests
 
     public StudyMaterialLookupTests()
     {
-        _uow.Setup(u => u.Courses).Returns(_courses.Object);
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
-        _uow.Setup(u => u.Videos).Returns(_videos.Object);
         Courses();
         Documents();
         Videos();
-        _lookup = new StudyMaterialLookup(_uow.Object);
+        _lookup = new StudyMaterialLookup(_courses.Object, _documents.Object, _videos.Object);
     }
 
     private void Courses(params Course[] courses) =>

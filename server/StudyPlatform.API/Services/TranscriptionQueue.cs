@@ -1,7 +1,6 @@
 using System.Collections.Concurrent;
 using System.Threading.Channels;
 using MediatR;
-using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Documents.Commands;
 using StudyPlatform.Application.Podcasts.Commands;
 using StudyPlatform.Application.Videos.Commands;
@@ -114,14 +113,15 @@ public sealed class TranscriptionQueue : BackgroundService
         try
         {
             using var scope = _scopeFactory.CreateScope();
-            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var documentRepository = scope.ServiceProvider.GetRequiredService<IDocumentRepository>();
+            var videoRepository = scope.ServiceProvider.GetRequiredService<IVideoRepository>();
 
-            var documents = await unitOfWork.Documents.GetPendingTranscriptionsAsync(stoppingToken);
+            var documents = await documentRepository.GetPendingTranscriptionsAsync(stoppingToken);
             foreach (var job in documents)
                 TryEnqueue(job.DocumentId, job.UserId,
                     job.ContentType == "audio/podcast" ? TranscriptionJobKind.Podcast : TranscriptionJobKind.Audio);
 
-            var videos = await unitOfWork.Videos.GetPendingTranscriptionsAsync(stoppingToken);
+            var videos = await videoRepository.GetPendingTranscriptionsAsync(stoppingToken);
             foreach (var job in videos)
                 TryEnqueue(job.VideoRecordId, job.UserId, TranscriptionJobKind.UploadedVideo);
 

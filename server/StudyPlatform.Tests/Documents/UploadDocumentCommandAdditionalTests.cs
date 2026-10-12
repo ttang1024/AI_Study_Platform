@@ -25,13 +25,11 @@ public class UploadDocumentCommandAdditionalTests
 
     public UploadDocumentCommandAdditionalTests()
     {
-        _uow.Setup(u => u.Courses).Returns(_courses.Object);
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
     }
 
     private UploadDocumentCommandHandler MakeHandler(int documentUploadLimit = -1) => new(
-        _uow.Object, _storage.Object, Options.Create(new AppLimitsOptions { DocumentUploadLimit = documentUploadLimit }), _logger.Object);
+        _uow.Object, _courses.Object, _documents.Object, _storage.Object, Options.Create(new AppLimitsOptions { DocumentUploadLimit = documentUploadLimit }), _logger.Object);
 
     [Fact]
     public async Task Handle_CourseNotFound_ReturnsFailure()

@@ -1,7 +1,7 @@
 import React from 'react';
 
 import { QuizRunner } from '@/components/quiz/QuizRunner';
-import { quizService } from '@/services/quizService';
+import { documentService } from '@/services/documentService';
 
 interface DocumentQuizSectionProps {
   courseId: string;
@@ -10,9 +10,9 @@ interface DocumentQuizSectionProps {
 
 export const DocumentQuizSection: React.FC<DocumentQuizSectionProps> = ({ courseId, documentId }) => (
   <QuizRunner
-    getQuiz={(difficulty) => quizService.getDocumentQuiz(courseId, documentId, difficulty)}
-    generateQuiz={(difficulty) => quizService.generateForDocument(courseId, documentId, difficulty)}
+    getQuiz={(difficulty) => documentService.getQuiz(courseId, documentId, difficulty)}
+    generateQuiz={(difficulty) => documentService.generateQuiz(courseId, documentId, difficulty)}
     submitQuiz={(answers, score, total, confidence) =>
-      quizService.submitDocumentQuiz(courseId, documentId, answers, score, total, confidence)}
+      documentService.saveQuizSubmission(courseId, documentId, answers, score, total, confidence)}
   />
 );

@@ -7,7 +7,8 @@ public interface IGlossaryTermRepository : IRepository<GlossaryTerm>
     Task<IEnumerable<GlossaryTerm>> GetByUserWithSourcesAsync(Guid userId, CancellationToken cancellationToken = default);
     Task DeleteByDocumentIdAsync(Guid documentId, CancellationToken cancellationToken = default);
     Task<IEnumerable<GlossaryTerm>> GetByVideoIdAsync(Guid videoId, CancellationToken cancellationToken = default);
-    Task DeleteByVideoIdAsync(Guid videoId, CancellationToken cancellationToken = default);
+    /// <summary>Removes <paramref name="userId"/>'s terms for the video (on SaveChanges). Other users' terms are untouched.</summary>
+    Task DeleteByVideoIdAsync(Guid videoId, Guid userId, CancellationToken cancellationToken = default);
     Task<IEnumerable<GlossaryTerm>> SearchByUserAsync(Guid userId, string query, int limit, CancellationToken cancellationToken = default);
 
     /// <summary>

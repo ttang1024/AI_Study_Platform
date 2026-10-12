@@ -9,16 +9,16 @@ public record GetAllCoursesQuery(Guid UserId) : IRequest<Result<IEnumerable<Cour
 
 public class GetAllCoursesQueryHandler : IRequestHandler<GetAllCoursesQuery, Result<IEnumerable<CourseDto>>>
 {
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly ICourseRepository _courses;
 
-    public GetAllCoursesQueryHandler(IUnitOfWork unitOfWork)
+    public GetAllCoursesQueryHandler(ICourseRepository courses)
     {
-        _unitOfWork = unitOfWork;
+        _courses = courses;
     }
 
     public async Task<Result<IEnumerable<CourseDto>>> Handle(GetAllCoursesQuery request, CancellationToken cancellationToken)
     {
-        var courses = await _unitOfWork.Courses.GetListItemsByUserAsync(request.UserId, cancellationToken);
+        var courses = await _courses.GetListItemsByUserAsync(request.UserId, cancellationToken);
 
         var dtos = courses.Select(c => new CourseDto(
             c.CourseId,

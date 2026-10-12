@@ -13,15 +13,17 @@ public record GetFsrsSettingsQuery(Guid UserId) : IRequest<Result<FsrsSettingsDt
 
 public class GetFsrsSettingsQueryHandler : IRequestHandler<GetFsrsSettingsQuery, Result<FsrsSettingsDto>>
 {
-    private readonly IUnitOfWork _unitOfWork;
-    public GetFsrsSettingsQueryHandler(IUnitOfWork unitOfWork) { _unitOfWork = unitOfWork; }
+    private readonly IFlashcardReviewLogRepository _flashcardReviewLogs;
+    private readonly IUserFsrsSettingsRepository _userFsrsSettings;
+    public GetFsrsSettingsQueryHandler(IFlashcardReviewLogRepository flashcardReviewLogs, IUserFsrsSettingsRepository userFsrsSettings) { _flashcardReviewLogs = flashcardReviewLogs;
+    _userFsrsSettings = userFsrsSettings; }
 
     public async Task<Result<FsrsSettingsDto>> Handle(GetFsrsSettingsQuery request, CancellationToken cancellationToken)
     {
         // No row is not an error — it means "all defaults", and reading settings should never
         // be the thing that writes to the database.
-        var settings = await _unitOfWork.UserFsrsSettings.GetByUserIdAsync(request.UserId, cancellationToken);
-        var reviewCount = await _unitOfWork.FlashcardReviewLogs.CountAsync(l => l.UserId == request.UserId, cancellationToken);
+        var settings = await _userFsrsSettings.GetByUserIdAsync(request.UserId, cancellationToken);
+        var reviewCount = await _flashcardReviewLogs.CountAsync(l => l.UserId == request.UserId, cancellationToken);
         return Result<FsrsSettingsDto>.Success(settings.ToFsrsSettingsDto(reviewCount));
     }
 }
@@ -40,7 +42,11 @@ public record UpdateFsrsSettingsCommand(
 public class UpdateFsrsSettingsCommandHandler : IRequestHandler<UpdateFsrsSettingsCommand, Result<FsrsSettingsDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
-    public UpdateFsrsSettingsCommandHandler(IUnitOfWork unitOfWork) { _unitOfWork = unitOfWork; }
+    private readonly IFlashcardReviewLogRepository _flashcardReviewLogs;
+    private readonly IUserFsrsSettingsRepository _userFsrsSettings;
+    public UpdateFsrsSettingsCommandHandler(IUnitOfWork unitOfWork, IFlashcardReviewLogRepository flashcardReviewLogs, IUserFsrsSettingsRepository userFsrsSettings) { _unitOfWork = unitOfWork;
+    _flashcardReviewLogs = flashcardReviewLogs;
+    _userFsrsSettings = userFsrsSettings; }
 
     public async Task<Result<FsrsSettingsDto>> Handle(UpdateFsrsSettingsCommand request, CancellationToken cancellationToken)
     {
@@ -68,7 +74,7 @@ public class UpdateFsrsSettingsCommandHandler : IRequestHandler<UpdateFsrsSettin
                 $"Reviews per day must be between 0 (no limit) and {FsrsParameters.MaxReviewsPerDayCeiling}.",
                 "INVALID_REVIEW_LIMIT");
 
-        var settings = await GetOrCreateAsync(_unitOfWork, request.UserId, cancellationToken);
+        var settings = await GetOrCreateAsync(_userFsrsSettings, request.UserId, cancellationToken);
 
         if (request.DesiredRetention.HasValue) settings.DesiredRetention = request.DesiredRetention.Value;
         if (request.MaximumIntervalDays.HasValue) settings.MaximumIntervalDays = request.MaximumIntervalDays.Value;
@@ -79,13 +85,13 @@ public class UpdateFsrsSettingsCommandHandler : IRequestHandler<UpdateFsrsSettin
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        var reviewCount = await _unitOfWork.FlashcardReviewLogs.CountAsync(l => l.UserId == request.UserId, cancellationToken);
+        var reviewCount = await _flashcardReviewLogs.CountAsync(l => l.UserId == request.UserId, cancellationToken);
         return Result<FsrsSettingsDto>.Success(settings.ToFsrsSettingsDto(reviewCount), "Scheduler settings updated.");
     }
 
-    internal static async Task<UserFsrsSettings> GetOrCreateAsync(IUnitOfWork unitOfWork, Guid userId, CancellationToken ct)
+    internal static async Task<UserFsrsSettings> GetOrCreateAsync(IUserFsrsSettingsRepository repository, Guid userId, CancellationToken ct)
     {
-        var settings = await unitOfWork.UserFsrsSettings.GetByUserIdAsync(userId, ct);
+        var settings = await repository.GetByUserIdAsync(userId, ct);
         if (settings != null) return settings;
 
         settings = new UserFsrsSettings
@@ -95,7 +101,7 @@ public class UpdateFsrsSettingsCommandHandler : IRequestHandler<UpdateFsrsSettin
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
         };
-        await unitOfWork.UserFsrsSettings.AddAsync(settings, ct);
+        await repository.AddAsync(settings, ct);
         return settings;
     }
 }
@@ -111,17 +117,21 @@ public record OptimizeFsrsWeightsCommand(Guid UserId) : IRequest<Result<FsrsOpti
 public class OptimizeFsrsWeightsCommandHandler : IRequestHandler<OptimizeFsrsWeightsCommand, Result<FsrsOptimizationDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IFlashcardReviewLogRepository _flashcardReviewLogs;
+    private readonly IUserFsrsSettingsRepository _userFsrsSettings;
     private readonly IFsrsOptimizer _optimizer;
 
-    public OptimizeFsrsWeightsCommandHandler(IUnitOfWork unitOfWork, IFsrsOptimizer optimizer)
+    public OptimizeFsrsWeightsCommandHandler(IUnitOfWork unitOfWork, IFlashcardReviewLogRepository flashcardReviewLogs, IUserFsrsSettingsRepository userFsrsSettings, IFsrsOptimizer optimizer)
     {
         _unitOfWork = unitOfWork;
+        _flashcardReviewLogs = flashcardReviewLogs;
+        _userFsrsSettings = userFsrsSettings;
         _optimizer = optimizer;
     }
 
     public async Task<Result<FsrsOptimizationDto>> Handle(OptimizeFsrsWeightsCommand request, CancellationToken cancellationToken)
     {
-        var logs = (await _unitOfWork.FlashcardReviewLogs.GetByUserAsync(request.UserId, null, cancellationToken)).ToList();
+        var logs = (await _flashcardReviewLogs.GetByUserAsync(request.UserId, null, cancellationToken)).ToList();
 
         // Always fit from the stock weights, not from a previous fit: re-optimizing on top of an
         // earlier run compounds its errors, and the reported "before" would stop being comparable.
@@ -134,7 +144,7 @@ public class OptimizeFsrsWeightsCommandHandler : IRequestHandler<OptimizeFsrsWei
         var applied = result.LogLossAfter < result.LogLossBefore;
         if (applied)
         {
-            var settings = await UpdateFsrsSettingsCommandHandler.GetOrCreateAsync(_unitOfWork, request.UserId, cancellationToken);
+            var settings = await UpdateFsrsSettingsCommandHandler.GetOrCreateAsync(_userFsrsSettings, request.UserId, cancellationToken);
             settings.WeightsJson = FsrsParameters.Serialize(result.Weights);
             settings.WeightsOptimizedAt = DateTime.UtcNow;
             settings.ReviewsAtOptimization = result.ReviewCount;
@@ -168,12 +178,16 @@ public record ResetFsrsWeightsCommand(Guid UserId) : IRequest<Result<FsrsSetting
 public class ResetFsrsWeightsCommandHandler : IRequestHandler<ResetFsrsWeightsCommand, Result<FsrsSettingsDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
-    public ResetFsrsWeightsCommandHandler(IUnitOfWork unitOfWork) { _unitOfWork = unitOfWork; }
+    private readonly IFlashcardReviewLogRepository _flashcardReviewLogs;
+    private readonly IUserFsrsSettingsRepository _userFsrsSettings;
+    public ResetFsrsWeightsCommandHandler(IUnitOfWork unitOfWork, IFlashcardReviewLogRepository flashcardReviewLogs, IUserFsrsSettingsRepository userFsrsSettings) { _unitOfWork = unitOfWork;
+    _flashcardReviewLogs = flashcardReviewLogs;
+    _userFsrsSettings = userFsrsSettings; }
 
     public async Task<Result<FsrsSettingsDto>> Handle(ResetFsrsWeightsCommand request, CancellationToken cancellationToken)
     {
-        var settings = await _unitOfWork.UserFsrsSettings.GetByUserIdAsync(request.UserId, cancellationToken);
-        var reviewCount = await _unitOfWork.FlashcardReviewLogs.CountAsync(l => l.UserId == request.UserId, cancellationToken);
+        var settings = await _userFsrsSettings.GetByUserIdAsync(request.UserId, cancellationToken);
+        var reviewCount = await _flashcardReviewLogs.CountAsync(l => l.UserId == request.UserId, cancellationToken);
 
         if (settings == null)
             return Result<FsrsSettingsDto>.Success(((UserFsrsSettings?)null).ToFsrsSettingsDto(reviewCount), "Already using the default scheduler.");

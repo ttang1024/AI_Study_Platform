@@ -9,15 +9,13 @@ namespace StudyPlatform.Tests.LibraryTags;
 
 public class GetLibraryTagsQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<ILibraryTagRepository> _tags = new();
     private readonly GetLibraryTagsQueryHandler _handler;
     private readonly Guid _userId = Guid.NewGuid();
 
     public GetLibraryTagsQueryHandlerTests()
     {
-        _uow.Setup(u => u.LibraryTags).Returns(_tags.Object);
-        _handler = new GetLibraryTagsQueryHandler(_uow.Object);
+        _handler = new GetLibraryTagsQueryHandler(_tags.Object);
     }
 
     [Fact]
@@ -63,11 +61,10 @@ public class CreateLibraryTagCommandHandlerTests
 
     public CreateLibraryTagCommandHandlerTests()
     {
-        _uow.Setup(u => u.LibraryTags).Returns(_tags.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
         _tags.Setup(r => r.GetByNameAsync(_userId, It.IsAny<string>(), It.IsAny<string>(), default)).ReturnsAsync((LibraryTag?)null);
         _tags.Setup(r => r.AddAsync(It.IsAny<LibraryTag>(), default)).Returns(Task.CompletedTask);
-        _handler = new CreateLibraryTagCommandHandler(_uow.Object);
+        _handler = new CreateLibraryTagCommandHandler(_uow.Object, _tags.Object);
     }
 
     [Fact]
@@ -161,10 +158,9 @@ public class UpdateLibraryTagCommandHandlerTests
 
     public UpdateLibraryTagCommandHandlerTests()
     {
-        _uow.Setup(u => u.LibraryTags).Returns(_tags.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
         _tags.Setup(r => r.GetForUserAsync(_userId, It.IsAny<string?>(), default)).ReturnsAsync(Array.Empty<LibraryTagWithCount>());
-        _handler = new UpdateLibraryTagCommandHandler(_uow.Object);
+        _handler = new UpdateLibraryTagCommandHandler(_uow.Object, _tags.Object);
     }
 
     [Fact]
@@ -262,9 +258,8 @@ public class DeleteLibraryTagCommandHandlerTests
 
     public DeleteLibraryTagCommandHandlerTests()
     {
-        _uow.Setup(u => u.LibraryTags).Returns(_tags.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new DeleteLibraryTagCommandHandler(_uow.Object);
+        _handler = new DeleteLibraryTagCommandHandler(_uow.Object, _tags.Object);
     }
 
     [Fact]

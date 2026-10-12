@@ -20,12 +20,10 @@ public class CreatePodcastEpisodeCommandHandlerTests
 
     public CreatePodcastEpisodeCommandHandlerTests()
     {
-        _uow.Setup(u => u.Courses).Returns(_courses.Object);
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
         _courses.Setup(r => r.GetByIdAsync(_courseId, default)).ReturnsAsync(new Course { CourseId = _courseId, UserId = _userId });
         _documents.Setup(r => r.AddAsync(It.IsAny<Document>(), default)).Returns(Task.CompletedTask);
-        _handler = new CreatePodcastEpisodeCommandHandler(_uow.Object, _podcastService.Object);
+        _handler = new CreatePodcastEpisodeCommandHandler(_uow.Object, _courses.Object, _documents.Object, _podcastService.Object);
     }
 
     [Fact]
@@ -96,12 +94,10 @@ public class CreatePodcastFromFeedCommandHandlerTests
 
     public CreatePodcastFromFeedCommandHandlerTests()
     {
-        _uow.Setup(u => u.Courses).Returns(_courses.Object);
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
         _courses.Setup(r => r.GetByIdAsync(_courseId, default)).ReturnsAsync(new Course { CourseId = _courseId, UserId = _userId });
         _documents.Setup(r => r.AddAsync(It.IsAny<Document>(), default)).Returns(Task.CompletedTask);
-        _handler = new CreatePodcastFromFeedCommandHandler(_uow.Object, _podcastService.Object);
+        _handler = new CreatePodcastFromFeedCommandHandler(_uow.Object, _courses.Object, _documents.Object, _podcastService.Object);
     }
 
     [Fact]
@@ -192,9 +188,8 @@ public class TranscribePodcastCommandHandlerTests
 
     public TranscribePodcastCommandHandlerTests()
     {
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new TranscribePodcastCommandHandler(_uow.Object, _transcription.Object, _podcastService.Object);
+        _handler = new TranscribePodcastCommandHandler(_uow.Object, _documents.Object, _transcription.Object, _podcastService.Object);
     }
 
     [Fact]

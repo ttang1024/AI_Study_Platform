@@ -13,6 +13,8 @@ public record GenerateFlashcardsCommand(Guid DocumentId, Guid UserId) : IRequest
 public class GenerateFlashcardsCommandHandler : IRequestHandler<GenerateFlashcardsCommand, Result<IEnumerable<FlashcardDto>>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IDocumentRepository _documents;
+    private readonly IFlashcardRepository _flashcards;
     private readonly IAiService _aiService;
     private readonly IDocumentContentService _contentService;
     private readonly IFlashcardDeduplicator _deduplicator;
@@ -20,12 +22,16 @@ public class GenerateFlashcardsCommandHandler : IRequestHandler<GenerateFlashcar
 
     public GenerateFlashcardsCommandHandler(
         IUnitOfWork unitOfWork,
+        IDocumentRepository documents,
+        IFlashcardRepository flashcards,
         IAiService aiService,
         IDocumentContentService contentService,
         IFlashcardDeduplicator deduplicator,
         IDocumentTextProvider textProvider)
     {
         _unitOfWork = unitOfWork;
+        _documents = documents;
+        _flashcards = flashcards;
         _aiService = aiService;
         _contentService = contentService;
         _deduplicator = deduplicator;
@@ -34,11 +40,11 @@ public class GenerateFlashcardsCommandHandler : IRequestHandler<GenerateFlashcar
 
     public async Task<Result<IEnumerable<FlashcardDto>>> Handle(GenerateFlashcardsCommand request, CancellationToken cancellationToken)
     {
-        var document = await _unitOfWork.Documents.GetOwnedAsync(request.DocumentId, request.UserId, cancellationToken);
+        var document = await _documents.GetOwnedAsync(request.DocumentId, request.UserId, cancellationToken);
         if (document == null)
             return Result<IEnumerable<FlashcardDto>>.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
 
-        var existing = await _unitOfWork.Flashcards.GetByDocumentIdAsync(request.DocumentId, cancellationToken);
+        var existing = await _flashcards.GetByDocumentIdAsync(request.DocumentId, cancellationToken);
         if (existing.Any())
         {
             var cachedDtos = existing.Select(f => f.ToFlashcardDto());
@@ -109,7 +115,7 @@ public class GenerateFlashcardsCommandHandler : IRequestHandler<GenerateFlashcar
                 "Every generated flashcard duplicates one you already have.");
         }
 
-        await _unitOfWork.Flashcards.AddRangeAsync(newCards, cancellationToken);
+        await _flashcards.AddRangeAsync(newCards, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // Index only after the insert commits: a card indexed before it exists would be a phantom the

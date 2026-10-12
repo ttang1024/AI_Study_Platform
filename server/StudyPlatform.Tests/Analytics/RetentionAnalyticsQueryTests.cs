@@ -2,13 +2,13 @@ using Moq;
 using StudyPlatform.Application.Analytics.Queries;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
+using StudyPlatform.Tests.TestSupport;
 using Xunit;
 
 namespace StudyPlatform.Tests.Analytics;
 
 public class GetRetentionAnalyticsQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IFlashcardSrsDataRepository> _srs = new();
     private readonly Mock<IFlashcardReviewLogRepository> _logs = new();
     private readonly GetRetentionAnalyticsQueryHandler _handler;
@@ -16,11 +16,9 @@ public class GetRetentionAnalyticsQueryHandlerTests
 
     public GetRetentionAnalyticsQueryHandlerTests()
     {
-        _uow.Setup(u => u.FlashcardSrs).Returns(_srs.Object);
-        _uow.Setup(u => u.FlashcardReviewLogs).Returns(_logs.Object);
         _srs.Setup(r => r.GetByUserIdAsync(_userId, default)).ReturnsAsync(Array.Empty<FlashcardSrsData>());
         _logs.Setup(r => r.GetByUserAsync(_userId, null, default)).ReturnsAsync(Array.Empty<FlashcardReviewLog>());
-        _handler = new GetRetentionAnalyticsQueryHandler(_uow.Object);
+        _handler = new GetRetentionAnalyticsQueryHandler(_srs.Object, _logs.Object, FixedTimeZone.Utc);
     }
 
     [Fact]

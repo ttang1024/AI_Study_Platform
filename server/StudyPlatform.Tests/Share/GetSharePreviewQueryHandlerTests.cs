@@ -11,15 +11,13 @@ public class GetSharePreviewQueryHandlerTests
 {
     private const string Origin = "https://toto-study.com";
 
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IShareTokenRepository> _shareTokens = new();
     private readonly GetSharePreviewQueryHandler _handler;
 
     public GetSharePreviewQueryHandlerTests()
     {
-        _uow.Setup(u => u.ShareTokens).Returns(_shareTokens.Object);
         _handler = new GetSharePreviewQueryHandler(
-            _uow.Object,
+            _shareTokens.Object,
             new SharePreviewFactory(new SummarySnippetExtractor(), new ShareContentsInventory()));
     }
 

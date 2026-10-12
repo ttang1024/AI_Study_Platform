@@ -15,26 +15,32 @@ public record AIChatCommand(
 public class AIChatCommandHandler : IRequestHandler<AIChatCommand, Result<ChatMessageDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IDocumentRepository _documents;
+    private readonly IChatMessageRepository _chatMessages;
     private readonly IAiService _aiService;
     private readonly IDocumentTextExtractor _textExtractor;
 
     public AIChatCommandHandler(
         IUnitOfWork unitOfWork,
+        IDocumentRepository documents,
+        IChatMessageRepository chatMessages,
         IAiService aiService,
         IDocumentTextExtractor textExtractor)
     {
         _unitOfWork = unitOfWork;
+        _documents = documents;
+        _chatMessages = chatMessages;
         _aiService = aiService;
         _textExtractor = textExtractor;
     }
 
     public async Task<Result<ChatMessageDto>> Handle(AIChatCommand request, CancellationToken cancellationToken)
     {
-        var document = await _unitOfWork.Documents.GetOwnedAsync(request.DocumentId, request.UserId, cancellationToken);
+        var document = await _documents.GetOwnedAsync(request.DocumentId, request.UserId, cancellationToken);
         if (document == null)
             return Result<ChatMessageDto>.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
 
-        var history = await _unitOfWork.ChatMessages.GetByDocumentIdAsync(request.DocumentId, request.UserId, cancellationToken);
+        var history = await _chatMessages.GetByDocumentIdAsync(request.DocumentId, request.UserId, cancellationToken);
         var historyTuples = history.Select(m => (m.Role, m.Content)).ToList();
 
         var content = document.ContentType.StartsWith("audio/", StringComparison.OrdinalIgnoreCase)
@@ -52,7 +58,7 @@ public class AIChatCommandHandler : IRequestHandler<AIChatCommand, Result<ChatMe
             CreatedAt = DateTime.UtcNow
         };
 
-        await _unitOfWork.ChatMessages.AddAsync(userMessage, cancellationToken);
+        await _chatMessages.AddAsync(userMessage, cancellationToken);
 
         var aiResponse = await _aiService.ChatAsync(content, request.Message, historyTuples, cancellationToken);
 
@@ -67,7 +73,7 @@ public class AIChatCommandHandler : IRequestHandler<AIChatCommand, Result<ChatMe
             CreatedAt = DateTime.UtcNow
         };
 
-        await _unitOfWork.ChatMessages.AddAsync(assistantMessage, cancellationToken);
+        await _chatMessages.AddAsync(assistantMessage, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result<ChatMessageDto>.Success(assistantMessage.ToChatMessageDto(), "Message sent successfully.");

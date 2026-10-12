@@ -20,15 +20,24 @@ public record GenerateWorkedProblemsCommand(
 public class GenerateWorkedProblemsCommandHandler : IRequestHandler<GenerateWorkedProblemsCommand, Result<IEnumerable<WorkedProblemDto>>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IDocumentRepository _documents;
+    private readonly IVideoRepository _videos;
+    private readonly IWorkedProblemRepository _workedProblems;
     private readonly IAiService _aiService;
     private readonly IDocumentTextExtractor _textExtractor;
 
     public GenerateWorkedProblemsCommandHandler(
         IUnitOfWork unitOfWork,
+        IDocumentRepository documents,
+        IVideoRepository videos,
+        IWorkedProblemRepository workedProblems,
         IAiService aiService,
         IDocumentTextExtractor textExtractor)
     {
         _unitOfWork = unitOfWork;
+        _documents = documents;
+        _videos = videos;
+        _workedProblems = workedProblems;
         _aiService = aiService;
         _textExtractor = textExtractor;
     }
@@ -39,14 +48,14 @@ public class GenerateWorkedProblemsCommandHandler : IRequestHandler<GenerateWork
 
         if (request.DocumentId.HasValue)
         {
-            var doc = await _unitOfWork.Documents.GetOwnedAsync(request.DocumentId.Value, request.UserId, cancellationToken);
+            var doc = await _documents.GetOwnedAsync(request.DocumentId.Value, request.UserId, cancellationToken);
             if (doc == null)
                 return Result<IEnumerable<WorkedProblemDto>>.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
             content = await _textExtractor.ExtractTextAsync(doc.BlobUrl, doc.ContentType, cancellationToken);
         }
         else if (request.VideoId.HasValue)
         {
-            var video = await _unitOfWork.Videos.GetByIdForUserAsync(request.VideoId.Value, request.UserId, cancellationToken);
+            var video = await _videos.GetByIdForUserAsync(request.VideoId.Value, request.UserId, cancellationToken);
             if (video == null)
                 return Result<IEnumerable<WorkedProblemDto>>.Failure("Video not found.", "VIDEO_NOT_FOUND");
             content = video.Transcript ?? video.Summary ?? video.Title;
@@ -82,7 +91,7 @@ public class GenerateWorkedProblemsCommandHandler : IRequestHandler<GenerateWork
             CreatedAt = DateTime.UtcNow,
         }).ToList();
 
-        await _unitOfWork.WorkedProblems.AddRangeAsync(problems, cancellationToken);
+        await _workedProblems.AddRangeAsync(problems, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result<IEnumerable<WorkedProblemDto>>.Success(problems.Select(ToDto));
@@ -115,17 +124,21 @@ public record SubmitProblemAttemptCommand(
 public class SubmitProblemAttemptCommandHandler : IRequestHandler<SubmitProblemAttemptCommand, Result<WorkedProblemAttemptDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IWorkedProblemRepository _workedProblems;
+    private readonly IWorkedProblemAttemptRepository _workedProblemAttempts;
     private readonly IAiService _aiService;
 
-    public SubmitProblemAttemptCommandHandler(IUnitOfWork unitOfWork, IAiService aiService)
+    public SubmitProblemAttemptCommandHandler(IUnitOfWork unitOfWork, IWorkedProblemRepository workedProblems, IWorkedProblemAttemptRepository workedProblemAttempts, IAiService aiService)
     {
         _unitOfWork = unitOfWork;
+        _workedProblems = workedProblems;
+        _workedProblemAttempts = workedProblemAttempts;
         _aiService = aiService;
     }
 
     public async Task<Result<WorkedProblemAttemptDto>> Handle(SubmitProblemAttemptCommand request, CancellationToken cancellationToken)
     {
-        var problem = await _unitOfWork.WorkedProblems.GetByIdAsync(request.ProblemId, cancellationToken);
+        var problem = await _workedProblems.GetByIdAsync(request.ProblemId, cancellationToken);
         if (problem == null || problem.UserId != request.UserId)
             return Result<WorkedProblemAttemptDto>.Failure("Problem not found.", "PROBLEM_NOT_FOUND");
 
@@ -157,7 +170,7 @@ public class SubmitProblemAttemptCommandHandler : IRequestHandler<SubmitProblemA
             AttemptedAt = DateTime.UtcNow,
         };
 
-        await _unitOfWork.WorkedProblemAttempts.AddAsync(attempt, cancellationToken);
+        await _workedProblemAttempts.AddAsync(attempt, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result<WorkedProblemAttemptDto>.Success(new WorkedProblemAttemptDto(

@@ -38,18 +38,18 @@ public interface IDocumentRepository : IRepository<Document>
     Task<IEnumerable<Document>> GetByCourseIdAsync(Guid courseId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Every document with a queued transcription that has not produced a transcript, across all users —
+    /// for the transcription worker's startup recovery only.
+    /// </summary>
+    Task<IReadOnlyList<PendingTranscription>> GetPendingTranscriptionsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Content type and blob location for one document, and nothing else — what the anonymous share
     /// endpoints need in order to redirect or stream. They never read the document's own text.
     ///
     /// <para>Scoped to <paramref name="ownerId"/> — the share's owner — so a share can only ever expose a
     /// document its creator owns, whatever id was written into its source path.</para>
     /// </summary>
-    /// <summary>
-    /// Every document with a queued transcription that has not produced a transcript, across all users —
-    /// for the transcription worker's startup recovery only.
-    /// </summary>
-    Task<IReadOnlyList<PendingTranscription>> GetPendingTranscriptionsAsync(CancellationToken cancellationToken = default);
-
     Task<DocumentSourceRef?> GetSourceRefAsync(Guid documentId, Guid ownerId, CancellationToken cancellationToken = default);
 
     /// <summary>

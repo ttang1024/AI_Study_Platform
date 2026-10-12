@@ -1,5 +1,5 @@
 // Service logic moved to the shared package (packages/core). This shim keeps
-// rn's historical method names (list/create/update/remove/createForDocument)
+// rn's historical method names (list/create/update/remove)
 // and mapped `Note` returns over the shared web-canonical factory.
 import { createNoteService, mapBackendNote, type PagedNotes } from '@core/services/noteService';
 import { http } from '@/services/http';
@@ -24,9 +24,5 @@ export const noteService = {
 
   async remove(noteId: string): Promise<void> {
     await core.deleteNote(noteId);
-  },
-
-  async createForDocument(courseId: string, documentId: string, content: string): Promise<Note> {
-    return mapBackendNote(await core.createNoteForDocument(courseId, documentId, content));
   },
 };

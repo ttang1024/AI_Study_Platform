@@ -20,20 +20,20 @@ public class GetDataExportDownloadQueryHandler : IRequestHandler<GetDataExportDo
     /// <summary>Long enough for a browser to start the download, short enough that a leaked URL ages out fast.</summary>
     private const int DownloadUrlLifetimeMinutes = 10;
 
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly IDataExportRequestRepository _dataExportRequests;
     private readonly IBlobStorageService _blobStorage;
 
     public GetDataExportDownloadQueryHandler(
-        IUnitOfWork unitOfWork, IBlobStorageService blobStorage)
+        IDataExportRequestRepository dataExportRequests, IBlobStorageService blobStorage)
     {
-        _unitOfWork = unitOfWork;
+        _dataExportRequests = dataExportRequests;
         _blobStorage = blobStorage;
     }
 
     public async Task<Result<string>> Handle(
         GetDataExportDownloadQuery request, CancellationToken cancellationToken)
     {
-        var export = await _unitOfWork.DataExportRequests.GetByIdAsync(request.DataExportRequestId, cancellationToken);
+        var export = await _dataExportRequests.GetByIdAsync(request.DataExportRequestId, cancellationToken);
 
         // Ownership folded into the not-found answer: telling a stranger that an export id exists
         // but isn't theirs is more than they should learn from a guess.

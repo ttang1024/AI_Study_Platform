@@ -10,15 +10,13 @@ namespace StudyPlatform.Tests.Flashcards;
 
 public class GetFlashcardCoverageQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IFlashcardRepository> _flashcards = new();
     private readonly GetFlashcardCoverageQueryHandler _handler;
     private readonly Guid _userId = Guid.NewGuid();
 
     public GetFlashcardCoverageQueryHandlerTests()
     {
-        _uow.Setup(u => u.Flashcards).Returns(_flashcards.Object);
-        _handler = new GetFlashcardCoverageQueryHandler(_uow.Object);
+        _handler = new GetFlashcardCoverageQueryHandler(_flashcards.Object);
     }
 
     [Fact]
@@ -39,7 +37,6 @@ public class GetFlashcardCoverageQueryHandlerTests
 
 public class GetPendingFlashcardMaterialsQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IFlashcardRepository> _flashcards = new();
     private readonly Mock<ICourseRepository> _courses = new();
     private readonly Mock<IDocumentRepository> _documents = new();
@@ -49,15 +46,11 @@ public class GetPendingFlashcardMaterialsQueryHandlerTests
 
     public GetPendingFlashcardMaterialsQueryHandlerTests()
     {
-        _uow.Setup(u => u.Flashcards).Returns(_flashcards.Object);
-        _uow.Setup(u => u.Courses).Returns(_courses.Object);
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
-        _uow.Setup(u => u.Videos).Returns(_videos.Object);
         _flashcards.Setup(r => r.GetCoverageByUserIdAsync(_userId, default)).ReturnsAsync((Array.Empty<Guid>(), Array.Empty<Guid>()));
         _courses.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Course, bool>>>(), default)).ReturnsAsync(Array.Empty<Course>());
         _documents.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Document, bool>>>(), default)).ReturnsAsync(Array.Empty<Document>());
         _videos.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Video, bool>>>(), default)).ReturnsAsync(Array.Empty<Video>());
-        _handler = new GetPendingFlashcardMaterialsQueryHandler(_uow.Object, new StudyMaterialLookup(_uow.Object));
+        _handler = new GetPendingFlashcardMaterialsQueryHandler(_flashcards.Object, new StudyMaterialLookup(_courses.Object, _documents.Object, _videos.Object));
     }
 
     [Fact]

@@ -5,6 +5,7 @@ using StudyPlatform.Application.Services;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
 using Xunit;
+using StudyPlatform.Application.Common;
 
 namespace StudyPlatform.Tests.Documents;
 
@@ -13,7 +14,6 @@ namespace StudyPlatform.Tests.Documents;
 /// of them.</summary>
 public class DocumentGroupAccessTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IDocumentRepository> _documents = new();
     private readonly Mock<IQuizRepository> _quizzes = new();
     private readonly Mock<IFlashcardRepository> _flashcards = new();
@@ -31,14 +31,6 @@ public class DocumentGroupAccessTests
 
     public DocumentGroupAccessTests()
     {
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
-        _uow.Setup(u => u.Quizzes).Returns(_quizzes.Object);
-        _uow.Setup(u => u.Flashcards).Returns(_flashcards.Object);
-        _uow.Setup(u => u.Notes).Returns(_notes.Object);
-        _uow.Setup(u => u.ChatMessages).Returns(_chatMessages.Object);
-        _uow.Setup(u => u.StudyGroupSharedCourses).Returns(_shared.Object);
-        _uow.Setup(u => u.StudyGroupMembers).Returns(_members.Object);
-
         var doc = new Document { DocumentId = _documentId, UserId = _ownerId, CourseId = _courseId, FileName = "F.pdf", BlobUrl = "b", ContentType = "application/pdf" };
         _documents.Setup(r => r.GetByIdAsync(_documentId, default)).ReturnsAsync(doc);
     }
@@ -54,7 +46,7 @@ public class DocumentGroupAccessTests
     public async Task GetDocumentByIdQuery_SharedViaGroup_ReturnsDocument()
     {
         GrantGroupAccess();
-        var handler = new GetDocumentByIdQueryHandler(_uow.Object);
+        var handler = new GetDocumentByIdQueryHandler(_documents.Object, new CourseAccess(_shared.Object, _members.Object));
 
         var result = await handler.Handle(new GetDocumentByIdQuery(_documentId, _viewerId), default);
 
@@ -66,7 +58,7 @@ public class DocumentGroupAccessTests
     {
         GrantGroupAccess();
         _quizzes.Setup(r => r.GetByDocumentIdAsync(_documentId, default)).ReturnsAsync(Array.Empty<Quiz>());
-        var handler = new GetDocumentQuizzesQueryHandler(_uow.Object);
+        var handler = new GetDocumentQuizzesQueryHandler(_documents.Object, _quizzes.Object, new CourseAccess(_shared.Object, _members.Object));
 
         var result = await handler.Handle(new GetDocumentQuizzesQuery(_documentId, _viewerId), default);
 
@@ -78,7 +70,7 @@ public class DocumentGroupAccessTests
     {
         GrantGroupAccess();
         _flashcards.Setup(r => r.GetByDocumentIdAsync(_documentId, default)).ReturnsAsync(Array.Empty<Flashcard>());
-        var handler = new GetDocumentFlashcardsQueryHandler(_uow.Object);
+        var handler = new GetDocumentFlashcardsQueryHandler(_documents.Object, _flashcards.Object, new CourseAccess(_shared.Object, _members.Object));
 
         var result = await handler.Handle(new GetDocumentFlashcardsQuery(_documentId, _viewerId), default);
 
@@ -90,7 +82,7 @@ public class DocumentGroupAccessTests
     {
         _shared.Setup(r => r.FindAsync(It.IsAny<Expression<Func<StudyGroupSharedCourse, bool>>>(), default))
             .ReturnsAsync(Array.Empty<StudyGroupSharedCourse>());
-        var handler = new GetDocumentFlashcardsQueryHandler(_uow.Object);
+        var handler = new GetDocumentFlashcardsQueryHandler(_documents.Object, _flashcards.Object, new CourseAccess(_shared.Object, _members.Object));
 
         var result = await handler.Handle(new GetDocumentFlashcardsQuery(_documentId, _viewerId), default);
 
@@ -103,7 +95,7 @@ public class DocumentGroupAccessTests
     {
         GrantGroupAccess();
         _notes.Setup(r => r.GetByDocumentIdAsync(_documentId, default)).ReturnsAsync(Array.Empty<Note>());
-        var handler = new GetDocumentNotesQueryHandler(_uow.Object);
+        var handler = new GetDocumentNotesQueryHandler(_documents.Object, _notes.Object, new CourseAccess(_shared.Object, _members.Object));
 
         var result = await handler.Handle(new GetDocumentNotesQuery(_documentId, _viewerId), default);
 
@@ -115,7 +107,7 @@ public class DocumentGroupAccessTests
     {
         GrantGroupAccess();
         _chatMessages.Setup(r => r.GetByDocumentIdAsync(_documentId, _ownerId, default)).ReturnsAsync(Array.Empty<ChatMessage>());
-        var handler = new GetAIChatHistoryQueryHandler(_uow.Object, _blobStorage.Object);
+        var handler = new GetAIChatHistoryQueryHandler(_documents.Object, _chatMessages.Object, new CourseAccess(_shared.Object, _members.Object), _blobStorage.Object);
 
         var result = await handler.Handle(new GetAIChatHistoryQuery(_documentId, _viewerId), default);
 
@@ -128,7 +120,7 @@ public class DocumentGroupAccessTests
     {
         _shared.Setup(r => r.FindAsync(It.IsAny<Expression<Func<StudyGroupSharedCourse, bool>>>(), default))
             .ReturnsAsync(Array.Empty<StudyGroupSharedCourse>());
-        var handler = new GetAIChatHistoryQueryHandler(_uow.Object, _blobStorage.Object);
+        var handler = new GetAIChatHistoryQueryHandler(_documents.Object, _chatMessages.Object, new CourseAccess(_shared.Object, _members.Object), _blobStorage.Object);
 
         var result = await handler.Handle(new GetAIChatHistoryQuery(_documentId, _viewerId), default);
 

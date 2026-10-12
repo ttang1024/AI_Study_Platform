@@ -9,13 +9,13 @@ public record GetFeedbackStatsQuery : IRequest<Result<FeedbackStatsDto>>;
 
 public class GetFeedbackStatsQueryHandler : IRequestHandler<GetFeedbackStatsQuery, Result<FeedbackStatsDto>>
 {
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly IFeedbackRepository _feedbacks;
 
-    public GetFeedbackStatsQueryHandler(IUnitOfWork unitOfWork) => _unitOfWork = unitOfWork;
+    public GetFeedbackStatsQueryHandler(IFeedbackRepository feedbacks) => _feedbacks = feedbacks;
 
     public async Task<Result<FeedbackStatsDto>> Handle(GetFeedbackStatsQuery request, CancellationToken cancellationToken)
     {
-        var stats = await _unitOfWork.Feedbacks.GetStatsAsync(DateTime.UtcNow.AddDays(-7), cancellationToken);
+        var stats = await _feedbacks.GetStatsAsync(DateTime.UtcNow.AddDays(-7), cancellationToken);
 
         var dto = new FeedbackStatsDto(
             stats.Total,

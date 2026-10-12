@@ -9,15 +9,13 @@ namespace StudyPlatform.Tests.StudyGroups;
 
 public class GetMyGroupsQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IStudyGroupRepository> _groups = new();
     private readonly GetMyGroupsQueryHandler _handler;
     private readonly Guid _userId = Guid.NewGuid();
 
     public GetMyGroupsQueryHandlerTests()
     {
-        _uow.Setup(u => u.StudyGroups).Returns(_groups.Object);
-        _handler = new GetMyGroupsQueryHandler(_uow.Object);
+        _handler = new GetMyGroupsQueryHandler(_groups.Object);
     }
 
     [Fact]
@@ -45,7 +43,6 @@ public class GetMyGroupsQueryHandlerTests
 
 public class GetGroupDetailQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IStudyGroupRepository> _groups = new();
     private readonly GetGroupDetailQueryHandler _handler;
     private readonly Guid _userId = Guid.NewGuid();
@@ -53,8 +50,7 @@ public class GetGroupDetailQueryHandlerTests
 
     public GetGroupDetailQueryHandlerTests()
     {
-        _uow.Setup(u => u.StudyGroups).Returns(_groups.Object);
-        _handler = new GetGroupDetailQueryHandler(_uow.Object);
+        _handler = new GetGroupDetailQueryHandler(_groups.Object);
     }
 
     [Fact]
@@ -105,7 +101,6 @@ public class GetGroupDetailQueryHandlerTests
 
 public class GetGroupChatQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IStudyGroupRepository> _groups = new();
     private readonly Mock<IStudyGroupMemberRepository> _members = new();
     private readonly Mock<IGroupChatMessageRepository> _messages = new();
@@ -115,10 +110,7 @@ public class GetGroupChatQueryHandlerTests
 
     public GetGroupChatQueryHandlerTests()
     {
-        _uow.Setup(u => u.StudyGroups).Returns(_groups.Object);
-        _uow.Setup(u => u.StudyGroupMembers).Returns(_members.Object);
-        _uow.Setup(u => u.GroupChatMessages).Returns(_messages.Object);
-        _handler = new GetGroupChatQueryHandler(_uow.Object);
+        _handler = new GetGroupChatQueryHandler(_groups.Object, _members.Object, _messages.Object);
     }
 
     [Fact]
@@ -171,10 +163,8 @@ public class CreateStudyGroupCommandHandlerTests
 
     public CreateStudyGroupCommandHandlerTests()
     {
-        _uow.Setup(u => u.StudyGroups).Returns(_groups.Object);
-        _uow.Setup(u => u.StudyGroupMembers).Returns(_members.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new CreateStudyGroupCommandHandler(_uow.Object);
+        _handler = new CreateStudyGroupCommandHandler(_uow.Object, _groups.Object, _members.Object);
     }
 
     [Fact]
@@ -229,11 +219,8 @@ public class JoinStudyGroupCommandHandlerTests
 
     public JoinStudyGroupCommandHandlerTests()
     {
-        _uow.Setup(u => u.StudyGroups).Returns(_groups.Object);
-        _uow.Setup(u => u.StudyGroupMembers).Returns(_members.Object);
-        _uow.Setup(u => u.Users).Returns(_users.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new JoinStudyGroupCommandHandler(_uow.Object);
+        _handler = new JoinStudyGroupCommandHandler(_uow.Object, _users.Object, _groups.Object, _members.Object);
     }
 
     [Fact]
@@ -317,9 +304,8 @@ public class LeaveStudyGroupCommandHandlerTests
 
     public LeaveStudyGroupCommandHandlerTests()
     {
-        _uow.Setup(u => u.StudyGroupMembers).Returns(_members.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new LeaveStudyGroupCommandHandler(_uow.Object);
+        _handler = new LeaveStudyGroupCommandHandler(_uow.Object, _members.Object);
     }
 
     [Fact]
@@ -373,12 +359,11 @@ public class RemoveGroupMemberCommandHandlerTests
 
     public RemoveGroupMemberCommandHandlerTests()
     {
-        _uow.Setup(u => u.StudyGroupMembers).Returns(_members.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
         _members.Setup(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<StudyGroupMember, bool>>>(), default))
             .ReturnsAsync((Expression<Func<StudyGroupMember, bool>> predicate, CancellationToken _) =>
                 _store.FirstOrDefault(predicate.Compile()));
-        _handler = new RemoveGroupMemberCommandHandler(_uow.Object);
+        _handler = new RemoveGroupMemberCommandHandler(_uow.Object, _members.Object);
     }
 
     [Fact]
@@ -438,9 +423,8 @@ public class DeleteStudyGroupCommandHandlerTests
 
     public DeleteStudyGroupCommandHandlerTests()
     {
-        _uow.Setup(u => u.StudyGroups).Returns(_groups.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new DeleteStudyGroupCommandHandler(_uow.Object);
+        _handler = new DeleteStudyGroupCommandHandler(_uow.Object, _groups.Object);
     }
 
     [Fact]
@@ -492,11 +476,8 @@ public class ShareCourseWithGroupCommandHandlerTests
 
     public ShareCourseWithGroupCommandHandlerTests()
     {
-        _uow.Setup(u => u.StudyGroupMembers).Returns(_members.Object);
-        _uow.Setup(u => u.Courses).Returns(_courses.Object);
-        _uow.Setup(u => u.StudyGroupSharedCourses).Returns(_shared.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new ShareCourseWithGroupCommandHandler(_uow.Object);
+        _handler = new ShareCourseWithGroupCommandHandler(_uow.Object, _courses.Object, _members.Object, _shared.Object);
     }
 
     [Fact]
@@ -578,9 +559,8 @@ public class RemoveSharedCourseCommandHandlerTests
 
     public RemoveSharedCourseCommandHandlerTests()
     {
-        _uow.Setup(u => u.StudyGroupSharedCourses).Returns(_shared.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new RemoveSharedCourseCommandHandler(_uow.Object);
+        _handler = new RemoveSharedCourseCommandHandler(_uow.Object, _shared.Object);
     }
 
     [Fact]
@@ -633,11 +613,8 @@ public class SendGroupChatMessageCommandHandlerTests
 
     public SendGroupChatMessageCommandHandlerTests()
     {
-        _uow.Setup(u => u.StudyGroupMembers).Returns(_members.Object);
-        _uow.Setup(u => u.Users).Returns(_users.Object);
-        _uow.Setup(u => u.GroupChatMessages).Returns(_messages.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new SendGroupChatMessageCommandHandler(_uow.Object);
+        _handler = new SendGroupChatMessageCommandHandler(_uow.Object, _users.Object, _members.Object, _messages.Object);
     }
 
     [Fact]

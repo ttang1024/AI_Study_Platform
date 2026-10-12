@@ -186,7 +186,7 @@ public partial class AiService
     {
         if (usage.IsEmpty) return;
 
-        var credentials = ReadCredentials();
+        var credentials = Credentials;
         if (credentials.UserId == Guid.Empty) return;
 
         try

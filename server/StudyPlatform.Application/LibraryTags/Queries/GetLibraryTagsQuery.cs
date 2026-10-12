@@ -12,11 +12,11 @@ public record GetLibraryTagsQuery(Guid UserId, string? Kind)
 public class GetLibraryTagsQueryHandler
     : IRequestHandler<GetLibraryTagsQuery, Result<IReadOnlyList<LibraryTagDto>>>
 {
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly ILibraryTagRepository _libraryTags;
 
-    public GetLibraryTagsQueryHandler(IUnitOfWork unitOfWork)
+    public GetLibraryTagsQueryHandler(ILibraryTagRepository libraryTags)
     {
-        _unitOfWork = unitOfWork;
+        _libraryTags = libraryTags;
     }
 
     public async Task<Result<IReadOnlyList<LibraryTagDto>>> Handle(
@@ -24,7 +24,7 @@ public class GetLibraryTagsQueryHandler
     {
         var kind = string.IsNullOrWhiteSpace(request.Kind) ? null : request.Kind.Trim().ToLowerInvariant();
 
-        var tags = await _unitOfWork.LibraryTags.GetForUserAsync(request.UserId, kind, cancellationToken);
+        var tags = await _libraryTags.GetForUserAsync(request.UserId, kind, cancellationToken);
 
         IReadOnlyList<LibraryTagDto> dtos = tags
             .Select(t => new LibraryTagDto(

@@ -11,12 +11,12 @@ public record GetMasteredProblemIdsQuery(Guid UserId) : IRequest<Result<IEnumera
 
 public class GetMasteredProblemIdsQueryHandler : IRequestHandler<GetMasteredProblemIdsQuery, Result<IEnumerable<Guid>>>
 {
-    private readonly IUnitOfWork _unitOfWork;
-    public GetMasteredProblemIdsQueryHandler(IUnitOfWork unitOfWork) { _unitOfWork = unitOfWork; }
+    private readonly IWorkedProblemMasteredRepository _workedProblemMastered;
+    public GetMasteredProblemIdsQueryHandler(IWorkedProblemMasteredRepository workedProblemMastered) { _workedProblemMastered = workedProblemMastered; }
 
     public async Task<Result<IEnumerable<Guid>>> Handle(GetMasteredProblemIdsQuery request, CancellationToken cancellationToken)
     {
-        var ids = await _unitOfWork.WorkedProblemMastered.GetMasteredProblemIdsByUserAsync(request.UserId, cancellationToken);
+        var ids = await _workedProblemMastered.GetMasteredProblemIdsByUserAsync(request.UserId, cancellationToken);
         return Result<IEnumerable<Guid>>.Success(ids);
     }
 }
@@ -28,14 +28,16 @@ public record ToggleWorkedProblemMasteredCommand(Guid UserId, Guid ProblemId) : 
 public class ToggleWorkedProblemMasteredCommandHandler : IRequestHandler<ToggleWorkedProblemMasteredCommand, Result<bool>>
 {
     private readonly IUnitOfWork _unitOfWork;
-    public ToggleWorkedProblemMasteredCommandHandler(IUnitOfWork unitOfWork) { _unitOfWork = unitOfWork; }
+    private readonly IWorkedProblemMasteredRepository _workedProblemMastered;
+    public ToggleWorkedProblemMasteredCommandHandler(IUnitOfWork unitOfWork, IWorkedProblemMasteredRepository workedProblemMastered) { _unitOfWork = unitOfWork;
+    _workedProblemMastered = workedProblemMastered; }
 
     public async Task<Result<bool>> Handle(ToggleWorkedProblemMasteredCommand request, CancellationToken cancellationToken)
     {
-        var existing = await _unitOfWork.WorkedProblemMastered.GetByUserAndProblemAsync(request.UserId, request.ProblemId, cancellationToken);
+        var existing = await _workedProblemMastered.GetByUserAndProblemAsync(request.UserId, request.ProblemId, cancellationToken);
         if (existing != null)
         {
-            _unitOfWork.WorkedProblemMastered.Remove(existing);
+            _workedProblemMastered.Remove(existing);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             return Result<bool>.Success(false, "Problem unmarked as mastered.");
         }
@@ -47,7 +49,7 @@ public class ToggleWorkedProblemMasteredCommandHandler : IRequestHandler<ToggleW
             WorkedProblemId = request.ProblemId,
             MasteredAt = DateTime.UtcNow,
         };
-        await _unitOfWork.WorkedProblemMastered.AddAsync(mastered, cancellationToken);
+        await _workedProblemMastered.AddAsync(mastered, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return Result<bool>.Success(true, "Problem marked as mastered.");
     }

@@ -16,10 +16,9 @@ public class CreateNoteCommandHandlerTests
 
     public CreateNoteCommandHandlerTests()
     {
-        _uow.Setup(u => u.Notes).Returns(_notes.Object);
         _notes.Setup(r => r.AddAsync(It.IsAny<Note>(), default)).Returns(Task.CompletedTask);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new CreateNoteCommandHandler(_uow.Object);
+        _handler = new CreateNoteCommandHandler(_uow.Object, _notes.Object);
     }
 
     [Fact]
@@ -69,9 +68,8 @@ public class UpdateNoteCommandHandlerTests
 
     public UpdateNoteCommandHandlerTests()
     {
-        _uow.Setup(u => u.Notes).Returns(_notes.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new UpdateNoteCommandHandler(_uow.Object);
+        _handler = new UpdateNoteCommandHandler(_uow.Object, _notes.Object);
     }
 
     [Fact]
@@ -115,9 +113,8 @@ public class DeleteNoteCommandHandlerTests
 
     public DeleteNoteCommandHandlerTests()
     {
-        _uow.Setup(u => u.Notes).Returns(_notes.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new DeleteNoteCommandHandler(_uow.Object, _embeddingIndex.Object);
+        _handler = new DeleteNoteCommandHandler(_uow.Object, _notes.Object, _embeddingIndex.Object);
     }
 
     [Fact]
@@ -151,15 +148,13 @@ public class DeleteNoteCommandHandlerTests
 
 public class GetAllNotesPagedQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<INoteRepository> _notes = new();
     private readonly GetAllNotesPagedQueryHandler _handler;
     private readonly Guid _userId = Guid.NewGuid();
 
     public GetAllNotesPagedQueryHandlerTests()
     {
-        _uow.Setup(u => u.Notes).Returns(_notes.Object);
-        _handler = new GetAllNotesPagedQueryHandler(_uow.Object);
+        _handler = new GetAllNotesPagedQueryHandler(_notes.Object);
     }
 
     [Fact]

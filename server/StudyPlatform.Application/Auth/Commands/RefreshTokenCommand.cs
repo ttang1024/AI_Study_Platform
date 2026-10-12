@@ -10,12 +10,14 @@ public record RefreshTokenCommand(string RefreshToken) : IRequest<Result<AuthRes
 
 public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, Result<AuthResponse>>
 {
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly IUserRepository _users;
+    private readonly IRefreshTokenRepository _refreshTokens;
     private readonly IAuthSessionIssuer _sessionIssuer;
 
-    public RefreshTokenCommandHandler(IUnitOfWork unitOfWork, IAuthSessionIssuer sessionIssuer)
+    public RefreshTokenCommandHandler(IUserRepository users, IRefreshTokenRepository refreshTokens, IAuthSessionIssuer sessionIssuer)
     {
-        _unitOfWork = unitOfWork;
+        _users = users;
+        _refreshTokens = refreshTokens;
         _sessionIssuer = sessionIssuer;
     }
 
@@ -23,7 +25,7 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, R
     {
         var token = string.IsNullOrEmpty(request.RefreshToken)
             ? null
-            : await _unitOfWork.RefreshTokens.FindByHashAsync(RefreshTokenHash.Compute(request.RefreshToken), cancellationToken);
+            : await _refreshTokens.FindByHashAsync(RefreshTokenHash.Compute(request.RefreshToken), cancellationToken);
         if (token == null || token.ExpiresAt <= DateTime.UtcNow)
             return Invalid();
 
@@ -32,11 +34,11 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, R
             // A rotated token presented again after the grace window: someone holds a copy. Ending the
             // whole sign-in locks out both the thief and the victim, and the victim can sign back in.
             if (token.RevokedAt is { } revokedAt && DateTime.UtcNow - revokedAt > AuthTokenLifetimes.RotationReuseGrace)
-                await _unitOfWork.RefreshTokens.RevokeSessionAsync(token.UserId, token.SessionId, cancellationToken);
+                await _refreshTokens.RevokeSessionAsync(token.UserId, token.SessionId, cancellationToken);
             return Invalid();
         }
 
-        var user = await _unitOfWork.Users.GetByIdAsync(token.UserId, cancellationToken);
+        var user = await _users.GetByIdAsync(token.UserId, cancellationToken);
         if (user == null)
             return Result<AuthResponse>.Failure("User not found.", "USER_NOT_FOUND");
 
@@ -46,7 +48,7 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, R
             return Result<AuthResponse>.Failure("Your account has been deactivated. Please contact support.", "ACCOUNT_DEACTIVATED");
 
         // Claimed atomically: of two concurrent refreshes with this token, only one gets past here.
-        if (!await _unitOfWork.RefreshTokens.TryRevokeAsync(token.TokenId, cancellationToken))
+        if (!await _refreshTokens.TryRevokeAsync(token.TokenId, cancellationToken))
             return Invalid();
 
         var response = await _sessionIssuer.IssueAsync(user, token, cancellationToken);

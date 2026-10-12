@@ -15,36 +15,41 @@ public record GetVideosQuery(
 
 public class GetVideosQueryHandler : IRequestHandler<GetVideosQuery, Result<VideoPagedResult>>
 {
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly ICourseRepository _courses;
+    private readonly IVideoRepository _videos;
+    private readonly ICourseAccess _courseAccess;
 
-    public GetVideosQueryHandler(IUnitOfWork unitOfWork)
+    public GetVideosQueryHandler(ICourseRepository courses, IVideoRepository videos, ICourseAccess courseAccess)
     {
-        _unitOfWork = unitOfWork;
+        _courses = courses;
+        _videos = videos;
+        _courseAccess = courseAccess;
     }
 
     public async Task<Result<VideoPagedResult>> Handle(GetVideosQuery request, CancellationToken cancellationToken)
     {
         var queryUserId = request.UserId;
+        var (page, pageSize) = Paging.Normalize(request.Page, request.PageSize);
 
         if (request.CourseId.HasValue)
         {
-            var course = await _unitOfWork.Courses.GetByIdAsync(request.CourseId.Value, cancellationToken);
+            var course = await _courses.GetByIdAsync(request.CourseId.Value, cancellationToken);
             if (course != null && course.UserId != request.UserId)
             {
-                if (!await _unitOfWork.HasSharedCourseAccessAsync(request.UserId, request.CourseId.Value, cancellationToken))
+                if (!await _courseAccess.HasSharedCourseAccessAsync(request.UserId, request.CourseId.Value, cancellationToken))
                     return Result<VideoPagedResult>.Success(
-                        new VideoPagedResult([], 0, request.Page, request.PageSize, 0));
+                        new VideoPagedResult([], 0, page, pageSize, 0));
                 queryUserId = course.UserId;
             }
         }
 
-        var (items, totalCount) = await _unitOfWork.Videos.GetPagedAsync(
+        var (items, totalCount) = await _videos.GetPagedAsync(
             queryUserId, request.CourseId, request.Search,
-            request.Page, request.PageSize, cancellationToken);
+            page, pageSize, cancellationToken);
 
-        var totalPages = (int)Math.Ceiling(totalCount / (double)request.PageSize);
+        var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
         var dtos = items.Select(SaveVideoCommandHandler.ToDto);
 
-        return Result<VideoPagedResult>.Success(new VideoPagedResult(dtos, totalCount, request.Page, request.PageSize, totalPages));
+        return Result<VideoPagedResult>.Success(new VideoPagedResult(dtos, totalCount, page, pageSize, totalPages));
     }
 }

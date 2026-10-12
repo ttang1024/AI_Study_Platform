@@ -10,7 +10,6 @@ namespace StudyPlatform.Tests.Practice;
 
 public class AdaptiveQuizPlannerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IQuizSubmissionRepository> _submissions = new();
     private readonly Mock<IMistakeEntryRepository> _mistakes = new();
     private readonly Mock<IFlashcardRepository> _flashcards = new();
@@ -22,14 +21,9 @@ public class AdaptiveQuizPlannerTests
 
     public AdaptiveQuizPlannerTests()
     {
-        _uow.Setup(u => u.QuizSubmissions).Returns(_submissions.Object);
-        _uow.Setup(u => u.MistakeEntries).Returns(_mistakes.Object);
-        _uow.Setup(u => u.Flashcards).Returns(_flashcards.Object);
-        _uow.Setup(u => u.FlashcardSrs).Returns(_srs.Object);
-
         Given(submissions: [], mistakes: [], flashcards: [], srs: []);
 
-        _planner = new AdaptiveQuizPlanner(_uow.Object);
+        _planner = new AdaptiveQuizPlanner(_flashcards.Object, _submissions.Object, _srs.Object, _mistakes.Object);
     }
 
     private void Given(

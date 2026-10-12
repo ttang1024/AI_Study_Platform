@@ -24,17 +24,19 @@ public interface IReviewScheduler
 /// </summary>
 public class ReviewScheduler : IReviewScheduler
 {
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly IFlashcardSrsDataRepository _flashcardSrs;
+    private readonly IUserFsrsSettingsRepository _userFsrsSettings;
 
-    public ReviewScheduler(IUnitOfWork unitOfWork)
+    public ReviewScheduler(IFlashcardSrsDataRepository flashcardSrs, IUserFsrsSettingsRepository userFsrsSettings)
     {
-        _unitOfWork = unitOfWork;
+        _flashcardSrs = flashcardSrs;
+        _userFsrsSettings = userFsrsSettings;
     }
 
     public async Task<FsrsReviewResult> ScheduleAsync(
         FlashcardSrsData srs, int rating, DateTime reviewedAt, Guid userId, CancellationToken cancellationToken = default)
     {
-        var settings = await _unitOfWork.UserFsrsSettings.GetByUserIdAsync(userId, cancellationToken);
+        var settings = await _userFsrsSettings.GetByUserIdAsync(userId, cancellationToken);
         var parameters = FsrsParameters.From(settings);
 
         // Compute the unspread interval first — the band to search is derived from it, so applying
@@ -50,7 +52,7 @@ public class ReviewScheduler : IReviewScheduler
             return result;
 
         var today = reviewedAt.Date;
-        var counts = await _unitOfWork.FlashcardSrs.GetDueCountsByDayAsync(
+        var counts = await _flashcardSrs.GetDueCountsByDayAsync(
             userId, DateTime.SpecifyKind(today.AddDays(min), DateTimeKind.Utc),
             DateTime.SpecifyKind(today.AddDays(max).AddDays(1).AddTicks(-1), DateTimeKind.Utc),
             cancellationToken);

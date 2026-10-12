@@ -16,34 +16,43 @@ public record GetActivityHeatmapQuery(Guid UserId, int Days = 365) : IRequest<Re
 
 public class GetActivityHeatmapQueryHandler : IRequestHandler<GetActivityHeatmapQuery, Result<ActivityHeatmapDto>>
 {
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly IStudySessionRepository _studySessions;
+    private readonly IFlashcardReviewLogRepository _flashcardReviewLogs;
     private readonly IAppCache _cache;
     private readonly CacheOptions _cacheOptions;
+    private readonly IUserTimeZone _timeZone;
 
-    public GetActivityHeatmapQueryHandler(IUnitOfWork unitOfWork, IAppCache cache, IOptions<CacheOptions> cacheOptions)
+    public GetActivityHeatmapQueryHandler(
+        IStudySessionRepository studySessions, IFlashcardReviewLogRepository flashcardReviewLogs, IAppCache cache, IOptions<CacheOptions> cacheOptions, IUserTimeZone timeZone)
     {
-        _unitOfWork = unitOfWork;
+        _studySessions = studySessions;
+        _flashcardReviewLogs = flashcardReviewLogs;
         _cache = cache;
         _cacheOptions = cacheOptions.Value;
+        _timeZone = timeZone;
     }
 
     public async Task<Result<ActivityHeatmapDto>> Handle(GetActivityHeatmapQuery request, CancellationToken cancellationToken)
     {
         var days = Math.Clamp(request.Days, 30, 730);
         var to = DateTime.UtcNow;
-        var from = to.Date.AddDays(-(days - 1));
 
-        var cacheKey = $"analytics:activity-heatmap:user:{request.UserId}:days:{days}";
+        // Cells are the user's local days; the window starts at local midnight of the first one.
+        var zone = await _timeZone.ForUserAsync(request.UserId, cancellationToken);
+        var firstDay = UserCalendar.LocalDate(to, zone).AddDays(-(days - 1));
+        var from = UserCalendar.StartOfDayUtc(firstDay, zone);
+
+        var cacheKey = $"analytics:activity-heatmap:user:{request.UserId}:days:{days}:tz:{zone.Id}";
         var dto = await _cache.GetOrCreateAsync(
             cacheKey,
             async ct =>
             {
-                var reviewsByDay = (await _unitOfWork.FlashcardReviewLogs.GetByUserAsync(request.UserId, from, ct))
-                    .GroupBy(l => l.ReviewedAt.Date)
+                var reviewsByDay = (await _flashcardReviewLogs.GetByUserAsync(request.UserId, from, ct))
+                    .GroupBy(l => UserCalendar.LocalDate(l.ReviewedAt, zone))
                     .ToDictionary(g => g.Key, g => g.Count());
 
-                var minutesByDay = (await _unitOfWork.StudySessions.GetByDateRangeAsync(request.UserId, from, to, ct))
-                    .GroupBy(s => s.OccurredAt.Date)
+                var minutesByDay = (await _studySessions.GetByDateRangeAsync(request.UserId, from, to, ct))
+                    .GroupBy(s => UserCalendar.LocalDate(s.OccurredAt, zone))
                     .ToDictionary(g => g.Key, g => (int)Math.Round(g.Sum(s => s.DurationSeconds) / 60.0));
 
                 var dayDtos = reviewsByDay.Keys

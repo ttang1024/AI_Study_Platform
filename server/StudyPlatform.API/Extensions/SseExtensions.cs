@@ -104,6 +104,12 @@ public static class SseExtensions
         return new EmptyResult();
     }
 
+    /// <summary>Writes an <see cref="AiTextStream"/>: its cached text in one event, or the live stream.</summary>
+    public static Task<IActionResult> WriteAiTextStreamAsync(this ControllerBase controller, AiTextStream result, CancellationToken cancellationToken)
+        => result.Cached is { } cached
+            ? controller.WriteSseCachedAsync(cached, cancellationToken)
+            : controller.StreamAiToSseAsync(result.Stream!, cancellationToken, onCompleted: result.OnCompleted);
+
     public static async Task WriteSseDataAsync(this HttpResponse response, string data, CancellationToken cancellationToken)
     {
         await response.WriteAsync($"data: {JsonSerializer.Serialize(data)}\n\n", cancellationToken);

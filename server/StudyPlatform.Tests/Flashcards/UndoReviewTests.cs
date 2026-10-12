@@ -19,10 +19,8 @@ public class UndoLastReviewCommandHandlerTests
 
     public UndoLastReviewCommandHandlerTests()
     {
-        _uow.Setup(u => u.FlashcardSrs).Returns(_srsRepo.Object);
-        _uow.Setup(u => u.FlashcardReviewLogs).Returns(_reviewLogs.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new UndoLastReviewCommandHandler(_uow.Object);
+        _handler = new UndoLastReviewCommandHandler(_uow.Object, _srsRepo.Object, _reviewLogs.Object);
     }
 
     [Fact]

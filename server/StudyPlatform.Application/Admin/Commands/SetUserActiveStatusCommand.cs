@@ -10,12 +10,19 @@ public record SetUserActiveStatusCommand(Guid UserId, bool IsActive) : IRequest<
 public class SetUserActiveStatusCommandHandler : IRequestHandler<SetUserActiveStatusCommand, Result<UserDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IUserRepository _users;
+    private readonly IRefreshTokenRepository _refreshTokens;
 
-    public SetUserActiveStatusCommandHandler(IUnitOfWork unitOfWork) => _unitOfWork = unitOfWork;
+    public SetUserActiveStatusCommandHandler(IUnitOfWork unitOfWork, IUserRepository users, IRefreshTokenRepository refreshTokens)
+    {
+        _unitOfWork = unitOfWork;
+        _users = users;
+        _refreshTokens = refreshTokens;
+    }
 
     public async Task<Result<UserDto>> Handle(SetUserActiveStatusCommand request, CancellationToken cancellationToken)
     {
-        var user = await _unitOfWork.Users.GetByIdAsync(request.UserId, cancellationToken);
+        var user = await _users.GetByIdAsync(request.UserId, cancellationToken);
         if (user == null)
             return Result<UserDto>.Failure("User not found.", "NOT_FOUND");
 
@@ -28,7 +35,7 @@ public class SetUserActiveStatusCommandHandler : IRequestHandler<SetUserActiveSt
         // Deactivating has to end the sessions the user already holds; otherwise their refresh tokens
         // keep minting access tokens for up to a week. Access tokens already issued lapse within 15 minutes.
         if (!request.IsActive)
-            await _unitOfWork.RefreshTokens.RevokeAllUserTokensAsync(user.UserId, cancellationToken);
+            await _refreshTokens.RevokeAllUserTokensAsync(user.UserId, cancellationToken);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 

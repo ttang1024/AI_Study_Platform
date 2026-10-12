@@ -11,7 +11,6 @@ namespace StudyPlatform.Tests.Search;
 
 public class GlobalSearchQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IDocumentRepository> _documents = new();
     private readonly Mock<IVideoRepository> _videos = new();
     private readonly Mock<INoteRepository> _notes = new();
@@ -29,12 +28,6 @@ public class GlobalSearchQueryHandlerTests
 
     public GlobalSearchQueryHandlerTests()
     {
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
-        _uow.Setup(u => u.Videos).Returns(_videos.Object);
-        _uow.Setup(u => u.Notes).Returns(_notes.Object);
-        _uow.Setup(u => u.Flashcards).Returns(_flashcards.Object);
-        _uow.Setup(u => u.GlossaryTerms).Returns(_glossary.Object);
-
         _documents.Setup(r => r.SearchByUserAsync(_userId, It.IsAny<string>(), It.IsAny<int>(), default))
             .Returns(() => _guard.RunAsync<IEnumerable<Document>>(
                 [new Document { DocumentId = Guid.NewGuid(), FileName = "AI agents.pdf", Summary = "About AI agents." }]));
@@ -56,7 +49,7 @@ public class GlobalSearchQueryHandlerTests
             .Returns(() => _guard.RunAsync<IReadOnlyList<EmbeddingHit>>([]));
 
         _handler = new GlobalSearchQueryHandler(
-            _uow.Object, _embeddingIndex.Object, NullLogger<GlobalSearchQueryHandler>.Instance);
+            _documents.Object, _flashcards.Object, _notes.Object, _videos.Object, _glossary.Object, _embeddingIndex.Object, NullLogger<GlobalSearchQueryHandler>.Instance);
     }
 
     private Task<Result<SearchResultsDto>> Search(string[]? types) =>

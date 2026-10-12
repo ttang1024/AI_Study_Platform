@@ -1,12 +1,13 @@
 import axios from 'axios';
 import type { FeedbackItem, FeedbackStatus, FeedbackStats, PaginatedResponse, UserItem, PlatformAnalytics, PageVisitAnalytics, UserDetail } from '../types';
 import { getApiBaseUrl } from '../utils/env';
+import { adminSession } from './adminSession';
 
 const http = axios.create({ baseURL: getApiBaseUrl() });
 
-// Attach bearer token from localStorage on every request
+// Attach the admin session's bearer token on every request
 http.interceptors.request.use((config) => {
-  const token = localStorage.getItem('admin_token');
+  const token = adminSession.getToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
@@ -24,8 +25,7 @@ http.interceptors.response.use(
   // Redirect to login on 401
   (err) => {
     if (err.response?.status === 401) {
-      localStorage.removeItem('admin_token');
-      localStorage.removeItem('admin_email');
+      adminSession.clear();
       window.location.href = '/login';
     }
     return Promise.reject(err);

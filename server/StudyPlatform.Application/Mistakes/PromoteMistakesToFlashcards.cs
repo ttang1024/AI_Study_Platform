@@ -34,15 +34,24 @@ public class PromoteMistakesToFlashcardsCommandHandler
     private const string MistakeTag = "mistake";
 
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IFlashcardRepository _flashcards;
+    private readonly IFlashcardSrsDataRepository _flashcardSrs;
+    private readonly IMistakeEntryRepository _mistakeEntries;
 
-    public PromoteMistakesToFlashcardsCommandHandler(IUnitOfWork unitOfWork) => _unitOfWork = unitOfWork;
+    public PromoteMistakesToFlashcardsCommandHandler(IUnitOfWork unitOfWork, IFlashcardRepository flashcards, IFlashcardSrsDataRepository flashcardSrs, IMistakeEntryRepository mistakeEntries)
+    {
+        _unitOfWork = unitOfWork;
+        _flashcards = flashcards;
+        _flashcardSrs = flashcardSrs;
+        _mistakeEntries = mistakeEntries;
+    }
 
     public async Task<Result<PromotedMistakesDto>> Handle(
         PromoteMistakesToFlashcardsCommand request, CancellationToken ct)
     {
         var requested = request.MistakeIds.ToHashSet();
 
-        var candidates = (await _unitOfWork.MistakeEntries.FindAsync(
+        var candidates = (await _mistakeEntries.FindAsync(
                 m => m.UserId == request.UserId && m.Status == "open", ct))
             .Where(m => requested.Count == 0 || requested.Contains(m.MistakeEntryId))
             .ToList();
@@ -75,12 +84,12 @@ public class PromoteMistakesToFlashcardsCommandHandler
                 CreatedAt = now,
                 UpdatedAt = now,
             };
-            await _unitOfWork.Flashcards.AddAsync(flashcard, ct);
+            await _flashcards.AddAsync(flashcard, ct);
 
             // The SRS row has to be written here rather than left to the first review. A flashcard with
             // no FlashcardSrsData never appears in the due queue at all — every "due" path reads that
             // table — so without this the promoted card would be created and then never surface.
-            await _unitOfWork.FlashcardSrs.AddAsync(new FlashcardSrsData
+            await _flashcardSrs.AddAsync(new FlashcardSrsData
             {
                 Id = Guid.NewGuid(),
                 UserId = request.UserId,
@@ -89,7 +98,7 @@ public class PromoteMistakesToFlashcardsCommandHandler
             }, ct);
 
             mistake.FlashcardId = flashcard.FlashcardId;
-            _unitOfWork.MistakeEntries.Update(mistake);
+            _mistakeEntries.Update(mistake);
 
             flashcardIds.Add(flashcard.FlashcardId);
         }

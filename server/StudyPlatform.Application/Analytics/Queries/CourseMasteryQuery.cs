@@ -20,13 +20,31 @@ public class GetCourseMasteryQueryHandler : IRequestHandler<GetCourseMasteryQuer
     // FSRS state 2 == Review: the card has graduated out of learning/relearning.
     private const int FsrsReviewState = 2;
 
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly ICourseRepository _courses;
+    private readonly IDocumentRepository _documents;
+    private readonly IFlashcardRepository _flashcards;
+    private readonly IQuizSubmissionRepository _quizSubmissions;
+    private readonly IVideoRepository _videos;
+    private readonly IGlossaryTermRepository _glossaryTerms;
+    private readonly IGlossaryMasteredRepository _glossaryMastered;
+    private readonly IWorkedProblemRepository _workedProblems;
+    private readonly IWorkedProblemMasteredRepository _workedProblemMastered;
+    private readonly IFlashcardSrsDataRepository _flashcardSrs;
     private readonly IAppCache _cache;
     private readonly CacheOptions _cacheOptions;
 
-    public GetCourseMasteryQueryHandler(IUnitOfWork unitOfWork, IAppCache cache, IOptions<CacheOptions> cacheOptions)
+    public GetCourseMasteryQueryHandler(ICourseRepository courses, IDocumentRepository documents, IFlashcardRepository flashcards, IQuizSubmissionRepository quizSubmissions, IVideoRepository videos, IGlossaryTermRepository glossaryTerms, IGlossaryMasteredRepository glossaryMastered, IWorkedProblemRepository workedProblems, IWorkedProblemMasteredRepository workedProblemMastered, IFlashcardSrsDataRepository flashcardSrs, IAppCache cache, IOptions<CacheOptions> cacheOptions)
     {
-        _unitOfWork = unitOfWork;
+        _courses = courses;
+        _documents = documents;
+        _flashcards = flashcards;
+        _quizSubmissions = quizSubmissions;
+        _videos = videos;
+        _glossaryTerms = glossaryTerms;
+        _glossaryMastered = glossaryMastered;
+        _workedProblems = workedProblems;
+        _workedProblemMastered = workedProblemMastered;
+        _flashcardSrs = flashcardSrs;
         _cache = cache;
         _cacheOptions = cacheOptions.Value;
     }
@@ -45,14 +63,14 @@ public class GetCourseMasteryQueryHandler : IRequestHandler<GetCourseMasteryQuer
 
     private async Task<CourseMasteryDto[]> ComputeAsync(Guid userId, CancellationToken ct)
     {
-        var courses = (await _unitOfWork.Courses.GetListItemsByUserAsync(userId, ct)).ToList();
+        var courses = (await _courses.GetListItemsByUserAsync(userId, ct)).ToList();
         if (courses.Count == 0)
             return Array.Empty<CourseMasteryDto>();
 
         // Attribution maps, one projected query each. Neither pulls the rows themselves: documents carry
         // their extracted text and videos their transcripts, and all we want here is the course id.
-        var docToCourse = await _unitOfWork.Documents.GetDocumentCourseMapAsync(userId, ct);
-        var videoToCourse = await _unitOfWork.Videos.GetVideoCourseMapAsync(userId, ct);
+        var docToCourse = await _documents.GetDocumentCourseMapAsync(userId, ct);
+        var videoToCourse = await _videos.GetVideoCourseMapAsync(userId, ct);
 
         Guid? CourseOf(Guid? docId, Guid? videoId)
         {
@@ -62,20 +80,20 @@ public class GetCourseMasteryQueryHandler : IRequestHandler<GetCourseMasteryQuer
         }
 
         // Flashcards + FSRS state.
-        var flashcards = await _unitOfWork.Flashcards.GetByUserIdAsync(userId, ct);
-        var srs = await _unitOfWork.FlashcardSrs.GetByUserIdAsync(userId, ct);
+        var flashcards = await _flashcards.GetByUserIdAsync(userId, ct);
+        var srs = await _flashcardSrs.GetByUserIdAsync(userId, ct);
         var srsState = srs.ToDictionary(s => s.FlashcardId, s => s.State);
 
         // Glossary terms + mastered set.
-        var glossaryTerms = await _unitOfWork.GlossaryTerms.GetByUserWithSourcesAsync(userId, ct);
-        var masteredTerms = (await _unitOfWork.GlossaryMastered.GetMasteredTermIdsByUserAsync(userId, ct)).ToHashSet();
+        var glossaryTerms = await _glossaryTerms.GetByUserWithSourcesAsync(userId, ct);
+        var masteredTerms = (await _glossaryMastered.GetMasteredTermIdsByUserAsync(userId, ct)).ToHashSet();
 
         // Quiz submissions.
-        var submissions = await _unitOfWork.QuizSubmissions.GetAllByUserAsync(userId, ct);
+        var submissions = await _quizSubmissions.GetAllByUserAsync(userId, ct);
 
         // Worked problems + mastered set.
-        var problems = await _unitOfWork.WorkedProblems.GetByUserAsync(userId, null, null, ct);
-        var masteredProblems = (await _unitOfWork.WorkedProblemMastered.GetMasteredProblemIdsByUserAsync(userId, ct)).ToHashSet();
+        var problems = await _workedProblems.GetByUserAsync(userId, null, null, ct);
+        var masteredProblems = (await _workedProblemMastered.GetMasteredProblemIdsByUserAsync(userId, ct)).ToHashSet();
 
         // Bucket each artifact by course once. Filtering the four lists inside the course loop instead
         // would rescan every artifact the user owns once per course.

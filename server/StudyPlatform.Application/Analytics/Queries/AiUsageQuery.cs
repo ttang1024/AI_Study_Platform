@@ -53,12 +53,12 @@ public class GetAiUsageQueryHandler : IRequestHandler<GetAiUsageQuery, Result<Ai
     /// <summary>A long window is fine — it all aggregates in SQL — but an unbounded one is not.</summary>
     private const int MaxDays = 366;
 
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly IAiUsageRepository _aiUsage;
     private readonly AiUsageOptions _options;
 
-    public GetAiUsageQueryHandler(IUnitOfWork unitOfWork, IOptions<AiUsageOptions> options)
+    public GetAiUsageQueryHandler(IAiUsageRepository aiUsage, IOptions<AiUsageOptions> options)
     {
-        _unitOfWork = unitOfWork;
+        _aiUsage = aiUsage;
         _options = options.Value;
     }
 
@@ -78,15 +78,15 @@ public class GetAiUsageQueryHandler : IRequestHandler<GetAiUsageQuery, Result<Ai
         var fromUtc = from.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
         var toUtc = to.AddDays(1).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
 
-        var totals = await _unitOfWork.AiUsage.GetTotalsAsync(request.UserId, fromUtc, toUtc, ct);
-        var byOperation = await _unitOfWork.AiUsage.GetByOperationAsync(request.UserId, fromUtc, toUtc, ct);
-        var byModel = await _unitOfWork.AiUsage.GetByModelAsync(request.UserId, fromUtc, toUtc, ct);
-        var daily = await _unitOfWork.AiUsage.GetDailyAsync(request.UserId, fromUtc, toUtc, ct);
+        var totals = await _aiUsage.GetTotalsAsync(request.UserId, fromUtc, toUtc, ct);
+        var byOperation = await _aiUsage.GetByOperationAsync(request.UserId, fromUtc, toUtc, ct);
+        var byModel = await _aiUsage.GetByModelAsync(request.UserId, fromUtc, toUtc, ct);
+        var daily = await _aiUsage.GetDailyAsync(request.UserId, fromUtc, toUtc, ct);
 
         // Today's spend is what the quota gate actually meters, so read it for the UTC day regardless of
         // the window the user is looking at — otherwise the headroom shown would depend on the date filter.
         var todayStart = today.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
-        var todayTotals = await _unitOfWork.AiUsage.GetTotalsAsync(
+        var todayTotals = await _aiUsage.GetTotalsAsync(
             request.UserId, todayStart, todayStart.AddDays(1), ct);
 
         return Result<AiUsageDto>.Success(new AiUsageDto(

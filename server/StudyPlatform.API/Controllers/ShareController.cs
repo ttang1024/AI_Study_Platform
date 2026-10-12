@@ -17,12 +17,18 @@ namespace StudyPlatform.API.Controllers;
 public class ShareController : ControllerBase
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IDocumentRepository _documents;
+    private readonly IVideoRepository _videos;
+    private readonly IShareTokenRepository _shareTokens;
     private readonly IBlobStorageService _blobStorage;
     private readonly IRichTextSanitizer _sanitizer;
 
-    public ShareController(IUnitOfWork unitOfWork, IBlobStorageService blobStorage, IRichTextSanitizer sanitizer)
+    public ShareController(IUnitOfWork unitOfWork, IDocumentRepository documents, IVideoRepository videos, IShareTokenRepository shareTokens, IBlobStorageService blobStorage, IRichTextSanitizer sanitizer)
     {
         _unitOfWork = unitOfWork;
+        _documents = documents;
+        _videos = videos;
+        _shareTokens = shareTokens;
         _blobStorage = blobStorage;
         _sanitizer = sanitizer;
     }
@@ -64,7 +70,7 @@ public class ShareController : ControllerBase
             OriginalArticleUrl = request.OriginalArticleUrl,
         };
 
-        await _unitOfWork.ShareTokens.AddAsync(share, cancellationToken);
+        await _shareTokens.AddAsync(share, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Ok(BaseResponse<CreateShareResponse>.Ok(new CreateShareResponse(token, $"/share/{token}")));
@@ -74,7 +80,7 @@ public class ShareController : ControllerBase
     [AllowAnonymous]
     public async Task<IActionResult> GetShare(string token, CancellationToken cancellationToken = default)
     {
-        var share = await _unitOfWork.ShareTokens.GetByTokenAsync(token, cancellationToken);
+        var share = await _shareTokens.GetByTokenAsync(token, cancellationToken);
         if (share == null)
             return NotFound(BaseResponse<object>.Fail("Share not found"));
 
@@ -101,7 +107,7 @@ public class ShareController : ControllerBase
         string? fileType = null;
         if (share.SourceType == "document" && share.SourceUrl != null && TryParseDocPath(share.SourceUrl, out var fileDocId))
         {
-            var fileDoc = await _unitOfWork.Documents.GetSourceRefAsync(fileDocId, share.OwnerId, cancellationToken);
+            var fileDoc = await _documents.GetSourceRefAsync(fileDocId, share.OwnerId, cancellationToken);
             if (fileDoc != null)
                 fileType = fileDoc.ContentType;
         }
@@ -179,7 +185,7 @@ public class ShareController : ControllerBase
         if (!TryParseVideoPath(share!.SourceUrl!, out var videoId))
             return NotFound();
 
-        var video = await _unitOfWork.Videos.GetByIdAsync(videoId, cancellationToken);
+        var video = await _videos.GetByIdAsync(videoId, cancellationToken);
         if (video == null || video.UserId != share.OwnerId || video.SourceType != "upload")
             return NotFound();
 
@@ -195,7 +201,7 @@ public class ShareController : ControllerBase
     private async Task<(ShareToken? Share, IActionResult? Error)> ResolveActiveShareAsync(
         string token, Func<string?, bool> isAcceptedSourceType, CancellationToken cancellationToken)
     {
-        var share = await _unitOfWork.ShareTokens.GetByTokenAsync(token, cancellationToken);
+        var share = await _shareTokens.GetByTokenAsync(token, cancellationToken);
         if (share == null || !isAcceptedSourceType(share.SourceType) || share.SourceUrl == null)
             return (null, NotFound());
         if (share.ExpiresAt.HasValue && share.ExpiresAt.Value < DateTime.UtcNow)
@@ -212,7 +218,7 @@ public class ShareController : ControllerBase
         if (!TryParseDocPath(share!.SourceUrl!, out var docId))
             return (null, NotFound());
 
-        var doc = await _unitOfWork.Documents.GetSourceRefAsync(docId, share.OwnerId, cancellationToken);
+        var doc = await _documents.GetSourceRefAsync(docId, share.OwnerId, cancellationToken);
         return doc == null ? (null, NotFound()) : (doc, null);
     }
 
@@ -228,12 +234,12 @@ public class ShareController : ControllerBase
         // Video first: "video/{id}" also has the two-segment shape of a document path.
         if (TryParseVideoPath(sourceUrl, out var videoId))
         {
-            var video = await _unitOfWork.Videos.GetByIdAsync(videoId, cancellationToken);
+            var video = await _videos.GetByIdAsync(videoId, cancellationToken);
             return video != null && video.UserId == userId;
         }
 
         if (TryParseDocPath(sourceUrl, out var docId))
-            return await _unitOfWork.Documents.GetSourceRefAsync(docId, userId, cancellationToken) != null;
+            return await _documents.GetSourceRefAsync(docId, userId, cancellationToken) != null;
 
         return true;
     }

@@ -24,15 +24,12 @@ public class SubmitPracticeTestCommandHandlerTests
 
     public SubmitPracticeTestCommandHandlerTests()
     {
-        _uow.Setup(u => u.GlossaryMastered).Returns(_mastered.Object);
-        _uow.Setup(u => u.WorkedProblemMastered).Returns(_problemsMastered.Object);
-        _uow.Setup(u => u.MistakeEntries).Returns(_mistakes.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
         _mastered.Setup(r => r.GetMasteredTermIdsByUserAsync(_userId, default)).ReturnsAsync(Array.Empty<Guid>());
         _problemsMastered.Setup(r => r.GetMasteredProblemIdsByUserAsync(_userId, default)).ReturnsAsync(Array.Empty<Guid>());
         _mistakes.Setup(r => r.FindAsync(It.IsAny<Expression<Func<MistakeEntry, bool>>>(), default)).ReturnsAsync(Array.Empty<MistakeEntry>());
         _cache.Setup(c => c.RemoveAsync(It.IsAny<string>(), default)).Returns(Task.CompletedTask);
-        _handler = new SubmitPracticeTestCommandHandler(_uow.Object, _mediator.Object, _cache.Object);
+        _handler = new SubmitPracticeTestCommandHandler(_uow.Object, _mastered.Object, _problemsMastered.Object, _mistakes.Object, _mediator.Object, _cache.Object);
     }
 
     [Fact]

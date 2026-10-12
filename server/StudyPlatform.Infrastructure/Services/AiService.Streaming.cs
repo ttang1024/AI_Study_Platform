@@ -54,8 +54,9 @@ public partial class AiService
 
     public async IAsyncEnumerable<string> StreamChatAsync(string documentContent, string userMessage, IEnumerable<(string role, string content)> history, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var prompt = AiPrompts.BuildDocumentChatPrompt(AiResponseParsing.TruncateContent(documentContent, 3000), string.Join("\n", history.Select(h => $"{h.role.ToUpper()}: {h.content}")), userMessage);
-        await foreach (var chunk in StreamTextAsync(null, [("user", prompt)], 0.7, 8192, cancellationToken))
+        // Same shape as ChatAsync: the document in the system block, the history as real turns.
+        var system = AiPrompts.BuildDocumentChatSystem(DocumentContextSelector.Select(documentContent, userMessage));
+        await foreach (var chunk in StreamTextAsync(system, history.Append(("user", userMessage)), 0.7, 8192, cancellationToken))
             yield return chunk;
     }
 
@@ -68,7 +69,7 @@ public partial class AiService
             yield break;
         }
 
-        var system = AiPrompts.BuildDocumentChatSystem(AiResponseParsing.TruncateContent(documentContent, 3000));
+        var system = AiPrompts.BuildDocumentChatSystem(DocumentContextSelector.Select(documentContent, userMessage));
         await foreach (var chunk in StreamMultimodalTextAsync(system, history, userMessage, attachments, 0.7, 8192, cancellationToken))
             yield return chunk;
     }

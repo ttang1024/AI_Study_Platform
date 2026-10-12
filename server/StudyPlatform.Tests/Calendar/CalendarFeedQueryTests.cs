@@ -9,7 +9,6 @@ namespace StudyPlatform.Tests.Calendar;
 
 public class GetCalendarFeedQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IFlashcardSrsDataRepository> _srs = new();
     private readonly Mock<IExamPlanRepository> _plans = new();
     private readonly GetCalendarFeedQueryHandler _handler;
@@ -17,14 +16,12 @@ public class GetCalendarFeedQueryHandlerTests
 
     public GetCalendarFeedQueryHandlerTests()
     {
-        _uow.Setup(u => u.FlashcardSrs).Returns(_srs.Object);
-        _uow.Setup(u => u.ExamPlans).Returns(_plans.Object);
         _srs.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<FlashcardSrsData, bool>>>(), default))
             .ReturnsAsync(Array.Empty<FlashcardSrsData>());
         _plans.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<ExamPlan, bool>>>(), default))
             .ReturnsAsync(Array.Empty<ExamPlan>());
 
-        _handler = new GetCalendarFeedQueryHandler(_uow.Object);
+        _handler = new GetCalendarFeedQueryHandler(_srs.Object, _plans.Object);
     }
 
     [Fact]

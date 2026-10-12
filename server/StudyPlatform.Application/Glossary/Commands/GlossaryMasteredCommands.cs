@@ -11,12 +11,12 @@ public record GetMasteredGlossaryIdsQuery(Guid UserId) : IRequest<Result<IEnumer
 
 public class GetMasteredGlossaryIdsQueryHandler : IRequestHandler<GetMasteredGlossaryIdsQuery, Result<IEnumerable<Guid>>>
 {
-    private readonly IUnitOfWork _unitOfWork;
-    public GetMasteredGlossaryIdsQueryHandler(IUnitOfWork unitOfWork) { _unitOfWork = unitOfWork; }
+    private readonly IGlossaryMasteredRepository _glossaryMastered;
+    public GetMasteredGlossaryIdsQueryHandler(IGlossaryMasteredRepository glossaryMastered) { _glossaryMastered = glossaryMastered; }
 
     public async Task<Result<IEnumerable<Guid>>> Handle(GetMasteredGlossaryIdsQuery request, CancellationToken cancellationToken)
     {
-        var ids = await _unitOfWork.GlossaryMastered.GetMasteredTermIdsByUserAsync(request.UserId, cancellationToken);
+        var ids = await _glossaryMastered.GetMasteredTermIdsByUserAsync(request.UserId, cancellationToken);
         return Result<IEnumerable<Guid>>.Success(ids);
     }
 }
@@ -28,14 +28,16 @@ public record ToggleGlossaryMasteredCommand(Guid UserId, Guid TermId) : IRequest
 public class ToggleGlossaryMasteredCommandHandler : IRequestHandler<ToggleGlossaryMasteredCommand, Result<bool>>
 {
     private readonly IUnitOfWork _unitOfWork;
-    public ToggleGlossaryMasteredCommandHandler(IUnitOfWork unitOfWork) { _unitOfWork = unitOfWork; }
+    private readonly IGlossaryMasteredRepository _glossaryMastered;
+    public ToggleGlossaryMasteredCommandHandler(IUnitOfWork unitOfWork, IGlossaryMasteredRepository glossaryMastered) { _unitOfWork = unitOfWork;
+    _glossaryMastered = glossaryMastered; }
 
     public async Task<Result<bool>> Handle(ToggleGlossaryMasteredCommand request, CancellationToken cancellationToken)
     {
-        var existing = await _unitOfWork.GlossaryMastered.GetByUserAndTermAsync(request.UserId, request.TermId, cancellationToken);
+        var existing = await _glossaryMastered.GetByUserAndTermAsync(request.UserId, request.TermId, cancellationToken);
         if (existing != null)
         {
-            _unitOfWork.GlossaryMastered.Remove(existing);
+            _glossaryMastered.Remove(existing);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             return Result<bool>.Success(false, "Term unmarked as mastered.");
         }
@@ -47,7 +49,7 @@ public class ToggleGlossaryMasteredCommandHandler : IRequestHandler<ToggleGlossa
             GlossaryTermId = request.TermId,
             MasteredAt = DateTime.UtcNow,
         };
-        await _unitOfWork.GlossaryMastered.AddAsync(mastered, cancellationToken);
+        await _glossaryMastered.AddAsync(mastered, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return Result<bool>.Success(true, "Term marked as mastered.");
     }

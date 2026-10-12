@@ -74,7 +74,6 @@ export const PlannerTab: React.FC = () => {
           <PlannerSchedule
             schedule={p.schedule}
             scheduleLoading={p.scheduleLoading}
-            busyByDate={p.busyByDate}
             onCram={p.setCramPlanId}
             onTaskNavigate={navigate}
           />

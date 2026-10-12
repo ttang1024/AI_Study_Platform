@@ -10,17 +10,15 @@ namespace StudyPlatform.Tests.Library;
 public class GetLibraryQueryHandlerTests
 {
     private readonly Mock<ILibraryRepository> _library = new();
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<ILibraryTagRepository> _tags = new();
     private readonly GetLibraryQueryHandler _handler;
     private readonly Guid _userId = Guid.NewGuid();
 
     public GetLibraryQueryHandlerTests()
     {
-        _uow.Setup(u => u.LibraryTags).Returns(_tags.Object);
         _tags.Setup(r => r.GetAssignmentsAsync(_userId, It.IsAny<IReadOnlyList<(string, Guid)>>(), default))
             .ReturnsAsync(new Dictionary<(string, Guid), List<LibraryTag>>());
-        _handler = new GetLibraryQueryHandler(_library.Object, _uow.Object);
+        _handler = new GetLibraryQueryHandler(_library.Object, _tags.Object);
     }
 
     private LibraryItem MakeItem(string kind = "document") => new()

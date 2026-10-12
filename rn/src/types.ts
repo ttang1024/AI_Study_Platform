@@ -49,19 +49,6 @@ export type { GlossaryTerm } from '@core/types';
 // Shared with web/ via packages/core.
 export type { QuizQuestion } from '@core/types';
 
-export interface QuizSubmission {
-  id: string;
-  documentId?: string;
-  videoId?: string;
-  courseId?: string;
-  sourceType: string;
-  answers: Record<string, string>;
-  score: number;
-  total: number;
-  submittedAt: string;
-  title?: string;
-}
-
 // Shared with web/ via packages/core.
 export type { Mistake, VariantQuestion } from '@core/services/mistakesService';
 

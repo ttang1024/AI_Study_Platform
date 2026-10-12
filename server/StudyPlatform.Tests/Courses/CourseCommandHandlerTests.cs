@@ -19,10 +19,9 @@ public class CreateCourseCommandHandlerTests
 
     public CreateCourseCommandHandlerTests()
     {
-        _uow.Setup(u => u.Courses).Returns(_courses.Object);
         _courses.Setup(r => r.AddAsync(It.IsAny<Course>(), default)).Returns(Task.CompletedTask);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new CreateCourseCommandHandler(_uow.Object);
+        _handler = new CreateCourseCommandHandler(_uow.Object, _courses.Object);
     }
 
     [Fact]
@@ -63,10 +62,8 @@ public class UpdateCourseCommandHandlerTests
 
     public UpdateCourseCommandHandlerTests()
     {
-        _uow.Setup(u => u.Courses).Returns(_courses.Object);
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new UpdateCourseCommandHandler(_uow.Object);
+        _handler = new UpdateCourseCommandHandler(_uow.Object, _courses.Object, _documents.Object);
     }
 
     private Course MakeCourse(Guid? userId = null) => new()
@@ -155,12 +152,10 @@ public class DeleteCourseCommandHandlerTests
 
     public DeleteCourseCommandHandlerTests()
     {
-        _uow.Setup(u => u.Courses).Returns(_courses.Object);
-        _uow.Setup(u => u.Documents).Returns(_documents.Object);
         _documents.Setup(r => r.GetBlobUrlsByCourseAsync(It.IsAny<Guid>(), default))
             .ReturnsAsync(Array.Empty<string>());
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new DeleteCourseCommandHandler(_uow.Object, _blob.Object, _embeddingIndex.Object);
+        _handler = new DeleteCourseCommandHandler(_uow.Object, _courses.Object, _documents.Object, _blob.Object, _embeddingIndex.Object);
     }
 
     private Course MakeCourse(Guid? userId = null) => new()
@@ -242,15 +237,13 @@ public class DeleteCourseCommandHandlerTests
 
 public class GetAllCoursesQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<ICourseRepository> _courses = new();
     private readonly GetAllCoursesQueryHandler _handler;
     private readonly Guid _userId = Guid.NewGuid();
 
     public GetAllCoursesQueryHandlerTests()
     {
-        _uow.Setup(u => u.Courses).Returns(_courses.Object);
-        _handler = new GetAllCoursesQueryHandler(_uow.Object);
+        _handler = new GetAllCoursesQueryHandler(_courses.Object);
     }
 
     [Fact]

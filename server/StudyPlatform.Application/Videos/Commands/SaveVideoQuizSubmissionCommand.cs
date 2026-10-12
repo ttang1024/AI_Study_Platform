@@ -20,18 +20,18 @@ public record SaveVideoQuizSubmissionCommand(
 
 public class SaveVideoQuizSubmissionCommandHandler : IRequestHandler<SaveVideoQuizSubmissionCommand, Result<QuizSubmissionDto>>
 {
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly IVideoRepository _videos;
     private readonly IQuizSubmissionWriter _submissions;
 
-    public SaveVideoQuizSubmissionCommandHandler(IUnitOfWork unitOfWork, IQuizSubmissionWriter submissions)
+    public SaveVideoQuizSubmissionCommandHandler(IVideoRepository videos, IQuizSubmissionWriter submissions)
     {
-        _unitOfWork = unitOfWork;
+        _videos = videos;
         _submissions = submissions;
     }
 
     public async Task<Result<QuizSubmissionDto>> Handle(SaveVideoQuizSubmissionCommand request, CancellationToken cancellationToken)
     {
-        var video = await _unitOfWork.Videos.GetByIdForUserAsync(request.VideoId, request.UserId, cancellationToken);
+        var video = await _videos.GetByIdForUserAsync(request.VideoId, request.UserId, cancellationToken);
         if (video is null)
             return Result<QuizSubmissionDto>.Failure("Video not found.", "VIDEO_NOT_FOUND");
 

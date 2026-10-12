@@ -7,14 +7,28 @@ namespace StudyPlatform.Application.Common;
 /// Ownership is checked by the caller; this only answers "is the user in a group this course is
 /// shared to?", which is the one cross-user read path documents, videos and courses all allow.
 /// </summary>
-public static class CourseAccess
+public interface ICourseAccess
 {
-    public static async Task<bool> HasSharedCourseAccessAsync(
-        this IUnitOfWork unitOfWork, Guid userId, Guid courseId, CancellationToken cancellationToken)
+    Task<bool> HasSharedCourseAccessAsync(Guid userId, Guid courseId, CancellationToken cancellationToken);
+}
+
+/// <inheritdoc cref="ICourseAccess"/>
+public sealed class CourseAccess : ICourseAccess
+{
+    private readonly IStudyGroupSharedCourseRepository _sharedCourses;
+    private readonly IStudyGroupMemberRepository _members;
+
+    public CourseAccess(IStudyGroupSharedCourseRepository sharedCourses, IStudyGroupMemberRepository members)
     {
-        var shared = await unitOfWork.StudyGroupSharedCourses.FindAsync(sc => sc.CourseId == courseId, cancellationToken);
+        _sharedCourses = sharedCourses;
+        _members = members;
+    }
+
+    public async Task<bool> HasSharedCourseAccessAsync(Guid userId, Guid courseId, CancellationToken cancellationToken)
+    {
+        var shared = await _sharedCourses.FindAsync(sc => sc.CourseId == courseId, cancellationToken);
         var groupIds = shared.Select(sc => sc.GroupId).ToList();
-        return groupIds.Count > 0 && await unitOfWork.StudyGroupMembers.ExistsAsync(
+        return groupIds.Count > 0 && await _members.ExistsAsync(
             m => groupIds.Contains(m.GroupId) && m.UserId == userId, cancellationToken);
     }
 }

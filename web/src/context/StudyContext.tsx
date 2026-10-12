@@ -41,7 +41,6 @@ interface StudyContextType {
   deleteVideo: (videoId: string) => Promise<void>;
   updateDocumentInList: (doc: Document) => void;
   allNotes: Note[];
-  addNote: (content: string) => Promise<void>;
   updateNote: (id: string, content: string) => Promise<void>;
   deleteNote: (id: string) => Promise<void>;
   courses: Course[];
@@ -84,8 +83,7 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     onDocumentCountDelta: (delta) => stats.setTotalDocuments(prev => Math.max(0, prev + delta)),
   });
   const notes = useNotesSlice({
-    isAuthenticated, isLoading, currentDocument,
-    documents: documentsSlice.documents,
+    isAuthenticated, isLoading,
     onNoteCountDelta: (delta) => stats.setTotalNotes(prev => Math.max(0, prev + delta)),
   });
   const videos = useVideosSlice({
@@ -202,7 +200,6 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         deleteVideo: videos.deleteVideo,
         updateDocumentInList: documentsSlice.updateDocumentInList,
         allNotes: notes.allNotes,
-        addNote: notes.addNote,
         updateNote: notes.updateNote,
         deleteNote: notes.deleteNote,
         courses: courses.courses,

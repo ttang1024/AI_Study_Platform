@@ -14,10 +14,11 @@ fi
 
 urls=""
 n=0
-while IFS=: read -r host port user pass; do
+# `|| [[ -n $host ]]` keeps a final line that has no trailing newline
+while IFS=: read -r host port user pass || [[ -n "$host" ]]; do
+  host="${host//$'\r'/}"; pass="${pass//$'\r'/}"  # strip Windows carriage returns
   [[ -z "$host" ]] && continue
   (( n >= MAX )) && break
-  pass="${pass//$'\r'/}"  # strip Windows carriage returns
   url="http://${user}:${pass}@${host}:${port}"
   urls="${urls:+$urls,}$url"
   (( n++ ))

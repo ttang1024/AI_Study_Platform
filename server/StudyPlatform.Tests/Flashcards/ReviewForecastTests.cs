@@ -9,7 +9,6 @@ namespace StudyPlatform.Tests.Flashcards;
 
 public class GetReviewForecastQueryHandlerTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IFlashcardSrsDataRepository> _srsRepo = new();
     private readonly Mock<IUserFsrsSettingsRepository> _settings = new();
     private readonly GetReviewForecastQueryHandler _handler;
@@ -18,13 +17,11 @@ public class GetReviewForecastQueryHandlerTests
 
     public GetReviewForecastQueryHandlerTests()
     {
-        _uow.Setup(u => u.FlashcardSrs).Returns(_srsRepo.Object);
-        _uow.Setup(u => u.UserFsrsSettings).Returns(_settings.Object);
         _settings.Setup(r => r.GetByUserIdAsync(_userId, default)).ReturnsAsync((UserFsrsSettings?)null);
         _srsRepo.Setup(r => r.GetDueCountsByDayAsync(_userId, It.IsAny<DateTime>(), It.IsAny<DateTime>(), default))
             .ReturnsAsync(new Dictionary<DateTime, int>());
         _srsRepo.Setup(r => r.CountDueByUserIdAsync(_userId, It.IsAny<DateTime>(), default)).ReturnsAsync(0);
-        _handler = new GetReviewForecastQueryHandler(_uow.Object);
+        _handler = new GetReviewForecastQueryHandler(_srsRepo.Object, _settings.Object);
     }
 
     [Fact]
@@ -104,13 +101,11 @@ public class RescheduleBacklogCommandHandlerTests
 
     public RescheduleBacklogCommandHandlerTests()
     {
-        _uow.Setup(u => u.FlashcardSrs).Returns(_srsRepo.Object);
-        _uow.Setup(u => u.UserFsrsSettings).Returns(_settings.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
         _settings.Setup(r => r.GetByUserIdAsync(_userId, default)).ReturnsAsync((UserFsrsSettings?)null);
         _srsRepo.Setup(r => r.GetDueCountsByDayAsync(_userId, It.IsAny<DateTime>(), It.IsAny<DateTime>(), default))
             .ReturnsAsync(new Dictionary<DateTime, int>());
-        _handler = new RescheduleBacklogCommandHandler(_uow.Object);
+        _handler = new RescheduleBacklogCommandHandler(_uow.Object, _srsRepo.Object, _settings.Object);
     }
 
     private List<FlashcardSrsData> Backlog(int count)

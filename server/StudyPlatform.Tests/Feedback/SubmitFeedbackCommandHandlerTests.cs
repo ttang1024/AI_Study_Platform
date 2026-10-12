@@ -13,9 +13,8 @@ public class SubmitFeedbackCommandHandlerTests
 
     public SubmitFeedbackCommandHandlerTests()
     {
-        _uow.Setup(u => u.Feedbacks).Returns(_feedbacks.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new SubmitFeedbackCommandHandler(_uow.Object);
+        _handler = new SubmitFeedbackCommandHandler(_uow.Object, _feedbacks.Object);
     }
 
     [Fact]

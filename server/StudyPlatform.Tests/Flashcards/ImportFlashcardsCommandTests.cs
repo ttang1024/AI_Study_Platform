@@ -16,11 +16,10 @@ public class ImportFlashcardsCommandHandlerTests
 
     public ImportFlashcardsCommandHandlerTests()
     {
-        _uow.Setup(u => u.Flashcards).Returns(_flashcards.Object);
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
         _flashcards.Setup(r => r.FindAsync(It.IsAny<Expression<Func<Flashcard, bool>>>(), default)).ReturnsAsync(Array.Empty<Flashcard>());
         _flashcards.Setup(r => r.AddRangeAsync(It.IsAny<IEnumerable<Flashcard>>(), default)).Returns(Task.CompletedTask);
-        _handler = new ImportFlashcardsCommandHandler(_uow.Object);
+        _handler = new ImportFlashcardsCommandHandler(_uow.Object, _flashcards.Object);
     }
 
     [Fact]

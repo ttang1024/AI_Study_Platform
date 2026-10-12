@@ -99,7 +99,7 @@ public partial class VideoController
             var dtos = items.Select(i => new PlaylistVideoItemDto(i.VideoId, i.Title, i.ThumbnailUrl)).ToList();
             return Ok(BaseResponse<IReadOnlyList<PlaylistVideoItemDto>>.Ok(dtos));
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             return BadRequest(BaseResponse<string>.Fail("Failed to fetch the playlist. Check the link and try again.", "PLAYLIST_FETCH_ERROR"));
         }
@@ -117,7 +117,7 @@ public partial class VideoController
             var dtos = items.Select(i => new PlaylistVideoItemDto(i.VideoId, i.Title, i.ThumbnailUrl)).ToList();
             return Ok(BaseResponse<IReadOnlyList<PlaylistVideoItemDto>>.Ok(dtos));
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             return BadRequest(BaseResponse<string>.Fail("Failed to fetch Bilibili videos. Check the link and try again.", "BILIBILI_FETCH_ERROR"));
         }

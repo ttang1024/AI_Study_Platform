@@ -22,9 +22,8 @@ public class TranscribeUploadedVideoCommandTests
 
     public TranscribeUploadedVideoCommandTests()
     {
-        _uow.Setup(u => u.Videos).Returns(_videos.Object);
         _handler = new TranscribeUploadedVideoCommandHandler(
-            _uow.Object, _blobs.Object, _whisper.Object, _transcripts.Object, Options.Create(new CacheOptions()));
+            _uow.Object, _videos.Object, _blobs.Object, _whisper.Object, _transcripts.Object, Options.Create(new CacheOptions()));
     }
 
     private Video Upload() => new()

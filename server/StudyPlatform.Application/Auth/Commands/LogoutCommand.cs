@@ -8,11 +8,11 @@ public record LogoutCommand(string RefreshToken) : IRequest<Result>;
 
 public class LogoutCommandHandler : IRequestHandler<LogoutCommand, Result>
 {
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly IRefreshTokenRepository _refreshTokens;
 
-    public LogoutCommandHandler(IUnitOfWork unitOfWork)
+    public LogoutCommandHandler(IRefreshTokenRepository refreshTokens)
     {
-        _unitOfWork = unitOfWork;
+        _refreshTokens = refreshTokens;
     }
 
     public async Task<Result> Handle(LogoutCommand request, CancellationToken cancellationToken)
@@ -22,9 +22,9 @@ public class LogoutCommandHandler : IRequestHandler<LogoutCommand, Result>
 
         // Ends the sign-in, not just the current rotation: older rotations of it are already revoked,
         // but this also covers a token that was rotated by a refresh still in flight.
-        var token = await _unitOfWork.RefreshTokens.FindByHashAsync(RefreshTokenHash.Compute(request.RefreshToken), cancellationToken);
+        var token = await _refreshTokens.FindByHashAsync(RefreshTokenHash.Compute(request.RefreshToken), cancellationToken);
         if (token != null)
-            await _unitOfWork.RefreshTokens.RevokeSessionAsync(token.UserId, token.SessionId, cancellationToken);
+            await _refreshTokens.RevokeSessionAsync(token.UserId, token.SessionId, cancellationToken);
 
         return Result.Success("Logged out successfully.");
     }
