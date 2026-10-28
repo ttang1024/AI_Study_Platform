@@ -26,6 +26,12 @@ describe('AI settings', () => {
     expect(parseAiSettings(stored)).toEqual({ provider: 'openai', keys: { openai: 'sk-1' }, models: {} })
   })
 
+  it('parseAiSettings does not hand back the shared defaults object', () => {
+    const parsed = parseAiSettings(null)
+    parsed.provider = 'openai'
+    expect(DEFAULT_AI_SETTINGS.provider).toBe('gemini')
+  })
+
   it('activeProviderOf reads settings.provider', () => {
     expect(activeProviderOf({ provider: 'claude', keys: {}, models: {} })).toBe('claude')
   })

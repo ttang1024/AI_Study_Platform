@@ -10,6 +10,15 @@ describe('cloze', () => {
     it('returns false when there are no markers', () => {
       expect(hasClozeMarkers('Plain text with no braces')).toBe(false)
     })
+
+    // A shared /g regex would carry `lastIndex` between calls and make every other call
+    // wrongly return false — the classic stateful-global-regex bug.
+    it('gives the same answer when called repeatedly on the same text', () => {
+      const text = 'The {{term}} here'
+      expect(hasClozeMarkers(text)).toBe(true)
+      expect(hasClozeMarkers(text)).toBe(true)
+      expect(hasClozeMarkers(text)).toBe(true)
+    })
   })
 
   describe('clozeQuestionText', () => {

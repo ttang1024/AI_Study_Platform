@@ -15,14 +15,6 @@ export interface FeedbackItem {
   resolvedAt: string | null;
 }
 
-export interface FeedbackStats {
-  total: number;
-  byType: Record<FeedbackType, number>;
-  byStatus: Record<FeedbackStatus, number>;
-  averageRating: number | null;
-  recentCount: number; // last 7 days
-}
-
 export interface PaginatedResponse<T> {
   items: T[];
   total: number;
@@ -50,9 +42,6 @@ export interface DailyCount {
 export interface PlatformAnalytics {
   users: {
     total: number;
-    active: number;
-    inactive: number;
-    admins: number;
     verified: number;
     newLast7Days: number;
     newLast30Days: number;
@@ -62,9 +51,6 @@ export interface PlatformAnalytics {
     wau: number;
     mau: number;
     studyMinutesLast30Days: number;
-    studySessionsLast30Days: number;
-    quizSubmissionsLast30Days: number;
-    totalQuizSubmissions: number;
   };
   content: {
     documents: number;
@@ -85,7 +71,6 @@ export interface TopUser {
   fullName: string;
   email: string;
   studyMinutes: number;
-  sessionCount: number;
   lastActiveAt: string | null;
 }
 
@@ -98,22 +83,16 @@ export interface PagePopularity {
 }
 
 export interface PageVisitAnalytics {
-  windowDays: number;
   totals: {
     visits: number;
     uniqueVisitors: number;
-    sessions: number;
     visitsToday: number;
-    visitsLast7Days: number;
     signedInVisits: number;
     anonymousVisits: number;
-    visitsPerSession: number;
   };
   visitTrend: DailyCount[];
-  visitorTrend: DailyCount[];
   topPages: PagePopularity[];
   topReferrers: { referrer: string; visits: number }[];
-  devices: { device: string; visits: number }[];
 }
 
 export interface UserDetail {
@@ -136,7 +115,6 @@ export interface UserDetail {
   };
   studyMinutesTotal: number;
   studyMinutesLast30Days: number;
-  studySessionsTotal: number;
   quizSubmissions: number;
   averageQuizScorePercent: number | null;
   studyTrendMinutes: DailyCount[];

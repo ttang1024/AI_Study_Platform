@@ -24,14 +24,9 @@ public interface IAdminAnalyticsRepository
 
 public record DailyCount(DateTime Date, int Count);
 
-public record UserMetrics(
-    int Total, int Active, int Inactive, int Admins, int Verified,
-    int NewLast7Days, int NewLast30Days);
+public record UserMetrics(int Total, int Verified, int NewLast7Days, int NewLast30Days);
 
-public record EngagementMetrics(
-    int Dau, int Wau, int Mau,
-    long StudyMinutesLast30Days, int StudySessionsLast30Days,
-    int QuizSubmissionsLast30Days, int TotalQuizSubmissions);
+public record EngagementMetrics(int Dau, int Wau, int Mau, long StudyMinutesLast30Days);
 
 public record ContentMetrics(
     int Documents, int Courses, int Videos, int Quizzes,
@@ -39,7 +34,7 @@ public record ContentMetrics(
 
 public record TopUser(
     Guid UserId, string FullName, string Email,
-    long StudyMinutes, int SessionCount, DateTime? LastActiveAt);
+    long StudyMinutes, DateTime? LastActiveAt);
 
 public record PlatformAnalytics(
     UserMetrics Users,
@@ -52,25 +47,18 @@ public record PlatformAnalytics(
 // ── Page visits ───────────────────────────────────────────────────────────────────────────
 
 public record PageVisitTotals(
-    long Visits, int UniqueVisitors, int Sessions,
-    long VisitsToday, long VisitsLast7Days,
-    long SignedInVisits, long AnonymousVisits,
-    double VisitsPerSession);
+    long Visits, int UniqueVisitors, long VisitsToday,
+    long SignedInVisits, long AnonymousVisits);
 
 public record PagePopularity(string Path, long Visits, int UniqueVisitors);
 
 public record ReferrerCount(string Referrer, long Visits);
 
-public record DeviceCount(string Device, long Visits);
-
 public record PageVisitAnalytics(
-    int WindowDays,
     PageVisitTotals Totals,
     IReadOnlyList<DailyCount> VisitTrend,        // daily visits across the window
-    IReadOnlyList<DailyCount> VisitorTrend,      // daily distinct visitors across the window
     IReadOnlyList<PagePopularity> TopPages,      // top 12 by visits
-    IReadOnlyList<ReferrerCount> TopReferrers,   // top 8 external origins
-    IReadOnlyList<DeviceCount> Devices);
+    IReadOnlyList<ReferrerCount> TopReferrers);  // top 8 external origins
 
 public record UserContentCounts(
     int Courses, int Documents, int Videos, int Quizzes,
@@ -81,6 +69,6 @@ public record UserActivityDetail(
     bool IsAdmin, bool IsActive, bool IsEmailVerified,
     DateTime CreatedAt, DateTime? LastActiveAt,
     UserContentCounts Content,
-    long StudyMinutesTotal, long StudyMinutesLast30Days, int StudySessionsTotal,
+    long StudyMinutesTotal, long StudyMinutesLast30Days,
     int QuizSubmissions, double? AverageQuizScorePercent,
     IReadOnlyList<DailyCount> StudyTrendMinutes); // daily minutes, last 14 days

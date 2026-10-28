@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Users, UserCheck, UserPlus, Clock, Activity, FileText, BookOpen, Youtube,
+  Users, UserPlus, Clock, Activity, FileText, BookOpen, Youtube,
   ListChecks, Layers, StickyNote, BookMarked, TrendingUp, ChevronRight,
 } from 'lucide-react';
 import { adminApi } from '../services/api';
@@ -55,7 +55,7 @@ export const AnalyticsPage: React.FC = () => {
 
       {!error && !data && (
         <div className="grid grid-cols-2 gap-4 sm:gap-5 sm:grid-cols-4">
-          {Array.from({ length: 8 }).map((_, i) => (
+          {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="h-28 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] animate-pulse" />
           ))}
         </div>
@@ -75,14 +75,21 @@ const PlatformOverview: React.FC<{ data: PlatformAnalytics }> = ({ data }) => {
   return (
     <>
       {/* Headline user metrics */}
-      <div className="mb-4 grid grid-cols-2 gap-4 sm:mb-5 sm:gap-5 sm:grid-cols-4">
-        <StatCard label="Total Users" value={formatNumber(users.total)} icon={Users} iconColor="text-emerald-600" />
+      <div className="mb-6 grid grid-cols-2 gap-4 sm:mb-8 sm:gap-5 sm:grid-cols-4">
+        <StatCard
+          label="Total Users"
+          value={formatNumber(users.total)}
+          icon={Users}
+          iconColor="text-emerald-600"
+          delta={`${verifiedPct}% verified`}
+          deltaPositive
+        />
         <StatCard
           label="Active (30d)"
           value={formatNumber(engagement.mau)}
           icon={Activity}
           iconColor="text-emerald-600"
-          delta={users.total > 0 ? `${Math.round((engagement.mau / users.total) * 100)}% of base` : undefined}
+          delta={`${formatNumber(engagement.dau)} today · ${formatNumber(engagement.wau)} this week`}
           deltaPositive
         />
         <StatCard
@@ -94,20 +101,6 @@ const PlatformOverview: React.FC<{ data: PlatformAnalytics }> = ({ data }) => {
           deltaPositive={users.newLast7Days > 0}
         />
         <StatCard label="Study Time (30d)" value={formatMinutes(engagement.studyMinutesLast30Days)} icon={Clock} iconColor="text-amber-600" />
-      </div>
-
-      {/* Engagement / activity windows */}
-      <div className="mb-6 grid grid-cols-2 gap-4 sm:mb-8 sm:gap-5 sm:grid-cols-4">
-        <StatCard label="Active Today" value={formatNumber(engagement.dau)} icon={Activity} iconColor="text-emerald-600" />
-        <StatCard label="Active (7d)" value={formatNumber(engagement.wau)} icon={UserCheck} iconColor="text-emerald-600" />
-        <StatCard label="Quiz Subs (30d)" value={formatNumber(engagement.quizSubmissionsLast30Days)} icon={ListChecks} iconColor="text-amber-600" />
-        <StatCard
-          label="Verified"
-          value={`${verifiedPct}%`}
-          icon={UserCheck}
-          iconColor="text-emerald-600"
-          delta={`${formatNumber(users.inactive)} inactive`}
-        />
       </div>
 
       {/* Trend charts */}

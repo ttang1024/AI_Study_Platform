@@ -30,7 +30,7 @@ public class RecordPageVisitCommandHandlerTests
         Guid? userId = null,
         string? referrer = null,
         string userAgent = Chrome) =>
-        new(userId, path, referrer, "visitor-1", "session-1", userAgent, "toto-study.com");
+        new(userId, path, referrer, "visitor-1", userAgent, "toto-study.com");
 
     [Fact]
     public async Task Handle_StoresTheVisitWithANormalisedPath()
@@ -40,7 +40,6 @@ public class RecordPageVisitCommandHandlerTests
         Assert.True(result.IsSuccess);
         Assert.NotNull(_saved);
         Assert.Equal("/documents/:id", _saved!.Path);
-        Assert.Equal("desktop", _saved.Device);
         Assert.Null(_saved.UserId);
         _uow.Verify(u => u.SaveChangesAsync(default), Times.Once);
     }
@@ -87,8 +86,8 @@ public class RecordPageVisitValidatorTests
     private readonly RecordPageVisitValidator _validator = new();
 
     private static RecordPageVisitCommand Command(
-        string path = "/library", string visitorId = "visitor-1", string sessionId = "session-1") =>
-        new(null, path, null, visitorId, sessionId, "Chrome", "toto-study.com");
+        string path = "/library", string visitorId = "visitor-1") =>
+        new(null, path, null, visitorId, "Chrome", "toto-study.com");
 
     [Fact]
     public void Valid_Beacon_Passes() => Assert.True(_validator.Validate(Command()).IsValid);
@@ -103,8 +102,4 @@ public class RecordPageVisitValidatorTests
     [Fact]
     public void Rejects_AMissingVisitorId()
         => Assert.False(_validator.Validate(Command(visitorId: "")).IsValid);
-
-    [Fact]
-    public void Rejects_AnOversizedSessionId()
-        => Assert.False(_validator.Validate(Command(sessionId: new string('s', 65))).IsValid);
 }

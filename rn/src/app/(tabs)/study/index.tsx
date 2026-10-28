@@ -2,6 +2,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import CalendarClock from 'lucide-react-native/icons/calendar-clock';
+import CalendarDays from 'lucide-react-native/icons/calendar-days';
 import ChevronRight from 'lucide-react-native/icons/chevron-right';
 import HelpCircle from 'lucide-react-native/icons/circle-question-mark';
 import Layers from 'lucide-react-native/icons/layers';
@@ -24,6 +25,7 @@ const HUB_ITEMS = [
   { href: '/study/planner', icon: CalendarClock, color: Colors.blue, title: 'Planner', subtitle: 'Exams, cram sheets, mocks' },
   { href: '/study/groups', icon: Users, color: Colors.purple, title: 'Study Groups', subtitle: 'Chat and shared courses' },
   { href: '/study/insights', icon: TrendingUp, color: Colors.primary, title: 'Insights', subtitle: 'Time, accuracy, mastery' },
+  { href: '/study/calendar', icon: CalendarDays, color: Colors.red, title: 'Calendar', subtitle: 'Your study days at a glance' },
 ] as const;
 
 export default function StudyHubScreen() {

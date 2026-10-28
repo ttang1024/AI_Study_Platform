@@ -29,7 +29,6 @@ public partial class AnalyticsController
             Path: request.Path,
             Referrer: request.Referrer,
             VisitorId: request.VisitorId,
-            SessionId: request.SessionId,
             UserAgent: Request.Headers[HeaderNames.UserAgent].ToString(),
             SelfHost: Request.Host.Host));
 
@@ -40,5 +39,4 @@ public partial class AnalyticsController
 /// <param name="Path">Site-relative path; the server collapses it to a route pattern.</param>
 /// <param name="Referrer">document.referrer, or null. Reduced to its host before it is stored.</param>
 /// <param name="VisitorId">Random browser-scoped id minted by the client.</param>
-/// <param name="SessionId">Random tab-scoped id minted by the client.</param>
-public record RecordPageVisitRequest(string Path, string? Referrer, string VisitorId, string SessionId);
+public record RecordPageVisitRequest(string Path, string? Referrer, string VisitorId);

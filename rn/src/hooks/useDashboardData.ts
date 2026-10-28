@@ -1,16 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { analyticsService } from '@/services/analyticsService';
-import { recommendationService, type RecommendationItem } from '@/services/recommendationService';
-import { statsService } from '@/services/statsService';
+import { recommendationService } from '@/services/recommendationService';
 import { syncWidgetData } from '@/services/widgetBridge';
-import type { DashboardSummary, TodayPlan, UserStats } from '@/types';
+import type { DashboardSummary, TodayPlan } from '@/types';
 
 export interface DashboardData {
   today: TodayPlan;
   summary: DashboardSummary;
-  stats: UserStats;
-  nextBestContent: RecommendationItem[];
 }
 
 export function useDashboardData() {
@@ -24,13 +21,11 @@ export function useDashboardData() {
   const load = useCallback(async (isRefresh: boolean) => {
     if (isRefresh) setRefreshing(true);
     try {
-      const [today, summary, stats, recommendations] = await Promise.all([
+      const [today, summary] = await Promise.all([
         recommendationService.getTodayPlan(),
         analyticsService.getDashboardSummary(),
-        statsService.getUserStats(),
-        recommendationService.getRecommendations(),
       ]);
-      setData({ today, summary, stats, nextBestContent: recommendations.nextBestContent });
+      setData({ today, summary });
       syncWidgetData(summary);
     } finally {
       setLoading(false);

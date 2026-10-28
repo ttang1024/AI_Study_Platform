@@ -133,6 +133,17 @@ export const FeedbackDetailPage: React.FC = () => {
                 </span>
               )}
             </div>
+            <Button
+              variant={deleteConfirm ? 'danger' : 'ghost'}
+              size="sm"
+              isLoading={isDeleting}
+              onClick={handleDelete}
+              onBlur={() => setDeleteConfirm(false)}
+              title={deleteConfirm ? 'This cannot be undone.' : 'Permanently delete this feedback entry.'}
+            >
+              <Trash2 size={13} />
+              {deleteConfirm ? 'Confirm delete' : 'Delete'}
+            </Button>
           </div>
 
           <h2 className="text-lg font-bold text-[var(--text-primary)] mb-4">{item.subject}</h2>
@@ -201,26 +212,6 @@ export const FeedbackDetailPage: React.FC = () => {
             >
               <Save size={13} />
               Save Note
-            </Button>
-          </div>
-        </div>
-
-        {/* Danger zone */}
-        <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-5 sm:p-7">
-          <h3 className="mb-3 text-sm font-semibold text-red-600">Danger Zone</h3>
-          <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-xs text-[var(--text-secondary)]">
-              {deleteConfirm ? 'This action cannot be undone. Click again to confirm.' : 'Permanently delete this feedback entry.'}
-            </p>
-            <Button
-              variant="danger"
-              size="sm"
-              isLoading={isDeleting}
-              onClick={handleDelete}
-              onBlur={() => setDeleteConfirm(false)}
-            >
-              <Trash2 size={13} />
-              {deleteConfirm ? 'Confirm Delete' : 'Delete'}
             </Button>
           </div>
         </div>

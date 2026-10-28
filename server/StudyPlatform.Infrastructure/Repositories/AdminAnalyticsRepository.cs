@@ -24,14 +24,11 @@ public partial class AdminAnalyticsRepository : IAdminAnalyticsRepository
 
         // ── Users ────────────────────────────────────────────────────────────────
         var totalUsers = await _db.Users.CountAsync(ct);
-        var activeUsers = await _db.Users.CountAsync(u => u.IsActive, ct);
-        var admins = await _db.Users.CountAsync(u => u.IsAdmin, ct);
         var verified = await _db.Users.CountAsync(u => u.IsEmailVerified, ct);
         var new7 = await _db.Users.CountAsync(u => u.CreatedAt >= sevenDaysAgo, ct);
         var new30 = await _db.Users.CountAsync(u => u.CreatedAt >= thirtyDaysAgo, ct);
 
-        var userMetrics = new UserMetrics(
-            totalUsers, activeUsers, totalUsers - activeUsers, admins, verified, new7, new30);
+        var userMetrics = new UserMetrics(totalUsers, verified, new7, new30);
 
         // ── Content ──────────────────────────────────────────────────────────────
         var content = new ContentMetrics(
@@ -71,16 +68,8 @@ public partial class AdminAnalyticsRepository : IAdminAnalyticsRepository
         var studySecondsLast30 = await _db.StudySessions
             .Where(s => s.OccurredAt >= thirtyDaysAgo)
             .SumAsync(s => (long)s.DurationSeconds, ct);
-        var studySessionsLast30 = await _db.StudySessions.CountAsync(s => s.OccurredAt >= thirtyDaysAgo, ct);
-        var quizSubsLast30 = await _db.QuizSubmissions.CountAsync(s => s.SubmittedAt >= thirtyDaysAgo, ct);
-        var totalQuizSubs = await _db.QuizSubmissions.CountAsync(ct);
 
-        var engagement = new EngagementMetrics(
-            dau, wau, mau,
-            StudyMinutesLast30Days: studySecondsLast30 / 60,
-            StudySessionsLast30Days: studySessionsLast30,
-            QuizSubmissionsLast30Days: quizSubsLast30,
-            TotalQuizSubmissions: totalQuizSubs);
+        var engagement = new EngagementMetrics(dau, wau, mau, StudyMinutesLast30Days: studySecondsLast30 / 60);
 
         // ── Top users by study time (last 30 days) ───────────────────────────────
         var topRaw = await _db.StudySessions
@@ -90,7 +79,6 @@ public partial class AdminAnalyticsRepository : IAdminAnalyticsRepository
             {
                 UserId = g.Key,
                 Seconds = g.Sum(x => (long)x.DurationSeconds),
-                Sessions = g.Count(),
                 LastActive = g.Max(x => x.OccurredAt),
             })
             .OrderByDescending(x => x.Seconds)
@@ -111,7 +99,6 @@ public partial class AdminAnalyticsRepository : IAdminAnalyticsRepository
                 infoById[x.UserId].FullName,
                 infoById[x.UserId].Email,
                 x.Seconds / 60,
-                x.Sessions,
                 x.LastActive))
             .ToList();
 
@@ -145,7 +132,6 @@ public partial class AdminAnalyticsRepository : IAdminAnalyticsRepository
         var studySeconds30 = await _db.StudySessions
             .Where(s => s.UserId == userId && s.OccurredAt >= thirtyDaysAgo)
             .SumAsync(s => (long)s.DurationSeconds, ct);
-        var sessionsTotal = await _db.StudySessions.CountAsync(s => s.UserId == userId, ct);
         var lastActive = await _db.StudySessions
             .Where(s => s.UserId == userId)
             .OrderByDescending(s => s.OccurredAt)
@@ -177,7 +163,7 @@ public partial class AdminAnalyticsRepository : IAdminAnalyticsRepository
             user.IsAdmin, user.IsActive, user.IsEmailVerified,
             user.CreatedAt, lastActive,
             content,
-            studySecondsTotal / 60, studySeconds30 / 60, sessionsTotal,
+            studySecondsTotal / 60, studySeconds30 / 60,
             quizSubs, avgScorePct,
             trend);
     }

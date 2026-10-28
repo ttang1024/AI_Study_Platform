@@ -6,7 +6,7 @@ import { Skeleton } from '@/components/Skeleton';
 import { Colors, Layout, Radius, Shadows, Spacing } from '@/constants/theme';
 
 // Mirrors the dashboard's layout (greeting → hero card → summarize CTA →
-// section grids) so the real content pops in without the page reflowing.
+// reinforcement row) so the real content pops in without the page reflowing.
 export const HomeSkeleton: React.FC = () => {
   const insets = useSafeAreaInsets();
 
@@ -24,11 +24,7 @@ export const HomeSkeleton: React.FC = () => {
           <Skeleton width={120} height={30} radius={Radius.pill} style={styles.onHero} />
         </View>
         <Skeleton height={8} radius={Radius.pill} style={styles.onHero} />
-        <View style={styles.tileGrid}>
-          {Array.from({ length: 4 }, (_, i) => (
-            <Skeleton key={i} height={56} radius={Radius.md} style={[styles.gridTile, styles.onHero]} />
-          ))}
-        </View>
+        <Skeleton width={160} height={12} style={styles.onHero} />
       </View>
 
       <View style={styles.ctaCard}>
@@ -39,16 +35,12 @@ export const HomeSkeleton: React.FC = () => {
         </View>
       </View>
 
-      {Array.from({ length: 2 }, (_, section) => (
-        <React.Fragment key={section}>
-          <Skeleton width={120} height={12} style={styles.sectionLabel} />
-          <View style={styles.tileGrid}>
-            {Array.from({ length: 4 }, (_, i) => (
-              <Skeleton key={i} height={72} radius={Radius.lg} style={styles.gridTile} />
-            ))}
-          </View>
-        </React.Fragment>
-      ))}
+      <Skeleton width={120} height={12} style={styles.sectionLabel} />
+      <View style={styles.tileRow}>
+        {Array.from({ length: 3 }, (_, i) => (
+          <Skeleton key={i} height={72} radius={Radius.lg} style={styles.rowTile} />
+        ))}
+      </View>
     </View>
   );
 };
@@ -71,8 +63,8 @@ const styles = StyleSheet.create({
   heroTitleBlock: { gap: Spacing.two },
   // Blocks sitting on the (already gray) hero card need a darker tone to read.
   onHero: { backgroundColor: Colors.zinc300 },
-  tileGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
-  gridTile: { flexGrow: 1, flexBasis: '45%' },
+  tileRow: { ...Layout.row, gap: Spacing.two },
+  rowTile: { flex: 1 },
   ctaCard: {
     ...Layout.row,
     gap: Spacing.two,

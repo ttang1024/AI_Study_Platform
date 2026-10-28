@@ -10,10 +10,8 @@ public class PageVisitConfiguration : IEntityTypeConfiguration<PageVisit>
     {
         builder.HasKey(v => v.Id);
         builder.Property(v => v.VisitorId).IsRequired().HasMaxLength(64);
-        builder.Property(v => v.SessionId).IsRequired().HasMaxLength(64);
         builder.Property(v => v.Path).IsRequired().HasMaxLength(200);
         builder.Property(v => v.Referrer).HasMaxLength(200);
-        builder.Property(v => v.Device).IsRequired().HasMaxLength(16);
         builder.Property(v => v.OccurredAt).IsRequired();
 
         // Every dashboard query is "the trailing N days, then group by something", so the time

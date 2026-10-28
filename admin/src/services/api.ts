@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { FeedbackItem, FeedbackStatus, FeedbackStats, PaginatedResponse, UserItem, PlatformAnalytics, PageVisitAnalytics, UserDetail } from '../types';
+import type { FeedbackItem, FeedbackStatus,PaginatedResponse, UserItem, PlatformAnalytics, PageVisitAnalytics, UserDetail } from '../types';
 import { getApiBaseUrl } from '../utils/env';
 import { adminSession } from './adminSession';
 
@@ -49,11 +49,6 @@ export const adminApi = {
     if (!data || typeof data.token !== 'string' || !data.token) {
       throw new Error('Login failed: the server did not return a token.');
     }
-    return data;
-  },
-
-  getFeedbackStats: async (): Promise<FeedbackStats> => {
-    const { data } = await http.get<FeedbackStats>('/admin/feedback/stats');
     return data;
   },
 

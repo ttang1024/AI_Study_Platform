@@ -5,24 +5,16 @@ import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ArrowRight from 'lucide-react-native/icons/arrow-right';
-import BookOpen from 'lucide-react-native/icons/book-open';
-import FileText from 'lucide-react-native/icons/file-text';
 import Flame from 'lucide-react-native/icons/flame';
-import Globe from 'lucide-react-native/icons/globe';
-import Layers from 'lucide-react-native/icons/layers';
-import Mic from 'lucide-react-native/icons/mic';
 import Sparkles from 'lucide-react-native/icons/sparkles';
-import Target from 'lucide-react-native/icons/target';
-import Video from 'lucide-react-native/icons/video';
 
 import { AnimatedNumber } from '@/components/AnimatedNumber';
 import { IconBadge } from '@/components/IconBadge';
 import { PressableScale } from '@/components/PressableScale';
 import { ProgressBar } from '@/components/ProgressBar';
-import { CountTile, ReinforceCard, SectionLabel, StatTile } from '@/components/home/DashboardTiles';
+import { ReinforceCard, SectionLabel } from '@/components/home/DashboardTiles';
 import { HomeSkeleton } from '@/components/home/HomeSkeleton';
 import { OnboardingChecklist } from '@/components/home/OnboardingChecklist';
-import { StudyCalendar } from '@/components/study/StudyCalendar';
 import { Colors, Gradients, Layout, Motion, Overlay, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
 import { useDashboardData } from '@/hooks/useDashboardData';
@@ -77,8 +69,7 @@ export default function HomeScreen() {
     return <HomeSkeleton />;
   }
 
-  const { today, summary, stats } = data;
-  const focusLeft = Math.max(0, today.dailyGoalMinutes - today.todayMinutes);
+  const { today, summary } = data;
   const primaryItem = today.items[0];
 
   return (
@@ -121,12 +112,9 @@ export default function HomeScreen() {
           </View>
           <ProgressBar progress={today.completionPercent / 100} color={Colors.white} trackColor={Overlay.glass} />
 
-          <View style={styles.statTiles}>
-            <StatTile label="Studied today" value={`${today.todayMinutes}m`} />
-            <StatTile label="Daily goal" value={`${today.dailyGoalMinutes}m`} />
-            <StatTile label="Cards due" value={String(today.dueFlashcards)} />
-            <StatTile label="Focus left" value={`${focusLeft}m`} />
-          </View>
+          <Text style={styles.heroSummary}>
+            {today.todayMinutes} of {today.dailyGoalMinutes} min · {today.dueFlashcards} card{today.dueFlashcards === 1 ? '' : 's'} due
+          </Text>
 
           {!!primaryItem && (
             <PressableScale style={styles.ctaCard} onPress={() => router.push(routeForItem(primaryItem) as never)}>
@@ -155,37 +143,12 @@ export default function HomeScreen() {
       </Section>
 
       <Section index={4} style={styles.section}>
-        <SectionLabel label="Content Library" />
-        <View style={styles.grid}>
-          <CountTile icon={FileText} color={Colors.blue} label="Documents" value={stats.totalDocuments} onPress={() => router.push({ pathname: '/library', params: { type: 'documents' } })} />
-          <CountTile icon={Video} color={Colors.red} label="Videos" value={stats.totalVideos} onPress={() => router.push({ pathname: '/library', params: { type: 'videos' } })} />
-          <CountTile icon={Globe} color={Colors.teal} label="Articles" value={stats.totalArticles} onPress={() => router.push({ pathname: '/library', params: { type: 'articles' } })} />
-          <CountTile icon={Mic} color={Colors.amber} label="Audio" value={stats.totalAudio} onPress={() => router.push({ pathname: '/library', params: { type: 'audio' } })} />
-        </View>
-      </Section>
-
-      <Section index={5} style={styles.section}>
-        <SectionLabel label="Study Tools" />
-        <View style={styles.grid}>
-          <CountTile icon={Layers} color={Colors.yellow} label="Flashcards" value={stats.totalFlashcards} onPress={() => router.push('/study/flashcards')} />
-          <CountTile icon={Target} color={Colors.emerald} label="Quizzes" value={stats.totalQuizQuestions} onPress={() => router.push('/study/quizzes')} />
-          <CountTile icon={BookOpen} color={Colors.orange} label="Notes" value={stats.totalNotes} onPress={() => router.push('/study/notes')} />
-          <CountTile icon={BookOpen} color={Colors.teal} label="Glossary" value={stats.totalGlossaryTerms} onPress={() => router.push('/study/glossary')} />
-        </View>
-      </Section>
-
-      <Section index={6} style={styles.section}>
         <SectionLabel label="Reinforcement" />
         <View style={styles.reinforceRow}>
           <ReinforceCard label="Quiz mistakes" value={summary.reinforcement.quizMistakes} color={Colors.red} onPress={() => router.push('/study/quizzes')} />
           <ReinforceCard label="Unmastered terms" value={summary.reinforcement.unmasteredTerms} color={Colors.amber} onPress={() => router.push('/study/glossary')} />
           <ReinforceCard label="Hard flashcards" value={summary.reinforcement.hardFlashcards} color={Colors.purple} onPress={() => router.push('/study/flashcards')} />
         </View>
-      </Section>
-
-      <Section index={7} style={styles.section}>
-        <SectionLabel label="Study Calendar" />
-        <StudyCalendar />
       </Section>
     </ScrollView>
   );
@@ -213,7 +176,7 @@ const styles = StyleSheet.create({
   streakText: { ...Typography.captionBold, color: Colors.white },
   streakBest: { ...Typography.caption, color: Overlay.onGradientMuted, fontSize: 10 },
 
-  statTiles: { ...Layout.rowWrap, gap: Spacing.two },
+  heroSummary: { ...Typography.captionBold, color: Colors.white },
 
   ctaCard: {
     ...Layout.row, gap: Spacing.two,
@@ -239,11 +202,5 @@ const styles = StyleSheet.create({
   summarizeCtaTitle: { ...Typography.bodyBold, color: Colors.textPrimary },
   summarizeCtaSubtitle: { ...Typography.caption, color: Colors.textSecondary, marginTop: 2 },
 
-  grid: { ...Layout.rowWrap, gap: Spacing.two },
-
   reinforceRow: { ...Layout.row, gap: Spacing.two },
-
-  // Opaque amber-tinted surface (not an alpha wash) — Card carries elevation,
-  // and Android elevation shadows render wrong behind translucent backgrounds.
-
 });

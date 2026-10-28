@@ -17,13 +17,6 @@ public record FeedbackItemDto(
     string? AdminNote,
     DateTime? ResolvedAt);
 
-public record FeedbackStatsDto(
-    int Total,
-    Dictionary<string, int> ByType,
-    Dictionary<string, int> ByStatus,
-    double? AverageRating,
-    int RecentCount);
-
 public record UserDto(
     Guid UserId,
     string Email,

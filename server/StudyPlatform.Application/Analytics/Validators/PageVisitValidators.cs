@@ -21,10 +21,6 @@ public class RecordPageVisitValidator : AbstractValidator<RecordPageVisitCommand
             .NotEmpty().WithMessage("Visitor id is required.")
             .MaximumLength(64).WithMessage("Visitor id is too long.");
 
-        RuleFor(x => x.SessionId)
-            .NotEmpty().WithMessage("Session id is required.")
-            .MaximumLength(64).WithMessage("Session id is too long.");
-
         RuleFor(x => x.Referrer)
             .MaximumLength(2048).WithMessage("Referrer is too long.");
     }

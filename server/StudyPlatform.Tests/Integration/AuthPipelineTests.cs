@@ -107,7 +107,7 @@ public class AuthPipelineTests : IDisposable
             .Replace("\"exp\":", "\"role\":\"Admin\",\"exp\":");
         var tampered = $"{parts[0]}.{Base64UrlEncoder.Encode(claims)}.{parts[2]}";
 
-        Assert.Equal(HttpStatusCode.Unauthorized, (await Get("/api/admin/feedback/stats", tampered)).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await Get("/api/admin/feedback", tampered)).StatusCode);
     }
 
     [DockerFact]
@@ -116,13 +116,13 @@ public class AuthPipelineTests : IDisposable
         // The user app's token never carries the role, so an XSS there cannot drive the admin API.
         var admin = Person(isAdmin: true);
 
-        Assert.Equal(HttpStatusCode.Forbidden, (await Get("/api/admin/feedback/stats", UserToken(admin))).StatusCode);
-        Assert.Equal(HttpStatusCode.OK, (await Get("/api/admin/feedback/stats", AdminToken(admin))).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await Get("/api/admin/feedback", UserToken(admin))).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await Get("/api/admin/feedback", AdminToken(admin))).StatusCode);
     }
 
     [DockerFact]
     public async Task AdminSignIn_OfANonAdmin_GetsNoRole()
-        => Assert.Equal(HttpStatusCode.Forbidden, (await Get("/api/admin/feedback/stats", AdminToken(Person()))).StatusCode);
+        => Assert.Equal(HttpStatusCode.Forbidden, (await Get("/api/admin/feedback", AdminToken(Person()))).StatusCode);
 
     [DockerFact]
     public async Task QueryStringToken_IsOnlyHonouredForTheHub()

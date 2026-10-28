@@ -118,31 +118,6 @@ public class GetFeedbackByIdQueryHandlerTests
     }
 }
 
-public class GetFeedbackStatsQueryHandlerTests
-{
-    private readonly Mock<IFeedbackRepository> _feedbacks = new();
-    private readonly GetFeedbackStatsQueryHandler _handler;
-
-    public GetFeedbackStatsQueryHandlerTests()
-    {
-        _handler = new GetFeedbackStatsQueryHandler(_feedbacks.Object);
-    }
-
-    [Fact]
-    public async Task Handle_MapsStatsFromRepository()
-    {
-        _feedbacks.Setup(r => r.GetStatsAsync(It.IsAny<DateTime>(), default))
-            .ReturnsAsync(new FeedbackStats(10, new Dictionary<string, int> { ["bug"] = 5 }, new Dictionary<string, int> { ["new"] = 3 }, 4.2, 2));
-
-        var result = await _handler.Handle(new GetFeedbackStatsQuery(), default);
-
-        Assert.True(result.IsSuccess);
-        Assert.Equal(10, result.Data!.Total);
-        Assert.Equal(5, result.Data.ByType["bug"]);
-        Assert.Equal(4.2, result.Data.AverageRating);
-    }
-}
-
 public class ListFeedbackQueryHandlerTests
 {
     private readonly Mock<IFeedbackRepository> _feedbacks = new();
@@ -401,8 +376,8 @@ public class GetPlatformAnalyticsQueryHandlerTests
     public async Task Handle_ReturnsRepositoryData()
     {
         var data = new PlatformAnalytics(
-            new UserMetrics(10, 8, 2, 1, 9, 2, 5),
-            new EngagementMetrics(3, 5, 8, 120, 10, 4, 20),
+            new UserMetrics(10, 9, 2, 5),
+            new EngagementMetrics(3, 5, 8, 120),
             new ContentMetrics(5, 2, 3, 10, 40, 6, 15),
             Array.Empty<DailyCount>(), Array.Empty<DailyCount>(), Array.Empty<TopUser>());
         _analytics.Setup(a => a.GetPlatformAnalyticsAsync(default)).ReturnsAsync(data);
@@ -441,7 +416,7 @@ public class GetUserDetailQueryHandlerTests
     {
         var detail = new UserActivityDetail(
             _userId, "a@b.com", "Ada", false, true, true, DateTime.UtcNow, null,
-            new UserContentCounts(1, 2, 3, 4, 5, 6, 7), 100, 50, 10, 8, 90.0, Array.Empty<DailyCount>());
+            new UserContentCounts(1, 2, 3, 4, 5, 6, 7), 100, 50, 8, 90.0, Array.Empty<DailyCount>());
         _analytics.Setup(a => a.GetUserDetailAsync(_userId, default)).ReturnsAsync(detail);
 
         var result = await _handler.Handle(new GetUserDetailQuery(_userId), default);

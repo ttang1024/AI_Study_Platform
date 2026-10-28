@@ -30,4 +30,8 @@ describe('validatePassword', () => {
     expect(validatePassword('Abcdefg1')).toBe(true)
     expect(validatePassword('Abcdefghij1234567890'.slice(0, 20))).toBe(true)
   })
+
+  it('rejects an empty password', () => {
+    expect(validatePassword('')).toBe(false)
+  })
 })

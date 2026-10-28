@@ -12,6 +12,15 @@ describe('getApiErrorCode', () => {
     expect(getApiErrorCode(err)).toBe('CONFLICT')
   })
 
+  it('prefers camelCase errorCode over PascalCase ErrorCode', () => {
+    const err = { response: { data: { errorCode: 'FIRST', ErrorCode: 'SECOND' } } }
+    expect(getApiErrorCode(err)).toBe('FIRST')
+  })
+
+  it('trims whitespace from the code', () => {
+    expect(getApiErrorCode({ response: { data: { errorCode: '  TRIMMED  ' } } })).toBe('TRIMMED')
+  })
+
   it('falls back to a top-level errorCode', () => {
     const err = { errorCode: 'TOP_LEVEL' }
     expect(getApiErrorCode(err)).toBe('TOP_LEVEL')
@@ -50,6 +59,15 @@ describe('getApiErrorMessage', () => {
   it('falls back to the first string in an errors array', () => {
     const err = { response: { data: { errors: ['Field required', 'Other'] } } }
     expect(getApiErrorMessage(err)).toBe('Field required')
+  })
+
+  it('skips blank and non-string entries in an errors array', () => {
+    const err = { response: { data: { errors: [null, '  ', 'Real error'] } } }
+    expect(getApiErrorMessage(err)).toBe('Real error')
+  })
+
+  it('trims whitespace from the message', () => {
+    expect(getApiErrorMessage({ response: { data: { message: '  Trimmed.  ' } } })).toBe('Trimmed.')
   })
 
   it('returns the default fallback when nothing is present', () => {

@@ -20,7 +20,7 @@ export const LoginPage: React.FC = () => {
     setIsLoading(true);
     try {
       await login(email, password);
-      navigate('/dashboard');
+      navigate('/analytics');
     } catch {
       setError('Invalid credentials. Please try again.');
     } finally {

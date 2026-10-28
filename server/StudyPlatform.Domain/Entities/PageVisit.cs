@@ -2,7 +2,7 @@ namespace StudyPlatform.Domain.Entities;
 
 /// <summary>
 /// One page view in the web app: the route a visitor landed on, with just enough context to
-/// aggregate it later (who, which browser, where they came from, what kind of device).
+/// aggregate it later (who, which browser, where they came from).
 ///
 /// <para>Anonymous traffic is the point — the landing page, login, a shared link — so
 /// <see cref="UserId"/> is nullable and <see cref="VisitorId"/> carries the browser-scoped id the
@@ -23,17 +23,11 @@ public class PageVisit
     /// <summary>Random browser-scoped id from the client; survives tabs and reloads.</summary>
     public string VisitorId { get; set; } = string.Empty;
 
-    /// <summary>Random tab-scoped id from the client; groups one sitting into a session.</summary>
-    public string SessionId { get; set; } = string.Empty;
-
     /// <summary>Normalised route pattern, e.g. "/library" or "/documents/:id".</summary>
     public string Path { get; set; } = string.Empty;
 
     /// <summary>Referring origin (scheme + host), or null for direct and same-site navigation.</summary>
     public string? Referrer { get; set; }
-
-    /// <summary>"mobile" | "tablet" | "desktop", derived server-side from the User-Agent header.</summary>
-    public string Device { get; set; } = "desktop";
 
     public DateTime OccurredAt { get; set; }
 

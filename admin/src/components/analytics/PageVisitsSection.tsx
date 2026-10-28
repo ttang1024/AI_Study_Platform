@@ -1,6 +1,5 @@
 import React from 'react';
-import { Eye, Users, MousePointerClick, Layers3, Monitor, Smartphone, Tablet, HelpCircle, ExternalLink } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+import { Eye, Users, Layers3, ExternalLink } from 'lucide-react';
 import type { PageVisitAnalytics } from '../../types';
 import { StatCard } from '../common/StatCard';
 import { BarTrend } from '../common/BarTrend';
@@ -8,13 +7,6 @@ import { ErrorBanner } from '../common/ErrorBanner';
 import { formatNumber } from '../../utils/format';
 import { cn } from '../../utils/cn';
 import { VISIT_WINDOWS, type VisitWindow } from '../../hooks/usePageVisitAnalytics';
-
-const DEVICE_ICONS: Record<string, LucideIcon> = {
-  desktop: Monitor,
-  mobile: Smartphone,
-  tablet: Tablet,
-  unknown: HelpCircle,
-};
 
 interface PageVisitsSectionProps {
   data: PageVisitAnalytics | null;
@@ -63,8 +55,8 @@ export const PageVisitsSection: React.FC<PageVisitsSectionProps> = ({ data, erro
       {error && <ErrorBanner error={error} />}
 
       {!error && !data && (
-        <div className="grid grid-cols-2 gap-4 sm:gap-5 sm:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
+        <div className="grid grid-cols-2 gap-4 sm:gap-5 sm:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
             <div key={i} className="h-28 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] animate-pulse" />
           ))}
         </div>
@@ -76,15 +68,14 @@ export const PageVisitsSection: React.FC<PageVisitsSectionProps> = ({ data, erro
 };
 
 const PageVisitsBody: React.FC<{ data: PageVisitAnalytics; windowLabel: string }> = ({ data, windowLabel }) => {
-  const { totals, visitTrend, visitorTrend, topPages, topReferrers, devices } = data;
+  const { totals, visitTrend, topPages, topReferrers } = data;
   const maxPageVisits = Math.max(1, ...topPages.map((p) => p.visits));
   const maxReferrer = Math.max(1, ...topReferrers.map((r) => r.visits));
-  const deviceTotal = Math.max(1, devices.reduce((sum, d) => sum + d.visits, 0));
   const signedInPct = totals.visits > 0 ? Math.round((totals.signedInVisits / totals.visits) * 100) : 0;
 
   return (
     <>
-      <div className="mb-4 grid grid-cols-2 gap-4 sm:mb-5 sm:gap-5 sm:grid-cols-4">
+      <div className="mb-4 grid grid-cols-2 gap-4 sm:mb-5 sm:gap-5 sm:grid-cols-3">
         <StatCard
           label={`Visits (${windowLabel})`}
           value={formatNumber(totals.visits)}
@@ -100,14 +91,6 @@ const PageVisitsBody: React.FC<{ data: PageVisitAnalytics; windowLabel: string }
           iconColor="text-violet-600"
         />
         <StatCard
-          label="Sessions"
-          value={formatNumber(totals.sessions)}
-          icon={MousePointerClick}
-          iconColor="text-amber-600"
-          delta={`${totals.visitsPerSession} pages each`}
-          deltaPositive
-        />
-        <StatCard
           label="Signed In"
           value={`${signedInPct}%`}
           icon={Layers3}
@@ -115,23 +98,17 @@ const PageVisitsBody: React.FC<{ data: PageVisitAnalytics; windowLabel: string }
           // Anonymous traffic is the top of the funnel, not a problem to flag in red.
           delta={`${formatNumber(totals.anonymousVisits)} anonymous`}
           deltaPositive
+          className="max-sm:col-span-2"
         />
       </div>
 
-      <div className="mb-4 grid grid-cols-1 gap-4 sm:mb-5 sm:gap-5 lg:grid-cols-2">
+      <div className="mb-4 sm:mb-5">
         <BarTrend
           title="Page views"
           subtitle={windowLabel}
           data={visitTrend}
           barClass="bg-sky-500"
           formatValue={(v) => `${formatNumber(v)} view${v === 1 ? '' : 's'}`}
-        />
-        <BarTrend
-          title="Unique visitors"
-          subtitle={windowLabel}
-          data={visitorTrend}
-          barClass="bg-violet-500"
-          formatValue={(v) => `${formatNumber(v)} visitor${v === 1 ? '' : 's'}`}
         />
       </div>
 
@@ -172,60 +149,36 @@ const PageVisitsBody: React.FC<{ data: PageVisitAnalytics; windowLabel: string }
           )}
         </div>
 
-        <div className="space-y-4 sm:space-y-5">
-          {/* Where the traffic comes from */}
-          <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-4 sm:p-6">
-            <div className="mb-4 flex items-center gap-2 sm:mb-5">
-              <ExternalLink size={15} className="text-teal-600" />
-              <h3 className="text-sm font-semibold text-[var(--text-primary)]">Top referrers</h3>
-            </div>
-            {topReferrers.length === 0 ? (
-              <p className="py-6 text-center text-sm text-[var(--text-secondary)]">
-                All traffic so far is direct — no external links yet.
-              </p>
-            ) : (
-              <div className="space-y-3.5">
-                {topReferrers.map((referrer) => (
-                  <div key={referrer.referrer} className="flex items-center gap-2 sm:gap-3">
-                    <span className="w-24 shrink-0 truncate text-[11px] text-[var(--text-secondary)] sm:w-36 sm:text-xs" title={referrer.referrer}>
-                      {referrer.referrer}
-                    </span>
-                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-black/5">
-                      <div
-                        className="h-full rounded-full bg-teal-500"
-                        style={{ width: `${Math.max(2, (referrer.visits / maxReferrer) * 100)}%` }}
-                      />
-                    </div>
-                    <span className="w-10 shrink-0 text-right text-[11px] font-medium text-[var(--text-primary)] sm:w-12 sm:text-xs">
-                      {formatNumber(referrer.visits)}
-                    </span>
+        {/* Where the traffic comes from */}
+        <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-4 sm:p-6">
+          <div className="mb-4 flex items-center gap-2 sm:mb-5">
+            <ExternalLink size={15} className="text-teal-600" />
+            <h3 className="text-sm font-semibold text-[var(--text-primary)]">Top referrers</h3>
+          </div>
+          {topReferrers.length === 0 ? (
+            <p className="py-6 text-center text-sm text-[var(--text-secondary)]">
+              All traffic so far is direct — no external links yet.
+            </p>
+          ) : (
+            <div className="space-y-3.5">
+              {topReferrers.map((referrer) => (
+                <div key={referrer.referrer} className="flex items-center gap-2 sm:gap-3">
+                  <span className="w-24 shrink-0 truncate text-[11px] text-[var(--text-secondary)] sm:w-36 sm:text-xs" title={referrer.referrer}>
+                    {referrer.referrer}
+                  </span>
+                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-black/5">
+                    <div
+                      className="h-full rounded-full bg-teal-500"
+                      style={{ width: `${Math.max(2, (referrer.visits / maxReferrer) * 100)}%` }}
+                    />
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Devices */}
-          <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-4 sm:p-6">
-            <h3 className="mb-4 text-sm font-semibold text-[var(--text-primary)] sm:mb-5">Devices</h3>
-            {devices.length === 0 ? (
-              <p className="py-6 text-center text-sm text-[var(--text-secondary)]">No visits recorded yet.</p>
-            ) : (
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                {devices.map((device) => {
-                  const Icon = DEVICE_ICONS[device.device] ?? HelpCircle;
-                  const pct = Math.round((device.visits / deviceTotal) * 100);
-                  return (
-                    <div key={device.device} className="rounded-xl bg-black/5 p-3 text-center">
-                      <Icon size={16} className="mx-auto mb-1.5 text-[var(--text-secondary)]" />
-                      <p className="text-sm font-semibold text-[var(--text-primary)]">{pct}%</p>
-                      <p className="text-[10px] capitalize text-[var(--text-secondary)]">{device.device}</p>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+                  <span className="w-10 shrink-0 text-right text-[11px] font-medium text-[var(--text-primary)] sm:w-12 sm:text-xs">
+                    {formatNumber(referrer.visits)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </>

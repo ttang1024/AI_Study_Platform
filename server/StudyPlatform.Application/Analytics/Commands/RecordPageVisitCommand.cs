@@ -11,14 +11,13 @@ namespace StudyPlatform.Application.Analytics.Commands;
 /// is invisible to the visitor, and analytics is not worth an error in the console.
 /// </summary>
 /// <param name="UserId">The signed-in user, or null for anonymous traffic.</param>
-/// <param name="UserAgent">Raw User-Agent header; classified and then discarded, never stored.</param>
+/// <param name="UserAgent">Raw User-Agent header; used only to drop bots, never stored.</param>
 /// <param name="SelfHost">This site's Host header, so a same-site referrer can be dropped.</param>
 public record RecordPageVisitCommand(
     Guid? UserId,
     string Path,
     string? Referrer,
     string VisitorId,
-    string SessionId,
     string? UserAgent,
     string? SelfHost) : IRequest<Result>;
 
@@ -44,10 +43,8 @@ public class RecordPageVisitCommandHandler : IRequestHandler<RecordPageVisitComm
             Id = Guid.NewGuid(),
             UserId = request.UserId,
             VisitorId = request.VisitorId,
-            SessionId = request.SessionId,
             Path = PageVisitTelemetry.NormalizePath(request.Path),
             Referrer = PageVisitTelemetry.NormalizeReferrer(request.Referrer, request.SelfHost),
-            Device = PageVisitTelemetry.ClassifyDevice(request.UserAgent),
             OccurredAt = DateTime.UtcNow,
         }, cancellationToken);
 

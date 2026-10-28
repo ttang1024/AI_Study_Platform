@@ -8,13 +8,12 @@ import { getAccessToken } from './accessToken';
  * closed mid-flight (`keepalive`), and must never drag a visitor into the shared refresh-on-401
  * flow — an expired token here just means the visit is recorded as anonymous, which is correct.
  *
- * The two ids are random and live only in this browser. They exist to count *unique visitors* and
- * *sessions* without identifying anyone; nothing else is derived from them, and the server stores
- * no URL query strings, no user agent and no IP address alongside them.
+ * The visitor id is random and lives only in this browser. It exists to count *unique visitors*
+ * without identifying anyone; nothing else is derived from it, and the server stores no URL query
+ * strings, no user agent and no IP address alongside it.
  */
 
 const VISITOR_KEY = 'sp_visitor_id';
-const SESSION_KEY = 'sp_session_id';
 
 const randomId = (): string => {
   try {
@@ -25,39 +24,23 @@ const randomId = (): string => {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 };
 
-// Private-mode browsers throw on storage access, so every id falls back to a per-tab value held
-// in memory: tracking degrades to "this visit happened" rather than breaking the page.
+// Private-mode browsers throw on storage access, so the id falls back to a per-tab value held in
+// memory: tracking degrades to "this visit happened" rather than breaking the page.
 let memoryVisitorId: string | null = null;
-let memorySessionId: string | null = null;
-
-const readOrCreate = (
-  storage: 'local' | 'session',
-  key: string,
-  fallback: () => string | null,
-  remember: (value: string) => void,
-): string => {
-  const created = randomId();
-  try {
-    const store = storage === 'local' ? window.localStorage : window.sessionStorage;
-    const existing = store.getItem(key);
-    if (existing) return existing;
-    store.setItem(key, created);
-    return created;
-  } catch {
-    const existing = fallback();
-    if (existing) return existing;
-    remember(created);
-    return created;
-  }
-};
 
 /** Stable for as long as the browser keeps site data — one "unique visitor". */
-export const getVisitorId = (): string =>
-  readOrCreate('local', VISITOR_KEY, () => memoryVisitorId, (v) => { memoryVisitorId = v; });
-
-/** Lives for one tab — one "session". */
-export const getSessionId = (): string =>
-  readOrCreate('session', SESSION_KEY, () => memorySessionId, (v) => { memorySessionId = v; });
+export const getVisitorId = (): string => {
+  try {
+    const existing = window.localStorage.getItem(VISITOR_KEY);
+    if (existing) return existing;
+    const created = randomId();
+    window.localStorage.setItem(VISITOR_KEY, created);
+    return created;
+  } catch {
+    memoryVisitorId ??= randomId();
+    return memoryVisitorId;
+  }
+};
 
 // The referrer belongs to the page load, not to each SPA route, so it rides only the first beacon;
 // sending it on every route change would credit the whole session to one external link.
@@ -89,7 +72,6 @@ export const trackPageVisit = (path: string): void => {
     path,
     referrer,
     visitorId: getVisitorId(),
-    sessionId: getSessionId(),
   });
 
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };

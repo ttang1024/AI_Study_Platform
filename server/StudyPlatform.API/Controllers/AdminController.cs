@@ -27,25 +27,6 @@ public class AdminController : ControllerBase
         return Ok(new { token = result.Data!.Token });
     }
 
-    [HttpGet("feedback/stats")]
-    [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> GetStats()
-    {
-        var result = await _mediator.Send(new GetFeedbackStatsQuery());
-        if (!result.IsSuccess)
-            return BadRequest(BaseResponse<object>.Fail(result.Message));
-
-        var d = result.Data!;
-        return Ok(new
-        {
-            total = d.Total,
-            byType = d.ByType,
-            byStatus = d.ByStatus,
-            averageRating = d.AverageRating,
-            recentCount = d.RecentCount,
-        });
-    }
-
     [HttpGet("feedback")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> ListFeedback(

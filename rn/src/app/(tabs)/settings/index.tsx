@@ -10,112 +10,55 @@ import UserCircle from 'lucide-react-native/icons/circle-user';
 import Gauge from 'lucide-react-native/icons/gauge';
 import Volume2 from 'lucide-react-native/icons/volume-2';
 import Languages from 'lucide-react-native/icons/languages';
-import FileArchive from 'lucide-react-native/icons/file-archive';
 
 import { Button } from '@/components/Button';
 import { IconBadge } from '@/components/IconBadge';
-import { PasswordSection } from '@/components/settings/PasswordSection';
-import { ProfileSection } from '@/components/settings/ProfileSection';
-import { SecuritySection } from '@/components/settings/SecuritySection';
+import { PressableScale } from '@/components/PressableScale';
 import { Colors, Gradients, Layout, Overlay, Radius, Shadows, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
 
+// AI Usage sits directly under AI Services: the keys are configured there, this is what they cost.
+const NAV_ITEMS = [
+  { href: '/settings/ai-services', icon: KeyRound, title: 'AI Services', subtitle: 'Bring your own API key for Gemini, OpenAI, Claude, and more' },
+  { href: '/settings/ai-usage', icon: Activity, title: 'AI Usage', subtitle: 'What your AI calls have cost, by feature and model' },
+  { href: '/settings/language', icon: Languages, title: 'Language', subtitle: 'Interface language; your study material is not translated' },
+  { href: '/settings/scheduler', icon: Gauge, title: 'Scheduler', subtitle: 'Target retention, interval limits, and tuning FSRS to your own reviews' },
+  { href: '/settings/voice', icon: Volume2, title: 'Voice', subtitle: 'Pick the neural voice used to read notes, terms, and replies aloud' },
+  { href: '/settings/notifications', icon: Bell, title: 'Notifications', subtitle: 'Daily study reminder and due-card push alerts' },
+  { href: '/settings/feedback', icon: MessageSquarePlus, title: 'Feedback', subtitle: 'Report a bug, request a feature, or share your thoughts' },
+] as const;
+
 export default function SettingsScreen() {
-  const { user, updateProfile, changePassword, logout } = useAuth();
+  const { user, logout } = useAuth();
   const router = useRouter();
 
   return (
     <ScrollView style={styles.root} contentContainerStyle={[styles.content]}>
-      <LinearGradient colors={Gradients.hero} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.profileCard}>
-        <View style={styles.avatarCircle}>
-          <UserCircle size={28} color={Colors.white} />
-        </View>
-        <View>
-          <Text style={styles.name}>{user?.name}</Text>
-          <Text style={styles.email}>{user?.email}</Text>
-        </View>
-      </LinearGradient>
-
-      <ProfileSection
-        name={user?.name ?? ''}
-        email={user?.email}
-        onSave={(name) => updateProfile({ fullName: name })}
-      />
-
-      <PasswordSection onSave={changePassword} />
-
-      <SecuritySection />
+      {/* The profile card opens Account: name, password, 2FA/sessions, and data export/deletion. */}
+      <PressableScale onPress={() => router.push('/settings/account')}>
+        <LinearGradient colors={Gradients.hero} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.profileCard}>
+          <View style={styles.avatarCircle}>
+            <UserCircle size={28} color={Colors.white} />
+          </View>
+          <View style={styles.navBody}>
+            <Text style={styles.name}>{user?.name}</Text>
+            <Text style={styles.email}>{user?.email}</Text>
+          </View>
+          <ChevronRight size={20} color={Overlay.onGradientMuted} />
+        </LinearGradient>
+      </PressableScale>
 
       <View style={styles.section}>
-        <Pressable style={styles.navRow} onPress={() => router.push('/settings/data')}>
-          <IconBadge icon={FileArchive} size={36} />
-          <View style={styles.navBody}>
-            <Text style={styles.navTitle}>Your data</Text>
-            <Text style={styles.navSubtitle}>Download everything we hold, or delete your account</Text>
-          </View>
-          <ChevronRight size={18} color={Colors.textSecondary} />
-        </Pressable>
-      </View>
-
-      <View style={styles.section}>
-        <Pressable style={styles.navRow} onPress={() => router.push('/settings/ai-services')}>
-          <IconBadge icon={KeyRound} size={36} />
-          <View style={styles.navBody}>
-            <Text style={styles.navTitle}>AI Services</Text>
-            <Text style={styles.navSubtitle}>Bring your own API key for Gemini, OpenAI, Claude, and more</Text>
-          </View>
-          <ChevronRight size={18} color={Colors.textSecondary} />
-        </Pressable>
-        {/* Directly under AI Services: the keys are configured there, this is what they cost. */}
-        <Pressable style={styles.navRow} onPress={() => router.push('/settings/ai-usage')}>
-          <IconBadge icon={Activity} size={36} />
-          <View style={styles.navBody}>
-            <Text style={styles.navTitle}>AI Usage</Text>
-            <Text style={styles.navSubtitle}>What your AI calls have cost, by feature and model</Text>
-          </View>
-          <ChevronRight size={18} color={Colors.textSecondary} />
-        </Pressable>
-        {/* After usage: the limit shown there is set by the plan shown here. */}
-        <Pressable style={styles.navRow} onPress={() => router.push('/settings/language')}>
-          <IconBadge icon={Languages} size={36} />
-          <View style={styles.navBody}>
-            <Text style={styles.navTitle}>Language</Text>
-            <Text style={styles.navSubtitle}>Interface language; your study material is not translated</Text>
-          </View>
-          <ChevronRight size={18} color={Colors.textSecondary} />
-        </Pressable>
-        <Pressable style={styles.navRow} onPress={() => router.push('/settings/scheduler')}>
-          <IconBadge icon={Gauge} size={36} />
-          <View style={styles.navBody}>
-            <Text style={styles.navTitle}>Scheduler</Text>
-            <Text style={styles.navSubtitle}>Target retention, interval limits, and tuning FSRS to your own reviews</Text>
-          </View>
-          <ChevronRight size={18} color={Colors.textSecondary} />
-        </Pressable>
-        <Pressable style={styles.navRow} onPress={() => router.push('/settings/voice')}>
-          <IconBadge icon={Volume2} size={36} />
-          <View style={styles.navBody}>
-            <Text style={styles.navTitle}>Voice</Text>
-            <Text style={styles.navSubtitle}>Pick the neural voice used to read notes, terms, and replies aloud</Text>
-          </View>
-          <ChevronRight size={18} color={Colors.textSecondary} />
-        </Pressable>
-        <Pressable style={styles.navRow} onPress={() => router.push('/settings/notifications')}>
-          <IconBadge icon={Bell} size={36} />
-          <View style={styles.navBody}>
-            <Text style={styles.navTitle}>Notifications</Text>
-            <Text style={styles.navSubtitle}>Daily study reminder and due-card push alerts</Text>
-          </View>
-          <ChevronRight size={18} color={Colors.textSecondary} />
-        </Pressable>
-        <Pressable style={styles.navRow} onPress={() => router.push('/settings/feedback')}>
-          <IconBadge icon={MessageSquarePlus} size={36} />
-          <View style={styles.navBody}>
-            <Text style={styles.navTitle}>Feedback</Text>
-            <Text style={styles.navSubtitle}>Report a bug, request a feature, or share your thoughts</Text>
-          </View>
-          <ChevronRight size={18} color={Colors.textSecondary} />
-        </Pressable>
+        {NAV_ITEMS.map((item) => (
+          <Pressable key={item.href} style={styles.navRow} onPress={() => router.push(item.href)}>
+            <IconBadge icon={item.icon} size={36} />
+            <View style={styles.navBody}>
+              <Text style={styles.navTitle}>{item.title}</Text>
+              <Text style={styles.navSubtitle}>{item.subtitle}</Text>
+            </View>
+            <ChevronRight size={18} color={Colors.textSecondary} />
+          </Pressable>
+        ))}
       </View>
 
       <View style={styles.section}>

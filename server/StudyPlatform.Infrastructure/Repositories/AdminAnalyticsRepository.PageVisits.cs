@@ -30,30 +30,22 @@ public partial class AdminAnalyticsRepository
         if (totalVisits == 0)
         {
             return new PageVisitAnalytics(
-                days,
-                new PageVisitTotals(0, 0, 0, 0, 0, 0, 0, 0),
-                FillDailyGaps(new Dictionary<DateTime, int>(), today, days),
+                new PageVisitTotals(0, 0, 0, 0, 0),
                 FillDailyGaps(new Dictionary<DateTime, int>(), today, days),
                 Array.Empty<PagePopularity>(),
-                Array.Empty<ReferrerCount>(),
-                Array.Empty<DeviceCount>());
+                Array.Empty<ReferrerCount>());
         }
 
         var uniqueVisitors = await visits.Select(v => v.VisitorId).Distinct().CountAsync(ct);
-        var sessions = await visits.Select(v => v.SessionId).Distinct().CountAsync(ct);
         var visitsToday = await visits.LongCountAsync(v => v.OccurredAt >= today, ct);
-        var visitsLast7 = await visits.LongCountAsync(v => v.OccurredAt >= today.AddDays(-6), ct);
         var signedIn = await visits.LongCountAsync(v => v.UserId != null, ct);
 
         var totals = new PageVisitTotals(
             Visits: totalVisits,
             UniqueVisitors: uniqueVisitors,
-            Sessions: sessions,
             VisitsToday: visitsToday,
-            VisitsLast7Days: visitsLast7,
             SignedInVisits: signedIn,
-            AnonymousVisits: totalVisits - signedIn,
-            VisitsPerSession: sessions > 0 ? Math.Round((double)totalVisits / sessions, 1) : 0);
+            AnonymousVisits: totalVisits - signedIn);
 
         // ── Daily visits ─────────────────────────────────────────────────────────
         var visitsByDay = await visits
@@ -61,16 +53,6 @@ public partial class AdminAnalyticsRepository
             .Select(g => new { Date = g.Key, Count = g.Count() })
             .ToListAsync(ct);
         var visitTrend = FillDailyGaps(visitsByDay.ToDictionary(x => x.Date, x => x.Count), today, days);
-
-        // ── Daily distinct visitors ──────────────────────────────────────────────
-        // Grouped in Postgres to one row per (day, visitor); only that much crosses the wire,
-        // and the second grouping is over a list bounded by visitors × days, not by traffic.
-        var visitorDayPairs = await visits
-            .GroupBy(v => new { Day = v.OccurredAt.Date, v.VisitorId })
-            .Select(g => new { g.Key.Day, g.Key.VisitorId })
-            .ToListAsync(ct);
-        var visitorTrend = FillDailyGaps(
-            visitorDayPairs.GroupBy(p => p.Day).ToDictionary(g => g.Key, g => g.Count()), today, days);
 
         // ── Top pages ────────────────────────────────────────────────────────────
         var topPageRows = await visits
@@ -95,8 +77,8 @@ public partial class AdminAnalyticsRepository
                 x.Path, x.Visits, visitorsByPath.TryGetValue(x.Path, out var uv) ? uv : 0))
             .ToList();
 
-        // ── Referrers and devices ────────────────────────────────────────────────
-        // Projected to anonymous types rather than straight into the records: EF cannot translate a
+        // ── Referrers ────────────────────────────────────────────────────────────
+        // Projected to an anonymous type rather than straight into the record: EF cannot translate a
         // positional record constructor inside a GroupBy projection.
         var referrerRows = await visits
             .Where(v => v.Referrer != null)
@@ -107,13 +89,6 @@ public partial class AdminAnalyticsRepository
             .ToListAsync(ct);
         var topReferrers = referrerRows.Select(x => new ReferrerCount(x.Referrer, x.Visits)).ToList();
 
-        var deviceRows = await visits
-            .GroupBy(v => v.Device)
-            .Select(g => new { Device = g.Key, Visits = g.LongCount() })
-            .OrderByDescending(x => x.Visits)
-            .ToListAsync(ct);
-        var devices = deviceRows.Select(x => new DeviceCount(x.Device, x.Visits)).ToList();
-
-        return new PageVisitAnalytics(days, totals, visitTrend, visitorTrend, topPages, topReferrers, devices);
+        return new PageVisitAnalytics(totals, visitTrend, topPages, topReferrers);
     }
 }

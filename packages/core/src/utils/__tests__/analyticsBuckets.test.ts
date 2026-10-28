@@ -50,6 +50,14 @@ describe('bucketByWindow', () => {
     expect(buckets.length).toBe(5) // ceil(35/7)
     const totalItems = buckets.reduce((sum, b) => sum + b.items.length, 0)
     expect(totalItems).toBe(1)
+    // Weekly buckets are labelled by their first day: the last one covers the 7 days ending today.
+    expect(buckets[buckets.length - 1].label).toBe('8/25')
+  })
+
+  it('takes an alternate label formatter', () => {
+    const today = d(2026, 8, 5)
+    const buckets = bucketByWindow([], { dateOf: (r: { date: string }) => r.date, days: 3, today, labelOf: shortDayLabel })
+    expect(buckets[2].label).toBe(shortDayLabel(today))
   })
 
   it('matches only the YYYY-MM-DD prefix of the date string', () => {
@@ -91,6 +99,24 @@ describe('bucketAccuracy', () => {
     ]
     // (5+27)/(10+30) = 32/40 = 80%
     expect(bucketAccuracy(daily, 1)[0].value).toBe(80)
+  })
+
+  it('weights by attempts across days rather than averaging daily percentages', () => {
+    const yesterday = new Date()
+    yesterday.setDate(yesterday.getDate() - 1)
+    const yesterdayKey = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`
+    // A perfect 1-question day and a 50% 40-question day: averaging the rates gives 75%,
+    // the attempt-weighted answer is 21/41 ≈ 51%. Weekly bucketing (90 days) puts both in one bucket.
+    const buckets = bucketAccuracy(
+      [
+        { date: todayKey, totalAttempts: 1, correctAttempts: 1 },
+        { date: yesterdayKey, totalAttempts: 40, correctAttempts: 20 },
+      ],
+      90,
+    )
+    const withData = buckets.filter((b) => b.value > 0)
+    expect(withData).toHaveLength(1)
+    expect(withData[0].value).toBe(51)
   })
 
   it('reports 0 for a bucket with no attempts', () => {

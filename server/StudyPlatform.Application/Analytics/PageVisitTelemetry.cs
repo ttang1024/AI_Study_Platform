@@ -3,9 +3,9 @@ using System.Text;
 namespace StudyPlatform.Application.Analytics;
 
 /// <summary>
-/// Turns what a browser reports about a page view into the three small, aggregatable values a
-/// visit row keeps. Pure functions, deliberately: the client is untrusted, so the server decides
-/// what a path, a referrer and a device are — and each rule is unit-testable on its own.
+/// Turns what a browser reports about a page view into the small, aggregatable values a visit row
+/// keeps. Pure functions, deliberately: the client is untrusted, so the server decides what a path
+/// and a referrer are, and whether the caller is a bot — and each rule is unit-testable on its own.
 /// </summary>
 public static class PageVisitTelemetry
 {
@@ -93,27 +93,6 @@ public static class PageVisitTelemetry
         }
 
         return Truncate(host, 200);
-    }
-
-    /// <summary>"mobile" | "tablet" | "desktop" | "unknown" from a User-Agent string.</summary>
-    public static string ClassifyDevice(string? userAgent)
-    {
-        if (string.IsNullOrWhiteSpace(userAgent))
-            return "unknown";
-
-        var ua = userAgent.ToLowerInvariant();
-
-        if (ua.Contains("ipad") || ua.Contains("tablet") || ua.Contains("kindle") ||
-            ua.Contains("silk") || ua.Contains("playbook") ||
-            // Android reports "mobile" only on phones; an Android without it is a tablet.
-            (ua.Contains("android") && !ua.Contains("mobile")))
-            return "tablet";
-
-        if (ua.Contains("mobi") || ua.Contains("iphone") || ua.Contains("ipod") ||
-            ua.Contains("android") || ua.Contains("windows phone") || ua.Contains("blackberry"))
-            return "mobile";
-
-        return "desktop";
     }
 
     private static readonly string[] BotMarkers =

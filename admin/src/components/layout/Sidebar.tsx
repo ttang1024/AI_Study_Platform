@@ -1,11 +1,10 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, MessageSquare, LogOut, ShieldCheck, Users, BarChart3, X } from 'lucide-react';
+import { MessageSquare, LogOut, ShieldCheck, Users, BarChart3, X } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useAuth } from '../../context/AuthContext';
 
 const navItems = [
-  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/analytics', icon: BarChart3, label: 'Analytics' },
   { to: '/users', icon: Users, label: 'Users' },
   { to: '/feedback', icon: MessageSquare, label: 'Feedback' },

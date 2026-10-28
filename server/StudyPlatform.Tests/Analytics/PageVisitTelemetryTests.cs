@@ -69,20 +69,6 @@ public class PageVisitReferrerTests
         => Assert.Null(PageVisitTelemetry.NormalizeReferrer(referrer, "toto-study.com"));
 }
 
-public class PageVisitDeviceTests
-{
-    [Theory]
-    [InlineData("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148", "mobile")]
-    [InlineData("Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Mobile Safari/537.36", "mobile")]
-    [InlineData("Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148", "tablet")]
-    [InlineData("Mozilla/5.0 (Linux; Android 14; SM-X700) AppleWebKit/537.36 Safari/537.36", "tablet")]
-    [InlineData("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/128 Safari/537.36", "desktop")]
-    [InlineData("", "unknown")]
-    [InlineData(null, "unknown")]
-    public void Classify_SortsTheThreeShapesOfBrowser(string? userAgent, string expected)
-        => Assert.Equal(expected, PageVisitTelemetry.ClassifyDevice(userAgent));
-}
-
 public class PageVisitBotTests
 {
     [Theory]

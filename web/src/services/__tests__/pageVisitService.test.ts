@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { trackPageVisit, resetPageVisitTracking, getVisitorId, getSessionId } from '../pageVisitService'
+import { trackPageVisit, resetPageVisitTracking, getVisitorId } from '../pageVisitService'
 import { setAccessToken } from '../accessToken'
 
 const fetchMock = vi.fn((_input: RequestInfo | URL, _init?: RequestInit) => Promise.resolve({ ok: true } as Response))
@@ -13,20 +13,18 @@ describe('pageVisitService', () => {
     vi.stubGlobal('fetch', fetchMock)
     fetchMock.mockClear()
     localStorage.clear()
-    sessionStorage.clear()
     resetPageVisitTracking()
   })
 
   afterEach(() => vi.unstubAllGlobals())
 
-  it('posts the path with a visitor and session id', () => {
+  it('posts the path with a visitor id', () => {
     trackPageVisit('/library')
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
     const body = lastBody()
     expect(body.path).toBe('/library')
     expect(body.visitorId).toBeTruthy()
-    expect(body.sessionId).toBeTruthy()
   })
 
   it('sends the beacon to the ingest endpoint with keepalive so a closing page still counts', () => {
@@ -76,16 +74,13 @@ describe('pageVisitService', () => {
     expect((lastInit().headers as Record<string, string>).Authorization).toBeUndefined()
   })
 
-  it('keeps the visitor id across visits and the session id within the tab', () => {
+  it('keeps the visitor id across visits', () => {
     const visitor = getVisitorId()
-    const session = getSessionId()
 
     trackPageVisit('/library')
 
     expect(getVisitorId()).toBe(visitor)
-    expect(getSessionId()).toBe(session)
     expect(localStorage.getItem('sp_visitor_id')).toBe(visitor)
-    expect(sessionStorage.getItem('sp_session_id')).toBe(session)
   })
 
   it('never throws when the network rejects', () => {
