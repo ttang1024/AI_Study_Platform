@@ -121,3 +121,4 @@ dump.rdb
 
 # Local database dumps produced by scripts/migrate-db.sh — never commit these.
 .migration/
+promo-video

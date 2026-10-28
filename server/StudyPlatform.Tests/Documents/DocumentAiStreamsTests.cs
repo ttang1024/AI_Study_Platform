@@ -9,7 +9,6 @@ namespace StudyPlatform.Tests.Documents;
 
 public class DocumentAiStreamsTests
 {
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IDocumentRepository> _documents = new();
     private readonly Mock<IAiService> _ai = new();
     private readonly Mock<IDocumentContentService> _content = new();
@@ -18,7 +17,7 @@ public class DocumentAiStreamsTests
 
     public DocumentAiStreamsTests()
     {
-        _streams = new DocumentAiStreams(_uow.Object, _documents.Object, _ai.Object, _content.Object);
+        _streams = new DocumentAiStreams(_documents.Object, _ai.Object, _content.Object);
     }
 
     [Fact]
@@ -41,5 +40,20 @@ public class DocumentAiStreamsTests
         Assert.True(result.IsSuccess);
         _ai.Verify(a => a.StreamTimelineSummaryAsync(
             It.Is<string>(t => t.Contains("Hello") && t.Contains("Later") && t.Contains("01:05")), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task FinishedSummary_WritesOnlyTheSummaryColumn()
+    {
+        var document = new Document { DocumentId = Guid.NewGuid(), UserId = _userId, ContentType = "text/plain" };
+        _documents.Setup(r => r.GetByIdAsync(document.DocumentId, It.IsAny<CancellationToken>())).ReturnsAsync(document);
+        _content.Setup(c => c.GetContentAsync(document, It.IsAny<CancellationToken>())).ReturnsAsync(new DocumentContent(null, "text"));
+
+        var result = await _streams.StreamSummaryAsync(document.DocumentId, _userId, default);
+        await result.Data!.OnCompleted!("the summary", default);
+
+        // Saving the whole entity loaded at stream start overwrote a mind map finished in the meantime.
+        _documents.Verify(r => r.SaveSummaryAsync(document.DocumentId, "the summary", It.IsAny<CancellationToken>()), Times.Once);
+        _documents.Verify(r => r.Update(It.IsAny<Document>()), Times.Never);
     }
 }

@@ -34,4 +34,12 @@ public class WorkedProblemRepository : IWorkedProblemRepository
 
     public async Task AddRangeAsync(IEnumerable<WorkedProblem> problems, CancellationToken cancellationToken = default)
         => await _context.WorkedProblems.AddRangeAsync(problems, cancellationToken);
+
+    public async Task<IReadOnlySet<Guid>> GetOwnedIdsAsync(Guid userId, IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken = default)
+        => ids.Count == 0
+            ? new HashSet<Guid>()
+            : (await _context.WorkedProblems
+                .Where(p => p.UserId == userId && ids.Contains(p.WorkedProblemId))
+                .Select(p => p.WorkedProblemId)
+                .ToListAsync(cancellationToken)).ToHashSet();
 }

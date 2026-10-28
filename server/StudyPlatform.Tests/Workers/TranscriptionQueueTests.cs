@@ -51,8 +51,8 @@ public class TranscriptionQueueTests
     public async Task OnStart_RequeuesTranscriptionsInterruptedByTheLastShutdown()
     {
         var queue = CreateQueue();
-        var audio = new PendingTranscription(Guid.NewGuid(), Guid.NewGuid(), "audio/mpeg");
-        var podcast = new PendingTranscription(Guid.NewGuid(), Guid.NewGuid(), "audio/podcast");
+        var audio = new PendingTranscription(Guid.NewGuid(), Guid.NewGuid(), "audio/mpeg", DateTime.UtcNow);
+        var podcast = new PendingTranscription(Guid.NewGuid(), Guid.NewGuid(), "audio/podcast", DateTime.UtcNow);
         _documents.Setup(r => r.GetPendingTranscriptionsAsync(It.IsAny<CancellationToken>())).ReturnsAsync([audio, podcast]);
         var ran = 0;
         _mediator.Setup(m => m.Send(It.IsAny<TranscribeAudioCommand>(), It.IsAny<CancellationToken>()))
@@ -72,7 +72,7 @@ public class TranscriptionQueueTests
     public async Task FailedTranscription_ClearsTheMarker_SoItIsNotRetriedOnEveryRestart()
     {
         var queue = CreateQueue();
-        var job = new PendingTranscription(Guid.NewGuid(), Guid.NewGuid(), "audio/mpeg");
+        var job = new PendingTranscription(Guid.NewGuid(), Guid.NewGuid(), "audio/mpeg", DateTime.UtcNow);
         _documents.Setup(r => r.GetPendingTranscriptionsAsync(It.IsAny<CancellationToken>())).ReturnsAsync([job]);
         _mediator.Setup(m => m.Send(It.IsAny<TranscribeAudioCommand>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result<DocumentDto>.Failure("bad file", "TRANSCRIPTION_FAILED"));
@@ -85,6 +85,26 @@ public class TranscriptionQueueTests
 
         _mediator.Verify(m => m.Send(new AbandonTranscriptionCommand(job.DocumentId), It.IsAny<CancellationToken>()), Times.Once);
     }
+
+    [Fact]
+    public async Task OnStart_AJobPendingTooLong_IsAbandoned_NotRequeued()
+    {
+        // The marker survives a crash, so a file that crashes the process would otherwise be re-queued by
+        // every restart it causes.
+        var queue = CreateQueue();
+        var stale = new PendingTranscription(Guid.NewGuid(), Guid.NewGuid(), "audio/mpeg",
+            DateTime.UtcNow - TranscriptionQueue.MaxPendingAge - TimeSpan.FromMinutes(1));
+        _documents.Setup(r => r.GetPendingTranscriptionsAsync(It.IsAny<CancellationToken>())).ReturnsAsync([stale]);
+        var abandoned = false;
+        _mediator.Setup(m => m.Send(It.IsAny<AbandonTranscriptionCommand>(), It.IsAny<CancellationToken>()))
+            .Callback(() => abandoned = true)
+            .ReturnsAsync(Result.Success());
+
+        await RunUntil(queue, () => abandoned);
+
+        _mediator.Verify(m => m.Send(new AbandonTranscriptionCommand(stale.DocumentId), It.IsAny<CancellationToken>()), Times.Once);
+        _mediator.Verify(m => m.Send(It.IsAny<TranscribeAudioCommand>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
 }
 
 public class TranscriptionQueueVideoTests
@@ -96,7 +116,7 @@ public class TranscriptionQueueVideoTests
         var documents = new Mock<IDocumentRepository>();
         var videos = new Mock<IVideoRepository>();
         documents.Setup(r => r.GetPendingTranscriptionsAsync(It.IsAny<CancellationToken>())).ReturnsAsync([]);
-        var pending = new PendingVideoTranscription(Guid.NewGuid(), Guid.NewGuid());
+        var pending = new PendingVideoTranscription(Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow);
         videos.Setup(r => r.GetPendingTranscriptionsAsync(It.IsAny<CancellationToken>())).ReturnsAsync([pending]);
         mediator.Setup(m => m.Send(It.IsAny<TranscribeUploadedVideoCommand>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result.Failure("broken file", "TRANSCRIPTION_FAILED"));

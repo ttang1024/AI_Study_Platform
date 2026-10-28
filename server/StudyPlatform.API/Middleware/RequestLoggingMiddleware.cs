@@ -18,6 +18,12 @@ public class RequestLoggingMiddleware
         var stopwatch = Stopwatch.StartNew();
         var requestId = Guid.NewGuid().ToString("N")[..8];
 
+        // One id across everything this request logs (handlers, AI calls, EF) and on the response, so a
+        // user's error report can be traced to its log lines — they used to share nothing but a timestamp.
+        context.TraceIdentifier = requestId;
+        context.Response.Headers["X-Request-Id"] = requestId;
+        using var scope = _logger.BeginScope(new Dictionary<string, object> { ["RequestId"] = requestId });
+
         _logger.LogInformation(
             "[{RequestId}] {Method} {Path}{QueryString} started",
             requestId,

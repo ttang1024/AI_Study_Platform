@@ -1,8 +1,11 @@
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using StudyPlatform.API.Extensions;
 using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Services;
+using StudyPlatform.Application.Share;
+using StudyPlatform.Application.Share.Commands;
 using StudyPlatform.Application.Share.DTOs;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
@@ -16,16 +19,16 @@ namespace StudyPlatform.API.Controllers;
 [Produces("application/json")]
 public class ShareController : ControllerBase
 {
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly IMediator _mediator;
     private readonly IDocumentRepository _documents;
     private readonly IVideoRepository _videos;
     private readonly IShareTokenRepository _shareTokens;
     private readonly IBlobStorageService _blobStorage;
     private readonly IRichTextSanitizer _sanitizer;
 
-    public ShareController(IUnitOfWork unitOfWork, IDocumentRepository documents, IVideoRepository videos, IShareTokenRepository shareTokens, IBlobStorageService blobStorage, IRichTextSanitizer sanitizer)
+    public ShareController(IMediator mediator, IDocumentRepository documents, IVideoRepository videos, IShareTokenRepository shareTokens, IBlobStorageService blobStorage, IRichTextSanitizer sanitizer)
     {
-        _unitOfWork = unitOfWork;
+        _mediator = mediator;
         _documents = documents;
         _videos = videos;
         _shareTokens = shareTokens;
@@ -39,41 +42,11 @@ public class ShareController : ControllerBase
         [FromBody] CreateShareRequest request,
         CancellationToken cancellationToken = default)
     {
-        var userId = User.GetUserId();
+        var result = await _mediator.Send(new CreateShareCommand(User.GetUserId(), request), cancellationToken);
+        if (!result.IsSuccess)
+            return BadRequest(BaseResponse<CreateShareResponse>.Fail(result.Message, result.ErrorCode));
 
-        // The anonymous media endpoints serve whatever the source path names, so a share may only name
-        // a document or upload its creator owns.
-        if (!await IsOwnedSourceAsync(request.SourceUrl, userId, cancellationToken))
-            return BadRequest(BaseResponse<CreateShareResponse>.Fail(
-                "You can only share content you own.", "SOURCE_NOT_OWNED"));
-
-        var token = GenerateToken();
-
-        var share = new ShareToken
-        {
-            Id = Guid.NewGuid(),
-            Token = token,
-            OwnerId = userId,
-            Title = request.Title,
-            Summary = request.Summary,
-            MindMapText = request.MindMapText,
-            NotesHtml = SanitizeNotes(request.NotesHtml, request.SourceType),
-            QuizzesJson = request.QuizzesJson,
-            FlashcardsJson = request.FlashcardsJson,
-            GlossaryJson = request.GlossaryJson,
-            CreatedAt = DateTime.UtcNow,
-            ExpiresAt = request.ExpiresInDays.HasValue
-                ? DateTime.UtcNow.AddDays(request.ExpiresInDays.Value)
-                : null,
-            SourceType = request.SourceType,
-            SourceUrl = request.SourceUrl,
-            OriginalArticleUrl = request.OriginalArticleUrl,
-        };
-
-        await _shareTokens.AddAsync(share, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-        return Ok(BaseResponse<CreateShareResponse>.Ok(new CreateShareResponse(token, $"/share/{token}")));
+        return Ok(BaseResponse<CreateShareResponse>.Ok(result.Data!));
     }
 
     [HttpGet("{token}")]
@@ -105,7 +78,7 @@ public class ShareController : ControllerBase
         }
 
         string? fileType = null;
-        if (share.SourceType == "document" && share.SourceUrl != null && TryParseDocPath(share.SourceUrl, out var fileDocId))
+        if (share.SourceType == "document" && share.SourceUrl != null && ShareSources.TryParseDocPath(share.SourceUrl, out var fileDocId))
         {
             var fileDoc = await _documents.GetSourceRefAsync(fileDocId, share.OwnerId, cancellationToken);
             if (fileDoc != null)
@@ -142,9 +115,19 @@ public class ShareController : ControllerBase
         var (doc, error) = await ResolveSharedDocumentAsync(token, t => t is "audio" or "podcast", cancellationToken);
         if (error != null) return error;
 
-        // Podcast episodes store a direct MP3 URL — no SAS generation needed
+        // Podcast episodes store a direct MP3 URL — no SAS generation needed. That URL came from a page
+        // the sharer chose, so this route would otherwise bounce anyone who opened it from toto-study.com
+        // to wherever that is. Only a media element may follow it: browsers mark a top-level navigation
+        // Sec-Fetch-Dest: document, and an <audio> source load "audio". Native players send no header.
         if (doc!.ContentType == "audio/podcast")
-            return Redirect(doc.BlobUrl);
+        {
+            var destination = Request.Headers["Sec-Fetch-Dest"].ToString();
+            if (destination is not ("" or "audio" or "video" or "empty")
+                || !Uri.TryCreate(doc.BlobUrl, UriKind.Absolute, out var audioUrl)
+                || audioUrl.Scheme is not ("https" or "http"))
+                return NotFound();
+            return Redirect(audioUrl.AbsoluteUri);
+        }
 
         var sasUrl = await _blobStorage.GetSasUrlAsync(doc.BlobUrl, expiryMinutes: 60, cancellationToken);
         return Redirect(sasUrl);
@@ -182,7 +165,7 @@ public class ShareController : ControllerBase
         var (share, error) = await ResolveActiveShareAsync(token, t => t == "upload", cancellationToken);
         if (error != null) return error;
 
-        if (!TryParseVideoPath(share!.SourceUrl!, out var videoId))
+        if (!ShareSources.TryParseVideoPath(share!.SourceUrl!, out var videoId))
             return NotFound();
 
         var video = await _videos.GetByIdAsync(videoId, cancellationToken);
@@ -215,87 +198,13 @@ public class ShareController : ControllerBase
         var (share, error) = await ResolveActiveShareAsync(token, isAcceptedSourceType, cancellationToken);
         if (error != null) return (null, error);
 
-        if (!TryParseDocPath(share!.SourceUrl!, out var docId))
+        if (!ShareSources.TryParseDocPath(share!.SourceUrl!, out var docId))
             return (null, NotFound());
 
         var doc = await _documents.GetSourceRefAsync(docId, share.OwnerId, cancellationToken);
         return doc == null ? (null, NotFound()) : (doc, null);
     }
 
-    /// <summary>
-    /// True when <paramref name="sourceUrl"/> is not an internal reference (empty, or an external URL
-    /// such as a YouTube link), or names a document or uploaded video owned by <paramref name="userId"/>.
-    /// </summary>
-    private async Task<bool> IsOwnedSourceAsync(string? sourceUrl, Guid userId, CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrWhiteSpace(sourceUrl))
-            return true;
-
-        // Video first: "video/{id}" also has the two-segment shape of a document path.
-        if (TryParseVideoPath(sourceUrl, out var videoId))
-        {
-            var video = await _videos.GetByIdAsync(videoId, cancellationToken);
-            return video != null && video.UserId == userId;
-        }
-
-        if (TryParseDocPath(sourceUrl, out var docId))
-            return await _documents.GetSourceRefAsync(docId, userId, cancellationToken) != null;
-
-        return true;
-    }
-
-    /// <summary>
-    /// Notes are rendered as HTML by every client, so they are sanitized — except a chat share's JSON
-    /// transcript, which clients render as plain text / Markdown and which HTML-encoding would corrupt.
-    /// The exemption matches exactly the shape clients route to their transcript renderer (source type
-    /// "chat" and a <c>chat-transcript</c> payload); anything else is treated as HTML.
-    /// </summary>
     private string? SanitizeNotes(string? notes, string? sourceType)
-    {
-        if (string.IsNullOrWhiteSpace(notes) || (sourceType == "chat" && IsChatTranscriptJson(notes)))
-            return notes;
-        return _sanitizer.Sanitize(notes);
-    }
-
-    private static bool IsChatTranscriptJson(string value)
-    {
-        if (!value.TrimStart().StartsWith('{'))
-            return false;
-        try
-        {
-            using var doc = JsonDocument.Parse(value);
-            return doc.RootElement.ValueKind == JsonValueKind.Object
-                && doc.RootElement.TryGetProperty("type", out var type)
-                && type.ValueKind == JsonValueKind.String
-                && type.GetString() == "chat-transcript";
-        }
-        catch (JsonException)
-        {
-            return false;
-        }
-    }
-
-    private static bool TryParseDocPath(string sourceUrl, out Guid docId)
-    {
-        docId = Guid.Empty;
-        var parts = sourceUrl.Split('/');
-        return parts.Length == 2 && Guid.TryParse(parts[1], out docId);
-    }
-
-    private static bool TryParseVideoPath(string sourceUrl, out Guid videoId)
-    {
-        videoId = Guid.Empty;
-        var parts = sourceUrl.Split('/');
-        return parts.Length == 2 && parts[0] == "video" && Guid.TryParse(parts[1], out videoId);
-    }
-
-    private static string GenerateToken()
-    {
-        var bytes = new byte[9];
-        System.Security.Cryptography.RandomNumberGenerator.Fill(bytes);
-        return Convert.ToBase64String(bytes)
-            .Replace("+", "-")
-            .Replace("/", "_")
-            .TrimEnd('=');
-    }
+        => ShareSources.SanitizeNotes(_sanitizer, notes, sourceType);
 }

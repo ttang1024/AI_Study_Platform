@@ -93,7 +93,9 @@ public sealed class DueReviewPushWorker : PeriodicSweepWorker
         if (candidateUserIds.Count == 0) return;
 
         var dueCounts = await db.FlashcardSrs
-            .Where(s => candidateUserIds.Contains(s.UserId) && s.Due <= now)
+            // Suspended cards are out of the queue everywhere else; counting them here reminded people,
+            // daily, about cards they had deliberately parked.
+            .Where(s => candidateUserIds.Contains(s.UserId) && s.Due <= now && !s.IsSuspended)
             .GroupBy(s => s.UserId)
             .Select(g => new { UserId = g.Key, Count = g.Count() })
             .ToListAsync(ct);

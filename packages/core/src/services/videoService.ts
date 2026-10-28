@@ -328,23 +328,6 @@ export function createVideoService(http: HttpClient, streamSse: SseStreamFn) {
       });
     },
 
-    async getVideoGlossary(
-      videoId: string,
-    ): Promise<Array<{ id: string; term: string; definition: string }>> {
-      try {
-        const res = await http.get<{ data: any[] }>(
-          `${VIDEO_API}/${videoId}/glossary`,
-        );
-        return (res.data?.data ?? []).map((t: any) => ({
-          id: t.id,
-          term: t.term,
-          definition: t.definition,
-        }));
-      } catch {
-        return [];
-      }
-    },
-
     async generateVideoGlossary(
       videoId: string,
       videoUrl: string,
@@ -374,10 +357,6 @@ export function createVideoService(http: HttpClient, streamSse: SseStreamFn) {
     async getChatHistory(videoId: string): Promise<VideoChatMessage[]> {
       const res = await http.get<{ data: any[] }>(`${VIDEO_API}/${videoId}/chat`);
       return (res.data?.data ?? []).map(mapVideoChatMessage);
-    },
-
-    async deleteChatHistory(videoId: string): Promise<void> {
-      await http.delete(`${VIDEO_API}/${videoId}/chat`);
     },
 
     // ── Chat conversations (multiple threads per video) ────────────────────

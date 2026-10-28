@@ -4,6 +4,7 @@ using Moq;
 using StudyPlatform.Application.Practice.Queries;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
+using StudyPlatform.Tests.TestSupport;
 using Xunit;
 
 namespace StudyPlatform.Tests.Practice;
@@ -21,8 +22,8 @@ public class GeneratePracticeTestQueryHandlerTests
 
     public GeneratePracticeTestQueryHandlerTests()
     {
-        _documents.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Document, bool>>>(), default)).ReturnsAsync(Array.Empty<Document>());
-        _videos.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Video, bool>>>(), default)).ReturnsAsync(Array.Empty<Video>());
+        _documents.WithSources(Array.Empty<Document>());
+        _videos.WithSources(Array.Empty<Video>());
         _quizzes.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Quiz, bool>>>(), default)).ReturnsAsync(Array.Empty<Quiz>());
         _flashcards.Setup(r => r.GetByUserIdAsync(_userId, default)).ReturnsAsync(Array.Empty<Flashcard>());
         _terms.Setup(r => r.GetByUserWithSourcesAsync(_userId, default)).ReturnsAsync(Array.Empty<GlossaryTerm>());
@@ -164,8 +165,7 @@ public class GeneratePracticeTestQueryHandlerTests
     {
         var courseId = Guid.NewGuid();
         var docId = Guid.NewGuid();
-        _documents.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Document, bool>>>(), default))
-            .ReturnsAsync(new[] { new Document { DocumentId = docId, UserId = _userId, CourseId = courseId } });
+        _documents.WithSources(new[] { new Document { DocumentId = docId, UserId = _userId, CourseId = courseId } });
         _quizzes.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Quiz, bool>>>(), default)).ReturnsAsync(new[]
         {
             MakeQuiz(_userId, "A", new[] { "A", "B" }, docId), // in course
@@ -290,7 +290,7 @@ public class GeneratePracticeTestQueryHandlerTests
         var courseB = Guid.NewGuid();
         var docA = Guid.NewGuid();
         var docB = Guid.NewGuid();
-        _documents.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Document, bool>>>(), default)).ReturnsAsync(new[]
+        _documents.WithSources(new[]
         {
             new Document { DocumentId = docA, UserId = _userId, CourseId = courseA },
             new Document { DocumentId = docB, UserId = _userId, CourseId = courseB },
@@ -313,8 +313,7 @@ public class GeneratePracticeTestQueryHandlerTests
     {
         var courseId = Guid.NewGuid();
         var docId = Guid.NewGuid();
-        _documents.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Document, bool>>>(), default))
-            .ReturnsAsync(new[] { new Document { DocumentId = docId, UserId = _userId, CourseId = courseId } });
+        _documents.WithSources(new[] { new Document { DocumentId = docId, UserId = _userId, CourseId = courseId } });
         _quizzes.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Quiz, bool>>>(), default))
             .ReturnsAsync(new[] { MakeQuiz(_userId, "A", new[] { "A", "B" }, docId) });
 

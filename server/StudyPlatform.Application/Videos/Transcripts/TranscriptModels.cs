@@ -23,6 +23,4 @@ public static class VideoCacheKeys
     /// <summary>An AI result for a pasted video URL, scoped to the caller (see <c>AiCredentials.CacheScope</c>).</summary>
     public static string Generated(string artifact, string videoKey, string callerScope)
         => $"video-ai:{artifact.ToLowerInvariant()}:{videoKey}:{callerScope}";
-    public static string Glossary(Guid videoRecordId, Guid userId) => $"glossary:video:{videoRecordId}:{userId}";
-    public static string Quiz(Guid videoRecordId, Guid userId, string difficulty) => $"quiz:video:{videoRecordId}:{userId}:{difficulty}";
 }

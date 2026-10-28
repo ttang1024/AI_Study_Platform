@@ -38,4 +38,27 @@ public interface IVideoRepository : IRepository<Video>
     Task<IReadOnlyList<PendingVideoTranscription>> GetPendingTranscriptionsAsync(CancellationToken cancellationToken = default);
 
     Task<Video?> GetByExternalVideoIdAsync(string externalVideoId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Writes only the generated column (and UpdatedAt). Saving the whole entity loaded when a stream
+    /// began overwrote whatever else changed meanwhile — a mind map finishing after a summary wrote the
+    /// summary column back to its pre-stream value.
+    /// </summary>
+    Task SaveSummaryAsync(Guid id, string summary, CancellationToken cancellationToken = default);
+
+    /// <inheritdoc cref="SaveSummaryAsync"/>
+    Task SaveMindMapAsync(Guid id, string mindMapText, CancellationToken cancellationToken = default);
+
+    /// <summary>The stored files (video and cover) of the course's uploaded videos — the rows go by cascade.</summary>
+    Task<IReadOnlyList<string>> GetUploadedFileUrlsByCourseAsync(Guid courseId, CancellationToken cancellationToken = default);
+
+    /// <summary>Every one of the user's items as (id, course, name) — no text columns (see <see cref="SourceCourse"/>).</summary>
+    Task<IReadOnlyList<SourceCourse>> GetSourceCoursesByUserAsync(Guid userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Inserts and commits an uploaded video unless the user already has <paramref name="limit"/> uploads
+    /// (negative: unlimited). Count and insert run in one transaction under a per-user lock, so parallel
+    /// uploads cannot all pass the count. Commits on its own, not through the unit of work.
+    /// </summary>
+    Task<bool> AddUploadWithinLimitAsync(Video video, int limit, CancellationToken cancellationToken = default);
 }

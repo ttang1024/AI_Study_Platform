@@ -16,7 +16,10 @@ namespace StudyPlatform.Infrastructure.Services;
 /// question a deletion feature has to answer.</para>
 ///
 /// <para>Runs inside one transaction, so a failure part-way leaves the account intact and the worker
-/// can retry rather than leaving a half-erased user.</para>
+/// can retry rather than leaving a half-erased user. The transaction goes through the context's execution
+/// strategy: with retry-on-failure enabled, a user-initiated transaction outside it throws on the first
+/// statement, which is how every erase failed until 2026-10. Stored files are deleted only after the
+/// commit, so a failed erase no longer strips the files from an account that then lives on.</para>
 /// </summary>
 public class AccountEraser : IAccountEraser
 {
@@ -37,8 +40,21 @@ public class AccountEraser : IAccountEraser
         if (user == null)
             return false;
 
-        await DeleteBlobsAsync(userId, cancellationToken);
+        var blobUrls = await GetBlobUrlsAsync(userId, cancellationToken);
 
+        // The whole transaction is the retriable unit: a transient failure replays every delete, which
+        // is safe because each one is idempotent.
+        var strategy = _db.Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(ct => DeleteRowsAsync(userId, ct), cancellationToken);
+
+        await DeleteBlobsAsync(userId, blobUrls, cancellationToken);
+
+        _logger.LogInformation("Erased account {UserId}", userId);
+        return true;
+    }
+
+    private async Task<bool> DeleteRowsAsync(Guid userId, CancellationToken cancellationToken)
+    {
         await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
 
         // Leaf rows first, working up to the aggregates that own them.
@@ -114,25 +130,39 @@ public class AccountEraser : IAccountEraser
         await _db.Users.Where(u => u.UserId == userId).ExecuteDeleteAsync(cancellationToken);
 
         await transaction.CommitAsync(cancellationToken);
-
-        _logger.LogInformation("Erased account {UserId}", userId);
         return true;
     }
 
     /// <summary>
-    /// Removes stored files before the rows that point at them.
-    ///
-    /// <para>Best-effort and outside the transaction, because object storage has no part in it: a
-    /// blob that fails to delete is an orphan to sweep up later, whereas letting that failure abort
-    /// the erase would leave the account undeleted — the worse of the two outcomes by far.</para>
+    /// Every stored file the account owns: its documents, its uploaded videos and their covers, and any
+    /// data-export archives, which are a complete copy of the account and must not outlive it. Read before the rows that name them go.
     /// </summary>
-    private async Task DeleteBlobsAsync(Guid userId, CancellationToken cancellationToken)
+    private async Task<List<string>> GetBlobUrlsAsync(Guid userId, CancellationToken cancellationToken)
     {
-        var blobUrls = await _db.Documents
+        var documents = await _db.Documents
             .Where(d => d.UserId == userId && d.BlobUrl != string.Empty)
             .Select(d => d.BlobUrl)
             .ToListAsync(cancellationToken);
+        var exports = await _db.DataExportRequests
+            .Where(r => r.UserId == userId && r.BlobUrl != null)
+            .Select(r => r.BlobUrl!)
+            .ToListAsync(cancellationToken);
+        // Uploaded videos and their covers; a linked (YouTube etc.) video's URLs are not ours.
+        var uploads = await _db.Videos
+            .Where(v => v.UserId == userId && v.SourceType == "upload")
+            .Select(v => new { v.VideoUrl, v.ThumbnailUrl })
+            .ToListAsync(cancellationToken);
+        return [.. documents, .. exports,
+            .. uploads.SelectMany(v => new[] { v.VideoUrl, v.ThumbnailUrl }).Where(u => !string.IsNullOrEmpty(u))];
+    }
 
+    /// <summary>
+    /// Best-effort and outside the transaction, because object storage has no part in it: a blob that
+    /// fails to delete is an orphan to sweep up later, whereas letting that failure abort the erase
+    /// would leave the account undeleted — the worse of the two outcomes by far.
+    /// </summary>
+    private async Task DeleteBlobsAsync(Guid userId, List<string> blobUrls, CancellationToken cancellationToken)
+    {
         foreach (var url in blobUrls)
         {
             try

@@ -126,6 +126,7 @@ public partial class DocumentsController
                     ? ChatThreads.TitleFrom(promptMessage)
                     : null,
                 ct),
-            onCompleted: (text, ct) => _chatTurns.RecordAssistantAsync(thread, text, ct));
+            onCompleted: (text, ct) => _chatTurns.RecordAssistantAsync(thread, text, ct),
+            onInterrupted: (partial, ct) => _chatTurns.RecordAssistantAsync(thread, ChatThreads.InterruptedReply(partial), ct));
     }
 }

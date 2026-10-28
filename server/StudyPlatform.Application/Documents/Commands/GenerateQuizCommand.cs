@@ -83,8 +83,7 @@ public class GenerateQuizCommandHandler : IRequestHandler<GenerateQuizCommand, R
         List<AiQuizItem> quizItems;
         try
         {
-            quizItems = JsonSerializer.Deserialize<List<AiQuizItem>>(quizJson,
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new List<AiQuizItem>();
+            quizItems = AiQuizItems.Parse(quizJson);
         }
         catch (JsonException)
         {
@@ -116,6 +115,15 @@ public class GenerateQuizCommandHandler : IRequestHandler<GenerateQuizCommand, R
                 CreatedAt = DateTime.UtcNow
             };
         }).ToList();
+
+        if (!isAdaptive)
+        {
+            // Re-checked after the AI call: a concurrent request for the same set (a double-click) may have
+            // saved it while this one waited, and inserting again would duplicate every card or question.
+            var savedMeanwhile = (await _quizzes.GetByDocumentIdAndDifficultyAsync(request.DocumentId, difficulty, cancellationToken)).ToList();
+            if (savedMeanwhile.Count > 0)
+                return Result<IEnumerable<QuizDto>>.Success(savedMeanwhile.Select(q => q.ToQuizDto()), "Quiz retrieved successfully.");
+        }
 
         await _quizzes.AddRangeAsync(quizzes, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);

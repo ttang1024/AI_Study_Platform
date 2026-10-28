@@ -60,7 +60,20 @@ public partial class AiService
         await RecordUsageAsync(ExtractUsage(json), operation, streamed: false);
 
         var text = ExtractTextFromResponse(json);
-        return cleanJson ? AiResponseParsing.CleanJsonResponse(text) : text.Trim();
+        if (!cleanJson)
+            return text.Trim();
+
+        // Checked here, before any caller caches it: generated results are cached for 30 days, so a
+        // truncated (max-tokens) or malformed answer that got through used to be served back on every
+        // "please try again" — the retry never reached the model.
+        var cleaned = AiResponseParsing.CleanJsonResponse(text);
+        if (!AiResponseParsing.IsValidJson(cleaned))
+        {
+            _logger.LogWarning("{Provider} returned malformed JSON for {Operation} ({Length} chars)", Provider, operation, cleaned.Length);
+            throw new UserFacingException(
+                "The AI returned an incomplete or malformed answer. Please try again.", "AI_MALFORMED_RESPONSE", 502);
+        }
+        return cleaned;
     }
 
     /// <summary>
@@ -150,21 +163,34 @@ public partial class AiService
     {
         using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
         using var reader = new StreamReader(stream);
+        var completed = false;
 
         while (true)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var line = await reader.ReadLineAsync(cancellationToken);
+            var line = await ReadLineWithinIdleTimeoutAsync(reader, cancellationToken);
             if (line == null) break;
             if (!line.StartsWith("data: ")) continue;
 
             var data = line[6..].TrimEnd();
-            if (data == "[DONE]") break;
+            if (data == "[DONE]")
+            {
+                completed = true;
+                break;
+            }
             if (string.IsNullOrEmpty(data)) continue;
 
             // Usage first, and outside the text try/catch: OpenAI-compatible providers deliver the
             // token counts in a trailing chunk that carries no text at all.
             usage.Observe(ExtractUsage(data));
+
+            var (done, error) = ClassifyStreamFrame(data);
+            if (error != null)
+            {
+                _logger.LogWarning("{Provider} stream reported an error: {Error}", Provider, error);
+                throw new AiProviderException($"{Provider} streaming API returned an error: {error}");
+            }
+            completed |= done;
 
             string? text = null;
             try { text = ExtractChunkText(data); }
@@ -173,6 +199,85 @@ public partial class AiService
             if (!string.IsNullOrEmpty(text))
                 yield return text;
         }
+
+        // A body that simply ends — the provider or a proxy dropped the connection cleanly — used to
+        // count as a finished answer, and the half summary was saved as the document's summary.
+        if (!completed)
+            throw new UserFacingException(
+                "The AI response was cut off before it finished. Please try again.", "AI_STREAM_INTERRUPTED", 502);
+    }
+
+    private async Task<string?> ReadLineWithinIdleTimeoutAsync(StreamReader reader, CancellationToken cancellationToken)
+    {
+        using var idle = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        idle.CancelAfter(_streamIdleTimeout);
+        try
+        {
+            return await reader.ReadLineAsync(idle.Token);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw new UserFacingException(
+                $"The AI provider ({Provider}) stopped responding mid-answer. Please try again.", "AI_TIMEOUT", StatusCodesGatewayTimeout);
+        }
+    }
+
+    /// <summary>
+    /// Whether a stream frame ends the answer, or reports a failure. Providers signal both in-band:
+    /// Anthropic with <c>message_stop</c> / an <c>error</c> event, OpenAI-compatible APIs with a
+    /// <c>finish_reason</c> (then <c>[DONE]</c>) or an <c>error</c> object, Gemini with a
+    /// <c>finishReason</c> — where anything but STOP or MAX_TOKENS means the answer was withheld.
+    /// </summary>
+    private (bool Done, string? Error) ClassifyStreamFrame(string data)
+    {
+        JsonDocument doc;
+        try { doc = JsonDocument.Parse(data); }
+        catch (JsonException) { return (false, null); }
+
+        using (doc)
+        {
+            var root = doc.RootElement;
+            if (root.ValueKind != JsonValueKind.Object)
+                return (false, null);
+
+            if (root.TryGetProperty("error", out var error) && error.ValueKind != JsonValueKind.Null)
+                return (false, ErrorMessage(error));
+
+            if (Provider == "claude")
+            {
+                var type = root.TryGetProperty("type", out var t) ? t.GetString() : null;
+                return type switch
+                {
+                    "message_stop" => (true, null),
+                    "error" => (false, "stream error"),
+                    _ => (false, null),
+                };
+            }
+
+            if (!root.TryGetProperty("candidates", out _) && !root.TryGetProperty("choices", out _))
+                return (false, null);
+
+            var finish = Provider == "gemini"
+                ? FirstProperty(root, "candidates", "finishReason")
+                : FirstProperty(root, "choices", "finish_reason");
+            if (finish == null)
+                return (false, null);
+
+            if (Provider == "gemini" && finish is not ("STOP" or "MAX_TOKENS"))
+                return (false, $"answer withheld ({finish})");
+            return (true, null);
+        }
+
+        static string? FirstProperty(JsonElement root, string array, string property)
+            => root.TryGetProperty(array, out var items) && items.ValueKind == JsonValueKind.Array && items.GetArrayLength() > 0
+               && items[0].TryGetProperty(property, out var value) && value.ValueKind == JsonValueKind.String
+                ? value.GetString()
+                : null;
+
+        static string ErrorMessage(JsonElement error)
+            => error.ValueKind == JsonValueKind.Object && error.TryGetProperty("message", out var m) && m.ValueKind == JsonValueKind.String
+                ? m.GetString()!
+                : error.ToString();
     }
 
     // ── Token accounting ──────────────────────────────────────────────────
@@ -387,28 +492,71 @@ public partial class AiService
 
     // ── Response text extraction ──────────────────────────────────────────
 
+    /// <summary>
+    /// The answer text from a successful (2xx) response. Every step of the envelope is checked: a
+    /// safety-blocked Gemini answer has no content, a refusal can come back with an empty content list,
+    /// and a proxy can answer 200 with an HTML page. Walking the happy path with GetProperty and [0]
+    /// turned those into KeyNotFoundException (which the API maps to 404 "Resource not found"),
+    /// IndexOutOfRangeException or JsonException — anything but the AI error they are.
+    /// </summary>
     private string ExtractTextFromResponse(string json)
     {
-        using var doc = JsonDocument.Parse(json);
-        if (Provider == "gemini")
-            return doc.RootElement
-                .GetProperty("candidates")[0]
-                .GetProperty("content").GetProperty("parts")[0]
-                .GetProperty("text").GetString()
-                ?? throw new AiProviderException("No response from Gemini.");
+        JsonDocument doc;
+        try
+        {
+            doc = JsonDocument.Parse(json);
+        }
+        catch (JsonException)
+        {
+            throw new AiProviderException($"{Provider} returned a response that is not JSON.");
+        }
 
-        if (Provider == "claude")
-            return doc.RootElement
-                .GetProperty("content")[0]
-                .GetProperty("text").GetString()
-                ?? throw new AiProviderException("No response from Claude.");
+        using (doc)
+        {
+            var root = doc.RootElement;
+            if (root.ValueKind != JsonValueKind.Object)
+                throw new AiProviderException($"{Provider} returned an unexpected response.");
 
-        // OpenAI-compatible
-        return doc.RootElement
-            .GetProperty("choices")[0]
-            .GetProperty("message").GetProperty("content").GetString()
-            ?? throw new AiProviderException($"No response from {Provider}.");
+            var text = Provider switch
+            {
+                "gemini" => FirstOf(root, "candidates") is { } candidate
+                    && candidate.TryGetProperty("content", out var content)
+                    && FirstOf(content, "parts") is { } part
+                    && part.TryGetProperty("text", out var t) ? t.GetString() : null,
+                "claude" => FirstOf(root, "content") is { } block
+                    && block.TryGetProperty("text", out var t2) ? t2.GetString() : null,
+                _ => FirstOf(root, "choices") is { } choice
+                    && choice.TryGetProperty("message", out var message)
+                    && message.TryGetProperty("content", out var t3) ? t3.GetString() : null,
+            };
+
+            return text ?? throw new AiProviderException(NoAnswerMessage(root));
+        }
     }
+
+    /// <summary>Why a 2xx response carried no answer, in the provider's own terms where it gives one.</summary>
+    private string NoAnswerMessage(JsonElement root)
+    {
+        var reason = Provider switch
+        {
+            "gemini" => FirstOf(root, "candidates") is { } c && c.TryGetProperty("finishReason", out var f) ? f.GetString()
+                : root.TryGetProperty("promptFeedback", out var feedback) && feedback.TryGetProperty("blockReason", out var b) ? b.GetString()
+                : null,
+            "claude" => root.TryGetProperty("stop_reason", out var stop) && stop.ValueKind == JsonValueKind.String ? stop.GetString() : null,
+            _ => FirstOf(root, "choices") is { } ch && ch.TryGetProperty("finish_reason", out var fr) && fr.ValueKind == JsonValueKind.String ? fr.GetString() : null,
+        };
+        return reason is null
+            ? $"No response from {Provider}."
+            : $"{Provider} returned no answer (finish reason: {reason}).";
+    }
+
+    private static JsonElement? FirstOf(JsonElement element, string arrayProperty)
+        => element.ValueKind == JsonValueKind.Object
+           && element.TryGetProperty(arrayProperty, out var array)
+           && array.ValueKind == JsonValueKind.Array
+           && array.GetArrayLength() > 0
+            ? array[0]
+            : null;
 
     private string? ExtractChunkText(string data)
     {

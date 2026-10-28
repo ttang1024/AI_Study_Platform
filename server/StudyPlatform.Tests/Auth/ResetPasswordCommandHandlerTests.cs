@@ -4,6 +4,7 @@ using StudyPlatform.Application.Services;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Enums;
 using StudyPlatform.Domain.Interfaces;
+using StudyPlatform.Tests.TestSupport;
 using Xunit;
 
 namespace StudyPlatform.Tests.Auth;
@@ -36,7 +37,8 @@ public class ResetPasswordCommandHandlerTests
         Email = email,
         Code = "123456",
         Purpose = OtpPurpose.PasswordReset,
-        IsUsed = false
+        IsUsed = false,
+        ExpiresAt = DateTime.UtcNow.AddMinutes(10)
     };
 
     [Fact]
@@ -46,6 +48,7 @@ public class ResetPasswordCommandHandlerTests
         var otp = MakeOtp("user@example.com");
         _users.Setup(r => r.GetByEmailAsync("user@example.com", default)).ReturnsAsync(user);
         _otps.Setup(r => r.GetActiveOtpAsync("user@example.com", OtpPurpose.PasswordReset, default)).ReturnsAsync(otp);
+        _otps.WithAtomicOps(otp);
         _hasher.Setup(h => h.Hash("NewPass1")).Returns("new-hash");
         _tokens.Setup(r => r.RevokeAllUserTokensAsync(user.UserId, default)).Returns(Task.CompletedTask);
 
@@ -99,18 +102,20 @@ public class ResetPasswordCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_WrongCode_IsCountedAndSaved_WithoutResettingThePassword()
+    public async Task Handle_WrongCode_IsCounted_WithoutResettingThePassword()
     {
         var user = MakeUser();
         var otp = MakeOtp("user@example.com");
         _users.Setup(r => r.GetByEmailAsync("user@example.com", default)).ReturnsAsync(user);
         _otps.Setup(r => r.GetActiveOtpAsync("user@example.com", OtpPurpose.PasswordReset, default)).ReturnsAsync(otp);
+        _otps.WithAtomicOps(otp);
 
         var result = await _handler.Handle(new ResetPasswordCommand("user@example.com", "999999", "NewPass1"), default);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(1, otp.FailedAttempts);
-        _uow.Verify(u => u.SaveChangesAsync(default), Times.Once);
+        // Counted by the repository's own atomic UPDATE; saving the loaded row would write stale counters.
+        _uow.Verify(u => u.SaveChangesAsync(default), Times.Never);
         _hasher.Verify(h => h.Hash(It.IsAny<string>()), Times.Never);
     }
 }

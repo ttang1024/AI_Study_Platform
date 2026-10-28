@@ -79,7 +79,7 @@ public class DocumentRepository : Repository<Document>, IDocumentRepository
         => await _dbSet
             .AsNoTracking()
             .Where(d => d.TranscriptionRequestedAt != null && (d.Transcript == null || d.Transcript == ""))
-            .Select(d => new PendingTranscription(d.DocumentId, d.UserId, d.ContentType))
+            .Select(d => new PendingTranscription(d.DocumentId, d.UserId, d.ContentType, d.TranscriptionRequestedAt!.Value))
             .ToListAsync(cancellationToken);
 
     public async Task<DocumentSourceRef?> GetSourceRefAsync(Guid documentId, Guid ownerId, CancellationToken cancellationToken = default)
@@ -130,12 +130,12 @@ public class DocumentRepository : Repository<Document>, IDocumentRepository
 
     public async Task<IEnumerable<Document>> SearchByUserAsync(Guid userId, string query, int limit, CancellationToken cancellationToken = default)
     {
-        var pattern = $"%{query}%";
+        var pattern = LikePattern.Contains(query);
         return await _dbSet
             .AsNoTracking()
             .Where(d => d.UserId == userId &&
-                        (EF.Functions.ILike(d.FileName, pattern) ||
-                         (d.Summary != null && EF.Functions.ILike(d.Summary, pattern))))
+                        (EF.Functions.ILike(d.FileName, pattern, LikePattern.Escape) ||
+                         (d.Summary != null && EF.Functions.ILike(d.Summary, pattern, LikePattern.Escape))))
             .OrderByDescending(d => d.CreatedAt)
             .Take(limit)
             .ToListAsync(cancellationToken);
@@ -149,5 +149,22 @@ public class DocumentRepository : Repository<Document>, IDocumentRepository
             .OrderByDescending(d => d.CreatedAt)
             .Take(limit)
             .Select(d => new DocumentListItem(d.DocumentId, d.CourseId, d.FileName, d.CreatedAt))
+            .ToListAsync(cancellationToken);
+
+    public async Task SaveSummaryAsync(Guid id, string summary, CancellationToken cancellationToken = default)
+        => await _dbSet.Where(x => x.DocumentId == id).ExecuteUpdateAsync(s => s
+            .SetProperty(x => x.Summary, summary)
+            .SetProperty(x => x.UpdatedAt, DateTime.UtcNow), cancellationToken);
+
+    public async Task SaveMindMapAsync(Guid id, string mindMapText, CancellationToken cancellationToken = default)
+        => await _dbSet.Where(x => x.DocumentId == id).ExecuteUpdateAsync(s => s
+            .SetProperty(x => x.MindMapText, mindMapText)
+            .SetProperty(x => x.UpdatedAt, DateTime.UtcNow), cancellationToken);
+
+    public async Task<IReadOnlyList<SourceCourse>> GetSourceCoursesByUserAsync(Guid userId, CancellationToken cancellationToken = default)
+        => await _dbSet
+            .AsNoTracking()
+            .Where(x => x.UserId == userId)
+            .Select(x => new SourceCourse(x.DocumentId, x.CourseId, x.FileName))
             .ToListAsync(cancellationToken);
 }

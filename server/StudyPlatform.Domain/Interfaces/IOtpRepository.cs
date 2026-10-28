@@ -12,4 +12,14 @@ public interface IOtpRepository : IRepository<OtpCode>
     /// </summary>
     Task<OtpCode?> GetActiveOtpAsync(string email, OtpPurpose purpose, CancellationToken cancellationToken = default);
     Task InvalidateExistingOtpsAsync(string email, OtpPurpose purpose, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Counts one guess against the code in a single conditional UPDATE, true only while it is unused,
+    /// unexpired and under <paramref name="maxAttempts"/>. Atomic on purpose: a counter read, incremented
+    /// and saved by each request let parallel guesses all read the same count, so the cap never held.
+    /// </summary>
+    Task<bool> TryCountAttemptAsync(Guid otpId, int maxAttempts, CancellationToken cancellationToken = default);
+
+    /// <summary>Marks the code used, true only for the one caller that flipped it.</summary>
+    Task<bool> TryMarkUsedAsync(Guid otpId, CancellationToken cancellationToken = default);
 }

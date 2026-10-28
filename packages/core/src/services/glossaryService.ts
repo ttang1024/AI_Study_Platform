@@ -66,20 +66,6 @@ export function createGlossaryService(http: HttpClient, offlineCache?: GlossaryO
       }
     },
 
-    async getVideoGlossary(videoId: string): Promise<GlossaryTerm[]> {
-      try {
-        const res = await http.get<{ data: BackendTerm[] }>(`/api/videos/${videoId}/glossary`);
-        return (res.data.data ?? []).map((t): GlossaryTerm => ({
-          id: t.id,
-          term: t.term,
-          definition: t.definition,
-          videoId: videoId,
-        }));
-      } catch {
-        return [];
-      }
-    },
-
     async generateVideoGlossary(videoId: string, videoUrl: string): Promise<GlossaryTerm[]> {
       const res = await http.post<{ data: BackendTerm[] }>(`/api/videos/${videoId}/glossary/generate`, {
         videoUrl,

@@ -73,9 +73,6 @@ export function createStudyGroupService(http: HttpClient) {
 
     getChat: (groupId: string, page = 1) =>
       http.get<{ data: GroupChatMessage[] }>(`/api/study-groups/${groupId}/chat?page=${page}`),
-
-    sendMessage: (groupId: string, content: string) =>
-      http.post<{ data: GroupChatMessage }>(`/api/study-groups/${groupId}/chat`, { content }),
   };
 }
 

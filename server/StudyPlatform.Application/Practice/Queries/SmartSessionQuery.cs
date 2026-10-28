@@ -44,10 +44,8 @@ public class GetSmartSessionQueryHandler : IRequestHandler<GetSmartSessionQuery,
     {
         var userId = request.UserId;
 
-        var documents = (await _documents.FindAsNoTrackingAsync(d => d.UserId == userId, ct)).ToList();
-        var videos = (await _videos.FindAsNoTrackingAsync(v => v.UserId == userId, ct)).ToList();
-        var docToCourse = documents.ToDictionary(d => d.DocumentId, d => d.CourseId);
-        var videoToCourse = videos.ToDictionary(v => v.VideoId, v => v.CourseId);
+        var docToCourse = (await _documents.GetSourceCoursesByUserAsync(userId, ct)).ToDictionary(d => d.Id, d => d.CourseId);
+        var videoToCourse = (await _videos.GetSourceCoursesByUserAsync(userId, ct)).ToDictionary(v => v.Id, v => v.CourseId);
 
         string? CourseOf(Guid? docId, Guid? videoId)
         {

@@ -29,4 +29,14 @@ public class OtpRepository : Repository<OtpCode>, IOtpRepository
         foreach (var otp in otps)
             otp.IsUsed = true;
     }
+
+    public async Task<bool> TryCountAttemptAsync(Guid otpId, int maxAttempts, CancellationToken cancellationToken = default)
+        => await _dbSet
+            .Where(o => o.OtpId == otpId && !o.IsUsed && o.FailedAttempts < maxAttempts && o.ExpiresAt > DateTime.UtcNow)
+            .ExecuteUpdateAsync(s => s.SetProperty(o => o.FailedAttempts, o => o.FailedAttempts + 1), cancellationToken) == 1;
+
+    public async Task<bool> TryMarkUsedAsync(Guid otpId, CancellationToken cancellationToken = default)
+        => await _dbSet
+            .Where(o => o.OtpId == otpId && !o.IsUsed)
+            .ExecuteUpdateAsync(s => s.SetProperty(o => o.IsUsed, true), cancellationToken) == 1;
 }

@@ -30,9 +30,11 @@ public class GetCramSheetQueryHandler : IRequestHandler<GetCramSheetQuery, Resul
     private readonly IExamPlanRepository _examPlans;
     private readonly IAiService _aiService;
     private readonly IAppCache _cache;
+    private readonly IUserTimeZone _timeZone;
 
-    public GetCramSheetQueryHandler(IDocumentRepository documents, IVideoRepository videos, IGlossaryTermRepository glossaryTerms, IGlossaryMasteredRepository glossaryMastered, IMistakeEntryRepository mistakeEntries, IExamPlanRepository examPlans, IAiService aiService, IAppCache cache)
+    public GetCramSheetQueryHandler(IDocumentRepository documents, IVideoRepository videos, IGlossaryTermRepository glossaryTerms, IGlossaryMasteredRepository glossaryMastered, IMistakeEntryRepository mistakeEntries, IExamPlanRepository examPlans, IAiService aiService, IAppCache cache, IUserTimeZone timeZone)
     {
+        _timeZone = timeZone;
         _documents = documents;
         _videos = videos;
         _glossaryTerms = glossaryTerms;
@@ -60,10 +62,8 @@ public class GetCramSheetQueryHandler : IRequestHandler<GetCramSheetQuery, Resul
 
         // Course scoping: material belongs to the plan's course via its source doc/video.
         var userId = request.UserId;
-        var documents = (await _documents.FindAsNoTrackingAsync(d => d.UserId == userId, ct)).ToList();
-        var videos = (await _videos.FindAsNoTrackingAsync(v => v.UserId == userId, ct)).ToList();
-        var docToCourse = documents.ToDictionary(d => d.DocumentId, d => d.CourseId);
-        var videoToCourse = videos.ToDictionary(v => v.VideoId, v => v.CourseId);
+        var docToCourse = (await _documents.GetSourceCoursesByUserAsync(userId, ct)).ToDictionary(d => d.Id, d => d.CourseId);
+        var videoToCourse = (await _videos.GetSourceCoursesByUserAsync(userId, ct)).ToDictionary(v => v.Id, v => v.CourseId);
 
         bool InCourse(Guid? docId, Guid? videoId)
         {
@@ -93,7 +93,7 @@ public class GetCramSheetQueryHandler : IRequestHandler<GetCramSheetQuery, Resul
             return Result<CramSheetDto>.Failure(
                 "Nothing to cram — no open mistakes or unmastered terms for this exam's scope.", "NO_WEAK_MATERIAL");
 
-        var daysLeft = Math.Max(0, (int)Math.Ceiling((plan.ExamDate.Date - DateTime.UtcNow.Date).TotalDays));
+        var daysLeft = Math.Max(0, (int)Math.Ceiling((plan.ExamDate.Date - await CreateExamPlanCommandHandler.UserTodayAsync(_timeZone, request.UserId, ct)).TotalDays));
         var prompt = BuildPrompt(plan.Title, daysLeft, weakTerms.Select(t => (t.Term, t.Definition)), mistakes.Select(m => (m.Question, m.CorrectAnswer)));
 
         var markdown = await _aiService.GeneralChatAsync(Array.Empty<(string, string)>(), prompt, ct);

@@ -107,7 +107,8 @@ public class WebPushNotificationService : IPushNotificationService
     {
         if (!_options.IsConfigured) return false;
 
-        var client = new WebPushClient();
+        // Owns an HttpClient of its own; undisposed, every delivery left a handler for the finaliser.
+        using var client = new WebPushClient();
         var vapid = new VapidDetails(_options.Subject, _options.PublicKey, _options.PrivateKey);
         var payload = JsonSerializer.Serialize(new { title, body, url }, SerializerOptions);
 

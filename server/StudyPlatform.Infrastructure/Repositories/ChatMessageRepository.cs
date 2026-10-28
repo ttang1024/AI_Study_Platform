@@ -15,27 +15,11 @@ public class ChatMessageRepository : Repository<ChatMessage>, IChatMessageReposi
             .OrderBy(m => m.CreatedAt)
             .ToListAsync(cancellationToken);
 
-    public async Task DeleteByDocumentIdAsync(Guid documentId, Guid userId, CancellationToken cancellationToken = default)
-    {
-        var messages = await _dbSet
-            .Where(m => m.DocumentId == documentId && m.UserId == userId)
-            .ToListAsync(cancellationToken);
-        _dbSet.RemoveRange(messages);
-    }
-
     public async Task<IEnumerable<ChatMessage>> GetByVideoIdAsync(Guid videoId, Guid userId, CancellationToken cancellationToken = default)
         => await _dbSet
             .Where(m => m.VideoId == videoId && m.UserId == userId)
             .OrderBy(m => m.CreatedAt)
             .ToListAsync(cancellationToken);
-
-    public async Task DeleteByVideoIdAsync(Guid videoId, Guid userId, CancellationToken cancellationToken = default)
-    {
-        var messages = await _dbSet
-            .Where(m => m.VideoId == videoId && m.UserId == userId)
-            .ToListAsync(cancellationToken);
-        _dbSet.RemoveRange(messages);
-    }
 
     public async Task<ChatConversation> CreateConversationAsync(Guid userId, string title, CancellationToken cancellationToken = default)
     {

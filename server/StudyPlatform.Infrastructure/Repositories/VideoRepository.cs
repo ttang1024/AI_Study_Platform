@@ -23,7 +23,10 @@ public class VideoRepository : Repository<Video>, IVideoRepository
             query = query.Where(v => v.CourseId == courseId.Value);
 
         if (!string.IsNullOrWhiteSpace(search))
-            query = query.Where(v => EF.Functions.ILike(v.Title, $"%{search}%"));
+        {
+            var pattern = LikePattern.Contains(search);
+            query = query.Where(v => EF.Functions.ILike(v.Title, pattern, LikePattern.Escape));
+        }
 
         var totalCount = await query.CountAsync(cancellationToken);
         var items = await query
@@ -80,12 +83,12 @@ public class VideoRepository : Repository<Video>, IVideoRepository
 
     public async Task<IEnumerable<Video>> SearchByUserAsync(Guid userId, string query, int limit, CancellationToken cancellationToken = default)
     {
-        var pattern = $"%{query}%";
+        var pattern = LikePattern.Contains(query);
         return await _dbSet
             .AsNoTracking()
             .Where(v => v.UserId == userId &&
-                        (EF.Functions.ILike(v.Title, pattern) ||
-                         (v.Summary != null && EF.Functions.ILike(v.Summary, pattern))))
+                        (EF.Functions.ILike(v.Title, pattern, LikePattern.Escape) ||
+                         (v.Summary != null && EF.Functions.ILike(v.Summary, pattern, LikePattern.Escape))))
             .OrderByDescending(v => v.CreatedAt)
             .Take(limit)
             .ToListAsync(cancellationToken);
@@ -105,10 +108,59 @@ public class VideoRepository : Repository<Video>, IVideoRepository
         => await _dbSet
             .AsNoTracking()
             .Where(v => v.TranscriptionRequestedAt != null && (v.Transcript == null || v.Transcript == ""))
-            .Select(v => new PendingVideoTranscription(v.VideoId, v.UserId))
+            .Select(v => new PendingVideoTranscription(v.VideoId, v.UserId, v.TranscriptionRequestedAt!.Value))
             .ToListAsync(cancellationToken);
 
     public async Task<Video?> GetByExternalVideoIdAsync(string externalVideoId, CancellationToken cancellationToken = default)
         => await _dbSet
             .FirstOrDefaultAsync(v => v.ExternalVideoId == externalVideoId, cancellationToken);
+
+    public async Task SaveSummaryAsync(Guid id, string summary, CancellationToken cancellationToken = default)
+        => await _dbSet.Where(x => x.VideoId == id).ExecuteUpdateAsync(s => s
+            .SetProperty(x => x.Summary, summary)
+            .SetProperty(x => x.UpdatedAt, DateTime.UtcNow), cancellationToken);
+
+    public async Task SaveMindMapAsync(Guid id, string mindMapText, CancellationToken cancellationToken = default)
+        => await _dbSet.Where(x => x.VideoId == id).ExecuteUpdateAsync(s => s
+            .SetProperty(x => x.MindMapText, mindMapText)
+            .SetProperty(x => x.UpdatedAt, DateTime.UtcNow), cancellationToken);
+
+    public async Task<IReadOnlyList<string>> GetUploadedFileUrlsByCourseAsync(Guid courseId, CancellationToken cancellationToken = default)
+        => (await _dbSet
+            .AsNoTracking()
+            .Where(v => v.CourseId == courseId && v.SourceType == "upload")
+            .Select(v => new { v.VideoUrl, v.ThumbnailUrl })
+            .ToListAsync(cancellationToken))
+            .SelectMany(v => new[] { v.VideoUrl, v.ThumbnailUrl })
+            .Where(u => !string.IsNullOrEmpty(u))
+            .ToList();
+
+    public async Task<IReadOnlyList<SourceCourse>> GetSourceCoursesByUserAsync(Guid userId, CancellationToken cancellationToken = default)
+        => await _dbSet
+            .AsNoTracking()
+            .Where(x => x.UserId == userId)
+            .Select(x => new SourceCourse(x.VideoId, x.CourseId, x.Title))
+            .ToListAsync(cancellationToken);
+
+    public async Task<bool> AddUploadWithinLimitAsync(Video video, int limit, CancellationToken cancellationToken = default)
+    {
+        var strategy = _context.Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync(async ct =>
+        {
+            await using var transaction = await _context.Database.BeginTransactionAsync(ct);
+            if (limit >= 0)
+            {
+                // Serialises uploads per user for the length of this transaction; other users are unaffected.
+                var lockKey = $"video-upload:{video.UserId}";
+                await _context.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtext({lockKey}))", ct);
+                if (await _dbSet.CountAsync(v => v.UserId == video.UserId && v.SourceType == "upload", ct) >= limit)
+                    return false;
+            }
+
+            _dbSet.Add(video);
+            await _context.SaveChangesAsync(ct);
+            await transaction.CommitAsync(ct);
+            return true;
+        }, cancellationToken);
+    }
 }

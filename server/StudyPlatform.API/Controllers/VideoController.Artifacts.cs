@@ -1,4 +1,3 @@
-using StudyPlatform.Application.Videos.Transcripts;
 using Microsoft.AspNetCore.Mvc;
 using StudyPlatform.API.Extensions;
 using StudyPlatform.Application.Common;
@@ -47,26 +46,6 @@ public partial class VideoController
 
     // ── Video Glossary ────────────────────────────────────────────────────
 
-    [HttpGet("{id:guid}/glossary")]
-    public async Task<IActionResult> GetVideoGlossary(Guid id, CancellationToken cancellationToken)
-    {
-        var userId = User.GetUserId();
-        var ttl = TimeSpan.FromSeconds(_cacheOptions.GeneratedResultSeconds);
-        var cacheKey = VideoCacheKeys.Glossary(id, userId);
-
-        var cached = await _cache.GetAsync<List<GlossaryTermDto>>(cacheKey, cancellationToken);
-        if (cached != null)
-            return Ok(BaseResponse<IEnumerable<GlossaryTermDto>>.Ok(cached));
-
-        var terms = await _glossaryTerms.GetByVideoIdAsync(id, cancellationToken);
-        var dtos = terms.Where(t => t.UserId == userId)
-            .Select(t => t.ToGlossaryTermDto())
-            .ToList();
-        if (dtos.Count > 0)
-            await _cache.SetAsync(cacheKey, dtos, ttl, cancellationToken);
-        return Ok(BaseResponse<IEnumerable<GlossaryTermDto>>.Ok(dtos));
-    }
-
     [HttpPost("{id:guid}/glossary/generate")]
     public async Task<IActionResult> GenerateVideoGlossary(Guid id, CancellationToken cancellationToken)
         => ToResponse(await _mediator.Send(new GenerateVideoGlossaryCommand(id, User.GetUserId()), cancellationToken));
@@ -82,21 +61,13 @@ public partial class VideoController
         if (video is null)
             return NotFound(BaseResponse<IEnumerable<QuizDto>>.Fail("Video not found.", "VIDEO_NOT_FOUND"));
 
+        // Read straight from the table. This used to sit behind a 30-day cache whose "all difficulties"
+        // entry nothing ever cleared, so a quiz generated after the first read stayed invisible.
         var normalizedDifficulty = string.IsNullOrWhiteSpace(difficulty) ? null : QuizDifficulty.Normalize(difficulty);
-        var ttl = TimeSpan.FromSeconds(_cacheOptions.GeneratedResultSeconds);
-        var cacheKey = VideoCacheKeys.Quiz(id, video.UserId, normalizedDifficulty ?? "all");
-
-        var cached = await _cache.GetAsync<List<QuizDto>>(cacheKey, cancellationToken);
-        if (cached != null)
-            return Ok(BaseResponse<IEnumerable<QuizDto>>.Ok(cached));
-
         var quizzes = await _quizzes.FindAsync(
             q => q.VideoId == id && q.UserId == video.UserId && (normalizedDifficulty == null || q.Difficulty == normalizedDifficulty),
             cancellationToken);
-        var dtos = quizzes.Select(q => q.ToQuizDto()).ToList();
-        if (dtos.Count > 0)
-            await _cache.SetAsync(cacheKey, dtos, ttl, cancellationToken);
-        return Ok(BaseResponse<IEnumerable<QuizDto>>.Ok(dtos));
+        return Ok(BaseResponse<IEnumerable<QuizDto>>.Ok(quizzes.Select(q => q.ToQuizDto()).ToList()));
     }
 
     [HttpPost("{id:guid}/quiz/generate")]

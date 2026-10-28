@@ -8,4 +8,7 @@ public interface IWorkedProblemRepository
     Task<WorkedProblem?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task AddAsync(WorkedProblem problem, CancellationToken cancellationToken = default);
     Task AddRangeAsync(IEnumerable<WorkedProblem> problems, CancellationToken cancellationToken = default);
+
+    /// <summary>The ones among <paramref name="ids"/> that exist and belong to <paramref name="userId"/>.</summary>
+    Task<IReadOnlySet<Guid>> GetOwnedIdsAsync(Guid userId, IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken = default);
 }

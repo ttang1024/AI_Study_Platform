@@ -89,7 +89,8 @@ public class GlobalExceptionHandlerMiddleware
             success = false,
             message = "Validation failed.",
             errorCode = "VALIDATION_ERROR",
-            errors
+            errors,
+            requestId = context.TraceIdentifier
         };
 
         await context.Response.WriteAsync(JsonSerializer.Serialize(response, new JsonSerializerOptions
@@ -117,7 +118,9 @@ public class GlobalExceptionHandlerMiddleware
             success = false,
             message,
             errorCode,
-            errors
+            errors,
+            // Quotable in a support request; matches the X-Request-Id header and the request's log lines.
+            requestId = context.TraceIdentifier
         };
 
         await context.Response.WriteAsync(JsonSerializer.Serialize(response, new JsonSerializerOptions

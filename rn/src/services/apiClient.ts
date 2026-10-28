@@ -1,6 +1,7 @@
 import axios from 'axios';
 
 import { buildAiHeaders, needsAiHeaders } from '@core/ai';
+import { jwtExpiresWithin } from '@core/jwt';
 import { timeZoneHeaders } from '@core/timeZone';
 import { API_URL } from '@/constants/env';
 import { aiSettingsService } from '@/services/aiSettingsService';
@@ -47,13 +48,52 @@ apiClient.interceptors.request.use(async (config) => {
   return config;
 });
 
-let isRefreshing = false;
-let failedQueue: { resolve: (token: string) => void; reject: (reason?: unknown) => void }[] = [];
+let inflightRefresh: Promise<string> | null = null;
+let lastSessionExpiry: unknown = null;
 
-const processQueue = (error: unknown, token: string | null) => {
-  failedQueue.forEach((p) => (error ? p.reject(error) : p.resolve(token!)));
-  failedQueue = [];
-};
+/**
+ * Mints a new access token from the stored refresh token. Single-flight: concurrent callers share one
+ * request — each refresh rotates the refresh token, so two in parallel would race, and the loser's
+ * rejected token would sign the user out. Shared by the 401 interceptor and the chat hub.
+ */
+function refreshSession(): Promise<string> {
+  if (!inflightRefresh) {
+    inflightRefresh = (async () => {
+      const refreshToken = await tokenStore.getRefreshToken();
+      if (!refreshToken) throw new Error('No refresh token');
+
+      const response = await axios.post(
+        `${API_URL}/api/auth/refresh-token`,
+        { refreshToken },
+        { headers: { 'X-Client-Type': 'mobile', ...timeZoneHeaders() } },
+      );
+      const { accessToken, refreshToken: newRefreshToken } = response.data.data;
+
+      await tokenStore.setAccessToken(accessToken);
+      await tokenStore.setRefreshToken(newRefreshToken);
+      apiClient.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+      return accessToken as string;
+    })().finally(() => {
+      inflightRefresh = null;
+    });
+  }
+  return inflightRefresh;
+}
+
+/**
+ * The stored token if it has at least `marginSeconds` left, otherwise a freshly minted one. For the chat
+ * hub, which reconnects with whatever this returns and cannot retry a 401 itself; the server closes hub
+ * connections when their token expires. Null when no session can be established.
+ */
+export async function ensureFreshAccessToken(marginSeconds = 30): Promise<string | null> {
+  const token = await tokenStore.getAccessToken();
+  if (token && !jwtExpiresWithin(token, marginSeconds)) return token;
+  try {
+    return await refreshSession();
+  } catch {
+    return null;
+  }
+}
 
 apiClient.interceptors.response.use(
   (response) => response,
@@ -62,44 +102,20 @@ apiClient.interceptors.response.use(
     const isLoginRequest = originalRequest?.url?.includes('/api/auth/login');
 
     if (error.response?.status === 401 && originalRequest && !originalRequest._retry && !isLoginRequest) {
-      if (isRefreshing) {
-        return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject });
-        }).then((token) => {
-          originalRequest.headers.Authorization = `Bearer ${token}`;
-          return apiClient(originalRequest);
-        });
-      }
-
       originalRequest._retry = true;
-      isRefreshing = true;
 
       try {
-        const refreshToken = await tokenStore.getRefreshToken();
-        if (!refreshToken) throw error;
-
-        const response = await axios.post(
-          `${API_URL}/api/auth/refresh-token`,
-          { refreshToken },
-          { headers: { 'X-Client-Type': 'mobile', ...timeZoneHeaders() } },
-        );
-        const { accessToken, refreshToken: newRefreshToken } = response.data.data;
-
-        await tokenStore.setAccessToken(accessToken);
-        await tokenStore.setRefreshToken(newRefreshToken);
-
-        apiClient.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+        const accessToken = await refreshSession();
         originalRequest.headers.Authorization = `Bearer ${accessToken}`;
-
-        processQueue(null, accessToken);
         return apiClient(originalRequest);
       } catch (refreshError) {
-        processQueue(refreshError, null);
-        await tokenStore.clear();
-        onSessionExpired?.();
+        // Concurrent 401s share one refresh and so one rejection: sign out once, not once per request.
+        if (refreshError !== lastSessionExpiry) {
+          lastSessionExpiry = refreshError;
+          await tokenStore.clear();
+          onSessionExpired?.();
+        }
         return Promise.reject(refreshError);
-      } finally {
-        isRefreshing = false;
       }
     }
 

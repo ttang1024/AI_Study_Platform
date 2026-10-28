@@ -5,6 +5,7 @@ using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Enums;
 using StudyPlatform.Domain.Interfaces;
 using Xunit;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace StudyPlatform.Tests.Auth;
 
@@ -24,7 +25,7 @@ public class SendEmailOtpCommandHandlerTests
         _otps.Setup(r => r.InvalidateExistingOtpsAsync(It.IsAny<string>(), It.IsAny<OtpPurpose>(), default))
             .Returns(Task.CompletedTask);
         _otps.Setup(r => r.AddAsync(It.IsAny<OtpCode>(), default)).Returns(Task.CompletedTask);
-        _handler = new SendEmailOtpCommandHandler(_uow.Object, _users.Object, _otps.Object, _email.Object);
+        _handler = new SendEmailOtpCommandHandler(_uow.Object, _users.Object, _otps.Object, _email.Object, NullLogger<SendEmailOtpCommandHandler>.Instance);
     }
 
     private User MakeUser(string email = "user@example.com") => new()

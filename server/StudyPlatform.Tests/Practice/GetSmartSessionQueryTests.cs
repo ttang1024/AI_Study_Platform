@@ -4,6 +4,7 @@ using Moq;
 using StudyPlatform.Application.Practice.Queries;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
+using StudyPlatform.Tests.TestSupport;
 using Xunit;
 
 namespace StudyPlatform.Tests.Practice;
@@ -22,8 +23,8 @@ public class GetSmartSessionQueryHandlerTests
 
     public GetSmartSessionQueryHandlerTests()
     {
-        _documents.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Document, bool>>>(), default)).ReturnsAsync(Array.Empty<Document>());
-        _videos.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Video, bool>>>(), default)).ReturnsAsync(Array.Empty<Video>());
+        _documents.WithSources(Array.Empty<Document>());
+        _videos.WithSources(Array.Empty<Video>());
         _srs.Setup(r => r.GetDueByUserIdAsync(_userId, It.IsAny<DateTime>(), default)).ReturnsAsync(Array.Empty<FlashcardSrsData>());
         _flashcards.Setup(r => r.GetByUserIdAsync(_userId, default)).ReturnsAsync(Array.Empty<Flashcard>());
         _mistakes.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<MistakeEntry, bool>>>(), default)).ReturnsAsync(Array.Empty<MistakeEntry>());

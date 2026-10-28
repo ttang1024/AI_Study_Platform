@@ -1,9 +1,9 @@
 import React, { useRef, useEffect } from 'react';
-import { Transformer } from 'markmap-lib';
 import { Markmap } from 'markmap-view';
 import { xmindMarkToMarkdown } from '@core/utils/xmindMarkdown';
+import { createMarkmapTransformer } from './markmapTransformer';
 
-const transformer = new Transformer();
+const transformer = createMarkmapTransformer();
 
 export function MarkmapRenderer({
   text,

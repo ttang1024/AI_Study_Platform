@@ -13,6 +13,16 @@ public static class ChatThreads
 {
     public const string DefaultTitle = "New conversation";
 
+    /// <summary>
+    /// The assistant turn recorded when a reply never finished (the viewer left, or the provider
+    /// failed). Recording something keeps the thread alternating; leaving the user's turn unanswered
+    /// showed a question with no reply and fed the model two user turns in a row next time.
+    /// </summary>
+    public static string InterruptedReply(string partial)
+        => string.IsNullOrWhiteSpace(partial)
+            ? "_(No reply — the response was interrupted.)_"
+            : partial.TrimEnd() + "\n\n_(Response interrupted.)_";
+
     /// <summary>Thread title derived from its first user message.</summary>
     public static string TitleFrom(string? firstUserMessage)
     {

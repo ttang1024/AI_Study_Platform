@@ -21,10 +21,12 @@ public partial class StudyGroupsController : ControllerBase
 {
     private readonly IMediator _mediator;
     private readonly IHubContext<GroupChatHub> _hubContext;
+    private readonly GroupChatConnections _chatConnections;
 
-    public StudyGroupsController(IMediator mediator, IHubContext<GroupChatHub> hubContext)
+    public StudyGroupsController(IMediator mediator, IHubContext<GroupChatHub> hubContext, GroupChatConnections chatConnections)
     {
         _mediator = mediator;
         _hubContext = hubContext;
+        _chatConnections = chatConnections;
     }
 }

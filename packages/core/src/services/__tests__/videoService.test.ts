@@ -144,18 +144,6 @@ describe('videoService', () => {
       vi.mocked(fakeHttp.get).mockRejectedValueOnce(new Error('not found'))
       expect(await service.getVideoMetadata('https://x.com/v')).toBeNull()
     })
-
-    it('getVideoGlossary returns [] on request failure', async () => {
-      const service = createVideoService(fakeHttp, streamSse)
-      vi.mocked(fakeHttp.get).mockRejectedValueOnce(new Error('fail'))
-      expect(await service.getVideoGlossary('v-1')).toEqual([])
-    })
-
-    it('getVideoGlossary maps terms on success', async () => {
-      const service = createVideoService(fakeHttp, streamSse)
-      vi.mocked(fakeHttp.get).mockResolvedValueOnce({ data: { data: [{ id: 't-1', term: 'X', definition: 'Y', extra: 'ignored' }] } })
-      expect(await service.getVideoGlossary('v-1')).toEqual([{ id: 't-1', term: 'X', definition: 'Y' }])
-    })
   })
 
   describe('quiz submission', () => {

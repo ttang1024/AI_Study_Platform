@@ -12,4 +12,11 @@ public class AiRequestOptions
     /// instead cancels the provider call and answers with a clear AI_TIMEOUT.
     /// </summary>
     public int NonStreamingTimeoutSeconds { get; set; } = 55;
+
+    /// <summary>
+    /// How long a stream that has started may go without sending anything. Streams have no overall
+    /// deadline — a long answer is fine — so without this a provider that stalls mid-answer held the
+    /// request (and the viewer's spinner) open until the client gave up.
+    /// </summary>
+    public int StreamIdleTimeoutSeconds { get; set; } = 60;
 }

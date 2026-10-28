@@ -5,6 +5,7 @@ using StudyPlatform.Application.WorkedProblems.Commands;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
 using Xunit;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace StudyPlatform.Tests.WorkedProblems;
 
@@ -122,7 +123,7 @@ public class SubmitProblemAttemptCommandHandlerTests
     {
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
         _attempts.Setup(r => r.AddAsync(It.IsAny<WorkedProblemAttempt>(), default)).Returns(Task.CompletedTask);
-        _handler = new SubmitProblemAttemptCommandHandler(_uow.Object, _problems.Object, _attempts.Object, _ai.Object);
+        _handler = new SubmitProblemAttemptCommandHandler(_uow.Object, _problems.Object, _attempts.Object, _ai.Object, NullLogger<SubmitProblemAttemptCommandHandler>.Instance);
     }
 
     [Fact]

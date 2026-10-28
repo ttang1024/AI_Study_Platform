@@ -247,4 +247,3 @@ export const useStudy = (): StudyContextType & StudySessionContextType => {
   return { ...context, ...session };
 };
 
-export { useStudySession };

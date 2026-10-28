@@ -5,6 +5,7 @@ using StudyPlatform.Application.Services;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Enums;
 using StudyPlatform.Domain.Interfaces;
+using StudyPlatform.Tests.TestSupport;
 using Xunit;
 
 namespace StudyPlatform.Tests.Auth;
@@ -25,7 +26,6 @@ public class RegisterCommandHandlerTests
     {
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
         _handler = new RegisterCommandHandler(
-            _uow.Object,
             _users.Object,
             _otps.Object, _emailService.Object, _hasher.Object,
             new AuthSessionIssuer(_uow.Object, _users.Object, _tokens.Object, _tokenService.Object, _requestContext.Object));
@@ -35,8 +35,9 @@ public class RegisterCommandHandlerTests
 
     private void SetupValidOtp()
     {
-        var otp = new OtpCode { OtpId = Guid.NewGuid(), Email = "user@example.com", Code = "123456", Purpose = OtpPurpose.Registration };
+        var otp = new OtpCode { OtpId = Guid.NewGuid(), Email = "user@example.com", Code = "123456", Purpose = OtpPurpose.Registration, ExpiresAt = DateTime.UtcNow.AddMinutes(10) };
         _otps.Setup(r => r.GetActiveOtpAsync("user@example.com", OtpPurpose.Registration, default)).ReturnsAsync(otp);
+        _otps.WithAtomicOps(otp);
     }
 
     [Fact]
@@ -88,8 +89,9 @@ public class RegisterCommandHandlerTests
     public async Task Handle_EmailStoredAsLowercase()
     {
         _users.Setup(r => r.EmailExistsAsync(It.IsAny<string>(), default)).ReturnsAsync(false);
-        var otp = new OtpCode { OtpId = Guid.NewGuid(), Email = "USER@EXAMPLE.COM", Code = "123456", Purpose = OtpPurpose.Registration };
+        var otp = new OtpCode { OtpId = Guid.NewGuid(), Email = "USER@EXAMPLE.COM", Code = "123456", Purpose = OtpPurpose.Registration, ExpiresAt = DateTime.UtcNow.AddMinutes(10) };
         _otps.Setup(r => r.GetActiveOtpAsync(It.IsAny<string>(), It.IsAny<OtpPurpose>(), default)).ReturnsAsync(otp);
+        _otps.WithAtomicOps(otp);
         _hasher.Setup(h => h.Hash(It.IsAny<string>())).Returns("hashed");
         _tokenService.Setup(t => t.GenerateAccessToken(It.IsAny<User>())).Returns("tok");
         _tokenService.Setup(t => t.GenerateRefreshToken()).Returns("ref");
@@ -110,8 +112,9 @@ public class RegisterCommandHandlerTests
     public async Task Handle_OtpMarkedAsUsed()
     {
         _users.Setup(r => r.EmailExistsAsync("user@example.com", default)).ReturnsAsync(false);
-        var otp = new OtpCode { OtpId = Guid.NewGuid(), Email = "user@example.com", Code = "123456", Purpose = OtpPurpose.Registration, IsUsed = false };
+        var otp = new OtpCode { OtpId = Guid.NewGuid(), Email = "user@example.com", Code = "123456", Purpose = OtpPurpose.Registration, ExpiresAt = DateTime.UtcNow.AddMinutes(10), IsUsed = false };
         _otps.Setup(r => r.GetActiveOtpAsync("user@example.com", OtpPurpose.Registration, default)).ReturnsAsync(otp);
+        _otps.WithAtomicOps(otp);
         _hasher.Setup(h => h.Hash(It.IsAny<string>())).Returns("hashed");
         _tokenService.Setup(t => t.GenerateAccessToken(It.IsAny<User>())).Returns("tok");
         _tokenService.Setup(t => t.GenerateRefreshToken()).Returns("ref");

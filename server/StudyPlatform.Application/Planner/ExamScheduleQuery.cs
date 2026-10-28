@@ -1,5 +1,4 @@
 using MediatR;
-using StudyPlatform.Application.Analytics.Queries;
 using StudyPlatform.Application.Common;
 using StudyPlatform.Application.ConceptLinks;
 using StudyPlatform.Domain.Interfaces;
@@ -21,9 +20,13 @@ public class GetExamScheduleQueryHandler : IRequestHandler<GetExamScheduleQuery,
     private readonly IMistakeEntryRepository _mistakeEntries;
     private readonly IExamPlanRepository _examPlans;
     private readonly IMediator _mediator;
+    private readonly IFlashcardSrsDataRepository _flashcardSrs;
+    private readonly IUserTimeZone _timeZone;
 
-    public GetExamScheduleQueryHandler(ICourseRepository courses, IMistakeEntryRepository mistakeEntries, IExamPlanRepository examPlans, IMediator mediator)
+    public GetExamScheduleQueryHandler(ICourseRepository courses, IMistakeEntryRepository mistakeEntries, IExamPlanRepository examPlans, IMediator mediator, IFlashcardSrsDataRepository flashcardSrs, IUserTimeZone timeZone)
     {
+        _flashcardSrs = flashcardSrs;
+        _timeZone = timeZone;
         _courses = courses;
         _mistakeEntries = mistakeEntries;
         _examPlans = examPlans;
@@ -50,9 +53,11 @@ public class GetExamScheduleQueryHandler : IRequestHandler<GetExamScheduleQuery,
         var openMistakes = await _mistakeEntries.CountAsync(
             m => m.UserId == request.UserId && m.Status == "open", cancellationToken);
 
-        var summary = (await _mediator.Send(new GetDashboardSummaryQuery(request.UserId), cancellationToken)).Data!;
+        // Counted directly. This used to send the whole dashboard summary query for this one number — a
+        // query that also spends streak freezes, so reading a study plan wrote to the database.
+        var dueFlashcards = await _flashcardSrs.CountDueByUserIdAsync(request.UserId, DateTime.UtcNow, cancellationToken);
 
-        var today = DateTime.UtcNow.Date;
+        var today = await CreateExamPlanCommandHandler.UserTodayAsync(_timeZone, request.UserId, cancellationToken);
         var daysUntilExam = Math.Max(0, (plan.ExamDate.Date - today).Days);
         var planDays = Math.Min(daysUntilExam, MaxDays);
 
@@ -77,7 +82,7 @@ public class GetExamScheduleQueryHandler : IRequestHandler<GetExamScheduleQuery,
             // Spaced review keeps retention compounding — it anchors every day.
             var reviewMinutes = Math.Max(5, (int)(minutes * 0.4));
             tasks.Add(new PlanTaskDto("flashcards", "Review due flashcards",
-                summary.DueFlashcards > 0 ? $"{summary.DueFlashcards} cards are due — clear today's queue first." : "Keep the review queue empty.",
+                dueFlashcards > 0 ? $"{dueFlashcards} cards are due — clear today's queue first." : "Keep the review queue empty.",
                 reviewMinutes, "/flashcards"));
 
             // Rotate through the open gaps so each one gets focused time before the exam.
@@ -116,7 +121,7 @@ public class GetExamScheduleQueryHandler : IRequestHandler<GetExamScheduleQuery,
             days.Add(new PlanDayDto(date, DayLabel(date, today), minutes, tasks));
         }
 
-        var dto = new ExamScheduleDto(CreateExamPlanCommandHandler.ToDto(plan, courseName), days);
+        var dto = new ExamScheduleDto(CreateExamPlanCommandHandler.ToDto(plan, courseName, today), days);
         return Result<ExamScheduleDto>.Success(dto);
     }
 

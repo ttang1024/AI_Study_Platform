@@ -115,6 +115,12 @@ public class GenerateFlashcardsCommandHandler : IRequestHandler<GenerateFlashcar
                 "Every generated flashcard duplicates one you already have.");
         }
 
+        // Re-checked after the AI call: a concurrent request for the same set (a double-click) may have
+        // saved it while this one waited, and inserting again would duplicate every card or question.
+        var savedMeanwhile = (await _flashcards.GetByDocumentIdAsync(request.DocumentId, cancellationToken)).ToList();
+        if (savedMeanwhile.Count > 0)
+            return Result<IEnumerable<FlashcardDto>>.Success(savedMeanwhile.Select(f => f.ToFlashcardDto()), "Flashcards retrieved successfully.");
+
         await _flashcards.AddRangeAsync(newCards, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 

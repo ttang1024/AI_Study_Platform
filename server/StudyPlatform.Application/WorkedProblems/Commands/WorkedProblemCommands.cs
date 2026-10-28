@@ -5,6 +5,7 @@ using StudyPlatform.Application.Services;
 using StudyPlatform.Application.WorkedProblems.DTOs;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
+using Microsoft.Extensions.Logging;
 
 namespace StudyPlatform.Application.WorkedProblems.Commands;
 
@@ -127,9 +128,11 @@ public class SubmitProblemAttemptCommandHandler : IRequestHandler<SubmitProblemA
     private readonly IWorkedProblemRepository _workedProblems;
     private readonly IWorkedProblemAttemptRepository _workedProblemAttempts;
     private readonly IAiService _aiService;
+    private readonly ILogger<SubmitProblemAttemptCommandHandler> _logger;
 
-    public SubmitProblemAttemptCommandHandler(IUnitOfWork unitOfWork, IWorkedProblemRepository workedProblems, IWorkedProblemAttemptRepository workedProblemAttempts, IAiService aiService)
+    public SubmitProblemAttemptCommandHandler(IUnitOfWork unitOfWork, IWorkedProblemRepository workedProblems, IWorkedProblemAttemptRepository workedProblemAttempts, IAiService aiService, ILogger<SubmitProblemAttemptCommandHandler> logger)
     {
+        _logger = logger;
         _unitOfWork = unitOfWork;
         _workedProblems = workedProblems;
         _workedProblemAttempts = workedProblemAttempts;
@@ -157,7 +160,12 @@ public class SubmitProblemAttemptCommandHandler : IRequestHandler<SubmitProblemA
                 aiEvaluation = eval.Evaluation;
             }
         }
-        catch { }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // The attempt is still recorded without an evaluation — but why there is none (no AI key, a
+            // provider error, unparseable output) used to vanish entirely.
+            _logger.LogWarning(ex, "Could not evaluate attempt on problem {ProblemId}", request.ProblemId);
+        }
 
         var attempt = new WorkedProblemAttempt
         {

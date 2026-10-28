@@ -16,6 +16,7 @@ public partial class AiService : IAiService
     private readonly CacheOptions _cacheOptions;
     private readonly IAiUsageRecorder _usageRecorder;
     private readonly TimeSpan _requestTimeout;
+    private readonly TimeSpan _streamIdleTimeout;
 
     public AiService(
         HttpClient httpClient,
@@ -27,6 +28,7 @@ public partial class AiService : IAiService
         IOptions<AiRequestOptions> requestOptions)
     {
         _requestTimeout = TimeSpan.FromSeconds(Math.Max(1, requestOptions.Value.NonStreamingTimeoutSeconds));
+        _streamIdleTimeout = TimeSpan.FromSeconds(Math.Max(1, requestOptions.Value.StreamIdleTimeoutSeconds));
         _httpClient = httpClient;
         _logger = logger;
         _credentialsProvider = credentialsProvider;
@@ -225,6 +227,12 @@ public partial class AiService : IAiService
     public Task<string> TestConnectionAsync(CancellationToken cancellationToken = default)
         => SendTextAsync(null, [("user", "Reply with exactly one word: OK")], 0, 16, cleanJson: false, cancellationToken);
 
+    /// <summary>
+    /// Concurrent requests for the same generation (a double-click, two tabs) share one provider call
+    /// instead of each paying for it. Keyed by the cache key, which is already per user and provider.
+    /// </summary>
+    private static readonly SingleFlight<string, string> Generations = new();
+
     private Task<string> CacheGeneratedResultAsync(
         string category,
         string inputHash,
@@ -232,10 +240,16 @@ public partial class AiService : IAiService
         CancellationToken cancellationToken)
     {
         var cacheKey = $"ai:{Credentials.CacheScope}:{category}:{inputHash}";
-        return _cache.GetOrCreateAsync(
+
+        // The shared call runs on no caller's token: one caller leaving must not cancel it for the rest.
+        // It is still bounded — every provider call carries the Ai:NonStreamingTimeoutSeconds deadline.
+        return Generations.RunAsync(
             cacheKey,
-            factory,
-            TimeSpan.FromSeconds(_cacheOptions.GeneratedResultSeconds),
+            () => _cache.GetOrCreateAsync(
+                cacheKey,
+                factory,
+                TimeSpan.FromSeconds(_cacheOptions.GeneratedResultSeconds),
+                CancellationToken.None),
             cancellationToken);
     }
 

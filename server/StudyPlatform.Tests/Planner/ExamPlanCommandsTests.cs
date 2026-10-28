@@ -3,6 +3,7 @@ using Moq;
 using StudyPlatform.Application.Planner;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
+using StudyPlatform.Tests.TestSupport;
 using Xunit;
 
 namespace StudyPlatform.Tests.Planner;
@@ -19,7 +20,7 @@ public class CreateExamPlanCommandHandlerTests
     {
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
         _plans.Setup(r => r.AddAsync(It.IsAny<ExamPlan>(), default)).Returns(Task.CompletedTask);
-        _handler = new CreateExamPlanCommandHandler(_uow.Object, _courses.Object, _plans.Object);
+        _handler = new CreateExamPlanCommandHandler(_uow.Object, _courses.Object, _plans.Object, FixedTimeZone.Utc);
     }
 
     [Fact]
@@ -130,7 +131,7 @@ public class GetExamPlansQueryHandlerTests
 
     public GetExamPlansQueryHandlerTests()
     {
-        _handler = new GetExamPlansQueryHandler(_courses.Object, _plans.Object);
+        _handler = new GetExamPlansQueryHandler(_courses.Object, _plans.Object, FixedTimeZone.Utc);
     }
 
     [Fact]

@@ -72,4 +72,17 @@ public interface IDocumentRepository : IRepository<Document>
     /// </summary>
     Task<IReadOnlyList<DocumentListItem>> GetRecentUntestedAsync(
         Guid userId, IReadOnlyCollection<Guid> excludeDocumentIds, int limit, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Writes only the generated column (and UpdatedAt). Saving the whole entity loaded when a stream
+    /// began overwrote whatever else changed meanwhile — a mind map finishing after a summary wrote the
+    /// summary column back to its pre-stream value.
+    /// </summary>
+    Task SaveSummaryAsync(Guid id, string summary, CancellationToken cancellationToken = default);
+
+    /// <inheritdoc cref="SaveSummaryAsync"/>
+    Task SaveMindMapAsync(Guid id, string mindMapText, CancellationToken cancellationToken = default);
+
+    /// <summary>Every one of the user's items as (id, course, name) — no text columns (see <see cref="SourceCourse"/>).</summary>
+    Task<IReadOnlyList<SourceCourse>> GetSourceCoursesByUserAsync(Guid userId, CancellationToken cancellationToken = default);
 }

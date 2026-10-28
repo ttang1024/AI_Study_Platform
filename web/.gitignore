@@ -6,3 +6,8 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# promo video render byproducts (scripts/promo-video/render.mjs)
+scripts/promo-video/music.wav
+scripts/promo-video/.frames/
+scripts/promo-video/stills/

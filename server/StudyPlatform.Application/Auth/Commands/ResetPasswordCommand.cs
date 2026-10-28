@@ -36,17 +36,12 @@ public class ResetPasswordCommandHandler : IRequestHandler<ResetPasswordCommand,
             return Result.Failure("Invalid or expired OTP code.", "INVALID_OTP");
 
         var otp = await _otps.GetActiveOtpAsync(email, OtpPurpose.PasswordReset, cancellationToken);
-        if (!OtpVerifier.TryConsume(otp, request.OtpCode))
-        {
-            if (otp != null)
-                await _unitOfWork.SaveChangesAsync(cancellationToken); // persist the counted wrong guess
+        if (!await OtpVerifier.TryConsumeAsync(_otps, otp, request.OtpCode, cancellationToken))
             return Result.Failure("Invalid or expired OTP code.", "INVALID_OTP");
-        }
 
         user.PasswordHash = _passwordHasher.Hash(request.NewPassword);
         user.UpdatedAt = DateTime.UtcNow;
         _users.Update(user);
-        _otps.Update(otp!);
 
         await _refreshTokens.RevokeAllUserTokensAsync(user.UserId, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);

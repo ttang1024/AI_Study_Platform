@@ -119,23 +119,6 @@ public partial class VideoController
         return Ok(BaseResponse<IEnumerable<ChatMessageDto>>.Ok(dtos));
     }
 
-    [HttpDelete("{id:guid}/chat")]
-    [ProducesResponseType(typeof(BaseResponse<string>), 200)]
-    [ProducesResponseType(typeof(BaseResponse), 404)]
-    public async Task<IActionResult> DeleteVideoChatHistory(Guid id, CancellationToken cancellationToken)
-    {
-        var userId = User.GetUserId();
-        var video = await GetVideoWithAccessCheckAsync(id, userId, cancellationToken);
-        if (video is null)
-            return NotFound(BaseResponse<string>.Fail("Video not found.", "VIDEO_NOT_FOUND"));
-
-        await _chatMessages.DeleteByVideoIdAsync(id, userId, cancellationToken);
-        foreach (var conversation in await _chatMessages.GetConversationsByVideoIdAsync(id, userId, cancellationToken))
-            await _chatMessages.DeleteConversationAsync(conversation.ConversationId, userId, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-        return Ok(BaseResponse<string>.Ok("Chat history deleted."));
-    }
-
     // ── Video chat conversations (multiple threads per video) ────────────
 
     /// <summary>List this video's chat threads, newest first.</summary>

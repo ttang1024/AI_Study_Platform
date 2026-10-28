@@ -12,20 +12,23 @@ public class DeleteCourseCommandHandler : IRequestHandler<DeleteCourseCommand, R
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICourseRepository _courses;
     private readonly IDocumentRepository _documents;
-    private readonly IBlobStorageService _blobStorageService;
+    private readonly IVideoRepository _videos;
+    private readonly IStoredFileCleanup _storedFiles;
     private readonly IEmbeddingIndex _embeddingIndex;
 
     public DeleteCourseCommandHandler(
         IUnitOfWork unitOfWork,
         ICourseRepository courses,
         IDocumentRepository documents,
-        IBlobStorageService blobStorageService,
+        IVideoRepository videos,
+        IStoredFileCleanup storedFiles,
         IEmbeddingIndex embeddingIndex)
     {
         _unitOfWork = unitOfWork;
         _courses = courses;
         _documents = documents;
-        _blobStorageService = blobStorageService;
+        _videos = videos;
+        _storedFiles = storedFiles;
         _embeddingIndex = embeddingIndex;
     }
 
@@ -35,23 +38,18 @@ public class DeleteCourseCommandHandler : IRequestHandler<DeleteCourseCommand, R
         if (course == null)
             return Result.Failure("Course not found.", "COURSE_NOT_FOUND");
 
-        // Only the blob locations, not the document rows — the rows themselves are deleted by the
-        // Course -> Document cascade, so loading them (and their text) would be for the URL alone.
-        var blobUrls = await _documents.GetBlobUrlsByCourseAsync(request.CourseId, cancellationToken);
-        foreach (var blobUrl in blobUrls)
-        {
-            try
-            {
-                await _blobStorageService.DeleteAsync(blobUrl, cancellationToken);
-            }
-            catch
-            {
-                // Continue even if blob deletion fails
-            }
-        }
+        // Only the file locations, not the rows — the rows themselves go by the Course -> Document and
+        // Course -> Video cascades, so loading them (and their text) would be for the URL alone. Uploaded
+        // videos count: they are the largest files a course holds, and were never deleted at all.
+        var blobUrls = (await _documents.GetBlobUrlsByCourseAsync(request.CourseId, cancellationToken))
+            .Concat(await _videos.GetUploadedFileUrlsByCourseAsync(request.CourseId, cancellationToken))
+            .ToList();
 
         _courses.Remove(course);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // Only now that the rows are gone (see IStoredFileCleanup).
+        await _storedFiles.DeleteAsync(blobUrls, CancellationToken.None);
 
         // The same cascade that removed the document rows without loading them also removed their
         // flashcards and glossary terms; none of it went through a handler that could clean up chunks.

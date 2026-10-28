@@ -251,7 +251,8 @@ public partial class AiController : ControllerBase
                 attachmentsJson,
                 history.Any() ? null : CreateTitle(titleSource),
                 ct),
-            onCompleted: (text, ct) => _chatTurns.RecordAssistantAsync(thread, text, ct));
+            onCompleted: (text, ct) => _chatTurns.RecordAssistantAsync(thread, text, ct),
+            onInterrupted: (partial, ct) => _chatTurns.RecordAssistantAsync(thread, ChatThreads.InterruptedReply(partial), ct));
     }
 
     private static GeneralChatConversationDto ToConversationDto(ChatConversation conversation)

@@ -37,14 +37,21 @@ public static class SseExtensions
     /// </param>
     /// <param name="onCompleted">
     /// Optional work to run with the fully accumulated text once streaming finishes successfully and
-    /// produced non-empty output (e.g. caching or persisting the result).
+    /// produced non-empty output (e.g. caching or persisting the result). Runs even if the viewer has
+    /// just disconnected: the answer is complete and already paid for.
+    /// </param>
+    /// <param name="onInterrupted">
+    /// Optional work to run, with whatever text arrived, when the stream stops early after
+    /// <paramref name="beforeStream"/> ran — the viewer disconnected or the provider failed. For work
+    /// <paramref name="beforeStream"/> started that must not be left half-done (a chat's user turn).
     /// </param>
     public static async Task<IActionResult> StreamAiToSseAsync(
         this ControllerBase controller,
         IAsyncEnumerable<string> stream,
         CancellationToken cancellationToken,
         Func<CancellationToken, Task>? beforeStream = null,
-        Func<string, CancellationToken, Task>? onCompleted = null)
+        Func<string, CancellationToken, Task>? onCompleted = null,
+        Func<string, CancellationToken, Task>? onInterrupted = null)
     {
         var response = controller.Response;
         await using var enumerator = stream.GetAsyncEnumerator(cancellationToken);
@@ -85,16 +92,18 @@ public static class SseExtensions
             }
 
             if (fullText.Length > 0 && onCompleted != null)
-                await onCompleted(fullText.ToString(), cancellationToken);
+                await onCompleted(fullText.ToString(), CancellationToken.None);
         }
         catch (OperationCanceledException)
         {
+            await RunInterruptedAsync(controller, onInterrupted, fullText);
             return new EmptyResult();
         }
         catch (Exception ex)
         {
             controller.HttpContext.RequestServices.GetService<ILoggerFactory>()
                 ?.CreateLogger("SseStreaming").LogError(ex, "AI stream failed mid-response");
+            await RunInterruptedAsync(controller, onInterrupted, fullText);
             await response.WriteSseDataAsync(
                 "[ERROR] " + ClientErrors.MessageFor(ex, "The AI response was interrupted. Please try again."),
                 cancellationToken);
@@ -102,6 +111,23 @@ public static class SseExtensions
 
         await response.WriteSseDoneAsync(cancellationToken);
         return new EmptyResult();
+    }
+
+    private static async Task RunInterruptedAsync(
+        ControllerBase controller, Func<string, CancellationToken, Task>? onInterrupted, StringBuilder fullText)
+    {
+        if (onInterrupted == null)
+            return;
+        try
+        {
+            // The request token is already cancelled when the viewer left; this write is ours, not theirs.
+            await onInterrupted(fullText.ToString(), CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            controller.HttpContext.RequestServices.GetService<ILoggerFactory>()
+                ?.CreateLogger("SseStreaming").LogError(ex, "Could not record an interrupted AI stream");
+        }
     }
 
     /// <summary>Writes an <see cref="AiTextStream"/>: its cached text in one event, or the live stream.</summary>

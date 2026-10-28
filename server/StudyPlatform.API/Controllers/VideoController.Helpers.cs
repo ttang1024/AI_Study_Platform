@@ -24,12 +24,4 @@ public partial class VideoController
     private ObjectResult TranscriptPending<T>()
         => StatusCode(StatusCodes.Status409Conflict, BaseResponse<T>.Fail(
             "This video is still being transcribed. Long uploads can take a few minutes.", "TRANSCRIPT_PENDING"));
-
-    /// <summary>A blob-key-safe version of a client-supplied file name (letters, digits, '.', '-', '_').</summary>
-    private static string SafeBlobFileName(string fileName)
-    {
-        var name = Path.GetFileName(fileName);
-        var safe = new string(name.Select(c => char.IsAsciiLetterOrDigit(c) || c is '.' or '-' or '_' ? c : '_').ToArray());
-        return string.IsNullOrEmpty(safe.Trim('.', '_')) ? "video" : safe[..Math.Min(safe.Length, 100)];
-    }
 }

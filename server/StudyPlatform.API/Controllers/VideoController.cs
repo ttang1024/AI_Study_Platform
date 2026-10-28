@@ -27,14 +27,11 @@ public partial class VideoController : ControllerBase
     private readonly IAiService _aiService;
     private readonly IMediator _mediator;
     private readonly IUnitOfWork _unitOfWork;
-    private readonly ICourseRepository _courses;
     private readonly IQuizRepository _quizzes;
     private readonly IFlashcardRepository _flashcards;
     private readonly INoteRepository _notes;
     private readonly IChatMessageRepository _chatMessages;
     private readonly IQuizSubmissionRepository _quizSubmissions;
-    private readonly IVideoRepository _videos;
-    private readonly IGlossaryTermRepository _glossaryTerms;
     private readonly IVideoAccess _videoAccess;
     private readonly IVideoTranscriptProvider _transcripts;
     private readonly IAppCache _cache;
@@ -43,22 +40,18 @@ public partial class VideoController : ControllerBase
     private readonly IChatTurnRecorder _chatTurns;
     private readonly IVideoAiGenerator _videoAi;
     private readonly CacheOptions _cacheOptions;
-    private readonly AppLimitsOptions _limits;
 
-    public VideoController(IYouTubeTranscriptService transcriptService, IAiService aiService, IMediator mediator, IUnitOfWork unitOfWork, ICourseRepository courses, IQuizRepository quizzes, IFlashcardRepository flashcards, INoteRepository notes, IChatMessageRepository chatMessages, IQuizSubmissionRepository quizSubmissions, IVideoRepository videos, IGlossaryTermRepository glossaryTerms, IVideoAccess videoAccess, IVideoTranscriptProvider transcripts, IAppCache cache, IBlobStorageService blobStorageService, ITokenService tokenService, IChatTurnRecorder chatTurns, IVideoAiGenerator videoAi, IOptions<CacheOptions> cacheOptions, IOptions<AppLimitsOptions> limits)
+    public VideoController(IYouTubeTranscriptService transcriptService, IAiService aiService, IMediator mediator, IUnitOfWork unitOfWork, IQuizRepository quizzes, IFlashcardRepository flashcards, INoteRepository notes, IChatMessageRepository chatMessages, IQuizSubmissionRepository quizSubmissions, IVideoAccess videoAccess, IVideoTranscriptProvider transcripts, IAppCache cache, IBlobStorageService blobStorageService, ITokenService tokenService, IChatTurnRecorder chatTurns, IVideoAiGenerator videoAi, IOptions<CacheOptions> cacheOptions)
     {
         _transcriptService = transcriptService;
         _aiService = aiService;
         _mediator = mediator;
         _unitOfWork = unitOfWork;
-        _courses = courses;
         _quizzes = quizzes;
         _flashcards = flashcards;
         _notes = notes;
         _chatMessages = chatMessages;
         _quizSubmissions = quizSubmissions;
-        _videos = videos;
-        _glossaryTerms = glossaryTerms;
         _videoAccess = videoAccess;
         _transcripts = transcripts;
         _cache = cache;
@@ -67,6 +60,5 @@ public partial class VideoController : ControllerBase
         _chatTurns = chatTurns;
         _videoAi = videoAi;
         _cacheOptions = cacheOptions.Value;
-        _limits = limits.Value;
     }
 }

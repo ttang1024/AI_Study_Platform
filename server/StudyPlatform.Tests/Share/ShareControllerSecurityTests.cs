@@ -1,10 +1,12 @@
 using System.Security.Claims;
+using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
 using StudyPlatform.API.Controllers;
 using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Services;
+using StudyPlatform.Application.Share.Commands;
 using StudyPlatform.Application.Share.DTOs;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
@@ -38,7 +40,13 @@ public class ShareControllerSecurityTests
 
     private ShareController CreateController(Guid? userId)
     {
-        var controller = new ShareController(_uow.Object, _documents.Object, _videos.Object, _shares.Object, _blobs.Object, new RichTextSanitizer());
+        // The create path now runs in CreateShareCommandHandler; the mediator hands it the real handler
+        // over the same mocks, so these tests still exercise the actual logic end to end.
+        var handler = new CreateShareCommandHandler(_uow.Object, _documents.Object, _videos.Object, _shares.Object, new RichTextSanitizer());
+        var mediator = new Mock<IMediator>();
+        mediator.Setup(m => m.Send(It.IsAny<CreateShareCommand>(), It.IsAny<CancellationToken>()))
+            .Returns((CreateShareCommand c, CancellationToken ct) => handler.Handle(c, ct));
+        var controller = new ShareController(mediator.Object, _documents.Object, _videos.Object, _shares.Object, _blobs.Object, new RichTextSanitizer());
         var identity = userId is { } id
             ? new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, id.ToString())], "test")
             : new ClaimsIdentity();
@@ -123,6 +131,37 @@ public class ShareControllerSecurityTests
         Assert.IsType<NotFoundResult>(result);
         _blobs.Verify(b => b.DownloadAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
+
+    private ShareController PodcastShare(string audioUrl, string? fetchDest)
+    {
+        var docId = Guid.NewGuid();
+        _shares.Setup(r => r.GetByTokenAsync("p", It.IsAny<CancellationToken>())).ReturnsAsync(new ShareToken
+        {
+            Token = "p", OwnerId = Owner, SourceType = "podcast", SourceUrl = $"{Guid.NewGuid()}/{docId}",
+        });
+        _documents.Setup(r => r.GetSourceRefAsync(docId, Owner, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new DocumentSourceRef("audio/podcast", audioUrl));
+        var controller = CreateController(null);
+        if (fetchDest != null)
+            controller.Request.Headers["Sec-Fetch-Dest"] = fetchDest;
+        return controller;
+    }
+
+    [Theory]
+    [InlineData("audio")]
+    [InlineData(null)] // native players send no fetch metadata
+    public async Task StreamAudio_PodcastLoadedByAMediaElement_Redirects(string? fetchDest)
+    {
+        var result = await PodcastShare("https://cdn.example.com/ep1.mp3", fetchDest).StreamAudio("p");
+
+        Assert.Equal("https://cdn.example.com/ep1.mp3", Assert.IsType<RedirectResult>(result).Url);
+    }
+
+    [Theory]
+    [InlineData("https://phish.example/login", "document")] // someone opened the share link itself
+    [InlineData("javascript:alert(1)", "audio")]
+    public async Task StreamAudio_IsNotAnOpenRedirect(string audioUrl, string fetchDest)
+        => Assert.IsType<NotFoundResult>(await PodcastShare(audioUrl, fetchDest).StreamAudio("p"));
 
     [Fact]
     public async Task StreamFile_IsServedAsAnInertDownload()

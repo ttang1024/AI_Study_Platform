@@ -46,7 +46,6 @@ public sealed class VideoAiGenerator : IVideoAiGenerator
     private readonly IAiCredentialsProvider _credentials;
     private readonly IVideoTranscriptProvider _transcripts;
     private readonly IAppCache _cache;
-    private readonly IUnitOfWork _unitOfWork;
     private readonly IVideoRepository _videos;
     private readonly IVideoAccess _videoAccess;
     private readonly TimeSpan _ttl;
@@ -56,7 +55,6 @@ public sealed class VideoAiGenerator : IVideoAiGenerator
         IAiCredentialsProvider credentials,
         IVideoTranscriptProvider transcripts,
         IAppCache cache,
-        IUnitOfWork unitOfWork,
         IVideoRepository videos,
         IVideoAccess videoAccess,
         IOptions<CacheOptions> cacheOptions)
@@ -65,7 +63,6 @@ public sealed class VideoAiGenerator : IVideoAiGenerator
         _credentials = credentials;
         _transcripts = transcripts;
         _cache = cache;
-        _unitOfWork = unitOfWork;
         _videos = videos;
         _videoAccess = videoAccess;
         _ttl = TimeSpan.FromSeconds(cacheOptions.Value.GeneratedResultSeconds);
@@ -118,16 +115,10 @@ public sealed class VideoAiGenerator : IVideoAiGenerator
         if (transcript is null)
             return Result<AiTextStream>.Failure(NoTranscriptMessage, "NO_TRANSCRIPT");
 
-        Func<string, CancellationToken, Task>? store = video.UserId != userId ? null : async (text, ct) =>
-        {
-            if (artifact == VideoAiArtifact.Summary)
-                video.Summary = text;
-            else
-                video.MindMapText = text;
-            video.UpdatedAt = DateTime.UtcNow;
-            _videos.Update(video);
-            await _unitOfWork.SaveChangesAsync(ct);
-        };
+        Func<string, CancellationToken, Task>? store = video.UserId != userId ? null
+            : artifact == VideoAiArtifact.Summary
+                ? (text, ct) => _videos.SaveSummaryAsync(video.VideoId, text, ct)
+                : (text, ct) => _videos.SaveMindMapAsync(video.VideoId, text, ct);
 
         return Result<AiTextStream>.Success(new AiTextStream(null, Stream(transcript, artifact, cancellationToken), store));
     }

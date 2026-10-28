@@ -1,5 +1,6 @@
 using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
+using StudyPlatform.Application.Services;
 using StudyPlatform.Infrastructure.Data;
 
 namespace StudyPlatform.API.Services;
@@ -17,6 +18,10 @@ namespace StudyPlatform.API.Services;
 /// <para>PageVisits is the only table that grows with traffic rather than with what users create, and
 /// its rows are anonymous-writable. The dashboard never looks past
 /// <c>Analytics:PageVisitRetentionDays</c> (default 180), so anything older is dead weight.</para>
+///
+/// <para>Expired data-export archives are deleted from storage too. Each is a complete copy of one
+/// person's data; <c>ExpiresAt</c> only ever closed the download endpoint, so every export made used
+/// to stay in the bucket for good.</para>
 /// </summary>
 public sealed class ExpiredDataSweepWorker : PeriodicSweepWorker
 {
@@ -65,10 +70,48 @@ public sealed class ExpiredDataSweepWorker : PeriodicSweepWorker
         var tokens = await DeleteInBatchesAsync(db.RefreshTokens, t => t.ExpiresAt <= authCutoff, t => t.ExpiresAt, cancellationToken);
         var visits = await DeleteInBatchesAsync(db.PageVisits, v => v.OccurredAt < pageVisitCutoff, v => v.OccurredAt, cancellationToken);
 
-        if (cache + transcripts + otps + tokens + visits > 0)
+        var exports = await DeleteExpiredExportArchivesAsync(
+            db, scope.ServiceProvider.GetRequiredService<IBlobStorageService>(), now, cancellationToken);
+
+        if (cache + transcripts + otps + tokens + visits + exports > 0)
             _logger.LogInformation(
-                "Deleted expired rows: {Cache} cache, {Transcripts} transcript, {Otps} OTP, {Tokens} refresh token, {Visits} page visit.",
-                cache, transcripts, otps, tokens, visits);
+                "Deleted expired rows: {Cache} cache, {Transcripts} transcript, {Otps} OTP, {Tokens} refresh token, {Visits} page visit; {Exports} export archive(s).",
+                cache, transcripts, otps, tokens, visits, exports);
+    }
+
+    /// <summary>
+    /// Deletes each expired archive, then forgets its URL so the next sweep does not retry it. The row
+    /// stays as the record that the export happened. One that fails to delete keeps its URL and is
+    /// retried next sweep.
+    /// </summary>
+    private async Task<int> DeleteExpiredExportArchivesAsync(
+        AppDbContext db, IBlobStorageService blobStorage, DateTime now, CancellationToken cancellationToken)
+    {
+        var expired = await db.DataExportRequests
+            .Where(r => r.BlobUrl != null && r.ExpiresAt != null && r.ExpiresAt <= now)
+            .Select(r => new { r.DataExportRequestId, r.BlobUrl })
+            .Take(BatchSize)
+            .ToListAsync(cancellationToken);
+
+        var deleted = 0;
+        foreach (var export in expired)
+        {
+            try
+            {
+                await blobStorage.DeleteAsync(export.BlobUrl!, cancellationToken);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogWarning(ex, "Could not delete expired export archive {ExportId}", export.DataExportRequestId);
+                continue;
+            }
+
+            await db.DataExportRequests
+                .Where(r => r.DataExportRequestId == export.DataExportRequestId)
+                .ExecuteUpdateAsync(s => s.SetProperty(r => r.BlobUrl, (string?)null), cancellationToken);
+            deleted++;
+        }
+        return deleted;
     }
 
     /// <summary>Batched so one sweep never holds a long transaction over a large table.</summary>

@@ -36,6 +36,9 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;          // skip cross-origin (CDN fonts, APIs)
   if (url.pathname.startsWith('/api/')) return;             // API handled by app-level IndexedDB cache
+  // Media is fetched in byte ranges: a 206 can't be cache.put(), and Safari won't play a video whose
+  // range request is answered with a cached full 200.
+  if (request.headers.has('range') || request.destination === 'video' || request.destination === 'audio') return;
 
   if (request.mode === 'navigate') {
     event.respondWith(

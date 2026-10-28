@@ -50,6 +50,8 @@ public class LibraryRepository : ILibraryRepository
         //   article = OriginalUrl set AND text/* content type
         //   audio   = audio/podcast OR audio/* content type
         //   plain document = neither of the above
+        var searchPattern = string.IsNullOrWhiteSpace(search) ? null : LikePattern.Contains(search);
+
         var includeDocuments = type != "videos";
         var includeVideos = type is "all" or "videos";
 
@@ -59,8 +61,8 @@ public class LibraryRepository : ILibraryRepository
             var docs = _db.Documents.AsNoTracking().Where(d => d.UserId == userId);
             if (courseId.HasValue)
                 docs = docs.Where(d => d.CourseId == courseId.Value);
-            if (!string.IsNullOrWhiteSpace(search))
-                docs = docs.Where(d => EF.Functions.ILike(d.FileName, $"%{search}%"));
+            if (searchPattern != null)
+                docs = docs.Where(d => EF.Functions.ILike(d.FileName, searchPattern, LikePattern.Escape));
             if (taggedDocumentIds != null)
                 docs = docs.Where(d => taggedDocumentIds.Contains(d.DocumentId));
 
@@ -105,8 +107,8 @@ public class LibraryRepository : ILibraryRepository
             var videos = _db.Videos.AsNoTracking().Where(v => v.UserId == userId);
             if (courseId.HasValue)
                 videos = videos.Where(v => v.CourseId == courseId.Value);
-            if (!string.IsNullOrWhiteSpace(search))
-                videos = videos.Where(v => EF.Functions.ILike(v.Title, $"%{search}%"));
+            if (searchPattern != null)
+                videos = videos.Where(v => EF.Functions.ILike(v.Title, searchPattern, LikePattern.Escape));
             if (taggedVideoIds != null)
                 videos = videos.Where(v => taggedVideoIds.Contains(v.VideoId));
 

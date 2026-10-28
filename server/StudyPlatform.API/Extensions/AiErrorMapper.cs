@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Mvc;
 using StudyPlatform.Application.Common;
 
@@ -5,14 +6,22 @@ namespace StudyPlatform.API.Extensions;
 
 public static class AiErrorMapper
 {
+    /// <summary>
+    /// A numeric 429 counts only as the status our own provider errors put right after "API returned".
+    /// Matched anywhere, it also hit request ids in provider error bodies ("req_7f429ab1"), and an
+    /// ordinary rejected request — a bad model name — was reported as quota exhaustion.
+    /// </summary>
+    private static readonly Regex Status429 = new(@"API returned 429\b", RegexOptions.Compiled);
+
     public static bool TryGetAiError(string? message, out int statusCode, out string errorCode)
     {
         message ??= string.Empty;
 
         if (message.Contains("TooManyRequests", StringComparison.OrdinalIgnoreCase) ||
-            message.Contains("429", StringComparison.OrdinalIgnoreCase) ||
+            Status429.IsMatch(message) ||
             message.Contains("quota", StringComparison.OrdinalIgnoreCase) ||
-            message.Contains("rate limit", StringComparison.OrdinalIgnoreCase))
+            message.Contains("rate limit", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("RESOURCE_EXHAUSTED", StringComparison.Ordinal))
         {
             statusCode = StatusCodes.Status429TooManyRequests;
             errorCode = "AI_QUOTA_EXCEEDED";

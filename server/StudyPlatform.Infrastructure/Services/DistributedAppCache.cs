@@ -246,8 +246,19 @@ public class DistributedAppCache : IAppCache
             return TimeSpan.FromSeconds(_cacheOptions.TranscriptSeconds);
         }
 
-        if (key.StartsWith("analytics:", StringComparison.Ordinal))
+        // Short-lived per-user summaries. Falling through to the 30-day default here meant one Redis hit after
+        // an invalidation (RemoveAsync inside the Redis skip window clears only Postgres) parked the stale
+        // value in Postgres for a month, served on every Redis miss after that.
+        if (key.StartsWith("analytics:", StringComparison.Ordinal)
+            || key.StartsWith("dashboard-summary:", StringComparison.Ordinal)
+            || key.StartsWith("recommendations:", StringComparison.Ordinal))
             return TimeSpan.FromSeconds(_cacheOptions.AnalyticsSummarySeconds);
+
+        if (key.StartsWith("stats:", StringComparison.Ordinal))
+            return TimeSpan.FromSeconds(_cacheOptions.DashboardStatsSeconds);
+
+        if (key.StartsWith("concept-links:gaps:", StringComparison.Ordinal))
+            return TimeSpan.FromSeconds(_cacheOptions.KnowledgeGapsSeconds);
 
         if (key.StartsWith("documents:sas:", StringComparison.Ordinal))
             return TimeSpan.FromSeconds(_cacheOptions.SasUrlSeconds);

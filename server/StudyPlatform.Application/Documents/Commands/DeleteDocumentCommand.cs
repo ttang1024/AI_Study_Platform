@@ -12,20 +12,20 @@ public class DeleteDocumentCommandHandler : IRequestHandler<DeleteDocumentComman
     private readonly IUnitOfWork _unitOfWork;
     private readonly IDocumentRepository _documents;
     private readonly ILibraryTagRepository _libraryTags;
-    private readonly IBlobStorageService _blobStorageService;
+    private readonly IStoredFileCleanup _storedFiles;
     private readonly IEmbeddingIndex _embeddingIndex;
 
     public DeleteDocumentCommandHandler(
         IUnitOfWork unitOfWork,
         IDocumentRepository documents,
         ILibraryTagRepository libraryTags,
-        IBlobStorageService blobStorageService,
+        IStoredFileCleanup storedFiles,
         IEmbeddingIndex embeddingIndex)
     {
         _unitOfWork = unitOfWork;
         _documents = documents;
         _libraryTags = libraryTags;
-        _blobStorageService = blobStorageService;
+        _storedFiles = storedFiles;
         _embeddingIndex = embeddingIndex;
     }
 
@@ -35,15 +35,6 @@ public class DeleteDocumentCommandHandler : IRequestHandler<DeleteDocumentComman
         if (document == null)
             return Result.Failure("Document not found.", "DOCUMENT_NOT_FOUND");
 
-        try
-        {
-            await _blobStorageService.DeleteAsync(document.BlobUrl, cancellationToken);
-        }
-        catch
-        {
-            // Continue even if blob deletion fails
-        }
-
         _documents.Remove(document);
 
         // The tag join is polymorphic, so no foreign key reaches it and no cascade fires. Pruned
@@ -52,6 +43,9 @@ public class DeleteDocumentCommandHandler : IRequestHandler<DeleteDocumentComman
             "document", document.DocumentId, cancellationToken);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // Only now that the row is gone (see IStoredFileCleanup).
+        await _storedFiles.DeleteAsync([document.BlobUrl], CancellationToken.None);
 
         // After the save, so the cascade has taken the document's flashcards and glossary terms with it
         // and their chunks look orphaned too.

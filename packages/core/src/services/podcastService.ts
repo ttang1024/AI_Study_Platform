@@ -70,16 +70,6 @@ export function createPodcastService(http: HttpClient) {
       const res = await http.post<{ data: unknown }>('/api/podcasts/from-feed', { feedUrl, episodeId, courseId });
       return mapEpisode(res.data.data);
     },
-
-    async getAudioUrl(documentId: string): Promise<string> {
-      const res = await http.get<{ data: string }>(`/api/podcasts/${documentId}/url`);
-      return res.data.data;
-    },
-
-    async transcribe(documentId: string): Promise<PodcastEpisode> {
-      const res = await http.post<{ data: unknown }>(`/api/podcasts/${documentId}/transcribe`);
-      return mapEpisode(res.data.data);
-    },
   };
 }
 

@@ -11,7 +11,7 @@ import { useAuth } from '../context/AuthContext';
 import { useStudy } from '../context/StudyContext';
 import { getApiUrl } from '../utils/env';
 import { Select } from '../components/common/Select';
-import { ensureAccessToken } from '../services/accessToken';
+import { ensureFreshAccessToken } from '../services/accessToken';
 
 export const StudyGroupDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -53,7 +53,9 @@ export const StudyGroupDetailPage: React.FC = () => {
 
     const connection = new signalR.HubConnectionBuilder()
       .withUrl(`${getApiUrl()}/hubs/group-chat`, {
-        accessTokenFactory: async () => (await ensureAccessToken()) ?? '',
+        // Fresh, not merely present: the server closes the connection when its token expires, and the
+        // automatic reconnect presents whatever this returns.
+        accessTokenFactory: async () => (await ensureFreshAccessToken()) ?? '',
       })
       .withAutomaticReconnect()
       .build();

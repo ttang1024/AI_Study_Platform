@@ -16,7 +16,6 @@ public record RegisterCommand(
 
 public class RegisterCommandHandler : IRequestHandler<RegisterCommand, Result<AuthResponse>>
 {
-    private readonly IUnitOfWork _unitOfWork;
     private readonly IUserRepository _users;
     private readonly IOtpRepository _otps;
     private readonly IEmailService _emailService;
@@ -24,14 +23,12 @@ public class RegisterCommandHandler : IRequestHandler<RegisterCommand, Result<Au
     private readonly IAuthSessionIssuer _sessionIssuer;
 
     public RegisterCommandHandler(
-        IUnitOfWork unitOfWork,
         IUserRepository users,
         IOtpRepository otps,
         IEmailService emailService,
         IPasswordHasher passwordHasher,
         IAuthSessionIssuer sessionIssuer)
     {
-        _unitOfWork = unitOfWork;
         _users = users;
         _otps = otps;
         _emailService = emailService;
@@ -47,12 +44,8 @@ public class RegisterCommandHandler : IRequestHandler<RegisterCommand, Result<Au
             return Result<AuthResponse>.Failure("Email is already registered.", "EMAIL_ALREADY_EXISTS");
 
         var otp = await _otps.GetActiveOtpAsync(email, OtpPurpose.Registration, cancellationToken);
-        if (!OtpVerifier.TryConsume(otp, request.OtpCode))
-        {
-            if (otp != null)
-                await _unitOfWork.SaveChangesAsync(cancellationToken); // persist the counted wrong guess
+        if (!await OtpVerifier.TryConsumeAsync(_otps, otp, request.OtpCode, cancellationToken))
             return Result<AuthResponse>.Failure("Invalid or expired OTP code.", "INVALID_OTP");
-        }
 
         var user = new User
         {
@@ -66,10 +59,9 @@ public class RegisterCommandHandler : IRequestHandler<RegisterCommand, Result<Au
         };
 
         await _users.AddAsync(user, cancellationToken);
-        _otps.Update(otp!);
 
-        // Issuing the session is what saves the unit of work, so the new user and the spent OTP
-        // land in the same transaction as the refresh-token row.
+        // Issuing the session is what saves the unit of work, so the new user lands in the same
+        // transaction as the refresh-token row. The OTP was already spent by TryConsumeAsync.
         var response = await _sessionIssuer.IssueAsync(user, cancellationToken: cancellationToken);
 
         await _emailService.SendWelcomeEmailAsync(user.Email, user.FullName, cancellationToken);

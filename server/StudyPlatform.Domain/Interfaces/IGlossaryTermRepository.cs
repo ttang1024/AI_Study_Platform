@@ -16,4 +16,7 @@ public interface IGlossaryTermRepository : IRepository<GlossaryTerm>
     /// term and every mastered id to the app just to subtract two sets and render one number.
     /// </summary>
     Task<int> CountUnmasteredByUserAsync(Guid userId, CancellationToken cancellationToken = default);
+
+    /// <summary>The ones among <paramref name="ids"/> that exist and belong to <paramref name="userId"/>.</summary>
+    Task<IReadOnlySet<Guid>> GetOwnedIdsAsync(Guid userId, IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken = default);
 }

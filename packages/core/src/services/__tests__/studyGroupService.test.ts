@@ -57,10 +57,4 @@ describe('studyGroupService', () => {
     service.getChat('g-1', 3)
     expect(fakeHttp.get).toHaveBeenCalledWith('/api/study-groups/g-1/chat?page=3')
   })
-
-  it('sendMessage posts the content', () => {
-    service.sendMessage('g-1', 'hello')
-    expect(fakeHttp.post).toHaveBeenCalledWith('/api/study-groups/g-1/chat', { content: 'hello' })
-  })
-
 })

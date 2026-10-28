@@ -69,17 +69,7 @@ describe('glossaryService', () => {
     })
   })
 
-  describe('getVideoGlossary / generateVideoGlossary', () => {
-    it('stamps the requested videoId onto each mapped term', async () => {
-      const service = createGlossaryService(fakeHttp)
-      vi.mocked(fakeHttp.get).mockResolvedValueOnce({ data: { data: [backendTerm({ videoId: 'other' })] } })
-
-      const terms = await service.getVideoGlossary('v-1')
-
-      expect(fakeHttp.get).toHaveBeenCalledWith('/api/videos/v-1/glossary')
-      expect(terms[0].videoId).toBe('v-1')
-    })
-
+  describe('generateVideoGlossary', () => {
     it('generateVideoGlossary posts the videoUrl and stamps videoId', async () => {
       const service = createGlossaryService(fakeHttp)
       vi.mocked(fakeHttp.post).mockResolvedValueOnce({ data: { data: [backendTerm()] } })

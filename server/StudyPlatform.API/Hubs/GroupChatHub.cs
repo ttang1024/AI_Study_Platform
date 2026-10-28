@@ -14,9 +14,11 @@ public class GroupChatHub : Hub
     private readonly IUserRepository _users;
     private readonly IStudyGroupMemberRepository _studyGroupMembers;
     private readonly IGroupChatMessageRepository _groupChatMessages;
+    private readonly GroupChatConnections _connections;
 
-    public GroupChatHub(IUnitOfWork unitOfWork, IUserRepository users, IStudyGroupMemberRepository studyGroupMembers, IGroupChatMessageRepository groupChatMessages)
+    public GroupChatHub(IUnitOfWork unitOfWork, IUserRepository users, IStudyGroupMemberRepository studyGroupMembers, IGroupChatMessageRepository groupChatMessages, GroupChatConnections connections)
     {
+        _connections = connections;
         _unitOfWork = unitOfWork;
         _users = users;
         _studyGroupMembers = studyGroupMembers;
@@ -32,10 +34,18 @@ public class GroupChatHub : Hub
         var isMember = await _studyGroupMembers.ExistsAsync(
             m => m.GroupId == groupGuid && m.UserId == userId);
 
-        if (!isMember)
+        if (!isMember || !await IsActiveAsync(userId))
             throw new HubException("Access denied.");
 
         await Groups.AddToGroupAsync(Context.ConnectionId, groupId);
+        // Recorded so leaving, removal or deletion can take the subscription back (GroupChatConnections).
+        _connections.Record(Context.ConnectionId, userId, groupId);
+    }
+
+    public override Task OnDisconnectedAsync(Exception? exception)
+    {
+        _connections.Disconnected(Context.ConnectionId);
+        return base.OnDisconnectedAsync(exception);
     }
 
     public async Task SendMessage(string groupId, string content)
@@ -53,7 +63,11 @@ public class GroupChatHub : Hub
         if (!isMember)
             throw new HubException("Access denied.");
 
+        // Checked per message, not just at connect: a connection outlives the access token that opened it,
+        // so a deactivated account could otherwise keep posting for as long as its tab stayed open.
         var user = await _users.GetByIdAsync(userId);
+        if (user is not { IsActive: true })
+            throw new HubException("Access denied.");
 
         var msg = new GroupChatMessage
         {
@@ -70,10 +84,13 @@ public class GroupChatHub : Hub
         var dto = new GroupChatMessageDto(
             msg.GroupChatMessageId,
             msg.UserId,
-            user?.FullName ?? "Unknown",
+            user.FullName,
             msg.Content,
             msg.SentAt);
 
         await Clients.Group(groupId).SendAsync("ReceiveMessage", dto);
     }
+
+    private async Task<bool> IsActiveAsync(Guid userId)
+        => (await _users.GetByIdAsync(userId)) is { IsActive: true };
 }

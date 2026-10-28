@@ -17,19 +17,23 @@ public class CreateExamPlanCommandHandler : IRequestHandler<CreateExamPlanComman
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICourseRepository _courses;
     private readonly IExamPlanRepository _examPlans;
+    private readonly IUserTimeZone _timeZone;
 
-    public CreateExamPlanCommandHandler(IUnitOfWork unitOfWork, ICourseRepository courses, IExamPlanRepository examPlans)
+    public CreateExamPlanCommandHandler(IUnitOfWork unitOfWork, ICourseRepository courses, IExamPlanRepository examPlans, IUserTimeZone timeZone)
     {
         _unitOfWork = unitOfWork;
         _courses = courses;
         _examPlans = examPlans;
+        _timeZone = timeZone;
     }
 
     public async Task<Result<ExamPlanDto>> Handle(CreateExamPlanCommand request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Title))
             return Result<ExamPlanDto>.Failure("Title is required.", "TITLE_REQUIRED");
-        if (request.ExamDate.Date < DateTime.UtcNow.Date)
+        // The exam date is a date on the user's calendar, so "past" is judged against their today, not UTC's.
+        var today = await UserTodayAsync(_timeZone, request.UserId, cancellationToken);
+        if (request.ExamDate.Date < today)
             return Result<ExamPlanDto>.Failure("Exam date must be in the future.", "DATE_IN_PAST");
 
         string? courseName = null;
@@ -54,12 +58,16 @@ public class CreateExamPlanCommandHandler : IRequestHandler<CreateExamPlanComman
         await _examPlans.AddAsync(plan, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return Result<ExamPlanDto>.Success(ToDto(plan, courseName), "Exam plan created.");
+        return Result<ExamPlanDto>.Success(ToDto(plan, courseName, today), "Exam plan created.");
     }
 
-    internal static ExamPlanDto ToDto(ExamPlan plan, string? courseName) => new(
+    internal static async Task<DateTime> UserTodayAsync(IUserTimeZone timeZone, Guid userId, CancellationToken ct)
+        => UserCalendar.LocalDate(DateTime.UtcNow, await timeZone.ForUserAsync(userId, ct));
+
+    /// <param name="today">The user's calendar date (see <see cref="UserTodayAsync"/>).</param>
+    internal static ExamPlanDto ToDto(ExamPlan plan, string? courseName, DateTime today) => new(
         plan.ExamPlanId, plan.CourseId, courseName, plan.Title, plan.ExamDate, plan.DailyMinutes,
-        Math.Max(0, (plan.ExamDate.Date - DateTime.UtcNow.Date).Days), plan.CreatedAt);
+        Math.Max(0, (plan.ExamDate.Date - today.Date).Days), plan.CreatedAt);
 }
 
 public class DeleteExamPlanCommandHandler : IRequestHandler<DeleteExamPlanCommand, Result<bool>>
@@ -90,11 +98,13 @@ public class GetExamPlansQueryHandler : IRequestHandler<GetExamPlansQuery, Resul
 {
     private readonly ICourseRepository _courses;
     private readonly IExamPlanRepository _examPlans;
+    private readonly IUserTimeZone _timeZone;
 
-    public GetExamPlansQueryHandler(ICourseRepository courses, IExamPlanRepository examPlans)
+    public GetExamPlansQueryHandler(ICourseRepository courses, IExamPlanRepository examPlans, IUserTimeZone timeZone)
     {
         _courses = courses;
         _examPlans = examPlans;
+        _timeZone = timeZone;
     }
 
     public async Task<Result<IReadOnlyList<ExamPlanDto>>> Handle(GetExamPlansQuery request, CancellationToken cancellationToken)
@@ -102,11 +112,12 @@ public class GetExamPlansQueryHandler : IRequestHandler<GetExamPlansQuery, Resul
         var plans = (await _examPlans.FindAsync(p => p.UserId == request.UserId, cancellationToken)).ToList();
         var courses = (await _courses.FindAsync(c => c.UserId == request.UserId, cancellationToken))
             .ToDictionary(c => c.CourseId, c => c.CourseName);
+        var today = await CreateExamPlanCommandHandler.UserTodayAsync(_timeZone, request.UserId, cancellationToken);
 
         var items = plans
             .OrderBy(p => p.ExamDate)
             .Select(p => CreateExamPlanCommandHandler.ToDto(
-                p, p.CourseId.HasValue && courses.TryGetValue(p.CourseId.Value, out var name) ? name : null))
+                p, p.CourseId.HasValue && courses.TryGetValue(p.CourseId.Value, out var name) ? name : null, today))
             .ToList();
 
         return Result<IReadOnlyList<ExamPlanDto>>.Success(items);

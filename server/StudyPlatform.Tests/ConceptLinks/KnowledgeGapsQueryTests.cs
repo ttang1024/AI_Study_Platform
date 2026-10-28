@@ -6,6 +6,7 @@ using StudyPlatform.Application.Services;
 using StudyPlatform.Application.Settings;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
+using StudyPlatform.Tests.TestSupport;
 using Xunit;
 
 namespace StudyPlatform.Tests.ConceptLinks;
@@ -27,8 +28,8 @@ public class GetKnowledgeGapsQueryHandlerTests
         _mastered.Setup(r => r.GetMasteredTermIdsByUserAsync(_userId, default)).ReturnsAsync(Array.Empty<Guid>());
         _notes.Setup(r => r.GetByUserIdAsync(_userId, default)).ReturnsAsync(Array.Empty<Note>());
         _quizzes.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Quiz, bool>>>(), default)).ReturnsAsync(Array.Empty<Quiz>());
-        _documents.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Document, bool>>>(), default)).ReturnsAsync(Array.Empty<Document>());
-        _videos.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Video, bool>>>(), default)).ReturnsAsync(Array.Empty<Video>());
+        _documents.WithSources(Array.Empty<Document>());
+        _videos.WithSources(Array.Empty<Video>());
 
         var cache = new Mock<IAppCache>();
         cache.Setup(c => c.GetOrCreateAsync(
@@ -130,7 +131,7 @@ public class GetKnowledgeGapsQueryHandlerTests
         var docA = Guid.NewGuid();
         var docB = Guid.NewGuid();
 
-        _documents.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Document, bool>>>(), default)).ReturnsAsync(new[]
+        _documents.WithSources(new[]
         {
             new Document { DocumentId = docA, UserId = _userId, CourseId = Guid.NewGuid() },
             new Document { DocumentId = docB, UserId = _userId, CourseId = Guid.NewGuid() },
@@ -199,7 +200,7 @@ public class GetKnowledgeGapsQueryHandlerTests
         });
         _mastered.Setup(r => r.GetMasteredTermIdsByUserAsync(_userId, default)).ReturnsAsync(new[] { lowId });
         var otherDocId = Guid.NewGuid();
-        _documents.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Document, bool>>>(), default)).ReturnsAsync(new[]
+        _documents.WithSources(new[]
         {
             new Document { DocumentId = lowDocId, UserId = _userId, CourseId = Guid.NewGuid() },
             new Document { DocumentId = otherDocId, UserId = _userId, CourseId = Guid.NewGuid() },

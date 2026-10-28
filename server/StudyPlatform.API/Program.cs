@@ -177,6 +177,7 @@ builder.Services.AddCloudFrontForwardedHeaders(builder.Configuration);
 // only reaches the clients connected to the replica that produced it, so group chat silently
 // half-works when scaled out.
 var backplaneUnavailableReason = builder.Services.AddApplicationSignalR(builder.Configuration, redis);
+builder.Services.AddSingleton<StudyPlatform.API.Hubs.GroupChatConnections>();
 
 if (backplaneUnavailableReason != null && builder.Configuration.GetValue("Api:RequireScaleOutBackplane", false))
 {
@@ -296,7 +297,10 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-app.MapHub<GroupChatHub>("/hubs/group-chat");
+// A hub connection authenticates once, at connect, and could otherwise stay open for hours past the
+// 15-minute access token that opened it — through logout, revocation or deactivation. Closing it when
+// the token expires makes the client reconnect with a fresh one, which is checked again.
+app.MapHub<GroupChatHub>("/hubs/group-chat", options => options.CloseOnAuthenticationExpiration = true);
 // Liveness: no dependency checks, by design (see the registration above). If the process can route a
 // request it is alive; restarting it would not fix a sick dependency.
 app.MapHealthChecks("/health", new HealthCheckOptions { Predicate = _ => false });

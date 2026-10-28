@@ -33,6 +33,9 @@ export function buildMindMapHtml(markdown: string): string {
 
     var markdown = ${JSON.stringify(markdown)};
     var transformer = new markmap.Transformer();
+    // Raw HTML in the markdown renders as text: a shared mind map is whatever its creator posted, and
+    // this WebView has no CSP and a native bridge (ReactNativeWebView) for a script to talk to.
+    transformer.md.set({ html: false });
     var result = transformer.transform(markdown);
     window.mm = markmap.Markmap.create('#markmap', {}, result.root);
 

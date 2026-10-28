@@ -24,12 +24,16 @@ public class SubmitPracticeTestCommandHandler : IRequestHandler<SubmitPracticeTe
     private readonly IUnitOfWork _unitOfWork;
     private readonly IGlossaryMasteredRepository _glossaryMastered;
     private readonly IWorkedProblemMasteredRepository _workedProblemMastered;
+    private readonly IGlossaryTermRepository _glossaryTerms;
+    private readonly IWorkedProblemRepository _workedProblems;
     private readonly IMistakeEntryRepository _mistakeEntries;
     private readonly IMediator _mediator;
     private readonly IAppCache _cache;
 
-    public SubmitPracticeTestCommandHandler(IUnitOfWork unitOfWork, IGlossaryMasteredRepository glossaryMastered, IWorkedProblemMasteredRepository workedProblemMastered, IMistakeEntryRepository mistakeEntries, IMediator mediator, IAppCache cache)
+    public SubmitPracticeTestCommandHandler(IUnitOfWork unitOfWork, IGlossaryMasteredRepository glossaryMastered, IWorkedProblemMasteredRepository workedProblemMastered, IGlossaryTermRepository glossaryTerms, IWorkedProblemRepository workedProblems, IMistakeEntryRepository mistakeEntries, IMediator mediator, IAppCache cache)
     {
+        _glossaryTerms = glossaryTerms;
+        _workedProblems = workedProblems;
         _unitOfWork = unitOfWork;
         _glossaryMastered = glossaryMastered;
         _workedProblemMastered = workedProblemMastered;
@@ -46,6 +50,12 @@ public class SubmitPracticeTestCommandHandler : IRequestHandler<SubmitPracticeTe
         var masteredTerms = (await _glossaryMastered.GetMasteredTermIdsByUserAsync(userId, ct)).ToHashSet();
         var masteredProblems = (await _workedProblemMastered.GetMasteredProblemIdsByUserAsync(userId, ct)).ToHashSet();
 
+        // Only ids the user still owns. A term or problem deleted mid-session (or someone else's id) would
+        // otherwise fail the final save on its foreign key — after the flashcard reviews above it had already
+        // committed through their own SaveChanges, so the client's retry reviewed every card twice.
+        var ownedTerms = await _glossaryTerms.GetOwnedIdsAsync(userId, SourceIds(results, "glossary"), ct);
+        var ownedProblems = await _workedProblems.GetOwnedIdsAsync(userId, SourceIds(results, "problem"), ct);
+
         foreach (var item in results)
         {
             switch (item.Source)
@@ -59,13 +69,13 @@ public class SubmitPracticeTestCommandHandler : IRequestHandler<SubmitPracticeTe
                     break;
 
                 case "glossary":
-                    if (item.IsCorrect && masteredTerms.Add(item.SourceId))
+                    if (item.IsCorrect && ownedTerms.Contains(item.SourceId) && masteredTerms.Add(item.SourceId))
                         await _glossaryMastered.AddAsync(
                             new GlossaryMastered { Id = Guid.NewGuid(), UserId = userId, GlossaryTermId = item.SourceId, MasteredAt = DateTime.UtcNow }, ct);
                     break;
 
                 case "problem":
-                    if (item.IsCorrect && masteredProblems.Add(item.SourceId))
+                    if (item.IsCorrect && ownedProblems.Contains(item.SourceId) && masteredProblems.Add(item.SourceId))
                         await _workedProblemMastered.AddAsync(
                             new WorkedProblemMastered { Id = Guid.NewGuid(), UserId = userId, WorkedProblemId = item.SourceId, MasteredAt = DateTime.UtcNow }, ct);
                     break;
@@ -101,4 +111,7 @@ public class SubmitPracticeTestCommandHandler : IRequestHandler<SubmitPracticeTe
         var accuracy = total > 0 ? Math.Round(correct * 100.0 / total, 1) : 0;
         return Result<PracticeTestSummaryDto>.Success(new PracticeTestSummaryDto(total, correct, accuracy));
     }
+
+    private static List<Guid> SourceIds(IReadOnlyList<PracticeResultItem> results, string source)
+        => results.Where(r => r.Source == source).Select(r => r.SourceId).Distinct().ToList();
 }

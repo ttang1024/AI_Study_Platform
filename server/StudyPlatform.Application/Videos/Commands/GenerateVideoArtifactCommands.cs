@@ -1,10 +1,8 @@
 using System.Text.Json;
 using MediatR;
-using Microsoft.Extensions.Options;
 using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Documents.DTOs;
 using StudyPlatform.Application.Services;
-using StudyPlatform.Application.Settings;
 using StudyPlatform.Application.Videos.Transcripts;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
@@ -99,6 +97,12 @@ public class GenerateVideoFlashcardsCommandHandler
         var json = await _aiService.GenerateFlashcardsFromYouTubeAsync(transcript, cancellationToken);
         var cards = VideoArtifactGeneration.TryParse<AiFlashcardItem>(json) ?? [];
 
+        // Re-checked after the AI call: a concurrent request for the same set (a double-click) may have
+        // saved it while this one waited, and inserting again would duplicate every card or question.
+        var savedMeanwhile = (await LoadAsync(request, cancellationToken)).ToList();
+        if (savedMeanwhile.Count > 0)
+            return Result<IEnumerable<FlashcardDto>>.Success(savedMeanwhile);
+
         var now = DateTime.UtcNow;
         foreach (var card in cards)
         {
@@ -136,19 +140,15 @@ public class GenerateVideoGlossaryCommandHandler
     private readonly IVideoAccess _videoAccess;
     private readonly IAiService _aiService;
     private readonly IVideoTranscriptProvider _transcripts;
-    private readonly IAppCache _cache;
-    private readonly TimeSpan _ttl;
 
     public GenerateVideoGlossaryCommandHandler(
-        IUnitOfWork unitOfWork, IGlossaryTermRepository glossaryTerms, IVideoAccess videoAccess, IAiService aiService, IVideoTranscriptProvider transcripts, IAppCache cache, IOptions<CacheOptions> cacheOptions)
+        IUnitOfWork unitOfWork, IGlossaryTermRepository glossaryTerms, IVideoAccess videoAccess, IAiService aiService, IVideoTranscriptProvider transcripts)
     {
         _unitOfWork = unitOfWork;
         _glossaryTerms = glossaryTerms;
         _videoAccess = videoAccess;
         _aiService = aiService;
         _transcripts = transcripts;
-        _cache = cache;
-        _ttl = TimeSpan.FromSeconds(cacheOptions.Value.GeneratedResultSeconds);
     }
 
     public async Task<Result<IEnumerable<GlossaryTermDto>>> Handle(GenerateVideoGlossaryCommand request, CancellationToken cancellationToken)
@@ -182,7 +182,6 @@ public class GenerateVideoGlossaryCommandHandler
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         var dtos = terms.Select(t => t.ToGlossaryTermDto()).ToList();
-        await _cache.SetAsync(VideoCacheKeys.Glossary(request.VideoId, request.UserId), dtos, _ttl, cancellationToken);
         return Result<IEnumerable<GlossaryTermDto>>.Success(dtos, "Glossary generated successfully.");
     }
 }
@@ -194,19 +193,15 @@ public class GenerateVideoQuizCommandHandler : IRequestHandler<GenerateVideoQuiz
     private readonly IVideoAccess _videoAccess;
     private readonly IAiService _aiService;
     private readonly IVideoTranscriptProvider _transcripts;
-    private readonly IAppCache _cache;
-    private readonly TimeSpan _ttl;
 
     public GenerateVideoQuizCommandHandler(
-        IUnitOfWork unitOfWork, IQuizRepository quizzes, IVideoAccess videoAccess, IAiService aiService, IVideoTranscriptProvider transcripts, IAppCache cache, IOptions<CacheOptions> cacheOptions)
+        IUnitOfWork unitOfWork, IQuizRepository quizzes, IVideoAccess videoAccess, IAiService aiService, IVideoTranscriptProvider transcripts)
     {
         _unitOfWork = unitOfWork;
         _quizzes = quizzes;
         _videoAccess = videoAccess;
         _aiService = aiService;
         _transcripts = transcripts;
-        _cache = cache;
-        _ttl = TimeSpan.FromSeconds(cacheOptions.Value.GeneratedResultSeconds);
     }
 
     public async Task<Result<IEnumerable<QuizDto>>> Handle(GenerateVideoQuizCommand request, CancellationToken cancellationToken)
@@ -226,7 +221,21 @@ public class GenerateVideoQuizCommandHandler : IRequestHandler<GenerateVideoQuiz
         var (_, transcript, offsets) = source.Data;
 
         var json = await _aiService.GenerateQuizFromYouTubeAsync(transcript, difficulty, cancellationToken);
-        var items = VideoArtifactGeneration.TryParse<AiQuizItem>(json) ?? [];
+        List<AiQuizItem> items;
+        try
+        {
+            items = AiQuizItems.Parse(json);
+        }
+        catch (JsonException)
+        {
+            return Result<IEnumerable<QuizDto>>.Failure("AI returned an unexpected response format. Please try again.", "PARSE_ERROR");
+        }
+
+        // Re-checked after the AI call: a concurrent request for the same set (a double-click) may have
+        // saved it while this one waited, and inserting again would duplicate every card or question.
+        var quizzesSavedMeanwhile = (await LoadAsync(request.VideoId, request.UserId, difficulty, cancellationToken)).ToList();
+        if (quizzesSavedMeanwhile.Count > 0)
+            return Result<IEnumerable<QuizDto>>.Success(quizzesSavedMeanwhile);
 
         var now = DateTime.UtcNow;
         foreach (var item in items)
@@ -248,9 +257,7 @@ public class GenerateVideoQuizCommandHandler : IRequestHandler<GenerateVideoQuiz
         }
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        var saved = (await LoadAsync(request.VideoId, request.UserId, difficulty, cancellationToken)).ToList();
-        await _cache.SetAsync(VideoCacheKeys.Quiz(request.VideoId, request.UserId, difficulty), saved, _ttl, cancellationToken);
-        return Result<IEnumerable<QuizDto>>.Success(saved);
+        return Result<IEnumerable<QuizDto>>.Success((await LoadAsync(request.VideoId, request.UserId, difficulty, cancellationToken)).ToList());
     }
 
     private async Task<IEnumerable<QuizDto>> LoadAsync(Guid videoId, Guid userId, string difficulty, CancellationToken cancellationToken)

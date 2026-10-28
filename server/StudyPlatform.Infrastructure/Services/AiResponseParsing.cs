@@ -1,3 +1,4 @@
+using System.Text.Json;
 namespace StudyPlatform.Infrastructure.Services;
 
 /// <summary>Strips code fences and isolates/cleans the JSON or text payload from an LLM response.</summary>
@@ -26,6 +27,20 @@ internal static class AiResponseParsing
         if (jsonEnd > 0) text = text[..jsonEnd];
 
         return text.Trim();
+    }
+
+    /// <summary>Whether <paramref name="text"/> is one complete JSON value.</summary>
+    public static bool IsValidJson(string text)
+    {
+        try
+        {
+            using var _ = JsonDocument.Parse(text);
+            return true;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
     }
 
     public static string CleanTextResponse(string text)

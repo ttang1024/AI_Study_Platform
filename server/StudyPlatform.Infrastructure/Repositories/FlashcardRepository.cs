@@ -57,11 +57,11 @@ public class FlashcardRepository : Repository<Flashcard>, IFlashcardRepository
 
     public async Task<IEnumerable<Flashcard>> SearchByUserAsync(Guid userId, string query, int limit, CancellationToken cancellationToken = default)
     {
-        var pattern = $"%{query}%";
+        var pattern = LikePattern.Contains(query);
         return await _dbSet
             .AsNoTracking()
             .Where(f => f.UserId == userId &&
-                        (EF.Functions.ILike(f.Front, pattern) || EF.Functions.ILike(f.Back, pattern)))
+                        (EF.Functions.ILike(f.Front, pattern, LikePattern.Escape) || EF.Functions.ILike(f.Back, pattern, LikePattern.Escape)))
             .OrderByDescending(f => f.CreatedAt)
             .Take(limit)
             .ToListAsync(cancellationToken);

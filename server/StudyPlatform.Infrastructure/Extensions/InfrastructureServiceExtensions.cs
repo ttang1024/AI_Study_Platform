@@ -31,10 +31,13 @@ public static class InfrastructureServiceExtensions
             {
                 // Matters more against a managed database over the internet than against a local one:
                 // transient network faults and the provider's own connection recycling both surface as
-                // retryable Npgsql errors.
+                // retryable Npgsql errors. Kept short on purpose: against an unreachable host every attempt
+                // also waits out the connect timeout (15 s), and the old 5 retries / 30 s held a request for
+                // about two minutes — long after CloudFront (60 s) had given the viewer a bare 504. Two
+                // retries keep the worst case under that window.
                 npgsqlOptions.EnableRetryOnFailure(
-                    maxRetryCount: 5,
-                    maxRetryDelay: TimeSpan.FromSeconds(30),
+                    maxRetryCount: configuration.GetValue("Database:MaxRetryCount", 2),
+                    maxRetryDelay: TimeSpan.FromSeconds(configuration.GetValue("Database:MaxRetryDelaySeconds", 3)),
                     errorCodesToAdd: null);
 
                 // Maps ContentEmbedding.Embedding to pgvector's vector type and enables the

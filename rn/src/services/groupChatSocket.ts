@@ -1,7 +1,7 @@
 import * as signalR from '@microsoft/signalr';
 
 import { API_URL } from '@/constants/env';
-import { tokenStore } from '@/services/tokenStore';
+import { ensureFreshAccessToken } from '@/services/apiClient';
 
 export interface GroupChatMessage {
   groupChatMessageId: string;
@@ -28,10 +28,10 @@ interface GroupChatListeners {
   onConnectionStateChange?: (state: ConnectionState) => void;
 }
 
-// Ports web's ad hoc signalr usage in StudyGroupDetailPage.tsx. One backend quirk this closes over:
-// `POST /{id}/chat` doesn't broadcast — sends must go through `SendMessage` on the hub, never the
-// REST route. Re-invoking `JoinGroup` after `onreconnected` is essential (hub group membership is
-// per connection id, so a network blip silently drops you out of the group); web does the same now.
+// Ports web's ad hoc signalr usage in StudyGroupDetailPage.tsx. Sends go through `SendMessage` on the
+// hub — the only send path; there is no REST route for posting. Re-invoking `JoinGroup` after
+// `onreconnected` is essential (hub group membership is per connection id, so a network blip silently
+// drops you out of the group); web does the same now.
 export class GroupChatSocket {
   private connection: signalR.HubConnection | null = null;
   private groupId: string | null = null;
@@ -40,7 +40,9 @@ export class GroupChatSocket {
     this.groupId = groupId;
     const connection = new signalR.HubConnectionBuilder()
       .withUrl(`${API_URL}/hubs/group-chat`, {
-        accessTokenFactory: async () => (await tokenStore.getAccessToken()) ?? '',
+        // Fresh, not merely stored: the server closes the connection when its token expires, and the
+        // automatic reconnect presents whatever this returns.
+        accessTokenFactory: async () => (await ensureFreshAccessToken()) ?? '',
       })
       .withAutomaticReconnect()
       .build();

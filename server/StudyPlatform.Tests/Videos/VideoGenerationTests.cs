@@ -32,7 +32,7 @@ public class GenerateVideoGlossaryCommandHandlerTests
             .ReturnsAsync(new Video { VideoId = _videoId, UserId = _userId });
         _transcripts.Setup(t => t.GetOrFetchTranscriptAsync(It.IsAny<Video>(), It.IsAny<CancellationToken>())).ReturnsAsync("transcript");
         _handler = new GenerateVideoGlossaryCommandHandler(
-            _uow.Object, _terms.Object, new VideoAccess(_videos.Object, new CourseAccess(Mock.Of<IStudyGroupSharedCourseRepository>(), Mock.Of<IStudyGroupMemberRepository>())), _ai.Object, _transcripts.Object, new InMemoryAppCache(), Options.Create(new CacheOptions()));
+            _uow.Object, _terms.Object, new VideoAccess(_videos.Object, new CourseAccess(Mock.Of<IStudyGroupSharedCourseRepository>(), Mock.Of<IStudyGroupMemberRepository>())), _ai.Object, _transcripts.Object);
     }
 
     [Fact]
@@ -71,7 +71,6 @@ public class VideoAiGeneratorTests
 {
     private readonly Mock<IAiService> _ai = new();
     private readonly Mock<IVideoTranscriptProvider> _transcripts = new();
-    private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IVideoRepository> _videos = new();
     private readonly Mock<IStudyGroupSharedCourseRepository> _sharedCourses = new();
     private readonly Mock<IStudyGroupMemberRepository> _members = new();
@@ -89,7 +88,6 @@ public class VideoAiGeneratorTests
         Services.AiTestCredentials.Provider("openai", "gpt-4o-mini", "k", userId),
         _transcripts.Object,
         _cache,
-        _uow.Object,
         _videos.Object,
         new VideoAccess(_videos.Object, new CourseAccess(_sharedCourses.Object, _members.Object)),
         Options.Create(new CacheOptions()));
@@ -148,5 +146,9 @@ public class VideoAiGeneratorTests
         Assert.NotNull(asOwner.Data!.OnCompleted);
         Assert.True(asMember.IsSuccess);
         Assert.Null(asMember.Data!.OnCompleted);
+
+        await asOwner.Data.OnCompleted!("summary", default);
+        _videos.Verify(r => r.SaveSummaryAsync(videoId, "summary", It.IsAny<CancellationToken>()), Times.Once);
+        _videos.Verify(r => r.Update(It.IsAny<Video>()), Times.Never);
     }
 }

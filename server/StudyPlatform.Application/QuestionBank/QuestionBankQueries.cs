@@ -3,6 +3,7 @@ using MediatR;
 using StudyPlatform.Application.Common;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
+using StudyPlatform.Domain.Projections;
 
 namespace StudyPlatform.Application.QuestionBank;
 
@@ -33,10 +34,10 @@ public class GetQuestionBankQueryHandler : IRequestHandler<GetQuestionBankQuery,
                 cancellationToken))
             .ToList();
 
-        var documents = (await _documents.FindAsNoTrackingAsync(d => d.UserId == request.UserId, cancellationToken))
-            .ToDictionary(d => d.DocumentId);
-        var videos = (await _videos.FindAsNoTrackingAsync(v => v.UserId == request.UserId, cancellationToken))
-            .ToDictionary(v => v.VideoId);
+        var documents = (await _documents.GetSourceCoursesByUserAsync(request.UserId, cancellationToken))
+            .ToDictionary(d => d.Id);
+        var videos = (await _videos.GetSourceCoursesByUserAsync(request.UserId, cancellationToken))
+            .ToDictionary(v => v.Id);
         var courses = (await _courses.FindAsNoTrackingAsync(c => c.UserId == request.UserId, cancellationToken))
             .ToDictionary(c => c.CourseId);
 
@@ -51,8 +52,8 @@ public class GetQuestionBankQueryHandler : IRequestHandler<GetQuestionBankQuery,
 
     internal static QuestionBankQuestionDto ToDto(
         Quiz quiz,
-        IReadOnlyDictionary<Guid, Document> documents,
-        IReadOnlyDictionary<Guid, Video> videos,
+        IReadOnlyDictionary<Guid, SourceCourse> documents,
+        IReadOnlyDictionary<Guid, SourceCourse> videos,
         IReadOnlyDictionary<Guid, Course> courses)
     {
         Guid? courseId = null;
@@ -60,12 +61,12 @@ public class GetQuestionBankQueryHandler : IRequestHandler<GetQuestionBankQuery,
         if (quiz.DocumentId.HasValue && documents.TryGetValue(quiz.DocumentId.Value, out var document))
         {
             courseId = document.CourseId;
-            sourceName = document.FileName;
+            sourceName = document.Name;
         }
         else if (quiz.VideoId.HasValue && videos.TryGetValue(quiz.VideoId.Value, out var video))
         {
             courseId = video.CourseId;
-            sourceName = video.Title;
+            sourceName = video.Name;
         }
 
         courses.TryGetValue(courseId ?? Guid.Empty, out var course);

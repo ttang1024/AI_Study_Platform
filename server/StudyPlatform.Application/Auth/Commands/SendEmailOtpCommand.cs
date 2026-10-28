@@ -4,6 +4,7 @@ using StudyPlatform.Domain.Enums;
 using StudyPlatform.Domain.Interfaces;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Application.Services;
+using Microsoft.Extensions.Logging;
 
 namespace StudyPlatform.Application.Auth.Commands;
 
@@ -15,9 +16,11 @@ public class SendEmailOtpCommandHandler : IRequestHandler<SendEmailOtpCommand, R
     private readonly IUserRepository _users;
     private readonly IOtpRepository _otps;
     private readonly IEmailService _emailService;
+    private readonly ILogger<SendEmailOtpCommandHandler> _logger;
 
-    public SendEmailOtpCommandHandler(IUnitOfWork unitOfWork, IUserRepository users, IOtpRepository otps, IEmailService emailService)
+    public SendEmailOtpCommandHandler(IUnitOfWork unitOfWork, IUserRepository users, IOtpRepository otps, IEmailService emailService, ILogger<SendEmailOtpCommandHandler> logger)
     {
+        _logger = logger;
         _unitOfWork = unitOfWork;
         _users = users;
         _otps = otps;
@@ -37,7 +40,11 @@ public class SendEmailOtpCommandHandler : IRequestHandler<SendEmailOtpCommand, R
         if (purpose == OtpPurpose.Registration && user != null)
         {
             try { await _emailService.SendAccountExistsEmailAsync(email, cancellationToken); }
-            catch { /* a send failure must not answer differently from the success path */ }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // A send failure must not answer differently from the success path — but it must be seen.
+                _logger.LogError(ex, "Could not send the account-exists email");
+            }
             return Result.Success(SentMessage);
         }
         if (purpose == OtpPurpose.PasswordReset && user == null)
@@ -69,8 +76,10 @@ public class SendEmailOtpCommandHandler : IRequestHandler<SendEmailOtpCommand, R
         {
             await _emailService.SendOtpEmailAsync(email, email, code, purposeText, cancellationToken);
         }
-        catch
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
+            // Logged: swallowed, a mail outage showed up only as users retrying.
+            _logger.LogError(ex, "Could not send the {Purpose} verification email", purposeText);
             return Result.Failure("Failed to send verification email. Please try again later.", "EMAIL_SEND_FAILED");
         }
 

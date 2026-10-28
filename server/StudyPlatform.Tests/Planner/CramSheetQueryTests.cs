@@ -4,6 +4,7 @@ using StudyPlatform.Application.Planner;
 using StudyPlatform.Application.Services;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
+using StudyPlatform.Tests.TestSupport;
 using Xunit;
 
 namespace StudyPlatform.Tests.Planner;
@@ -24,8 +25,8 @@ public class GetCramSheetQueryHandlerTests
 
     public GetCramSheetQueryHandlerTests()
     {
-        _documents.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Document, bool>>>(), default)).ReturnsAsync(Array.Empty<Document>());
-        _videos.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Video, bool>>>(), default)).ReturnsAsync(Array.Empty<Video>());
+        _documents.WithSources(Array.Empty<Document>());
+        _videos.WithSources(Array.Empty<Video>());
         _mistakes.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<MistakeEntry, bool>>>(), default)).ReturnsAsync(Array.Empty<MistakeEntry>());
         _mastered.Setup(r => r.GetMasteredTermIdsByUserAsync(_userId, default)).ReturnsAsync(Array.Empty<Guid>());
         _terms.Setup(r => r.GetByUserWithSourcesAsync(_userId, default)).ReturnsAsync(Array.Empty<GlossaryTerm>());
@@ -33,7 +34,7 @@ public class GetCramSheetQueryHandlerTests
         _cache.Setup(c => c.SetAsync(It.IsAny<string>(), It.IsAny<CramSheetDto>(), It.IsAny<TimeSpan>(), default)).Returns(Task.CompletedTask);
         _ai.Setup(a => a.GeneralChatAsync(It.IsAny<IEnumerable<(string, string)>>(), It.IsAny<string>(), default)).ReturnsAsync("## Cram sheet");
 
-        _handler = new GetCramSheetQueryHandler(_documents.Object, _videos.Object, _terms.Object, _mastered.Object, _mistakes.Object, _plans.Object, _ai.Object, _cache.Object);
+        _handler = new GetCramSheetQueryHandler(_documents.Object, _videos.Object, _terms.Object, _mastered.Object, _mistakes.Object, _plans.Object, _ai.Object, _cache.Object, FixedTimeZone.Utc);
     }
 
     private ExamPlan MakePlan(Guid? courseId = null) => new()
@@ -138,7 +139,7 @@ public class GetCramSheetQueryHandlerTests
         var docInCourse = Guid.NewGuid();
         var docOutOfCourse = Guid.NewGuid();
         _plans.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<ExamPlan, bool>>>(), default)).ReturnsAsync(new[] { MakePlan(courseId) });
-        _documents.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Document, bool>>>(), default)).ReturnsAsync(new[]
+        _documents.WithSources(new[]
         {
             new Document { DocumentId = docInCourse, UserId = _userId, CourseId = courseId },
             new Document { DocumentId = docOutOfCourse, UserId = _userId, CourseId = Guid.NewGuid() },

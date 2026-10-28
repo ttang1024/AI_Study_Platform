@@ -91,6 +91,8 @@ public partial class StudyGroupsController
             return BadRequest(new BaseResponse { Success = false, Message = result.Message, ErrorCode = result.ErrorCode });
 
         await _hubContext.Clients.Group(id.ToString()).SendAsync("MemberLeft", userId);
+        // Membership is gone; the live chat subscription has to go with it.
+        await _chatConnections.EvictAsync(_hubContext, id, userId);
 
         return Ok(new BaseResponse { Success = true, Message = result.Message });
     }
@@ -115,6 +117,8 @@ public partial class StudyGroupsController
         }
 
         await _hubContext.Clients.Group(id.ToString()).SendAsync("MemberRemoved", userId);
+        // Without this a removed member's open tab kept receiving every message.
+        await _chatConnections.EvictAsync(_hubContext, id, userId);
 
         return Ok(new BaseResponse { Success = true, Message = result.Message });
     }
@@ -137,6 +141,8 @@ public partial class StudyGroupsController
                 return NotFound(new BaseResponse { Success = false, Message = result.Message, ErrorCode = result.ErrorCode });
             return StatusCode(403, new BaseResponse { Success = false, Message = result.Message, ErrorCode = result.ErrorCode });
         }
+
+        await _chatConnections.EvictAsync(_hubContext, id, userId: null);
 
         return Ok(new BaseResponse { Success = true, Message = result.Message });
     }

@@ -37,12 +37,12 @@ public class NoteRepository : Repository<Note>, INoteRepository
 
     public async Task<IEnumerable<Note>> SearchByUserAsync(Guid userId, string query, int limit, CancellationToken cancellationToken = default)
     {
-        var pattern = $"%{query}%";
+        var pattern = LikePattern.Contains(query);
         return await _dbSet
             .AsNoTracking()
             .Where(n => n.UserId == userId &&
-                        ((n.Title != null && EF.Functions.ILike(n.Title, pattern)) ||
-                         EF.Functions.ILike(n.Content, pattern)))
+                        ((n.Title != null && EF.Functions.ILike(n.Title, pattern, LikePattern.Escape)) ||
+                         EF.Functions.ILike(n.Content, pattern, LikePattern.Escape)))
             .OrderByDescending(n => n.UpdatedAt)
             .Take(limit)
             .ToListAsync(cancellationToken);

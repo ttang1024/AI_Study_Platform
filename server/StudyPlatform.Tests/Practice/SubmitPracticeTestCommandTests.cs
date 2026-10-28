@@ -16,6 +16,8 @@ public class SubmitPracticeTestCommandHandlerTests
     private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IGlossaryMasteredRepository> _mastered = new();
     private readonly Mock<IWorkedProblemMasteredRepository> _problemsMastered = new();
+    private readonly Mock<IGlossaryTermRepository> _terms = new();
+    private readonly Mock<IWorkedProblemRepository> _problems = new();
     private readonly Mock<IMistakeEntryRepository> _mistakes = new();
     private readonly Mock<IMediator> _mediator = new();
     private readonly Mock<IAppCache> _cache = new();
@@ -29,7 +31,12 @@ public class SubmitPracticeTestCommandHandlerTests
         _problemsMastered.Setup(r => r.GetMasteredProblemIdsByUserAsync(_userId, default)).ReturnsAsync(Array.Empty<Guid>());
         _mistakes.Setup(r => r.FindAsync(It.IsAny<Expression<Func<MistakeEntry, bool>>>(), default)).ReturnsAsync(Array.Empty<MistakeEntry>());
         _cache.Setup(c => c.RemoveAsync(It.IsAny<string>(), default)).Returns(Task.CompletedTask);
-        _handler = new SubmitPracticeTestCommandHandler(_uow.Object, _mastered.Object, _problemsMastered.Object, _mistakes.Object, _mediator.Object, _cache.Object);
+        // Every id the tests submit is the user's own unless a test says otherwise.
+        _terms.Setup(r => r.GetOwnedIdsAsync(_userId, It.IsAny<IReadOnlyCollection<Guid>>(), default))
+            .ReturnsAsync((Guid _, IReadOnlyCollection<Guid> ids, CancellationToken _) => ids.ToHashSet());
+        _problems.Setup(r => r.GetOwnedIdsAsync(_userId, It.IsAny<IReadOnlyCollection<Guid>>(), default))
+            .ReturnsAsync((Guid _, IReadOnlyCollection<Guid> ids, CancellationToken _) => ids.ToHashSet());
+        _handler = new SubmitPracticeTestCommandHandler(_uow.Object, _mastered.Object, _problemsMastered.Object, _terms.Object, _problems.Object, _mistakes.Object, _mediator.Object, _cache.Object);
     }
 
     [Fact]
@@ -113,6 +120,25 @@ public class SubmitPracticeTestCommandHandlerTests
         await _handler.Handle(new SubmitPracticeTestCommand(_userId, results), default);
 
         _mastered.Verify(r => r.AddAsync(It.IsAny<GlossaryMastered>(), default), Times.Never);
+    }
+
+    [Fact]
+    public async Task Handle_TermOrProblemTheUserNoLongerOwns_IsSkipped()
+    {
+        // Deleted mid-session: writing a mastered row for it fails the save on its foreign key.
+        _terms.Setup(r => r.GetOwnedIdsAsync(_userId, It.IsAny<IReadOnlyCollection<Guid>>(), default)).ReturnsAsync(new HashSet<Guid>());
+        _problems.Setup(r => r.GetOwnedIdsAsync(_userId, It.IsAny<IReadOnlyCollection<Guid>>(), default)).ReturnsAsync(new HashSet<Guid>());
+        var results = new[]
+        {
+            new PracticeResultItem("glossary", Guid.NewGuid(), true),
+            new PracticeResultItem("problem", Guid.NewGuid(), true),
+        };
+
+        var result = await _handler.Handle(new SubmitPracticeTestCommand(_userId, results), default);
+
+        Assert.True(result.IsSuccess);
+        _mastered.Verify(r => r.AddAsync(It.IsAny<GlossaryMastered>(), default), Times.Never);
+        _problemsMastered.Verify(r => r.AddAsync(It.IsAny<WorkedProblemMastered>(), default), Times.Never);
     }
 
     [Fact]

@@ -57,10 +57,22 @@ public sealed class WhisperTranscriptionService : ITranscriptionService, IDispos
 
                 Directory.CreateDirectory(Path.GetDirectoryName(_modelPath)!);
 
-                await using var modelStream =
-                    await WhisperGgmlDownloader.GetGgmlModelAsync(_modelType);
-                await using var fileStream = File.Create(_modelPath);
-                await modelStream.CopyToAsync(fileStream, cancellationToken);
+                // Download beside the target and move it into place only when complete. Writing straight to
+                // _modelPath left a truncated model behind when the download failed or the request was
+                // cancelled, and File.Exists then loaded it on every later call until the container restarted.
+                var partialPath = _modelPath + ".part";
+                try
+                {
+                    await using (var modelStream = await WhisperGgmlDownloader.GetGgmlModelAsync(_modelType))
+                    await using (var fileStream = File.Create(partialPath))
+                        await modelStream.CopyToAsync(fileStream, cancellationToken);
+
+                    File.Move(partialPath, _modelPath, overwrite: true);
+                }
+                finally
+                {
+                    if (File.Exists(partialPath)) File.Delete(partialPath);
+                }
 
                 _logger.LogInformation("Whisper model downloaded to {Path}.", _modelPath);
             }
@@ -182,6 +194,8 @@ public sealed class WhisperTranscriptionService : ITranscriptionService, IDispos
             };
 
             process.Start();
+            // WaitForExitAsync only stops waiting on cancellation; kill the child so it doesn't run on.
+            using var kill = cancellationToken.Register(() => { try { process.Kill(entireProcessTree: true); } catch (InvalidOperationException) { } });
             var stderr = await process.StandardError.ReadToEndAsync(cancellationToken);
             await process.WaitForExitAsync(cancellationToken);
 

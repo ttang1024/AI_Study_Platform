@@ -112,6 +112,25 @@ public class GenerateFlashcardsCommandHandlerTests
     }
 
     [Fact]
+    public async Task Handle_SetSavedByAConcurrentRequestWhileGenerating_IsReturned_NotDuplicated()
+    {
+        // A double-click: both requests see no cards, both wait on the AI, the other one saves first.
+        var savedMeanwhile = new Flashcard { FlashcardId = Guid.NewGuid(), DocumentId = _docId, UserId = _userId, Front = "Theirs", Back = "A" };
+        _documents.Setup(r => r.GetByIdAsync(_docId, default)).ReturnsAsync(_doc);
+        _flashcards.SetupSequence(r => r.GetByDocumentIdAsync(_docId, default))
+            .ReturnsAsync(Array.Empty<Flashcard>())
+            .ReturnsAsync(new[] { savedMeanwhile });
+        _content.Setup(c => c.GetContentAsync(_doc, default)).ReturnsAsync(new DocumentContent(null, "some text"));
+        _ai.Setup(a => a.GenerateFlashcardsAsync("some text", default))
+            .ReturnsAsync(JsonSerializer.Serialize(new[] { new { Front = "Q1", Back = "A1" } }));
+
+        var result = await _handler.Handle(new GenerateFlashcardsCommand(_docId, _userId), default);
+
+        Assert.Equal("Theirs", Assert.Single(result.Data!).Front);
+        _flashcards.Verify(r => r.AddRangeAsync(It.IsAny<IEnumerable<Flashcard>>(), default), Times.Never);
+    }
+
+    [Fact]
     public async Task Handle_BinaryDocument_CallsBytesOverload()
     {
         _doc.ContentType = "application/pdf";
@@ -420,7 +439,7 @@ public class GenerateQuizCommandHandlerTests
 
         await _handler.Handle(new GenerateQuizCommand(_docId, _userId, "unknown"), default);
 
-        _quizzes.Verify(r => r.GetByDocumentIdAndDifficultyAsync(_docId, "medium", default), Times.Once);
+        _quizzes.Verify(r => r.GetByDocumentIdAndDifficultyAsync(_docId, "medium", default), Times.AtLeastOnce); // again just before insert, for a concurrent duplicate
     }
 
     [Theory]
@@ -436,7 +455,7 @@ public class GenerateQuizCommandHandlerTests
 
         await _handler.Handle(new GenerateQuizCommand(_docId, _userId, difficulty), default);
 
-        _quizzes.Verify(r => r.GetByDocumentIdAndDifficultyAsync(_docId, difficulty, default), Times.Once);
+        _quizzes.Verify(r => r.GetByDocumentIdAndDifficultyAsync(_docId, difficulty, default), Times.AtLeastOnce); // again just before insert, for a concurrent duplicate
     }
 
     [Fact]

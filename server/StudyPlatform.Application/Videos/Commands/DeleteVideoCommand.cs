@@ -13,9 +13,11 @@ public class DeleteVideoCommandHandler : IRequestHandler<DeleteVideoCommand, Res
     private readonly IVideoRepository _videos;
     private readonly ILibraryTagRepository _libraryTags;
     private readonly IEmbeddingIndex _embeddingIndex;
+    private readonly IStoredFileCleanup _storedFiles;
 
-    public DeleteVideoCommandHandler(IUnitOfWork unitOfWork, IVideoRepository videos, ILibraryTagRepository libraryTags, IEmbeddingIndex embeddingIndex)
+    public DeleteVideoCommandHandler(IUnitOfWork unitOfWork, IVideoRepository videos, ILibraryTagRepository libraryTags, IEmbeddingIndex embeddingIndex, IStoredFileCleanup storedFiles)
     {
+        _storedFiles = storedFiles;
         _unitOfWork = unitOfWork;
         _videos = videos;
         _libraryTags = libraryTags;
@@ -36,6 +38,11 @@ public class DeleteVideoCommandHandler : IRequestHandler<DeleteVideoCommand, Res
             "video", video.VideoId, cancellationToken);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // An upload's file and cover are ours to delete (a linked video's URL and thumbnail are someone
+        // else's); they used to stay in the bucket forever, up to 500 MB apiece.
+        if (string.Equals(video.SourceType, "upload", StringComparison.OrdinalIgnoreCase))
+            await _storedFiles.DeleteAsync([video.VideoUrl, video.ThumbnailUrl], CancellationToken.None);
 
         // Covers the video's own transcript chunks and those of the flashcards and glossary terms the
         // cascade takes with it.

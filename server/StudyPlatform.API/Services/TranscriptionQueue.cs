@@ -26,6 +26,17 @@ public enum TranscriptionJobKind
 /// </summary>
 public sealed class TranscriptionQueue : BackgroundService
 {
+    /// <summary>
+    /// A job still pending this long after it was requested is not re-queued at startup but abandoned.
+    /// The marker survives a crash by design, so a file that takes the process down with it (Whisper
+    /// running out of memory on a very long recording) was re-queued by every restart it caused — a
+    /// crash loop that also starved every other user's transcription.
+    /// </summary>
+    internal static readonly TimeSpan MaxPendingAge = TimeSpan.FromHours(12);
+
+    private static readonly TimeSpan AbandonRetryDelay = TimeSpan.FromSeconds(10);
+    private const int AbandonAttempts = 3;
+
     private readonly Channel<TranscriptionJob> _queue = Channel.CreateUnbounded<TranscriptionJob>(
         new UnboundedChannelOptions { SingleReader = true });
     private readonly ConcurrentDictionary<Guid, byte> _queuedOrRunning = new();
@@ -117,17 +128,31 @@ public sealed class TranscriptionQueue : BackgroundService
             var videoRepository = scope.ServiceProvider.GetRequiredService<IVideoRepository>();
 
             var documents = await documentRepository.GetPendingTranscriptionsAsync(stoppingToken);
-            foreach (var job in documents)
-                TryEnqueue(job.DocumentId, job.UserId,
-                    job.ContentType == "audio/podcast" ? TranscriptionJobKind.Podcast : TranscriptionJobKind.Audio);
-
             var videos = await videoRepository.GetPendingTranscriptionsAsync(stoppingToken);
-            foreach (var job in videos)
-                TryEnqueue(job.VideoRecordId, job.UserId, TranscriptionJobKind.UploadedVideo);
+            var pending = documents
+                .Select(d => (Job: new TranscriptionJob(d.DocumentId, d.UserId,
+                    d.ContentType == "audio/podcast" ? TranscriptionJobKind.Podcast : TranscriptionJobKind.Audio), d.RequestedAt))
+                .Concat(videos.Select(v => (Job: new TranscriptionJob(v.VideoRecordId, v.UserId, TranscriptionJobKind.UploadedVideo), v.RequestedAt)))
+                .ToList();
 
-            var total = documents.Count + videos.Count;
-            if (total > 0)
-                _logger.LogInformation("Re-queued {Count} transcription(s) interrupted by the last shutdown", total);
+            var cutoff = DateTime.UtcNow - MaxPendingAge;
+            var requeued = 0;
+            foreach (var (job, requestedAt) in pending)
+            {
+                if (requestedAt < cutoff)
+                {
+                    _logger.LogWarning(
+                        "Abandoning {Kind} transcription {ItemId}: still pending {Age} after it was requested",
+                        job.Kind, job.ItemId, DateTime.UtcNow - requestedAt);
+                    await AbandonAsync(job, stoppingToken);
+                    continue;
+                }
+                if (TryEnqueue(job.ItemId, job.UserId, job.Kind))
+                    requeued++;
+            }
+
+            if (requeued > 0)
+                _logger.LogInformation("Re-queued {Count} transcription(s) interrupted by the last shutdown", requeued);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -136,19 +161,33 @@ public sealed class TranscriptionQueue : BackgroundService
         }
     }
 
+    /// <summary>
+    /// Retried briefly: a job that failed because the database blipped tends to fail its abandon for the
+    /// same reason, and a marker left set shows the user "transcribing" until the next restart.
+    /// </summary>
     private async Task AbandonAsync(TranscriptionJob job, CancellationToken stoppingToken)
     {
-        try
+        for (var attempt = 1; ; attempt++)
         {
-            using var scope = _scopeFactory.CreateScope();
-            var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-            _ = job.Kind == TranscriptionJobKind.UploadedVideo
-                ? await mediator.Send(new AbandonVideoTranscriptionCommand(job.ItemId), stoppingToken)
-                : await mediator.Send(new AbandonTranscriptionCommand(job.ItemId), stoppingToken);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            _logger.LogError(ex, "Could not clear the transcription marker for {ItemId}", job.ItemId);
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+                _ = job.Kind == TranscriptionJobKind.UploadedVideo
+                    ? await mediator.Send(new AbandonVideoTranscriptionCommand(job.ItemId), stoppingToken)
+                    : await mediator.Send(new AbandonTranscriptionCommand(job.ItemId), stoppingToken);
+                return;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                if (attempt >= AbandonAttempts)
+                {
+                    _logger.LogError(ex, "Could not clear the transcription marker for {ItemId}", job.ItemId);
+                    return;
+                }
+                _logger.LogWarning(ex, "Clearing the transcription marker for {ItemId} failed; retrying", job.ItemId);
+                await Task.Delay(AbandonRetryDelay, stoppingToken);
+            }
         }
     }
 

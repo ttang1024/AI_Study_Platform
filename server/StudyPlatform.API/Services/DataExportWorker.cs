@@ -97,10 +97,11 @@ public sealed class DataExportWorker : PeriodicSweepWorker
         if (claimed == 0)
             return;
 
+        var blobStorage = scope.ServiceProvider.GetRequiredService<IBlobStorageService>();
+        string? uploadedBlobUrl = null;
         try
         {
             var builder = scope.ServiceProvider.GetRequiredService<IDataExportBuilder>();
-            var blobStorage = scope.ServiceProvider.GetRequiredService<IBlobStorageService>();
 
             await using var archive = await builder.BuildAsync(next.UserId, cancellationToken);
             var size = archive.Length;
@@ -110,24 +111,47 @@ public sealed class DataExportWorker : PeriodicSweepWorker
                 $"exports/{next.UserId}/study-platform-export-{startedAt:yyyyMMdd-HHmmss}.zip",
                 "application/zip",
                 cancellationToken);
+            uploadedBlobUrl = blobUrl;
 
+            // Computed here, not inside the lambda: ExecuteUpdate translates its value expressions to SQL,
+            // and DateTime.UtcNow.Add(<a TimeSpan field>) has no translation — that threw on every export,
+            // after the upload, and left each one Failed.
+            var completedAt = DateTime.UtcNow;
+            var expiresAt = completedAt.Add(DownloadWindow);
             await db.DataExportRequests
                 .Where(r => r.DataExportRequestId == next.DataExportRequestId)
                 .ExecuteUpdateAsync(s => s
                     .SetProperty(r => r.Status, DataExportStatus.Completed)
                     .SetProperty(r => r.BlobUrl, blobUrl)
                     .SetProperty(r => r.SizeBytes, size)
-                    .SetProperty(r => r.CompletedAt, DateTime.UtcNow)
-                    .SetProperty(r => r.ExpiresAt, DateTime.UtcNow.Add(DownloadWindow)),
+                    .SetProperty(r => r.CompletedAt, completedAt)
+                    .SetProperty(r => r.ExpiresAt, expiresAt),
                     cancellationToken);
 
             _logger.LogInformation(
                 "Built data export {ExportId} for user {UserId} ({Bytes} bytes)",
                 next.DataExportRequestId, next.UserId, size);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Shutting down (a deploy), not a failed export: hand it back so the next process builds it,
+            // instead of telling the user it failed.
+            await DeleteOrphanAsync(blobStorage, uploadedBlobUrl, next.DataExportRequestId);
+            await db.DataExportRequests
+                .Where(r => r.DataExportRequestId == next.DataExportRequestId)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(r => r.Status, DataExportStatus.Pending)
+                    .SetProperty(r => r.StartedAt, (DateTime?)null),
+                    CancellationToken.None);
+            throw;
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Data export {ExportId} failed", next.DataExportRequestId);
+
+            // Uploaded but never recorded: nothing would ever point at (or delete) this full copy of the
+            // user's data.
+            await DeleteOrphanAsync(blobStorage, uploadedBlobUrl, next.DataExportRequestId);
 
             // Recorded on the row rather than only in logs: the user is watching this status, and a
             // request that silently stops moving is indistinguishable from one still in progress.
@@ -138,6 +162,19 @@ public sealed class DataExportWorker : PeriodicSweepWorker
                     .SetProperty(r => r.CompletedAt, DateTime.UtcNow)
                     .SetProperty(r => r.ErrorMessage, "The export could not be built. Please try again."),
                     CancellationToken.None);
+        }
+    }
+
+    private async Task DeleteOrphanAsync(IBlobStorageService blobStorage, string? blobUrl, Guid exportId)
+    {
+        if (blobUrl == null) return;
+        try
+        {
+            await blobStorage.DeleteAsync(blobUrl, CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not delete the orphaned archive of export {ExportId}", exportId);
         }
     }
 }

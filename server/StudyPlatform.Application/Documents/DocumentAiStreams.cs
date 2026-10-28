@@ -20,14 +20,12 @@ public interface IDocumentAiStreams
 /// <inheritdoc cref="IDocumentAiStreams"/>
 public sealed class DocumentAiStreams : IDocumentAiStreams
 {
-    private readonly IUnitOfWork _unitOfWork;
     private readonly IDocumentRepository _documents;
     private readonly IAiService _aiService;
     private readonly IDocumentContentService _contentService;
 
-    public DocumentAiStreams(IUnitOfWork unitOfWork, IDocumentRepository documents, IAiService aiService, IDocumentContentService contentService)
+    public DocumentAiStreams(IDocumentRepository documents, IAiService aiService, IDocumentContentService contentService)
     {
-        _unitOfWork = unitOfWork;
         _documents = documents;
         _aiService = aiService;
         _contentService = contentService;
@@ -44,13 +42,8 @@ public sealed class DocumentAiStreams : IDocumentAiStreams
             ? _aiService.StreamMindMapAsync(bytes, document.ContentType, cancellationToken)
             : _aiService.StreamMindMapAsync(text!, cancellationToken);
 
-        return Result<AiTextStream>.Success(new AiTextStream(null, stream, async (result, ct) =>
-        {
-            document.MindMapText = result;
-            document.UpdatedAt = DateTime.UtcNow;
-            _documents.Update(document);
-            await _unitOfWork.SaveChangesAsync(ct);
-        }));
+        return Result<AiTextStream>.Success(new AiTextStream(null, stream,
+            (result, ct) => _documents.SaveMindMapAsync(document.DocumentId, result, ct)));
     }
 
     public async Task<Result<AiTextStream>> StreamSummaryAsync(Guid documentId, Guid userId, CancellationToken cancellationToken)
@@ -70,13 +63,8 @@ public sealed class DocumentAiStreams : IDocumentAiStreams
             ? _aiService.StreamSummaryAsync(bytes, document.ContentType, cancellationToken)
             : _aiService.StreamSummaryAsync(text!, cancellationToken);
 
-        return Result<AiTextStream>.Success(new AiTextStream(null, stream, async (result, ct) =>
-        {
-            document.Summary = result;
-            document.UpdatedAt = DateTime.UtcNow;
-            _documents.Update(document);
-            await _unitOfWork.SaveChangesAsync(ct);
-        }));
+        return Result<AiTextStream>.Success(new AiTextStream(null, stream,
+            (result, ct) => _documents.SaveSummaryAsync(document.DocumentId, result, ct)));
     }
 
     internal static string? FormatAudioTranscriptForTimeline(string? transcript)

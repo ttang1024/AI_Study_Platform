@@ -73,6 +73,7 @@ public static class DependencyInjection
         // Owns "which settings does this user schedule with, and which day is quietest" so the
         // review handler stays a handler.
         services.AddScoped<IReviewScheduler, ReviewScheduler>();
+        services.AddScoped<IStoredFileCleanup, StoredFileCleanup>();
 
         // Transcript retrieval for videos (cache → saved row → stored segments → source fetch).
         services.AddScoped<StudyPlatform.Application.Videos.Transcripts.IVideoTranscriptProvider, StudyPlatform.Application.Videos.Transcripts.VideoTranscriptProvider>();

@@ -489,10 +489,6 @@ export function createDocumentService(http: HttpClient, streamSse: SseStreamFn) 
       return response.data.data.map(mapChatMessage);
     },
 
-    async deleteChatHistory(courseId: string, documentId: string): Promise<void> {
-      await http.delete(`${docPath(courseId, documentId)}/chat`);
-    },
-
     // ── Chat conversations (multiple threads per document) ─────────────────
 
     async listChatConversations(courseId: string, documentId: string): Promise<ChatThreadSummary[]> {

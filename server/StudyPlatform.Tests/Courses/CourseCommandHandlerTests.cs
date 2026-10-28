@@ -6,6 +6,7 @@ using StudyPlatform.Application.Services;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
 using StudyPlatform.Domain.Projections;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace StudyPlatform.Tests.Courses;
@@ -146,6 +147,7 @@ public class DeleteCourseCommandHandlerTests
     private readonly Mock<ICourseRepository> _courses = new();
     private readonly Mock<IDocumentRepository> _documents = new();
     private readonly Mock<IBlobStorageService> _blob = new();
+    private readonly Mock<IVideoRepository> _videos = new();
     private readonly Mock<IEmbeddingIndex> _embeddingIndex = new();
     private readonly DeleteCourseCommandHandler _handler;
     private readonly Guid _userId = Guid.NewGuid();
@@ -154,8 +156,11 @@ public class DeleteCourseCommandHandlerTests
     {
         _documents.Setup(r => r.GetBlobUrlsByCourseAsync(It.IsAny<Guid>(), default))
             .ReturnsAsync(Array.Empty<string>());
+        _videos.Setup(r => r.GetUploadedFileUrlsByCourseAsync(It.IsAny<Guid>(), default))
+            .ReturnsAsync(Array.Empty<string>());
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new DeleteCourseCommandHandler(_uow.Object, _courses.Object, _documents.Object, _blob.Object, _embeddingIndex.Object);
+        _handler = new DeleteCourseCommandHandler(_uow.Object, _courses.Object, _documents.Object, _videos.Object,
+            new StoredFileCleanup(_blob.Object, NullLogger<StoredFileCleanup>.Instance), _embeddingIndex.Object);
     }
 
     private Course MakeCourse(Guid? userId = null) => new()
@@ -193,18 +198,36 @@ public class DeleteCourseCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_CourseWithDocuments_DeletesBlobsBeforeRemoving()
+    public async Task Handle_CourseWithDocumentsAndUploads_DeletesTheirFilesAfterTheCommit()
     {
         var course = MakeCourse();
         WithBlobUrls(course.CourseId, "blob://doc1", "blob://doc2");
+        _videos.Setup(r => r.GetUploadedFileUrlsByCourseAsync(course.CourseId, default))
+            .ReturnsAsync(["blob://lecture.mp4", "blob://cover.jpg"]);
         _courses.Setup(r => r.GetByIdAsync(course.CourseId, default)).ReturnsAsync(course);
-        _blob.Setup(b => b.DeleteAsync(It.IsAny<string>(), default)).Returns(Task.CompletedTask);
+        var order = new List<string>();
+        _uow.Setup(u => u.SaveChangesAsync(default)).Callback(() => order.Add("commit")).ReturnsAsync(1);
+        _blob.Setup(b => b.DeleteAsync(It.IsAny<string>(), default)).Callback((string url, CancellationToken _) => order.Add(url)).Returns(Task.CompletedTask);
 
         var result = await _handler.Handle(new DeleteCourseCommand(course.CourseId, _userId), default);
 
         Assert.True(result.IsSuccess);
-        _blob.Verify(b => b.DeleteAsync("blob://doc1", default), Times.Once);
-        _blob.Verify(b => b.DeleteAsync("blob://doc2", default), Times.Once);
+        // Deleting first left a surviving course with no files whenever the save then failed; uploaded
+        // videos were never deleted at all.
+        Assert.Equal(["commit", "blob://doc1", "blob://doc2", "blob://lecture.mp4", "blob://cover.jpg"], order);
+    }
+
+    [Fact]
+    public async Task Handle_SaveFails_LeavesTheFilesAlone()
+    {
+        var course = MakeCourse();
+        WithBlobUrls(course.CourseId, "blob://doc1");
+        _courses.Setup(r => r.GetByIdAsync(course.CourseId, default)).ReturnsAsync(course);
+        _uow.Setup(u => u.SaveChangesAsync(default)).ThrowsAsync(new InvalidOperationException("db down"));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _handler.Handle(new DeleteCourseCommand(course.CourseId, _userId), default));
+
+        _blob.Verify(b => b.DeleteAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]

@@ -83,11 +83,8 @@ public class GetKnowledgeGapsQueryHandler : IRequestHandler<GetKnowledgeGapsQuer
         var masteredTerms = (await _glossaryMastered.GetMasteredTermIdsByUserAsync(userId, cancellationToken)).ToHashSet();
         var notes = (await _notes.GetByUserIdAsync(userId, cancellationToken)).ToList();
         var quizzes = (await _quizzes.FindAsNoTrackingAsync(q => q.UserId == userId, cancellationToken)).ToList();
-        var documents = (await _documents.FindAsNoTrackingAsync(d => d.UserId == userId, cancellationToken)).ToList();
-        var videos = (await _videos.FindAsNoTrackingAsync(v => v.UserId == userId, cancellationToken)).ToList();
-
-        var docToCourse = documents.ToDictionary(d => d.DocumentId, d => d.CourseId);
-        var videoToCourse = videos.ToDictionary(v => v.VideoId, v => v.CourseId);
+        var docToCourse = (await _documents.GetSourceCoursesByUserAsync(userId, cancellationToken)).ToDictionary(d => d.Id, d => d.CourseId);
+        var videoToCourse = (await _videos.GetSourceCoursesByUserAsync(userId, cancellationToken)).ToDictionary(v => v.Id, v => v.CourseId);
 
         string? CourseOf(Guid? docId, Guid? videoId)
         {

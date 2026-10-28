@@ -1,13 +1,13 @@
 using System.Linq.Expressions;
 using MediatR;
 using Moq;
-using StudyPlatform.Application.Analytics.DTOs;
 using StudyPlatform.Application.Analytics.Queries;
 using StudyPlatform.Application.Common;
 using StudyPlatform.Application.ConceptLinks;
 using StudyPlatform.Application.Planner;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
+using StudyPlatform.Tests.TestSupport;
 using Xunit;
 
 namespace StudyPlatform.Tests.Planner;
@@ -18,6 +18,7 @@ public class GetExamScheduleQueryHandlerTests
     private readonly Mock<ICourseRepository> _courses = new();
     private readonly Mock<IMistakeEntryRepository> _mistakes = new();
     private readonly Mock<IMediator> _mediator = new();
+    private readonly Mock<IFlashcardSrsDataRepository> _srs = new();
     private readonly GetExamScheduleQueryHandler _handler;
     private readonly Guid _userId = Guid.NewGuid();
     private readonly Guid _planId = Guid.NewGuid();
@@ -30,12 +31,9 @@ public class GetExamScheduleQueryHandlerTests
         _mediator.Setup(m => m.Send(It.IsAny<GetKnowledgeGapsQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result<KnowledgeGapsDto>.Success(emptyGaps));
 
-        var summary = new DashboardSummaryDto(
-            new StudyStreakDto(1, 1, 0, 0), 0, new ReinforcementCountsDto(0, 0, 0), 30);
-        _mediator.Setup(m => m.Send(It.IsAny<GetDashboardSummaryQuery>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Result<DashboardSummaryDto>.Success(summary));
+        _srs.Setup(r => r.CountDueByUserIdAsync(_userId, It.IsAny<DateTime>(), It.IsAny<CancellationToken>())).ReturnsAsync(0);
 
-        _handler = new GetExamScheduleQueryHandler(_courses.Object, _mistakes.Object, _plans.Object, _mediator.Object);
+        _handler = new GetExamScheduleQueryHandler(_courses.Object, _mistakes.Object, _plans.Object, _mediator.Object, _srs.Object, FixedTimeZone.Utc);
     }
 
     private ExamPlan MakePlan(int daysUntilExam, Guid? courseId = null, int dailyMinutes = 30) => new()

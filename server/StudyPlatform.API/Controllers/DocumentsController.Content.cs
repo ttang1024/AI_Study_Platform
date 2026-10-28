@@ -4,7 +4,6 @@ using StudyPlatform.Application.Common;
 using StudyPlatform.Application.Documents.Commands;
 using StudyPlatform.Application.Documents.DTOs;
 using StudyPlatform.Application.Documents.Queries;
-using StudyPlatform.Application.Notes.Commands;
 using StudyPlatform.Application.Notes.DTOs;
 using StudyPlatform.Application.Services;
 using StudyPlatform.Domain.Interfaces;
@@ -119,26 +118,6 @@ public partial class DocumentsController
             return NotFound(BaseResponse<IEnumerable<ChatMessageDto>>.Fail(result.Message, result.ErrorCode));
 
         return Ok(BaseResponse<IEnumerable<ChatMessageDto>>.Ok(result.Data!));
-    }
-
-    /// <summary>
-    /// Delete AI chat history for a document
-    /// </summary>
-    [HttpDelete("{documentId:guid}/chat")]
-    [ProducesResponseType(typeof(BaseResponse<string>), 200)]
-    [ProducesResponseType(typeof(BaseResponse), 404)]
-    public async Task<IActionResult> DeleteChatHistory(Guid courseId, Guid documentId, CancellationToken cancellationToken)
-    {
-        var userId = User.GetUserId();
-        var document = await _documents.GetOwnedAsync(documentId, userId, cancellationToken);
-        if (document == null)
-            return NotFound(BaseResponse<string>.Fail("Document not found.", "DOCUMENT_NOT_FOUND"));
-
-        await _chatMessages.DeleteByDocumentIdAsync(documentId, userId, cancellationToken);
-        foreach (var conversation in await _chatMessages.GetConversationsByDocumentIdAsync(documentId, userId, cancellationToken))
-            await _chatMessages.DeleteConversationAsync(conversation.ConversationId, userId, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-        return Ok(BaseResponse<string>.Ok("Chat history deleted."));
     }
 
     // ── Document chat conversations (multiple threads per document) ──────

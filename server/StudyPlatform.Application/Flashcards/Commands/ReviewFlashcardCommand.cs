@@ -38,8 +38,11 @@ public class ReviewFlashcardCommandHandler : IRequestHandler<ReviewFlashcardComm
         if (flashcard == null)
             return Result<ReviewFlashcardResponse>.Failure("Flashcard not found.", "FLASHCARD_NOT_FOUND");
 
-        var srs = await _flashcardSrs.GetByUserAndFlashcardAsync(
-            request.UserId, request.FlashcardId, cancellationToken)
+        // A card can already have a never-reviewed row (promoted mistakes are written due-now), so whether
+        // to insert is decided by whether a row was found, not by the review count.
+        var existing = await _flashcardSrs.GetByUserAndFlashcardAsync(
+            request.UserId, request.FlashcardId, cancellationToken);
+        var srs = existing
             ?? new FlashcardSrsData
             {
                 Id = Guid.NewGuid(),
@@ -80,7 +83,7 @@ public class ReviewFlashcardCommandHandler : IRequestHandler<ReviewFlashcardComm
         srs.LastReview = result.LastReview;
         srs.Due = result.Due;
 
-        if (srs.Reps == 1)
+        if (existing == null)
             await _flashcardSrs.AddAsync(srs, cancellationToken);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);

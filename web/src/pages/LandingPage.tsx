@@ -13,6 +13,7 @@ import { Typewriter, Counter, Particles, FadeIn } from '../components/landing/La
 import { Logo, LOGO_STYLES } from '../components/landing/Logo';
 import { Badge } from '../components/landing/Badge';
 import { ProvidersSection } from '../components/landing/ProvidersSection';
+import { IntroVideoSection } from '../components/landing/IntroVideoSection';
 import { HowItWorksSection } from '../components/landing/HowItWorksSection';
 import { ExamplesSection } from '../components/landing/ExamplesSection';
 import { CtaSection } from '../components/landing/CtaSection';
@@ -249,6 +250,8 @@ export const LandingPage: React.FC = () => {
           </motion.div>
         </motion.div>
       </section>
+
+      <IntroVideoSection />
 
       {/* ══════════════════ BENTO FEATURES ══════════════════════════════ */}
       <section className="relative py-24 px-6">

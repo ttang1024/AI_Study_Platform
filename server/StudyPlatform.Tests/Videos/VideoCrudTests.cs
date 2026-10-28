@@ -271,6 +271,7 @@ public class DeleteVideoCommandHandlerTests
     private readonly Mock<IVideoRepository> _videos = new();
     private readonly Mock<ILibraryTagRepository> _tags = new();
     private readonly Mock<IEmbeddingIndex> _embeddingIndex = new();
+    private readonly Mock<IStoredFileCleanup> _storedFiles = new();
     private readonly DeleteVideoCommandHandler _handler;
     private readonly Guid _userId = Guid.NewGuid();
     private readonly Guid _videoId = Guid.NewGuid();
@@ -280,7 +281,7 @@ public class DeleteVideoCommandHandlerTests
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
         _tags.Setup(r => r.RemoveAssignmentsForItemAsync("video", _videoId, default)).Returns(Task.CompletedTask);
         _embeddingIndex.Setup(e => e.PruneOrphansAsync(_userId, default)).ReturnsAsync(0);
-        _handler = new DeleteVideoCommandHandler(_uow.Object, _videos.Object, _tags.Object, _embeddingIndex.Object);
+        _handler = new DeleteVideoCommandHandler(_uow.Object, _videos.Object, _tags.Object, _embeddingIndex.Object, _storedFiles.Object);
     }
 
     [Fact]
@@ -292,6 +293,30 @@ public class DeleteVideoCommandHandlerTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal("NOT_FOUND", result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task Handle_UploadedVideo_DeletesItsFileAndCover()
+    {
+        var video = new Video { VideoId = _videoId, UserId = _userId, SourceType = "upload", VideoUrl = "blob://v.mp4", ThumbnailUrl = "blob://c.jpg" };
+        _videos.Setup(r => r.GetByIdForUserAsync(_videoId, _userId, default)).ReturnsAsync(video);
+
+        await _handler.Handle(new DeleteVideoCommand(_videoId, _userId), default);
+
+        _storedFiles.Verify(s => s.DeleteAsync(
+            It.Is<IEnumerable<string?>>(u => u.SequenceEqual(new[] { "blob://v.mp4", "blob://c.jpg" })), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_LinkedVideo_LeavesItsUrlsAlone()
+    {
+        // A YouTube video's URL and thumbnail are not files in our bucket.
+        var video = new Video { VideoId = _videoId, UserId = _userId, SourceType = "youtube", VideoUrl = "https://youtu.be/x", ThumbnailUrl = "https://i.ytimg.com/x.jpg" };
+        _videos.Setup(r => r.GetByIdForUserAsync(_videoId, _userId, default)).ReturnsAsync(video);
+
+        await _handler.Handle(new DeleteVideoCommand(_videoId, _userId), default);
+
+        _storedFiles.Verify(s => s.DeleteAsync(It.IsAny<IEnumerable<string?>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]

@@ -16,6 +16,14 @@ public class GlossaryTermRepository : Repository<GlossaryTerm>, IGlossaryTermRep
             .OrderBy(t => t.Term)
             .ToListWithSourcesAsync(cancellationToken);
 
+    public async Task<IReadOnlySet<Guid>> GetOwnedIdsAsync(Guid userId, IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken = default)
+        => ids.Count == 0
+            ? new HashSet<Guid>()
+            : (await _dbSet
+                .Where(t => t.UserId == userId && ids.Contains(t.GlossaryTermId))
+                .Select(t => t.GlossaryTermId)
+                .ToListAsync(cancellationToken)).ToHashSet();
+
     public async Task<int> CountUnmasteredByUserAsync(Guid userId, CancellationToken cancellationToken = default)
         => await _dbSet
             .Where(t => t.UserId == userId
@@ -24,11 +32,11 @@ public class GlossaryTermRepository : Repository<GlossaryTerm>, IGlossaryTermRep
 
     public async Task<IEnumerable<GlossaryTerm>> SearchByUserAsync(Guid userId, string query, int limit, CancellationToken cancellationToken = default)
     {
-        var pattern = $"%{query}%";
+        var pattern = LikePattern.Contains(query);
         return await _dbSet
             .AsNoTracking()
             .Where(t => t.UserId == userId &&
-                        (EF.Functions.ILike(t.Term, pattern) || EF.Functions.ILike(t.Definition, pattern)))
+                        (EF.Functions.ILike(t.Term, pattern, LikePattern.Escape) || EF.Functions.ILike(t.Definition, pattern, LikePattern.Escape)))
             .OrderBy(t => t.Term)
             .Take(limit)
             .ToListAsync(cancellationToken);

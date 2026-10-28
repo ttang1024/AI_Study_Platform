@@ -5,6 +5,7 @@ using StudyPlatform.Application.Services;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
 using StudyPlatform.Tests.TestSupport;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace StudyPlatform.Tests.Documents;
@@ -24,7 +25,8 @@ public class DeleteDocumentCommandHandlerTests
     public DeleteDocumentCommandHandlerTests()
     {
         _uow.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
-        _handler = new DeleteDocumentCommandHandler(_uow.Object, _documents.Object, _libraryTags.Object, _storage.Object, _embeddingIndex.Object);
+        _handler = new DeleteDocumentCommandHandler(_uow.Object, _documents.Object, _libraryTags.Object,
+            new StoredFileCleanup(_storage.Object, NullLogger<StoredFileCleanup>.Instance), _embeddingIndex.Object);
     }
 
 

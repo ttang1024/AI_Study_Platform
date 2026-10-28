@@ -3,6 +3,7 @@ using Moq;
 using StudyPlatform.Application.QuestionBank;
 using StudyPlatform.Domain.Entities;
 using StudyPlatform.Domain.Interfaces;
+using StudyPlatform.Tests.TestSupport;
 using Xunit;
 
 namespace StudyPlatform.Tests.QuestionBank;
@@ -24,10 +25,8 @@ public class GetQuestionBankQueryHandlerTests
 
     public GetQuestionBankQueryHandlerTests()
     {
-        _documents.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Document, bool>>>(), default))
-            .ReturnsAsync(Array.Empty<Document>());
-        _videos.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Video, bool>>>(), default))
-            .ReturnsAsync(Array.Empty<Video>());
+        _documents.WithSources(Array.Empty<Document>());
+        _videos.WithSources(Array.Empty<Video>());
         _courses.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Course, bool>>>(), default))
             .ReturnsAsync(Array.Empty<Course>());
 
@@ -80,8 +79,7 @@ public class GetQuestionBankQueryHandlerTests
         var quiz = MakeQuiz(documentId: docId);
         _quizzes.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Quiz, bool>>>(), default))
             .ReturnsAsync(new[] { quiz });
-        _documents.Setup(r => r.FindAsNoTrackingAsync(It.IsAny<Expression<Func<Document, bool>>>(), default))
-            .ReturnsAsync(new[] { new Document { DocumentId = docId, UserId = _userId, FileName = "lecture.pdf", CourseId = Guid.Empty, BlobUrl = "", ContentType = "", CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow } });
+        _documents.WithSources(new[] { new Document { DocumentId = docId, UserId = _userId, FileName = "lecture.pdf", CourseId = Guid.Empty, BlobUrl = "", ContentType = "", CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow } });
 
         var result = await _handler.Handle(new GetQuestionBankQuery(_userId), default);
 

@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { useSyncExternalStore } from 'react';
+import { jwtExpiresWithin } from '@core/jwt';
 import { timeZoneHeaders } from '@core/timeZone';
 import { getApiUrl } from '../utils/env';
 
@@ -9,7 +10,7 @@ import { getApiUrl } from '../utils/env';
  * A token in localStorage is readable by any script that ever runs on the origin, so a single XSS hands
  * an attacker a working bearer token they can use from anywhere. In memory, it dies with the tab, and a
  * reload re-mints it from the HttpOnly refresh cookie (which no script can read) via
- * {@link ensureAccessToken}. The non-secret profile (`sp_user`) stays in localStorage so the app knows
+ * {@link refreshAccessToken}. The non-secret profile (`sp_user`) stays in localStorage so the app knows
  * a session exists and can render immediately.
  */
 
@@ -74,12 +75,17 @@ export function refreshAccessToken(): Promise<string> {
   return inflightRefresh;
 }
 
-/** The current token, refreshing first if there is none. Null when no session can be established. */
-export async function ensureAccessToken(): Promise<string | null> {
-  if (accessToken) return accessToken;
+/**
+ * The current token if it has at least `marginSeconds` left, otherwise a freshly minted one. For callers
+ * that cannot recover from a 401 by themselves — the chat hub reconnects with whatever this returns, and
+ * the server closes hub connections when their token expires. Null when no session can be established.
+ */
+export async function ensureFreshAccessToken(marginSeconds = 30): Promise<string | null> {
+  if (accessToken && !jwtExpiresWithin(accessToken, marginSeconds)) return accessToken;
   try {
     return await refreshAccessToken();
   } catch {
     return null;
   }
 }
+

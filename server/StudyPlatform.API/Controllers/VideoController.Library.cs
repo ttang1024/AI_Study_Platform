@@ -1,5 +1,4 @@
 using StudyPlatform.Application.Videos.Transcripts;
-using StudyPlatform.Domain.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using StudyPlatform.API.Extensions;
@@ -9,7 +8,6 @@ using StudyPlatform.Application.Videos;
 using StudyPlatform.Application.Videos.Commands;
 using StudyPlatform.Application.Videos.DTOs;
 using StudyPlatform.Application.Videos.Queries;
-using StudyPlatform.Domain.Entities;
 
 namespace StudyPlatform.API.Controllers;
 
@@ -44,77 +42,23 @@ public partial class VideoController
         if (file == null || file.Length == 0)
             return BadRequest(BaseResponse<VideoDto>.Fail("No file provided.", "NO_FILE"));
 
-        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
-        var allowedExtensions = new[]
-        {
-            ".mp4", ".mov", ".m4v", ".webm", ".mkv", ".avi",
-            ".wmv", ".flv", ".3gp", ".3g2", ".ts", ".mts", ".m2ts", ".mpg", ".mpeg", ".ogv",
-            ".vob", ".asf",
-        };
-        if (!file.ContentType.StartsWith("video/", StringComparison.OrdinalIgnoreCase) && !allowedExtensions.Contains(ext))
-            return BadRequest(BaseResponse<VideoDto>.Fail("File type not supported. Allowed: MP4, MOV, WEBM, MKV, AVI, WMV, FLV, 3GP, TS, MPG, OGV, VOB, ASF.", "INVALID_FILE_TYPE"));
-
         var userId = User.GetUserId();
-        var course = await _courses.GetOwnedAsync(courseId, userId, cancellationToken);
-        if (course == null)
-            return BadRequest(BaseResponse<VideoDto>.Fail("Course not found.", "COURSE_NOT_FOUND"));
 
-        if (_limits.VideoUploadLimit >= 0)
-        {
-            var count = await _videos.CountAsync(
-                v => v.UserId == userId && v.SourceType == "upload",
-                cancellationToken);
-            if (count >= _limits.VideoUploadLimit)
-                return BadRequest(BaseResponse<VideoDto>.Fail(
-                    $"Upload limit of {_limits.VideoUploadLimit} videos per account reached.",
-                    "VIDEO_LIMIT_REACHED"));
-        }
+        // ASP.NET has already spooled the multipart body to disk; the handler streams it on to storage.
+        await using var fileStream = file.OpenReadStream();
+        await using var thumbnailStream = thumbnail is { Length: > 0 } ? thumbnail.OpenReadStream() : null;
+        var result = await _mediator.Send(new UploadVideoCommand(
+            userId,
+            courseId,
+            new UploadedFile(fileStream, file.FileName, file.ContentType, file.Length),
+            thumbnailStream == null ? null : new UploadedFile(thumbnailStream, thumbnail!.FileName, thumbnail.ContentType, thumbnail.Length)),
+            cancellationToken);
 
-        // Streamed straight to storage: ASP.NET has already spooled the multipart body to disk, so the
-        // file is never held in memory here. The client's file name is display-only; the blob key uses a
-        // sanitised copy of it.
-        var blobUrl = string.Empty;
-        await using (var fileStream = file.OpenReadStream())
-        {
-            var blobName = $"{userId}/{courseId}/videos/{Guid.NewGuid()}_{SafeBlobFileName(file.FileName)}";
-            blobUrl = await _blobStorageService.UploadAsync(fileStream, blobName, file.ContentType, cancellationToken);
-        }
+        if (!result.IsSuccess)
+            return BadRequest(BaseResponse<VideoDto>.Fail(result.Message, result.ErrorCode));
 
-        var thumbnailUrl = string.Empty;
-        if (thumbnail is { Length: > 0 } && thumbnail.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
-        {
-            var thumbnailExt = Path.GetExtension(thumbnail.FileName).ToLowerInvariant();
-            if (thumbnailExt is not (".png" or ".jpg" or ".jpeg" or ".webp"))
-                thumbnailExt = ".jpg";
-
-            await using var thumbnailStream = thumbnail.OpenReadStream();
-            var thumbnailBlobName = $"{userId}/{courseId}/videos/covers/{Guid.NewGuid()}{thumbnailExt}";
-            thumbnailUrl = await _blobStorageService.UploadAsync(thumbnailStream, thumbnailBlobName, thumbnail.ContentType, cancellationToken);
-        }
-
-        var video = new Video
-        {
-            VideoId = Guid.NewGuid(),
-            UserId = userId,
-            CourseId = courseId,
-            ExternalVideoId = $"upload-{Guid.NewGuid():N}",
-            VideoUrl = blobUrl,
-            SourceType = "upload",
-            Title = Path.GetFileNameWithoutExtension(file.FileName),
-            ThumbnailUrl = thumbnailUrl,
-            // Transcribed in the background (Whisper on a long video takes minutes — far past the
-            // CDN's request timeout); the marker is what the transcript endpoint reports as pending.
-            TranscriptionRequestedAt = DateTime.UtcNow,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow,
-        };
-
-        await _videos.AddAsync(video, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-        transcriptionQueue.TryEnqueue(video.VideoId, userId, TranscriptionJobKind.UploadedVideo);
-
-        var saved = await _videos.GetByIdForUserAsync(video.VideoId, userId, cancellationToken);
-        return StatusCode(StatusCodes.Status201Created, BaseResponse<VideoDto>.Ok(SaveVideoCommandHandler.ToDto(saved!)));
+        transcriptionQueue.TryEnqueue(result.Data!.Id, userId, TranscriptionJobKind.UploadedVideo);
+        return StatusCode(StatusCodes.Status201Created, BaseResponse<VideoDto>.Ok(result.Data!));
     }
 
     [AllowAnonymous]
